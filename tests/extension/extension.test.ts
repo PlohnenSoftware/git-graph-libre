@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 
 suite("GitGraphPanel", () => {
   suiteSetup(async () => {
-    const ext = vscode.extensions.getExtension("asispts.neo-git-graph");
+    const ext = vscode.extensions.getExtension("PlohnenSoftware.git-graph-libre");
     await ext?.activate();
   });
 
@@ -20,11 +20,11 @@ suite("GitGraphPanel", () => {
   function isPanelOpen() {
     return vscode.window.tabGroups.all
       .flatMap((g) => g.tabs)
-      .some((t) => t.label === "(neo) Git Graph");
+      .some((t) => t.label === "Git Graph Libre");
   }
 
   async function openPanel() {
-    await vscode.commands.executeCommand("neo-git-graph.view");
+    await vscode.commands.executeCommand("git-graph-libre.view");
     const deadline = Date.now() + 2000;
     while (!isPanelOpen() && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 50)); // eslint-disable-line no-await-in-loop
@@ -41,7 +41,7 @@ suite("GitGraphPanel", () => {
     assert.ok(isPanelOpen());
 
     const tabsBefore = vscode.window.tabGroups.all.flatMap((g) => g.tabs).length;
-    await vscode.commands.executeCommand("neo-git-graph.view");
+    await vscode.commands.executeCommand("git-graph-libre.view");
     await new Promise((r) => setTimeout(r, 300));
     const tabsAfter = vscode.window.tabGroups.all.flatMap((g) => g.tabs).length;
 

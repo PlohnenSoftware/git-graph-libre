@@ -1,32 +1,15 @@
 <div align="center">
   <img src="./resources/icon.png" height="128"/>
   <samp>
-    <h1>(neo) Git Graph for Visual Studio Code</h1>
-    <h3>A clean MIT fork of Git Graph. Visual history, branch actions, and devcontainer support.</h3>
+    <h1>Git Graph Libre for Visual Studio Code</h1>
+    <h3>Visual git history, branch actions, and devcontainer support. A copyleft fork continuing Git Graph's MIT lineage.</h3>
   </samp>
 </div>
 
-[![](https://img.shields.io/github/license/asispts/neo-git-graph)](https://github.com/asispts/neo-git-graph?tab=MIT-1-ov-file)
-[![GitHub release](https://img.shields.io/github/v/release/asispts/neo-git-graph)](https://github.com/asispts/neo-git-graph/releases)
-[![vscode downloads](https://img.shields.io/visual-studio-marketplace/d/asispts.neo-git-graph?label=download)](https://marketplace.visualstudio.com/items?itemName=asispts.neo-git-graph)
-[![vscode installs](https://img.shields.io/visual-studio-marketplace/i/asispts.neo-git-graph?label=install)](https://marketplace.visualstudio.com/items?itemName=asispts.neo-git-graph)
-[![open-vsx downloads](https://img.shields.io/open-vsx/dt/asispts/neo-git-graph?label=open-vsx)](https://open-vsx.org/extension/asispts/neo-git-graph)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
 
-![demo](resources/demo.gif)
-
-<p>&nbsp;</p>
-
-## Why this fork
-
-The original [Git Graph](https://github.com/mhutchie/vscode-git-graph) by mhutchie changed its license in May 2019.
-Everything after [commit 4af8583](https://github.com/mhutchie/vscode-git-graph/commit/4af8583a42082b2c230d2c0187d4eaff4b69c665) is no longer MIT.
-
-This fork is based on the last MIT commit and:
-
-- Keeps MIT license
-- Adds devcontainer support
-- Adds internationalization support (English, zh-CN, zh-TW)
-- Improves codebase, tooling, and maintainability
+<!-- Badges to restore after publication (with the new publisher/repo IDs):
+     GitHub release, marketplace downloads/installs, open-vsx downloads -->
 
 ## Features
 
@@ -38,10 +21,40 @@ This fork is based on the last MIT commit and:
 - **Avatar support**: Optional avatars from GitHub, GitLab, or Gravatar
 - **Multi-repo**: Work with multiple repositories in one workspace
 - **Devcontainer ready**: Works in remote and container environments
+- **Internationalization**: English, zh-CN, and zh-TW
+
+## Why this fork
+
+The original [Git Graph](https://github.com/mhutchie/vscode-git-graph) by
+mhutchie left the MIT license in May 2019 — everything after
+[commit 4af8583](https://github.com/mhutchie/vscode-git-graph/commit/4af8583a42082b2c230d2c0187d4eaff4b69c665)
+is under more restrictive terms. This fork descends from that last MIT commit
+via [asispts/neo-git-graph](https://github.com/asispts/neo-git-graph) and adds
+devcontainer support, internationalization, and a modernized codebase and
+toolchain.
+
+From version 1.0.0 the project is licensed under the GNU AGPL-3.0-or-later.
+Copyleft guarantees this fork stays open: anyone may redistribute or build on
+it, but every distributed or network-hosted derivative must keep its complete
+source available under the same terms. See
+[docs/LICENSING.md](docs/LICENSING.md) for the full licensing strategy and
+provenance.
+
+## Installation
+
+Marketplace listings are coming soon — this fork has not been published yet.
+Once it is, it will be available from:
+
+- VS Code Marketplace: _link to follow after publication_
+- Open VSX Registry: _link to follow after publication_
+
+Until then, you can build and install it locally: `pnpm install`, package a
+VSIX with `pnpm exec vsce package`, then in VS Code run
+`Extensions: Install from VSIX...`.
 
 ## Configuration
 
-All settings use the `neo-git-graph` prefix.
+All settings use the `git-graph-libre` prefix.
 
 | Setting                       | Default         | Description                                      |
 | ----------------------------- | --------------- | ------------------------------------------------ |
@@ -59,15 +72,13 @@ All settings use the `neo-git-graph` prefix.
 | `showUncommittedChanges`      | `true`          | Show uncommitted changes node                    |
 | `tabIconColourTheme`          | `"colour"`      | `"colour"` or `"grey"`                           |
 
-## Installation
-
-Search for `neo-git-graph` in Extensions, or install from:
-
-- [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=asispts.neo-git-graph)
-- [Open VSX Registry](https://open-vsx.org/extension/asispts/neo-git-graph)
-
 ## License
 
-MIT — see [LICENSE](LICENSE).
+GNU Affero General Public License v3.0 or later (`AGPL-3.0-or-later`) — see
+[LICENSE](LICENSE). This fork incorporates MIT-licensed material from the
+original Git Graph lineage; the required MIT notices and per-era contributor
+rosters are preserved in [LICENSE.mit](LICENSE.mit) and credited in
+[NOTICE.md](NOTICE.md).
 
-> Not related to the original Git Graph project.
+> This project is not affiliated with or endorsed by the original Git Graph
+> project or its maintainer.

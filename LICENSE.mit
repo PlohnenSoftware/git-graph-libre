@@ -1,0 +1,50 @@
+MIT License
+
+Copyright (c) 2019-present, mhutchie
+Copyright (c) 2019 mhutchie. Fork (c) 2026-present asispts
+Copyright (c) 2019 Larry Lu, Shoshin Nikita, Walter Meier, Viktor Fonic
+Copyright (c) 2026 Krzysztof Zabłocki (zamkorus), Mr.Lee
+
+The first line above is the copyright notice exactly as it stood in the
+original Git Graph repository at commit 4af8583, the last MIT commit. The
+second is the notice as received from the asispts/neo-git-graph fork. Both
+are preserved verbatim, as the MIT license requires, for the lineage
+described in NOTICE.md. The lines added after them name the further
+contributors to that MIT-licensed material, each of whom holds copyright in
+their respective contributions. The full roster with contribution dates,
+compiled from the author records in this repository's git history (automated
+dependency-bot commits omitted):
+
+Original Git Graph — https://github.com/mhutchie/vscode-git-graph
+MIT era, up to and including commit 4af8583 (2019-05-09), the last MIT commit:
+
+  Michael Hutchison (mhutchie)     2019-02-09 to 2019-05-09
+  Larry Lu                         2019-03-09
+  Shoshin Nikita                   2019-03-09
+  Walter Meier                     2019-04-23
+  Viktor Fonic                     2019-05-09
+
+MIT fork — https://github.com/asispts/neo-git-graph
+From commit 4af8583 up to and including commit 28300bd:
+
+  Asis Pattisahusiwa (asispts)     2026-02-17 to 2026-05-14
+  Krzysztof Zabłocki (zamkorus)    2026-03-25
+  Mr.Lee                           2026-04-06 to 2026-04-10
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

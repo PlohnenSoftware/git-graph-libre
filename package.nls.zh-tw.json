@@ -1,9 +1,9 @@
 {
-  "displayName": "(neo) Git Graph",
-  "description": "Git Graph 的純淨 MIT 分支。視覺化歷史記錄、分支操作和開發容器支援。",
+  "displayName": "Git Graph Libre",
+  "description": "延續 Git Graph MIT 譜系的 Copyleft（AGPL-3.0-or-later）分支。視覺化歷史記錄、分支操作和開發容器支援。",
   "command.view": "檢視 Git 圖形 (git log)",
   "command.clearAvatarCache": "清除頭像快取",
-  "config.title": "(neo) Git Graph",
+  "config.title": "Git Graph Libre",
   "config.autoCenterCommitDetailsView": "開啟提交詳情檢視時自動置中顯示。",
   "config.dateFormat": "指定 Git 圖形日期欄中使用的日期格式。",
   "config.dateFormat.dateTime": "顯示日期和時間，例如 \"2019年3月19日 21:34\"",

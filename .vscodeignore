@@ -4,6 +4,8 @@
 
 # Whitelist files
 !LICENSE
+!LICENSE.mit
+!NOTICE.md
 !CHANGELOG.md
 !package.nls*.json
 !out/

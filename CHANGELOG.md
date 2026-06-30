@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-07-01
+
+### Changed
+
+- Relicense the project from MIT to GNU AGPL-3.0-or-later. The work as a whole
+  is now distributed under the AGPL; incorporated MIT-licensed material from
+  the mhutchie/asispts lineage remains credited in `NOTICE.md`.
+- Rename the extension to Git Graph Libre (`PlohnenSoftware.git-graph-libre`).
+  BREAKING: settings move from the `neo-git-graph.*` prefix to
+  `git-graph-libre.*`, and the view/clear-avatar-cache commands and diff
+  document scheme are renamed accordingly — re-apply any custom settings under
+  the new prefix.
+- Bump the extension version to 1.0.0 for the relicensed release line.
+
 ## [0.4.0] - 2026-04-10
 
 ### Added
@@ -46,7 +60,8 @@
 
 Initial release
 
-[Unreleased]: https://github.com/asispts/neo-git-graph/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/PlohnenSoftware/git-graph-libre/releases/tag/v1.0.0
 [0.4.0]: https://github.com/asispts/neo-git-graph/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/asispts/neo-git-graph/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/asispts/neo-git-graph/compare/v0.1.1...v0.2.0

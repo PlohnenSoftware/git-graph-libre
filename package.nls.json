@@ -1,9 +1,9 @@
 {
-  "displayName": "(neo) Git Graph",
-  "description": "A clean MIT fork of Git Graph. Visual history, branch actions, and devcontainer support.",
+  "displayName": "Git Graph Libre",
+  "description": "A copyleft (AGPL-3.0-or-later) fork continuing Git Graph's MIT lineage. Visual history, branch actions, and devcontainer support.",
   "command.view": "View Git Graph (git log)",
   "command.clearAvatarCache": "Clear Avatar Cache",
-  "config.title": "(neo) Git Graph",
+  "config.title": "Git Graph Libre",
   "config.autoCenterCommitDetailsView": "Automatically center the commit details view when it is opened.",
   "config.dateFormat": "Specifies the date format to be used in the date column of Git Graph.",
   "config.dateFormat.dateTime": "Show the date and time, for example \"19 Mar 2019 21:34\"",

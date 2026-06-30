@@ -1,7 +1,7 @@
 {
-  "statusBar.text": "(neo) Git Graph",
+  "statusBar.text": "Git Graph Libre",
   "statusBar.tooltip": "View Git Graph",
-  "outputChannel.text": "(neo) Git Graph",
+  "outputChannel.text": "Git Graph Libre",
   "ui.repo": "Repo",
   "ui.branch": "Branch",
   "ui.showRemoteBranches": "Show Remote Branches",

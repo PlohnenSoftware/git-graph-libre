@@ -1,7 +1,7 @@
 {
-  "name": "neo-git-graph",
+  "name": "git-graph-libre",
   "displayName": "%displayName%",
-  "version": "0.4.0",
+  "version": "1.0.0",
   "description": "%description%",
   "categories": [
     "SCM Providers",
@@ -14,26 +14,29 @@
     "git history",
     "git log"
   ],
-  "homepage": "https://github.com/asispts/neo-git-graph",
+  "homepage": "https://github.com/PlohnenSoftware/git-graph-libre",
   "bugs": {
-    "url": "https://github.com/asispts/neo-git-graph/issues"
+    "url": "https://github.com/PlohnenSoftware/git-graph-libre/issues"
   },
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "author": {
-    "name": "Asis Pattisahusiwa",
-    "email": "asispts@gmail.com"
+    "name": "Zamkorus (PlohnenSoftware)"
   },
   "contributors": [
     {
       "name": "Michael Hutchison",
       "url": "https://github.com/mhutchie"
+    },
+    {
+      "name": "Asis Pattisahusiwa",
+      "url": "https://github.com/asispts"
     }
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/asispts/neo-git-graph.git"
+    "url": "https://github.com/PlohnenSoftware/git-graph-libre.git"
   },
-  "publisher": "asispts",
+  "publisher": "PlohnenSoftware",
   "main": "./out/extension.js",
   "scripts": {
     "typecheck": "tsc -p ./src --noEmit && tsc -p ./src/webview --noEmit && tsc -p ./tests --noEmit",
@@ -75,8 +78,8 @@
   "contributes": {
     "commands": [
       {
-        "category": "(neo) Git Graph",
-        "command": "neo-git-graph.view",
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.view",
         "title": "%command.view%",
         "icon": {
           "light": "resources/webview-icon-light.svg",
@@ -84,15 +87,15 @@
         }
       },
       {
-        "category": "(neo) Git Graph",
-        "command": "neo-git-graph.clearAvatarCache",
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.clearAvatarCache",
         "title": "%command.clearAvatarCache%"
       }
     ],
     "menus": {
       "scm/title": [
         {
-          "command": "neo-git-graph.view",
+          "command": "git-graph-libre.view",
           "group": "navigation",
           "when": "scmProvider == git"
         }
@@ -102,12 +105,12 @@
       "type": "object",
       "title": "%config.title%",
       "properties": {
-        "neo-git-graph.autoCenterCommitDetailsView": {
+        "git-graph-libre.autoCenterCommitDetailsView": {
           "type": "boolean",
           "default": true,
           "description": "%config.autoCenterCommitDetailsView%"
         },
-        "neo-git-graph.dateFormat": {
+        "git-graph-libre.dateFormat": {
           "type": "string",
           "enum": [
             "Date & Time",
@@ -122,7 +125,7 @@
           "default": "Date & Time",
           "description": "%config.dateFormat%"
         },
-        "neo-git-graph.dateType": {
+        "git-graph-libre.dateType": {
           "type": "string",
           "enum": [
             "Author Date",
@@ -135,12 +138,12 @@
           "default": "Author Date",
           "description": "%config.dateType%"
         },
-        "neo-git-graph.fetchAvatars": {
+        "git-graph-libre.fetchAvatars": {
           "type": "boolean",
           "default": false,
           "description": "%config.fetchAvatars%"
         },
-        "neo-git-graph.graphColours": {
+        "git-graph-libre.graphColours": {
           "type": "array",
           "items": {
             "type": "string",
@@ -163,7 +166,7 @@
           ],
           "description": "%config.graphColours%"
         },
-        "neo-git-graph.graphStyle": {
+        "git-graph-libre.graphStyle": {
           "type": "string",
           "enum": [
             "rounded",
@@ -176,37 +179,37 @@
           "default": "rounded",
           "description": "%config.graphStyle%"
         },
-        "neo-git-graph.initialLoadCommits": {
+        "git-graph-libre.initialLoadCommits": {
           "type": "number",
           "default": 300,
           "description": "%config.initialLoadCommits%"
         },
-        "neo-git-graph.loadMoreCommits": {
+        "git-graph-libre.loadMoreCommits": {
           "type": "number",
           "default": 100,
           "description": "%config.loadMoreCommits%"
         },
-        "neo-git-graph.maxDepthOfRepoSearch": {
+        "git-graph-libre.maxDepthOfRepoSearch": {
           "type": "number",
           "default": 0,
           "description": "%config.maxDepthOfRepoSearch%"
         },
-        "neo-git-graph.showCurrentBranchByDefault": {
+        "git-graph-libre.showCurrentBranchByDefault": {
           "type": "boolean",
           "default": false,
           "description": "%config.showCurrentBranchByDefault%"
         },
-        "neo-git-graph.showStatusBarItem": {
+        "git-graph-libre.showStatusBarItem": {
           "type": "boolean",
           "default": true,
           "description": "%config.showStatusBarItem%"
         },
-        "neo-git-graph.showUncommittedChanges": {
+        "git-graph-libre.showUncommittedChanges": {
           "type": "boolean",
           "default": true,
           "description": "%config.showUncommittedChanges%"
         },
-        "neo-git-graph.tabIconColourTheme": {
+        "git-graph-libre.tabIconColourTheme": {
           "type": "string",
           "enum": [
             "colour",

@@ -6,7 +6,7 @@ import { DateFormat, GraphStyle } from "./types";
 type TabIconColourTheme = "colour" | "grey";
 
 function getConfig<T>(key: string, defaultValue: T): T {
-  return vscode.workspace.getConfiguration("neo-git-graph").get(key, defaultValue);
+  return vscode.workspace.getConfiguration("git-graph-libre").get(key, defaultValue);
 }
 
 export const config = {

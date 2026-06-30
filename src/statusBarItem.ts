@@ -13,7 +13,7 @@ export class StatusBarItem {
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 1);
     this.statusBarItem.text = l10n.t("statusBar.text");
     this.statusBarItem.tooltip = l10n.t("statusBar.tooltip");
-    this.statusBarItem.command = "neo-git-graph.view";
+    this.statusBarItem.command = "git-graph-libre.view";
     context.subscriptions.push(this.statusBarItem);
   }
 

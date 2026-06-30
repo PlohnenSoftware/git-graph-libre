@@ -1,7 +1,7 @@
 {
-  "statusBar.text": "(neo) Git Graph",
+  "statusBar.text": "Git Graph Libre",
   "statusBar.tooltip": "檢視 Git 分支圖",
-  "outputChannel.text": "(neo) Git Graph",
+  "outputChannel.text": "Git Graph Libre",
   "ui.repo": "存放庫",
   "ui.branch": "分支",
   "ui.showRemoteBranches": "顯示遠端分支",

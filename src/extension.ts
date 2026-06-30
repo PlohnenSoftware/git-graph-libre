@@ -38,14 +38,14 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     outputChannel,
-    vscode.commands.registerCommand("neo-git-graph.view", () => {
+    vscode.commands.registerCommand("git-graph-libre.view", () => {
       const column = vscode.window.activeTextEditor?.viewColumn;
       if (currentPanel) {
         currentPanel.reveal(column);
         return;
       }
       const panel = vscode.window.createWebviewPanel(
-        "neo-git-graph",
+        "git-graph-libre",
         l10n.t("outputChannel.text"),
         column ?? vscode.ViewColumn.One,
         {
@@ -85,7 +85,7 @@ export function activate(context: vscode.ExtensionContext) {
         onPanelShown
       });
     }),
-    vscode.commands.registerCommand("neo-git-graph.clearAvatarCache", () => {
+    vscode.commands.registerCommand("git-graph-libre.clearAvatarCache", () => {
       avatarManager.clearCache();
     }),
     vscode.workspace.registerTextDocumentContentProvider(
@@ -93,9 +93,9 @@ export function activate(context: vscode.ExtensionContext) {
       new DiffDocProvider(gitClient.getInstance)
     ),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration("neo-git-graph.showStatusBarItem")) {
+      if (e.affectsConfiguration("git-graph-libre.showStatusBarItem")) {
         statusBarItem.refresh();
-      } else if (e.affectsConfiguration("neo-git-graph.maxDepthOfRepoSearch")) {
+      } else if (e.affectsConfiguration("git-graph-libre.maxDepthOfRepoSearch")) {
         repoSearch.maxDepthChanged();
       } else if (e.affectsConfiguration("git.path")) {
         gitClient.setGitPath(config.gitPath());
