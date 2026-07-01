@@ -13,6 +13,8 @@ type PackageManifest = {
         {
           type: string;
           default: unknown;
+          enum?: string[];
+          enumDescriptions?: string[];
           minimum?: number;
           maximum?: number;
           description: string;
@@ -57,6 +59,27 @@ describe("extension manifest", () => {
       minimum: 18,
       maximum: 48,
       description: "%config.graph.rowHeight%"
+    });
+  });
+
+  it("contributes commit details file view settings", () => {
+    const manifest = readManifest();
+    const properties = manifest.contributes.configuration.properties;
+
+    expect(properties["git-graph-libre.commitDetails.fileViewMode"]).toMatchObject({
+      type: "string",
+      enum: ["tree", "list"],
+      enumDescriptions: [
+        "%config.commitDetails.fileViewMode.tree%",
+        "%config.commitDetails.fileViewMode.list%"
+      ],
+      default: "tree",
+      description: "%config.commitDetails.fileViewMode%"
+    });
+    expect(properties["git-graph-libre.commitDetails.compactFolders"]).toMatchObject({
+      type: "boolean",
+      default: false,
+      description: "%config.commitDetails.compactFolders%"
     });
   });
 });

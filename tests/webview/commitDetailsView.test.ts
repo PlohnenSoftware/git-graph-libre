@@ -4,6 +4,7 @@ import {
   alterGitFileTree,
   generateGitFileTree,
   renderCommitDetailsRowHtml,
+  renderGitFileListHtml,
   renderGitFileTreeHtml
 } from "@/webview/commitDetailsView";
 import { describe, expect, it } from "vitest";
@@ -54,6 +55,7 @@ describe("commit details view rendering", () => {
     const html = renderCommitDetailsRowHtml({
       commitDetails,
       fileTree,
+      fileView: { mode: "tree" },
       avatars: { "alice+review@example.com": "https://avatars.test/a?name=Alice&Bob" },
       l10n,
       sections: { summaryOpen: true, filesOpen: true }
@@ -76,7 +78,7 @@ describe("commit details view rendering", () => {
       "true"
     );
     expect(host.querySelector("#commitDetailsFiles .gitFile")?.textContent).toContain("README.md");
-    expect(host.querySelector("#commitDetailsClose")).not.toBeNull();
+    expect(host.querySelector("#commitDetailsClose")).toBeNull();
   });
 
   it("renders collapsed section state for summary and files", () => {
@@ -86,6 +88,7 @@ describe("commit details view rendering", () => {
     host.innerHTML = renderCommitDetailsRowHtml({
       commitDetails,
       fileTree,
+      fileView: { mode: "tree" },
       avatars: {},
       l10n,
       sections: { summaryOpen: false, filesOpen: false }
@@ -139,6 +142,67 @@ describe("commit details view rendering", () => {
     alterGitFileTree(fileTree, "src", false);
 
     expect((fileTree.contents.src as GitFolder).open).toBe(false);
+    expect(renderGitFileTreeHtml(fileTree, fileChanges, l10n)).toContain(
+      '<ul class="gitFolderContents hidden">'
+    );
+  });
+
+  it("renders a flat changed-file list mode with full paths", () => {
+    const fileChanges: GitFileChange[] = [
+      {
+        oldFilePath: "src/old-name.ts",
+        newFilePath: "src/new-name.ts",
+        type: "R",
+        additions: 3,
+        deletions: 2
+      },
+      {
+        oldFilePath: "README.md",
+        newFilePath: "README.md",
+        type: "M",
+        additions: 1,
+        deletions: 1
+      }
+    ];
+    const host = document.createElement("div");
+
+    host.innerHTML = renderGitFileListHtml(fileChanges, l10n);
+
+    expect(host.querySelector(".gitFileList")).not.toBeNull();
+    expect(host.querySelector(".gitFolder")).toBeNull();
+    expect(host.querySelector(".gitFile")?.textContent).toContain("README.md");
+    expect(host.querySelectorAll(".gitFile")[1]?.textContent).toContain("src/new-name.ts");
+    expect(host.querySelectorAll(".gitFile")[1]?.getAttribute("data-oldfilepath")).toBe(
+      "src%2Fold-name.ts"
+    );
+  });
+
+  it("compacts single-child folder chains while preserving toggle paths", () => {
+    const fileChanges: GitFileChange[] = [
+      {
+        oldFilePath: "src/webview/utils/html.ts",
+        newFilePath: "src/webview/utils/html.ts",
+        type: "M",
+        additions: 1,
+        deletions: 1
+      },
+      {
+        oldFilePath: "src/webview/main.ts",
+        newFilePath: "src/webview/main.ts",
+        type: "M",
+        additions: 2,
+        deletions: 1
+      }
+    ];
+    const fileTree = generateGitFileTree(fileChanges, { compactFolders: true });
+    const html = renderGitFileTreeHtml(fileTree, fileChanges, l10n);
+
+    expect(html).toContain('gitFolderName">src&#x2F;webview');
+    expect(html).toContain('data-folderpath="src%2Fwebview"');
+
+    alterGitFileTree(fileTree, "src/webview", false);
+
+    expect((fileTree.contents["src/webview"] as GitFolder).open).toBe(false);
     expect(renderGitFileTreeHtml(fileTree, fileChanges, l10n)).toContain(
       '<ul class="gitFolderContents hidden">'
     );

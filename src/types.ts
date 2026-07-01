@@ -13,6 +13,8 @@ export type GitRepoState = {
 
 export type GitGraphViewState = {
   autoCenterCommitDetailsView: boolean;
+  commitDetailsCompactFolders: boolean;
+  commitDetailsFileViewMode: CommitDetailsFileViewMode;
   dateFormat: DateFormat;
   fetchAvatars: boolean;
   graphColours: string[];
@@ -34,6 +36,7 @@ export type Avatar = {
 export type AvatarCache = { [email: string]: Avatar };
 
 export type DateFormat = "Date & Time" | "Date Only" | "Relative";
+export type CommitDetailsFileViewMode = "tree" | "list";
 export type GraphStyle = "rounded" | "angular";
 
 /* Infrastructure Request / Response Messages */

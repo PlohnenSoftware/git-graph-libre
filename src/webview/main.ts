@@ -1244,6 +1244,9 @@ class GitGraphView {
       commitDetails,
       fileTree,
       avatars: this.avatars,
+      fileView: {
+        mode: this.config.commitDetailsFileViewMode
+      },
       l10n,
       sections: this.expandedCommit
     });
@@ -1268,9 +1271,6 @@ class GitGraphView {
       window.scrollTo(0, newElem.offsetTop + this.config.grid.expandY - window.innerHeight + 48);
     }
 
-    document.getElementById("commitDetailsClose")?.addEventListener("click", () => {
-      this.hideCommitDetails();
-    });
     addListenerToClass("commitDetailsToggle", "click", (e) => {
       const sourceElem = closestHTMLElement(e.target, ".commitDetailsToggle");
       const section = sourceElem?.dataset.section;
@@ -1389,6 +1389,8 @@ const gitGraph = new GitGraphView(
   viewState.lastActiveRepo,
   {
     autoCenterCommitDetailsView: viewState.autoCenterCommitDetailsView,
+    commitDetailsCompactFolders: viewState.commitDetailsCompactFolders,
+    commitDetailsFileViewMode: viewState.commitDetailsFileViewMode,
     fetchAvatars: viewState.fetchAvatars,
     graphColours: viewState.graphColours,
     graphFontSize: viewState.graphFontSize,
@@ -1425,7 +1427,9 @@ window.addEventListener("message", (event) => {
       } else {
         gitGraph.showCommitDetails(
           msg.commitDetails,
-          generateGitFileTree(msg.commitDetails.fileChanges)
+          generateGitFileTree(msg.commitDetails.fileChanges, {
+            compactFolders: viewState.commitDetailsCompactFolders
+          })
         );
       }
       break;

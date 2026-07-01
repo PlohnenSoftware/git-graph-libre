@@ -224,7 +224,7 @@ body.unableToLoad p {
 }
 #commitDetails.filesCollapsed:not(.summaryCollapsed) #commitDetailsSummary {
   width: auto;
-  right: 76px;
+  right: 44px;
 }
 #commitDetails.filesCollapsed:not(.summaryCollapsed) #commitDetailsFiles {
   left: auto;
@@ -301,7 +301,7 @@ body.unableToLoad p {
 }
 #commitDetailsFiles {
   position: absolute;
-  right: 32px;
+  right: 0;
   top: 0;
   bottom: 2px;
   left: 45%;
@@ -325,30 +325,14 @@ body.unableToLoad p {
 #commitDetailsFilesBody > ul {
   -webkit-padding-start: 10px;
 }
+#commitDetailsFilesBody > ul.gitFileList {
+  -webkit-padding-start: 12px;
+}
 #commitDetailsFilesBody li {
   margin-top: 4px;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow-x: hidden;
-}
-#commitDetailsClose {
-  position: absolute;
-  right: 4px;
-  top: 4px;
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-}
-#commitDetailsClose svg {
-  width: 24px;
-  height: 24px;
-  fill: var(--vscode-editor-foreground);
-  fill-opacity: 0.6;
-}
-#commitDetailsClose:hover svg {
-  stroke: var(--vscode-editor-foreground);
-  stroke-width: 1;
-  stroke-opacity: 0.2;
 }
 svg.openFolderIcon,
 svg.closedFolderIcon,

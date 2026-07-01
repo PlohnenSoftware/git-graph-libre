@@ -14,6 +14,8 @@ const defaultViewState: GG.GitGraphViewState = {
   dateFormat: "Date & Time",
   fetchAvatars: false,
   graphColours: ["oklch(65% 0.16 250)"],
+  commitDetailsCompactFolders: false,
+  commitDetailsFileViewMode: "tree",
   graphFontSize: 13,
   graphRowHeight: 24,
   graphStyle: "rounded",
@@ -214,7 +216,8 @@ describe("webview rendering", () => {
     );
     expect(vscodeMock.getState()?.expandedCommit?.summaryOpen).toBe(true);
 
-    document.getElementById("commitDetailsClose")?.dispatchEvent(new MouseEvent("click"));
+    headRow?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(document.getElementById("commitDetails")).toBeNull();
   });
 
   it("shows refreshing status while a hard refresh is pending", () => {

@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 const config: Config = {
   autoCenterCommitDetailsView: true,
+  commitDetailsCompactFolders: false,
+  commitDetailsFileViewMode: "tree",
   fetchAvatars: false,
   graphColours: ["oklch(65% 0.16 250)"],
   graphFontSize: 13,

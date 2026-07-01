@@ -35,6 +35,8 @@ export function buildWebviewHtml(opts: {
   const l10nStrings = getWebviewLocalizedStrings();
   const viewState: GitGraphViewState = {
     autoCenterCommitDetailsView: config.autoCenterCommitDetailsView(),
+    commitDetailsCompactFolders: config.commitDetailsCompactFolders(),
+    commitDetailsFileViewMode: config.commitDetailsFileViewMode(),
     dateFormat: config.dateFormat(),
     fetchAvatars: config.fetchAvatars() && extensionState.isAvatarStorageAvailable(),
     graphColours: config.graphColours(),

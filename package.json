@@ -143,6 +143,24 @@
           "default": true,
           "description": "%config.autoCenterCommitDetailsView%"
         },
+        "git-graph-libre.commitDetails.fileViewMode": {
+          "type": "string",
+          "enum": [
+            "tree",
+            "list"
+          ],
+          "enumDescriptions": [
+            "%config.commitDetails.fileViewMode.tree%",
+            "%config.commitDetails.fileViewMode.list%"
+          ],
+          "default": "tree",
+          "description": "%config.commitDetails.fileViewMode%"
+        },
+        "git-graph-libre.commitDetails.compactFolders": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.commitDetails.compactFolders%"
+        },
         "git-graph-libre.dateFormat": {
           "type": "string",
           "enum": [

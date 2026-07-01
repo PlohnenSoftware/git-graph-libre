@@ -39,6 +39,8 @@ describe("commit table styles", () => {
     expect(css).toContain("#commitDetails.summaryCollapsed.filesCollapsed");
     expect(css).toContain("var(--vscode-toolbar-hoverBackground");
     expect(css).toContain(".commitDetailsPaneBody.hidden");
+    expect(css).toContain("#commitDetailsFilesBody > ul.gitFileList");
+    expect(css).not.toContain("#commitDetailsClose");
   });
 
   it("uses OKLCH for owned CSS fallback colours", () => {

@@ -1,5 +1,6 @@
 import type { GitCommitDetails, GitFileChange } from "@/backend/types";
 import type { LocalizedStrings } from "@/extension/webviewL10n";
+import type { CommitDetailsFileViewMode } from "@/types";
 
 import { escapeHtml } from "./utils/html";
 import { svgIcons } from "./utils/icons";
@@ -7,10 +8,21 @@ import { svgIcons } from "./utils/icons";
 type RenderCommitDetailsOptions = {
   commitDetails: GitCommitDetails;
   fileTree: GitFolder;
+  fileView?: CommitDetailsFileViewOptions;
   avatars: AvatarImageCollection;
   l10n: LocalizedStrings;
   sections: CommitDetailsSectionState;
 };
+
+type GenerateGitFileTreeOptions = {
+  compactFolders?: boolean;
+};
+
+export type CommitDetailsFileViewOptions = {
+  mode: CommitDetailsFileViewMode;
+};
+
+const defaultCommitDetailsFileView: CommitDetailsFileViewOptions = { mode: "tree" };
 
 export type CommitDetailsSection = "summary" | "files";
 
@@ -22,15 +34,22 @@ export type CommitDetailsSectionState = {
 export function renderCommitDetailsRowHtml({
   commitDetails,
   fileTree,
+  fileView,
   avatars,
   l10n,
   sections
 }: RenderCommitDetailsOptions): string {
+  const resolvedFileView = fileView ?? defaultCommitDetailsFileView;
   return [
     '<td></td><td colspan="4">',
     renderCommitDetailsSummary(commitDetails, avatars, l10n, sections.summaryOpen),
-    renderCommitDetailsFiles(fileTree, commitDetails.fileChanges, l10n, sections.filesOpen),
-    `<div id="commitDetailsClose">${svgIcons.close}</div>`,
+    renderCommitDetailsFiles(
+      fileTree,
+      commitDetails.fileChanges,
+      l10n,
+      sections.filesOpen,
+      resolvedFileView
+    ),
     "</td>"
   ].join("");
 }
@@ -77,8 +96,10 @@ export function renderCommitDetailsFiles(
   fileTree: GitFolder,
   fileChanges: GitFileChange[],
   l10n: LocalizedStrings,
-  open = true
+  open = true,
+  fileView?: CommitDetailsFileViewOptions
 ): string {
+  const fileViewMode = fileView?.mode ?? "tree";
   const bodyClass = `commitDetailsPaneBody${open ? "" : " hidden"}`;
   return [
     '<div id="commitDetailsFiles">',
@@ -87,12 +108,17 @@ export function renderCommitDetailsFiles(
       collapsed: l10n.detailExpandFiles
     }),
     `<div id="commitDetailsFilesBody" class="${bodyClass}">`,
-    renderGitFileTreeHtml(fileTree, fileChanges, l10n),
+    fileViewMode === "list"
+      ? renderGitFileListHtml(fileChanges, l10n)
+      : renderGitFileTreeHtml(fileTree, fileChanges, l10n),
     "</div></div>"
   ].join("");
 }
 
-export function generateGitFileTree(gitFiles: GitFileChange[]): GitFolder {
+export function generateGitFileTree(
+  gitFiles: GitFileChange[],
+  options: GenerateGitFileTreeOptions = {}
+): GitFolder {
   const files: GitFolder = {
     type: "folder",
     name: "",
@@ -121,6 +147,8 @@ export function generateGitFileTree(gitFiles: GitFileChange[]): GitFolder {
     }
   }
 
+  if (options.compactFolders === true) compactFolderContents(files);
+
   return files;
 }
 
@@ -148,14 +176,21 @@ export function renderGitFileTreeHtml(
 }
 
 export function alterGitFileTree(folder: GitFolder, folderPath: string, open: boolean): void {
-  const path = folderPath.split("/");
-  let cur = folder;
-  for (const segment of path) {
-    const entry = cur.contents[segment];
-    if (entry?.type !== "folder") return;
-    cur = entry;
-  }
-  cur.open = open;
+  const match = findGitFolderByPath(folder, folderPath);
+  if (match !== null) match.open = open;
+}
+
+export function renderGitFileListHtml(gitFiles: GitFileChange[], l10n: LocalizedStrings): string {
+  const files = gitFiles
+    .map((fileChange, index) => ({
+      gitFile: { type: "file" as const, name: fileChange.newFilePath, index },
+      fileChange
+    }))
+    .sort((a, b) => a.fileChange.newFilePath.localeCompare(b.fileChange.newFilePath));
+
+  return `<ul class="gitFileList">${files
+    .map(({ gitFile, fileChange }) => renderGitFileListItem(gitFile, fileChange, l10n))
+    .join("")}</ul>`;
 }
 
 function renderGitFolderHeader(folder: GitFolder): string {
@@ -168,6 +203,52 @@ function renderGitFolderHeader(folder: GitFolder): string {
     escapeHtml(folder.name),
     "</span></span>"
   ].join("");
+}
+
+function compactFolderContents(folder: GitFolder): void {
+  const compactedContents: GitFolderContents = {};
+  for (const entry of Object.values(folder.contents)) {
+    if (entry.type === "file") {
+      compactedContents[entry.name] = entry;
+      continue;
+    }
+
+    const compactedFolder = compactFolderChain(entry);
+    compactedContents[compactedFolder.name] = compactedFolder;
+  }
+  folder.contents = compactedContents;
+}
+
+function compactFolderChain(folder: GitFolder): GitFolder {
+  let current = folder;
+  while (true) {
+    const entries = Object.values(current.contents);
+    const childFolders = entries.filter((entry): entry is GitFolder => entry.type === "folder");
+    const childFiles = entries.filter((entry) => entry.type === "file");
+    if (childFolders.length !== 1 || childFiles.length !== 0) break;
+
+    const child = childFolders[0];
+    current = {
+      type: "folder",
+      name: `${current.name}/${child.name}`,
+      folderPath: child.folderPath,
+      contents: child.contents,
+      open: current.open && child.open
+    };
+  }
+
+  compactFolderContents(current);
+  return current;
+}
+
+function findGitFolderByPath(folder: GitFolder, folderPath: string): GitFolder | null {
+  if (folder.folderPath === folderPath) return folder;
+  for (const entry of Object.values(folder.contents)) {
+    if (entry.type !== "folder") continue;
+    const match = findGitFolderByPath(entry, folderPath);
+    if (match !== null) return match;
+  }
+  return null;
 }
 
 function renderCommitDetailsSectionToggle(

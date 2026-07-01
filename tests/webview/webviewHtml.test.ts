@@ -9,6 +9,8 @@ import { describe, expect, it } from "vitest";
 function makeConfig(): Config {
   return {
     autoCenterCommitDetailsView: () => true,
+    commitDetailsCompactFolders: () => true,
+    commitDetailsFileViewMode: () => "list",
     dateFormat: () => "Date & Time",
     dateType: () => "Author Date",
     fetchAvatars: () => false,
@@ -34,7 +36,7 @@ function extractViewState(html: string): GitGraphViewState {
 }
 
 describe("webview HTML", () => {
-  it("passes graph density settings to style variables and view state", () => {
+  it("passes visual settings to style variables and view state", () => {
     const result = buildWebviewHtml({
       webview: {
         cspSource: "vscode-webview:",
@@ -55,6 +57,8 @@ describe("webview HTML", () => {
 
     expect(result.html).toContain("--git-graph-font-size:15px;");
     expect(result.html).toContain("--git-graph-row-height:30px;");
+    expect(viewState.commitDetailsCompactFolders).toBe(true);
+    expect(viewState.commitDetailsFileViewMode).toBe("list");
     expect(viewState.graphFontSize).toBe(15);
     expect(viewState.graphRowHeight).toBe(30);
   });

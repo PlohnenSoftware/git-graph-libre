@@ -36,4 +36,22 @@ describe("configuration", () => {
     expect(config.graphFontSize()).toBe(13);
     expect(config.graphRowHeight()).toBe(24);
   });
+
+  it("reads commit details file view settings with safe defaults", async () => {
+    settings.set("git-graph-libre.commitDetails.fileViewMode", "list");
+    settings.set("git-graph-libre.commitDetails.compactFolders", true);
+
+    const { config } = await import("@/config");
+
+    expect(config.commitDetailsFileViewMode()).toBe("list");
+    expect(config.commitDetailsCompactFolders()).toBe(true);
+  });
+
+  it("falls back when commit details file view mode is invalid", async () => {
+    settings.set("git-graph-libre.commitDetails.fileViewMode", "cards");
+
+    const { config } = await import("@/config");
+
+    expect(config.commitDetailsFileViewMode()).toBe("tree");
+  });
 });
