@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-import type { GitCommitNode } from "@/backend/types";
+import type { GitCommitDetails, GitCommitNode } from "@/backend/types";
 import type * as GG from "@/types";
 
 import { createVscodeMock, receive, setupHtml } from "./setup";
@@ -46,6 +46,25 @@ const twoCommits: GitCommitNode[] = [
   }
 ];
 
+const firstCommitDetails: GitCommitDetails = {
+  hash: "abc123",
+  parents: ["def456"],
+  author: "Alice",
+  email: "alice@example.com",
+  date: 1700000000,
+  committer: "Alice",
+  body: "Detailed message",
+  fileChanges: [
+    {
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M",
+      additions: 3,
+      deletions: 1
+    }
+  ]
+};
+
 describe("webview rendering", () => {
   let vscodeMock: ReturnType<typeof createVscodeMock>;
 
@@ -71,6 +90,7 @@ describe("webview rendering", () => {
 
   beforeAll(async () => {
     vi.resetModules();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     vscodeMock = createVscodeMock();
     setupHtml(defaultViewState);
     await import("@/webview/main");
@@ -116,6 +136,40 @@ describe("webview rendering", () => {
     expect(status?.dataset.state).toBe("ready");
     expect(status?.getAttribute("aria-busy")).toBe("false");
     expect(document.getElementById("statusText")?.textContent).toBe("Ready");
+  });
+
+  it("renders commit rows with keyboard focus and selection state", () => {
+    const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
+    const olderRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="def456"]');
+
+    expect(headRow?.getAttribute("tabindex")).toBe("0");
+    expect(headRow?.getAttribute("aria-current")).toBe("true");
+    expect(headRow?.getAttribute("aria-selected")).toBe("false");
+    expect(olderRow?.getAttribute("tabindex")).toBe("0");
+    expect(olderRow?.hasAttribute("aria-current")).toBe(false);
+  });
+
+  it("toggles commit details from keyboard activation", () => {
+    const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
+    expect(headRow).not.toBeNull();
+
+    headRow?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "commitDetails",
+      repo: REPO,
+      commitHash: "abc123"
+    });
+
+    receive({ command: "commitDetails", commitDetails: firstCommitDetails, error: null });
+
+    expect(headRow?.classList.contains("commitDetailsOpen")).toBe(true);
+    expect(headRow?.getAttribute("aria-selected")).toBe("true");
+
+    headRow?.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+
+    expect(document.getElementById("commitDetails")).toBeNull();
+    expect(headRow?.getAttribute("aria-selected")).toBe("false");
   });
 
   it("shows refreshing status while a hard refresh is pending", () => {

@@ -75,22 +75,47 @@ body.unableToLoad p {
   overflow: hidden;
 }
 #commitTable tr.commit:hover td,
+#commitTable tr.commit:focus-visible td,
 #commitTable tr.commit.contextMenuActive td,
 #commitTable tr.commit.dialogActive td,
 #commitTable tr.commit.commitDetailsOpen td {
-  background-color: rgba(128, 128, 128, 0.15);
+  background-color: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.15));
 }
 #commitTable tr.commit:hover td {
   cursor: pointer;
+}
+#commitTable tr.commit:focus-visible {
+  outline: none;
+}
+#commitTable tr.commit:focus-visible td {
+  box-shadow: inset 0 1px 0 var(--vscode-focusBorder), inset 0 -1px 0 var(--vscode-focusBorder);
+}
+#commitTable tr.commit:focus-visible td:first-child {
+  box-shadow:
+    inset 1px 0 0 var(--vscode-focusBorder),
+    inset 0 1px 0 var(--vscode-focusBorder),
+    inset 0 -1px 0 var(--vscode-focusBorder);
+}
+#commitTable tr.commit:focus-visible td:last-child {
+  box-shadow:
+    inset -1px 0 0 var(--vscode-focusBorder),
+    inset 0 1px 0 var(--vscode-focusBorder),
+    inset 0 -1px 0 var(--vscode-focusBorder);
 }
 #commitTable td {
   line-height: 24px;
   padding: 0 4px;
 }
 #commitTable th {
-  border-bottom: 1px solid rgba(128, 128, 128, 0.5);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-descriptionForeground);
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.5));
   line-height: 18px;
   padding: 6px 12px;
+  box-shadow: 0 1px 0 var(--vscode-scrollbar-shadow, rgba(128, 128, 128, 0.18));
 }
 
 #commitTable.fixedLayout table {
@@ -150,10 +175,11 @@ body.unableToLoad p {
   background-color: rgba(128, 128, 128, 0.2);
 }
 #commitTable tr.commit.commitDetailsOpen td {
-  background-color: rgba(128, 128, 128, 0.25);
+  background-color: var(--vscode-list-activeSelectionBackground, rgba(128, 128, 128, 0.25));
+  color: var(--vscode-list-activeSelectionForeground, var(--vscode-editor-foreground));
 }
 #commitTable tr.commit.commitDetailsOpen:hover td {
-  background-color: rgba(128, 128, 128, 0.35);
+  background-color: var(--vscode-list-activeSelectionBackground, rgba(128, 128, 128, 0.35));
 }
 #commitDetailsSummary {
   position: absolute;
@@ -646,10 +672,10 @@ svg.fileIcon {
 
 @keyframes headPulse {
   0% {
-    background-color: oklch(87.44% 0.2383 150 / 0.1);
+    background-color: transparent;
   }
   50% {
-    background-color: oklch(87.44% 0.2383 150 / 0.5);
+    background-color: var(--vscode-editor-findMatchHighlightBackground, rgba(115, 201, 145, 0.5));
   }
   100% {
     background-color: transparent;

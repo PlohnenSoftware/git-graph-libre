@@ -493,17 +493,30 @@ class GitGraphView {
           "</span>";
         refs = refActive ? refHtml + refs : refs + refHtml;
       }
+      const isHeadCommit = this.commits[i].hash === this.commitHead;
+      let rowAttributes = 'class="unsavedChanges"';
+      if (this.commits[i].hash !== "*") {
+        const currentAttribute = isHeadCommit ? ' aria-current="true"' : "";
+        rowAttributes = `class="commit" tabindex="0" aria-selected="false"${currentAttribute} data-hash="${this.commits[i].hash}"`;
+      }
+      let avatarHtml = "";
+      if (this.config.fetchAvatars) {
+        const avatarImage = this.avatars[this.commits[i].email];
+        avatarHtml =
+          '<span class="avatar" data-email="' +
+          escapeHtml(this.commits[i].email) +
+          '">' +
+          (typeof avatarImage === "string" ? `<img class="avatarImg" src="${avatarImage}">` : "") +
+          "</span>";
+      }
       html +=
-        "<tr " +
-        (this.commits[i].hash !== "*"
-          ? `class="commit" data-hash="${this.commits[i].hash}"`
-          : 'class="unsavedChanges"') +
+        `<tr ${rowAttributes}` +
         ' data-id="' +
         i +
         '" data-color="' +
         this.graph.getVertexColour(i) +
         '"><td></td><td>' +
-        (this.commits[i].hash === this.commitHead ? '<span class="commitHeadDot"></span>' : "") +
+        (isHeadCommit ? '<span class="commitHeadDot"></span>' : "") +
         refs +
         (this.commits[i].hash === currentHash ? `<b>${message}</b>` : message) +
         '</td><td title="' +
@@ -513,15 +526,7 @@ class GitGraphView {
         '</td><td title="' +
         escapeHtml(`${this.commits[i].author} <${this.commits[i].email}>`) +
         '">' +
-        (this.config.fetchAvatars
-          ? '<span class="avatar" data-email="' +
-            escapeHtml(this.commits[i].email) +
-            '">' +
-            (typeof this.avatars[this.commits[i].email] === "string"
-              ? `<img class="avatarImg" src="${this.avatars[this.commits[i].email]}">`
-              : "") +
-            "</span>"
-          : "") +
+        avatarHtml +
         escapeHtml(this.commits[i].author) +
         '</td><td title="' +
         escapeHtml(this.commits[i].hash) +
@@ -816,11 +821,16 @@ class GitGraphView {
       const sourceElem = closestHTMLElement(e.target, ".commit");
       const hash = sourceElem?.dataset.hash;
       if (sourceElem === null || hash === undefined) return;
-      if (this.expandedCommit !== null && this.expandedCommit.hash === hash) {
-        this.hideCommitDetails();
-      } else {
-        this.loadCommitDetails(sourceElem);
-      }
+      this.toggleCommitDetails(sourceElem, hash);
+    });
+    addListenerToClass("commit", "keydown", (e: Event) => {
+      const keyboardEvent = <KeyboardEvent>e;
+      if (keyboardEvent.key !== "Enter" && keyboardEvent.key !== " ") return;
+      const sourceElem = closestHTMLElement(e.target, ".commit");
+      const hash = sourceElem?.dataset.hash;
+      if (sourceElem === null || hash === undefined) return;
+      keyboardEvent.preventDefault();
+      this.toggleCommitDetails(sourceElem, hash);
     });
     addListenerToClass("gitRef", "contextmenu", (e: Event) => {
       e.stopPropagation();
@@ -1158,6 +1168,13 @@ class GitGraphView {
   }
 
   /* Commit Details */
+  private toggleCommitDetails(sourceElem: HTMLElement, hash: string) {
+    if (this.expandedCommit !== null && this.expandedCommit.hash === hash) {
+      this.hideCommitDetails();
+    } else {
+      this.loadCommitDetails(sourceElem);
+    }
+  }
   private loadCommitDetails(sourceElem: HTMLElement) {
     const id = sourceElem.dataset.id;
     const hash = sourceElem.dataset.hash;
@@ -1182,8 +1199,10 @@ class GitGraphView {
     if (this.expandedCommit !== null) {
       const elem = document.getElementById("commitDetails");
       if (typeof elem === "object" && elem !== null) elem.remove();
-      if (typeof this.expandedCommit.srcElem === "object" && this.expandedCommit.srcElem !== null)
+      if (typeof this.expandedCommit.srcElem === "object" && this.expandedCommit.srcElem !== null) {
         this.expandedCommit.srcElem.classList.remove("commitDetailsOpen");
+        this.expandedCommit.srcElem.setAttribute("aria-selected", "false");
+      }
       this.expandedCommit = null;
       this.saveState();
       this.renderGraph();
@@ -1202,6 +1221,7 @@ class GitGraphView {
     this.expandedCommit.commitDetails = commitDetails;
     this.expandedCommit.fileTree = fileTree;
     this.expandedCommit.srcElem.classList.add("commitDetailsOpen");
+    this.expandedCommit.srcElem.setAttribute("aria-selected", "true");
     this.saveState();
 
     let newElem = document.createElement("tr"),
