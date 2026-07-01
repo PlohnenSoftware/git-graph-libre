@@ -56,6 +56,32 @@ describe("commitDetails", () => {
     expect(expectCommitDetails(result).fileChanges.length).toBeGreaterThan(0);
   });
 
+  it("keeps author and committer names containing separator-like text", async () => {
+    const separatorRepo = makeRepo();
+    const name = "T XX7Nal-YARtTpjCikii9nJxER19D6diSyk-AWkPb Name";
+    try {
+      git(["config", "user.name", name], separatorRepo);
+      fs.writeFileSync(path.join(separatorRepo, "separator"), "value");
+      git(["add", "."], separatorRepo);
+      git(["commit", "-m", "separator author"], separatorRepo);
+      const hash = cp
+        .execFileSync("git", ["rev-parse", "HEAD"], { cwd: separatorRepo })
+        .toString()
+        .trim();
+
+      const result = await commitDetails(simpleGit(separatorRepo), {
+        commitHash: hash,
+        dateType: "Author Date"
+      });
+
+      const details = expectCommitDetails(result);
+      expect(details.author).toBe(name);
+      expect(details.committer).toBe(name);
+    } finally {
+      fs.rmSync(separatorRepo, { recursive: true, force: true });
+    }
+  });
+
   it("returns commitDetails: null with a typed error when Git fails", async () => {
     const failure = Object.assign(new Error("fatal: deadbeef1234 is missing"), {
       result: { exitCode: 128, stdErr: "fatal: deadbeef1234 is missing" }
@@ -97,6 +123,66 @@ describe("commitDetails", () => {
       expect(changed.deletions).toEqual(expect.any(Number));
     } finally {
       fs.rmSync(repo2, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps file paths containing tabs in file changes and stats", async () => {
+    const tabRepo = makeRepo();
+    const relativePath = "dir/a\tb.txt";
+    try {
+      fs.mkdirSync(path.join(tabRepo, "dir"));
+      fs.writeFileSync(path.join(tabRepo, relativePath), "tabbed path");
+      git(["add", "."], tabRepo);
+      git(["commit", "-m", "add tabbed path"], tabRepo);
+      const hash = cp
+        .execFileSync("git", ["rev-parse", "HEAD"], { cwd: tabRepo })
+        .toString()
+        .trim();
+
+      const result = await commitDetails(simpleGit(tabRepo), {
+        commitHash: hash,
+        dateType: "Author Date"
+      });
+
+      const changed = expectCommitDetails(result).fileChanges.find(
+        (file) => file.newFilePath === relativePath
+      );
+      expect(changed).toBeDefined();
+      if (changed === undefined) throw new Error("Expected changed tabbed-path file");
+      expect(changed.oldFilePath).toBe(relativePath);
+      expect(changed.additions).toEqual(expect.any(Number));
+      expect(changed.deletions).toEqual(expect.any(Number));
+    } finally {
+      fs.rmSync(tabRepo, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps old and new paths for renamed files", async () => {
+    const renameRepo = makeRepo();
+    try {
+      git(["mv", "f", "renamed.txt"], renameRepo);
+      git(["commit", "-m", "rename file"], renameRepo);
+      const hash = cp
+        .execFileSync("git", ["rev-parse", "HEAD"], { cwd: renameRepo })
+        .toString()
+        .trim();
+
+      const result = await commitDetails(simpleGit(renameRepo), {
+        commitHash: hash,
+        dateType: "Author Date"
+      });
+
+      const renamed = expectCommitDetails(result).fileChanges.find(
+        (file) => file.newFilePath === "renamed.txt"
+      );
+      expect(renamed).toBeDefined();
+      if (renamed === undefined) throw new Error("Expected renamed file");
+      expect(renamed.oldFilePath).toBe("f");
+      expect(renamed.type).toBe("R");
+      expect(renamed.additions).toEqual(expect.any(Number));
+      expect(renamed.deletions).toEqual(expect.any(Number));
+    } finally {
+      fs.rmSync(renameRepo, { recursive: true, force: true });
     }
   });
 

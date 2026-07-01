@@ -5,7 +5,11 @@ import { runGitRaw, type GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { toGitQueryError } from "@/backend/utils/queryError";
 
 const eolRegex = /\r\n|\r|\n/g;
-const gitLogSeparator = "XX7Nal-YARtTpjCikii9nJxER19D6diSyk-AWkPb";
+const gitFieldSeparatorFormat = "%x00";
+const gitFieldSeparatorOutput = "\0";
+const commitInfoFieldCount = 7;
+const diffStatusRegex = /^[AMDR](?:\d+)?$/;
+const objectHashRegex = /^[0-9a-f]{40,64}$/i;
 
 type CommitDetailsInput = {
   commitHash: string;
@@ -18,6 +22,35 @@ function toPath(str: string) {
   return str.replace(/\\/g, "/");
 }
 
+function splitNulTerminatedFields(stdout: string) {
+  const fields = stdout.split(gitFieldSeparatorOutput);
+  if (fields[fields.length - 1] === "") fields.pop();
+  return fields;
+}
+
+function trimTrailingBlankLines(text: string) {
+  const lines = text.split(eolRegex);
+  let lastLine = lines.length - 1;
+  while (lastLine >= 0 && lines[lastLine] === "") lastLine--;
+  return lines.slice(0, lastLine + 1).join("\n");
+}
+
+function parseNumStatValue(value: string): number | null {
+  const parsed = parseInt(value, 10);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function splitNumStatSummary(summary: string) {
+  const firstTab = summary.indexOf("\t");
+  const secondTab = firstTab === -1 ? -1 : summary.indexOf("\t", firstTab + 1);
+  if (firstTab === -1 || secondTab === -1) return null;
+  return {
+    additions: parseNumStatValue(summary.slice(0, firstTab)),
+    deletions: parseNumStatValue(summary.slice(firstTab + 1, secondTab)),
+    path: summary.slice(secondTab + 1)
+  };
+}
+
 async function fetchCommitInfo(
   git: SimpleGit,
   commitHash: string,
@@ -26,17 +59,16 @@ async function fetchCommitInfo(
   record?: GitCommandRecorder
 ): Promise<GitCommitDetails> {
   const dateField = dateType === "Author Date" ? "%at" : "%ct";
-  const format = `${["%H", "%P", "%an", "%ae", dateField, "%cn"].join(gitLogSeparator)}%n%B`;
+  const format = ["%H", "%P", "%an", "%ae", dateField, "%cn", "%B"].join(gitFieldSeparatorFormat);
   const stdout = await runGitRaw(git, {
     label: "commitDetails.info",
     args: ["show", "--quiet", commitHash, `--format=${format}`],
     repo,
     record
   });
-  const lines = stdout.split(eolRegex);
-  let lastLine = lines.length - 1;
-  while (lastLine >= 0 && lines[lastLine] === "") lastLine--;
-  const commitInfo = lines[0].split(gitLogSeparator);
+  const commitInfo = stdout.split(gitFieldSeparatorOutput);
+  if (commitInfo.length < commitInfoFieldCount) throw new Error("Unexpected commit info format");
+
   return {
     hash: commitInfo[0],
     parents: commitInfo[1].split(" "),
@@ -44,7 +76,7 @@ async function fetchCommitInfo(
     email: commitInfo[3],
     date: parseInt(commitInfo[4], 10),
     committer: commitInfo[5],
-    body: lines.slice(1, lastLine + 1).join("\n"),
+    body: trimTrailingBlankLines(commitInfo.slice(6).join(gitFieldSeparatorOutput)),
     fileChanges: []
   };
 }
@@ -58,6 +90,7 @@ async function fetchNameStatus(
   const args = [
     "diff-tree",
     "--name-status",
+    "-z",
     "-r",
     "-m",
     "--root",
@@ -71,7 +104,7 @@ async function fetchNameStatus(
     repo,
     record
   });
-  return stdout.split(eolRegex);
+  return splitNulTerminatedFields(stdout);
 }
 
 async function fetchNumStat(
@@ -83,6 +116,7 @@ async function fetchNumStat(
   const args = [
     "diff-tree",
     "--numstat",
+    "-z",
     "-r",
     "-m",
     "--root",
@@ -96,7 +130,7 @@ async function fetchNumStat(
     repo,
     record
   });
-  return stdout.split(eolRegex);
+  return splitNulTerminatedFields(stdout);
 }
 
 export async function commitDetails(
@@ -113,28 +147,57 @@ export async function commitDetails(
     ]);
 
     const fileLookup: { [file: string]: number } = {};
-    for (let i = 1; i < nameStatusLines.length - 1; i++) {
-      const line = nameStatusLines[i].split("\t");
-      if (line.length < 2) break;
-      const oldFilePath = toPath(line[1]);
-      const newFilePath = toPath(line[line.length - 1]);
+    for (let i = 0; i < nameStatusLines.length; ) {
+      if (objectHashRegex.test(nameStatusLines[i])) {
+        i++;
+        continue;
+      }
+
+      const status = nameStatusLines[i];
+      if (!diffStatusRegex.test(status)) break;
+
+      const oldPathField = nameStatusLines[i + 1];
+      if (oldPathField === undefined) break;
+      const isRename = status[0] === "R";
+      const newPathField = isRename ? nameStatusLines[i + 2] : oldPathField;
+      if (newPathField === undefined) break;
+
+      const oldFilePath = toPath(oldPathField);
+      const newFilePath = toPath(newPathField);
       fileLookup[newFilePath] = details.fileChanges.length;
       details.fileChanges.push({
         oldFilePath,
         newFilePath,
-        type: line[0][0] as GitFileChangeType,
+        type: status[0] as GitFileChangeType,
         additions: null,
         deletions: null
       });
+      i += isRename ? 3 : 2;
     }
 
-    for (let i = 1; i < numStatLines.length - 1; i++) {
-      const line = numStatLines[i].split("\t");
-      if (line.length !== 3) break;
-      const fileName = line[2].replace(/(.*){.* => (.*)}/, "$1$2").replace(/.* => (.*)/, "$1");
+    for (let i = 0; i < numStatLines.length; ) {
+      if (objectHashRegex.test(numStatLines[i])) {
+        i++;
+        continue;
+      }
+
+      const summary = splitNumStatSummary(numStatLines[i]);
+      if (summary === null) break;
+
+      let fileName = summary.path;
+      if (fileName === "") {
+        const renamedPath = numStatLines[i + 2];
+        if (renamedPath === undefined) break;
+        fileName = renamedPath;
+        i += 3;
+      } else {
+        i++;
+      }
+
+      fileName = toPath(fileName);
       if (typeof fileLookup[fileName] === "number") {
-        details.fileChanges[fileLookup[fileName]].additions = parseInt(line[0], 10);
-        details.fileChanges[fileLookup[fileName]].deletions = parseInt(line[1], 10);
+        details.fileChanges[fileLookup[fileName]].additions = summary.additions;
+        details.fileChanges[fileLookup[fileName]].deletions = summary.deletions;
       }
     }
 
