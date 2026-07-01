@@ -2,6 +2,7 @@
 /media/*.js
 /node_modules/
 **/out/
+.scannerwork/
 *.vsix
 /graphify-out/.graphify_*
 /graphify-out/cache/
