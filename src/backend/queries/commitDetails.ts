@@ -2,6 +2,7 @@ import type { SimpleGit } from "simple-git";
 
 import type { DateType, GitCommitDetails, GitFileChangeType, QueryResult } from "@/backend/types";
 import { runGitRaw, type GitCommandRecorder } from "@/backend/utils/gitRunner";
+import { toGitQueryError } from "@/backend/utils/queryError";
 
 const eolRegex = /\r\n|\r|\n/g;
 const gitLogSeparator = "XX7Nal-YARtTpjCikii9nJxER19D6diSyk-AWkPb";
@@ -137,8 +138,8 @@ export async function commitDetails(
       }
     }
 
-    return { commitDetails: details };
-  } catch {
-    return { commitDetails: null };
+    return { commitDetails: details, error: null };
+  } catch (error: unknown) {
+    return { commitDetails: null, error: toGitQueryError(error, "Unable to load commit details") };
   }
 }

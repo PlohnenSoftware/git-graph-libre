@@ -1,13 +1,26 @@
 import type { GitCommitDetails, GitCommitNode } from "./git.types";
 
+export type GitQueryError = {
+  message: string;
+  stderr: string | null;
+  exitCode: number | null;
+  task: string | null;
+};
+
 type QueryPayloads = {
   commitDetails: {
     request: { repo: string; commitHash: string };
-    response: { commitDetails: GitCommitDetails | null };
+    response: { commitDetails: GitCommitDetails | null; error: GitQueryError | null };
   };
   loadBranches: {
     request: { showRemoteBranches: boolean; hard: boolean };
-    response: { branches: string[]; head: string | null; hard: boolean; isRepo: boolean };
+    response: {
+      branches: string[];
+      head: string | null;
+      hard: boolean;
+      isRepo: boolean;
+      error: GitQueryError | null;
+    };
   };
   loadCommits: {
     request: {
@@ -22,6 +35,7 @@ type QueryPayloads = {
       head: string | null;
       moreCommitsAvailable: boolean;
       hard: boolean;
+      error: GitQueryError | null;
     };
   };
 };

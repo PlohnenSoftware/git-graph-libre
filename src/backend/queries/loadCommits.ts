@@ -4,10 +4,12 @@ import type {
   DateType,
   GitCommitNode,
   GitLogEntry,
+  GitQueryError,
   GitRefData,
   QueryResult
 } from "@/backend/types";
 import { runGitCommand, runGitRaw, type GitCommandRecorder } from "@/backend/utils/gitRunner";
+import { toGitQueryError } from "@/backend/utils/queryError";
 
 const eolRegex = /\r\n|\r|\n/g;
 const gitLogSeparator = "XX7Nal-YARtTpjCikii9nJxER19D6diSyk-AWkPb";
@@ -28,11 +30,16 @@ type GitQueryContext = {
   record?: GitCommandRecorder;
 };
 
+type QueryValue<T> = {
+  value: T;
+  error: GitQueryError | null;
+};
+
 async function getRefs(
   git: SimpleGit,
   showRemoteBranches: boolean,
   context: GitQueryContext
-): Promise<GitRefData> {
+): Promise<QueryValue<GitRefData>> {
   try {
     const args = ["show-ref"];
     if (!showRemoteBranches) args.push("--heads", "--tags");
@@ -64,9 +71,12 @@ async function getRefs(
         refData.head = hash;
       }
     }
-    return refData;
-  } catch {
-    return { head: null, refs: [] };
+    return { value: refData, error: null };
+  } catch (error: unknown) {
+    return {
+      value: { head: null, refs: [] },
+      error: toGitQueryError(error, "Unable to load refs")
+    };
   }
 }
 
@@ -77,7 +87,7 @@ async function getLog(
   showRemoteBranches: boolean,
   dateType: DateType,
   context: GitQueryContext
-): Promise<GitLogEntry[]> {
+): Promise<QueryValue<GitLogEntry[]>> {
   const dateField = dateType === "Author Date" ? "%at" : "%ct";
   const format = ["%H", "%P", "%an", "%ae", dateField, "%s"].join(gitLogSeparator);
   const args = ["log", `--max-count=${maxCommits}`, `--format=${format}`, "--date-order"];
@@ -108,9 +118,9 @@ async function getLog(
         message: line[5]
       });
     }
-    return commits;
-  } catch {
-    return [];
+    return { value: commits, error: null };
+  } catch (error: unknown) {
+    return { value: [], error: toGitQueryError(error, "Unable to load commits") };
   }
 }
 
@@ -137,10 +147,13 @@ export async function loadCommits(
     input;
   const context = { repo: input.repo ?? null, record: input.recordGitCommand };
 
-  const [rawCommits, refData] = await Promise.all([
+  const [logResult, refsResult] = await Promise.all([
     getLog(git, branchName, maxCommits + 1, showRemoteBranches, dateType, context),
     getRefs(git, showRemoteBranches, context)
   ]);
+  const rawCommits = logResult.value;
+  const refData = refsResult.value;
+  const error = logResult.error ?? refsResult.error;
 
   let commits = rawCommits;
   const moreCommitsAvailable = commits.length === maxCommits + 1;
@@ -185,5 +198,5 @@ export async function loadCommits(
     }
   }
 
-  return { commits: commitNodes, head: refData.head, moreCommitsAvailable, hard };
+  return { commits: commitNodes, head: refData.head, moreCommitsAvailable, hard, error };
 }

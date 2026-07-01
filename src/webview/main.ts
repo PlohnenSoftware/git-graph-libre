@@ -4,6 +4,7 @@ import type {
   GitCommitNode,
   GitFileChange,
   GitFileChangeType,
+  GitQueryError,
   GitResetMode
 } from "@/backend/types";
 
@@ -16,6 +17,26 @@ import { escapeHtml, unescapeHtml } from "./utils/html";
 import { svgIcons } from "./utils/icons";
 import { getVSCodeStyle, sendMessage, vscode } from "./utils/vscode";
 
+function requireElement<T extends HTMLElement = HTMLElement>(id: string): T {
+  const elem = document.getElementById(id);
+  if (elem === null) throw new Error(`Missing webview element #${id}`);
+  return elem as T;
+}
+
+function closestHTMLElement(target: EventTarget | null, selector: string): HTMLElement | null {
+  return target instanceof Element ? (target.closest(selector) as HTMLElement | null) : null;
+}
+
+function formatQueryError(error: GitQueryError | null): string | null {
+  if (error === null) return null;
+
+  const parts = [error.message];
+  if (error.stderr !== null && error.stderr !== error.message) parts.push(error.stderr);
+  if (error.task !== null) parts.push(`Git task: ${error.task}`);
+  if (error.exitCode !== null) parts.push(`Exit code: ${error.exitCode}`);
+  return parts.join("\n");
+}
+
 class GitGraphView {
   private gitRepos: GG.GitRepoSet;
   private gitBranches: string[] = [];
@@ -25,7 +46,7 @@ class GitGraphView {
   private commitLookup: { [hash: string]: number } = {};
   private avatars: AvatarImageCollection = {};
   private currentBranch: string | null = null;
-  private currentRepo!: string;
+  private currentRepo: string = "";
 
   private graph: Graph;
   private config: Config;
@@ -54,8 +75,8 @@ class GitGraphView {
     this.config = config;
     this.maxCommits = config.initialLoadCommits;
     this.graph = new Graph("commitGraph", this.config);
-    this.tableElem = document.getElementById("commitTable")!;
-    this.footerElem = document.getElementById("footer")!;
+    this.tableElem = requireElement("commitTable");
+    this.footerElem = requireElement("footer");
     this.repoDropdown = new Dropdown("repoSelect", true, l10n.repo, (value) => {
       this.currentRepo = value;
       this.maxCommits = this.config.initialLoadCommits;
@@ -73,16 +94,14 @@ class GitGraphView {
       this.renderShowLoading();
       this.requestLoadCommits(true, () => {});
     });
-    this.showRemoteBranchesElem = <HTMLInputElement>(
-      document.getElementById("showRemoteBranchesCheckbox")!
-    );
+    this.showRemoteBranchesElem = requireElement<HTMLInputElement>("showRemoteBranchesCheckbox");
     this.showRemoteBranchesElem.addEventListener("change", () => {
       this.showRemoteBranches = this.showRemoteBranchesElem.checked;
       this.saveState();
       this.refresh(true);
     });
-    this.scrollShadowElem = <HTMLInputElement>document.getElementById("scrollShadow")!;
-    document.getElementById("refreshBtn")!.addEventListener("click", () => {
+    this.scrollShadowElem = requireElement("scrollShadow");
+    document.getElementById("refreshBtn")?.addEventListener("click", () => {
       this.refresh(true);
     });
     const blinkBtn = document.getElementById("blinkHeadBtn");
@@ -123,26 +142,26 @@ class GitGraphView {
     this.gitRepos = repos;
     this.saveState();
 
-    let repoPaths = Object.keys(repos),
-      changedRepo = false;
+    const repoPaths = Object.keys(repos);
+    let changedRepo = false;
     if (typeof repos[this.currentRepo] === "undefined") {
       this.currentRepo =
         lastActiveRepo !== null && typeof repos[lastActiveRepo] !== "undefined"
           ? lastActiveRepo
-          : repoPaths[0];
+          : (repoPaths[0] ?? "");
       this.saveState();
       changedRepo = true;
     }
 
-    let options = [],
-      repoComps,
-      i;
-    for (i = 0; i < repoPaths.length; i++) {
-      repoComps = repoPaths[i].split("/");
+    const options: { name: string; value: string }[] = [];
+    for (let i = 0; i < repoPaths.length; i++) {
+      const repoComps = repoPaths[i].split("/");
       options.push({ name: repoComps[repoComps.length - 1], value: repoPaths[i] });
     }
-    document.getElementById("repoControl")!.style.display =
-      repoPaths.length > 1 ? "inline" : "none";
+    const repoControl = document.getElementById("repoControl");
+    if (repoControl !== null) {
+      repoControl.style.display = repoPaths.length > 1 ? "inline" : "none";
+    }
     this.repoDropdown.setOptions(options, this.currentRepo);
 
     if (changedRepo) {
@@ -154,9 +173,16 @@ class GitGraphView {
     branchOptions: string[],
     branchHead: string | null,
     hard: boolean,
-    isRepo: boolean
+    isRepo: boolean,
+    errorReason: string | null = null
   ) {
+    if (errorReason !== null) {
+      this.renderShowError(l10n.unableToLoadGitGraph, errorReason);
+      this.triggerLoadBranchesCallback(false, isRepo);
+      return;
+    }
     if (!isRepo) {
+      this.renderShowError(l10n.unableToLoadGitGraph, l10n.noGitRepository);
       this.triggerLoadBranchesCallback(false, isRepo);
       return;
     }
@@ -182,7 +208,7 @@ class GitGraphView {
     }
     this.saveState();
 
-    let options = [{ name: l10n.showAll, value: "" }];
+    const options = [{ name: l10n.showAll, value: "" }];
     for (let i = 0; i < this.gitBranches.length; i++) {
       options.push({
         name:
@@ -207,8 +233,14 @@ class GitGraphView {
     commits: GitCommitNode[],
     commitHead: string | null,
     moreAvailable: boolean,
-    hard: boolean
+    hard: boolean,
+    errorReason: string | null = null
   ) {
+    if (errorReason !== null) {
+      this.renderShowError(l10n.unableToLoadGitGraph, errorReason);
+      this.triggerLoadCommitsCallback(false);
+      return;
+    }
     if (
       !hard &&
       this.moreCommitsAvailable === moreAvailable &&
@@ -283,11 +315,11 @@ class GitGraphView {
   public loadAvatar(email: string, image: string) {
     this.avatars[email] = image;
     this.saveState();
-    let avatarsElems = <HTMLCollectionOf<HTMLElement>>document.getElementsByClassName("avatar"),
+    const avatarsElems = <HTMLCollectionOf<HTMLElement>>document.getElementsByClassName("avatar"),
       escapedEmail = escapeHtml(email);
     for (let i = 0; i < avatarsElems.length; i++) {
       if (avatarsElems[i].dataset.email === escapedEmail) {
-        avatarsElems[i].innerHTML = '<img class="avatarImg" src="' + image + '">';
+        avatarsElems[i].innerHTML = `<img class="avatarImg" src="${image}">`;
       }
     }
   }
@@ -323,7 +355,7 @@ class GitGraphView {
     this.loadCommitsCallback = loadedCallback;
     sendMessage({
       command: "loadCommits",
-      repo: this.currentRepo!,
+      repo: this.currentRepo,
       branchName: this.currentBranch !== null ? this.currentBranch : "",
       maxCommits: this.maxCommits,
       showRemoteBranches: this.showRemoteBranches,
@@ -344,11 +376,11 @@ class GitGraphView {
     });
   }
   private fetchAvatars(avatars: { [email: string]: string[] }) {
-    let emails = Object.keys(avatars);
+    const emails = Object.keys(avatars);
     for (let i = 0; i < emails.length; i++) {
       sendMessage({
         command: "fetchAvatar",
-        repo: this.currentRepo!,
+        repo: this.currentRepo,
         email: emails[i],
         commits: avatars[emails[i]]
       });
@@ -375,13 +407,14 @@ class GitGraphView {
 
   /* Renderers */
   private render() {
+    document.body.classList.remove("unableToLoad");
     this.renderTable();
     this.renderGraph();
   }
   private renderGraph() {
-    let colHeadersElem = document.getElementById("tableColHeaders");
+    const colHeadersElem = document.getElementById("tableColHeaders");
     if (colHeadersElem === null) return;
-    let headerHeight = colHeadersElem.clientHeight + 1,
+    const headerHeight = colHeadersElem.clientHeight + 1,
       expandedCommitElem =
         this.expandedCommit !== null ? document.getElementById("commitDetails") : null;
     this.config.grid.expandY =
@@ -399,20 +432,17 @@ class GitGraphView {
     this.graph.render(this.expandedCommit);
   }
   private renderTable() {
-    let html = `<tr id="tableColHeaders"><th id="tableHeaderGraphCol" class="tableColHeader">${l10n.graph}</th><th class="tableColHeader">${l10n.description}</th><th class="tableColHeader">${l10n.date}</th><th class="tableColHeader">${l10n.author}</th><th class="tableColHeader">${l10n.commit}</th></tr>`,
-      i,
-      currentHash = this.commits.length > 0 && this.commits[0].hash === "*" ? "*" : this.commitHead;
-    for (i = 0; i < this.commits.length; i++) {
+    let html = `<tr id="tableColHeaders"><th id="tableHeaderGraphCol" class="tableColHeader">${l10n.graph}</th><th class="tableColHeader">${l10n.description}</th><th class="tableColHeader">${l10n.date}</th><th class="tableColHeader">${l10n.author}</th><th class="tableColHeader">${l10n.commit}</th></tr>`;
+    const currentHash =
+      this.commits.length > 0 && this.commits[0].hash === "*" ? "*" : this.commitHead;
+    for (let i = 0; i < this.commits.length; i++) {
       let refs = "",
-        message = escapeHtml(this.commits[i].message),
-        date = getCommitDate(this.commits[i].date),
-        j,
-        refName,
-        refActive,
-        refHtml;
-      for (j = 0; j < this.commits[i].refs.length; j++) {
-        refName = escapeHtml(this.commits[i].refs[j].name);
-        refActive =
+        refHtml = "";
+      const message = escapeHtml(this.commits[i].message);
+      const date = getCommitDate(this.commits[i].date);
+      for (let j = 0; j < this.commits[i].refs.length; j++) {
+        const refName = escapeHtml(this.commits[i].refs[j].name);
+        const refActive =
           this.commits[i].refs[j].type === "head" &&
           this.commits[i].refs[j].name === this.gitBranchHead;
         refHtml =
@@ -430,7 +460,7 @@ class GitGraphView {
       html +=
         "<tr " +
         (this.commits[i].hash !== "*"
-          ? 'class="commit" data-hash="' + this.commits[i].hash + '"'
+          ? `class="commit" data-hash="${this.commits[i].hash}"`
           : 'class="unsavedChanges"') +
         ' data-id="' +
         i +
@@ -439,20 +469,20 @@ class GitGraphView {
         '"><td></td><td>' +
         (this.commits[i].hash === this.commitHead ? '<span class="commitHeadDot"></span>' : "") +
         refs +
-        (this.commits[i].hash === currentHash ? "<b>" + message + "</b>" : message) +
+        (this.commits[i].hash === currentHash ? `<b>${message}</b>` : message) +
         '</td><td title="' +
         date.title +
         '">' +
         date.value +
         '</td><td title="' +
-        escapeHtml(this.commits[i].author + " <" + this.commits[i].email + ">") +
+        escapeHtml(`${this.commits[i].author} <${this.commits[i].email}>`) +
         '">' +
         (this.config.fetchAvatars
           ? '<span class="avatar" data-email="' +
             escapeHtml(this.commits[i].email) +
             '">' +
             (typeof this.avatars[this.commits[i].email] === "string"
-              ? '<img class="avatarImg" src="' + this.avatars[this.commits[i].email] + '">'
+              ? `<img class="avatarImg" src="${this.avatars[this.commits[i].email]}">`
               : "") +
             "</span>"
           : "") +
@@ -463,16 +493,17 @@ class GitGraphView {
         abbrevCommit(this.commits[i].hash) +
         "</td></tr>";
     }
-    this.tableElem.innerHTML = "<table>" + html + "</table>";
+    this.tableElem.innerHTML = `<table>${html}</table>`;
     this.footerElem.innerHTML = this.moreCommitsAvailable
-      ? '<div id="loadMoreCommitsBtn" class="roundedBtn">' + l10n.loadMore + "</div>"
+      ? `<div id="loadMoreCommitsBtn" class="roundedBtn">${l10n.loadMore}</div>`
       : "";
     this.makeTableResizable();
 
     if (this.moreCommitsAvailable) {
-      document.getElementById("loadMoreCommitsBtn")!.addEventListener("click", () => {
-        (<HTMLElement>document.getElementById("loadMoreCommitsBtn")!.parentNode!).innerHTML =
-          '<h2 id="loadingHeader">' + svgIcons.loading + l10n.loading + "</h2>";
+      const loadMoreCommitsBtn = document.getElementById("loadMoreCommitsBtn");
+      loadMoreCommitsBtn?.addEventListener("click", () => {
+        if (loadMoreCommitsBtn.parentElement === null) return;
+        loadMoreCommitsBtn.parentElement.innerHTML = `<h2 id="loadingHeader">${svgIcons.loading}${l10n.loading}</h2>`;
         this.maxCommits += this.config.loadMoreCommits;
         this.hideCommitDetails();
         this.saveState();
@@ -483,7 +514,7 @@ class GitGraphView {
     if (this.expandedCommit !== null) {
       let elem = null,
         elems = <HTMLCollectionOf<HTMLElement>>document.getElementsByClassName("commit");
-      for (i = 0; i < elems.length; i++) {
+      for (let i = 0; i < elems.length; i++) {
         if (this.expandedCommit.hash === elems[i].dataset.hash) {
           elem = elems[i];
           break;
@@ -493,7 +524,9 @@ class GitGraphView {
         this.expandedCommit = null;
         this.saveState();
       } else {
-        this.expandedCommit.id = parseInt(elem.dataset.id!);
+        const id = elem.dataset.id;
+        if (id === undefined) return;
+        this.expandedCommit.id = parseInt(id, 10);
         this.expandedCommit.srcElem = elem;
         this.saveState();
         if (this.expandedCommit.commitDetails !== null && this.expandedCommit.fileTree !== null) {
@@ -506,8 +539,9 @@ class GitGraphView {
 
     addListenerToClass("commit", "contextmenu", (e: Event) => {
       e.stopPropagation();
-      let sourceElem = <HTMLElement>(<Element>e.target).closest(".commit")!;
-      let hash = sourceElem.dataset.hash!;
+      const sourceElem = closestHTMLElement(e.target, ".commit");
+      const hash = sourceElem?.dataset.hash;
+      if (sourceElem === null || hash === undefined) return;
       showContextMenu(
         <MouseEvent>e,
         [
@@ -515,7 +549,7 @@ class GitGraphView {
             title: l10n.addTag + ELLIPSIS,
             onClick: () => {
               showFormDialog(
-                l10n.dialogAddTagTitle.replace("{0}", "<b><i>" + abbrevCommit(hash) + "</i></b>"),
+                l10n.dialogAddTagTitle.replace("{0}", `<b><i>${abbrevCommit(hash)}</i></b>`),
                 [
                   { type: "text-ref" as const, name: l10n.dialogAddTagName, default: "" },
                   {
@@ -538,7 +572,7 @@ class GitGraphView {
                 (values) => {
                   sendMessage({
                     command: "addTag",
-                    repo: this.currentRepo!,
+                    repo: this.currentRepo,
                     tagName: values[0],
                     commitHash: hash,
                     lightweight: values[1] === "lightweight",
@@ -553,16 +587,13 @@ class GitGraphView {
             title: l10n.createBranch + ELLIPSIS,
             onClick: () => {
               showRefInputDialog(
-                l10n.dialogCreateBranchTitle.replace(
-                  "{0}",
-                  "<b><i>" + abbrevCommit(hash) + "</i></b>"
-                ),
+                l10n.dialogCreateBranchTitle.replace("{0}", `<b><i>${abbrevCommit(hash)}</i></b>`),
                 "",
                 l10n.dialogCreateBranchSubmit,
                 (name) => {
                   sendMessage({
                     command: "createBranch",
-                    repo: this.currentRepo!,
+                    repo: this.currentRepo,
                     branchName: name,
                     commitHash: hash
                   });
@@ -576,14 +607,11 @@ class GitGraphView {
             title: l10n.checkout + ELLIPSIS,
             onClick: () => {
               showConfirmationDialog(
-                l10n.dialogCheckoutConfirm.replace(
-                  "{0}",
-                  "<b><i>" + abbrevCommit(hash) + "</i></b>"
-                ),
+                l10n.dialogCheckoutConfirm.replace("{0}", `<b><i>${abbrevCommit(hash)}</i></b>`),
                 () => {
                   sendMessage({
                     command: "checkoutCommit",
-                    repo: this.currentRepo!,
+                    repo: this.currentRepo,
                     commitHash: hash
                   });
                 },
@@ -598,12 +626,12 @@ class GitGraphView {
                 showConfirmationDialog(
                   l10n.dialogCherryPickConfirm.replace(
                     "{0}",
-                    "<b><i>" + abbrevCommit(hash) + "</i></b>"
+                    `<b><i>${abbrevCommit(hash)}</i></b>`
                   ),
                   () => {
                     sendMessage({
                       command: "cherrypickCommit",
-                      repo: this.currentRepo!,
+                      repo: this.currentRepo,
                       commitHash: hash,
                       parentIndex: 0
                     });
@@ -611,12 +639,12 @@ class GitGraphView {
                   sourceElem
                 );
               } else {
-                let options = this.commits[this.commitLookup[hash]].parentHashes.map(
+                const options = this.commits[this.commitLookup[hash]].parentHashes.map(
                   (parentHash, index) => ({
                     name:
                       abbrevCommit(parentHash) +
                       (typeof this.commitLookup[parentHash] === "number"
-                        ? ": " + this.commits[this.commitLookup[parentHash]].message
+                        ? `: ${this.commits[this.commitLookup[parentHash]].message}`
                         : ""),
                     value: (index + 1).toString()
                   })
@@ -624,7 +652,7 @@ class GitGraphView {
                 showSelectDialog(
                   l10n.dialogCherryPickConfirm.replace(
                     "{0}",
-                    "<b><i>" + abbrevCommit(hash) + "</i></b>"
+                    `<b><i>${abbrevCommit(hash)}</i></b>`
                   ),
                   "1",
                   options,
@@ -632,9 +660,9 @@ class GitGraphView {
                   (parentIndex) => {
                     sendMessage({
                       command: "cherrypickCommit",
-                      repo: this.currentRepo!,
+                      repo: this.currentRepo,
                       commitHash: hash,
-                      parentIndex: parseInt(parentIndex)
+                      parentIndex: parseInt(parentIndex, 10)
                     });
                   },
                   sourceElem
@@ -647,14 +675,11 @@ class GitGraphView {
             onClick: () => {
               if (this.commits[this.commitLookup[hash]].parentHashes.length === 1) {
                 showConfirmationDialog(
-                  l10n.dialogRevertConfirm.replace(
-                    "{0}",
-                    "<b><i>" + abbrevCommit(hash) + "</i></b>"
-                  ),
+                  l10n.dialogRevertConfirm.replace("{0}", `<b><i>${abbrevCommit(hash)}</i></b>`),
                   () => {
                     sendMessage({
                       command: "revertCommit",
-                      repo: this.currentRepo!,
+                      repo: this.currentRepo,
                       commitHash: hash,
                       parentIndex: 0
                     });
@@ -662,30 +687,27 @@ class GitGraphView {
                   sourceElem
                 );
               } else {
-                let options = this.commits[this.commitLookup[hash]].parentHashes.map(
+                const options = this.commits[this.commitLookup[hash]].parentHashes.map(
                   (parentHash, index) => ({
                     name:
                       abbrevCommit(parentHash) +
                       (typeof this.commitLookup[parentHash] === "number"
-                        ? ": " + this.commits[this.commitLookup[parentHash]].message
+                        ? `: ${this.commits[this.commitLookup[parentHash]].message}`
                         : ""),
                     value: (index + 1).toString()
                   })
                 );
                 showSelectDialog(
-                  l10n.dialogRevertConfirm.replace(
-                    "{0}",
-                    "<b><i>" + abbrevCommit(hash) + "</i></b>"
-                  ),
+                  l10n.dialogRevertConfirm.replace("{0}", `<b><i>${abbrevCommit(hash)}</i></b>`),
                   "1",
                   options,
                   l10n.dialogYesRevert,
                   (parentIndex) => {
                     sendMessage({
                       command: "revertCommit",
-                      repo: this.currentRepo!,
+                      repo: this.currentRepo,
                       commitHash: hash,
-                      parentIndex: parseInt(parentIndex)
+                      parentIndex: parseInt(parentIndex, 10)
                     });
                   },
                   sourceElem
@@ -707,7 +729,7 @@ class GitGraphView {
                 (createNewCommit) => {
                   sendMessage({
                     command: "mergeCommit",
-                    repo: this.currentRepo!,
+                    repo: this.currentRepo,
                     commitHash: hash,
                     createNewCommit: createNewCommit
                   });
@@ -722,7 +744,7 @@ class GitGraphView {
               showSelectDialog(
                 l10n.dialogResetConfirm
                   .replace("{0}", `<b>${l10n.labelCurrentBranch}</b>`)
-                  .replace("{1}", "<b><i>" + abbrevCommit(hash) + "</i></b>"),
+                  .replace("{1}", `<b><i>${abbrevCommit(hash)}</i></b>`),
                 "mixed",
                 [
                   { name: l10n.dialogResetSoft, value: "soft" },
@@ -733,7 +755,7 @@ class GitGraphView {
                 (mode) => {
                   sendMessage({
                     command: "resetToCommit",
-                    repo: this.currentRepo!,
+                    repo: this.currentRepo,
                     commitHash: hash,
                     resetMode: <GitResetMode>mode
                   });
@@ -754,8 +776,10 @@ class GitGraphView {
       );
     });
     addListenerToClass("commit", "click", (e: Event) => {
-      let sourceElem = <HTMLElement>(<Element>e.target).closest(".commit")!;
-      if (this.expandedCommit !== null && this.expandedCommit.hash === sourceElem.dataset.hash!) {
+      const sourceElem = closestHTMLElement(e.target, ".commit");
+      const hash = sourceElem?.dataset.hash;
+      if (sourceElem === null || hash === undefined) return;
+      if (this.expandedCommit !== null && this.expandedCommit.hash === hash) {
         this.hideCommitDetails();
       } else {
         this.loadCommitDetails(sourceElem);
@@ -763,8 +787,10 @@ class GitGraphView {
     });
     addListenerToClass("gitRef", "contextmenu", (e: Event) => {
       e.stopPropagation();
-      let sourceElem = <HTMLElement>(<Element>e.target).closest(".gitRef")!;
-      let refName = unescapeHtml(sourceElem.dataset.name!),
+      const sourceElem = closestHTMLElement(e.target, ".gitRef");
+      const rawRefName = sourceElem?.dataset.name;
+      if (sourceElem === null || rawRefName === undefined) return;
+      let refName = unescapeHtml(rawRefName),
         menu: ContextMenuElement[],
         copyType: string,
         copyTitle: string;
@@ -776,9 +802,9 @@ class GitGraphView {
               showConfirmationDialog(
                 l10n.dialogDeleteConfirm
                   .replace("{0}", l10n.labelTag)
-                  .replace("{1}", "<b><i>" + escapeHtml(refName) + "</i></b>"),
+                  .replace("{1}", `<b><i>${escapeHtml(refName)}</i></b>`),
                 () => {
-                  sendMessage({ command: "deleteTag", repo: this.currentRepo!, tagName: refName });
+                  sendMessage({ command: "deleteTag", repo: this.currentRepo, tagName: refName });
                 },
                 null
               );
@@ -788,12 +814,9 @@ class GitGraphView {
             title: l10n.pushTag + ELLIPSIS,
             onClick: () => {
               showConfirmationDialog(
-                l10n.dialogPushTagConfirm.replace(
-                  "{0}",
-                  "<b><i>" + escapeHtml(refName) + "</i></b>"
-                ),
+                l10n.dialogPushTagConfirm.replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`),
                 () => {
-                  sendMessage({ command: "pushTag", repo: this.currentRepo!, tagName: refName });
+                  sendMessage({ command: "pushTag", repo: this.currentRepo, tagName: refName });
                   showActionRunningDialog(l10n.pushingTag);
                 },
                 null
@@ -816,16 +839,13 @@ class GitGraphView {
             title: l10n.renameBranch + ELLIPSIS,
             onClick: () => {
               showRefInputDialog(
-                l10n.dialogRenameBranchTitle.replace(
-                  "{0}",
-                  "<b><i>" + escapeHtml(refName) + "</i></b>"
-                ),
+                l10n.dialogRenameBranchTitle.replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`),
                 refName,
                 l10n.dialogRenameBranchSubmit,
                 (newName) => {
                   sendMessage({
                     command: "renameBranch",
-                    repo: this.currentRepo!,
+                    repo: this.currentRepo,
                     oldName: refName,
                     newName: newName
                   });
@@ -842,14 +862,14 @@ class GitGraphView {
                   showCheckboxDialog(
                     l10n.dialogDeleteConfirm
                       .replace("{0}", l10n.labelBranch)
-                      .replace("{1}", "<b><i>" + escapeHtml(refName) + "</i></b>"),
+                      .replace("{1}", `<b><i>${escapeHtml(refName)}</i></b>`),
                     l10n.dialogDeleteForceDelete,
                     false,
                     l10n.deleteBranch,
                     (forceDelete) => {
                       sendMessage({
                         command: "deleteBranch",
-                        repo: this.currentRepo!,
+                        repo: this.currentRepo,
                         branchName: refName,
                         forceDelete: forceDelete
                       });
@@ -863,7 +883,7 @@ class GitGraphView {
                 onClick: () => {
                   showCheckboxDialog(
                     l10n.dialogMergeConfirm
-                      .replace("{0}", "<b><i>" + escapeHtml(refName) + "</i></b>")
+                      .replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`)
                       .replace("{1}", l10n.labelCurrentBranch),
                     l10n.dialogMergeNoFastForward,
                     true,
@@ -871,7 +891,7 @@ class GitGraphView {
                     (createNewCommit) => {
                       sendMessage({
                         command: "mergeBranch",
-                        repo: this.currentRepo!,
+                        repo: this.currentRepo,
                         branchName: refName,
                         createNewCommit: createNewCommit
                       });
@@ -905,12 +925,14 @@ class GitGraphView {
     addListenerToClass("gitRef", "dblclick", (e: Event) => {
       e.stopPropagation();
       hideDialogAndContextMenu();
-      let sourceElem = <HTMLElement>(<Element>e.target).closest(".gitRef")!;
-      this.checkoutBranchAction(sourceElem, unescapeHtml(sourceElem.dataset.name!));
+      const sourceElem = closestHTMLElement(e.target, ".gitRef");
+      const refName = sourceElem?.dataset.name;
+      if (sourceElem === null || refName === undefined) return;
+      this.checkoutBranchAction(sourceElem, unescapeHtml(refName));
     });
   }
   private renderUncommitedChanges() {
-    let date = getCommitDate(this.commits[0].date);
+    const date = getCommitDate(this.commits[0].date);
     document.getElementsByClassName("unsavedChanges")[0].innerHTML =
       "<td></td><td><b>" +
       escapeHtml(this.commits[0].message) +
@@ -922,32 +944,41 @@ class GitGraphView {
   }
   private renderShowLoading() {
     hideDialogAndContextMenu();
+    document.body.classList.remove("unableToLoad");
+    this.graph.clear();
+    this.tableElem.innerHTML = `<h2 id="loadingHeader">${svgIcons.loading}${l10n.loading}</h2>`;
+    this.footerElem.innerHTML = "";
+  }
+  private renderShowError(message: string, reason: string | null) {
+    hideDialogAndContextMenu();
+    document.body.classList.add("unableToLoad");
     this.graph.clear();
     this.tableElem.innerHTML =
-      '<h2 id="loadingHeader">' + svgIcons.loading + l10n.loading + "</h2>";
+      `<h2>${escapeHtml(message)}</h2>` +
+      (reason !== null
+        ? `<p class="errorReason">${escapeHtml(reason).split("\n").join("<br>")}</p>`
+        : "");
     this.footerElem.innerHTML = "";
   }
   private checkoutBranchAction(sourceElem: HTMLElement, refName: string) {
     if (sourceElem.classList.contains("head")) {
       sendMessage({
         command: "checkoutBranch",
-        repo: this.currentRepo!,
+        repo: this.currentRepo,
         branchName: refName,
         remoteBranch: null
       });
     } else if (sourceElem.classList.contains("remote")) {
-      let refNameComps = refName.split("/");
+      const refNameComps = refName.split("/");
+      const sourceName = sourceElem.dataset.name ?? refName;
       showRefInputDialog(
-        l10n.dialogCreateBranchTitle.replace(
-          "{0}",
-          "<b><i>" + escapeHtml(sourceElem.dataset.name!) + "</i></b>"
-        ),
+        l10n.dialogCreateBranchTitle.replace("{0}", `<b><i>${escapeHtml(sourceName)}</i></b>`),
         refNameComps[refNameComps.length - 1],
         l10n.checkoutBranch,
         (newBranch) => {
           sendMessage({
             command: "checkoutBranch",
-            repo: this.currentRepo!,
+            repo: this.currentRepo,
             branchName: newBranch,
             remoteBranch: refName
           });
@@ -957,7 +988,7 @@ class GitGraphView {
     }
   }
   private makeTableResizable() {
-    let colHeadersElem = document.getElementById("tableColHeaders")!,
+    const colHeadersElem = requireElement("tableColHeaders"),
       cols = <HTMLCollectionOf<HTMLElement>>document.getElementsByClassName("tableColHeader");
     let columnWidths = this.gitRepos[this.currentRepo].columnWidths,
       mouseX = -1,
@@ -965,11 +996,11 @@ class GitGraphView {
 
     const makeTableFixedLayout = () => {
       if (columnWidths !== null) {
-        cols[0].style.width = columnWidths[0] + "px";
+        cols[0].style.width = `${columnWidths[0]}px`;
         cols[0].style.padding = "";
-        cols[2].style.width = columnWidths[1] + "px";
-        cols[3].style.width = columnWidths[2] + "px";
-        cols[4].style.width = columnWidths[3] + "px";
+        cols[2].style.width = `${columnWidths[1]}px`;
+        cols[3].style.width = `${columnWidths[2]}px`;
+        cols[4].style.width = `${columnWidths[3]}px`;
         this.tableElem.className = "fixedLayout";
         this.graph.limitMaxWidth(columnWidths[0] + 16);
       }
@@ -990,8 +1021,8 @@ class GitGraphView {
 
     for (let i = 0; i < cols.length; i++) {
       cols[i].innerHTML +=
-        (i > 0 ? '<span class="resizeCol left" data-col="' + (i - 1) + '"></span>' : "") +
-        (i < cols.length - 1 ? '<span class="resizeCol right" data-col="' + i + '"></span>' : "");
+        (i > 0 ? `<span class="resizeCol left" data-col="${i - 1}"></span>` : "") +
+        (i < cols.length - 1 ? `<span class="resizeCol right" data-col="${i}"></span>` : "");
     }
     if (columnWidths !== null) {
       makeTableFixedLayout();
@@ -1005,7 +1036,8 @@ class GitGraphView {
     }
 
     addListenerToClass("resizeCol", "mousedown", (e) => {
-      col = parseInt((<HTMLElement>e.target).dataset.col!);
+      if (!(e.target instanceof HTMLElement) || e.target.dataset.col === undefined) return;
+      col = parseInt(e.target.dataset.col, 10);
       mouseX = (<MouseEvent>e).clientX;
       if (columnWidths === null) {
         columnWidths = [
@@ -1020,29 +1052,29 @@ class GitGraphView {
     });
     colHeadersElem.addEventListener("mousemove", (e) => {
       if (col > -1 && columnWidths !== null) {
-        let mouseEvent = <MouseEvent>e;
+        const mouseEvent = <MouseEvent>e;
         let mouseDeltaX = mouseEvent.clientX - mouseX;
         switch (col) {
           case 0:
             if (columnWidths[0] + mouseDeltaX < 40) mouseDeltaX = -columnWidths[0] + 40;
             if (cols[1].clientWidth - mouseDeltaX < 64) mouseDeltaX = cols[1].clientWidth - 64;
             columnWidths[0] += mouseDeltaX;
-            cols[0].style.width = columnWidths[0] + "px";
+            cols[0].style.width = `${columnWidths[0]}px`;
             this.graph.limitMaxWidth(columnWidths[0] + 16);
             break;
           case 1:
             if (cols[1].clientWidth + mouseDeltaX < 64) mouseDeltaX = -cols[1].clientWidth + 64;
             if (columnWidths[1] - mouseDeltaX < 40) mouseDeltaX = columnWidths[1] - 40;
             columnWidths[1] -= mouseDeltaX;
-            cols[2].style.width = columnWidths[1] + "px";
+            cols[2].style.width = `${columnWidths[1]}px`;
             break;
           default:
             if (columnWidths[col - 1] + mouseDeltaX < 40) mouseDeltaX = -columnWidths[col - 1] + 40;
             if (columnWidths[col] - mouseDeltaX < 40) mouseDeltaX = columnWidths[col] - 40;
             columnWidths[col - 1] += mouseDeltaX;
             columnWidths[col] -= mouseDeltaX;
-            cols[col].style.width = columnWidths[col - 1] + "px";
-            cols[col + 1].style.width = columnWidths[col] + "px";
+            cols[col].style.width = `${columnWidths[col - 1]}px`;
+            cols[col + 1].style.width = `${columnWidths[col]}px`;
         }
         mouseX = mouseEvent.clientX;
       }
@@ -1067,7 +1099,7 @@ class GitGraphView {
   private observeWebviewStyleChanges() {
     let fontFamily = getVSCodeStyle("--vscode-editor-font-family");
     new MutationObserver(() => {
-      let ff = getVSCodeStyle("--vscode-editor-font-family");
+      const ff = getVSCodeStyle("--vscode-editor-font-family");
       if (ff !== fontFamily) {
         fontFamily = ff;
         this.repoDropdown.refresh();
@@ -1088,10 +1120,14 @@ class GitGraphView {
 
   /* Commit Details */
   private loadCommitDetails(sourceElem: HTMLElement) {
+    const id = sourceElem.dataset.id;
+    const hash = sourceElem.dataset.hash;
+    if (id === undefined || hash === undefined) return;
+
     this.hideCommitDetails();
     this.expandedCommit = {
-      id: parseInt(sourceElem.dataset.id!),
-      hash: sourceElem.dataset.hash!,
+      id: parseInt(id, 10),
+      hash: hash,
       srcElem: sourceElem,
       commitDetails: null,
       fileTree: null
@@ -1099,13 +1135,13 @@ class GitGraphView {
     this.saveState();
     sendMessage({
       command: "commitDetails",
-      repo: this.currentRepo!,
-      commitHash: sourceElem.dataset.hash!
+      repo: this.currentRepo,
+      commitHash: hash
     });
   }
   public hideCommitDetails() {
     if (this.expandedCommit !== null) {
-      let elem = document.getElementById("commitDetails");
+      const elem = document.getElementById("commitDetails");
       if (typeof elem === "object" && elem !== null) elem.remove();
       if (typeof this.expandedCommit.srcElem === "object" && this.expandedCommit.srcElem !== null)
         this.expandedCommit.srcElem.classList.remove("commitDetailsOpen");
@@ -1121,7 +1157,7 @@ class GitGraphView {
       this.expandedCommit.hash !== commitDetails.hash
     )
       return;
-    let elem = document.getElementById("commitDetails");
+    const elem = document.getElementById("commitDetails");
     if (typeof elem === "object" && elem !== null) elem.remove();
 
     this.expandedCommit.commitDetails = commitDetails;
@@ -1135,8 +1171,8 @@ class GitGraphView {
       '<span class="commitDetailsSummaryTop' +
       (typeof this.avatars[commitDetails.email] === "string" ? " withAvatar" : "") +
       '"><span class="commitDetailsSummaryTopRow"><span class="commitDetailsSummaryKeyValues">';
-    html += "<b>" + l10n.detailCommit + "</b>" + escapeHtml(commitDetails.hash) + "<br>";
-    html += "<b>" + l10n.detailParents + "</b>" + commitDetails.parents.join(", ") + "<br>";
+    html += `<b>${l10n.detailCommit}</b>${escapeHtml(commitDetails.hash)}<br>`;
+    html += `<b>${l10n.detailParents}</b>${commitDetails.parents.join(", ")}<br>`;
     html +=
       "<b>" +
       l10n.detailAuthor +
@@ -1147,21 +1183,20 @@ class GitGraphView {
       '">' +
       escapeHtml(commitDetails.email) +
       "</a>&gt;<br>";
-    html +=
-      "<b>" + l10n.detailDate + "</b>" + new Date(commitDetails.date * 1000).toString() + "<br>";
-    html += "<b>" + l10n.detailCommitter + "</b>" + escapeHtml(commitDetails.committer) + "</span>";
+    html += `<b>${l10n.detailDate}</b>${new Date(commitDetails.date * 1000).toString()}<br>`;
+    html += `<b>${l10n.detailCommitter}</b>${escapeHtml(commitDetails.committer)}</span>`;
     if (typeof this.avatars[commitDetails.email] === "string")
       html +=
         '<span class="commitDetailsSummaryAvatar"><img src="' +
         this.avatars[commitDetails.email] +
         '"></span>';
     html += "</span></span><br><br>";
-    html += escapeHtml(commitDetails.body).replace(/\n/g, "<br>") + "</div>";
+    html += `${escapeHtml(commitDetails.body).replace(/\n/g, "<br>")}</div>`;
     html +=
       '<div id="commitDetailsFiles">' +
       generateGitFileTreeHtml(fileTree, commitDetails.fileChanges) +
       "</table></div>";
-    html += '<div id="commitDetailsClose">' + svgIcons.close + "</div>";
+    html += `<div id="commitDetailsClose">${svgIcons.close}</div>`;
     html += "</td>";
 
     newElem.id = "commitDetails";
@@ -1187,46 +1222,63 @@ class GitGraphView {
       window.scrollTo(0, newElem.offsetTop + this.config.grid.expandY - window.innerHeight + 48);
     }
 
-    document.getElementById("commitDetailsClose")!.addEventListener("click", () => {
+    document.getElementById("commitDetailsClose")?.addEventListener("click", () => {
       this.hideCommitDetails();
     });
     addListenerToClass("gitFolder", "click", (e) => {
-      let sourceElem = <HTMLElement>(<Element>e.target!).closest(".gitFolder");
-      let parent = sourceElem.parentElement!;
+      const sourceElem = closestHTMLElement(e.target, ".gitFolder");
+      const parent = sourceElem?.parentElement;
+      const folderPath = sourceElem?.dataset.folderpath;
+      if (
+        sourceElem === null ||
+        parent === null ||
+        parent === undefined ||
+        folderPath === undefined ||
+        this.expandedCommit?.fileTree === null ||
+        this.expandedCommit === null
+      ) {
+        return;
+      }
       parent.classList.toggle("closed");
-      let isOpen = !parent.classList.contains("closed");
+      const isOpen = !parent.classList.contains("closed");
       parent.children[0].children[0].innerHTML = isOpen
         ? svgIcons.openFolder
         : svgIcons.closedFolder;
       parent.children[1].classList.toggle("hidden");
-      alterGitFileTree(
-        this.expandedCommit!.fileTree!,
-        decodeURIComponent(sourceElem.dataset.folderpath!),
-        isOpen
-      );
+      alterGitFileTree(this.expandedCommit.fileTree, decodeURIComponent(folderPath), isOpen);
       this.saveState();
     });
     addListenerToClass("gitFile", "click", (e) => {
-      let sourceElem = <HTMLElement>(<Element>e.target).closest(".gitFile")!;
-      if (this.expandedCommit === null || !sourceElem.classList.contains("gitDiffPossible")) return;
+      const sourceElem = closestHTMLElement(e.target, ".gitFile");
+      if (
+        this.expandedCommit === null ||
+        sourceElem === null ||
+        !sourceElem.classList.contains("gitDiffPossible")
+      ) {
+        return;
+      }
+      const oldFilePath = sourceElem.dataset.oldfilepath;
+      const newFilePath = sourceElem.dataset.newfilepath;
+      const type = sourceElem.dataset.type;
+      if (oldFilePath === undefined || newFilePath === undefined || type === undefined) return;
       sendMessage({
         command: "viewDiff",
-        repo: this.currentRepo!,
+        repo: this.currentRepo,
         commitHash: this.expandedCommit.hash,
-        oldFilePath: decodeURIComponent(sourceElem.dataset.oldfilepath!),
-        newFilePath: decodeURIComponent(sourceElem.dataset.newfilepath!),
-        type: <GitFileChangeType>sourceElem.dataset.type
+        oldFilePath: decodeURIComponent(oldFilePath),
+        newFilePath: decodeURIComponent(newFilePath),
+        type: <GitFileChangeType>type
       });
     });
   }
 }
 
-let contextMenu = document.getElementById("contextMenu")!,
-  contextMenuSource: HTMLElement | null = null;
-let dialog = document.getElementById("dialog")!,
-  dialogBacking = document.getElementById("dialogBacking")!,
-  dialogMenuSource: HTMLElement | null = null;
-let gitGraph = new GitGraphView(
+const contextMenu = requireElement("contextMenu");
+let contextMenuSource: HTMLElement | null = null;
+const dialog = requireElement("dialog");
+const dialogBacking = requireElement("dialogBacking");
+let dialogMenuSource: HTMLElement | null = null;
+const gitGraph = new GitGraphView(
   viewState.repos,
   viewState.lastActiveRepo,
   {
@@ -1261,7 +1313,7 @@ window.addEventListener("message", (event) => {
     case "commitDetails":
       if (msg.commitDetails === null) {
         gitGraph.hideCommitDetails();
-        showErrorDialog(l10n.unableToLoadCommitDetails, null, null);
+        showErrorDialog(l10n.unableToLoadCommitDetails, formatQueryError(msg.error), null);
       } else {
         gitGraph.showCommitDetails(
           msg.commitDetails,
@@ -1271,7 +1323,7 @@ window.addEventListener("message", (event) => {
       break;
     case "copyToClipboard":
       if (msg.success === false) {
-        let typeLabel: Record<string, string> = {
+        const typeLabel: Record<string, string> = {
           "Commit Hash": l10n.typeCommitHash,
           "Tag Name": l10n.typeTagName,
           "Branch Name": l10n.typeBranchName
@@ -1296,10 +1348,22 @@ window.addEventListener("message", (event) => {
       gitGraph.loadAvatar(msg.email, msg.image);
       break;
     case "loadBranches":
-      gitGraph.loadBranches(msg.branches, msg.head, msg.hard, msg.isRepo);
+      gitGraph.loadBranches(
+        msg.branches,
+        msg.head,
+        msg.hard,
+        msg.isRepo,
+        formatQueryError(msg.error)
+      );
       break;
     case "loadCommits":
-      gitGraph.loadCommits(msg.commits, msg.head, msg.moreCommitsAvailable, msg.hard);
+      gitGraph.loadCommits(
+        msg.commits,
+        msg.head,
+        msg.moreCommitsAvailable,
+        msg.hard,
+        formatQueryError(msg.error)
+      );
       break;
     case "loadRepos":
       gitGraph.loadRepos(msg.repos, msg.lastActiveRepo);
@@ -1340,10 +1404,10 @@ function refreshGraphOrDisplayError(status: GitCommandStatus, errorMessage: stri
 
 /* Dates */
 function getCommitDate(dateVal: number) {
-  let date = new Date(dateVal * 1000),
-    value;
+  const date = new Date(dateVal * 1000);
+  let value: string;
 
-  let dateStr = l10n.timeDateFormat
+  const dateStr = l10n.timeDateFormat
     .replace("DD", String(date.getDate()))
     .replace(
       "MM",
@@ -1352,16 +1416,16 @@ function getCommitDate(dateVal: number) {
         : String(date.getMonth() + 1)
     )
     .replace("YYYY", String(date.getFullYear()));
-  let timeStr = pad2(date.getHours()) + ":" + pad2(date.getMinutes());
+  const timeStr = `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 
   switch (viewState.dateFormat) {
     case "Date Only":
       value = dateStr;
       break;
-    case "Relative":
-      let diff = Math.round(new Date().getTime() / 1000) - dateVal,
-        unit,
-        unitPlural;
+    case "Relative": {
+      let diff = Math.round(Date.now() / 1000) - dateVal;
+      let unit: string;
+      let unitPlural: string;
       if (diff < 60) {
         unit = l10n.timeSecond;
         unitPlural = l10n.timeSeconds;
@@ -1391,32 +1455,29 @@ function getCommitDate(dateVal: number) {
         diff /= 31557600;
       }
       diff = Math.round(diff);
-      value = diff + " " + (diff !== 1 ? unitPlural : unit) + " " + l10n.timeAgo;
+      value = `${diff} ${diff !== 1 ? unitPlural : unit} ${l10n.timeAgo}`;
       break;
+    }
     default:
-      value = dateStr + " " + timeStr;
+      value = `${dateStr} ${timeStr}`;
   }
-  return { title: dateStr + " " + timeStr, value: value };
+  return { title: `${dateStr} ${timeStr}`, value: value };
 }
 
 /* Utils */
 function generateGitFileTree(gitFiles: GitFileChange[]) {
-  let contents: GitFolderContents = {},
-    i,
-    j,
-    path,
-    cur: GitFolder;
-  let files: GitFolder = {
+  let contents: GitFolderContents = {};
+  const files: GitFolder = {
     type: "folder",
     name: "",
     folderPath: "",
     contents: contents,
     open: true
   };
-  for (i = 0; i < gitFiles.length; i++) {
-    cur = files;
-    path = gitFiles[i].newFilePath.split("/");
-    for (j = 0; j < path.length; j++) {
+  for (let i = 0; i < gitFiles.length; i++) {
+    let cur: GitFolder = files;
+    const path = gitFiles[i].newFilePath.split("/");
+    for (let j = 0; j < path.length; j++) {
       if (j < path.length - 1) {
         if (typeof cur.contents[path[j]] === "undefined") {
           contents = {};
@@ -1438,22 +1499,19 @@ function generateGitFileTree(gitFiles: GitFileChange[]) {
 }
 function generateGitFileTreeHtml(folder: GitFolder, gitFiles: GitFileChange[]) {
   let html =
-      (folder.name !== ""
-        ? '<span class="gitFolder" data-folderpath="' +
-          encodeURIComponent(folder.folderPath) +
-          '"><span class="gitFolderIcon">' +
-          (folder.open ? svgIcons.openFolder : svgIcons.closedFolder) +
-          '</span><span class="gitFolderName">' +
-          escapeHtml(folder.name) +
-          "</span></span>"
-        : "") +
-      '<ul class="gitFolderContents' +
-      (!folder.open ? " hidden" : "") +
-      '">',
-    keys = Object.keys(folder.contents),
-    i,
-    gitFile,
-    gitFolder;
+    (folder.name !== ""
+      ? '<span class="gitFolder" data-folderpath="' +
+        encodeURIComponent(folder.folderPath) +
+        '"><span class="gitFolderIcon">' +
+        (folder.open ? svgIcons.openFolder : svgIcons.closedFolder) +
+        '</span><span class="gitFolderName">' +
+        escapeHtml(folder.name) +
+        "</span></span>"
+      : "") +
+    '<ul class="gitFolderContents' +
+    (!folder.open ? " hidden" : "") +
+    '">';
+  const keys = Object.keys(folder.contents);
   keys.sort((a, b) =>
     folder.contents[a].type === "folder" && folder.contents[b].type === "file"
       ? -1
@@ -1465,9 +1523,9 @@ function generateGitFileTreeHtml(folder: GitFolder, gitFiles: GitFileChange[]) {
             ? 1
             : 0
   );
-  for (i = 0; i < keys.length; i++) {
+  for (let i = 0; i < keys.length; i++) {
     if (folder.contents[keys[i]].type === "folder") {
-      gitFolder = <GitFolder>folder.contents[keys[i]];
+      const gitFolder = <GitFolder>folder.contents[keys[i]];
       html +=
         "<li" +
         (!gitFolder.open ? ' class="closed"' : "") +
@@ -1475,7 +1533,7 @@ function generateGitFileTreeHtml(folder: GitFolder, gitFiles: GitFileChange[]) {
         generateGitFileTreeHtml(gitFolder, gitFiles) +
         "</li>";
     } else {
-      gitFile = gitFiles[(<GitFile>folder.contents[keys[i]]).index];
+      const gitFile = gitFiles[(<GitFile>folder.contents[keys[i]]).index];
       html +=
         '<li class="gitFile ' +
         gitFile.type +
@@ -1488,7 +1546,7 @@ function generateGitFileTreeHtml(folder: GitFolder, gitFiles: GitFileChange[]) {
         gitFile.type +
         '"' +
         (gitFile.additions === null || gitFile.deletions === null
-          ? ' title="' + l10n.tooltipBinaryFile + '"'
+          ? ` title="${l10n.tooltipBinaryFile}"`
           : "") +
         '><span class="gitFileIcon">' +
         svgIcons.file +
@@ -1518,13 +1576,12 @@ function generateGitFileTreeHtml(folder: GitFolder, gitFiles: GitFileChange[]) {
         "</li>";
     }
   }
-  return html + "</ul>";
+  return `${html}</ul>`;
 }
 function alterGitFileTree(folder: GitFolder, folderPath: string, open: boolean) {
-  let path = folderPath.split("/"),
-    i,
-    cur = folder;
-  for (i = 0; i < path.length; i++) {
+  const path = folderPath.split("/");
+  let cur = folder;
+  for (let i = 0; i < path.length; i++) {
     if (typeof cur.contents[path[i]] !== "undefined") {
       cur = <GitFolder>cur.contents[path[i]];
       if (i === path.length - 1) {
@@ -1548,7 +1605,7 @@ function showContextMenu(e: MouseEvent, items: ContextMenuElement[], sourceElem:
   for (i = 0; i < items.length; i++) {
     html +=
       items[i] !== null
-        ? '<li class="contextMenuItem" data-index="' + i + '">' + items[i]!.title + "</li>"
+        ? `<li class="contextMenuItem" data-index="${i}">${items[i]?.title}</li>`
         : '<li class="contextMenuDivider"></li>';
   }
 
@@ -1556,21 +1613,24 @@ function showContextMenu(e: MouseEvent, items: ContextMenuElement[], sourceElem:
   contextMenu.style.opacity = "0";
   contextMenu.className = "active";
   contextMenu.innerHTML = html;
-  let bounds = contextMenu.getBoundingClientRect();
-  contextMenu.style.left =
-    (event.pageX - window.pageXOffset + bounds.width < window.innerWidth
+  const bounds = contextMenu.getBoundingClientRect();
+  contextMenu.style.left = `${
+    event.pageX - window.pageXOffset + bounds.width < window.innerWidth
       ? event.pageX - 2
-      : event.pageX - bounds.width + 2) + "px";
-  contextMenu.style.top =
-    (event.pageY - window.pageYOffset + bounds.height < window.innerHeight
+      : event.pageX - bounds.width + 2
+  }px`;
+  contextMenu.style.top = `${
+    event.pageY - window.pageYOffset + bounds.height < window.innerHeight
       ? event.pageY - 2
-      : event.pageY - bounds.height + 2) + "px";
+      : event.pageY - bounds.height + 2
+  }px`;
   contextMenu.style.opacity = "1";
 
   addListenerToClass("contextMenuItem", "click", (ev) => {
     ev.stopPropagation();
     hideContextMenu();
-    items[parseInt((<HTMLElement>ev.target).dataset.index!)]!.onClick();
+    if (!(ev.target instanceof HTMLElement) || ev.target.dataset.index === undefined) return;
+    items[parseInt(ev.target.dataset.index, 10)]?.onClick();
   });
 
   contextMenuSource = sourceElem;
@@ -1660,13 +1720,12 @@ function showFormDialog(
 ) {
   let textRefInput = -1,
     multiElementForm = inputs.length > 1;
-  let html =
-    message + '<br><table class="dialogForm ' + (multiElementForm ? "multi" : "single") + '">';
+  let html = `${message}<br><table class="dialogForm ${multiElementForm ? "multi" : "single"}">`;
   for (let i = 0; i < inputs.length; i++) {
-    let input = inputs[i];
-    html += "<tr>" + (multiElementForm ? "<td>" + input.name + "</td>" : "") + "<td>";
+    const input = inputs[i];
+    html += `<tr>${multiElementForm ? `<td>${input.name}</td>` : ""}<td>`;
     if (input.type === "select") {
-      html += '<select id="dialogInput' + i + '">';
+      html += `<select id="dialogInput${i}">`;
       for (let j = 0; j < input.options.length; j++) {
         html +=
           '<option value="' +
@@ -1695,7 +1754,7 @@ function showFormDialog(
         escapeHtml(input.default) +
         '"' +
         (input.type === "text" && input.placeholder !== null
-          ? ' placeholder="' + escapeHtml(input.placeholder) + '"'
+          ? ` placeholder="${escapeHtml(input.placeholder)}"`
           : "") +
         "/>";
       if (input.type === "text-ref") textRefInput = i;
@@ -1710,10 +1769,10 @@ function showFormDialog(
     () => {
       if (dialog.className === "active noInput" || dialog.className === "active inputInvalid")
         return;
-      let values = [];
+      const values = [];
       for (let i = 0; i < inputs.length; i++) {
-        let input = inputs[i],
-          elem = document.getElementById("dialogInput" + i);
+        const input = inputs[i],
+          elem = document.getElementById(`dialogInput${i}`);
         if (input.type === "select") {
           values.push((<HTMLSelectElement>elem).value);
         } else if (input.type === "checkbox") {
@@ -1729,14 +1788,17 @@ function showFormDialog(
   );
 
   if (textRefInput > -1) {
-    let dialogInput = <HTMLInputElement>document.getElementById("dialogInput" + textRefInput),
-      dialogAction = document.getElementById("dialogAction")!;
+    const dialogInput = <HTMLInputElement | null>(
+      document.getElementById(`dialogInput${textRefInput}`)
+    );
+    const dialogAction = requireElement("dialogAction");
+    if (dialogInput === null) return;
     if (dialogInput.value === "") dialog.className = "active noInput";
     dialogInput.focus();
     dialogInput.addEventListener("keyup", () => {
-      let noInput = dialogInput.value === "",
+      const noInput = dialogInput.value === "",
         invalidInput = dialogInput.value.match(refInvalid) !== null;
-      let newClassName = "active" + (noInput ? " noInput" : invalidInput ? " inputInvalid" : "");
+      const newClassName = `active${noInput ? " noInput" : invalidInput ? " inputInvalid" : ""}`;
       if (dialog.className !== newClassName) {
         dialog.className = newClassName;
         dialogAction.title = invalidInput ? l10n.invalidCharacters.replace("{0}", actionName) : "";
@@ -1749,7 +1811,7 @@ function showErrorDialog(message: string, reason: string | null, sourceElem: HTM
     svgIcons.alert +
       message +
       (reason !== null
-        ? '<br><span class="errorReason">' + escapeHtml(reason).split("\n").join("<br>") + "</span>"
+        ? `<br><span class="errorReason">${escapeHtml(reason).split("\n").join("<br>")}</span>`
         : ""),
     null,
     l10n.dialogDismiss,
@@ -1759,7 +1821,7 @@ function showErrorDialog(message: string, reason: string | null, sourceElem: HTM
 }
 function showActionRunningDialog(command: string) {
   showDialog(
-    '<span id="actionRunning">' + svgIcons.loading + command + " ...</span>",
+    `<span id="actionRunning">${svgIcons.loading}${command} ...</span>`,
     null,
     l10n.dialogDismiss,
     null,
@@ -1778,15 +1840,13 @@ function showDialog(
   dialog.innerHTML =
     html +
     "<br>" +
-    (actionName !== null
-      ? '<div id="dialogAction" class="roundedBtn">' + actionName + "</div>"
-      : "") +
+    (actionName !== null ? `<div id="dialogAction" class="roundedBtn">${actionName}</div>` : "") +
     '<div id="dialogDismiss" class="roundedBtn">' +
     dismissName +
     "</div>";
   if (actionName !== null && actioned !== null)
-    document.getElementById("dialogAction")!.addEventListener("click", actioned);
-  document.getElementById("dialogDismiss")!.addEventListener("click", hideDialog);
+    document.getElementById("dialogAction")?.addEventListener("click", actioned);
+  document.getElementById("dialogDismiss")?.addEventListener("click", hideDialog);
 
   dialogMenuSource = sourceElem;
   if (dialogMenuSource !== null) dialogMenuSource.classList.add("dialogActive");

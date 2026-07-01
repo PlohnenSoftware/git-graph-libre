@@ -2,7 +2,7 @@ import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 
-import { simpleGit } from "simple-git";
+import { simpleGit, type SimpleGit } from "simple-git";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { loadBranches } from "@/backend/queries/loadBranches";
@@ -15,8 +15,8 @@ let repoWithRemote: string;
 let originalLang: string | undefined;
 
 beforeAll(() => {
-  originalLang = process.env["LANG"];
-  process.env["LANG"] = "en_US.UTF-8";
+  originalLang = process.env.LANG;
+  process.env.LANG = "en_US.UTF-8";
   simpleRepo = makeRepo();
   git(["branch", "feature/foo"], simpleRepo);
 
@@ -35,9 +35,9 @@ beforeAll(() => {
 
 afterAll(() => {
   if (originalLang === undefined) {
-    delete process.env["LANG"];
+    delete process.env.LANG;
   } else {
-    process.env["LANG"] = originalLang;
+    process.env.LANG = originalLang;
   }
   fs.rmSync(simpleRepo, { recursive: true, force: true });
   fs.rmSync(detachedRepo, { recursive: true, force: true });
@@ -56,7 +56,8 @@ describe("loadBranches", () => {
       branches: expect.any(Array),
       head: "main",
       hard: false,
-      isRepo: true
+      isRepo: true,
+      error: null
     });
     expect(result.branches[0]).toBe("main");
   });
@@ -82,7 +83,8 @@ describe("loadBranches", () => {
       branches: expect.any(Array),
       head: null,
       hard: false,
-      isRepo: true
+      isRepo: true,
+      error: null
     });
     expect(result.branches.length).toBeGreaterThan(0);
   });
@@ -98,7 +100,8 @@ describe("loadBranches", () => {
       branches: expect.any(Array),
       head: expect.any(String),
       hard: false,
-      isRepo: true
+      isRepo: true,
+      error: null
     });
     expect(result.branches.some((b) => b.startsWith("remotes/"))).toBe(false);
   });
@@ -114,7 +117,8 @@ describe("loadBranches", () => {
       branches: expect.any(Array),
       head: expect.any(String),
       hard: false,
-      isRepo: true
+      isRepo: true,
+      error: null
     });
     expect(result.branches.some((b) => b.startsWith("remotes/origin/"))).toBe(true);
   });
@@ -130,7 +134,8 @@ describe("loadBranches", () => {
       branches: [],
       head: null,
       hard: false,
-      isRepo: false
+      isRepo: false,
+      error: null
     });
   });
 
@@ -145,7 +150,39 @@ describe("loadBranches", () => {
       branches: expect.any(Array),
       head: expect.any(String),
       hard: true,
-      isRepo: true
+      isRepo: true,
+      error: null
+    });
+  });
+
+  it("returns a typed error for branch command failures in a repository", async () => {
+    const failure = Object.assign(new Error("fatal: branch failed"), {
+      result: { exitCode: 128, stdErr: "fatal: branch failed" }
+    });
+    const failingGit = {
+      branchLocal: async () => {
+        throw failure;
+      }
+    } as unknown as SimpleGit;
+
+    const result = await loadBranches(failingGit, {
+      showRemoteBranches: false,
+      hard: false,
+      currentRepo: simpleRepo,
+      gitPath: "git"
+    });
+
+    expect(result).toEqual({
+      branches: [],
+      head: null,
+      hard: false,
+      isRepo: true,
+      error: {
+        message: "fatal: branch failed",
+        stderr: "fatal: branch failed",
+        exitCode: 128,
+        task: null
+      }
     });
   });
 });

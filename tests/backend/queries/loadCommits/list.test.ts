@@ -45,7 +45,8 @@ describe("loadCommits", () => {
       commits: expect.any(Array),
       head: expect.any(String),
       moreCommitsAvailable: false,
-      hard: false
+      hard: false,
+      error: null
     });
     expect(result.commits.length).toBeGreaterThan(0);
     expect(result.commits[0]).toEqual({
@@ -87,7 +88,8 @@ describe("loadCommits", () => {
       commits: expect.any(Array),
       head: expect.any(String),
       moreCommitsAvailable: true,
-      hard: false
+      hard: false,
+      error: null
     });
     expect(result.commits.length).toBe(1);
   });
@@ -105,7 +107,8 @@ describe("loadCommits", () => {
       commits: expect.any(Array),
       head: expect.any(String),
       moreCommitsAvailable: false,
-      hard: false
+      hard: false,
+      error: null
     });
   });
 
@@ -204,11 +207,12 @@ describe("loadCommits", () => {
       commits: expect.any(Array),
       head: expect.any(String),
       moreCommitsAvailable: false,
-      hard: true
+      hard: true,
+      error: null
     });
   });
 
-  it("records Git command failures while preserving the current empty fallback", async () => {
+  it("exposes typed Git command failures while preserving the current empty fallback", async () => {
     const failure = Object.assign(new Error("fatal: bad revision"), {
       result: { exitCode: 128, stdErr: "fatal: bad revision" }
     });
@@ -236,7 +240,13 @@ describe("loadCommits", () => {
       commits: [],
       head: null,
       moreCommitsAvailable: false,
-      hard: false
+      hard: false,
+      error: {
+        message: "fatal: bad revision",
+        stderr: "fatal: bad revision",
+        exitCode: 128,
+        task: null
+      }
     });
 
     const logRecord = records.find((record) => record.label === "loadCommits.log");

@@ -1,8 +1,9 @@
 import type { SimpleGit } from "simple-git";
 
-import type { QueryResult } from "@/backend/types";
+import type { GitQueryError, QueryResult } from "@/backend/types";
 import { isGitRepository } from "@/backend/utils/git";
 import { runGitCommand, type GitCommandRecorder } from "@/backend/utils/gitRunner";
+import { toGitQueryError } from "@/backend/utils/queryError";
 
 type LoadBranchesInput = {
   showRemoteBranches: boolean;
@@ -20,7 +21,7 @@ export async function loadBranches(
 
   let branches: string[];
   let head: string | null;
-  let error: boolean;
+  let failure: GitQueryError | null;
 
   try {
     const summary = await runGitCommand(
@@ -34,14 +35,14 @@ export async function loadBranches(
     );
     head = summary.detached ? null : summary.current || null;
     branches = head ? [head, ...summary.all.filter((b) => b !== head)] : [...summary.all];
-    error = false;
-  } catch {
+    failure = null;
+  } catch (error: unknown) {
     branches = [];
     head = null;
-    error = true;
+    failure = toGitQueryError(error, "Unable to load branches");
   }
 
-  const isRepo = error ? await isGitRepository(currentRepo, gitPath) : true;
+  const isRepo = failure === null ? true : await isGitRepository(currentRepo, gitPath);
 
-  return { branches, head, hard, isRepo };
+  return { branches, head, hard, isRepo, error: isRepo ? failure : null };
 }
