@@ -70,7 +70,9 @@ describe("graph rendering", () => {
       hash: "abc123",
       srcElem: null,
       commitDetails: null,
-      fileTree: null
+      fileTree: null,
+      summaryOpen: true,
+      filesOpen: true
     };
 
     graph.loadCommits(commits, "abc123", { abc123: 0, def456: 1 });

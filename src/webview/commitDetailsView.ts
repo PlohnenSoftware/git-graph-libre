@@ -9,18 +9,27 @@ type RenderCommitDetailsOptions = {
   fileTree: GitFolder;
   avatars: AvatarImageCollection;
   l10n: LocalizedStrings;
+  sections: CommitDetailsSectionState;
+};
+
+export type CommitDetailsSection = "summary" | "files";
+
+export type CommitDetailsSectionState = {
+  summaryOpen: boolean;
+  filesOpen: boolean;
 };
 
 export function renderCommitDetailsRowHtml({
   commitDetails,
   fileTree,
   avatars,
-  l10n
+  l10n,
+  sections
 }: RenderCommitDetailsOptions): string {
   return [
     '<td></td><td colspan="4">',
-    renderCommitDetailsSummary(commitDetails, avatars, l10n),
-    renderCommitDetailsFiles(fileTree, commitDetails.fileChanges, l10n),
+    renderCommitDetailsSummary(commitDetails, avatars, l10n, sections.summaryOpen),
+    renderCommitDetailsFiles(fileTree, commitDetails.fileChanges, l10n, sections.filesOpen),
     `<div id="commitDetailsClose">${svgIcons.close}</div>`,
     "</td>"
   ].join("");
@@ -29,15 +38,22 @@ export function renderCommitDetailsRowHtml({
 export function renderCommitDetailsSummary(
   commitDetails: GitCommitDetails,
   avatars: AvatarImageCollection,
-  l10n: LocalizedStrings
+  l10n: LocalizedStrings,
+  open = true
 ): string {
   const avatar = avatars[commitDetails.email];
   const topClass = `commitDetailsSummaryTop${typeof avatar === "string" ? " withAvatar" : ""}`;
   const authorEmail = escapeHtml(commitDetails.email);
   const body = escapeHtml(commitDetails.body).replaceAll("\n", "<br>");
+  const bodyClass = `commitDetailsPaneBody${open ? "" : " hidden"}`;
 
   return [
     '<div id="commitDetailsSummary">',
+    renderCommitDetailsSectionToggle("summary", l10n.detailSummary, open, {
+      expanded: l10n.detailCollapseSummary,
+      collapsed: l10n.detailExpandSummary
+    }),
+    `<div id="commitDetailsSummaryBody" class="${bodyClass}">`,
     `<span class="${topClass}">`,
     '<span class="commitDetailsSummaryTopRow">',
     '<span class="commitDetailsSummaryKeyValues">',
@@ -52,16 +68,28 @@ export function renderCommitDetailsSummary(
       ? `<span class="commitDetailsSummaryAvatar"><img src="${escapeHtml(avatar)}"></span>`
       : "",
     "</span></span><br><br>",
-    `${body}</div>`
+    body,
+    "</div></div>"
   ].join("");
 }
 
 export function renderCommitDetailsFiles(
   fileTree: GitFolder,
   fileChanges: GitFileChange[],
-  l10n: LocalizedStrings
+  l10n: LocalizedStrings,
+  open = true
 ): string {
-  return `<div id="commitDetailsFiles">${renderGitFileTreeHtml(fileTree, fileChanges, l10n)}</table></div>`;
+  const bodyClass = `commitDetailsPaneBody${open ? "" : " hidden"}`;
+  return [
+    '<div id="commitDetailsFiles">',
+    renderCommitDetailsSectionToggle("files", l10n.detailFiles, open, {
+      expanded: l10n.detailCollapseFiles,
+      collapsed: l10n.detailExpandFiles
+    }),
+    `<div id="commitDetailsFilesBody" class="${bodyClass}">`,
+    renderGitFileTreeHtml(fileTree, fileChanges, l10n),
+    "</div></div>"
+  ].join("");
 }
 
 export function generateGitFileTree(gitFiles: GitFileChange[]): GitFolder {
@@ -140,6 +168,29 @@ function renderGitFolderHeader(folder: GitFolder): string {
     escapeHtml(folder.name),
     "</span></span>"
   ].join("");
+}
+
+function renderCommitDetailsSectionToggle(
+  section: CommitDetailsSection,
+  label: string,
+  expanded: boolean,
+  ariaLabel: { expanded: string; collapsed: string }
+): string {
+  const glyph = expanded ? "-" : "+";
+  return [
+    `<button id="commitDetails${capitalizeSection(
+      section
+    )}Toggle" class="commitDetailsToggle" type="button" data-section="${section}"`,
+    ` aria-controls="commitDetails${capitalizeSection(section)}Body"`,
+    ` aria-expanded="${expanded}" aria-label="${expanded ? ariaLabel.expanded : ariaLabel.collapsed}">`,
+    `<span class="commitDetailsToggleGlyph" aria-hidden="true">${glyph}</span>`,
+    `<span class="commitDetailsToggleLabel">${escapeHtml(label)}</span>`,
+    "</button>"
+  ].join("");
+}
+
+function capitalizeSection(section: CommitDetailsSection): "Summary" | "Files" {
+  return section === "summary" ? "Summary" : "Files";
 }
 
 function compareGitFolderEntries(a: GitFolderOrFile, b: GitFolderOrFile): number {

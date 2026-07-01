@@ -153,6 +153,12 @@ export function getWebviewLocalizedStrings() {
     detailAuthor: l10n.t("detail.author"),
     detailDate: l10n.t("detail.date"),
     detailCommitter: l10n.t("detail.committer"),
+    detailSummary: l10n.t("detail.summary"),
+    detailFiles: l10n.t("detail.files"),
+    detailCollapseSummary: l10n.t("detail.collapseSummary"),
+    detailExpandSummary: l10n.t("detail.expandSummary"),
+    detailCollapseFiles: l10n.t("detail.collapseFiles"),
+    detailExpandFiles: l10n.t("detail.expandFiles"),
 
     uncommittedChanges: l10n.t("uncommittedChanges"),
 

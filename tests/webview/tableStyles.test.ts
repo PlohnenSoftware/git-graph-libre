@@ -34,6 +34,13 @@ describe("commit table styles", () => {
     expect(css).not.toContain("--vscode-editor-findMatchHighlightBackground");
   });
 
+  it("styles commit detail collapse controls with theme tokens", () => {
+    expect(css).toContain(".commitDetailsToggle {");
+    expect(css).toContain("#commitDetails.summaryCollapsed.filesCollapsed");
+    expect(css).toContain("var(--vscode-toolbar-hoverBackground");
+    expect(css).toContain(".commitDetailsPaneBody.hidden");
+  });
+
   it("uses OKLCH for owned CSS fallback colours", () => {
     expect(webviewCss).toContain("oklch(");
     expect(webviewCss).not.toMatch(/rgba?\(/);

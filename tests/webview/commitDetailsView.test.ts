@@ -14,6 +14,12 @@ const l10n = {
   detailAuthor: "Author: ",
   detailDate: "Date: ",
   detailCommitter: "Committer: ",
+  detailSummary: "Summary",
+  detailFiles: "Files",
+  detailCollapseSummary: "Collapse commit summary",
+  detailExpandSummary: "Expand commit summary",
+  detailCollapseFiles: "Collapse changed files",
+  detailExpandFiles: "Expand changed files",
   tooltipBinaryFile: "Binary file",
   tooltipRenamedTo: " renamed to ",
   tooltipAddition: " addition",
@@ -49,7 +55,8 @@ describe("commit details view rendering", () => {
       commitDetails,
       fileTree,
       avatars: { "alice+review@example.com": "https://avatars.test/a?name=Alice&Bob" },
-      l10n
+      l10n,
+      sections: { summaryOpen: true, filesOpen: true }
     });
 
     host.innerHTML = html;
@@ -62,8 +69,44 @@ describe("commit details view rendering", () => {
     expect(host.querySelector(".commitDetailsSummaryAvatar img")?.getAttribute("src")).toBe(
       "https://avatars.test/a?name=Alice&Bob"
     );
+    expect(host.querySelector("#commitDetailsSummaryToggle")?.getAttribute("aria-expanded")).toBe(
+      "true"
+    );
+    expect(host.querySelector("#commitDetailsFilesToggle")?.getAttribute("aria-expanded")).toBe(
+      "true"
+    );
     expect(host.querySelector("#commitDetailsFiles .gitFile")?.textContent).toContain("README.md");
     expect(host.querySelector("#commitDetailsClose")).not.toBeNull();
+  });
+
+  it("renders collapsed section state for summary and files", () => {
+    const fileTree = generateGitFileTree(commitDetails.fileChanges);
+    const host = document.createElement("tr");
+
+    host.innerHTML = renderCommitDetailsRowHtml({
+      commitDetails,
+      fileTree,
+      avatars: {},
+      l10n,
+      sections: { summaryOpen: false, filesOpen: false }
+    });
+
+    expect(host.querySelector("#commitDetailsSummaryToggle")?.getAttribute("aria-expanded")).toBe(
+      "false"
+    );
+    expect(host.querySelector("#commitDetailsSummaryToggle")?.getAttribute("aria-label")).toBe(
+      "Expand commit summary"
+    );
+    expect(host.querySelector("#commitDetailsSummaryBody")?.classList.contains("hidden")).toBe(
+      true
+    );
+    expect(host.querySelector("#commitDetailsFilesToggle")?.getAttribute("aria-expanded")).toBe(
+      "false"
+    );
+    expect(host.querySelector("#commitDetailsFilesToggle")?.getAttribute("aria-label")).toBe(
+      "Expand changed files"
+    );
+    expect(host.querySelector("#commitDetailsFilesBody")?.classList.contains("hidden")).toBe(true);
   });
 
   it("builds sortable file trees and preserves folder open state", () => {

@@ -174,6 +174,49 @@ describe("webview rendering", () => {
     expect(headRow?.getAttribute("aria-selected")).toBe("false");
   });
 
+  it("collapses and expands commit detail sections with persisted state", () => {
+    const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
+    expect(headRow).not.toBeNull();
+
+    headRow?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    receive({ command: "commitDetails", commitDetails: firstCommitDetails, error: null });
+
+    const summaryToggle = document.getElementById("commitDetailsSummaryToggle");
+    const filesToggle = document.getElementById("commitDetailsFilesToggle");
+
+    summaryToggle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    filesToggle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(document.getElementById("commitDetails")?.classList.contains("summaryCollapsed")).toBe(
+      true
+    );
+    expect(document.getElementById("commitDetails")?.classList.contains("filesCollapsed")).toBe(
+      true
+    );
+    expect(summaryToggle?.getAttribute("aria-expanded")).toBe("false");
+    expect(filesToggle?.getAttribute("aria-expanded")).toBe("false");
+    expect(document.getElementById("commitDetailsSummaryBody")?.classList.contains("hidden")).toBe(
+      true
+    );
+    expect(document.getElementById("commitDetailsFilesBody")?.classList.contains("hidden")).toBe(
+      true
+    );
+    expect(vscodeMock.getState()?.expandedCommit?.summaryOpen).toBe(false);
+    expect(vscodeMock.getState()?.expandedCommit?.filesOpen).toBe(false);
+
+    summaryToggle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(document.getElementById("commitDetails")?.classList.contains("summaryCollapsed")).toBe(
+      false
+    );
+    expect(document.getElementById("commitDetailsSummaryBody")?.classList.contains("hidden")).toBe(
+      false
+    );
+    expect(vscodeMock.getState()?.expandedCommit?.summaryOpen).toBe(true);
+
+    document.getElementById("commitDetailsClose")?.dispatchEvent(new MouseEvent("click"));
+  });
+
   it("shows refreshing status while a hard refresh is pending", () => {
     document
       .getElementById("refreshBtn")

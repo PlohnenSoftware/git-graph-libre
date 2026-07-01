@@ -174,6 +174,9 @@ body.unableToLoad p {
   height: 250px;
   vertical-align: top;
 }
+#commitDetails.summaryCollapsed.filesCollapsed {
+  height: 44px;
+}
 #commitDetails td {
   background-color: var(--ngg-neutral-overlay-subtle);
   position: relative;
@@ -213,6 +216,62 @@ body.unableToLoad p {
   border-right: 1px solid var(--ngg-neutral-border-subtle);
   user-select: text;
 }
+#commitDetails.summaryCollapsed:not(.filesCollapsed) #commitDetailsSummary {
+  width: 44px;
+}
+#commitDetails.summaryCollapsed:not(.filesCollapsed) #commitDetailsFiles {
+  left: 44px;
+}
+#commitDetails.filesCollapsed:not(.summaryCollapsed) #commitDetailsSummary {
+  width: auto;
+  right: 76px;
+}
+#commitDetails.filesCollapsed:not(.summaryCollapsed) #commitDetailsFiles {
+  left: auto;
+  width: 44px;
+}
+#commitDetails.summaryCollapsed.filesCollapsed #commitDetailsSummary {
+  width: calc(50% - 16px);
+}
+#commitDetails.summaryCollapsed.filesCollapsed #commitDetailsFiles {
+  left: calc(50% - 16px);
+}
+.commitDetailsToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  color: var(--vscode-editor-foreground);
+  background-color: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle));
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.commitDetailsToggle:hover {
+  background-color: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-medium));
+}
+.commitDetailsToggle:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+.commitDetailsToggleGlyph {
+  width: 1ch;
+  flex: 0 0 auto;
+  text-align: center;
+}
+.commitDetailsToggleLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.commitDetailsPaneBody {
+  padding: 8px 10px 10px;
+}
+.commitDetailsPaneBody.hidden {
+  display: none;
+}
 .commitDetailsSummaryTop {
   display: inline-table;
   width: 100%;
@@ -249,11 +308,13 @@ body.unableToLoad p {
   border-right: 1px solid var(--ngg-neutral-border-subtle);
   overflow-x: hidden;
   overflow-y: scroll;
-  padding-top: 4px;
   padding-bottom: 8px;
   box-sizing: border-box;
 }
-#commitDetailsFiles ul {
+#commitDetailsFilesBody {
+  padding-top: 4px;
+}
+#commitDetailsFilesBody ul {
   list-style-type: none;
   -webkit-margin-before: 0;
   -webkit-margin-after: 0;
@@ -261,10 +322,10 @@ body.unableToLoad p {
   -webkit-margin-end: 0px;
   -webkit-padding-start: 30px;
 }
-#commitDetailsFiles > ul {
+#commitDetailsFilesBody > ul {
   -webkit-padding-start: 10px;
 }
-#commitDetailsFiles li {
+#commitDetailsFilesBody li {
   margin-top: 4px;
   white-space: nowrap;
   text-overflow: ellipsis;

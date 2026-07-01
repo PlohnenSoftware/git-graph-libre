@@ -9,6 +9,7 @@ import type {
 
 import {
   alterGitFileTree,
+  type CommitDetailsSection,
   generateGitFileTree,
   renderCommitDetailsRowHtml
 } from "./commitDetailsView";
@@ -131,6 +132,10 @@ class GitGraphView {
         this.currentRepo = prevState.currentRepo;
         this.maxCommits = prevState.maxCommits;
         this.expandedCommit = prevState.expandedCommit;
+        if (this.expandedCommit !== null) {
+          this.expandedCommit.summaryOpen = this.expandedCommit.summaryOpen !== false;
+          this.expandedCommit.filesOpen = this.expandedCommit.filesOpen !== false;
+        }
         this.avatars = prevState.avatars;
         this.loadBranches(null, prevState.gitBranches, prevState.gitBranchHead, true, true);
         this.loadCommits(
@@ -1192,7 +1197,9 @@ class GitGraphView {
       hash: hash,
       srcElem: sourceElem,
       commitDetails: null,
-      fileTree: null
+      fileTree: null,
+      summaryOpen: true,
+      filesOpen: true
     };
     this.saveState();
     sendMessage({
@@ -1232,11 +1239,13 @@ class GitGraphView {
 
     const newElem = document.createElement("tr");
     newElem.id = "commitDetails";
+    this.applyCommitDetailsSectionClasses(newElem);
     newElem.innerHTML = renderCommitDetailsRowHtml({
       commitDetails,
       fileTree,
       avatars: this.avatars,
-      l10n
+      l10n,
+      sections: this.expandedCommit
     });
     insertAfter(newElem, this.expandedCommit.srcElem);
 
@@ -1261,6 +1270,16 @@ class GitGraphView {
 
     document.getElementById("commitDetailsClose")?.addEventListener("click", () => {
       this.hideCommitDetails();
+    });
+    addListenerToClass("commitDetailsToggle", "click", (e) => {
+      const sourceElem = closestHTMLElement(e.target, ".commitDetailsToggle");
+      const section = sourceElem?.dataset.section;
+      if (sourceElem === null || this.expandedCommit === null || !isCommitDetailsSection(section)) {
+        return;
+      }
+
+      const open = sourceElem.getAttribute("aria-expanded") !== "true";
+      this.setCommitDetailsSectionOpen(section, open);
     });
     addListenerToClass("gitFolder", "click", (e) => {
       const sourceElem = closestHTMLElement(e.target, ".gitFolder");
@@ -1308,6 +1327,56 @@ class GitGraphView {
       });
     });
   }
+
+  private setCommitDetailsSectionOpen(section: CommitDetailsSection, open: boolean) {
+    if (this.expandedCommit === null) return;
+    if (section === "summary") {
+      this.expandedCommit.summaryOpen = open;
+    } else {
+      this.expandedCommit.filesOpen = open;
+    }
+
+    const elem = document.getElementById("commitDetails");
+    if (elem !== null) {
+      this.applyCommitDetailsSectionClasses(elem);
+      this.updateCommitDetailsToggle("summary", this.expandedCommit.summaryOpen);
+      this.updateCommitDetailsToggle("files", this.expandedCommit.filesOpen);
+    }
+    this.saveState();
+    this.renderGraph();
+  }
+
+  private applyCommitDetailsSectionClasses(elem: HTMLElement) {
+    if (this.expandedCommit === null) return;
+    elem.classList.toggle("summaryCollapsed", !this.expandedCommit.summaryOpen);
+    elem.classList.toggle("filesCollapsed", !this.expandedCommit.filesOpen);
+  }
+
+  private updateCommitDetailsToggle(section: CommitDetailsSection, open: boolean) {
+    const capitalizedSection = section === "summary" ? "Summary" : "Files";
+    const toggle = document.getElementById(
+      `commitDetails${capitalizedSection}Toggle`
+    ) as HTMLButtonElement | null;
+    const body = document.getElementById(`commitDetails${capitalizedSection}Body`);
+    if (toggle === null || body === null) return;
+
+    const label =
+      section === "summary"
+        ? getSectionToggleLabel(open, l10n.detailCollapseSummary, l10n.detailExpandSummary)
+        : getSectionToggleLabel(open, l10n.detailCollapseFiles, l10n.detailExpandFiles);
+    toggle.setAttribute("aria-expanded", open.toString());
+    toggle.setAttribute("aria-label", label);
+    toggle.querySelector(".commitDetailsToggleGlyph")?.replaceChildren(open ? "-" : "+");
+    body.classList.toggle("hidden", !open);
+  }
+}
+
+function isCommitDetailsSection(section: string | undefined): section is CommitDetailsSection {
+  return section === "summary" || section === "files";
+}
+
+function getSectionToggleLabel(open: boolean, collapseLabel: string, expandLabel: string): string {
+  return open ? collapseLabel : expandLabel;
 }
 
 const contextMenu = requireElement("contextMenu");

@@ -61,6 +61,8 @@ declare global {
     srcElem: HTMLElement | null;
     commitDetails: GitCommitDetails | null;
     fileTree: GitFolder | null;
+    summaryOpen: boolean;
+    filesOpen: boolean;
   }
 
   interface GitFile {
