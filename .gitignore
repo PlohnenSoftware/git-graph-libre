@@ -3,5 +3,7 @@
 /node_modules/
 **/out/
 *.vsix
+/graphify-out/.graphify_*
+/graphify-out/cache/
 
 *.orig
