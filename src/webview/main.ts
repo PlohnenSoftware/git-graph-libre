@@ -10,6 +10,7 @@ import type {
 
 import { Dropdown } from "./dropdown";
 import { Graph } from "./graph";
+import { setStatusStrip } from "./statusStrip";
 import { getMonth, pad2 } from "./utils/date";
 import { addListenerToClass, blinkHeadRow, insertAfter } from "./utils/dom";
 import { arraysEqual, ELLIPSIS, refInvalid } from "./utils/git";
@@ -354,7 +355,7 @@ class GitGraphView {
         this.expandedCommit = null;
         this.saveState();
       }
-      this.renderShowLoading();
+      this.renderShowLoading(l10n.statusRefreshingGraph);
     }
     this.requestLoadBranchesAndCommits(hard);
   }
@@ -442,6 +443,7 @@ class GitGraphView {
   /* Renderers */
   private render() {
     document.body.classList.remove("unableToLoad");
+    setStatusStrip("ready", l10n.statusReady);
     this.renderTable();
     this.renderGraph();
   }
@@ -538,6 +540,7 @@ class GitGraphView {
       loadMoreCommitsBtn?.addEventListener("click", () => {
         if (loadMoreCommitsBtn.parentElement === null) return;
         loadMoreCommitsBtn.parentElement.innerHTML = `<h2 id="loadingHeader">${svgIcons.loading}${l10n.loading}</h2>`;
+        setStatusStrip("loading", l10n.statusLoadingMore);
         this.maxCommits += this.config.loadMoreCommits;
         this.hideCommitDetails();
         this.saveState();
@@ -976,10 +979,11 @@ class GitGraphView {
       date.value +
       '</td><td title="* <>">*</td><td title="*">*</td>';
   }
-  private renderShowLoading() {
+  private renderShowLoading(message = l10n.statusLoadingGraph) {
     hideDialogAndContextMenu();
     document.body.classList.remove("unableToLoad");
     this.graph.clear();
+    setStatusStrip("loading", message);
     this.tableElem.innerHTML = `<h2 id="loadingHeader">${svgIcons.loading}${l10n.loading}</h2>`;
     this.footerElem.innerHTML = "";
   }
@@ -987,6 +991,7 @@ class GitGraphView {
     hideDialogAndContextMenu();
     document.body.classList.add("unableToLoad");
     this.graph.clear();
+    setStatusStrip("error", l10n.statusError);
     this.tableElem.innerHTML =
       `<h2>${escapeHtml(message)}</h2>` +
       (reason !== null
@@ -1434,6 +1439,7 @@ function refreshGraphOrDisplayError(status: GitCommandStatus, errorMessage: stri
   if (status === null) {
     gitGraph.refresh(true);
   } else {
+    setStatusStrip("error", errorMessage);
     showErrorDialog(errorMessage, status, null);
   }
 }
@@ -1856,6 +1862,7 @@ function showErrorDialog(message: string, reason: string | null, sourceElem: HTM
   );
 }
 function showActionRunningDialog(command: string) {
+  setStatusStrip("action", `${command}...`);
   showDialog(
     `<span id="actionRunning">${svgIcons.loading}${command} ...</span>`,
     null,

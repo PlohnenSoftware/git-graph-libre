@@ -9,6 +9,7 @@ import type { GitGraphViewState } from "@/types";
 
 import type { RepoManager } from "./repoManager";
 import { getWebviewLocalizedStrings } from "./webviewL10n";
+import { buildWebviewStatusStrip } from "./webviewStatusStrip";
 import { buildWebviewToolbar } from "./webviewToolbar";
 
 /**
@@ -62,6 +63,7 @@ export function buildWebviewHtml(opts: {
   if (numRepos > 0) {
     body = `<body style="${colorVars}">
 		${buildWebviewToolbar(l10nStrings)}
+		${buildWebviewStatusStrip(l10nStrings)}
 		<div id="content">
 			<div id="commitGraph"></div>
 			<div id="commitTable"></div>

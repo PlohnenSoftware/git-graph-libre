@@ -11,6 +11,7 @@ export function getWebviewLocalizedStrings() {
     repo: l10n.t("ui.repo"),
     branch: l10n.t("ui.branch"),
     toolbar: l10n.t("ui.toolbar"),
+    statusStrip: l10n.t("ui.statusStrip"),
     showRemoteBranches: l10n.t("ui.showRemoteBranches"),
     refresh: l10n.t("ui.refresh"),
     locateHead: l10n.t("ui.locateHead"),
@@ -107,6 +108,11 @@ export function getWebviewLocalizedStrings() {
     dialogDismiss: l10n.t("dialog.dismiss"),
 
     // Status
+    statusReady: l10n.t("status.ready"),
+    statusLoadingGraph: l10n.t("status.loadingGraph"),
+    statusRefreshingGraph: l10n.t("status.refreshingGraph"),
+    statusLoadingMore: l10n.t("status.loadingMore"),
+    statusError: l10n.t("status.error"),
     pushingTag: l10n.t("status.pushingTag"),
 
     // Time

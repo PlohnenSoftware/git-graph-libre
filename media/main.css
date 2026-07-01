@@ -443,6 +443,45 @@ svg.fileIcon {
   line-height: 1;
   text-align: center;
 }
+.statusStrip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 24px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  background-color: var(--vscode-sideBar-background);
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+.statusIndicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--vscode-testing-iconPassed, #73c991);
+  flex: 0 0 auto;
+}
+.statusStrip[data-state="loading"] .statusIndicator,
+.statusStrip[data-state="action"] .statusIndicator {
+  background-color: var(--vscode-progressBar-background);
+  animation: statusStripPulse 1.2s ease-in-out infinite;
+}
+.statusStrip[data-state="error"] {
+  color: var(--vscode-errorForeground);
+}
+.statusStrip[data-state="error"] .statusIndicator {
+  background-color: var(--vscode-errorForeground);
+}
+@keyframes statusStripPulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
 #loadMoreCommitsBtn {
   width: 180px;
   height: 28px;

@@ -1,4 +1,5 @@
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
+import { buildWebviewStatusStrip } from "@/extension/webviewStatusStrip";
 import { buildWebviewToolbar } from "@/extension/webviewToolbar";
 import type * as GG from "@/types";
 
@@ -27,6 +28,7 @@ export function setupHtml(viewState: GG.GitGraphViewState) {
   const l10nStrings = getWebviewLocalizedStrings();
   document.body.innerHTML = `
     ${buildWebviewToolbar(l10nStrings)}
+    ${buildWebviewStatusStrip(l10nStrings)}
     <div id="content">
       <div id="commitGraph"></div>
       <div id="commitTable"></div>

@@ -30,7 +30,10 @@ const twoCommits: GitCommitNode[] = [
     email: "alice@example.com",
     date: 1700000000,
     message: "Add feature",
-    refs: [{ hash: "abc123", name: "main", type: "head" }]
+    refs: [
+      { hash: "abc123", name: "main", type: "head" },
+      { hash: "abc123", name: "v1.0.0", type: "tag" }
+    ]
   },
   {
     hash: "def456",
@@ -106,6 +109,46 @@ describe("webview rendering", () => {
     expect(document.getElementById("blinkHeadBtn")?.getAttribute("aria-label")).toBe("Locate HEAD");
   });
 
+  it("renders the graph status strip as ready after loading commits", () => {
+    const status = document.getElementById("statusStrip");
+
+    expect(status?.getAttribute("role")).toBe("status");
+    expect(status?.dataset.state).toBe("ready");
+    expect(status?.getAttribute("aria-busy")).toBe("false");
+    expect(document.getElementById("statusText")?.textContent).toBe("Ready");
+  });
+
+  it("shows refreshing status while a hard refresh is pending", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(document.getElementById("statusStrip")?.dataset.state).toBe("loading");
+    expect(document.getElementById("statusStrip")?.getAttribute("aria-busy")).toBe("true");
+    expect(document.getElementById("statusText")?.textContent).toBe("Refreshing graph");
+
+    const loadBranchesRequest = latestLoadBranchesRequest();
+    receive({
+      command: "loadBranches",
+      requestId: loadBranchesRequest.requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    const loadCommitsRequest = latestLoadCommitsRequest();
+    receive({
+      command: "loadCommits",
+      requestId: loadCommitsRequest.requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+  });
+
   it("ignores stale branch load responses", () => {
     const commitRequestsBefore = sentLoadCommitsCount();
 
@@ -150,6 +193,29 @@ describe("webview rendering", () => {
     expect(document.getElementById("commitTable")?.textContent).not.toContain("Stale commit");
   });
 
+  it("shows action status when a tag push starts", () => {
+    const tagRef = document.querySelector(".gitRef.tag");
+    expect(tagRef).not.toBeNull();
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+    const pushTagItem = Array.from(document.querySelectorAll("#contextMenu .contextMenuItem")).find(
+      (item) => item.textContent?.includes("Push Tag")
+    );
+    expect(pushTagItem).not.toBeUndefined();
+    pushTagItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "pushTag",
+      repo: REPO,
+      tagName: "v1.0.0"
+    });
+    expect(document.getElementById("statusStrip")?.dataset.state).toBe("action");
+    expect(document.getElementById("statusStrip")?.getAttribute("aria-busy")).toBe("true");
+    expect(document.getElementById("statusText")?.textContent).toBe("Pushing Tag...");
+  });
+
   it("shows a graph error state when commit loading fails", () => {
     document
       .getElementById("refreshBtn")
@@ -182,6 +248,9 @@ describe("webview rendering", () => {
     });
 
     expect(document.body.classList.contains("unableToLoad")).toBe(true);
+    expect(document.getElementById("statusStrip")?.dataset.state).toBe("error");
+    expect(document.getElementById("statusStrip")?.getAttribute("aria-busy")).toBe("false");
+    expect(document.getElementById("statusText")?.textContent).toBe("Error");
     expect(document.getElementById("commitTable")?.textContent).toContain(
       "Unable to load Git Graph"
     );
