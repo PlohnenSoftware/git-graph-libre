@@ -1,7 +1,7 @@
-import * as vscode from "vscode";
+import type * as vscode from "vscode";
 
-import { RepoFileWatcher } from "@/repoFileWatcher";
-import { RequestMessage, ResponseMessage } from "@/types";
+import type { RepoFileWatcher } from "@/repoFileWatcher";
+import type { RequestMessage, ResponseMessage } from "@/types";
 
 export function webviewBridgeFactory(webview: vscode.Webview, repoFileWatcher: RepoFileWatcher) {
   const handlers = new Map<string, (msg: RequestMessage) => void | Promise<void>>();
@@ -10,8 +10,11 @@ export function webviewBridgeFactory(webview: vscode.Webview, repoFileWatcher: R
     const handler = handlers.get(msg.command);
     if (!handler) return;
     repoFileWatcher.mute();
-    await handler(msg);
-    repoFileWatcher.unmute();
+    try {
+      await handler(msg);
+    } finally {
+      repoFileWatcher.unmute();
+    }
   });
 
   return {
