@@ -1,5 +1,9 @@
 import type { GitCommitNode } from "@/backend/types";
 
+const MUTED_GRAPH_COLOUR = "oklch(60% 0 0)";
+const MASK_VISIBLE_COLOUR = "oklch(100% 0 0)";
+const MASK_HIDDEN_COLOUR = "oklch(0% 0 0)";
+
 interface UnavailablePoint {
   connectsTo: VertexOrNull;
   onBranch: Branch;
@@ -34,23 +38,18 @@ class Branch {
     this.end = end;
   }
   public draw(svg: SVGElement, config: Config, expandAt: number) {
-    let colour = config.graphColours[this.colour % config.graphColours.length],
-      i,
-      x1,
-      y1,
-      x2,
-      y2,
-      lines: PlacedLine[] = [],
-      curPath = "",
-      curColour = "",
-      d = config.grid.y * (config.graphStyle === "angular" ? 0.38 : 0.8);
+    const colour = config.graphColours[this.colour % config.graphColours.length];
+    const lines: PlacedLine[] = [];
+    let curPath = "";
+    let curColour = "";
+    const d = config.grid.y * (config.graphStyle === "angular" ? 0.38 : 0.8);
 
     // Convert branch lines into pixel coordinates, respecting expanded commit extensions
-    for (i = 0; i < this.lines.length; i++) {
-      x1 = this.lines[i].p1.x * config.grid.x + config.grid.offsetX;
-      y1 = this.lines[i].p1.y * config.grid.y + config.grid.offsetY;
-      x2 = this.lines[i].p2.x * config.grid.x + config.grid.offsetX;
-      y2 = this.lines[i].p2.y * config.grid.y + config.grid.offsetY;
+    for (let i = 0; i < this.lines.length; i++) {
+      const x1 = this.lines[i].p1.x * config.grid.x + config.grid.offsetX;
+      let y1 = this.lines[i].p1.y * config.grid.y + config.grid.offsetY;
+      const x2 = this.lines[i].p2.x * config.grid.x + config.grid.offsetX;
+      let y2 = this.lines[i].p2.y * config.grid.y + config.grid.offsetY;
 
       // If a commit is expanded, we needd to stretch the graph for the height of the commit details view
       if (expandAt > -1) {
@@ -100,7 +99,7 @@ class Branch {
     }
 
     // Simplify consecutive lines that are straight by removing the 'middle' point
-    i = 0;
+    let i = 0;
     while (i < lines.length - 1) {
       if (
         lines[i].p1.x === lines[i].p2.x &&
@@ -118,10 +117,10 @@ class Branch {
 
     // Iterate through all lines, producing and adding the svg paths to the DOM
     for (i = 0; i < lines.length; i++) {
-      x1 = lines[i].p1.x;
-      y1 = lines[i].p1.y;
-      x2 = lines[i].p2.x;
-      y2 = lines[i].p2.y;
+      const x1 = lines[i].p1.x;
+      const y1 = lines[i].p1.y;
+      const x2 = lines[i].p2.x;
+      const y2 = lines[i].p2.y;
 
       // If the new point belongs to a different path, render the current path and reset it for the new path
       if (curPath !== "" && i > 0 && lines[i].isCommitted !== lines[i - 1].isCommitted) {
@@ -132,40 +131,25 @@ class Branch {
 
       // If the path hasn't been started or the new point belongs to a different path, move to p1
       if (curPath === "" || (i > 0 && (x1 !== lines[i - 1].p2.x || y1 !== lines[i - 1].p2.y)))
-        curPath += "M" + x1.toFixed(0) + "," + y1.toFixed(1);
+        curPath += `M${x1.toFixed(0)},${y1.toFixed(1)}`;
 
       // If the path hasn't been assigned a colour, assign it
-      if (curColour === "") curColour = lines[i].isCommitted ? colour : "#808080";
+      if (curColour === "") curColour = lines[i].isCommitted ? colour : MUTED_GRAPH_COLOUR;
 
       if (x1 === x2) {
         // If the path is vertical, draw a straight line
-        curPath += "L" + x2.toFixed(0) + "," + y2.toFixed(1);
+        curPath += `L${x2.toFixed(0)},${y2.toFixed(1)}`;
       } else {
         // If the path moves horizontal, draw the appropriate transition
         if (config.graphStyle === "angular") {
-          curPath +=
-            "L" +
-            (lines[i].lockedFirst
-              ? x2.toFixed(0) + "," + (y2 - d).toFixed(1)
-              : x1.toFixed(0) + "," + (y1 + d).toFixed(1)) +
-            "L" +
-            x2.toFixed(0) +
-            "," +
-            y2.toFixed(1);
+          const transition = lines[i].lockedFirst
+            ? `${x2.toFixed(0)},${(y2 - d).toFixed(1)}`
+            : `${x1.toFixed(0)},${(y1 + d).toFixed(1)}`;
+          curPath += `L${transition}L${x2.toFixed(0)},${y2.toFixed(1)}`;
         } else {
-          curPath +=
-            "C" +
-            x1.toFixed(0) +
-            "," +
-            (y1 + d).toFixed(1) +
-            " " +
-            x2.toFixed(0) +
-            "," +
-            (y2 - d).toFixed(1) +
-            " " +
-            x2.toFixed(0) +
-            "," +
-            y2.toFixed(1);
+          curPath += `C${x1.toFixed(0)},${(y1 + d).toFixed(1)} ${x2.toFixed(0)},${(
+            y2 - d
+          ).toFixed(1)} ${x2.toFixed(0)},${y2.toFixed(1)}`;
         }
       }
     }
@@ -173,8 +157,8 @@ class Branch {
     this.drawPath(svg, curPath, curColour); // Draw the remaining path
   }
   private drawPath(svg: SVGElement, path: string, colour: string) {
-    let line1 = document.createElementNS("http://www.w3.org/2000/svg", "path"),
-      line2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const line1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const line2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
     line1.setAttribute("class", "shaddow");
     line1.setAttribute("d", path);
     line2.setAttribute("class", "line");
@@ -273,10 +257,10 @@ class Vertex {
   public draw(svg: SVGElement, config: Config, expandOffset: boolean) {
     if (this.onBranch === null) return;
 
-    let circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    let colour = this.isCommitted
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    const colour = this.isCommitted
       ? config.graphColours[this.onBranch.getColour() % config.graphColours.length]
-      : "#808080";
+      : MUTED_GRAPH_COLOUR;
     circle.setAttribute("cx", (this.x * config.grid.x + config.grid.offsetX).toString());
     circle.setAttribute(
       "cy",
@@ -315,19 +299,19 @@ export class Graph {
   constructor(id: string, config: Config) {
     this.config = config;
 
-    let svgNamespace = "http://www.w3.org/2000/svg";
-    let defs = document.createElementNS(svgNamespace, "defs"),
-      linearGradient = document.createElementNS(svgNamespace, "linearGradient"),
-      mask = document.createElementNS(svgNamespace, "mask");
+    const svgNamespace = "http://www.w3.org/2000/svg";
+    const defs = document.createElementNS(svgNamespace, "defs");
+    const linearGradient = document.createElementNS(svgNamespace, "linearGradient");
+    const mask = document.createElementNS(svgNamespace, "mask");
     this.svg = <SVGElement>document.createElementNS(svgNamespace, "svg");
     this.svgMaskRect = <SVGRectElement>document.createElementNS(svgNamespace, "rect");
     this.svgGradientStop1 = <SVGStopElement>document.createElementNS(svgNamespace, "stop");
     this.svgGradientStop2 = <SVGStopElement>document.createElementNS(svgNamespace, "stop");
 
     linearGradient.setAttribute("id", "GraphGradient");
-    this.svgGradientStop1.setAttribute("stop-color", "white");
+    this.svgGradientStop1.setAttribute("stop-color", MASK_VISIBLE_COLOUR);
     linearGradient.appendChild(this.svgGradientStop1);
-    this.svgGradientStop2.setAttribute("stop-color", "black");
+    this.svgGradientStop2.setAttribute("stop-color", MASK_HIDDEN_COLOUR);
     linearGradient.appendChild(this.svgGradientStop2);
     defs.appendChild(linearGradient);
     mask.setAttribute("id", "GraphMask");
@@ -336,7 +320,11 @@ export class Graph {
     defs.appendChild(mask);
     this.svg.appendChild(defs);
     this.setDimensions(0, 0);
-    document.getElementById(id)!.appendChild(this.svg);
+    const container = document.getElementById(id);
+    if (container === null) {
+      throw new Error(`Missing graph container: ${id}`);
+    }
+    container.appendChild(this.svg);
   }
 
   public loadCommits(
@@ -348,14 +336,13 @@ export class Graph {
     this.branches = [];
     this.availableColours = [];
 
-    let i: number, j: number;
-    for (i = 0; i < commits.length; i++) {
+    for (let i = 0; i < commits.length; i++) {
       this.vertices.push(new Vertex(i));
     }
-    for (i = 0; i < commits.length; i++) {
-      for (j = 0; j < commits[i].parentHashes.length; j++) {
-        if (typeof commitLookup[commits[i].parentHashes[j]] === "number") {
-          this.vertices[i].addParent(this.vertices[commitLookup[commits[i].parentHashes[j]]]);
+    for (const [i, commit] of commits.entries()) {
+      for (const parentHash of commit.parentHashes) {
+        if (typeof commitLookup[parentHash] === "number") {
+          this.vertices[i].addParent(this.vertices[commitLookup[parentHash]]);
         }
       }
     }
@@ -369,22 +356,23 @@ export class Graph {
       }
     }
 
-    while ((i = this.findStart()) !== -1) {
-      this.determinePath(i);
+    let start = this.findStart();
+    while (start !== -1) {
+      this.determinePath(start);
+      start = this.findStart();
     }
   }
 
   public render(expandedCommit: ExpandedCommit | null) {
-    let group = <SVGGElement>document.createElementNS("http://www.w3.org/2000/svg", "g"),
-      i,
-      width = this.getWidth();
+    const group = <SVGGElement>document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const width = this.getWidth();
     group.setAttribute("mask", "url(#GraphMask)");
 
-    for (i = 0; i < this.branches.length; i++) {
-      this.branches[i].draw(group, this.config, expandedCommit !== null ? expandedCommit.id : -1);
+    for (const branch of this.branches) {
+      branch.draw(group, this.config, expandedCommit !== null ? expandedCommit.id : -1);
     }
-    for (i = 0; i < this.vertices.length; i++) {
-      this.vertices[i].draw(group, this.config, expandedCommit !== null && i > expandedCommit.id);
+    for (const [i, vertex] of this.vertices.entries()) {
+      vertex.draw(group, this.config, expandedCommit !== null && i > expandedCommit.id);
     }
 
     if (this.svgGroup !== null) this.svg.removeChild(this.svgGroup);
@@ -403,11 +391,9 @@ export class Graph {
   }
 
   public getWidth() {
-    let x = 0,
-      i,
-      p;
-    for (i = 0; i < this.vertices.length; i++) {
-      p = this.vertices[i].getNextPoint();
+    let x = 0;
+    for (const vertex of this.vertices) {
+      const p = vertex.getNextPoint();
       if (p.x > x) x = p.x;
     }
     return x * this.config.grid.x;
@@ -439,8 +425,8 @@ export class Graph {
   }
 
   private applyMaxWidth(width: number) {
-    let offset1 = this.maxWidth > -1 ? (this.maxWidth - 12) / width : 1;
-    let offset2 = this.maxWidth > -1 ? this.maxWidth / width : 1;
+    const offset1 = this.maxWidth > -1 ? (this.maxWidth - 12) / width : 1;
+    const offset2 = this.maxWidth > -1 ? this.maxWidth / width : 1;
     this.svgGradientStop1.setAttribute("offset", offset1.toString());
     this.svgGradientStop2.setAttribute("offset", offset2.toString());
   }
@@ -449,8 +435,8 @@ export class Graph {
     let i = startAt;
     let vertex = this.vertices[i],
       parentVertex = this.vertices[i].getNextParent();
-    let lastPoint = vertex.isNotOnBranch() ? vertex.getNextPoint() : vertex.getPoint(),
-      curPoint;
+    let lastPoint = vertex.isNotOnBranch() ? vertex.getNextPoint() : vertex.getPoint();
+    let curPoint: Point;
 
     if (
       parentVertex !== null &&
@@ -459,14 +445,18 @@ export class Graph {
       !parentVertex.isNotOnBranch()
     ) {
       // Branch is a merge between two vertices already on branches
-      let foundPointToParent = false,
-        parentBranch = parentVertex.getBranch()!;
+      let foundPointToParent = false;
+      const parentBranch = parentVertex.getBranch();
+      if (parentBranch === null) {
+        throw new Error("Expected merge parent to be on a branch");
+      }
       for (i = startAt + 1; i < this.vertices.length; i++) {
-        curPoint = this.vertices[i].getPointConnectingTo(parentVertex, parentBranch); // Check if there is already a point connecting the ith vertex to the required parent
-        if (curPoint !== null) {
-          foundPointToParent = true; // Parent was found
-        } else {
+        const pointToParent = this.vertices[i].getPointConnectingTo(parentVertex, parentBranch); // Check if there is already a point connecting the ith vertex to the required parent
+        if (pointToParent === null) {
           curPoint = this.vertices[i].getNextPoint(); // Parent couldn't be found, choose the next avaialble point for the vertex
+        } else {
+          curPoint = pointToParent;
+          foundPointToParent = true; // Parent was found
         }
         parentBranch.addLine(
           lastPoint,
@@ -484,7 +474,7 @@ export class Graph {
       }
     } else {
       // Branch is normal
-      let branch = new Branch(this.getAvailableColour(startAt));
+      const branch = new Branch(this.getAvailableColour(startAt));
       vertex.addToBranch(branch, lastPoint.x);
       vertex.registerUnavailablePoint(lastPoint.x, vertex, branch);
       for (i = startAt + 1; i < this.vertices.length; i++) {
@@ -498,7 +488,7 @@ export class Graph {
 
         if (parentVertex === this.vertices[i]) {
           vertex.registerParentProcessed();
-          let parentVertexOnBranch = !parentVertex.isNotOnBranch();
+          const parentVertexOnBranch = !parentVertex.isNotOnBranch();
           parentVertex.addToBranch(branch, curPoint.x);
           vertex = parentVertex;
           parentVertex = vertex.getNextParent();

@@ -1,3 +1,19 @@
+:root {
+  --ngg-transparent: oklch(0% 0 0 / 0);
+  --ngg-neutral-icon: oklch(60% 0 0);
+  --ngg-neutral-overlay-subtle: oklch(60% 0 0 / 0.1);
+  --ngg-neutral-overlay-muted: oklch(60% 0 0 / 0.15);
+  --ngg-neutral-overlay-medium: oklch(60% 0 0 / 0.2);
+  --ngg-neutral-overlay-strong: oklch(60% 0 0 / 0.35);
+  --ngg-neutral-border-subtle: oklch(60% 0 0 / 0.2);
+  --ngg-neutral-border-medium: oklch(60% 0 0 / 0.25);
+  --ngg-neutral-border: oklch(60% 0 0 / 0.3);
+  --ngg-neutral-border-strong: oklch(60% 0 0 / 0.5);
+  --ngg-neutral-border-heavy: oklch(60% 0 0 / 0.75);
+  --ngg-success: oklch(74% 0.12 152);
+  --ngg-success-pulse: oklch(74% 0.12 152 / 0.5);
+}
+
 /* Body */
 body {
   margin: 0;
@@ -31,7 +47,8 @@ body.unableToLoad p {
   position: absolute;
   left: 8px;
   top: 0px;
-  z-index: -1;
+  z-index: 5;
+  pointer-events: none;
 }
 #commitGraph circle.current {
   fill: var(--vscode-editor-background);
@@ -79,7 +96,7 @@ body.unableToLoad p {
 #commitTable tr.commit.contextMenuActive td,
 #commitTable tr.commit.dialogActive td,
 #commitTable tr.commit.commitDetailsOpen td {
-  background-color: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.15));
+  background-color: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-muted));
 }
 #commitTable tr.commit:hover td {
   cursor: pointer;
@@ -112,10 +129,10 @@ body.unableToLoad p {
   z-index: 10;
   background-color: var(--vscode-editor-background);
   color: var(--vscode-descriptionForeground);
-  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.5));
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-strong));
   line-height: 18px;
   padding: 6px 12px;
-  box-shadow: 0 1px 0 var(--vscode-scrollbar-shadow, rgba(128, 128, 128, 0.18));
+  box-shadow: 0 1px 0 var(--vscode-scrollbar-shadow, var(--ngg-neutral-overlay-medium));
 }
 
 #commitTable.fixedLayout table {
@@ -146,7 +163,7 @@ body.unableToLoad p {
 }
 .resizeCol.left {
   left: 0px;
-  border-left: 1px solid rgba(128, 128, 128, 0.25);
+  border-left: 1px solid var(--ngg-neutral-border-medium);
 }
 .resizeCol.right {
   right: 0px;
@@ -158,7 +175,7 @@ body.unableToLoad p {
   vertical-align: top;
 }
 #commitDetails td {
-  background-color: rgba(128, 128, 128, 0.1);
+  background-color: var(--ngg-neutral-overlay-subtle);
   position: relative;
   font-size: 13px;
   line-height: 18px;
@@ -172,14 +189,14 @@ body.unableToLoad p {
   right: 0;
   bottom: 0;
   height: 2px;
-  background-color: rgba(128, 128, 128, 0.2);
+  background-color: var(--ngg-neutral-overlay-medium);
 }
 #commitTable tr.commit.commitDetailsOpen td {
-  background-color: var(--vscode-list-activeSelectionBackground, rgba(128, 128, 128, 0.25));
+  background-color: var(--vscode-list-activeSelectionBackground, var(--ngg-neutral-border-medium));
   color: var(--vscode-list-activeSelectionForeground, var(--vscode-editor-foreground));
 }
 #commitTable tr.commit.commitDetailsOpen:hover td {
-  background-color: var(--vscode-list-activeSelectionBackground, rgba(128, 128, 128, 0.35));
+  background-color: var(--vscode-list-activeSelectionBackground, var(--ngg-neutral-overlay-strong));
 }
 #commitDetailsSummary {
   position: absolute;
@@ -192,8 +209,8 @@ body.unableToLoad p {
   overflow-x: hidden;
   overflow-y: auto;
   text-overflow: ellipsis;
-  border-left: 1px solid rgba(128, 128, 128, 0.2);
-  border-right: 1px solid rgba(128, 128, 128, 0.2);
+  border-left: 1px solid var(--ngg-neutral-border-subtle);
+  border-right: 1px solid var(--ngg-neutral-border-subtle);
   user-select: text;
 }
 .commitDetailsSummaryTop {
@@ -229,7 +246,7 @@ body.unableToLoad p {
   top: 0;
   bottom: 2px;
   left: 45%;
-  border-right: 1px solid rgba(128, 128, 128, 0.2);
+  border-right: 1px solid var(--ngg-neutral-border-subtle);
   overflow-x: hidden;
   overflow-y: scroll;
   padding-top: 4px;
@@ -349,9 +366,9 @@ svg.fileIcon {
   margin-top: 2px;
   margin-right: 5px;
   padding-right: 5px;
-  background-color: rgba(128, 128, 128, 0.15);
+  background-color: var(--ngg-neutral-overlay-muted);
   border-radius: 5px;
-  border: 1px solid rgba(128, 128, 128, 0.75);
+  border: 1px solid var(--ngg-neutral-border-heavy);
   vertical-align: top;
   font-size: 12px;
   cursor: default;
@@ -377,7 +394,7 @@ svg.fileIcon {
 }
 #loadingHeader svg {
   display: inline;
-  fill: rgb(128, 128, 128);
+  fill: var(--ngg-neutral-icon);
   margin-right: 10px;
   vertical-align: top;
   animation: loadingIconAnimation 2s linear infinite;
@@ -403,7 +420,7 @@ svg.fileIcon {
   min-height: 40px;
   padding: 4px 8px;
   box-sizing: border-box;
-  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.5));
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-strong));
   background-color: var(--vscode-editor-background);
   color: var(--vscode-editor-foreground);
   font-size: 13px;
@@ -451,7 +468,7 @@ svg.fileIcon {
   width: 28px;
   height: 28px;
   padding: 0;
-  border: 1px solid var(--vscode-button-border, transparent);
+  border: 1px solid var(--vscode-button-border, var(--ngg-transparent));
   border-radius: 4px;
   background-color: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
@@ -476,7 +493,7 @@ svg.fileIcon {
   min-height: 24px;
   padding: 0 8px;
   box-sizing: border-box;
-  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-overlay-strong));
   background-color: var(--vscode-sideBar-background);
   color: var(--vscode-descriptionForeground);
   font-size: 12px;
@@ -485,7 +502,7 @@ svg.fileIcon {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--vscode-testing-iconPassed, #73c991);
+  background-color: var(--vscode-testing-iconPassed, var(--ngg-success));
   flex: 0 0 auto;
 }
 .statusStrip[data-state="loading"] .statusIndicator,
@@ -568,7 +585,7 @@ svg.fileIcon {
   left: 50%;
   top: 50%;
   transform: translateX(-50%) translateY(-50%);
-  border: 1px solid rgba(128, 128, 128, 0.5);
+  border: 1px solid var(--ngg-neutral-border-strong);
   border-radius: 5px;
   text-align: center;
   max-width: 360px;
@@ -615,7 +632,7 @@ svg.fileIcon {
 #dialog > table.dialogForm select {
   padding: 4px;
   box-sizing: border-box;
-  border: 1px solid rgba(128, 128, 128, 0.3);
+  border: 1px solid var(--ngg-neutral-border);
   outline-style: none;
 }
 #dialog .roundedBtn {
@@ -643,7 +660,7 @@ svg.fileIcon {
 }
 #dialog.noInput #dialogAction,
 #dialog.inputInvalid #dialogAction {
-  background-color: rgba(128, 128, 128, 0.2);
+  background-color: var(--ngg-neutral-overlay-medium);
   opacity: 0.5;
 }
 #dialog.noInput #dialogAction {
@@ -654,7 +671,7 @@ svg.fileIcon {
 }
 #dialog svg {
   display: inline;
-  fill: rgb(128, 128, 128);
+  fill: var(--ngg-neutral-icon);
   margin-right: 3px;
   line-height: 20px;
   vertical-align: sub;
@@ -665,25 +682,25 @@ svg.fileIcon {
 }
 
 /* Blink animation for highlighting the current HEAD commit row */
-.commit.blinking {
+#commitTable tr.commit.blinking td {
   /* two short pulses */
   animation: headPulse 320ms ease-in-out 2;
 }
 
 @keyframes headPulse {
   0% {
-    background-color: transparent;
+    background-color: var(--ngg-transparent);
   }
   50% {
-    background-color: var(--vscode-editor-findMatchHighlightBackground, rgba(115, 201, 145, 0.5));
+    background-color: var(--ngg-success-pulse);
   }
   100% {
-    background-color: transparent;
+    background-color: var(--ngg-transparent);
   }
 }
 #actionRunning svg {
   display: inline-block;
-  fill: rgb(128, 128, 128);
+  fill: var(--ngg-neutral-icon);
   margin-right: 10px;
   vertical-align: top;
   animation: loadingIconAnimation 2s linear infinite;
@@ -694,14 +711,14 @@ svg.fileIcon {
 /* Buttons */
 .roundedBtn {
   display: block;
-  background-color: rgba(128, 128, 128, 0.1);
-  border: 1px solid rgba(128, 128, 128, 0.5);
+  background-color: var(--ngg-neutral-overlay-subtle);
+  border: 1px solid var(--ngg-neutral-border-strong);
   font-size: 13px;
   text-align: center;
   cursor: pointer;
 }
 .roundedBtn:hover {
-  background-color: rgba(128, 128, 128, 0.2);
+  background-color: var(--ngg-neutral-overlay-medium);
 }
 
 /* General */
