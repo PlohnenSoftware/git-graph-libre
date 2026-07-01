@@ -205,6 +205,41 @@ describe("loadCommits", () => {
     expect(allRefs.every((r) => r.type !== "remote")).toBe(true);
   });
 
+  it("includes remote refs when showRemoteBranches is true", async () => {
+    const result = await loadCommits(simpleGit(repoWithRemote), {
+      branchName: "",
+      maxCommits: 300,
+      showRemoteBranches: true,
+      hard: false,
+      dateType: "Author Date",
+      showUncommittedChanges: false
+    });
+
+    const allRefs = result.commits.flatMap((c) => c.refs);
+    expect(allRefs.some((r) => r.type === "remote" && r.name === "origin/main")).toBe(true);
+  });
+
+  it("attaches annotated tags to their peeled commit", async () => {
+    const taggedRepo = makeRepo();
+    try {
+      git(["tag", "-a", "v1", "-m", "release"], taggedRepo);
+      const result = await loadCommits(simpleGit(taggedRepo), {
+        branchName: "",
+        maxCommits: 300,
+        showRemoteBranches: false,
+        hard: false,
+        dateType: "Author Date",
+        showUncommittedChanges: false
+      });
+
+      const headCommit = result.commits.find((commit) => commit.hash === result.head);
+      expect(headCommit).toBeDefined();
+      expect(headCommit?.refs.some((ref) => ref.type === "tag" && ref.name === "v1")).toBe(true);
+    } finally {
+      fs.rmSync(taggedRepo, { recursive: true, force: true });
+    }
+  });
+
   it("uses commit date when dateType is Commit Date", async () => {
     const result = await loadCommits(simpleGit(repo), {
       branchName: "",
@@ -243,7 +278,8 @@ describe("loadCommits", () => {
     const git = {
       raw: async (args: string[]) => {
         if (args[0] === "log") throw failure;
-        if (args[0] === "show-ref") return "";
+        if (args[0] === "rev-parse") return "abc123\n";
+        if (args[0] === "for-each-ref") return "";
         throw new Error(`unexpected git command: ${args[0]}`);
       }
     } as unknown as SimpleGit;
@@ -262,7 +298,7 @@ describe("loadCommits", () => {
 
     expect(result).toEqual({
       commits: [],
-      head: null,
+      head: "abc123",
       moreCommitsAvailable: false,
       hard: false,
       error: {
@@ -275,6 +311,7 @@ describe("loadCommits", () => {
 
     const logRecord = records.find((record) => record.label === "loadCommits.log");
     const refsRecord = records.find((record) => record.label === "loadCommits.refs");
+    const headRecord = records.find((record) => record.label === "loadCommits.head");
     expect(logRecord).toMatchObject({
       repo: "/repo",
       success: false,
@@ -286,6 +323,14 @@ describe("loadCommits", () => {
     });
     expect(refsRecord).toMatchObject({
       repo: "/repo",
+      args: expect.arrayContaining(["for-each-ref"]),
+      success: true,
+      error: null
+    });
+    expect(refsRecord?.args.some((arg) => arg.startsWith("--format="))).toBe(true);
+    expect(headRecord).toMatchObject({
+      repo: "/repo",
+      args: ["rev-parse", "--verify", "HEAD"],
       success: true,
       error: null
     });

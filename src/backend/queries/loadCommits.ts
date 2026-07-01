@@ -15,6 +15,9 @@ const eolRegex = /\r\n|\r|\n/g;
 const gitLogFormatFieldSeparator = "%x00";
 const gitLogOutputFieldSeparator = "\0";
 const gitLogFieldCount = 6;
+const gitRefFormatFieldSeparator = "%00";
+const gitRefOutputFieldSeparator = "\0";
+const gitRefFieldCount = 3;
 
 type LoadCommitsInput = {
   branchName: string;
@@ -37,40 +40,61 @@ type QueryValue<T> = {
   error: GitQueryError | null;
 };
 
+function parseRefRecord(line: string) {
+  const fields = line.split(gitRefOutputFieldSeparator);
+  if (fields.length < gitRefFieldCount || fields[0] === "" || fields[1] === "") return null;
+  return {
+    objectHash: fields[0],
+    refName: fields[1],
+    peeledHash: fields[2] ?? ""
+  };
+}
+
 async function getRefs(
   git: SimpleGit,
   showRemoteBranches: boolean,
   context: GitQueryContext
 ): Promise<QueryValue<GitRefData>> {
   try {
-    const args = ["show-ref"];
-    if (!showRemoteBranches) args.push("--heads", "--tags");
-    args.push("-d", "--head");
-    const stdout = await runGitRaw(git, {
-      label: "loadCommits.refs",
-      args,
-      repo: context.repo,
-      record: context.record
-    });
+    const refsArgs = [
+      "for-each-ref",
+      `--format=%(objectname)${gitRefFormatFieldSeparator}%(refname)${gitRefFormatFieldSeparator}%(*objectname)`,
+      "refs/heads",
+      "refs/tags"
+    ];
+    if (showRemoteBranches) refsArgs.push("refs/remotes");
+    const [headStdout, refsStdout] = await Promise.all([
+      runGitRaw(git, {
+        label: "loadCommits.head",
+        args: ["rev-parse", "--verify", "HEAD"],
+        repo: context.repo,
+        record: context.record
+      }),
+      runGitRaw(git, {
+        label: "loadCommits.refs",
+        args: refsArgs,
+        repo: context.repo,
+        record: context.record
+      })
+    ]);
     const refData: GitRefData = { head: null, refs: [] };
-    const lines = stdout.split(eolRegex);
-    for (let i = 0; i < lines.length - 1; i++) {
-      const parts = lines[i].split(" ");
-      if (parts.length < 2) continue;
-      const hash = parts[0];
-      const ref = parts.slice(1).join(" ");
-      if (ref.startsWith("refs/heads/")) {
-        refData.refs.push({ hash, name: ref.substring(11), type: "head" });
-      } else if (ref.startsWith("refs/tags/")) {
+    refData.head = headStdout.trim() || null;
+    const lines = refsStdout.split(eolRegex);
+    for (const line of lines) {
+      if (line === "") continue;
+      const refRecord = parseRefRecord(line);
+      if (refRecord === null) continue;
+      const { objectHash, refName, peeledHash } = refRecord;
+      if (refName.startsWith("refs/heads/")) {
+        refData.refs.push({ hash: objectHash, name: refName.substring(11), type: "head" });
+      } else if (refName.startsWith("refs/tags/")) {
         refData.refs.push({
-          hash,
-          name: ref.endsWith("^{}") ? ref.substring(10, ref.length - 3) : ref.substring(10),
+          hash: peeledHash || objectHash,
+          name: refName.substring(10),
           type: "tag"
         });
-      } else if (ref.startsWith("refs/remotes/")) {
-        refData.refs.push({ hash, name: ref.substring(13), type: "remote" });
-      } else if (ref === "HEAD") {
-        refData.head = hash;
+      } else if (refName.startsWith("refs/remotes/")) {
+        refData.refs.push({ hash: objectHash, name: refName.substring(13), type: "remote" });
       }
     }
     return { value: refData, error: null };
