@@ -10,6 +10,7 @@ export function getWebviewLocalizedStrings() {
     // UI labels
     repo: l10n.t("ui.repo"),
     branch: l10n.t("ui.branch"),
+    toolbar: l10n.t("ui.toolbar"),
     showRemoteBranches: l10n.t("ui.showRemoteBranches"),
     refresh: l10n.t("ui.refresh"),
     locateHead: l10n.t("ui.locateHead"),

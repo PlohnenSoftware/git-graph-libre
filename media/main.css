@@ -367,52 +367,80 @@ svg.fileIcon {
 
 /* Controls */
 #controls {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   position: relative;
   left: 0;
   right: 0;
   top: 0;
-  padding: 4px 96px 4px 0;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.5);
-  line-height: 32px;
-  text-align: center;
-  font-weight: 700;
+  min-height: 40px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.5));
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
   font-size: 13px;
 }
 #repoControl,
 #branchControl,
 #showRemoteBranchesControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   white-space: nowrap;
-  margin: 0 10px;
+  margin: 0;
+}
+#repoControl,
+#branchControl {
+  min-width: 0;
 }
 #repoSelect,
 #branchSelect {
-  margin-left: 3px;
+  margin-left: 0;
+}
+.toolbarLabel {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  font-weight: 600;
+}
+.toolbarCheckbox {
+  color: var(--vscode-editor-foreground);
+  font-weight: 400;
 }
 #showRemoteBranchesCheckbox {
   width: 14px;
   vertical-align: text-top;
 }
-#refreshBtn {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  width: 80px;
-  height: 22px;
-  line-height: 22px;
-  border-radius: 11px;
-  margin-top: -12px;
+.toolbarActions {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+  flex: 0 0 auto;
 }
-/* Make the Locate HEAD button match the refresh button style but smaller */
-#blinkHeadBtn {
-  position: absolute;
-  right: 96px;
-  top: 50%;
-  width: 120px;
-  height: 22px;
-  line-height: 22px;
-  border-radius: 11px;
-  margin-top: -12px;
+.toolbarIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 4px;
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  cursor: pointer;
+}
+.toolbarIconButton:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+.toolbarIconButton:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+.toolbarIcon {
+  font-size: 16px;
+  line-height: 1;
   text-align: center;
 }
 #loadMoreCommitsBtn {

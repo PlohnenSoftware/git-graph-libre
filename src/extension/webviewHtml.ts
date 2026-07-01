@@ -1,14 +1,15 @@
-import * as vscode from "vscode";
+import type * as vscode from "vscode";
 
 import { getNonce } from "@/backend/utils/nonce";
 import { buildExtensionUri } from "@/backend/utils/path";
-import { Config } from "@/config";
-import { ExtensionState } from "@/extensionState";
+import type { Config } from "@/config";
+import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
-import { GitGraphViewState } from "@/types";
+import type { GitGraphViewState } from "@/types";
 
-import { RepoManager } from "./repoManager";
+import type { RepoManager } from "./repoManager";
 import { getWebviewLocalizedStrings } from "./webviewL10n";
+import { buildWebviewToolbar } from "./webviewToolbar";
 
 /**
  * Safely escape JSON for embedding in HTML script tags.
@@ -16,9 +17,9 @@ import { getWebviewLocalizedStrings } from "./webviewL10n";
  */
 function escapeJsonForHtml(obj: object): string {
   return JSON.stringify(obj)
-    .replace(/</g, "\\u003c")
-    .replace(/>/g, "\\u003e")
-    .replace(/&/g, "\\u0026");
+    .replaceAll("<", String.raw`\u003c`)
+    .replaceAll(">", String.raw`\u003e`)
+    .replaceAll("&", String.raw`\u0026`);
 }
 
 export function buildWebviewHtml(opts: {
@@ -48,8 +49,8 @@ export function buildWebviewHtml(opts: {
   let colorVars = "",
     colorParams = "";
   for (let i = 0; i < viewState.graphColours.length; i++) {
-    colorVars += "--git-graph-color" + i + ":" + viewState.graphColours[i] + "; ";
-    colorParams += '[data-color="' + i + '"]{--git-graph-color:var(--git-graph-color' + i + ");} ";
+    colorVars += `--git-graph-color${i}:${viewState.graphColours[i]}; `;
+    colorParams += `[data-color="${i}"]{--git-graph-color:var(--git-graph-color${i});} `;
   }
 
   const mediaUri = (file: string) =>
@@ -60,13 +61,7 @@ export function buildWebviewHtml(opts: {
   let body: string;
   if (numRepos > 0) {
     body = `<body style="${colorVars}">
-		<div id="controls">
-			<span id="repoControl"><span class="unselectable">${l10nStrings.repo}: </span><div id="repoSelect" class="dropdown"></div></span>
-			<span id="branchControl"><span class="unselectable">${l10nStrings.branch}: </span><div id="branchSelect" class="dropdown"></div></span>
-			<label id="showRemoteBranchesControl"><input type="checkbox" id="showRemoteBranchesCheckbox" value="1" checked>${l10nStrings.showRemoteBranches}</label>
-      <div id="refreshBtn" class="roundedBtn">${l10nStrings.refresh}</div>
-      <div id="blinkHeadBtn" class="roundedBtn">${l10nStrings.locateHead}</div>
-		</div>
+		${buildWebviewToolbar(l10nStrings)}
 		<div id="content">
 			<div id="commitGraph"></div>
 			<div id="commitTable"></div>
@@ -76,8 +71,8 @@ export function buildWebviewHtml(opts: {
 		<div id="dialogBacking"></div>
 		<div id="dialog"></div>
 		<div id="scrollShadow"></div>
-		<script nonce="${nonce}">var viewState = ${escapeJsonForHtml(viewState)};</script>
-		<script nonce="${nonce}">var l10n = ${escapeJsonForHtml(l10nStrings)};</script>
+		<script nonce="${nonce}">const viewState = ${escapeJsonForHtml(viewState)};</script>
+		<script nonce="${nonce}">const l10n = ${escapeJsonForHtml(l10nStrings)};</script>
 		<script src="${compiledOutputUri("web.min.js")}"></script>
 		</body>`;
   } else {

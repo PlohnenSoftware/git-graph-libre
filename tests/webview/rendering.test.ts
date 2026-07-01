@@ -97,6 +97,15 @@ describe("webview rendering", () => {
     expect(document.getElementById("loadMoreCommitsBtn")).not.toBeNull();
   });
 
+  it("renders the graph controls as an accessible toolbar", () => {
+    const controls = document.getElementById("controls");
+
+    expect(controls?.tagName).toBe("HEADER");
+    expect(controls?.getAttribute("role")).toBe("toolbar");
+    expect(document.getElementById("refreshBtn")?.tagName).toBe("BUTTON");
+    expect(document.getElementById("blinkHeadBtn")?.getAttribute("aria-label")).toBe("Locate HEAD");
+  });
+
   it("ignores stale branch load responses", () => {
     const commitRequestsBefore = sentLoadCommitsCount();
 

@@ -2,6 +2,7 @@
   "statusBar.text": "Git Graph Libre",
   "statusBar.tooltip": "Pokaż Git Graph",
   "outputChannel.text": "Git Graph Libre",
+  "ui.toolbar": "Elementy sterujące Git Graph",
   "command.activeEditorRepo.noEditor": "Najpierw otwórz plik znajdujący się w repozytorium Git.",
   "command.activeEditorRepo.noRepo": "Aktywny edytor nie znajduje się w repozytorium Git.",
   "command.addRepo.title": "Wybierz folder repozytorium Git",

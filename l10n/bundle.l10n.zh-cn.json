@@ -2,6 +2,7 @@
   "statusBar.text": "Git Graph Libre",
   "statusBar.tooltip": "查看 Git 分支图",
   "outputChannel.text": "Git Graph Libre",
+  "ui.toolbar": "Git 图形控件",
   "command.activeEditorRepo.noEditor": "请先打开 Git 仓库中的文件。",
   "command.activeEditorRepo.noRepo": "活动编辑器不在 Git 仓库中。",
   "command.addRepo.title": "选择 Git 仓库文件夹",

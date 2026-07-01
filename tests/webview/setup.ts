@@ -1,4 +1,5 @@
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
+import { buildWebviewToolbar } from "@/extension/webviewToolbar";
 import type * as GG from "@/types";
 
 export function createVscodeMock() {
@@ -23,17 +24,9 @@ export function createVscodeMock() {
 }
 
 export function setupHtml(viewState: GG.GitGraphViewState) {
+  const l10nStrings = getWebviewLocalizedStrings();
   document.body.innerHTML = `
-    <div id="controls">
-      <span id="repoControl"><div id="repoSelect" class="dropdown"></div></span>
-      <span id="branchControl"><div id="branchSelect" class="dropdown"></div></span>
-      <label id="showRemoteBranchesControl">
-        <input type="checkbox" id="showRemoteBranchesCheckbox" checked>
-        Show Remote Branches
-      </label>
-      <div id="refreshBtn" class="roundedBtn">Refresh</div>
-      <div id="blinkHeadBtn" class="roundedBtn">Locate HEAD</div>
-    </div>
+    ${buildWebviewToolbar(l10nStrings)}
     <div id="content">
       <div id="commitGraph"></div>
       <div id="commitTable"></div>
@@ -46,7 +39,7 @@ export function setupHtml(viewState: GG.GitGraphViewState) {
   `;
 
   (global as unknown as { viewState: GG.GitGraphViewState }).viewState = viewState;
-  global["l10n"] = getWebviewLocalizedStrings();
+  (global as unknown as { l10n: ReturnType<typeof getWebviewLocalizedStrings> }).l10n = l10nStrings;
 }
 
 export function receive(msg: GG.ResponseMessage) {
