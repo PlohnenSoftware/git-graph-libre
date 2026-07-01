@@ -7,8 +7,8 @@ import { config } from "./config";
 import { DiffDocProvider } from "./diffDocProvider";
 import { registerMessageHandlers } from "./extension/messageHandler";
 import { createRepoManager } from "./extension/repoManager";
-import { WebviewBridge, webviewBridgeFactory } from "./extension/webviewBridge";
-import { createWebviewPanel, WebviewPanel } from "./extension/webviewPanel";
+import { type WebviewBridge, webviewBridgeFactory } from "./extension/webviewBridge";
+import { createWebviewPanel, type WebviewPanel } from "./extension/webviewPanel";
 import { createRepoSearch } from "./extension/workspaceSearch";
 import { createRepoWatcher } from "./extension/workspaceWatcher";
 import { ExtensionState } from "./extensionState";
@@ -68,7 +68,8 @@ export function activate(context: vscode.ExtensionContext) {
         repoManager,
         extensionState,
         avatarManager,
-        repoFileWatcher
+        repoFileWatcher,
+        outputChannel
       });
       currentPanel = createWebviewPanel({
         panel,

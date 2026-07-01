@@ -1,10 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { simpleGit } from "simple-git";
+import { simpleGit, type SimpleGit } from "simple-git";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { loadCommits } from "@/backend/queries/loadCommits";
+import type { GitCommandRecord } from "@/backend/utils/gitRunner";
 
 import { git, makeRepo } from "@tests/backend/helpers";
 
@@ -70,7 +71,7 @@ describe("loadCommits", () => {
     expect(result.head).not.toBeNull();
     const headCommit = result.commits.find((c) => c.hash === result.head);
     expect(headCommit).toBeDefined();
-    expect(headCommit!.refs.some((r) => r.type === "head")).toBe(true);
+    expect(headCommit?.refs.some((r) => r.type === "head")).toBe(true);
   });
 
   it("limits to maxCommits and sets moreCommitsAvailable: true", async () => {
@@ -204,6 +205,55 @@ describe("loadCommits", () => {
       head: expect.any(String),
       moreCommitsAvailable: false,
       hard: true
+    });
+  });
+
+  it("records Git command failures while preserving the current empty fallback", async () => {
+    const failure = Object.assign(new Error("fatal: bad revision"), {
+      result: { exitCode: 128, stdErr: "fatal: bad revision" }
+    });
+    const git = {
+      raw: async (args: string[]) => {
+        if (args[0] === "log") throw failure;
+        if (args[0] === "show-ref") return "";
+        throw new Error(`unexpected git command: ${args[0]}`);
+      }
+    } as unknown as SimpleGit;
+    const records: GitCommandRecord[] = [];
+
+    const result = await loadCommits(git, {
+      branchName: "missing",
+      maxCommits: 300,
+      showRemoteBranches: false,
+      hard: false,
+      dateType: "Author Date",
+      showUncommittedChanges: false,
+      repo: "/repo",
+      recordGitCommand: (record) => records.push(record)
+    });
+
+    expect(result).toEqual({
+      commits: [],
+      head: null,
+      moreCommitsAvailable: false,
+      hard: false
+    });
+
+    const logRecord = records.find((record) => record.label === "loadCommits.log");
+    const refsRecord = records.find((record) => record.label === "loadCommits.refs");
+    expect(logRecord).toMatchObject({
+      repo: "/repo",
+      success: false,
+      error: {
+        message: "fatal: bad revision",
+        exitCode: 128,
+        stderr: "fatal: bad revision"
+      }
+    });
+    expect(refsRecord).toMatchObject({
+      repo: "/repo",
+      success: true,
+      error: null
     });
   });
 });

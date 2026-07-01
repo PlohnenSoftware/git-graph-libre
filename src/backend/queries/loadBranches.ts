@@ -2,12 +2,14 @@ import type { SimpleGit } from "simple-git";
 
 import type { QueryResult } from "@/backend/types";
 import { isGitRepository } from "@/backend/utils/git";
+import { runGitCommand, type GitCommandRecorder } from "@/backend/utils/gitRunner";
 
 type LoadBranchesInput = {
   showRemoteBranches: boolean;
   hard: boolean;
   currentRepo: string;
   gitPath: string;
+  recordGitCommand?: GitCommandRecorder;
 };
 
 export async function loadBranches(
@@ -21,7 +23,15 @@ export async function loadBranches(
   let error: boolean;
 
   try {
-    const summary = await (showRemoteBranches ? git.branch() : git.branchLocal());
+    const summary = await runGitCommand(
+      () => (showRemoteBranches ? git.branch() : git.branchLocal()),
+      {
+        label: showRemoteBranches ? "loadBranches.all" : "loadBranches.local",
+        args: showRemoteBranches ? ["branch", "--list", "--all"] : ["branch", "--list"],
+        repo: currentRepo,
+        record: input.recordGitCommand
+      }
+    );
     head = summary.detached ? null : summary.current || null;
     branches = head ? [head, ...summary.all.filter((b) => b !== head)] : [...summary.all];
     error = false;

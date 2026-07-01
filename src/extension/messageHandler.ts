@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { AvatarManager } from "@/avatarManager";
+import type { AvatarManager } from "@/avatarManager";
 import { checkoutBranch, createBranch, deleteBranch, renameBranch } from "@/backend/actions/branch";
 import {
   checkoutCommit,
@@ -10,22 +10,23 @@ import {
 } from "@/backend/actions/commit";
 import { mergeBranch, mergeCommit } from "@/backend/actions/merge";
 import { addTag, deleteTag, pushTag } from "@/backend/actions/tag";
-import { GitClient } from "@/backend/gitClient";
+import type { GitClient } from "@/backend/gitClient";
 import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadBranches } from "@/backend/queries/loadBranches";
 import { loadCommits } from "@/backend/queries/loadCommits";
-import { GitFileChangeType } from "@/backend/types";
+import type { GitFileChangeType } from "@/backend/types";
+import type { GitCommandRecord, GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { abbrevCommit } from "@/backend/utils/string";
-import { Config } from "@/config";
+import type { Config } from "@/config";
 import { encodeDiffDocUri } from "@/diffDocProvider";
 import { copyToClipboard } from "@/extension/utils/clipboard";
-import { ExtensionState } from "@/extensionState";
+import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
-import { RepoFileWatcher } from "@/repoFileWatcher";
-import { RequestMessage, ResponseMessage } from "@/types";
+import type { RepoFileWatcher } from "@/repoFileWatcher";
+import type { RequestMessage, ResponseMessage } from "@/types";
 
-import { RepoManager } from "./repoManager";
-import { WebviewBridge } from "./webviewBridge";
+import type { RepoManager } from "./repoManager";
+import type { WebviewBridge } from "./webviewBridge";
 
 function viewDiff(
   repo: string,
@@ -43,13 +44,13 @@ function viewDiff(
       ? l10n.t("diff.addedIn", abbrevHash)
       : type === "D"
         ? l10n.t("diff.deletedIn", abbrevHash)
-        : abbrevCommit(commitHash) + "^ ↔ " + abbrevCommit(commitHash)) +
+        : `${abbrevCommit(commitHash)}^ ↔ ${abbrevCommit(commitHash)}`) +
     ")";
   return new Promise<boolean>((resolve) => {
     vscode.commands
       .executeCommand(
         "vscode.diff",
-        encodeDiffDocUri(repo, oldFilePath, commitHash + "^"),
+        encodeDiffDocUri(repo, oldFilePath, `${commitHash}^`),
         encodeDiffDocUri(repo, newFilePath, commitHash),
         title,
         { preview: true }
@@ -57,6 +58,19 @@ function viewDiff(
       .then(() => resolve(true))
       .then(() => resolve(false));
   });
+}
+
+function formatGitCommandRecord(record: GitCommandRecord): string {
+  const status = record.success ? "ok" : "failed";
+  const repo = record.repo ?? "(no repo)";
+  const args = record.args.map((arg) => JSON.stringify(arg)).join(" ");
+  const error = record.error;
+  const errorDetails =
+    error === null
+      ? ""
+      : ` message=${JSON.stringify(error.message)} exit=${error.exitCode ?? "(unknown)"}`;
+
+  return `[git:${record.kind}] ${record.label} ${status} ${record.durationMs}ms repo=${JSON.stringify(repo)} args=[${args}]${errorDetails}`;
 }
 
 export function registerMessageHandlers(
@@ -68,11 +82,26 @@ export function registerMessageHandlers(
     extensionState: ExtensionState;
     avatarManager: AvatarManager;
     repoFileWatcher: RepoFileWatcher;
+    outputChannel?: Pick<vscode.OutputChannel, "appendLine">;
   }
 ) {
-  const { config, gitClient, repoManager, extensionState, avatarManager, repoFileWatcher } = deps;
+  const {
+    config,
+    gitClient,
+    repoManager,
+    extensionState,
+    avatarManager,
+    repoFileWatcher,
+    outputChannel
+  } = deps;
 
   let currentRepo: string | null = null;
+  const recordGitCommand: GitCommandRecorder | undefined = outputChannel
+    ? (record) => {
+        outputChannel.appendLine(formatGitCommandRecord(record));
+        if (record.error?.stderr) outputChannel.appendLine(`  stderr: ${record.error.stderr}`);
+      }
+    : undefined;
 
   function registerAction<T extends RequestMessage["command"]>(
     command: T,
@@ -116,7 +145,9 @@ export function registerMessageHandlers(
         showRemoteBranches: msg.showRemoteBranches,
         hard: msg.hard,
         dateType: config.dateType(),
-        showUncommittedChanges: config.showUncommittedChanges()
+        showUncommittedChanges: config.showUncommittedChanges(),
+        repo: msg.repo,
+        recordGitCommand
       }))
     });
   });
@@ -127,8 +158,9 @@ export function registerMessageHandlers(
       ...(await loadBranches(gitClient.getInstance(), {
         showRemoteBranches: msg.showRemoteBranches,
         hard: msg.hard,
-        currentRepo: currentRepo!,
-        gitPath: config.gitPath()
+        currentRepo: currentRepo ?? "",
+        gitPath: config.gitPath(),
+        recordGitCommand
       }))
     });
   });
@@ -138,7 +170,9 @@ export function registerMessageHandlers(
       command: "commitDetails",
       ...(await commitDetails(gitClient.getInstance(), {
         commitHash: msg.commitHash,
-        dateType: config.dateType()
+        dateType: config.dateType(),
+        repo: msg.repo,
+        recordGitCommand
       }))
     });
   });

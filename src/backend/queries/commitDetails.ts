@@ -1,6 +1,7 @@
 import type { SimpleGit } from "simple-git";
 
 import type { DateType, GitCommitDetails, GitFileChangeType, QueryResult } from "@/backend/types";
+import { runGitRaw, type GitCommandRecorder } from "@/backend/utils/gitRunner";
 
 const eolRegex = /\r\n|\r|\n/g;
 const gitLogSeparator = "XX7Nal-YARtTpjCikii9nJxER19D6diSyk-AWkPb";
@@ -8,6 +9,8 @@ const gitLogSeparator = "XX7Nal-YARtTpjCikii9nJxER19D6diSyk-AWkPb";
 type CommitDetailsInput = {
   commitHash: string;
   dateType: DateType;
+  repo?: string | null;
+  recordGitCommand?: GitCommandRecorder;
 };
 
 function toPath(str: string) {
@@ -17,11 +20,18 @@ function toPath(str: string) {
 async function fetchCommitInfo(
   git: SimpleGit,
   commitHash: string,
-  dateType: DateType
+  dateType: DateType,
+  repo: string | null,
+  record?: GitCommandRecorder
 ): Promise<GitCommitDetails> {
   const dateField = dateType === "Author Date" ? "%at" : "%ct";
-  const format = ["%H", "%P", "%an", "%ae", dateField, "%cn"].join(gitLogSeparator) + "%n%B";
-  const stdout = await git.raw(["show", "--quiet", commitHash, `--format=${format}`]);
+  const format = `${["%H", "%P", "%an", "%ae", dateField, "%cn"].join(gitLogSeparator)}%n%B`;
+  const stdout = await runGitRaw(git, {
+    label: "commitDetails.info",
+    args: ["show", "--quiet", commitHash, `--format=${format}`],
+    repo,
+    record
+  });
   const lines = stdout.split(eolRegex);
   let lastLine = lines.length - 1;
   while (lastLine >= 0 && lines[lastLine] === "") lastLine--;
@@ -31,15 +41,20 @@ async function fetchCommitInfo(
     parents: commitInfo[1].split(" "),
     author: commitInfo[2],
     email: commitInfo[3],
-    date: parseInt(commitInfo[4]),
+    date: parseInt(commitInfo[4], 10),
     committer: commitInfo[5],
     body: lines.slice(1, lastLine + 1).join("\n"),
     fileChanges: []
   };
 }
 
-async function fetchNameStatus(git: SimpleGit, commitHash: string): Promise<string[]> {
-  const stdout = await git.raw([
+async function fetchNameStatus(
+  git: SimpleGit,
+  commitHash: string,
+  repo: string | null,
+  record?: GitCommandRecorder
+): Promise<string[]> {
+  const args = [
     "diff-tree",
     "--name-status",
     "-r",
@@ -48,12 +63,23 @@ async function fetchNameStatus(git: SimpleGit, commitHash: string): Promise<stri
     "--find-renames",
     "--diff-filter=AMDR",
     commitHash
-  ]);
+  ];
+  const stdout = await runGitRaw(git, {
+    label: "commitDetails.nameStatus",
+    args,
+    repo,
+    record
+  });
   return stdout.split(eolRegex);
 }
 
-async function fetchNumStat(git: SimpleGit, commitHash: string): Promise<string[]> {
-  const stdout = await git.raw([
+async function fetchNumStat(
+  git: SimpleGit,
+  commitHash: string,
+  repo: string | null,
+  record?: GitCommandRecorder
+): Promise<string[]> {
+  const args = [
     "diff-tree",
     "--numstat",
     "-r",
@@ -62,7 +88,13 @@ async function fetchNumStat(git: SimpleGit, commitHash: string): Promise<string[
     "--find-renames",
     "--diff-filter=AMDR",
     commitHash
-  ]);
+  ];
+  const stdout = await runGitRaw(git, {
+    label: "commitDetails.numStat",
+    args,
+    repo,
+    record
+  });
   return stdout.split(eolRegex);
 }
 
@@ -71,10 +103,12 @@ export async function commitDetails(
   input: CommitDetailsInput
 ): Promise<QueryResult<"commitDetails">> {
   try {
+    const repo = input.repo ?? null;
+    const record = input.recordGitCommand;
     const [details, nameStatusLines, numStatLines] = await Promise.all([
-      fetchCommitInfo(git, input.commitHash, input.dateType),
-      fetchNameStatus(git, input.commitHash),
-      fetchNumStat(git, input.commitHash)
+      fetchCommitInfo(git, input.commitHash, input.dateType, repo, record),
+      fetchNameStatus(git, input.commitHash, repo, record),
+      fetchNumStat(git, input.commitHash, repo, record)
     ]);
 
     const fileLookup: { [file: string]: number } = {};
@@ -98,8 +132,8 @@ export async function commitDetails(
       if (line.length !== 3) break;
       const fileName = line[2].replace(/(.*){.* => (.*)}/, "$1$2").replace(/.* => (.*)/, "$1");
       if (typeof fileLookup[fileName] === "number") {
-        details.fileChanges[fileLookup[fileName]].additions = parseInt(line[0]);
-        details.fileChanges[fileLookup[fileName]].deletions = parseInt(line[1]);
+        details.fileChanges[fileLookup[fileName]].additions = parseInt(line[0], 10);
+        details.fileChanges[fileLookup[fileName]].deletions = parseInt(line[1], 10);
       }
     }
 
