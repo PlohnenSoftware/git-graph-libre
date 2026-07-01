@@ -7,36 +7,49 @@ export type GitQueryError = {
   task: string | null;
 };
 
+type CommitDetailsResult = {
+  commitDetails: GitCommitDetails | null;
+  error: GitQueryError | null;
+};
+
+type LoadBranchesResult = {
+  branches: string[];
+  head: string | null;
+  hard: boolean;
+  isRepo: boolean;
+  error: GitQueryError | null;
+};
+
+type LoadCommitsResult = {
+  commits: GitCommitNode[];
+  head: string | null;
+  moreCommitsAvailable: boolean;
+  hard: boolean;
+  error: GitQueryError | null;
+};
+
 type QueryPayloads = {
   commitDetails: {
     request: { repo: string; commitHash: string };
-    response: { commitDetails: GitCommitDetails | null; error: GitQueryError | null };
+    result: CommitDetailsResult;
+    response: CommitDetailsResult;
   };
   loadBranches: {
-    request: { showRemoteBranches: boolean; hard: boolean };
-    response: {
-      branches: string[];
-      head: string | null;
-      hard: boolean;
-      isRepo: boolean;
-      error: GitQueryError | null;
-    };
+    request: { requestId: number; showRemoteBranches: boolean; hard: boolean };
+    result: LoadBranchesResult;
+    response: { requestId: number } & LoadBranchesResult;
   };
   loadCommits: {
     request: {
+      requestId: number;
       repo: string;
       branchName: string;
       maxCommits: number;
       showRemoteBranches: boolean;
       hard: boolean;
     };
-    response: {
-      commits: GitCommitNode[];
-      head: string | null;
-      moreCommitsAvailable: boolean;
-      hard: boolean;
-      error: GitQueryError | null;
-    };
+    result: LoadCommitsResult;
+    response: { requestId: number } & LoadCommitsResult;
   };
 };
 
@@ -48,4 +61,4 @@ export type QueryResponse = {
   [K in keyof QueryPayloads]: { command: K } & QueryPayloads[K]["response"];
 }[keyof QueryPayloads];
 
-export type QueryResult<T extends keyof QueryPayloads> = QueryPayloads[T]["response"];
+export type QueryResult<T extends keyof QueryPayloads> = QueryPayloads[T]["result"];

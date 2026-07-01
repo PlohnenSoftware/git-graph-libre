@@ -64,6 +64,9 @@ class GitGraphView {
 
   private loadBranchesCallback: ((changes: boolean, isRepo: boolean) => void) | null = null;
   private loadCommitsCallback: ((changes: boolean) => void) | null = null;
+  private nextRequestId = 1;
+  private activeLoadBranchesRequestId: number | null = null;
+  private activeLoadCommitsRequestId: number | null = null;
 
   constructor(
     repos: GG.GitRepoSet,
@@ -124,8 +127,9 @@ class GitGraphView {
         this.maxCommits = prevState.maxCommits;
         this.expandedCommit = prevState.expandedCommit;
         this.avatars = prevState.avatars;
-        this.loadBranches(prevState.gitBranches, prevState.gitBranchHead, true, true);
+        this.loadBranches(null, prevState.gitBranches, prevState.gitBranchHead, true, true);
         this.loadCommits(
+          null,
           prevState.commits,
           prevState.commitHead,
           prevState.moreCommitsAvailable,
@@ -170,12 +174,15 @@ class GitGraphView {
   }
 
   public loadBranches(
+    requestId: number | null,
     branchOptions: string[],
     branchHead: string | null,
     hard: boolean,
     isRepo: boolean,
     errorReason: string | null = null
   ) {
+    if (!this.acceptLoadBranchesResponse(requestId)) return;
+
     if (errorReason !== null) {
       this.renderShowError(l10n.unableToLoadGitGraph, errorReason);
       this.triggerLoadBranchesCallback(false, isRepo);
@@ -228,14 +235,23 @@ class GitGraphView {
       this.loadBranchesCallback = null;
     }
   }
+  private acceptLoadBranchesResponse(requestId: number | null) {
+    if (requestId === null) return true;
+    if (this.activeLoadBranchesRequestId !== requestId) return false;
+    this.activeLoadBranchesRequestId = null;
+    return true;
+  }
 
   public loadCommits(
+    requestId: number | null,
     commits: GitCommitNode[],
     commitHead: string | null,
     moreAvailable: boolean,
     hard: boolean,
     errorReason: string | null = null
   ) {
+    if (!this.acceptLoadCommitsResponse(requestId)) return;
+
     if (errorReason !== null) {
       this.renderShowError(l10n.unableToLoadGitGraph, errorReason);
       this.triggerLoadCommitsCallback(false);
@@ -311,6 +327,12 @@ class GitGraphView {
       this.loadCommitsCallback = null;
     }
   }
+  private acceptLoadCommitsResponse(requestId: number | null) {
+    if (requestId === null) return true;
+    if (this.activeLoadCommitsRequestId !== requestId) return false;
+    this.activeLoadCommitsRequestId = null;
+    return true;
+  }
 
   public loadAvatar(email: string, image: string) {
     this.avatars[email] = image;
@@ -341,20 +363,26 @@ class GitGraphView {
     hard: boolean,
     loadedCallback: (changes: boolean, isRepo: boolean) => void
   ) {
-    if (this.loadBranchesCallback !== null) return;
+    const requestId = this.createRequestId();
+    this.activeLoadBranchesRequestId = requestId;
+    this.activeLoadCommitsRequestId = null;
     this.loadBranchesCallback = loadedCallback;
+    this.loadCommitsCallback = null;
     sendMessage({ command: "selectRepo", repo: this.currentRepo });
     sendMessage({
       command: "loadBranches",
+      requestId,
       showRemoteBranches: this.showRemoteBranches,
       hard: hard
     });
   }
   private requestLoadCommits(hard: boolean, loadedCallback: (changes: boolean) => void) {
-    if (this.loadCommitsCallback !== null) return;
+    const requestId = this.createRequestId();
+    this.activeLoadCommitsRequestId = requestId;
     this.loadCommitsCallback = loadedCallback;
     sendMessage({
       command: "loadCommits",
+      requestId,
       repo: this.currentRepo,
       branchName: this.currentBranch !== null ? this.currentBranch : "",
       maxCommits: this.maxCommits,
@@ -374,6 +402,11 @@ class GitGraphView {
         sendMessage({ command: "loadRepos", check: true });
       }
     });
+  }
+  private createRequestId() {
+    const requestId = this.nextRequestId;
+    this.nextRequestId += 1;
+    return requestId;
   }
   private fetchAvatars(avatars: { [email: string]: string[] }) {
     const emails = Object.keys(avatars);
@@ -1349,6 +1382,7 @@ window.addEventListener("message", (event) => {
       break;
     case "loadBranches":
       gitGraph.loadBranches(
+        msg.requestId,
         msg.branches,
         msg.head,
         msg.hard,
@@ -1358,6 +1392,7 @@ window.addEventListener("message", (event) => {
       break;
     case "loadCommits":
       gitGraph.loadCommits(
+        msg.requestId,
         msg.commits,
         msg.head,
         msg.moreCommitsAvailable,

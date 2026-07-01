@@ -139,6 +139,7 @@ export function registerMessageHandlers(
   bridge.onMessage("loadCommits", async (msg) => {
     bridge.post({
       command: "loadCommits",
+      requestId: msg.requestId,
       ...(await loadCommits(gitClient.getInstance(), {
         branchName: msg.branchName,
         maxCommits: msg.maxCommits,
@@ -155,6 +156,7 @@ export function registerMessageHandlers(
   bridge.onMessage("loadBranches", async (msg) => {
     bridge.post({
       command: "loadBranches",
+      requestId: msg.requestId,
       ...(await loadBranches(gitClient.getInstance(), {
         showRemoteBranches: msg.showRemoteBranches,
         hard: msg.hard,
