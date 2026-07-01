@@ -21,6 +21,8 @@
   "config.graphStyle": "指定圖形的樣式。",
   "config.graphStyle.rounded": "在圖形中的分支之間過渡時使用平滑曲線",
   "config.graphStyle.angular": "在圖形中的分支之間過渡時使用直角線條",
+  "config.graph.fontSize": "指定圖形列使用的字型大小（像素）。",
+  "config.graph.rowHeight": "指定圖形列使用的列高（像素）。",
   "config.initialLoadCommits": "指定初始載入的提交數量。",
   "config.loadMoreCommits": "指定按下「載入更多提交」按鈕時要載入的提交數量（僅在有更多提交可用時顯示）。",
   "config.maxDepthOfRepoSearch": "指定在工作區中發現存放庫時搜尋的子資料夾最大深度。",

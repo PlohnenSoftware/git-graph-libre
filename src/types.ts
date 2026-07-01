@@ -1,4 +1,4 @@
-import {
+import type {
   ActionRequest,
   ActionResponse,
   GitFileChangeType,
@@ -16,6 +16,8 @@ export type GitGraphViewState = {
   dateFormat: DateFormat;
   fetchAvatars: boolean;
   graphColours: string[];
+  graphFontSize: number;
+  graphRowHeight: number;
   graphStyle: GraphStyle;
   initialLoadCommits: number;
   lastActiveRepo: string | null;

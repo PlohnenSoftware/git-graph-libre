@@ -14,6 +14,8 @@ declare global {
     autoCenterCommitDetailsView: boolean;
     fetchAvatars: boolean;
     graphColours: string[];
+    graphFontSize: number;
+    graphRowHeight: number;
     graphStyle: "rounded" | "angular";
     grid: { x: number; y: number; offsetX: number; offsetY: number; expandY: number };
     initialLoadCommits: number;

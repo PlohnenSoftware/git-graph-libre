@@ -212,6 +212,20 @@
           "default": "rounded",
           "description": "%config.graphStyle%"
         },
+        "git-graph-libre.graph.fontSize": {
+          "type": "number",
+          "default": 13,
+          "minimum": 8,
+          "maximum": 24,
+          "description": "%config.graph.fontSize%"
+        },
+        "git-graph-libre.graph.rowHeight": {
+          "type": "number",
+          "default": 24,
+          "minimum": 18,
+          "maximum": 48,
+          "description": "%config.graph.rowHeight%"
+        },
         "git-graph-libre.initialLoadCommits": {
           "type": "number",
           "default": 300,

@@ -6,6 +6,8 @@ const config: Config = {
   autoCenterCommitDetailsView: true,
   fetchAvatars: false,
   graphColours: ["oklch(65% 0.16 250)"],
+  graphFontSize: 13,
+  graphRowHeight: 24,
   graphStyle: "rounded",
   grid: { x: 16, y: 24, offsetX: 8, offsetY: 12, expandY: 250 },
   initialLoadCommits: 300,

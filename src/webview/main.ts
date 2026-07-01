@@ -453,17 +453,19 @@ class GitGraphView {
     const headerHeight = colHeadersElem.clientHeight + 1,
       expandedCommitElem =
         this.expandedCommit !== null ? document.getElementById("commitDetails") : null;
+    const tableHeight = this.tableElem.children[0]?.clientHeight ?? 0;
     this.config.grid.expandY =
       expandedCommitElem !== null
         ? expandedCommitElem.getBoundingClientRect().height
         : this.config.grid.expandY;
-    this.config.grid.y =
+    const renderedRowHeight =
       this.commits.length > 0
-        ? (this.tableElem.children[0].clientHeight -
+        ? (tableHeight -
             headerHeight -
             (this.expandedCommit !== null ? this.config.grid.expandY : 0)) /
           this.commits.length
-        : this.config.grid.y;
+        : this.config.graphRowHeight;
+    this.config.grid.y = renderedRowHeight > 0 ? renderedRowHeight : this.config.graphRowHeight;
     this.config.grid.offsetY = headerHeight + this.config.grid.y / 2;
     this.graph.render(this.expandedCommit);
   }
@@ -1344,8 +1346,10 @@ const gitGraph = new GitGraphView(
     autoCenterCommitDetailsView: viewState.autoCenterCommitDetailsView,
     fetchAvatars: viewState.fetchAvatars,
     graphColours: viewState.graphColours,
+    graphFontSize: viewState.graphFontSize,
+    graphRowHeight: viewState.graphRowHeight,
     graphStyle: viewState.graphStyle,
-    grid: { x: 16, y: 24, offsetX: 8, offsetY: 12, expandY: 250 },
+    grid: { x: 16, y: viewState.graphRowHeight, offsetX: 8, offsetY: 12, expandY: 250 },
     initialLoadCommits: viewState.initialLoadCommits,
     loadMoreCommits: viewState.loadMoreCommits,
     showCurrentBranchByDefault: viewState.showCurrentBranchByDefault

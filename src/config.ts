@@ -1,12 +1,18 @@
 import * as vscode from "vscode";
 
-import { DateType } from "./backend/types";
-import { DateFormat, GraphStyle } from "./types";
+import type { DateType } from "./backend/types";
+import type { DateFormat, GraphStyle } from "./types";
 
 type TabIconColourTheme = "colour" | "grey";
 
 function getConfig<T>(key: string, defaultValue: T): T {
   return vscode.workspace.getConfiguration("git-graph-libre").get(key, defaultValue);
+}
+
+function getNumberConfig(key: string, defaultValue: number, min: number, max: number): number {
+  const value = getConfig(key, defaultValue);
+  if (typeof value !== "number" || !Number.isFinite(value)) return defaultValue;
+  return Math.min(max, Math.max(min, value));
 }
 
 export const config = {
@@ -29,6 +35,8 @@ export const config = {
         ) !== null
     ),
   graphStyle: (): GraphStyle => getConfig("graphStyle", "rounded"),
+  graphFontSize: (): number => getNumberConfig("graph.fontSize", 13, 8, 24),
+  graphRowHeight: (): number => getNumberConfig("graph.rowHeight", 24, 18, 48),
   initialLoadCommits: (): number => getConfig("initialLoadCommits", 300),
   loadMoreCommits: (): number => getConfig("loadMoreCommits", 75),
   maxDepthOfRepoSearch: (): number => getConfig("maxDepthOfRepoSearch", 0),

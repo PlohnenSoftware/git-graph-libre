@@ -38,6 +38,8 @@ export function buildWebviewHtml(opts: {
     dateFormat: config.dateFormat(),
     fetchAvatars: config.fetchAvatars() && extensionState.isAvatarStorageAvailable(),
     graphColours: config.graphColours(),
+    graphFontSize: config.graphFontSize(),
+    graphRowHeight: config.graphRowHeight(),
     graphStyle: config.graphStyle(),
     initialLoadCommits: config.initialLoadCommits(),
     lastActiveRepo: extensionState.getLastActiveRepo(),
@@ -47,10 +49,10 @@ export function buildWebviewHtml(opts: {
   };
 
   const numRepos = Object.keys(viewState.repos).length;
-  let colorVars = "",
+  let styleVars = `--git-graph-font-size:${viewState.graphFontSize}px; --git-graph-row-height:${viewState.graphRowHeight}px; `,
     colorParams = "";
   for (let i = 0; i < viewState.graphColours.length; i++) {
-    colorVars += `--git-graph-color${i}:${viewState.graphColours[i]}; `;
+    styleVars += `--git-graph-color${i}:${viewState.graphColours[i]}; `;
     colorParams += `[data-color="${i}"]{--git-graph-color:var(--git-graph-color${i});} `;
   }
 
@@ -61,7 +63,7 @@ export function buildWebviewHtml(opts: {
 
   let body: string;
   if (numRepos > 0) {
-    body = `<body style="${colorVars}">
+    body = `<body style="${styleVars}">
 		${buildWebviewToolbar(l10nStrings)}
 		${buildWebviewStatusStrip(l10nStrings)}
 		<div id="content">
@@ -78,7 +80,7 @@ export function buildWebviewHtml(opts: {
 		<script src="${compiledOutputUri("web.min.js")}"></script>
 		</body>`;
   } else {
-    body = `<body class="unableToLoad" style="${colorVars}">
+    body = `<body class="unableToLoad" style="${styleVars}">
 		<h2>${l10nStrings.unableToLoadGitGraph}</h2>
 		<p>${l10nStrings.noGitRepository}</p>
 		<p>${l10nStrings.noGit}</p>

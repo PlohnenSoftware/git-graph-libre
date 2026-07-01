@@ -34,3 +34,7 @@ export const l10n = {
 };
 
 export const version = "1.98.0";
+
+export const Uri = {
+  file: (fsPath: string) => ({ fsPath })
+};
