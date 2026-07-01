@@ -1,4 +1,4 @@
-import type { GitCommitDetails, GitCommitNode } from "./git.types";
+import type { GitCommitDetails, GitCommitNode, GitRepoInfo } from "./git.types";
 
 export type GitQueryError = {
   message: string;
@@ -28,6 +28,11 @@ type LoadCommitsResult = {
   error: GitQueryError | null;
 };
 
+type LoadRepoInfoResult = {
+  repoInfo: GitRepoInfo;
+  error: GitQueryError | null;
+};
+
 type QueryPayloads = {
   commitDetails: {
     request: { repo: string; commitHash: string };
@@ -50,6 +55,11 @@ type QueryPayloads = {
     };
     result: LoadCommitsResult;
     response: { requestId: number } & LoadCommitsResult;
+  };
+  loadRepoInfo: {
+    request: { requestId: number; repo: string };
+    result: LoadRepoInfoResult;
+    response: { requestId: number } & LoadRepoInfoResult;
   };
 };
 

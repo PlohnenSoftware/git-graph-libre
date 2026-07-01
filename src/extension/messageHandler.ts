@@ -14,6 +14,7 @@ import type { GitClient } from "@/backend/gitClient";
 import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadBranches } from "@/backend/queries/loadBranches";
 import { loadCommits } from "@/backend/queries/loadCommits";
+import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
 import type { GitFileChangeType } from "@/backend/types";
 import type { GitCommandRecord, GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { abbrevCommit } from "@/backend/utils/string";
@@ -162,6 +163,17 @@ export function registerMessageHandlers(
         hard: msg.hard,
         currentRepo: currentRepo ?? "",
         gitPath: config.gitPath(),
+        recordGitCommand
+      }))
+    });
+  });
+
+  bridge.onMessage("loadRepoInfo", async (msg) => {
+    bridge.post({
+      command: "loadRepoInfo",
+      requestId: msg.requestId,
+      ...(await loadRepoInfo(gitClient.getInstance(), {
+        repo: msg.repo,
         recordGitCommand
       }))
     });

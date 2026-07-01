@@ -49,6 +49,34 @@ export type GitCommitDetails = {
   fileChanges: GitFileChange[];
 };
 
+export type GitRemote = {
+  name: string;
+  fetchUrls: string[];
+  pushUrls: string[];
+};
+
+export type GitStash = {
+  index: number;
+  ref: string;
+  message: string;
+  date: number | null;
+};
+
+export type GitRepoConfig = {
+  userName: string | null;
+  userEmail: string | null;
+};
+
+export type GitRepoInfo = {
+  isRepo: boolean;
+  head: string | null;
+  headCommit: string | null;
+  remotes: GitRemote[];
+  stashes: GitStash[];
+  stashCount: number;
+  config: GitRepoConfig;
+};
+
 export type GitFileChangeType = "A" | "M" | "D" | "R";
 export type DateType = "Author Date" | "Commit Date";
 export type GitResetMode = "soft" | "mixed" | "hard";
