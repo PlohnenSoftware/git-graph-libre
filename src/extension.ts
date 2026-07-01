@@ -5,6 +5,7 @@ import { gitClientFactory } from "./backend/gitClient";
 import { buildExtensionUri } from "./backend/utils/path";
 import { config } from "./config";
 import { DiffDocProvider } from "./diffDocProvider";
+import { createCommandManager } from "./extension/commandManager";
 import { registerMessageHandlers } from "./extension/messageHandler";
 import { createRepoManager } from "./extension/repoManager";
 import { type WebviewBridge, webviewBridgeFactory } from "./extension/webviewBridge";
@@ -29,6 +30,67 @@ export function activate(context: vscode.ExtensionContext) {
   const repoWatcher = createRepoWatcher(repoManager, config, repoSearch);
   let currentPanel: WebviewPanel | undefined;
 
+  function openGraphView(targetRepo?: string) {
+    if (targetRepo) extensionState.setLastActiveRepo(targetRepo);
+    const column = vscode.window.activeTextEditor?.viewColumn;
+    if (currentPanel) {
+      currentPanel.reveal(column);
+      return;
+    }
+    const panel = vscode.window.createWebviewPanel(
+      "git-graph-libre",
+      l10n.t("outputChannel.text"),
+      column ?? vscode.ViewColumn.One,
+      {
+        enableScripts: true,
+        localResourceRoots: [
+          buildExtensionUri(context.extensionPath, "media"),
+          buildExtensionUri(context.extensionPath, "out")
+        ]
+      }
+    );
+    let bridge!: WebviewBridge;
+    const repoFileWatcher = new RepoFileWatcher(() => {
+      if (panel.visible) bridge.post({ command: "refresh" });
+    });
+    bridge = webviewBridgeFactory(panel.webview, repoFileWatcher);
+    avatarManager.registerBridge(bridge.post.bind(bridge));
+    const { onPanelShown } = registerMessageHandlers(bridge, {
+      config,
+      gitClient,
+      repoManager,
+      extensionState,
+      avatarManager,
+      repoFileWatcher,
+      outputChannel
+    });
+    currentPanel = createWebviewPanel({
+      panel,
+      bridge,
+      config,
+      repoFileWatcher,
+      extensionPath: context.extensionPath,
+      extensionState,
+      avatarManager,
+      repoManager,
+      onDispose: () => {
+        currentPanel = undefined;
+      },
+      onPanelShown
+    });
+  }
+
+  const commandManager = createCommandManager({
+    extensionVersion: String(context.extension.packageJSON.version ?? "unknown"),
+    outputChannel,
+    config,
+    extensionState,
+    repoManager,
+    avatarManager,
+    openGraphView,
+    getCurrentPanel: () => currentPanel
+  });
+
   void (async () => {
     repoManager.removeReposNotInWorkspace();
     if (!(await repoManager.checkReposExist())) repoManager.sendRepos();
@@ -38,57 +100,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     outputChannel,
-    vscode.commands.registerCommand("git-graph-libre.view", () => {
-      const column = vscode.window.activeTextEditor?.viewColumn;
-      if (currentPanel) {
-        currentPanel.reveal(column);
-        return;
-      }
-      const panel = vscode.window.createWebviewPanel(
-        "git-graph-libre",
-        l10n.t("outputChannel.text"),
-        column ?? vscode.ViewColumn.One,
-        {
-          enableScripts: true,
-          localResourceRoots: [
-            buildExtensionUri(context.extensionPath, "media"),
-            buildExtensionUri(context.extensionPath, "out")
-          ]
-        }
-      );
-      let bridge!: WebviewBridge;
-      const repoFileWatcher = new RepoFileWatcher(() => {
-        if (panel.visible) bridge.post({ command: "refresh" });
-      });
-      bridge = webviewBridgeFactory(panel.webview, repoFileWatcher);
-      avatarManager.registerBridge(bridge.post.bind(bridge));
-      const { onPanelShown } = registerMessageHandlers(bridge, {
-        config,
-        gitClient,
-        repoManager,
-        extensionState,
-        avatarManager,
-        repoFileWatcher,
-        outputChannel
-      });
-      currentPanel = createWebviewPanel({
-        panel,
-        bridge,
-        config,
-        repoFileWatcher,
-        extensionPath: context.extensionPath,
-        extensionState,
-        avatarManager,
-        repoManager,
-        onDispose: () => {
-          currentPanel = undefined;
-        },
-        onPanelShown
-      });
-    }),
-    vscode.commands.registerCommand("git-graph-libre.clearAvatarCache", () => {
-      avatarManager.clearCache();
-    }),
+    ...commandManager.registerAll(),
     vscode.workspace.registerTextDocumentContentProvider(
       DiffDocProvider.scheme,
       new DiffDocProvider(gitClient.getInstance)

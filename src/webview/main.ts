@@ -148,11 +148,12 @@ class GitGraphView {
 
     const repoPaths = Object.keys(repos);
     let changedRepo = false;
-    if (typeof repos[this.currentRepo] === "undefined") {
-      this.currentRepo =
-        lastActiveRepo !== null && typeof repos[lastActiveRepo] !== "undefined"
-          ? lastActiveRepo
-          : (repoPaths[0] ?? "");
+    if (lastActiveRepo !== null && repos[lastActiveRepo] !== undefined) {
+      changedRepo = this.currentRepo !== lastActiveRepo;
+      this.currentRepo = lastActiveRepo;
+      this.saveState();
+    } else if (repos[this.currentRepo] === undefined) {
+      this.currentRepo = repoPaths[0] ?? "";
       this.saveState();
       changedRepo = true;
     }

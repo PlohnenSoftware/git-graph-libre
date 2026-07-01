@@ -2,6 +2,8 @@
 /media/*.js
 /node_modules/
 **/out/
+.coverage/
+coverage/
 .scannerwork/
 *.vsix
 /graphify-out/.graphify_*

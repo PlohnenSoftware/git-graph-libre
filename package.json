@@ -45,6 +45,7 @@
     "clean": "node -e \"require('fs').rmSync('out',{recursive:true,force:true})\"",
     "compile": "pnpm run clean && node esbuild.js",
     "test": "vitest run --project backend && vitest run --project webview",
+    "test:coverage": "vitest run --coverage --coverage.reporter=lcov --coverage.reportsDirectory=coverage",
     "test:ext": "pnpm run compile && pnpm run compile-tests && vscode-test",
     "compile-tests": "tsc -p tests/extension/tsconfig.json && tsc-alias -p tests/extension/tsconfig.json",
     "watch:esbuild": "node esbuild.js --watch",
@@ -76,6 +77,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.19.39",
     "@types/vscode": "~1.98.0",
+    "@vitest/coverage-v8": "4.1.4",
     "@vscode/l10n-dev": "^0.0.35",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
@@ -101,6 +103,26 @@
         "category": "Git Graph Libre",
         "command": "git-graph-libre.clearAvatarCache",
         "title": "%command.clearAvatarCache%"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.viewActiveEditorRepo",
+        "title": "%command.viewActiveEditorRepo%"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.addRepo",
+        "title": "%command.addRepo%"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.removeRepo",
+        "title": "%command.removeRepo%"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.showDiagnostics",
+        "title": "%command.showDiagnostics%"
       }
     ],
     "menus": {
@@ -239,6 +261,10 @@
   "activationEvents": [
     "onCommand:git-graph-libre.view",
     "onCommand:git-graph-libre.clearAvatarCache",
+    "onCommand:git-graph-libre.viewActiveEditorRepo",
+    "onCommand:git-graph-libre.addRepo",
+    "onCommand:git-graph-libre.removeRepo",
+    "onCommand:git-graph-libre.showDiagnostics",
     "workspaceContains:.git",
     "workspaceContains:**/.git"
   ],

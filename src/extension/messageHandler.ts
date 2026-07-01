@@ -16,7 +16,8 @@ import { loadBranches } from "@/backend/queries/loadBranches";
 import { loadCommits } from "@/backend/queries/loadCommits";
 import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
 import type { GitFileChangeType } from "@/backend/types";
-import type { GitCommandRecord, GitCommandRecorder } from "@/backend/utils/gitRunner";
+import { formatGitCommandRecord } from "@/backend/utils/gitCommandLog";
+import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { abbrevCommit } from "@/backend/utils/string";
 import type { Config } from "@/config";
 import { encodeDiffDocUri } from "@/diffDocProvider";
@@ -59,19 +60,6 @@ function viewDiff(
       .then(() => resolve(true))
       .then(() => resolve(false));
   });
-}
-
-function formatGitCommandRecord(record: GitCommandRecord): string {
-  const status = record.success ? "ok" : "failed";
-  const repo = record.repo ?? "(no repo)";
-  const args = record.args.map((arg) => JSON.stringify(arg)).join(" ");
-  const error = record.error;
-  const errorDetails =
-    error === null
-      ? ""
-      : ` message=${JSON.stringify(error.message)} exit=${error.exitCode ?? "(unknown)"}`;
-
-  return `[git:${record.kind}] ${record.label} ${status} ${record.durationMs}ms repo=${JSON.stringify(repo)} args=[${args}]${errorDetails}`;
 }
 
 export function registerMessageHandlers(

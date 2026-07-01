@@ -198,4 +198,25 @@ describe("webview rendering", () => {
       "fatal: could not show commit"
     );
   });
+
+  it("switches repos when loadRepos carries an explicit lastActiveRepo", () => {
+    const otherRepo = "/workspace/other-repo";
+
+    receive({
+      command: "loadRepos",
+      repos: {
+        [REPO]: { columnWidths: null },
+        [otherRepo]: { columnWidths: null }
+      },
+      lastActiveRepo: otherRepo
+    });
+
+    const selectRepoMessages = vscodeMock.sentMessages.filter(
+      (msg) => msg.command === "selectRepo"
+    );
+    expect(selectRepoMessages[selectRepoMessages.length - 1]).toEqual({
+      command: "selectRepo",
+      repo: otherRepo
+    });
+  });
 });

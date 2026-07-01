@@ -32,3 +32,5 @@ export const l10n = {
   },
   uri: undefined
 };
+
+export const version = "1.98.0";
