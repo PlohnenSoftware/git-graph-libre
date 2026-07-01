@@ -232,7 +232,10 @@
     }
   },
   "activationEvents": [
-    "onStartupFinished"
+    "onCommand:git-graph-libre.view",
+    "onCommand:git-graph-libre.clearAvatarCache",
+    "workspaceContains:.git",
+    "workspaceContains:**/.git"
   ],
   "icon": "resources/icon.png",
   "engines": {
