@@ -12,7 +12,9 @@ import { runGitCommand, runGitRaw, type GitCommandRecorder } from "@/backend/uti
 import { toGitQueryError } from "@/backend/utils/queryError";
 
 const eolRegex = /\r\n|\r|\n/g;
-const gitLogSeparator = "XX7Nal-YARtTpjCikii9nJxER19D6diSyk-AWkPb";
+const gitLogFormatFieldSeparator = "%x00";
+const gitLogOutputFieldSeparator = "\0";
+const gitLogFieldCount = 6;
 
 type LoadCommitsInput = {
   branchName: string;
@@ -89,8 +91,8 @@ async function getLog(
   context: GitQueryContext
 ): Promise<QueryValue<GitLogEntry[]>> {
   const dateField = dateType === "Author Date" ? "%at" : "%ct";
-  const format = ["%H", "%P", "%an", "%ae", dateField, "%s"].join(gitLogSeparator);
-  const args = ["log", `--max-count=${maxCommits}`, `--format=${format}`, "--date-order"];
+  const format = ["%H", "%P", "%an", "%ae", dateField, "%s"].join(gitLogFormatFieldSeparator);
+  const args = ["log", "-z", `--max-count=${maxCommits}`, `--format=${format}`, "--date-order"];
   if (branch !== "") {
     args.push(branch);
   } else {
@@ -104,18 +106,17 @@ async function getLog(
       repo: context.repo,
       record: context.record
     });
-    const lines = stdout.split(eolRegex);
+    const fields = stdout.split(gitLogOutputFieldSeparator);
+    if (fields[fields.length - 1] === "") fields.pop();
     const commits: GitLogEntry[] = [];
-    for (let i = 0; i < lines.length - 1; i++) {
-      const line = lines[i].split(gitLogSeparator);
-      if (line.length !== 6) break;
+    for (let i = 0; i + gitLogFieldCount - 1 < fields.length; i += gitLogFieldCount) {
       commits.push({
-        hash: line[0],
-        parentHashes: line[1].split(" "),
-        author: line[2],
-        email: line[3],
-        date: parseInt(line[4], 10),
-        message: line[5]
+        hash: fields[i],
+        parentHashes: fields[i + 1].split(" "),
+        author: fields[i + 2],
+        email: fields[i + 3],
+        date: parseInt(fields[i + 4], 10),
+        message: fields[i + 5]
       });
     }
     return { value: commits, error: null };

@@ -124,6 +124,30 @@ describe("loadCommits", () => {
     expect(result.commits.length).toBeGreaterThan(0);
   });
 
+  it("keeps commits whose subject contains separator-like text", async () => {
+    const separatorRepo = makeRepo();
+    const subject = "subject includes XX7Nal-YARtTpjCikii9nJxER19D6diSyk-AWkPb text";
+    try {
+      fs.writeFileSync(path.join(separatorRepo, "separator"), "value");
+      git(["add", "."], separatorRepo);
+      git(["commit", "-m", subject], separatorRepo);
+
+      const result = await loadCommits(simpleGit(separatorRepo), {
+        branchName: "",
+        maxCommits: 300,
+        showRemoteBranches: false,
+        hard: false,
+        dateType: "Author Date",
+        showUncommittedChanges: false
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.commits.some((commit) => commit.message === subject)).toBe(true);
+    } finally {
+      fs.rmSync(separatorRepo, { recursive: true, force: true });
+    }
+  });
+
   it("prepends uncommitted-changes commit when working tree is dirty", async () => {
     const dirtyRepo = makeRepo();
     try {
