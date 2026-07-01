@@ -2,12 +2,16 @@ import type {
   GitCommandStatus,
   GitCommitDetails,
   GitCommitNode,
-  GitFileChange,
   GitFileChangeType,
   GitQueryError,
   GitResetMode
 } from "@/backend/types";
 
+import {
+  alterGitFileTree,
+  generateGitFileTree,
+  renderCommitDetailsRowHtml
+} from "./commitDetailsView";
 import { Dropdown } from "./dropdown";
 import { Graph } from "./graph";
 import { setStatusStrip } from "./statusStrip";
@@ -1226,42 +1230,14 @@ class GitGraphView {
     this.expandedCommit.srcElem.setAttribute("aria-selected", "true");
     this.saveState();
 
-    let newElem = document.createElement("tr"),
-      html = '<td></td><td colspan="4"><div id="commitDetailsSummary">';
-    html +=
-      '<span class="commitDetailsSummaryTop' +
-      (typeof this.avatars[commitDetails.email] === "string" ? " withAvatar" : "") +
-      '"><span class="commitDetailsSummaryTopRow"><span class="commitDetailsSummaryKeyValues">';
-    html += `<b>${l10n.detailCommit}</b>${escapeHtml(commitDetails.hash)}<br>`;
-    html += `<b>${l10n.detailParents}</b>${commitDetails.parents.join(", ")}<br>`;
-    html +=
-      "<b>" +
-      l10n.detailAuthor +
-      "</b>" +
-      escapeHtml(commitDetails.author) +
-      ' &lt;<a href="mailto:' +
-      encodeURIComponent(commitDetails.email) +
-      '">' +
-      escapeHtml(commitDetails.email) +
-      "</a>&gt;<br>";
-    html += `<b>${l10n.detailDate}</b>${new Date(commitDetails.date * 1000).toString()}<br>`;
-    html += `<b>${l10n.detailCommitter}</b>${escapeHtml(commitDetails.committer)}</span>`;
-    if (typeof this.avatars[commitDetails.email] === "string")
-      html +=
-        '<span class="commitDetailsSummaryAvatar"><img src="' +
-        this.avatars[commitDetails.email] +
-        '"></span>';
-    html += "</span></span><br><br>";
-    html += `${escapeHtml(commitDetails.body).replace(/\n/g, "<br>")}</div>`;
-    html +=
-      '<div id="commitDetailsFiles">' +
-      generateGitFileTreeHtml(fileTree, commitDetails.fileChanges) +
-      "</table></div>";
-    html += `<div id="commitDetailsClose">${svgIcons.close}</div>`;
-    html += "</td>";
-
+    const newElem = document.createElement("tr");
     newElem.id = "commitDetails";
-    newElem.innerHTML = html;
+    newElem.innerHTML = renderCommitDetailsRowHtml({
+      commitDetails,
+      fileTree,
+      avatars: this.avatars,
+      l10n
+    });
     insertAfter(newElem, this.expandedCommit.srcElem);
 
     this.renderGraph();
@@ -1531,134 +1507,6 @@ function getCommitDate(dateVal: number) {
 }
 
 /* Utils */
-function generateGitFileTree(gitFiles: GitFileChange[]) {
-  let contents: GitFolderContents = {};
-  const files: GitFolder = {
-    type: "folder",
-    name: "",
-    folderPath: "",
-    contents: contents,
-    open: true
-  };
-  for (let i = 0; i < gitFiles.length; i++) {
-    let cur: GitFolder = files;
-    const path = gitFiles[i].newFilePath.split("/");
-    for (let j = 0; j < path.length; j++) {
-      if (j < path.length - 1) {
-        if (typeof cur.contents[path[j]] === "undefined") {
-          contents = {};
-          cur.contents[path[j]] = {
-            type: "folder",
-            name: path[j],
-            folderPath: path.slice(0, j + 1).join("/"),
-            contents: contents,
-            open: true
-          };
-        }
-        cur = <GitFolder>cur.contents[path[j]];
-      } else {
-        cur.contents[path[j]] = { type: "file", name: path[j], index: i };
-      }
-    }
-  }
-  return files;
-}
-function generateGitFileTreeHtml(folder: GitFolder, gitFiles: GitFileChange[]) {
-  let html =
-    (folder.name !== ""
-      ? '<span class="gitFolder" data-folderpath="' +
-        encodeURIComponent(folder.folderPath) +
-        '"><span class="gitFolderIcon">' +
-        (folder.open ? svgIcons.openFolder : svgIcons.closedFolder) +
-        '</span><span class="gitFolderName">' +
-        escapeHtml(folder.name) +
-        "</span></span>"
-      : "") +
-    '<ul class="gitFolderContents' +
-    (!folder.open ? " hidden" : "") +
-    '">';
-  const keys = Object.keys(folder.contents);
-  keys.sort((a, b) =>
-    folder.contents[a].type === "folder" && folder.contents[b].type === "file"
-      ? -1
-      : folder.contents[a].type === "file" && folder.contents[b].type === "folder"
-        ? 1
-        : folder.contents[a].name < folder.contents[b].name
-          ? -1
-          : folder.contents[a].name > folder.contents[b].name
-            ? 1
-            : 0
-  );
-  for (let i = 0; i < keys.length; i++) {
-    if (folder.contents[keys[i]].type === "folder") {
-      const gitFolder = <GitFolder>folder.contents[keys[i]];
-      html +=
-        "<li" +
-        (!gitFolder.open ? ' class="closed"' : "") +
-        ">" +
-        generateGitFileTreeHtml(gitFolder, gitFiles) +
-        "</li>";
-    } else {
-      const gitFile = gitFiles[(<GitFile>folder.contents[keys[i]]).index];
-      html +=
-        '<li class="gitFile ' +
-        gitFile.type +
-        (gitFile.additions !== null && gitFile.deletions !== null ? " gitDiffPossible" : "") +
-        '" data-oldfilepath="' +
-        encodeURIComponent(gitFile.oldFilePath) +
-        '" data-newfilepath="' +
-        encodeURIComponent(gitFile.newFilePath) +
-        '" data-type="' +
-        gitFile.type +
-        '"' +
-        (gitFile.additions === null || gitFile.deletions === null
-          ? ` title="${l10n.tooltipBinaryFile}"`
-          : "") +
-        '><span class="gitFileIcon">' +
-        svgIcons.file +
-        "</span>" +
-        escapeHtml(folder.contents[keys[i]].name) +
-        (gitFile.type === "R"
-          ? ' <span class="gitFileRename" title="' +
-            escapeHtml(gitFile.oldFilePath + l10n.tooltipRenamedTo + gitFile.newFilePath) +
-            '">R</span>'
-          : "") +
-        (gitFile.type !== "A" &&
-        gitFile.type !== "D" &&
-        gitFile.additions !== null &&
-        gitFile.deletions !== null
-          ? '<span class="gitFileAddDel">(<span class="gitFileAdditions" title="' +
-            gitFile.additions +
-            (gitFile.additions !== 1 ? l10n.tooltipAdditions : l10n.tooltipAddition) +
-            '">+' +
-            gitFile.additions +
-            '</span>|<span class="gitFileDeletions" title="' +
-            gitFile.deletions +
-            (gitFile.deletions !== 1 ? l10n.tooltipDeletions : l10n.tooltipDeletion) +
-            '">-' +
-            gitFile.deletions +
-            "</span>)</span>"
-          : "") +
-        "</li>";
-    }
-  }
-  return `${html}</ul>`;
-}
-function alterGitFileTree(folder: GitFolder, folderPath: string, open: boolean) {
-  const path = folderPath.split("/");
-  let cur = folder;
-  for (let i = 0; i < path.length; i++) {
-    if (typeof cur.contents[path[i]] !== "undefined") {
-      cur = <GitFolder>cur.contents[path[i]];
-      if (i === path.length - 1) {
-        cur.open = open;
-        return;
-      }
-    } else {
-      return;
-    }
-  }
-}
 function abbrevCommit(commitHash: string) {
   return commitHash.substring(0, 8);
 }
