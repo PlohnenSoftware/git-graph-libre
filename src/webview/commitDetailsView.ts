@@ -328,6 +328,7 @@ function renderGitFileListItem(
     fileChange.additions !== null && fileChange.deletions !== null ? " gitDiffPossible" : "",
     `" data-oldfilepath="${encodeURIComponent(fileChange.oldFilePath)}"`,
     ` data-newfilepath="${encodeURIComponent(fileChange.newFilePath)}"`,
+    ` data-fileindex="${gitFile.index}"`,
     ` data-type="${fileChange.type}"`,
     fileChange.additions === null || fileChange.deletions === null
       ? ` title="${l10n.tooltipBinaryFile}"`

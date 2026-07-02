@@ -87,6 +87,7 @@ type ActionPayloads = {
   pushTag: { tagName: string };
   renameBranch: { oldName: string; newName: string };
   resetUncommittedChanges: { resetMode: Exclude<GitResetMode, "soft"> };
+  resetFileToRevision: { commitHash: string; filePath: string };
   resetToCommit: { commitHash: string; resetMode: GitResetMode };
   rebaseCurrentBranch: {
     target: string;

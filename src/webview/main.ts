@@ -4,7 +4,7 @@ import type {
   GitCommitDetails,
   GitCommitNode,
   GitCommitSearchResult,
-  GitFileChangeType,
+  GitFileChange,
   GitPushBranchMode,
   GitQueryError,
   GitRemote,
@@ -80,6 +80,14 @@ function errorToDiagnosticMessage(error: unknown) {
     return truncateDiagnosticMessage(error.stack ?? error.message);
   }
   return truncateDiagnosticMessage(String(error));
+}
+
+function trimRepoTrailingSeparators(repo: string) {
+  const minimumLength =
+    repo.length >= 3 && repo[1] === ":" && (repo[2] === "\\" || repo[2] === "/") ? 3 : 1;
+  let end = repo.length;
+  while (end > minimumLength && (repo[end - 1] === "/" || repo[end - 1] === "\\")) end -= 1;
+  return repo.slice(0, end);
 }
 
 function postWebviewDiagnostic(
@@ -4004,19 +4012,167 @@ class GitGraphView {
       if (this.expandedCommit === null || !sourceElem?.classList.contains("gitDiffPossible")) {
         return;
       }
-      const oldFilePath = sourceElem.dataset.oldfilepath;
-      const newFilePath = sourceElem.dataset.newfilepath;
-      const type = sourceElem.dataset.type;
-      if (oldFilePath === undefined || newFilePath === undefined || type === undefined) return;
-      sendMessage({
-        command: "viewDiff",
-        repo: this.currentRepo,
-        commitHash: this.expandedCommit.hash,
-        oldFilePath: decodeURIComponent(oldFilePath),
-        newFilePath: decodeURIComponent(newFilePath),
-        type: <GitFileChangeType>type
-      });
+      const fileChange = this.getExpandedCommitFileChange(sourceElem.dataset.fileindex);
+      if (fileChange !== null) this.viewGitFileDiff(fileChange);
     });
+    addListenerToClass("gitFile", "contextmenu", (e) => {
+      e.stopPropagation();
+      const sourceElem = closestHTMLElement(e.target, ".gitFile");
+      const fileChange = this.getExpandedCommitFileChange(sourceElem?.dataset.fileindex);
+      if (sourceElem === null || fileChange === null) return;
+      showContextMenu(
+        <MouseEvent>e,
+        this.buildGitFileContextMenu(fileChange, sourceElem),
+        sourceElem
+      );
+    });
+  }
+
+  private getExpandedCommitFileChange(index: string | undefined): GitFileChange | null {
+    const commitDetails = this.expandedCommit?.commitDetails;
+    if (commitDetails === null || commitDetails === undefined || index === undefined) return null;
+    const fileIndex = Number.parseInt(index, 10);
+    if (!Number.isInteger(fileIndex)) return null;
+    return commitDetails.fileChanges[fileIndex] ?? null;
+  }
+
+  private buildGitFileContextMenu(
+    fileChange: GitFileChange,
+    sourceElem: HTMLElement
+  ): ContextMenuElement[] {
+    const menu: ContextMenuElement[] = [];
+    const revisionFileExists = this.gitFileExistsAtRevision(fileChange);
+
+    if (fileChange.additions !== null && fileChange.deletions !== null) {
+      menu.push({
+        title: l10n.viewFileDiff,
+        onClick: () => this.viewGitFileDiff(fileChange)
+      });
+    }
+
+    if (revisionFileExists) {
+      menu.push(
+        {
+          title: l10n.viewFileAtRevision,
+          onClick: () => this.viewGitFileAtRevision(fileChange)
+        },
+        {
+          title: l10n.compareFileWithWorkingTree,
+          onClick: () => this.compareGitFileWithWorkingTree(fileChange)
+        }
+      );
+    }
+
+    if (fileChange.type !== "D") {
+      menu.push({
+        title: l10n.openFile,
+        onClick: () => this.openWorkingFile(fileChange.newFilePath)
+      });
+    }
+
+    if (revisionFileExists) {
+      menu.push(null, {
+        title: l10n.resetFileToRevision + ELLIPSIS,
+        onClick: () => this.showResetFileToRevisionDialog(fileChange.newFilePath, sourceElem)
+      });
+    }
+
+    if (menu.length > 0) menu.push(null);
+    menu.push(
+      {
+        title: l10n.copyAbsoluteFilePath,
+        onClick: () =>
+          this.copyFilePathToClipboard(this.absoluteFilePathForRepo(fileChange.newFilePath))
+      },
+      {
+        title: l10n.copyRelativeFilePath,
+        onClick: () => this.copyFilePathToClipboard(fileChange.newFilePath)
+      }
+    );
+
+    return menu;
+  }
+
+  private gitFileExistsAtRevision(fileChange: GitFileChange) {
+    return (
+      this.expandedCommit !== null && this.expandedCommit.hash !== "*" && fileChange.type !== "D"
+    );
+  }
+
+  private viewGitFileDiff(fileChange: GitFileChange) {
+    if (this.expandedCommit === null) return;
+    sendMessage({
+      command: "viewDiff",
+      repo: this.currentRepo,
+      commitHash: this.expandedCommit.hash,
+      oldFilePath: fileChange.oldFilePath,
+      newFilePath: fileChange.newFilePath,
+      type: fileChange.type
+    });
+  }
+
+  private viewGitFileAtRevision(fileChange: GitFileChange) {
+    if (this.expandedCommit === null) return;
+    sendMessage({
+      command: "viewFileAtRevision",
+      repo: this.currentRepo,
+      commitHash: this.expandedCommit.hash,
+      filePath: fileChange.newFilePath
+    });
+  }
+
+  private compareGitFileWithWorkingTree(fileChange: GitFileChange) {
+    if (this.expandedCommit === null) return;
+    sendMessage({
+      command: "compareFileWithWorkingTree",
+      repo: this.currentRepo,
+      commitHash: this.expandedCommit.hash,
+      filePath: fileChange.newFilePath
+    });
+  }
+
+  private openWorkingFile(filePath: string) {
+    sendMessage({
+      command: "openFile",
+      repo: this.currentRepo,
+      filePath
+    });
+  }
+
+  private showResetFileToRevisionDialog(filePath: string, sourceElem: HTMLElement) {
+    if (this.expandedCommit === null) return;
+    const commitHash = this.expandedCommit.hash;
+    showConfirmationDialog(
+      l10n.dialogResetFileToRevisionConfirm
+        .replace("{0}", escapeHtml(filePath))
+        .replace("{1}", abbrevCommit(commitHash, this.config.shortHashLength)),
+      () => {
+        sendMessage({
+          command: "resetFileToRevision",
+          repo: this.currentRepo,
+          commitHash,
+          filePath
+        });
+        showActionRunningDialog(l10n.statusResettingFileToRevision);
+      },
+      sourceElem
+    );
+  }
+
+  private copyFilePathToClipboard(filePath: string) {
+    sendMessage({
+      command: "copyToClipboard",
+      type: "File Path",
+      data: filePath
+    });
+  }
+
+  private absoluteFilePathForRepo(filePath: string) {
+    const separator =
+      this.currentRepo.includes("\\") && !this.currentRepo.includes("/") ? "\\" : "/";
+    return `${trimRepoTrailingSeparators(this.currentRepo)}${separator}${filePath
+      .split("/")
+      .join(separator)}`;
   }
 
   private setCommitDetailsSectionOpen(section: CommitDetailsSection, open: boolean) {
@@ -4242,6 +4398,7 @@ const actionErrorLabels = {
   pushStash: l10n.unableToPushStash,
   pushTag: l10n.unableToPushTag,
   renameBranch: l10n.unableToRenameBranch,
+  resetFileToRevision: l10n.unableToResetFileToRevision,
   resetUncommittedChanges: l10n.unableToResetUncommitted,
   resetToCommit: l10n.unableToReset,
   rebaseCurrentBranch: l10n.unableToRebase,
@@ -4296,6 +4453,8 @@ const responseHandlers: ResponseHandlerMap = {
   loadRepoInfo: (msg) =>
     gitGraph.loadRepoInfo(msg.requestId, msg.repoInfo, formatQueryError(msg.error)),
   loadRepos: (msg) => gitGraph.loadRepos(msg.repos, msg.lastActiveRepo),
+  compareFileWithWorkingTree: (msg) =>
+    handleSuccessFlagResponse(msg, l10n.unableToCompareFileWithWorkingTree),
   openExternalUrl: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenExternalUrl),
   openFile: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenFile),
   openSourceControl: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenSourceControl),
@@ -4303,7 +4462,8 @@ const responseHandlers: ResponseHandlerMap = {
   searchCommits: (msg) =>
     gitGraph.loadSearchCommitResults(msg.requestId, msg.results, formatQueryError(msg.error)),
   startHistorySearch: () => gitGraph.startHistorySearch(),
-  viewDiff: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewDiff)
+  viewDiff: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewDiff),
+  viewFileAtRevision: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewFileAtRevision)
 };
 
 window.addEventListener("message", handleMessageEvent);

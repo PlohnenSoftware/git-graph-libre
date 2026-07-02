@@ -134,6 +134,28 @@ export type ResponseViewDiff = {
   success: boolean;
 };
 
+export type RequestViewFileAtRevision = {
+  command: "viewFileAtRevision";
+  repo: string;
+  commitHash: string;
+  filePath: string;
+};
+export type ResponseViewFileAtRevision = {
+  command: "viewFileAtRevision";
+  success: boolean;
+};
+
+export type RequestCompareFileWithWorkingTree = {
+  command: "compareFileWithWorkingTree";
+  repo: string;
+  commitHash: string;
+  filePath: string;
+};
+export type ResponseCompareFileWithWorkingTree = {
+  command: "compareFileWithWorkingTree";
+  success: boolean;
+};
+
 export type RequestOpenFile = {
   command: "openFile";
   repo: string;
@@ -198,6 +220,8 @@ export type RequestMessage =
   | RequestSaveRepoState
   | RequestCopyToClipboard
   | RequestViewDiff
+  | RequestViewFileAtRevision
+  | RequestCompareFileWithWorkingTree
   | RequestOpenFile
   | RequestOpenSourceControl
   | RequestOpenExternalUrl
@@ -211,6 +235,8 @@ export type ResponseMessage =
   | ResponseLoadRepos
   | ResponseCopyToClipboard
   | ResponseViewDiff
+  | ResponseViewFileAtRevision
+  | ResponseCompareFileWithWorkingTree
   | ResponseOpenFile
   | ResponseOpenSourceControl
   | ResponseOpenExternalUrl

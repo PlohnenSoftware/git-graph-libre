@@ -247,6 +247,12 @@ describe("webview rendering", () => {
     unsavedRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
   }
 
+  function openFirstGitFileContextMenu() {
+    const gitFile = document.querySelector<HTMLElement>(".gitFile");
+    expect(gitFile).not.toBeNull();
+    gitFile?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+  }
+
   function dismissDialog() {
     document.getElementById("dialogDismiss")?.dispatchEvent(new MouseEvent("click"));
   }
@@ -1874,6 +1880,87 @@ describe("webview rendering", () => {
 
     expect(document.getElementById("commitDetails")).toBeNull();
     expect(headRow?.getAttribute("aria-selected")).toBe("false");
+  });
+
+  it("opens commit detail file context actions", () => {
+    const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
+    expect(headRow).not.toBeNull();
+
+    headRow?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    receive({ command: "commitDetails", commitDetails: firstCommitDetails, error: null });
+
+    openFirstGitFileContextMenu();
+    expect(contextMenuItem("View File Diff")).not.toBeUndefined();
+    expect(contextMenuItem("View File at Revision")).not.toBeUndefined();
+    expect(contextMenuItem("Compare with Working Tree")).not.toBeUndefined();
+    expect(contextMenuItem("Open File")).not.toBeUndefined();
+    expect(contextMenuItem("Reset File to Revision")).not.toBeUndefined();
+    expect(contextMenuItem("Copy Absolute File Path")).not.toBeUndefined();
+    expect(contextMenuItem("Copy Relative File Path")).not.toBeUndefined();
+
+    clickContextMenuItem("View File Diff");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "viewDiff",
+      repo: REPO,
+      commitHash: "abc123",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+
+    openFirstGitFileContextMenu();
+    clickContextMenuItem("View File at Revision");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "viewFileAtRevision",
+      repo: REPO,
+      commitHash: "abc123",
+      filePath: "src/example.ts"
+    });
+
+    openFirstGitFileContextMenu();
+    clickContextMenuItem("Compare with Working Tree");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "compareFileWithWorkingTree",
+      repo: REPO,
+      commitHash: "abc123",
+      filePath: "src/example.ts"
+    });
+
+    openFirstGitFileContextMenu();
+    clickContextMenuItem("Open File");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "openFile",
+      repo: REPO,
+      filePath: "src/example.ts"
+    });
+
+    openFirstGitFileContextMenu();
+    clickContextMenuItem("Copy Absolute File Path");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "File Path",
+      data: "/workspace/my-repo/src/example.ts"
+    });
+
+    openFirstGitFileContextMenu();
+    clickContextMenuItem("Copy Relative File Path");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "File Path",
+      data: "src/example.ts"
+    });
+
+    openFirstGitFileContextMenu();
+    clickContextMenuItem("Reset File to Revision");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "resetFileToRevision",
+      repo: REPO,
+      commitHash: "abc123",
+      filePath: "src/example.ts"
+    });
+    dismissDialog();
+    headRow?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
 
   it("collapses and expands commit detail sections with persisted state", () => {

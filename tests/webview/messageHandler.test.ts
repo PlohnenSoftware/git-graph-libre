@@ -212,6 +212,56 @@ describe("registerMessageHandlers", () => {
     );
   });
 
+  it("opens files at a selected revision through the virtual document provider", async () => {
+    resetVscodeMock();
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("viewFileAtRevision");
+
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "viewFileAtRevision",
+      repo,
+      commitHash: "abcdef1234567890",
+      filePath: "src/example.ts"
+    });
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "viewFileAtRevision",
+      success: true
+    });
+    expect(openedTextDocuments[openedTextDocuments.length - 1]?.value).toContain(
+      "git-graph-libre:src/example.ts"
+    );
+    expect(openedTextDocuments[openedTextDocuments.length - 1]?.query).toContain(
+      "commit=abcdef1234567890"
+    );
+    expect(shownTextDocuments[shownTextDocuments.length - 1]?.options).toEqual({ preview: true });
+  });
+
+  it("compares a revision file with the working tree file", async () => {
+    resetVscodeMock();
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("compareFileWithWorkingTree");
+
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "compareFileWithWorkingTree",
+      repo,
+      commitHash: "abcdef1234567890",
+      filePath: "src/example.ts"
+    });
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "compareFileWithWorkingTree",
+      success: true
+    });
+    const command = executedCommands[executedCommands.length - 1];
+    expect(command?.[0]).toBe("vscode.diff");
+    expect(command?.[1]).toMatchObject({ path: "src/example.ts" });
+    expect(command?.[2]).toMatchObject({ fsPath: path.join(repo, "src/example.ts") });
+    expect(command?.[3]).toBe("example.ts (abcd ↔ Working Tree)");
+  });
+
   it("opens the VS Code Source Control view", async () => {
     resetVscodeMock();
     const { handlers, posts } = registerHandlersForTest();

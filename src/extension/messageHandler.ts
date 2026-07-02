@@ -22,6 +22,7 @@ import {
   squashCommitSelection,
   undoLastCommit
 } from "@/backend/actions/commit";
+import { resetFileToRevision } from "@/backend/actions/file";
 import { mergeBranch, mergeCommit } from "@/backend/actions/merge";
 import { rebaseCurrentBranch } from "@/backend/actions/rebase";
 import {
@@ -114,6 +115,62 @@ function resolveRepoFilePath(repo: string, filePath: string): string | null {
     return null;
   }
   return absolutePath;
+}
+
+function resolveRepoRelativeFilePath(repo: string, filePath: string): string | null {
+  const absolutePath = resolveRepoFilePath(repo, filePath);
+  if (absolutePath === null) return null;
+  return path.relative(path.resolve(repo), absolutePath).split(path.sep).join("/");
+}
+
+function getFileName(filePath: string) {
+  return filePath.split("/").at(-1) ?? filePath;
+}
+
+async function viewFileAtRevision(
+  repo: string,
+  commitHash: string,
+  filePath: string
+): Promise<boolean> {
+  const repoRelativePath = resolveRepoRelativeFilePath(repo, filePath);
+  if (commitHash.trim() === "" || repoRelativePath === null) return false;
+
+  try {
+    const document = await vscode.workspace.openTextDocument(
+      encodeDiffDocUri(repo, repoRelativePath, commitHash)
+    );
+    await vscode.window.showTextDocument(document, { preview: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function compareFileWithWorkingTree(
+  repo: string,
+  commitHash: string,
+  filePath: string,
+  shortHashLength: number
+): Promise<boolean> {
+  const repoRelativePath = resolveRepoRelativeFilePath(repo, filePath);
+  const absolutePath = resolveRepoFilePath(repo, filePath);
+  if (commitHash.trim() === "" || repoRelativePath === null || absolutePath === null) return false;
+
+  const abbrevHash = abbrevCommit(commitHash, shortHashLength);
+  const title = `${getFileName(repoRelativePath)} (${abbrevHash} ↔ ${l10n.t("diff.workingTree")})`;
+
+  try {
+    await vscode.commands.executeCommand(
+      "vscode.diff",
+      encodeDiffDocUri(repo, repoRelativePath, commitHash),
+      vscode.Uri.file(absolutePath),
+      title,
+      { preview: true }
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function openFile(repo: string, filePath: string): Promise<boolean> {
@@ -296,6 +353,9 @@ export function registerMessageHandlers(
   );
   registerAction("editHeadCommitMessage", (msg) =>
     editHeadCommitMessage(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("resetFileToRevision", (msg) =>
+    resetFileToRevision(gitClient.getInstance(), msg, recordGitCommand)
   );
   registerAction("revertCommit", (msg) =>
     revertCommit(gitClient.getInstance(), msg, recordGitCommand)
@@ -498,6 +558,25 @@ export function registerMessageHandlers(
         msg.oldFilePath,
         msg.newFilePath,
         msg.type,
+        config.shortHashLength()
+      )
+    });
+  });
+
+  bridge.onMessage("viewFileAtRevision", async (msg) => {
+    bridge.post({
+      command: "viewFileAtRevision",
+      success: await viewFileAtRevision(msg.repo, msg.commitHash, msg.filePath)
+    });
+  });
+
+  bridge.onMessage("compareFileWithWorkingTree", async (msg) => {
+    bridge.post({
+      command: "compareFileWithWorkingTree",
+      success: await compareFileWithWorkingTree(
+        msg.repo,
+        msg.commitHash,
+        msg.filePath,
         config.shortHashLength()
       )
     });

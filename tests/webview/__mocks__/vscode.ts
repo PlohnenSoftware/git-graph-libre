@@ -49,10 +49,18 @@ export const Uri = {
 };
 
 export const executedCommands: unknown[][] = [];
-export const openedTextDocuments: Array<{ fsPath: string }> = [];
+type MockUri = {
+  fsPath?: string;
+  path?: string;
+  query?: string;
+  value?: string;
+  toString?: () => string;
+};
+
+export const openedTextDocuments: MockUri[] = [];
 export const openedExternalUris: Array<{ toString: () => string; value?: string }> = [];
 export const shownTextDocuments: Array<{
-  document: { uri: { fsPath: string } };
+  document: { uri: MockUri };
   options: unknown;
 }> = [];
 export const createdTerminals: Array<{
@@ -75,7 +83,7 @@ export const env = {
 };
 
 export const workspace = {
-  openTextDocument: async (uri: { fsPath: string }) => {
+  openTextDocument: async (uri: MockUri) => {
     openedTextDocuments.push(uri);
     return { uri };
   }
