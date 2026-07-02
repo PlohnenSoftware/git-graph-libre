@@ -199,6 +199,31 @@
           "default": false,
           "description": "%config.fetchAvatars%"
         },
+        "git-graph-libre.repository.showRemoteBranches": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.repository.showRemoteBranches%"
+        },
+        "git-graph-libre.repository.showStashes": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.repository.showStashes%"
+        },
+        "git-graph-libre.repository.showTags": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.repository.showTags%"
+        },
+        "git-graph-libre.repository.includeReflog": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.repository.includeReflog%"
+        },
+        "git-graph-libre.repository.onlyFollowFirstParent": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.repository.onlyFollowFirstParent%"
+        },
         "git-graph-libre.graphColors": {
           "type": "array",
           "items": {

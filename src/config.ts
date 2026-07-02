@@ -1,12 +1,11 @@
 import * as vscode from "vscode";
-
+import type { DateType } from "./backend/types";
 import {
+  clampShortHashLength,
   DEFAULT_SHORT_HASH_LENGTH,
   MAX_SHORT_HASH_LENGTH,
-  MIN_SHORT_HASH_LENGTH,
-  clampShortHashLength
+  MIN_SHORT_HASH_LENGTH
 } from "./backend/utils/string";
-import type { DateType } from "./backend/types";
 import type { CommitDetailsFileViewMode, DateFormat, GraphStyle } from "./types";
 
 type TabIconColorTheme = "color" | "grey";
@@ -97,10 +96,15 @@ export const config = {
       )
     ),
   initialLoadCommits: (): number => getConfig("initialLoadCommits", 300),
+  includeReflog: (): boolean => getConfig("repository.includeReflog", false),
   loadMoreCommits: (): number => getConfig("loadMoreCommits", 75),
   maxDepthOfRepoSearch: (): number => getConfig("maxDepthOfRepoSearch", 0),
+  onlyFollowFirstParent: (): boolean => getConfig("repository.onlyFollowFirstParent", false),
   showCurrentBranchByDefault: (): boolean => getConfig("showCurrentBranchByDefault", false),
+  showRemoteBranches: (): boolean => getConfig("repository.showRemoteBranches", true),
   showStatusBarItem: (): boolean => getConfig("showStatusBarItem", true),
+  showStashes: (): boolean => getConfig("repository.showStashes", true),
+  showTags: (): boolean => getConfig("repository.showTags", true),
   showUncommittedChanges: (): boolean => getConfig("showUncommittedChanges", true),
   tabIconColorTheme: (): TabIconColorTheme => {
     const value = getConfigWithLegacy<string>("tabIconColorTheme", "tabIconColourTheme", "color");

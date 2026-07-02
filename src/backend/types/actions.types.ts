@@ -3,6 +3,8 @@ import type { GitResetMode } from "./git.types";
 export type GitCommandStatus = string | null;
 export const GIT_PUSH_BRANCH_MODES = ["normal", "force-with-lease", "force"] as const;
 export type GitPushBranchMode = (typeof GIT_PUSH_BRANCH_MODES)[number];
+export const GIT_CONFIG_SCOPES = ["local", "global"] as const;
+export type GitConfigScope = (typeof GIT_CONFIG_SCOPES)[number];
 
 type ActionPayloads = {
   addTag: { tagName: string; commitHash: string; lightweight: boolean; message: string };
@@ -16,6 +18,11 @@ type ActionPayloads = {
   deleteBranch: { branchName: string; forceDelete: boolean; deleteOnRemotes?: string[] };
   deleteRemoteBranch: { branchName: string; remote: string };
   deleteTag: { tagName: string };
+  deleteUserDetails: {
+    scope: GitConfigScope;
+    unsetName: boolean;
+    unsetEmail: boolean;
+  };
   dropStash: { selector: string };
   fetchIntoLocalBranch: {
     remote: string;
@@ -26,6 +33,13 @@ type ActionPayloads = {
   fetchRemotes: { prune: boolean; pruneTags: boolean };
   dropCommit: { commitHash: string };
   editHeadCommitMessage: { commitHash: string; message: string };
+  editUserDetails: {
+    name: string;
+    email: string;
+    scope: GitConfigScope;
+    clearLocalName: boolean;
+    clearLocalEmail: boolean;
+  };
   mergeBranch: { branchName: string; createNewCommit: boolean; squash: boolean; noCommit: boolean };
   mergeCommit: { commitHash: string; createNewCommit: boolean; squash: boolean; noCommit: boolean };
   popStash: { selector: string; reinstateIndex: boolean };

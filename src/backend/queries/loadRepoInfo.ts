@@ -1,6 +1,7 @@
 import type { SimpleGit } from "simple-git";
 
 import type {
+  GitConfigValue,
   GitQueryError,
   GitRemote,
   GitRepoConfig,
@@ -8,7 +9,7 @@ import type {
   GitStash,
   QueryResult
 } from "@/backend/types";
-import { runGitRaw, type GitCommandRecorder } from "@/backend/utils/gitRunner";
+import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
 import { toGitQueryError } from "@/backend/utils/queryError";
 
 const eolRegex = /\r\n|\r|\n/g;
@@ -18,6 +19,7 @@ const stashFieldCount = 4;
 
 type LoadRepoInfoInput = {
   repo?: string | null;
+  showStashes?: boolean;
   recordGitCommand?: GitCommandRecorder;
 };
 
@@ -40,8 +42,8 @@ function emptyRepoInfo(isRepo: boolean): GitRepoInfo {
     stashes: [],
     stashCount: 0,
     config: {
-      userName: null,
-      userEmail: null
+      userName: { local: null, global: null },
+      userEmail: { local: null, global: null }
     }
   };
 }
@@ -117,8 +119,13 @@ function parseStashes(stdout: string): GitStash[] {
   return stashes;
 }
 
-function parseConfig(stdout: string): GitRepoConfig {
-  const config: GitRepoConfig = { userName: null, userEmail: null };
+type ScopedGitConfig = {
+  userName: string | null;
+  userEmail: string | null;
+};
+
+function parseScopedConfig(stdout: string): ScopedGitConfig {
+  const config: ScopedGitConfig = { userName: null, userEmail: null };
   for (const entry of splitNulTerminatedFields(stdout)) {
     const separatorIndex = entry.indexOf("\n");
     if (separatorIndex <= 0) continue;
@@ -128,6 +135,17 @@ function parseConfig(stdout: string): GitRepoConfig {
     if (key === "user.email") config.userEmail = value;
   }
   return config;
+}
+
+function mergeConfigValues(local: string | null, global: string | null): GitConfigValue {
+  return { local, global };
+}
+
+function mergeConfig(local: ScopedGitConfig, global: ScopedGitConfig): GitRepoConfig {
+  return {
+    userName: mergeConfigValues(local.userName, global.userName),
+    userEmail: mergeConfigValues(local.userEmail, global.userEmail)
+  };
 }
 
 async function isInsideWorkTree(git: SimpleGit, context: GitQueryContext): Promise<boolean> {
@@ -218,24 +236,40 @@ async function loadStashes(
   }
 }
 
+async function loadScopedConfig(
+  git: SimpleGit,
+  context: GitQueryContext,
+  scope: "local" | "global"
+): Promise<QueryValue<ScopedGitConfig>> {
+  try {
+    const stdout = await runGitRaw(git, {
+      label: `loadRepoInfo.config.${scope}`,
+      args: ["config", "--list", `--${scope}`, "-z"],
+      repo: context.repo,
+      record: context.record
+    });
+    return { value: parseScopedConfig(stdout), error: null };
+  } catch (error: unknown) {
+    return {
+      value: { userName: null, userEmail: null },
+      error: toGitQueryError(error, `Unable to load ${scope} Git config`)
+    };
+  }
+}
+
 async function loadConfig(
   git: SimpleGit,
   context: GitQueryContext
 ): Promise<QueryValue<GitRepoConfig>> {
-  try {
-    const stdout = await runGitRaw(git, {
-      label: "loadRepoInfo.config",
-      args: ["config", "--list", "--local", "-z"],
-      repo: context.repo,
-      record: context.record
-    });
-    return { value: parseConfig(stdout), error: null };
-  } catch (error: unknown) {
-    return {
-      value: { userName: null, userEmail: null },
-      error: toGitQueryError(error, "Unable to load repository config")
-    };
-  }
+  const [localConfig, globalConfig] = await Promise.all([
+    loadScopedConfig(git, context, "local"),
+    loadScopedConfig(git, context, "global")
+  ]);
+
+  return {
+    value: mergeConfig(localConfig.value, globalConfig.value),
+    error: localConfig.error ?? globalConfig.error
+  };
 }
 
 export async function loadRepoInfo(
@@ -243,13 +277,14 @@ export async function loadRepoInfo(
   input: LoadRepoInfoInput
 ): Promise<QueryResult<"loadRepoInfo">> {
   const context = { repo: input.repo ?? null, record: input.recordGitCommand };
+  const showStashes = input.showStashes !== false;
   const isRepo = await isInsideWorkTree(git, context);
   if (!isRepo) return { repoInfo: emptyRepoInfo(false), error: null };
 
   const [headResult, remotesResult, stashesResult, configResult] = await Promise.all([
     loadHead(git, context),
     loadRemotes(git, context),
-    loadStashes(git, context),
+    showStashes ? loadStashes(git, context) : Promise.resolve({ value: [], error: null }),
     loadConfig(git, context)
   ]);
   const repoInfo: GitRepoInfo = {

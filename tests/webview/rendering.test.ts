@@ -20,6 +20,7 @@ const REPO = "/workspace/my-repo";
 type LoadBranchesRequest = Extract<GG.RequestMessage, { command: "loadBranches" }>;
 type LoadCommitsRequest = Extract<GG.RequestMessage, { command: "loadCommits" }>;
 type LoadRepoInfoRequest = Extract<GG.RequestMessage, { command: "loadRepoInfo" }>;
+type SaveRepoStateRequest = Extract<GG.RequestMessage, { command: "saveRepoState" }>;
 type SearchCommitsRequest = Extract<GG.RequestMessage, { command: "searchCommits" }>;
 
 const defaultViewState: GG.GitGraphViewState = {
@@ -32,11 +33,16 @@ const defaultViewState: GG.GitGraphViewState = {
   graphFontSize: 13,
   graphRowHeight: 24,
   graphStyle: "rounded",
+  includeReflog: false,
   initialLoadCommits: 300,
   lastActiveRepo: null,
   loadMoreCommits: 75,
+  onlyFollowFirstParent: false,
   repos: { [REPO]: { columnWidths: null } },
   showCurrentBranchByDefault: false,
+  showRemoteBranches: true,
+  showStashes: true,
+  showTags: true,
   shortHashLength: 4
 };
 
@@ -91,8 +97,8 @@ const repoInfoWithoutRemotes: GitRepoInfo = {
   stashes: [],
   stashCount: 0,
   config: {
-    userName: null,
-    userEmail: null
+    userName: { local: null, global: null },
+    userEmail: { local: null, global: null }
   }
 };
 
@@ -154,6 +160,14 @@ describe("webview rendering", () => {
       if (msg.command === "searchCommits") return msg;
     }
     throw new Error("Missing searchCommits request");
+  }
+
+  function latestSaveRepoStateRequest(): SaveRepoStateRequest {
+    for (let i = vscodeMock.sentMessages.length - 1; i >= 0; i--) {
+      const msg = vscodeMock.sentMessages[i];
+      if (msg.command === "saveRepoState") return msg;
+    }
+    throw new Error("Missing saveRepoState request");
   }
 
   function sentLoadCommitsCount() {
@@ -308,6 +322,72 @@ describe("webview rendering", () => {
     expect(document.getElementById("refreshBtn")?.tagName).toBe("BUTTON");
     expect((document.getElementById("fetchBtn") as HTMLButtonElement | null)?.hidden).toBe(true);
     expect(document.getElementById("blinkHeadBtn")?.getAttribute("aria-label")).toBe("Locate HEAD");
+    expect(document.getElementById("settingsBtn")?.getAttribute("aria-label")).toBe(
+      "Repository Settings"
+    );
+  });
+
+  it("persists repository settings overrides and reloads with resolved flags", () => {
+    const settingsBtn = document.getElementById("settingsBtn") as HTMLButtonElement | null;
+    expect(settingsBtn).not.toBeNull();
+    settingsBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const settingsWidget = document.getElementById("settingsWidget") as HTMLElement | null;
+    expect(settingsWidget?.hidden).toBe(false);
+    expect(settingsWidget?.textContent).toContain("Show remote branches");
+    if (settingsWidget === null) return;
+
+    const remoteSelect = settingsWidget.querySelector<HTMLSelectElement>(
+      '[data-setting="showRemoteBranches"]'
+    );
+    expect(remoteSelect).not.toBeNull();
+    if (remoteSelect === null) return;
+
+    remoteSelect.value = "disabled";
+    remoteSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(latestSaveRepoStateRequest()).toMatchObject({
+      repo: REPO,
+      state: { showRemoteBranches: "disabled" }
+    });
+    expect(latestLoadBranchesRequest().showRemoteBranches).toBe(false);
+    expect(
+      (document.getElementById("showRemoteBranchesCheckbox") as HTMLInputElement).checked
+    ).toBe(false);
+
+    const restoredSelect = document.querySelector<HTMLSelectElement>(
+      '#settingsWidget [data-setting="showRemoteBranches"]'
+    );
+    expect(restoredSelect).not.toBeNull();
+    if (restoredSelect === null) return;
+    restoredSelect.value = "default";
+    restoredSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(latestSaveRepoStateRequest().repo).toBe(REPO);
+    expect(latestSaveRepoStateRequest().state.showRemoteBranches).toBeUndefined();
+    expect(latestLoadBranchesRequest().showRemoteBranches).toBe(true);
+    const restoredBranchesRequest = latestLoadBranchesRequest();
+    receive({
+      command: "loadBranches",
+      requestId: restoredBranchesRequest.requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    const restoredCommitsRequest = latestLoadCommitsRequest();
+    receive({
+      command: "loadCommits",
+      requestId: restoredCommitsRequest.requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+    settingsBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(settingsWidget?.hidden).toBe(true);
   });
 
   it("shows fetch for repos with remotes and sends the selected prune options", () => {
@@ -532,7 +612,8 @@ describe("webview rendering", () => {
       repo: REPO,
       query: "archived",
       maxResults: 50,
-      showRemoteBranches: true
+      showRemoteBranches: true,
+      showTags: true
     });
     expect(document.getElementById("statusText")?.textContent).toBe("Searching history");
 

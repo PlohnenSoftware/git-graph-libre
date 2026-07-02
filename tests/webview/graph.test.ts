@@ -1,7 +1,7 @@
+import { beforeEach, describe, expect, it } from "vitest";
 import type { GitCommitNode } from "@/backend/types";
 import { COMMIT_DETAILS_DEFAULT_HEIGHT } from "@/webview/commitDetailsView";
 import { Graph } from "@/webview/graph";
-import { beforeEach, describe, expect, it } from "vitest";
 
 const config: Config = {
   autoCenterCommitDetailsView: true,
@@ -13,9 +13,14 @@ const config: Config = {
   graphRowHeight: 24,
   graphStyle: "rounded",
   grid: { x: 16, y: 24, offsetX: 8, offsetY: 12, expandY: 250 },
+  includeReflog: false,
   initialLoadCommits: 300,
   loadMoreCommits: 100,
+  onlyFollowFirstParent: false,
   showCurrentBranchByDefault: false,
+  showRemoteBranches: true,
+  showStashes: true,
+  showTags: true,
   shortHashLength: 8
 };
 

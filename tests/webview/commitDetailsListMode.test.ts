@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitCommitDetails, GitCommitNode } from "@/backend/types";
 import type * as GG from "@/types";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createVscodeMock, receive, setupHtml } from "./setup";
 
@@ -19,11 +19,16 @@ const viewState: GG.GitGraphViewState = {
   graphFontSize: 13,
   graphRowHeight: 24,
   graphStyle: "rounded",
+  includeReflog: false,
   initialLoadCommits: 300,
   lastActiveRepo: null,
   loadMoreCommits: 75,
+  onlyFollowFirstParent: false,
   repos: { [REPO]: { columnWidths: null } },
   showCurrentBranchByDefault: false,
+  showRemoteBranches: true,
+  showStashes: true,
+  showTags: true,
   shortHashLength: 8
 };
 

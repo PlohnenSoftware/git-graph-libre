@@ -20,9 +20,14 @@ declare global {
     graphRowHeight: number;
     graphStyle: "rounded" | "angular";
     grid: { x: number; y: number; offsetX: number; offsetY: number; expandY: number };
+    includeReflog: boolean;
     initialLoadCommits: number;
     loadMoreCommits: number;
+    onlyFollowFirstParent: boolean;
     showCurrentBranchByDefault: boolean;
+    showRemoteBranches: boolean;
+    showStashes: boolean;
+    showTags: boolean;
     shortHashLength: number;
   }
 
@@ -125,6 +130,7 @@ declare global {
     gitBranches: string[];
     gitBranchHead: string | null;
     gitStashes?: GitStash[];
+    settingsWidgetOpen?: boolean;
     commits: GitCommitNode[];
     commitHead: string | null;
     avatars: AvatarImageCollection;

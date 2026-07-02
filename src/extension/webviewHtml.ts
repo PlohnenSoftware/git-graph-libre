@@ -43,11 +43,16 @@ export function buildWebviewHtml(opts: {
     graphFontSize: config.graphFontSize(),
     graphRowHeight: config.graphRowHeight(),
     graphStyle: config.graphStyle(),
+    includeReflog: config.includeReflog(),
     initialLoadCommits: config.initialLoadCommits(),
     lastActiveRepo: extensionState.getLastActiveRepo(),
     loadMoreCommits: config.loadMoreCommits(),
+    onlyFollowFirstParent: config.onlyFollowFirstParent(),
     repos: repoManager.getRepos(),
     showCurrentBranchByDefault: config.showCurrentBranchByDefault(),
+    showRemoteBranches: config.showRemoteBranches(),
+    showStashes: config.showStashes(),
+    showTags: config.showTags(),
     shortHashLength: config.shortHashLength()
   };
 
@@ -75,9 +80,10 @@ export function buildWebviewHtml(opts: {
 		</div>
 		<div id="footer"></div>
 		<ul id="contextMenu"></ul>
-		<div id="dialogBacking"></div>
-		<div id="dialog"></div>
-		<div id="scrollShadow"></div>
+			<div id="dialogBacking"></div>
+			<div id="dialog"></div>
+			<aside id="settingsWidget" aria-label="${l10nStrings.repositorySettings}" hidden></aside>
+			<div id="scrollShadow"></div>
 		<script nonce="${nonce}">const viewState = ${escapeJsonForHtml(viewState)};</script>
 		<script nonce="${nonce}">const l10n = ${escapeJsonForHtml(l10nStrings)};</script>
 		<script src="${compiledOutputUri("web.min.js")}"></script>

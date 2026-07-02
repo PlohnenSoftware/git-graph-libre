@@ -20,11 +20,16 @@ const viewState: GG.GitGraphViewState = {
   graphFontSize: 13,
   graphRowHeight: 24,
   graphStyle: "rounded",
+  includeReflog: false,
   initialLoadCommits: 300,
   lastActiveRepo: null,
   loadMoreCommits: 75,
+  onlyFollowFirstParent: false,
   repos: { [REPO]: { columnWidths: null } },
   showCurrentBranchByDefault: false,
+  showRemoteBranches: true,
+  showStashes: true,
+  showTags: true,
   shortHashLength: 8
 };
 

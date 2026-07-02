@@ -24,6 +24,9 @@ type LoadCommitsInput = {
   branchName: string;
   maxCommits: number;
   showRemoteBranches: boolean;
+  showTags?: boolean;
+  includeReflog?: boolean;
+  onlyFollowFirstParent?: boolean;
   commitOrdering?: CommitOrdering;
   hard: boolean;
   dateType: DateType;
@@ -35,6 +38,18 @@ type LoadCommitsInput = {
 type GitQueryContext = {
   repo: string | null;
   record?: GitCommandRecorder;
+};
+
+type GitLogOptions = {
+  branch: string;
+  maxCommits: number;
+  showRemoteBranches: boolean;
+  showTags: boolean;
+  includeReflog: boolean;
+  onlyFollowFirstParent: boolean;
+  dateType: DateType;
+  commitOrdering: CommitOrdering;
+  context: GitQueryContext;
 };
 
 type QueryValue<T> = {
@@ -55,15 +70,16 @@ function parseRefRecord(line: string) {
 async function getRefs(
   git: SimpleGit,
   showRemoteBranches: boolean,
+  showTags: boolean,
   context: GitQueryContext
 ): Promise<QueryValue<GitRefData>> {
   try {
     const refsArgs = [
       "for-each-ref",
       `--format=%(objectname)${gitRefFormatFieldSeparator}%(refname)${gitRefFormatFieldSeparator}%(*objectname)`,
-      "refs/heads",
-      "refs/tags"
+      "refs/heads"
     ];
+    if (showTags) refsArgs.push("refs/tags");
     if (showRemoteBranches) refsArgs.push("refs/remotes");
     const [headStdout, refsStdout] = await Promise.all([
       runGitRaw(git, {
@@ -110,12 +126,17 @@ async function getRefs(
 
 async function getLog(
   git: SimpleGit,
-  branch: string,
-  maxCommits: number,
-  showRemoteBranches: boolean,
-  dateType: DateType,
-  commitOrdering: CommitOrdering,
-  context: GitQueryContext
+  {
+    branch,
+    maxCommits,
+    showRemoteBranches,
+    showTags,
+    includeReflog,
+    onlyFollowFirstParent,
+    dateType,
+    commitOrdering,
+    context
+  }: GitLogOptions
 ): Promise<QueryValue<GitLogEntry[]>> {
   const dateField = dateType === "Author Date" ? "%at" : "%ct";
   const format = ["%H", "%P", "%an", "%ae", dateField, "%s"].join(gitLogFormatFieldSeparator);
@@ -126,10 +147,13 @@ async function getLog(
     `--format=${format}`,
     `--${commitOrdering}-order`
   ];
+  if (onlyFollowFirstParent) args.push("--first-parent");
   if (branch !== "") {
     args.push(branch);
   } else {
-    args.push("--branches", "--tags");
+    args.push("--branches");
+    if (showTags) args.push("--tags");
+    if (includeReflog) args.push("--reflog");
     if (showRemoteBranches) args.push("--remotes");
   }
   try {
@@ -232,12 +256,25 @@ export async function loadCommits(
 ): Promise<QueryResult<"loadCommits">> {
   const { branchName, maxCommits, showRemoteBranches, hard, dateType, showUncommittedChanges } =
     input;
+  const showTags = input.showTags !== false;
+  const includeReflog = input.includeReflog === true;
+  const onlyFollowFirstParent = input.onlyFollowFirstParent === true;
   const commitOrdering = input.commitOrdering ?? "date";
   const context = { repo: input.repo ?? null, record: input.recordGitCommand };
 
   const [logResult, refsResult] = await Promise.all([
-    getLog(git, branchName, maxCommits + 1, showRemoteBranches, dateType, commitOrdering, context),
-    getRefs(git, showRemoteBranches, context)
+    getLog(git, {
+      branch: branchName,
+      maxCommits: maxCommits + 1,
+      showRemoteBranches,
+      showTags,
+      includeReflog,
+      onlyFollowFirstParent,
+      dateType,
+      commitOrdering,
+      context
+    }),
+    getRefs(git, showRemoteBranches, showTags, context)
   ]);
   const rawCommits = logResult.value;
   const refData = refsResult.value;

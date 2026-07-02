@@ -8,9 +8,16 @@ import type {
 } from "@/backend/types";
 
 export type GitRepoSet = { [repo: string]: GitRepoState };
+export type RepoBooleanOverride = "default" | "enabled" | "disabled";
 export type GitRepoState = {
   columnWidths: number[] | null;
   commitOrdering?: CommitOrdering;
+  displayName?: string | null;
+  includeReflog?: RepoBooleanOverride;
+  onlyFollowFirstParent?: RepoBooleanOverride;
+  showRemoteBranches?: RepoBooleanOverride;
+  showStashes?: RepoBooleanOverride;
+  showTags?: RepoBooleanOverride;
 };
 
 export type GitGraphViewState = {
@@ -26,8 +33,13 @@ export type GitGraphViewState = {
   initialLoadCommits: number;
   lastActiveRepo: string | null;
   loadMoreCommits: number;
+  onlyFollowFirstParent: boolean;
   repos: GitRepoSet;
   showCurrentBranchByDefault: boolean;
+  showRemoteBranches: boolean;
+  showStashes: boolean;
+  showTags: boolean;
+  includeReflog: boolean;
   shortHashLength: number;
 };
 

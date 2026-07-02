@@ -1,14 +1,11 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-
-import { simpleGit, type SimpleGit } from "simple-git";
+import { git, makeRepo } from "@tests/backend/helpers";
+import { type SimpleGit, simpleGit } from "simple-git";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-
 import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
 import type { GitCommandRecord } from "@/backend/utils/gitRunner";
-
-import { git, makeRepo } from "@tests/backend/helpers";
 
 let repo: string;
 let repoWithRemote: string;
@@ -42,8 +39,8 @@ describe("loadRepoInfo", () => {
       stashes: [],
       stashCount: 0,
       config: {
-        userName: "T",
-        userEmail: "t@t.com"
+        userName: expect.objectContaining({ local: "T" }),
+        userEmail: expect.objectContaining({ local: "t@t.com" })
       }
     });
   });
@@ -60,8 +57,8 @@ describe("loadRepoInfo", () => {
         stashes: [],
         stashCount: 0,
         config: {
-          userName: null,
-          userEmail: null
+          userName: { local: null, global: null },
+          userEmail: { local: null, global: null }
         }
       },
       error: null
@@ -130,7 +127,8 @@ describe("loadRepoInfo", () => {
         "loadRepoInfo.headCommit",
         "loadRepoInfo.remotes",
         "loadRepoInfo.stashes",
-        "loadRepoInfo.config"
+        "loadRepoInfo.config.local",
+        "loadRepoInfo.config.global"
       ])
     );
     const remoteRecord = records.find((record) => record.label === "loadRepoInfo.remotes");
@@ -170,8 +168,8 @@ describe("loadRepoInfo", () => {
         stashes: [],
         stashCount: 0,
         config: {
-          userName: "T",
-          userEmail: "t@t.com"
+          userName: { local: "T", global: "T" },
+          userEmail: { local: "t@t.com", global: "t@t.com" }
         }
       },
       error: {

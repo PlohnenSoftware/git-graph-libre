@@ -1,10 +1,10 @@
-import type { Config } from "@/config";
-import type { ExtensionState } from "@/extensionState";
-import { buildWebviewHtml } from "@/extension/webviewHtml";
-import type { RepoManager } from "@/extension/repoManager";
-import type { GitGraphViewState } from "@/types";
-import type * as vscode from "vscode";
 import { describe, expect, it } from "vitest";
+import type * as vscode from "vscode";
+import type { Config } from "@/config";
+import type { RepoManager } from "@/extension/repoManager";
+import { buildWebviewHtml } from "@/extension/webviewHtml";
+import type { ExtensionState } from "@/extensionState";
+import type { GitGraphViewState } from "@/types";
 
 function makeConfig(): Config {
   return {
@@ -18,11 +18,16 @@ function makeConfig(): Config {
     graphFontSize: () => 15,
     graphRowHeight: () => 30,
     graphStyle: () => "rounded",
+    includeReflog: () => false,
     shortHashLength: () => 12,
     initialLoadCommits: () => 300,
     loadMoreCommits: () => 100,
     maxDepthOfRepoSearch: () => 0,
+    onlyFollowFirstParent: () => false,
     showCurrentBranchByDefault: () => false,
+    showRemoteBranches: () => true,
+    showStashes: () => true,
+    showTags: () => true,
     showStatusBarItem: () => true,
     showUncommittedChanges: () => true,
     tabIconColorTheme: () => "color",

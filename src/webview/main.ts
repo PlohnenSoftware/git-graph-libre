@@ -5,10 +5,11 @@ import type {
   GitCommitNode,
   GitCommitSearchResult,
   GitFileChangeType,
+  GitPushBranchMode,
   GitQueryError,
   GitRemote,
+  GitRepoConfig,
   GitRepoInfo,
-  GitPushBranchMode,
   GitResetMode,
   GitStash
 } from "@/backend/types";
@@ -31,6 +32,14 @@ import { findCommitIndexes, formatFindMatchCount } from "./commitFind";
 import { Dropdown } from "./dropdown";
 import { Graph } from "./graph";
 import { resolveGlobalShortcut } from "./keyboardShortcuts";
+import {
+  getRepoBasename,
+  getRepoDisplayName,
+  normalizeRepoBooleanOverride,
+  type RepoBooleanSettingKey,
+  renderSettingsWidget,
+  resolveRepoBooleanOverride
+} from "./settingsWidget";
 import { setStatusStrip } from "./statusStrip";
 import { getMonth, pad2 } from "./utils/date";
 import { addListenerToClass, blinkHeadRow, insertAfter } from "./utils/dom";
@@ -48,6 +57,13 @@ const COLUMN_HIDE_CLASSES: Record<HideableColumn, string> = {
   author: "hideAuthorCol",
   commit: "hideCommitCol"
 };
+const REPO_BOOLEAN_SETTING_KEYS: readonly RepoBooleanSettingKey[] = [
+  "includeReflog",
+  "onlyFollowFirstParent",
+  "showRemoteBranches",
+  "showStashes",
+  "showTags"
+];
 
 function isHideableColumn(value: string): value is HideableColumn {
   return (HIDEABLE_COLUMNS as readonly string[]).includes(value);
@@ -55,6 +71,10 @@ function isHideableColumn(value: string): value is HideableColumn {
 
 function isCommitOrdering(value: string): value is CommitOrdering {
   return (COMMIT_ORDERINGS as readonly string[]).includes(value);
+}
+
+function isRepoBooleanSettingKey(value: string | undefined): value is RepoBooleanSettingKey {
+  return value !== undefined && (REPO_BOOLEAN_SETTING_KEYS as readonly string[]).includes(value);
 }
 
 function requireElement<T extends HTMLElement = HTMLElement>(id: string): T {
@@ -77,12 +97,20 @@ function formatQueryError(error: GitQueryError | null): string | null {
   return parts.join("\n");
 }
 
+function createEmptyGitConfig(): GitRepoConfig {
+  return {
+    userName: { local: null, global: null },
+    userEmail: { local: null, global: null }
+  };
+}
+
 class GitGraphView {
   private gitRepos: GG.GitRepoSet;
   private gitBranches: string[] = [];
   private gitBranchHead: string | null = null;
   private gitRemotes: GitRemote[] = [];
   private gitStashes: GitStash[] = [];
+  private gitConfig: GitRepoConfig = createEmptyGitConfig();
   private commits: GitCommitNode[] = [];
   private commitHead: string | null = null;
   private commitLookup: { [hash: string]: number } = {};
@@ -112,6 +140,9 @@ class GitGraphView {
   private readonly findClearBtn: HTMLButtonElement;
   private readonly findSearchHistoryBtn: HTMLButtonElement;
   private readonly fetchBtn: HTMLButtonElement;
+  private readonly settingsBtn: HTMLButtonElement;
+  private readonly settingsWidgetElem: HTMLElement;
+  private settingsWidgetOpen = false;
   private findQuery = "";
   private findMatches: number[] = [];
   private activeFindMatchIndex = -1;
@@ -145,6 +176,9 @@ class GitGraphView {
       this.currentBranch = null;
       this.gitRemotes = [];
       this.gitStashes = [];
+      this.gitConfig = createEmptyGitConfig();
+      this.closeSettingsWidget();
+      this.syncRepoSettingsControls();
       this.updateFetchButtonVisibility();
       this.saveState();
       sendMessage({ command: "selectRepo", repo: value });
@@ -160,9 +194,10 @@ class GitGraphView {
     });
     this.showRemoteBranchesElem = requireElement<HTMLInputElement>("showRemoteBranchesCheckbox");
     this.showRemoteBranchesElem.addEventListener("change", () => {
-      this.showRemoteBranches = this.showRemoteBranchesElem.checked;
-      this.saveState();
-      this.refresh(true);
+      this.setRepoBooleanSetting(
+        "showRemoteBranches",
+        this.showRemoteBranchesElem.checked ? "enabled" : "disabled"
+      );
     });
     this.scrollShadowElem = requireElement("scrollShadow");
     this.findControlElem = requireElement("findControl");
@@ -173,6 +208,8 @@ class GitGraphView {
     this.findClearBtn = requireElement<HTMLButtonElement>("findClearBtn");
     this.findSearchHistoryBtn = requireElement<HTMLButtonElement>("findSearchHistoryBtn");
     this.fetchBtn = requireElement<HTMLButtonElement>("fetchBtn");
+    this.settingsBtn = requireElement<HTMLButtonElement>("settingsBtn");
+    this.settingsWidgetElem = requireElement("settingsWidget");
     document.getElementById("findBtn")?.addEventListener("click", () => {
       this.showFindWidget();
     });
@@ -197,6 +234,9 @@ class GitGraphView {
     this.fetchBtn.addEventListener("click", () => {
       this.showFetchDialog();
     });
+    this.settingsBtn.addEventListener("click", () => {
+      this.toggleSettingsWidget();
+    });
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
       this.refresh(true);
     });
@@ -215,6 +255,7 @@ class GitGraphView {
       this.currentBranch = prevState.currentBranch;
       this.showRemoteBranches = prevState.showRemoteBranches;
       this.showRemoteBranchesElem.checked = this.showRemoteBranches;
+      this.settingsWidgetOpen = prevState.settingsWidgetOpen === true;
       for (const column of prevState.hiddenColumns ?? []) {
         if (isHideableColumn(column)) this.hiddenColumns.add(column);
       }
@@ -238,6 +279,7 @@ class GitGraphView {
         }
         this.avatars = prevState.avatars;
         this.gitStashes = prevState.gitStashes ?? [];
+        this.syncRepoSettingsControls();
         this.loadBranches(null, prevState.gitBranches, prevState.gitBranchHead, true, true);
         this.loadCommits(
           null,
@@ -249,6 +291,7 @@ class GitGraphView {
       }
     }
     this.loadRepos(this.gitRepos, lastActiveRepo);
+    this.renderSettingsWidget();
     this.requestLoadBranchesAndCommits(false);
   }
 
@@ -271,18 +314,21 @@ class GitGraphView {
 
     const options: { name: string; value: string }[] = [];
     for (let i = 0; i < repoPaths.length; i++) {
-      const repoComps = repoPaths[i].split("/");
-      options.push({ name: repoComps[repoComps.length - 1], value: repoPaths[i] });
+      const repoPath = repoPaths[i];
+      options.push({ name: getRepoDisplayName(repoPath, repos[repoPath]), value: repoPath });
     }
     const repoControl = document.getElementById("repoControl");
     if (repoControl !== null) {
       repoControl.style.display = repoPaths.length > 1 ? "inline" : "none";
     }
     this.repoDropdown.setOptions(options, this.currentRepo);
+    this.syncRepoSettingsControls();
+    this.renderSettingsWidget();
 
     if (changedRepo) {
       this.gitRemotes = [];
       this.gitStashes = [];
+      this.gitConfig = createEmptyGitConfig();
       this.updateFetchButtonVisibility();
       this.refresh(true);
     }
@@ -293,8 +339,10 @@ class GitGraphView {
 
     this.gitRemotes = errorReason === null && repoInfo.isRepo ? repoInfo.remotes : [];
     this.gitStashes = errorReason === null && repoInfo.isRepo ? repoInfo.stashes : [];
+    this.gitConfig = repoInfo.isRepo ? repoInfo.config : createEmptyGitConfig();
     this.saveState();
     this.updateFetchButtonVisibility();
+    this.renderSettingsWidget();
     this.renderLoadMoreFooter();
   }
 
@@ -521,7 +569,9 @@ class GitGraphView {
     if (this.currentRepo === "") {
       this.gitRemotes = [];
       this.gitStashes = [];
+      this.gitConfig = createEmptyGitConfig();
       this.updateFetchButtonVisibility();
+      this.renderSettingsWidget();
       this.renderLoadMoreFooter();
       this.activeLoadRepoInfoRequestId = null;
       return;
@@ -532,7 +582,8 @@ class GitGraphView {
     sendMessage({
       command: "loadRepoInfo",
       requestId,
-      repo: this.currentRepo
+      repo: this.currentRepo,
+      showStashes: this.getShowStashes()
     });
   }
   private requestLoadBranches(
@@ -548,7 +599,7 @@ class GitGraphView {
     sendMessage({
       command: "loadBranches",
       requestId,
-      showRemoteBranches: this.showRemoteBranches,
+      showRemoteBranches: this.getShowRemoteBranches(),
       hard: hard
     });
   }
@@ -562,7 +613,10 @@ class GitGraphView {
       repo: this.currentRepo,
       branchName: this.currentBranch !== null ? this.currentBranch : "",
       maxCommits: this.maxCommits,
-      showRemoteBranches: this.showRemoteBranches,
+      showRemoteBranches: this.getShowRemoteBranches(),
+      showTags: this.getShowTags(),
+      includeReflog: this.getIncludeReflog(),
+      onlyFollowFirstParent: this.getOnlyFollowFirstParent(),
       commitOrdering: this.getCommitOrdering(),
       hard: hard
     });
@@ -716,7 +770,8 @@ class GitGraphView {
       repo: this.currentRepo,
       query,
       maxResults: searchHistoryMaxResults,
-      showRemoteBranches: this.showRemoteBranches
+      showRemoteBranches: this.getShowRemoteBranches(),
+      showTags: this.getShowTags()
     });
   }
   public loadSearchCommitResults(
@@ -808,6 +863,18 @@ class GitGraphView {
     }
   }
   public handleGlobalKeyboardShortcut(event: KeyboardEvent) {
+    if (
+      event.key === "Escape" &&
+      this.settingsWidgetOpen &&
+      !isEditableTarget(event.target) &&
+      !isDialogActive() &&
+      !isContextMenuActive()
+    ) {
+      event.preventDefault();
+      this.closeSettingsWidget();
+      return true;
+    }
+
     const action = resolveGlobalShortcut(event, {
       isEditableTarget: isEditableTarget(event.target),
       isDialogActive: isDialogActive(),
@@ -903,8 +970,301 @@ class GitGraphView {
       maxCommits: this.maxCommits,
       showRemoteBranches: this.showRemoteBranches,
       expandedCommit: this.expandedCommit,
-      hiddenColumns: [...this.hiddenColumns]
+      hiddenColumns: [...this.hiddenColumns],
+      settingsWidgetOpen: this.settingsWidgetOpen
     });
+  }
+
+  private getCurrentRepoState(): GG.GitRepoState | null {
+    return this.gitRepos[this.currentRepo] ?? null;
+  }
+
+  private getRepoBooleanDefaults(): Record<RepoBooleanSettingKey, boolean> {
+    return {
+      includeReflog: this.config.includeReflog,
+      onlyFollowFirstParent: this.config.onlyFollowFirstParent,
+      showRemoteBranches: this.config.showRemoteBranches,
+      showStashes: this.config.showStashes,
+      showTags: this.config.showTags
+    };
+  }
+
+  private getRepoBooleanSetting(key: RepoBooleanSettingKey) {
+    const repoState = this.getCurrentRepoState();
+    return resolveRepoBooleanOverride(repoState?.[key], this.getRepoBooleanDefaults()[key]);
+  }
+
+  private getShowRemoteBranches() {
+    return this.getRepoBooleanSetting("showRemoteBranches");
+  }
+
+  private getShowStashes() {
+    return this.getRepoBooleanSetting("showStashes");
+  }
+
+  private getShowTags() {
+    return this.getRepoBooleanSetting("showTags");
+  }
+
+  private getIncludeReflog() {
+    return this.getRepoBooleanSetting("includeReflog");
+  }
+
+  private getOnlyFollowFirstParent() {
+    return this.getRepoBooleanSetting("onlyFollowFirstParent");
+  }
+
+  private syncRepoSettingsControls() {
+    this.showRemoteBranches = this.getShowRemoteBranches();
+    this.showRemoteBranchesElem.checked = this.showRemoteBranches;
+  }
+
+  private saveCurrentRepoState(repoState: GG.GitRepoState) {
+    this.saveState();
+    sendMessage({
+      command: "saveRepoState",
+      repo: this.currentRepo,
+      state: repoState
+    });
+  }
+
+  private setRepoBooleanSetting(key: RepoBooleanSettingKey, value: GG.RepoBooleanOverride) {
+    const repoState = this.getCurrentRepoState();
+    if (repoState === null) return;
+
+    if (value === "default") {
+      delete repoState[key];
+    } else {
+      repoState[key] = value;
+    }
+    this.maxCommits = this.config.initialLoadCommits;
+    this.expandedCommit = null;
+    this.syncRepoSettingsControls();
+    this.saveCurrentRepoState(repoState);
+    this.renderSettingsWidget();
+    this.renderShowLoading();
+    this.requestLoadBranchesAndCommits(true);
+  }
+
+  private toggleSettingsWidget() {
+    if (this.settingsWidgetOpen) {
+      this.closeSettingsWidget();
+    } else {
+      this.openSettingsWidget();
+    }
+  }
+
+  private openSettingsWidget() {
+    this.settingsWidgetOpen = true;
+    this.saveState();
+    this.renderSettingsWidget();
+  }
+
+  private closeSettingsWidget() {
+    if (!this.settingsWidgetOpen) return;
+    this.settingsWidgetOpen = false;
+    this.saveState();
+    this.renderSettingsWidget();
+  }
+
+  private renderSettingsWidget() {
+    const repoState = this.getCurrentRepoState();
+    const shouldShow = this.settingsWidgetOpen && this.currentRepo !== "" && repoState !== null;
+    this.settingsBtn.classList.toggle("active", shouldShow);
+    this.settingsBtn.setAttribute("aria-pressed", shouldShow.toString());
+
+    if (!shouldShow || repoState === null) {
+      this.settingsWidgetElem.hidden = true;
+      this.settingsWidgetElem.classList.remove("active");
+      this.settingsWidgetElem.innerHTML = "";
+      return;
+    }
+
+    this.settingsWidgetElem.hidden = false;
+    this.settingsWidgetElem.classList.add("active");
+    this.settingsWidgetElem.innerHTML = renderSettingsWidget({
+      repo: this.currentRepo,
+      repoState,
+      config: this.gitConfig,
+      defaults: this.getRepoBooleanDefaults(),
+      labels: {
+        title: l10n.repositorySettings,
+        general: l10n.settingsGeneral,
+        repositoryName: l10n.settingsRepositoryName,
+        edit: l10n.settingsEdit,
+        clear: l10n.settingsClear,
+        showRemoteBranches: l10n.settingsShowRemoteBranches,
+        showStashes: l10n.settingsShowStashes,
+        showTags: l10n.settingsShowTags,
+        includeReflog: l10n.settingsIncludeReflog,
+        onlyFollowFirstParent: l10n.settingsOnlyFollowFirstParent,
+        defaultOn: l10n.settingsDefaultOn,
+        defaultOff: l10n.settingsDefaultOff,
+        enabled: l10n.settingsEnabled,
+        disabled: l10n.settingsDisabled,
+        userDetails: l10n.settingsUserDetails,
+        userName: l10n.settingsUserName,
+        userEmail: l10n.settingsUserEmail,
+        local: l10n.settingsLocal,
+        global: l10n.settingsGlobal,
+        notSet: l10n.settingsNotSet,
+        addUserDetails: l10n.settingsAddUserDetails,
+        editUserDetails: l10n.settingsEditUserDetails,
+        removeUserDetails: l10n.settingsRemoveUserDetails
+      }
+    });
+    this.bindSettingsWidget();
+  }
+
+  private bindSettingsWidget() {
+    document.getElementById("settingsEditRepoName")?.addEventListener("click", () => {
+      this.showRepoNameDialog();
+    });
+    document.getElementById("settingsClearRepoName")?.addEventListener("click", () => {
+      this.clearRepoName();
+    });
+    document.getElementById("settingsEditUserDetails")?.addEventListener("click", () => {
+      this.showUserDetailsDialog();
+    });
+    document.getElementById("settingsRemoveUserDetails")?.addEventListener("click", () => {
+      this.showRemoveUserDetailsDialog();
+    });
+    this.settingsWidgetElem
+      .querySelectorAll<HTMLSelectElement>(".settingsOverrideSelect")
+      .forEach((select) => {
+        select.addEventListener("change", () => {
+          if (!isRepoBooleanSettingKey(select.dataset.setting)) return;
+          this.setRepoBooleanSetting(
+            select.dataset.setting,
+            normalizeRepoBooleanOverride(select.value)
+          );
+        });
+      });
+  }
+
+  private showRepoNameDialog() {
+    const repoState = this.getCurrentRepoState();
+    if (repoState === null) return;
+
+    showFormDialog(
+      l10n.dialogRepoNameTitle,
+      [
+        {
+          type: "text",
+          name: l10n.dialogRepoNameName,
+          default: repoState.displayName ?? "",
+          placeholder: getRepoBasename(this.currentRepo)
+        }
+      ],
+      l10n.dialogRepoNameSubmit,
+      (values) => {
+        repoState.displayName = values[0].trim() || null;
+        this.saveCurrentRepoState(repoState);
+        this.loadRepos(this.gitRepos, this.currentRepo);
+      },
+      this.settingsWidgetElem
+    );
+  }
+
+  private clearRepoName() {
+    const repoState = this.getCurrentRepoState();
+    if (repoState === null) return;
+
+    repoState.displayName = null;
+    this.saveCurrentRepoState(repoState);
+    this.loadRepos(this.gitRepos, this.currentRepo);
+  }
+
+  private showUserDetailsDialog() {
+    const defaultName = this.gitConfig.userName.local ?? this.gitConfig.userName.global ?? "";
+    const defaultEmail = this.gitConfig.userEmail.local ?? this.gitConfig.userEmail.global ?? "";
+    const useGlobal =
+      this.gitConfig.userName.local === null &&
+      this.gitConfig.userEmail.local === null &&
+      (this.gitConfig.userName.global !== null || this.gitConfig.userEmail.global !== null);
+
+    showFormDialog(
+      l10n.dialogUserDetailsTitle,
+      [
+        {
+          type: "text",
+          name: l10n.dialogUserDetailsName,
+          default: defaultName,
+          placeholder: null
+        },
+        {
+          type: "text",
+          name: l10n.dialogUserDetailsEmail,
+          default: defaultEmail,
+          placeholder: null
+        },
+        { type: "checkbox", name: l10n.dialogUserDetailsUseGlobal, value: useGlobal }
+      ],
+      l10n.dialogUserDetailsSubmit,
+      (values) => {
+        const name = values[0].trim();
+        const email = values[1].trim();
+        if (name === "" || email === "") {
+          showErrorDialog(l10n.dialogUserDetailsEmpty, null, this.settingsWidgetElem);
+          return;
+        }
+
+        const scope = values[2] === "checked" ? "global" : "local";
+        sendMessage({
+          command: "editUserDetails",
+          repo: this.currentRepo,
+          name,
+          email,
+          scope,
+          clearLocalName: scope === "global" && this.gitConfig.userName.local !== null,
+          clearLocalEmail: scope === "global" && this.gitConfig.userEmail.local !== null
+        });
+        showActionRunningDialog(l10n.statusUpdatingUserDetails);
+      },
+      this.settingsWidgetElem
+    );
+  }
+
+  private showRemoveUserDetailsDialog() {
+    const scopeOptions: { name: string; value: "local" | "global" }[] = [];
+    const hasLocal =
+      this.gitConfig.userName.local !== null || this.gitConfig.userEmail.local !== null;
+    const hasGlobal =
+      this.gitConfig.userName.global !== null || this.gitConfig.userEmail.global !== null;
+    if (hasLocal) scopeOptions.push({ name: l10n.settingsLocal, value: "local" });
+    if (hasGlobal) scopeOptions.push({ name: l10n.settingsGlobal, value: "global" });
+    if (scopeOptions.length === 0) return;
+
+    showFormDialog(
+      l10n.dialogUserDetailsRemoveConfirm,
+      [
+        {
+          type: "select",
+          name: "",
+          options: scopeOptions,
+          default: scopeOptions[0].value
+        }
+      ],
+      l10n.settingsRemoveUserDetails,
+      (values) => {
+        const scope = values[0] === "global" ? "global" : "local";
+        sendMessage({
+          command: "deleteUserDetails",
+          repo: this.currentRepo,
+          scope,
+          unsetName:
+            scope === "local"
+              ? this.gitConfig.userName.local !== null
+              : this.gitConfig.userName.global !== null,
+          unsetEmail:
+            scope === "local"
+              ? this.gitConfig.userEmail.local !== null
+              : this.gitConfig.userEmail.global !== null
+        });
+        showActionRunningDialog(l10n.statusRemovingUserDetails);
+      },
+      this.settingsWidgetElem
+    );
   }
 
   /* Renderers */
@@ -2762,9 +3122,14 @@ const gitGraph = new GitGraphView(
     graphRowHeight: viewState.graphRowHeight,
     graphStyle: viewState.graphStyle,
     grid: { x: 16, y: viewState.graphRowHeight, offsetX: 8, offsetY: 12, expandY: 250 },
+    includeReflog: viewState.includeReflog,
     initialLoadCommits: viewState.initialLoadCommits,
     loadMoreCommits: viewState.loadMoreCommits,
+    onlyFollowFirstParent: viewState.onlyFollowFirstParent,
     showCurrentBranchByDefault: viewState.showCurrentBranchByDefault,
+    showRemoteBranches: viewState.showRemoteBranches,
+    showStashes: viewState.showStashes,
+    showTags: viewState.showTags,
     shortHashLength: viewState.shortHashLength
   },
   vscode.getState()
@@ -2782,9 +3147,11 @@ const actionErrorLabels = {
   deleteBranch: l10n.unableToDeleteBranch,
   deleteRemoteBranch: l10n.unableToDeleteRemoteBranch,
   deleteTag: l10n.unableToDeleteTag,
+  deleteUserDetails: l10n.unableToDeleteUserDetails,
   dropCommit: l10n.unableToDropCommit,
   dropStash: l10n.unableToDropStash,
   editHeadCommitMessage: l10n.unableToEditMessage,
+  editUserDetails: l10n.unableToEditUserDetails,
   fetchIntoLocalBranch: l10n.unableToFetchBranch,
   fetchRemotes: l10n.unableToFetch,
   mergeBranch: l10n.unableToMergeBranch,

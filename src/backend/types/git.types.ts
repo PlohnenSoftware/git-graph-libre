@@ -67,9 +67,14 @@ export type GitStash = {
   date: number | null;
 };
 
+export type GitConfigValue = {
+  local: string | null;
+  global: string | null;
+};
+
 export type GitRepoConfig = {
-  userName: string | null;
-  userEmail: string | null;
+  userName: GitConfigValue;
+  userEmail: GitConfigValue;
 };
 
 export type GitRepoInfo = {

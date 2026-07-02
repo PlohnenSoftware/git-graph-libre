@@ -76,7 +76,7 @@ describe("registerMessageHandlers", () => {
 
     const handler = handlers.get("loadRepoInfo");
     expect(handler).toBeDefined();
-    await handler?.({ command: "loadRepoInfo", requestId: 42, repo });
+    await handler?.({ command: "loadRepoInfo", requestId: 42, repo, showStashes: true });
 
     expect(posts).toHaveLength(1);
     expect(posts[0]).toMatchObject({
@@ -101,7 +101,8 @@ describe("registerMessageHandlers", () => {
       repo,
       query: "init",
       maxResults: 10,
-      showRemoteBranches: false
+      showRemoteBranches: false,
+      showTags: true
     });
 
     expect(posts).toHaveLength(1);

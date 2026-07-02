@@ -33,6 +33,7 @@ import {
   resetUncommittedChanges
 } from "@/backend/actions/stash";
 import { addTag, deleteTag, pushTag } from "@/backend/actions/tag";
+import { deleteUserDetails, editUserDetails } from "@/backend/actions/userConfig";
 import type { GitClient } from "@/backend/gitClient";
 import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadBranches } from "@/backend/queries/loadBranches";
@@ -253,6 +254,12 @@ export function registerMessageHandlers(
   registerAction("cleanUntrackedFiles", (msg) =>
     cleanUntrackedFiles(gitClient.getInstance(), msg, recordGitCommand)
   );
+  registerAction("editUserDetails", (msg) =>
+    editUserDetails(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("deleteUserDetails", (msg) =>
+    deleteUserDetails(gitClient.getInstance(), msg, recordGitCommand)
+  );
 
   // --- Query handlers ---
 
@@ -264,6 +271,9 @@ export function registerMessageHandlers(
         branchName: msg.branchName,
         maxCommits: msg.maxCommits,
         showRemoteBranches: msg.showRemoteBranches,
+        showTags: msg.showTags,
+        includeReflog: msg.includeReflog,
+        onlyFollowFirstParent: msg.onlyFollowFirstParent,
         commitOrdering: msg.commitOrdering,
         hard: msg.hard,
         dateType: config.dateType(),
@@ -294,6 +304,7 @@ export function registerMessageHandlers(
       requestId: msg.requestId,
       ...(await loadRepoInfo(gitClient.getInstance(), {
         repo: msg.repo,
+        showStashes: msg.showStashes,
         recordGitCommand
       }))
     });
@@ -307,6 +318,7 @@ export function registerMessageHandlers(
         query: msg.query,
         maxResults: msg.maxResults,
         showRemoteBranches: msg.showRemoteBranches,
+        showTags: msg.showTags,
         dateType: config.dateType(),
         repo: msg.repo,
         recordGitCommand
