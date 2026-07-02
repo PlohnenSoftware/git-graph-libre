@@ -67,6 +67,9 @@ type QueryPayloads = {
       requestId: number;
       repo: string;
       branchName: string;
+      branches?: string[] | null;
+      authors?: string[] | null;
+      tags?: string[] | null;
       maxCommits: number;
       showRemoteBranches: boolean;
       hiddenRemotes?: string[];
@@ -93,6 +96,9 @@ type QueryPayloads = {
       showRemoteBranches: boolean;
       hiddenRemotes?: string[];
       showTags: boolean;
+      branches?: string[] | null;
+      authors?: string[] | null;
+      tags?: string[] | null;
     };
     result: SearchCommitsResult;
     response: { requestId: number } & SearchCommitsResult;

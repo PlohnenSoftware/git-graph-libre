@@ -30,6 +30,7 @@ beforeAll(() => {
     "Document search behavior",
     "Alice Example <alice@example.com>"
   );
+  git(["tag", "v-search"], repo);
 });
 
 afterAll(() => {
@@ -96,6 +97,36 @@ describe("searchCommits", () => {
       email: "alice@example.com",
       loadCount: 1
     });
+  });
+
+  it("limits history search and load positions to selected filters", async () => {
+    const records: GitCommandRecord[] = [];
+
+    const result = await searchCommits(simpleGit(repo), {
+      query: "archived",
+      maxResults: 10,
+      showRemoteBranches: true,
+      showTags: true,
+      branches: ["main"],
+      authors: ["T"],
+      tags: ["v-search"],
+      dateType: "Author Date",
+      repo,
+      recordGitCommand: (record) => records.push(record)
+    });
+
+    expect(result.error).toBeNull();
+    const rangedRecords = records.filter((record) =>
+      ["searchCommits.message", "searchCommits.author", "searchCommits.positions"].includes(
+        record.label
+      )
+    );
+    expect(rangedRecords.length).toBe(3);
+    for (const record of rangedRecords) {
+      expect(record.args).toEqual(expect.arrayContaining(["main", "refs/tags/v-search", "--"]));
+      expect(record.args).not.toContain("--branches");
+    }
+    expect(rangedRecords.every((record) => record.args.includes("--author=T"))).toBe(true);
   });
 
   it("finds commit hash prefixes", async () => {

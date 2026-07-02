@@ -623,6 +623,8 @@ body.commitDetailsResizing * {
 }
 #repoControl,
 #branchControl,
+#authorControl,
+#tagControl,
 #showRemoteBranchesControl {
   display: inline-flex;
   align-items: center;
@@ -631,11 +633,15 @@ body.commitDetailsResizing * {
   margin: 0;
 }
 #repoControl,
-#branchControl {
+#branchControl,
+#authorControl,
+#tagControl {
   min-width: 0;
 }
 #repoSelect,
-#branchSelect {
+#branchSelect,
+#authorSelect,
+#tagSelect {
   margin-left: 0;
 }
 .toolbarLabel {

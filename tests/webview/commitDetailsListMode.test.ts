@@ -16,6 +16,7 @@ const viewState: GG.GitGraphViewState = {
   dateFormat: "Date & Time",
   fetchAvatars: false,
   graphColors: ["oklch(65% 0.16 250)"],
+  customBranchGlobPatterns: [],
   graphFontSize: 13,
   graphRowHeight: 24,
   graphStyle: "rounded",

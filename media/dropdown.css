@@ -67,6 +67,13 @@
   padding: 4px 10px;
   user-select: none;
 }
+.dropdownOptionCheck {
+  display: inline-block;
+  width: 14px;
+  margin-right: 4px;
+  color: var(--vscode-list-activeSelectionForeground, currentColor);
+  text-align: center;
+}
 .dropdownOptions.showInfo .dropdownOption {
   padding-right: 30px;
 }

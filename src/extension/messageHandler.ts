@@ -283,6 +283,9 @@ export function registerMessageHandlers(
       requestId: msg.requestId,
       ...(await loadCommits(gitClient.getInstance(), {
         branchName: msg.branchName,
+        branches: msg.branches,
+        authors: msg.authors,
+        tags: msg.tags,
         maxCommits: msg.maxCommits,
         showRemoteBranches: msg.showRemoteBranches,
         hiddenRemotes: msg.hiddenRemotes,
@@ -336,6 +339,9 @@ export function registerMessageHandlers(
         showRemoteBranches: msg.showRemoteBranches,
         hiddenRemotes: msg.hiddenRemotes,
         showTags: msg.showTags,
+        branches: msg.branches,
+        authors: msg.authors,
+        tags: msg.tags,
         dateType: config.dateType(),
         repo: msg.repo,
         recordGitCommand

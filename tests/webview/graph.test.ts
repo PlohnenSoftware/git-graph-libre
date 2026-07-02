@@ -9,6 +9,7 @@ const config: Config = {
   commitDetailsFileViewMode: "tree",
   fetchAvatars: false,
   graphColors: ["oklch(65% 0.16 250)"],
+  customBranchGlobPatterns: [],
   graphFontSize: 13,
   graphRowHeight: 24,
   graphStyle: "rounded",

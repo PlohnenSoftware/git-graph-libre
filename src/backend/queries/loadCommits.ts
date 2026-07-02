@@ -10,6 +10,7 @@ import type {
   QueryResult
 } from "@/backend/types";
 import { type GitCommandRecorder, runGitCommand, runGitRaw } from "@/backend/utils/gitRunner";
+import { authorArgs, selectedLogRefs } from "@/backend/utils/logFilters";
 import { toGitQueryError } from "@/backend/utils/queryError";
 import { isHiddenRemoteRef, remoteExcludeArgs } from "@/backend/utils/remoteRefs";
 
@@ -23,6 +24,9 @@ const gitRefFieldCount = 3;
 
 type LoadCommitsInput = {
   branchName: string;
+  branches?: string[] | null;
+  authors?: string[] | null;
+  tags?: string[] | null;
   maxCommits: number;
   showRemoteBranches: boolean;
   hiddenRemotes?: string[];
@@ -43,7 +47,8 @@ type GitQueryContext = {
 };
 
 type GitLogOptions = {
-  branch: string;
+  refs: string[] | null;
+  authors: string[] | null;
   maxCommits: number;
   showRemoteBranches: boolean;
   hiddenRemotes?: string[];
@@ -132,7 +137,8 @@ async function getRefs(
 async function getLog(
   git: SimpleGit,
   {
-    branch,
+    refs,
+    authors,
     maxCommits,
     showRemoteBranches,
     hiddenRemotes,
@@ -154,18 +160,19 @@ async function getLog(
     `--${commitOrdering}-order`
   ];
   if (onlyFollowFirstParent) args.push("--first-parent");
-  if (branch !== "") {
-    args.push(branch);
-  } else {
+  args.push(...authorArgs(authors));
+  if (refs === null) {
     args.push("--branches");
     if (showTags) args.push("--tags");
     if (includeReflog) args.push("--reflog");
     if (showRemoteBranches) args.push(...remoteExcludeArgs(hiddenRemotes), "--remotes");
+  } else {
+    args.push(...refs);
   }
   try {
     const stdout = await runGitRaw(git, {
       label: "loadCommits.log",
-      args,
+      args: [...args, "--"],
       repo: context.repo,
       record: context.record
     });
@@ -260,10 +267,15 @@ export async function loadCommits(
   git: SimpleGit,
   input: LoadCommitsInput
 ): Promise<QueryResult<"loadCommits">> {
-  const { branchName, maxCommits, showRemoteBranches, hard, dateType, showUncommittedChanges } =
-    input;
+  const { maxCommits, showRemoteBranches, hard, dateType, showUncommittedChanges } = input;
   const hiddenRemotes = input.hiddenRemotes;
   const showTags = input.showTags !== false;
+  const selectedTags = input.tags ?? null;
+  const refs = selectedLogRefs({
+    branches: input.branches,
+    legacyBranchName: input.branchName,
+    tags: selectedTags
+  });
   const includeReflog = input.includeReflog === true;
   const onlyFollowFirstParent = input.onlyFollowFirstParent === true;
   const commitOrdering = input.commitOrdering ?? "date";
@@ -271,7 +283,8 @@ export async function loadCommits(
 
   const [logResult, refsResult] = await Promise.all([
     getLog(git, {
-      branch: branchName,
+      refs,
+      authors: input.authors ?? null,
       maxCommits: maxCommits + 1,
       showRemoteBranches,
       hiddenRemotes,
@@ -282,7 +295,7 @@ export async function loadCommits(
       commitOrdering,
       context
     }),
-    getRefs(git, showRemoteBranches, hiddenRemotes, showTags, context)
+    getRefs(git, showRemoteBranches, hiddenRemotes, showTags || selectedTags !== null, context)
   ]);
   const rawCommits = logResult.value;
   const refData = refsResult.value;

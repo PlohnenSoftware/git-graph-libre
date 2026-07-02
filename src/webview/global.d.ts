@@ -19,6 +19,7 @@ declare global {
     graphFontSize: number;
     graphRowHeight: number;
     graphStyle: "rounded" | "angular";
+    customBranchGlobPatterns: GG.CustomBranchGlobPattern[];
     grid: { x: number; y: number; offsetX: number; offsetY: number; expandY: number };
     includeReflog: boolean;
     initialLoadCommits: number;
@@ -129,6 +130,8 @@ declare global {
     gitRepos: GG.GitRepoSet;
     gitBranches: string[];
     gitBranchHead: string | null;
+    gitAuthors?: string[];
+    gitTags?: string[];
     gitRemotes?: GitRemote[];
     gitStashes?: GitStash[];
     settingsWidgetOpen?: boolean;
@@ -136,6 +139,9 @@ declare global {
     commitHead: string | null;
     avatars: AvatarImageCollection;
     currentBranch: string | null;
+    currentBranches?: string[] | null;
+    currentAuthors?: string[] | null;
+    currentTags?: string[] | null;
     currentRepo: string;
     moreCommitsAvailable: boolean;
     maxCommits: number;

@@ -81,6 +81,8 @@ export type GitRepoInfo = {
   isRepo: boolean;
   head: string | null;
   headCommit: string | null;
+  authors: string[];
+  tags: string[];
   remotes: GitRemote[];
   stashes: GitStash[];
   stashCount: number;

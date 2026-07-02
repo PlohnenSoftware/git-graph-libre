@@ -35,6 +35,8 @@ describe("loadRepoInfo", () => {
       isRepo: true,
       head: "main",
       headCommit: expect.stringMatching(/^[0-9a-f]{40,64}$/i),
+      authors: ["T"],
+      tags: [],
       remotes: [],
       stashes: [],
       stashCount: 0,
@@ -53,6 +55,8 @@ describe("loadRepoInfo", () => {
         isRepo: false,
         head: null,
         headCommit: null,
+        authors: [],
+        tags: [],
         remotes: [],
         stashes: [],
         stashCount: 0,
@@ -128,7 +132,9 @@ describe("loadRepoInfo", () => {
         "loadRepoInfo.remotes",
         "loadRepoInfo.stashes",
         "loadRepoInfo.config.local",
-        "loadRepoInfo.config.global"
+        "loadRepoInfo.config.global",
+        "loadRepoInfo.authors",
+        "loadRepoInfo.tags"
       ])
     );
     const remoteRecord = records.find((record) => record.label === "loadRepoInfo.remotes");
@@ -153,6 +159,8 @@ describe("loadRepoInfo", () => {
         if (args[0] === "remote") throw failure;
         if (args[0] === "stash") return "";
         if (args[0] === "config") return "user.name\nT\0user.email\nt@t.com\0";
+        if (args[0] === "log") return "T\n";
+        if (args[0] === "tag") return "";
         throw new Error(`unexpected git command: ${args.join(" ")}`);
       }
     } as unknown as SimpleGit;
@@ -164,6 +172,8 @@ describe("loadRepoInfo", () => {
         isRepo: true,
         head: "main",
         headCommit: "abc123",
+        authors: ["T"],
+        tags: [],
         remotes: [],
         stashes: [],
         stashCount: 0,

@@ -137,4 +137,21 @@ describe("configuration", () => {
 
     expect(config.tabIconColorTheme()).toBe("color");
   });
+
+  it("normalizes custom branch glob presets before they reach the webview", async () => {
+    settings.set("git-graph-libre.customBranchGlobPatterns", [
+      { name: "Features", glob: "heads/feature/*" },
+      { name: " Releases ", glob: " refs/remotes/origin/release/* " },
+      { name: "", glob: "heads/empty/*" },
+      { name: "Bad", glob: "" },
+      { name: "Wrong" }
+    ]);
+
+    const { config } = await import("@/config");
+
+    expect(config.customBranchGlobPatterns()).toEqual([
+      { name: "Features", glob: "--glob=heads/feature/*" },
+      { name: "Releases", glob: "--glob=refs/remotes/origin/release/*" }
+    ]);
+  });
 });

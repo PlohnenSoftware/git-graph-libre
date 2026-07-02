@@ -1,13 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-
-import { simpleGit, type SimpleGit } from "simple-git";
+import { git, makeRepo } from "@tests/backend/helpers";
+import { type SimpleGit, simpleGit } from "simple-git";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-
 import { loadCommits } from "@/backend/queries/loadCommits";
 import type { GitCommandRecord } from "@/backend/utils/gitRunner";
-
-import { git, makeRepo } from "@tests/backend/helpers";
 
 let repo: string;
 let repoWithRemote: string;
@@ -297,6 +294,42 @@ describe("loadCommits", () => {
     expect(logRecord?.args).toContain("--topo-order");
     expect(logRecord?.args).not.toContain("--date-order");
     expect(logRecord?.args).not.toContain("--author-date-order");
+  });
+
+  it("passes selected branch, glob, tag, and author filters to git log", async () => {
+    const records: GitCommandRecord[] = [];
+    git(["tag", "v-filter"], repo);
+
+    const result = await loadCommits(simpleGit(repo), {
+      branchName: "",
+      branches: ["main", "--glob=heads/feature/*"],
+      authors: ["T"],
+      tags: ["v-filter"],
+      maxCommits: 300,
+      showRemoteBranches: false,
+      showTags: false,
+      hard: false,
+      dateType: "Author Date",
+      showUncommittedChanges: false,
+      repo,
+      recordGitCommand: (record) => records.push(record)
+    });
+
+    expect(result.error).toBeNull();
+    const logRecord = records.find((record) => record.label === "loadCommits.log");
+    expect(logRecord?.args).toEqual(
+      expect.arrayContaining([
+        "--author=T",
+        "main",
+        "--glob=heads/feature/*",
+        "refs/tags/v-filter",
+        "--"
+      ])
+    );
+    expect(logRecord?.args).not.toContain("--branches");
+
+    const refsRecord = records.find((record) => record.label === "loadCommits.refs");
+    expect(refsRecord?.args).toEqual(expect.arrayContaining(["refs/tags"]));
   });
 
   it("passes hard flag through to the result", async () => {

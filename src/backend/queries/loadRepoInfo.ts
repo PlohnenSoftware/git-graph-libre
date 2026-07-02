@@ -38,6 +38,8 @@ function emptyRepoInfo(isRepo: boolean): GitRepoInfo {
     isRepo,
     head: null,
     headCommit: null,
+    authors: [],
+    tags: [],
     remotes: [],
     stashes: [],
     stashCount: 0,
@@ -236,6 +238,48 @@ async function loadStashes(
   }
 }
 
+async function loadAuthors(
+  git: SimpleGit,
+  context: GitQueryContext
+): Promise<QueryValue<string[]>> {
+  try {
+    const stdout = await runGitRaw(git, {
+      label: "loadRepoInfo.authors",
+      args: ["log", "--format=%an", "--all"],
+      repo: context.repo,
+      record: context.record
+    });
+    return { value: uniqueSortedLines(stdout), error: null };
+  } catch (error: unknown) {
+    return { value: [], error: toGitQueryError(error, "Unable to load commit authors") };
+  }
+}
+
+async function loadTags(git: SimpleGit, context: GitQueryContext): Promise<QueryValue<string[]>> {
+  try {
+    const stdout = await runGitRaw(git, {
+      label: "loadRepoInfo.tags",
+      args: ["tag", "--list"],
+      repo: context.repo,
+      record: context.record
+    });
+    return { value: uniqueSortedLines(stdout), error: null };
+  } catch (error: unknown) {
+    return { value: [], error: toGitQueryError(error, "Unable to load tags") };
+  }
+}
+
+function uniqueSortedLines(stdout: string) {
+  return [
+    ...new Set(
+      stdout
+        .split(eolRegex)
+        .map((line) => line.trim())
+        .filter(Boolean)
+    )
+  ].sort((left, right) => left.localeCompare(right));
+}
+
 async function loadScopedConfig(
   git: SimpleGit,
   context: GitQueryContext,
@@ -281,16 +325,21 @@ export async function loadRepoInfo(
   const isRepo = await isInsideWorkTree(git, context);
   if (!isRepo) return { repoInfo: emptyRepoInfo(false), error: null };
 
-  const [headResult, remotesResult, stashesResult, configResult] = await Promise.all([
-    loadHead(git, context),
-    loadRemotes(git, context),
-    showStashes ? loadStashes(git, context) : Promise.resolve({ value: [], error: null }),
-    loadConfig(git, context)
-  ]);
+  const [headResult, remotesResult, stashesResult, configResult, authorsResult, tagsResult] =
+    await Promise.all([
+      loadHead(git, context),
+      loadRemotes(git, context),
+      showStashes ? loadStashes(git, context) : Promise.resolve({ value: [], error: null }),
+      loadConfig(git, context),
+      loadAuthors(git, context),
+      loadTags(git, context)
+    ]);
   const repoInfo: GitRepoInfo = {
     isRepo: true,
     head: headResult.value.head,
     headCommit: headResult.value.headCommit,
+    authors: authorsResult.value,
+    tags: tagsResult.value,
     remotes: remotesResult.value,
     stashes: stashesResult.value,
     stashCount: stashesResult.value.length,
@@ -299,6 +348,12 @@ export async function loadRepoInfo(
 
   return {
     repoInfo,
-    error: headResult.error ?? remotesResult.error ?? stashesResult.error ?? configResult.error
+    error:
+      headResult.error ??
+      remotesResult.error ??
+      stashesResult.error ??
+      configResult.error ??
+      authorsResult.error ??
+      tagsResult.error
   };
 }

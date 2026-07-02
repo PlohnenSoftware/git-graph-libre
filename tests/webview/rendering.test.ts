@@ -28,6 +28,7 @@ const defaultViewState: GG.GitGraphViewState = {
   dateFormat: "Date & Time",
   fetchAvatars: false,
   graphColors: ["oklch(65% 0.16 250)"],
+  customBranchGlobPatterns: [{ name: "Features", glob: "--glob=heads/feature/*" }],
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "tree",
   graphFontSize: 13,
@@ -93,6 +94,8 @@ const repoInfoWithoutRemotes: GitRepoInfo = {
   isRepo: true,
   head: "main",
   headCommit: "abc123",
+  authors: ["Alice", "Bob"],
+  tags: ["v1.0.0"],
   remotes: [],
   stashes: [],
   stashCount: 0,
@@ -236,6 +239,17 @@ describe("webview rendering", () => {
     );
   }
 
+  function clickDropdownOption(dropdownId: string, label: string) {
+    const dropdown = document.getElementById(dropdownId);
+    const currentValue = dropdown?.querySelector<HTMLElement>(".dropdownCurrentValue");
+    currentValue?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const option = Array.from(
+      dropdown?.querySelectorAll<HTMLElement>(".dropdownOption") ?? []
+    ).find((item) => item.textContent?.includes(label));
+    expect(option).not.toBeUndefined();
+    option?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  }
+
   function setDialogInput(value: string) {
     const input = document.getElementById("dialogInput0") as HTMLInputElement | null;
     if (input === null) throw new Error("Missing dialog input");
@@ -325,6 +339,58 @@ describe("webview rendering", () => {
     expect(document.getElementById("settingsBtn")?.getAttribute("aria-label")).toBe(
       "Repository Settings"
     );
+    expect(document.getElementById("authorSelect")?.classList.contains("dropdown")).toBe(true);
+    expect(document.getElementById("tagSelect")?.classList.contains("dropdown")).toBe(true);
+  });
+
+  it("sends selected branch glob, author, and tag filters from toolbar dropdowns", () => {
+    clickDropdownOption("branchSelect", "Glob: Features");
+    clickDropdownOption("authorSelect", "Alice");
+    clickDropdownOption("tagSelect", "v1.0.0");
+
+    const request = latestLoadCommitsRequest();
+    expect(request).toMatchObject({
+      branchName: "--glob=heads/feature/*",
+      branches: ["--glob=heads/feature/*"],
+      authors: ["Alice"],
+      tags: ["v1.0.0"]
+    });
+
+    document.getElementById("findBtn")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    setFindQuery("feature");
+    document
+      .getElementById("findSearchHistoryBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const searchRequest = latestSearchCommitsRequest();
+    expect(searchRequest).toMatchObject({
+      branches: ["--glob=heads/feature/*"],
+      authors: ["Alice"],
+      tags: ["v1.0.0"]
+    });
+    receive({
+      command: "searchCommits",
+      requestId: searchRequest.requestId,
+      results: [],
+      error: null
+    });
+    clearFind();
+
+    clickDropdownOption("tagSelect", "Show All");
+    clickDropdownOption("authorSelect", "Show All");
+    clickDropdownOption("branchSelect", "Show All");
+    const resetRequest = latestLoadCommitsRequest();
+    expect(resetRequest).toMatchObject({ branches: null, authors: null, tags: null });
+    receive({
+      command: "loadCommits",
+      requestId: resetRequest.requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+    clearFind();
   });
 
   it("persists repository settings overrides and reloads with resolved flags", () => {

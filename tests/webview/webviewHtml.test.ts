@@ -15,6 +15,7 @@ function makeConfig(): Config {
     dateType: () => "Author Date",
     fetchAvatars: () => false,
     graphColors: () => ["oklch(65% 0.16 250)"],
+    customBranchGlobPatterns: () => [{ name: "Features", glob: "--glob=heads/feature/*" }],
     graphFontSize: () => 15,
     graphRowHeight: () => 30,
     graphStyle: () => "rounded",
@@ -67,6 +68,9 @@ describe("webview HTML", () => {
     expect(viewState.commitDetailsFileViewMode).toBe("list");
     expect(viewState.graphFontSize).toBe(15);
     expect(viewState.graphRowHeight).toBe(30);
+    expect(viewState.customBranchGlobPatterns).toEqual([
+      { name: "Features", glob: "--glob=heads/feature/*" }
+    ]);
     expect(viewState.shortHashLength).toBe(12);
     expect(result.html).toContain('id="settingsWidgetBacking" hidden');
     expect(result.html).toContain('id="settingsWidget" role="dialog" aria-modal="true"');

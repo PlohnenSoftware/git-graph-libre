@@ -40,6 +40,7 @@ export function buildWebviewHtml(opts: {
     dateFormat: config.dateFormat(),
     fetchAvatars: config.fetchAvatars() && extensionState.isAvatarStorageAvailable(),
     graphColors: config.graphColors(),
+    customBranchGlobPatterns: config.customBranchGlobPatterns(),
     graphFontSize: config.graphFontSize(),
     graphRowHeight: config.graphRowHeight(),
     graphStyle: config.graphStyle(),

@@ -21,6 +21,11 @@ export type GitRepoState = {
   showTags?: RepoBooleanOverride;
 };
 
+export type CustomBranchGlobPattern = {
+  name: string;
+  glob: string;
+};
+
 export type GitGraphViewState = {
   autoCenterCommitDetailsView: boolean;
   commitDetailsCompactFolders: boolean;
@@ -31,6 +36,7 @@ export type GitGraphViewState = {
   graphFontSize: number;
   graphRowHeight: number;
   graphStyle: GraphStyle;
+  customBranchGlobPatterns: CustomBranchGlobPattern[];
   initialLoadCommits: number;
   lastActiveRepo: string | null;
   loadMoreCommits: number;

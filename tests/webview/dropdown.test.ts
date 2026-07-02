@@ -126,4 +126,49 @@ describe("Dropdown", () => {
     expect(root?.classList.contains("dropdownOpen")).toBe(false);
     expect(currentValue?.textContent).toBe("main");
   });
+
+  it("keeps multi-select dropdowns open and emits selected values", () => {
+    const selectedValues: string[][] = [];
+    const dropdown = new Dropdown(
+      "repoSelect",
+      false,
+      "branches",
+      (values) => {
+        selectedValues.push(values);
+      },
+      true
+    );
+
+    dropdown.setOptions(
+      [
+        { name: "Show All", value: "" },
+        { name: "HEAD", value: "HEAD" },
+        { name: "feature/menu", value: "feature/menu" }
+      ],
+      null
+    );
+
+    const root = document.getElementById("repoSelect");
+    const currentValue = document.querySelector<HTMLElement>(".dropdownCurrentValue");
+    currentValue?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    document
+      .querySelectorAll<HTMLElement>(".dropdownOption")[1]
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    document
+      .querySelectorAll<HTMLElement>(".dropdownOption")[2]
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(root?.classList.contains("dropdownOpen")).toBe(true);
+    expect(selectedValues).toEqual([["HEAD"], ["HEAD", "feature/menu"]]);
+    expect(currentValue?.textContent).toContain("HEAD");
+    expect(currentValue?.textContent).toContain("feature/menu");
+
+    dropdown.unselectOption("HEAD");
+    expect(selectedValues.at(-1)).toEqual(["feature/menu"]);
+
+    dropdown.selectOption("");
+    expect(selectedValues.at(-1)).toEqual([""]);
+    expect(dropdown.isShowAllSelected()).toBe(true);
+  });
 });

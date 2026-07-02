@@ -6,7 +6,12 @@ import {
   MAX_SHORT_HASH_LENGTH,
   MIN_SHORT_HASH_LENGTH
 } from "./backend/utils/string";
-import type { CommitDetailsFileViewMode, DateFormat, GraphStyle } from "./types";
+import type {
+  CommitDetailsFileViewMode,
+  CustomBranchGlobPattern,
+  DateFormat,
+  GraphStyle
+} from "./types";
 
 type TabIconColorTheme = "color" | "grey";
 const commitDetailsFileViewModes = ["tree", "list"] as const;
@@ -73,6 +78,23 @@ function isGraphColor(value: string): boolean {
   );
 }
 
+function customBranchGlobPatterns(): CustomBranchGlobPattern[] {
+  const patterns = getConfig<unknown[]>("customBranchGlobPatterns", []);
+  if (!Array.isArray(patterns)) return [];
+
+  const validPatterns: CustomBranchGlobPattern[] = [];
+  for (const pattern of patterns) {
+    if (typeof pattern !== "object" || pattern === null) continue;
+    const { name, glob } = pattern as Record<string, unknown>;
+    if (typeof name !== "string" || typeof glob !== "string") continue;
+    const trimmedName = name.trim();
+    const trimmedGlob = glob.trim();
+    if (trimmedName === "" || trimmedGlob === "") continue;
+    validPatterns.push({ name: trimmedName, glob: `--glob=${trimmedGlob}` });
+  }
+  return validPatterns;
+}
+
 export const config = {
   autoCenterCommitDetailsView: (): boolean => getConfig("autoCenterCommitDetailsView", true),
   commitDetailsCompactFolders: (): boolean => getConfig("commitDetails.compactFolders", false),
@@ -83,6 +105,7 @@ export const config = {
   fetchAvatars: (): boolean => getConfig("fetchAvatars", false),
   graphColors: (): string[] =>
     getConfigWithLegacy("graphColors", "graphColours", DEFAULT_GRAPH_COLORS).filter(isGraphColor),
+  customBranchGlobPatterns,
   graphStyle: (): GraphStyle => getConfig("graphStyle", "rounded"),
   graphFontSize: (): number => getNumberConfig("graph.fontSize", 13, 8, 24),
   graphRowHeight: (): number => getNumberConfig("graph.rowHeight", 24, 18, 48),

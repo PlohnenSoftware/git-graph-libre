@@ -15,7 +15,7 @@ type PackageManifest = {
           default: unknown;
           enum?: string[];
           enumDescriptions?: string[];
-          items?: { pattern?: string };
+          items?: { pattern?: string; properties?: Record<string, { type: string }> };
           minimum?: number;
           maximum?: number;
           description: string;
@@ -88,6 +88,22 @@ describe("extension manifest", () => {
       type: "boolean",
       default: false,
       description: "%config.commitDetails.compactFolders%"
+    });
+  });
+
+  it("contributes custom branch glob preset settings", () => {
+    const manifest = readManifest();
+    const setting =
+      manifest.contributes.configuration.properties["git-graph-libre.customBranchGlobPatterns"];
+
+    expect(setting).toMatchObject({
+      type: "array",
+      default: [],
+      description: "%config.customBranchGlobPatterns%"
+    });
+    expect(setting.items?.properties).toMatchObject({
+      name: { type: "string" },
+      glob: { type: "string" }
     });
   });
 

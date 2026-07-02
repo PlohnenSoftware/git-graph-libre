@@ -20,6 +20,10 @@ describe("buildWebviewToolbar", () => {
     expect(document.getElementById("repoSelect")?.classList.contains("dropdown")).toBe(true);
     expect(document.getElementById("branchControl")).not.toBeNull();
     expect(document.getElementById("branchSelect")?.classList.contains("dropdown")).toBe(true);
+    expect(document.getElementById("authorControl")).not.toBeNull();
+    expect(document.getElementById("authorSelect")?.classList.contains("dropdown")).toBe(true);
+    expect(document.getElementById("tagControl")).not.toBeNull();
+    expect(document.getElementById("tagSelect")?.classList.contains("dropdown")).toBe(true);
 
     const showRemoteBranches = document.getElementById(
       "showRemoteBranchesCheckbox"
@@ -82,6 +86,9 @@ describe("buildWebviewToolbar", () => {
       toolbar: 'Controls <script>alert("x")</script>',
       repo: "Repo <bad>",
       branch: 'Branch "quoted"',
+      branches: 'Branches "quoted"',
+      authors: "Authors <bad>",
+      tags: 'Tags "quoted"',
       findCommits: "Find <commits>",
       findCommitsPlaceholder: 'Find "query"',
       findPrevious: "Previous <match>",
@@ -98,7 +105,9 @@ describe("buildWebviewToolbar", () => {
       'Controls <script>alert("x")</script>'
     );
     expect(document.getElementById("repoControl")?.textContent).toContain("Repo <bad>");
-    expect(document.getElementById("branchControl")?.textContent).toContain('Branch "quoted"');
+    expect(document.getElementById("branchControl")?.textContent).toContain('Branches "quoted"');
+    expect(document.getElementById("authorControl")?.textContent).toContain("Authors <bad>");
+    expect(document.getElementById("tagControl")?.textContent).toContain('Tags "quoted"');
     expect(document.getElementById("findInput")?.getAttribute("aria-label")).toBe("Find <commits>");
     expect(document.getElementById("findInput")?.getAttribute("placeholder")).toBe('Find "query"');
     expect(document.getElementById("findPreviousBtn")?.getAttribute("aria-label")).toBe(

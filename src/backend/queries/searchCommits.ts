@@ -2,6 +2,7 @@ import type { SimpleGit } from "simple-git";
 
 import type { DateType, GitCommitSearchResult, GitLogEntry, QueryResult } from "@/backend/types";
 import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
+import { authorArgs, selectedLogRefs } from "@/backend/utils/logFilters";
 import { toGitQueryError } from "@/backend/utils/queryError";
 import { remoteExcludeArgs } from "@/backend/utils/remoteRefs";
 
@@ -19,6 +20,9 @@ type SearchCommitsInput = {
   showRemoteBranches: boolean;
   hiddenRemotes?: string[];
   showTags?: boolean;
+  branches?: string[] | null;
+  authors?: string[] | null;
+  tags?: string[] | null;
   dateType: DateType;
   repo?: string | null;
   recordGitCommand?: GitCommandRecorder;
@@ -37,8 +41,11 @@ function normalizeMaxResults(maxResults: number): number {
 function refArgs(
   showRemoteBranches: boolean,
   hiddenRemotes: string[] | undefined,
-  showTags: boolean
+  showTags: boolean,
+  selectedRefs: string[] | null
 ): string[] {
+  if (selectedRefs !== null) return selectedRefs;
+
   const args = ["--branches"];
   if (showTags) args.push("--tags");
   if (showRemoteBranches) args.push(...remoteExcludeArgs(hiddenRemotes), "--remotes");
@@ -88,8 +95,15 @@ async function runSearchLog(
       `--max-count=${normalizeMaxResults(input.maxResults)}`,
       `--format=${logFormat(input.dateType)}`,
       "--date-order",
+      ...authorArgs(input.authors),
       ...searchArgs,
-      ...refArgs(input.showRemoteBranches, input.hiddenRemotes, input.showTags !== false)
+      ...refArgs(
+        input.showRemoteBranches,
+        input.hiddenRemotes,
+        input.showTags !== false,
+        selectedLogRefs({ branches: input.branches, tags: input.tags })
+      ),
+      "--"
     ],
     repo: context.repo,
     record: context.record
@@ -130,6 +144,8 @@ async function loadPositions(
   showRemoteBranches: boolean,
   hiddenRemotes: string[] | undefined,
   showTags: boolean,
+  selectedRefs: string[] | null,
+  authors: string[] | null | undefined,
   context: GitQueryContext
 ): Promise<Map<string, number>> {
   const stdout = await runGitRaw(git, {
@@ -138,7 +154,9 @@ async function loadPositions(
       "log",
       "--format=%H",
       "--date-order",
-      ...refArgs(showRemoteBranches, hiddenRemotes, showTags)
+      ...authorArgs(authors),
+      ...refArgs(showRemoteBranches, hiddenRemotes, showTags, selectedRefs),
+      "--"
     ],
     repo: context.repo,
     record: context.record
@@ -178,6 +196,7 @@ export async function searchCommits(
   if (query === "") return { results: [], error: null };
 
   const context = { repo: input.repo ?? null, record: input.recordGitCommand };
+  const selectedRefs = selectedLogRefs({ branches: input.branches, tags: input.tags });
 
   try {
     const [messageMatches, authorMatches, hashMatches, positions] = await Promise.all([
@@ -201,6 +220,8 @@ export async function searchCommits(
         input.showRemoteBranches,
         input.hiddenRemotes,
         input.showTags !== false,
+        selectedRefs,
+        input.authors,
         context
       )
     ]);

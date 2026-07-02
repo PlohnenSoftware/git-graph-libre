@@ -199,6 +199,28 @@
           "default": false,
           "description": "%config.fetchAvatars%"
         },
+        "git-graph-libre.customBranchGlobPatterns": {
+          "type": "array",
+          "default": [],
+          "description": "%config.customBranchGlobPatterns%",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "glob"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "%config.customBranchGlobPatterns.name%"
+              },
+              "glob": {
+                "type": "string",
+                "description": "%config.customBranchGlobPatterns.glob%"
+              }
+            }
+          }
+        },
         "git-graph-libre.repository.showRemoteBranches": {
           "type": "boolean",
           "default": true,

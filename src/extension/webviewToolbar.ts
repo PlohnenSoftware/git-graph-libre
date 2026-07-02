@@ -21,7 +21,9 @@ function buildToolbarButton(opts: {
 
 export function buildWebviewToolbar(l10n: LocalizedStrings): string {
   const repo = escapeAttribute(l10n.repo);
-  const branch = escapeAttribute(l10n.branch);
+  const branches = escapeAttribute(l10n.branches);
+  const authors = escapeAttribute(l10n.authors);
+  const tags = escapeAttribute(l10n.tags);
   const showRemoteBranches = escapeAttribute(l10n.showRemoteBranches);
   const toolbar = escapeAttribute(l10n.toolbar);
   const findCommits = escapeAttribute(l10n.findCommits);
@@ -33,8 +35,16 @@ export function buildWebviewToolbar(l10n: LocalizedStrings): string {
       <div id="repoSelect" class="dropdown"></div>
     </span>
     <span id="branchControl" class="toolbarGroup toolbarBranchGroup">
-      <span class="toolbarLabel unselectable">${branch}</span>
+      <span class="toolbarLabel unselectable">${branches}</span>
       <div id="branchSelect" class="dropdown"></div>
+    </span>
+    <span id="authorControl" class="toolbarGroup toolbarAuthorGroup">
+      <span class="toolbarLabel unselectable">${authors}</span>
+      <div id="authorSelect" class="dropdown"></div>
+    </span>
+    <span id="tagControl" class="toolbarGroup toolbarTagGroup">
+      <span class="toolbarLabel unselectable">${tags}</span>
+      <div id="tagSelect" class="dropdown"></div>
     </span>
     <label id="showRemoteBranchesControl" class="toolbarCheckbox">
       <input type="checkbox" id="showRemoteBranchesCheckbox" value="1" checked>
