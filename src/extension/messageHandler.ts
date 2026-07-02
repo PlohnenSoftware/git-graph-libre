@@ -61,6 +61,15 @@ import type { RequestMessage, ResponseMessage } from "@/types";
 import type { RepoManager } from "./repoManager";
 import type { WebviewBridge } from "./webviewBridge";
 
+function formatWebviewDiagnostic(msg: Extract<RequestMessage, { command: "webviewDiagnostic" }>) {
+  const parts = [`[webview] ${msg.stage}`];
+  if (msg.repo !== undefined) parts.push(`repo=${JSON.stringify(msg.repo)}`);
+  if (msg.repoCount !== undefined) parts.push(`repos=${msg.repoCount}`);
+  if (msg.requestId !== undefined && msg.requestId !== null) parts.push(`request=${msg.requestId}`);
+  if (msg.message !== undefined) parts.push(`message=${JSON.stringify(msg.message)}`);
+  return parts.join(" ");
+}
+
 async function viewDiff(
   repo: string,
   commitHash: string,
@@ -379,6 +388,10 @@ export function registerMessageHandlers(
         lastActiveRepo: extensionState.getLastActiveRepo()
       });
     }
+  });
+
+  bridge.onMessage("webviewDiagnostic", (msg) => {
+    outputChannel?.appendLine(formatWebviewDiagnostic(msg));
   });
 
   bridge.onMessage("fetchAvatar", (msg) => {

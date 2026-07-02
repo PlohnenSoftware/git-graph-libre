@@ -51,6 +51,7 @@ import { getVSCodeStyle, sendMessage, vscode } from "./utils/vscode";
 const searchHistoryMaxResults = 50;
 const FILTER_SHOW_ALL_VALUE = "";
 const HEAD_REF_VALUE = "HEAD";
+const diagnosticMessageMaxLength = 500;
 
 const HIDEABLE_COLUMNS = ["date", "author", "commit"] as const;
 type HideableColumn = (typeof HIDEABLE_COLUMNS)[number];
@@ -66,6 +67,44 @@ const REPO_BOOLEAN_SETTING_KEYS: readonly RepoBooleanSettingKey[] = [
   "showStashes",
   "showTags"
 ];
+
+function truncateDiagnosticMessage(value: string) {
+  return value.length > diagnosticMessageMaxLength
+    ? `${value.slice(0, diagnosticMessageMaxLength)}...`
+    : value;
+}
+
+function errorToDiagnosticMessage(error: unknown) {
+  if (error instanceof Error) {
+    return truncateDiagnosticMessage(error.stack ?? error.message);
+  }
+  return truncateDiagnosticMessage(String(error));
+}
+
+function postWebviewDiagnostic(
+  stage: string,
+  opts: Omit<GG.RequestWebviewDiagnostic, "command" | "stage"> = {}
+) {
+  try {
+    sendMessage({ command: "webviewDiagnostic", stage, ...opts });
+  } catch {
+    // Diagnostics must never make the graph fail to load.
+  }
+}
+
+globalThis.addEventListener("error", (event) => {
+  postWebviewDiagnostic("window.error", {
+    message: truncateDiagnosticMessage(
+      `${event.message} (${event.filename}:${event.lineno}:${event.colno})`
+    )
+  });
+});
+
+globalThis.addEventListener("unhandledrejection", (event) => {
+  postWebviewDiagnostic("window.unhandledrejection", {
+    message: errorToDiagnosticMessage(event.reason)
+  });
+});
 
 function isHideableColumn(value: string): value is HideableColumn {
   return (HIDEABLE_COLUMNS as readonly string[]).includes(value);
@@ -432,6 +471,13 @@ class GitGraphView {
 
   public loadRepoInfo(requestId: number, repoInfo: GitRepoInfo, errorReason: string | null = null) {
     if (!this.acceptLoadRepoInfoResponse(requestId)) return;
+    postWebviewDiagnostic("loadRepoInfo.response", {
+      repo: this.currentRepo,
+      requestId,
+      message:
+        errorReason ??
+        `isRepo=${repoInfo.isRepo} remotes=${repoInfo.remotes.length} stashes=${repoInfo.stashes.length} authors=${repoInfo.authors.length} tags=${repoInfo.tags.length}`
+    });
 
     this.gitAuthors = errorReason === null && repoInfo.isRepo ? repoInfo.authors : [];
     this.gitTags = errorReason === null && repoInfo.isRepo ? repoInfo.tags : [];
@@ -468,6 +514,12 @@ class GitGraphView {
     errorReason: string | null = null
   ) {
     if (!this.acceptLoadBranchesResponse(requestId)) return;
+    postWebviewDiagnostic("loadBranches.response", {
+      repo: this.currentRepo,
+      requestId,
+      message:
+        errorReason ?? `isRepo=${isRepo} branches=${branchOptions.length} head=${branchHead ?? ""}`
+    });
 
     if (errorReason !== null) {
       this.renderShowError(l10n.unableToLoadGitGraph, errorReason);
@@ -586,6 +638,12 @@ class GitGraphView {
     errorReason: string | null = null
   ) {
     if (!this.acceptLoadCommitsResponse(requestId)) return;
+    postWebviewDiagnostic("loadCommits.response", {
+      repo: this.currentRepo,
+      requestId,
+      message:
+        errorReason ?? `commits=${commits.length} head=${commitHead ?? ""} more=${moreAvailable}`
+    });
 
     if (errorReason !== null) {
       this.pendingFocusCommitHash = null;
@@ -777,6 +835,10 @@ class GitGraphView {
     });
   }
   private requestLoadBranchesAndCommits(hard: boolean) {
+    postWebviewDiagnostic("load.start", {
+      repo: this.currentRepo,
+      repoCount: Object.keys(this.gitRepos).length
+    });
     this.requestLoadRepoInfo();
     this.requestLoadBranches(hard, (branchChanges: boolean, isRepo: boolean) => {
       if (isRepo) {
@@ -3548,8 +3610,12 @@ const gitGraph = new GitGraphView(
     showTags: viewState.showTags,
     shortHashLength: viewState.shortHashLength
   },
-  vscode.getState()
+  vscode.getState() ?? null
 );
+postWebviewDiagnostic("boot.ready", {
+  repo: viewState.lastActiveRepo ?? undefined,
+  repoCount: Object.keys(viewState.repos).length
+});
 
 const actionErrorLabels = {
   addRemote: l10n.unableToAddRemote,

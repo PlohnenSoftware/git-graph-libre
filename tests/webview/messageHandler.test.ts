@@ -37,6 +37,7 @@ describe("registerMessageHandlers", () => {
       (msg: RequestMessage) => void | Promise<void>
     >();
     const posts: ResponseMessage[] = [];
+    const outputLines: string[] = [];
     const bridge = {
       post: (msg: ResponseMessage) => {
         posts.push(msg);
@@ -65,10 +66,13 @@ describe("registerMessageHandlers", () => {
       repoManager: {} as RepoManager,
       extensionState: {} as ExtensionState,
       avatarManager: { fetchAvatarImage: vi.fn() } as unknown as AvatarManager,
-      repoFileWatcher: { start: vi.fn() } as unknown as RepoFileWatcher
+      repoFileWatcher: { start: vi.fn() } as unknown as RepoFileWatcher,
+      outputChannel: {
+        appendLine: (line: string) => outputLines.push(line)
+      }
     });
 
-    return { handlers, posts };
+    return { handlers, posts, outputLines };
   }
 
   it("echoes request ids when loading repository info", async () => {
@@ -112,6 +116,26 @@ describe("registerMessageHandlers", () => {
       results: [expect.objectContaining({ message: "init", loadCount: 1 })],
       error: null
     });
+  });
+
+  it("writes webview diagnostics to the output channel", async () => {
+    const { handlers, outputLines } = registerHandlersForTest();
+    const handler = handlers.get("webviewDiagnostic");
+
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "webviewDiagnostic",
+      stage: "load.start",
+      repo,
+      repoCount: 1,
+      requestId: 2,
+      message: "checking"
+    });
+
+    expect(outputLines[outputLines.length - 1]).toContain("[webview] load.start");
+    expect(outputLines[outputLines.length - 1]).toContain("repos=1");
+    expect(outputLines[outputLines.length - 1]).toContain("request=2");
+    expect(outputLines[outputLines.length - 1]).toContain("checking");
   });
 
   it("opens current files from repo-contained paths", async () => {

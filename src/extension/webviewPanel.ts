@@ -20,6 +20,7 @@ export function createWebviewPanel(opts: {
   extensionState: ExtensionState;
   avatarManager: AvatarManager;
   repoManager: RepoManager;
+  outputChannel?: Pick<vscode.OutputChannel, "appendLine">;
   onDispose: () => void;
   onPanelShown: () => void;
 }) {
@@ -32,6 +33,7 @@ export function createWebviewPanel(opts: {
     extensionState,
     avatarManager,
     repoManager,
+    outputChannel,
     onDispose,
     onPanelShown
   } = opts;
@@ -56,6 +58,9 @@ export function createWebviewPanel(opts: {
       extensionState,
       repoManager
     });
+    outputChannel?.appendLine(
+      `[panel] render repos=${Object.keys(repoManager.getRepos()).length} graph=${result.isGraphLoaded}`
+    );
     panel.webview.html = result.html;
     isGraphViewLoaded = result.isGraphLoaded;
   }
@@ -92,6 +97,7 @@ export function createWebviewPanel(opts: {
 
   repoManager.registerViewCallback((repos: GitRepoSet, numRepos: number) => {
     if (!panel.visible) return;
+    outputChannel?.appendLine(`[panel] repos update repos=${numRepos} graph=${isGraphViewLoaded}`);
     if ((numRepos === 0 && isGraphViewLoaded) || (numRepos > 0 && !isGraphViewLoaded)) {
       update();
     } else {

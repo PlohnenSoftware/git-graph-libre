@@ -31,9 +31,11 @@ export function activate(context: vscode.ExtensionContext) {
   let currentPanel: WebviewPanel | undefined;
 
   function openGraphView(targetRepo?: string) {
+    outputChannel.appendLine(`[panel] open target=${JSON.stringify(targetRepo ?? null)}`);
     if (targetRepo) extensionState.setLastActiveRepo(targetRepo);
     const column = vscode.window.activeTextEditor?.viewColumn;
     if (currentPanel) {
+      outputChannel.appendLine("[panel] reveal existing");
       currentPanel.reveal(column);
       return;
     }
@@ -73,6 +75,7 @@ export function activate(context: vscode.ExtensionContext) {
       extensionState,
       avatarManager,
       repoManager,
+      outputChannel,
       onDispose: () => {
         currentPanel = undefined;
       },

@@ -3,9 +3,9 @@ import { buildWebviewStatusStrip } from "@/extension/webviewStatusStrip";
 import { buildWebviewToolbar } from "@/extension/webviewToolbar";
 import type * as GG from "@/types";
 
-export function createVscodeMock() {
+export function createVscodeMock(initialState?: WebViewState | null) {
   const sent: GG.RequestMessage[] = [];
-  let state: WebViewState | null = null;
+  let state: WebViewState | null | undefined = initialState;
 
   const mock = {
     postMessage: (msg: GG.RequestMessage) => sent.push(msg),

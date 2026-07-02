@@ -3,7 +3,7 @@ import * as GG from "@/types";
 
 declare global {
   function acquireVsCodeApi(): {
-    getState(): WebViewState | null;
+    getState(): WebViewState | null | undefined;
     postMessage(message: GG.RequestMessage): void;
     setState(state: WebViewState): void;
   };
