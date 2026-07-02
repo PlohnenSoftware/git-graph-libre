@@ -132,6 +132,10 @@ describe("webview keyboard navigation", () => {
       commitDetails: commitDetailsFor(hash, parents),
       error: null
     });
+    // The details row inherits the source row color so hue-tinted styles resolve
+    expect(document.getElementById("commitDetails")?.dataset.color).toBe(
+      commitRow(hash)?.dataset.color
+    );
   }
 
   beforeAll(async () => {

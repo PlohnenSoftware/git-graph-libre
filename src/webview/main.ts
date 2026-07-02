@@ -1635,6 +1635,8 @@ class GitGraphView {
 
     const newElem = document.createElement("tr");
     newElem.id = "commitDetails";
+    const rowColor = sourceElem.dataset.color;
+    if (rowColor !== undefined) newElem.dataset.color = rowColor;
     this.applyCommitDetailsSectionClasses(newElem);
     this.applyCommitDetailsHeight(newElem);
     newElem.innerHTML = renderCommitDetailsRowHtml({

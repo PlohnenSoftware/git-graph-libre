@@ -100,6 +100,19 @@ describe("dialog styles", () => {
     expect(dropdownCss).toContain("var(--vscode-focusBorder)");
   });
 
+  it("shows the commit dot hue on the details resize handle hover", () => {
+    const hover =
+      css.match(
+        /#commitDetailsResizeHandle:hover,\s*#commitDetailsResizeHandle:focus-visible \{[^}]+\}/
+      )?.[0] ?? "";
+
+    expect(hover).toContain("color-mix");
+    expect(hover).toContain("var(--git-graph-color");
+    expect(css).toContain(
+      "background-color: var(--git-graph-color, var(--vscode-focusBorder, var(--ngg-neutral-border-heavy)));"
+    );
+  });
+
   it("tints selected commit rows with their own graph dot color", () => {
     const selectedRow = css.match(
       /#commitTable tr\.commit\.commitDetailsOpen td \{[^}]+color-mix\([^}]+\}/
