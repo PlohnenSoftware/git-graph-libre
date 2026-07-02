@@ -390,6 +390,264 @@ describe("webview rendering", () => {
     expect(settingsWidget?.hidden).toBe(true);
   });
 
+  it("renders repository settings as a popup and wires hidden remote reloads", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const loadRepoInfoRequest = latestLoadRepoInfoRequest();
+    receive({
+      command: "loadRepoInfo",
+      requestId: loadRepoInfoRequest.requestId,
+      repoInfo: repoInfoWithRemote,
+      error: null
+    });
+
+    const settingsBtn = document.getElementById("settingsBtn") as HTMLButtonElement | null;
+    settingsBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const settingsWidget = document.getElementById("settingsWidget") as HTMLElement | null;
+    expect(settingsWidget).not.toBeNull();
+    if (settingsWidget === null) return;
+    expect(settingsWidget.hidden).toBe(false);
+    expect(settingsWidget.getAttribute("role")).toBe("dialog");
+    expect(document.activeElement).toBe(settingsWidget);
+    expect(settingsWidget.textContent).toContain("Remote Configuration");
+    expect(settingsWidget.textContent).toContain("origin");
+    expect(settingsWidget.textContent).toContain("https://example.test/repo.git");
+
+    const hideRemote = settingsWidget.querySelector<HTMLButtonElement>(
+      ".settingsToggleRemoteVisibility"
+    );
+    expect(hideRemote).not.toBeNull();
+    hideRemote?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(latestSaveRepoStateRequest()).toMatchObject({
+      repo: REPO,
+      state: { hiddenRemotes: ["origin"] }
+    });
+    const loadBranchesRequest = latestLoadBranchesRequest();
+    expect(loadBranchesRequest.hiddenRemotes).toEqual(["origin"]);
+    receive({
+      command: "loadBranches",
+      requestId: loadBranchesRequest.requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    expect(latestLoadCommitsRequest().hiddenRemotes).toEqual(["origin"]);
+    receive({
+      command: "loadCommits",
+      requestId: latestLoadCommitsRequest().requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+
+    const showRemote = settingsWidget.querySelector<HTMLButtonElement>(
+      ".settingsToggleRemoteVisibility"
+    );
+    showRemote?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(latestSaveRepoStateRequest().state.hiddenRemotes).toBeUndefined();
+    const restoreBranchesRequest = latestLoadBranchesRequest();
+    expect(restoreBranchesRequest.hiddenRemotes).toEqual([]);
+    receive({
+      command: "loadBranches",
+      requestId: restoreBranchesRequest.requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    receive({
+      command: "loadCommits",
+      requestId: latestLoadCommitsRequest().requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+
+    settingsBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const resetRepoInfoRequest = latestLoadRepoInfoRequest();
+    receive({
+      command: "loadRepoInfo",
+      requestId: resetRepoInfoRequest.requestId,
+      repoInfo: repoInfoWithoutRemotes,
+      error: null
+    });
+    const resetBranchesRequest = latestLoadBranchesRequest();
+    receive({
+      command: "loadBranches",
+      requestId: resetBranchesRequest.requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    receive({
+      command: "loadCommits",
+      requestId: latestLoadCommitsRequest().requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+  });
+
+  it("sends remote action messages from the settings popup", () => {
+    function finishAction(command: GG.ResponseMessage["command"], repoInfo = repoInfoWithRemote) {
+      receive({ command, status: null } as unknown as GG.ResponseMessage);
+      const repoInfoRequest = latestLoadRepoInfoRequest();
+      receive({
+        command: "loadRepoInfo",
+        requestId: repoInfoRequest.requestId,
+        repoInfo,
+        error: null
+      });
+      const branchesRequest = latestLoadBranchesRequest();
+      receive({
+        command: "loadBranches",
+        requestId: branchesRequest.requestId,
+        branches: ["main"],
+        head: "main",
+        hard: true,
+        isRepo: true,
+        error: null
+      });
+      receive({
+        command: "loadCommits",
+        requestId: latestLoadCommitsRequest().requestId,
+        commits: twoCommits,
+        head: "abc123",
+        moreCommitsAvailable: true,
+        hard: true,
+        error: null
+      });
+    }
+
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const loadRepoInfoRequest = latestLoadRepoInfoRequest();
+    receive({
+      command: "loadRepoInfo",
+      requestId: loadRepoInfoRequest.requestId,
+      repoInfo: repoInfoWithRemote,
+      error: null
+    });
+
+    const settingsBtn = document.getElementById("settingsBtn") as HTMLButtonElement | null;
+    settingsBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const settingsWidget = document.getElementById("settingsWidget") as HTMLElement | null;
+    expect(settingsWidget).not.toBeNull();
+    if (settingsWidget === null) return;
+
+    document
+      .getElementById("settingsAddRemote")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const remoteName = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    const fetchUrl = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    const pushUrl = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    const fetchAfterAdd = document.getElementById("dialogInput3") as HTMLInputElement | null;
+    expect(remoteName).not.toBeNull();
+    expect(fetchUrl).not.toBeNull();
+    expect(pushUrl).not.toBeNull();
+    expect(fetchAfterAdd).not.toBeNull();
+    if (remoteName === null || fetchUrl === null || pushUrl === null || fetchAfterAdd === null) {
+      return;
+    }
+    remoteName.value = "upstream";
+    remoteName.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+    fetchUrl.value = "https://example.test/upstream.git";
+    pushUrl.value = "ssh://example.test/upstream.git";
+    fetchAfterAdd.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "addRemote",
+      repo: REPO,
+      name: "upstream",
+      fetchUrl: "https://example.test/upstream.git",
+      pushUrl: "ssh://example.test/upstream.git",
+      fetch: true
+    });
+    finishAction("addRemote");
+
+    settingsWidget
+      .querySelector<HTMLButtonElement>(".settingsEditRemote")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const editName = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    const editFetchUrl = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    const editPushUrl = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    expect(editName).not.toBeNull();
+    expect(editFetchUrl).not.toBeNull();
+    expect(editPushUrl).not.toBeNull();
+    if (editName === null || editFetchUrl === null || editPushUrl === null) return;
+    editName.value = "upstream";
+    editName.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+    editFetchUrl.value = "https://example.test/upstream.git";
+    editPushUrl.value = "";
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "editRemote",
+      repo: REPO,
+      oldName: "origin",
+      name: "upstream",
+      fetchUrl: "https://example.test/upstream.git",
+      pushUrl: null
+    });
+    finishAction("editRemote");
+
+    settingsWidget
+      .querySelector<HTMLButtonElement>(".settingsFetchRemote")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const prune = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    expect(prune).not.toBeNull();
+    if (prune !== null) prune.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "fetchRemotes",
+      repo: REPO,
+      remote: "origin",
+      prune: true,
+      pruneTags: false
+    });
+    finishAction("fetchRemotes");
+
+    settingsWidget
+      .querySelector<HTMLButtonElement>(".settingsPruneRemote")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "pruneRemote",
+      repo: REPO,
+      name: "origin"
+    });
+    finishAction("pruneRemote");
+
+    settingsWidget
+      .querySelector<HTMLButtonElement>(".settingsDeleteRemote")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "deleteRemote",
+      repo: REPO,
+      name: "origin"
+    });
+    finishAction("deleteRemote", repoInfoWithoutRemotes);
+    settingsBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+
   it("shows fetch for repos with remotes and sends the selected prune options", () => {
     const fetchBtn = document.getElementById("fetchBtn") as HTMLButtonElement | null;
     expect(fetchBtn).not.toBeNull();

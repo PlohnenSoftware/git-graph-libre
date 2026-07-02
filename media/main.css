@@ -844,16 +844,28 @@ body.commitDetailsResizing * {
 
 /* Repository Settings */
 #settingsWidget {
+  position: fixed;
+  top: 48px;
+  left: 50%;
+  z-index: 8;
   box-sizing: border-box;
-  width: 100%;
-  padding: 10px 12px 12px;
-  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-strong));
-  background-color: var(--vscode-sideBar-background, var(--ngg-neutral-overlay-subtle));
+  width: min(1120px, calc(100vw - 24px));
+  max-height: calc(100vh - 72px);
+  overflow: auto;
+  padding: 12px 14px 14px;
+  transform: translateX(-50%);
+  border: 1px solid var(--vscode-editorWidget-border, var(--ngg-neutral-border-strong));
+  border-radius: 8px;
+  background-color: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
   color: var(--vscode-editor-foreground);
+  box-shadow: 0 8px 24px var(--vscode-widget-shadow);
   font-size: 13px;
 }
 #settingsWidget[hidden] {
   display: none;
+}
+#settingsWidget:focus {
+  outline: none;
 }
 .settingsWidgetHeader {
   display: flex;
@@ -932,6 +944,41 @@ body.commitDetailsResizing * {
   grid-column: 2;
   min-height: 34px;
 }
+.settingsRowFull {
+  grid-column: 2;
+  min-height: 32px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+.settingsRemoteRow {
+  display: grid;
+  grid-column: 2;
+  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+  gap: 6px 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.settingsRemoteSummary,
+.settingsRemoteUrls {
+  min-width: 0;
+}
+.settingsRemoteSummary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.settingsRemoteUrls {
+  display: grid;
+  grid-template-columns: minmax(70px, 110px) minmax(0, 1fr);
+  gap: 4px 10px;
+}
+.settingsRemoteUrls > span:nth-child(2n + 1) {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+.settingsRemoteRow .settingsActions {
+  grid-column: 2;
+  min-height: 0;
+}
 .settingsTextButton {
   height: 24px;
   padding: 0 8px;
@@ -955,11 +1002,16 @@ body.commitDetailsResizing * {
 
 @media (max-width: 720px) {
   .settingsSection,
-  .settingsRow {
+  .settingsRow,
+  .settingsRemoteRow,
+  .settingsRemoteUrls {
     grid-template-columns: 1fr;
   }
   .settingsSection h3,
-  .settingsActions {
+  .settingsActions,
+  .settingsRemoteRow,
+  .settingsRemoteRow .settingsActions,
+  .settingsRowFull {
     grid-column: 1;
   }
   .settingsRow {

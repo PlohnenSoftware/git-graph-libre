@@ -53,7 +53,12 @@ type QueryPayloads = {
     response: CommitDetailsResult;
   };
   loadBranches: {
-    request: { requestId: number; showRemoteBranches: boolean; hard: boolean };
+    request: {
+      requestId: number;
+      showRemoteBranches: boolean;
+      hiddenRemotes?: string[];
+      hard: boolean;
+    };
     result: LoadBranchesResult;
     response: { requestId: number } & LoadBranchesResult;
   };
@@ -64,6 +69,7 @@ type QueryPayloads = {
       branchName: string;
       maxCommits: number;
       showRemoteBranches: boolean;
+      hiddenRemotes?: string[];
       showTags: boolean;
       includeReflog: boolean;
       onlyFollowFirstParent: boolean;
@@ -85,6 +91,7 @@ type QueryPayloads = {
       query: string;
       maxResults: number;
       showRemoteBranches: boolean;
+      hiddenRemotes?: string[];
       showTags: boolean;
     };
     result: SearchCommitsResult;

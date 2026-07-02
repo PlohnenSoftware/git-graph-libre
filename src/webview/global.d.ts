@@ -1,4 +1,4 @@
-import type { GitCommitDetails, GitCommitNode, GitStash } from "@/backend/types";
+import type { GitCommitDetails, GitCommitNode, GitRemote, GitStash } from "@/backend/types";
 import * as GG from "@/types";
 
 declare global {
@@ -129,6 +129,7 @@ declare global {
     gitRepos: GG.GitRepoSet;
     gitBranches: string[];
     gitBranchHead: string | null;
+    gitRemotes?: GitRemote[];
     gitStashes?: GitStash[];
     settingsWidgetOpen?: boolean;
     commits: GitCommitNode[];

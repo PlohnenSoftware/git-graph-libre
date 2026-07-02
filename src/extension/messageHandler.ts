@@ -22,7 +22,13 @@ import {
 } from "@/backend/actions/commit";
 import { mergeBranch, mergeCommit } from "@/backend/actions/merge";
 import { rebaseCurrentBranch } from "@/backend/actions/rebase";
-import { fetchRemotes } from "@/backend/actions/remote";
+import {
+  addRemote,
+  deleteRemote,
+  editRemote,
+  fetchRemotes,
+  pruneRemote
+} from "@/backend/actions/remote";
 import {
   applyStash,
   branchFromStash,
@@ -186,6 +192,7 @@ export function registerMessageHandlers(
 
   // --- Action handlers ---
 
+  registerAction("addRemote", (msg) => addRemote(gitClient.getInstance(), msg, recordGitCommand));
   registerAction("addTag", (msg) => addTag(gitClient.getInstance(), msg));
   registerAction("deleteTag", (msg) => deleteTag(gitClient.getInstance(), msg));
   registerAction("pushTag", (msg) => pushTag(gitClient.getInstance(), msg));
@@ -196,13 +203,20 @@ export function registerMessageHandlers(
   registerAction("deleteBranch", (msg) =>
     deleteBranch(gitClient.getInstance(), msg, recordGitCommand)
   );
+  registerAction("deleteRemote", (msg) =>
+    deleteRemote(gitClient.getInstance(), msg, recordGitCommand)
+  );
   registerAction("deleteRemoteBranch", (msg) =>
     deleteRemoteBranch(gitClient.getInstance(), msg, recordGitCommand)
   );
+  registerAction("editRemote", (msg) => editRemote(gitClient.getInstance(), msg, recordGitCommand));
   registerAction("fetchIntoLocalBranch", (msg) =>
     fetchIntoLocalBranch(gitClient.getInstance(), msg, recordGitCommand)
   );
   registerAction("pullBranch", (msg) => pullBranch(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("pruneRemote", (msg) =>
+    pruneRemote(gitClient.getInstance(), msg, recordGitCommand)
+  );
   registerAction("pushBranch", (msg) => pushBranch(gitClient.getInstance(), msg, recordGitCommand));
   registerAction("updateBranchFromUpstream", (msg) =>
     updateBranchFromUpstream(gitClient.getInstance(), msg, recordGitCommand)
@@ -271,6 +285,7 @@ export function registerMessageHandlers(
         branchName: msg.branchName,
         maxCommits: msg.maxCommits,
         showRemoteBranches: msg.showRemoteBranches,
+        hiddenRemotes: msg.hiddenRemotes,
         showTags: msg.showTags,
         includeReflog: msg.includeReflog,
         onlyFollowFirstParent: msg.onlyFollowFirstParent,
@@ -290,6 +305,7 @@ export function registerMessageHandlers(
       requestId: msg.requestId,
       ...(await loadBranches(gitClient.getInstance(), {
         showRemoteBranches: msg.showRemoteBranches,
+        hiddenRemotes: msg.hiddenRemotes,
         hard: msg.hard,
         currentRepo: currentRepo ?? "",
         gitPath: config.gitPath(),
@@ -318,6 +334,7 @@ export function registerMessageHandlers(
         query: msg.query,
         maxResults: msg.maxResults,
         showRemoteBranches: msg.showRemoteBranches,
+        hiddenRemotes: msg.hiddenRemotes,
         showTags: msg.showTags,
         dateType: config.dateType(),
         repo: msg.repo,

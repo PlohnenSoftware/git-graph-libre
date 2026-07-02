@@ -29,7 +29,7 @@ export function setupHtml(viewState: GG.GitGraphViewState) {
   document.body.innerHTML = `
     ${buildWebviewToolbar(l10nStrings)}
     ${buildWebviewStatusStrip(l10nStrings)}
-    <aside id="settingsWidget" aria-label="${l10nStrings.repositorySettings}" hidden></aside>
+    <aside id="settingsWidget" role="dialog" tabindex="-1" aria-label="${l10nStrings.repositorySettings}" hidden></aside>
     <div id="content">
       <div id="commitGraph"></div>
       <div id="commitTable"></div>

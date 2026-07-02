@@ -3,6 +3,7 @@ import type { SimpleGit } from "simple-git";
 import type { DateType, GitCommitSearchResult, GitLogEntry, QueryResult } from "@/backend/types";
 import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
 import { toGitQueryError } from "@/backend/utils/queryError";
+import { remoteExcludeArgs } from "@/backend/utils/remoteRefs";
 
 const eolRegex = /\r\n|\r|\n/g;
 const gitLogFormatFieldSeparator = "%x00";
@@ -16,6 +17,7 @@ type SearchCommitsInput = {
   query: string;
   maxResults: number;
   showRemoteBranches: boolean;
+  hiddenRemotes?: string[];
   showTags?: boolean;
   dateType: DateType;
   repo?: string | null;
@@ -32,10 +34,14 @@ function normalizeMaxResults(maxResults: number): number {
   return Math.min(Math.floor(maxResults), maxResultsLimit);
 }
 
-function refArgs(showRemoteBranches: boolean, showTags: boolean): string[] {
+function refArgs(
+  showRemoteBranches: boolean,
+  hiddenRemotes: string[] | undefined,
+  showTags: boolean
+): string[] {
   const args = ["--branches"];
   if (showTags) args.push("--tags");
-  if (showRemoteBranches) args.push("--remotes");
+  if (showRemoteBranches) args.push(...remoteExcludeArgs(hiddenRemotes), "--remotes");
   return args;
 }
 
@@ -83,7 +89,7 @@ async function runSearchLog(
       `--format=${logFormat(input.dateType)}`,
       "--date-order",
       ...searchArgs,
-      ...refArgs(input.showRemoteBranches, input.showTags !== false)
+      ...refArgs(input.showRemoteBranches, input.hiddenRemotes, input.showTags !== false)
     ],
     repo: context.repo,
     record: context.record
@@ -122,12 +128,18 @@ async function hashSearch(
 async function loadPositions(
   git: SimpleGit,
   showRemoteBranches: boolean,
+  hiddenRemotes: string[] | undefined,
   showTags: boolean,
   context: GitQueryContext
 ): Promise<Map<string, number>> {
   const stdout = await runGitRaw(git, {
     label: "searchCommits.positions",
-    args: ["log", "--format=%H", "--date-order", ...refArgs(showRemoteBranches, showTags)],
+    args: [
+      "log",
+      "--format=%H",
+      "--date-order",
+      ...refArgs(showRemoteBranches, hiddenRemotes, showTags)
+    ],
     repo: context.repo,
     record: context.record
   });
@@ -184,7 +196,13 @@ export async function searchCommits(
         context
       ),
       hashSearch(git, query, input, context),
-      loadPositions(git, input.showRemoteBranches, input.showTags !== false, context)
+      loadPositions(
+        git,
+        input.showRemoteBranches,
+        input.hiddenRemotes,
+        input.showTags !== false,
+        context
+      )
     ]);
 
     return {

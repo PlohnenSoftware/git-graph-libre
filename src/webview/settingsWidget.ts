@@ -1,4 +1,4 @@
-import type { GitRepoConfig } from "@/backend/types";
+import type { GitRemote, GitRepoConfig } from "@/backend/types";
 import type { GitRepoState, RepoBooleanOverride } from "@/types";
 
 import { escapeHtml } from "./utils/html";
@@ -35,12 +35,26 @@ type SettingsLabels = {
   addUserDetails: string;
   editUserDetails: string;
   removeUserDetails: string;
+  remoteConfiguration: string;
+  remoteFetchUrl: string;
+  remotePushUrl: string;
+  remoteHidden: string;
+  remoteVisible: string;
+  addRemote: string;
+  editRemote: string;
+  deleteRemote: string;
+  fetchRemote: string;
+  pruneRemote: string;
+  hideRemote: string;
+  showRemote: string;
+  noRemotes: string;
 };
 
 export type SettingsWidgetModel = {
   repo: string;
   repoState: GitRepoState;
   config: GitRepoConfig;
+  remotes: GitRemote[];
   defaults: Record<RepoBooleanSettingKey, boolean>;
   labels: SettingsLabels;
 };
@@ -133,6 +147,50 @@ function hasUserDetails(config: GitRepoConfig) {
   );
 }
 
+function firstRemoteUrl(urls: string[]) {
+  return urls[0] ?? "";
+}
+
+function renderRemoteUrl(value: string, labels: SettingsLabels) {
+  const text = value === "" ? labels.notSet : value;
+  return `<span class="settingsValue" title="${escapeHtml(text)}">${escapeHtml(text)}</span>`;
+}
+
+function isRemoteHidden(remote: GitRemote, repoState: GitRepoState) {
+  return (repoState.hiddenRemotes ?? []).includes(remote.name);
+}
+
+function renderRemoteRows(model: SettingsWidgetModel) {
+  if (model.remotes.length === 0) {
+    return `<div class="settingsRow settingsRowFull">${escapeHtml(model.labels.noRemotes)}</div>`;
+  }
+
+  return model.remotes
+    .map((remote) => {
+      const hidden = isRemoteHidden(remote, model.repoState);
+      return `<div class="settingsRemoteRow" data-remote="${escapeHtml(remote.name)}">
+        <div class="settingsRemoteSummary">
+          <span class="settingsValue" title="${escapeHtml(remote.name)}">${escapeHtml(remote.name)}</span>
+          <span class="settingsScope">${escapeHtml(hidden ? model.labels.remoteHidden : model.labels.remoteVisible)}</span>
+        </div>
+        <div class="settingsRemoteUrls">
+          <span>${escapeHtml(model.labels.remoteFetchUrl)}</span>
+          ${renderRemoteUrl(firstRemoteUrl(remote.fetchUrls), model.labels)}
+          <span>${escapeHtml(model.labels.remotePushUrl)}</span>
+          ${renderRemoteUrl(firstRemoteUrl(remote.pushUrls), model.labels)}
+        </div>
+        <div class="settingsActions">
+          <button class="settingsTextButton settingsToggleRemoteVisibility" type="button" data-remote="${escapeHtml(remote.name)}">${escapeHtml(hidden ? model.labels.showRemote : model.labels.hideRemote)}</button>
+          <button class="settingsTextButton settingsFetchRemote" type="button" data-remote="${escapeHtml(remote.name)}">${escapeHtml(model.labels.fetchRemote)}</button>
+          <button class="settingsTextButton settingsPruneRemote" type="button" data-remote="${escapeHtml(remote.name)}">${escapeHtml(model.labels.pruneRemote)}</button>
+          <button class="settingsTextButton settingsEditRemote" type="button" data-remote="${escapeHtml(remote.name)}">${escapeHtml(model.labels.editRemote)}</button>
+          <button class="settingsTextButton danger settingsDeleteRemote" type="button" data-remote="${escapeHtml(remote.name)}">${escapeHtml(model.labels.deleteRemote)}</button>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
 export function renderSettingsWidget(model: SettingsWidgetModel) {
   const labels = model.labels;
   const repoName = getRepoDisplayName(model.repo, model.repoState);
@@ -173,6 +231,13 @@ export function renderSettingsWidget(model: SettingsWidgetModel) {
             ? `<button id="settingsRemoveUserDetails" class="settingsTextButton danger" type="button">${escapeHtml(labels.removeUserDetails)}</button>`
             : ""
         }
+      </div>
+    </section>
+    <section class="settingsSection">
+      <h3>${escapeHtml(labels.remoteConfiguration)}</h3>
+      ${renderRemoteRows(model)}
+      <div class="settingsActions">
+        <button id="settingsAddRemote" class="settingsTextButton" type="button">${escapeHtml(labels.addRemote)}</button>
       </div>
     </section>`;
 }

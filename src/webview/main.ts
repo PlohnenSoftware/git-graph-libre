@@ -278,6 +278,7 @@ class GitGraphView {
           this.expandedCommit.filesOpen = this.expandedCommit.filesOpen !== false;
         }
         this.avatars = prevState.avatars;
+        this.gitRemotes = prevState.gitRemotes ?? [];
         this.gitStashes = prevState.gitStashes ?? [];
         this.syncRepoSettingsControls();
         this.loadBranches(null, prevState.gitBranches, prevState.gitBranchHead, true, true);
@@ -600,6 +601,7 @@ class GitGraphView {
       command: "loadBranches",
       requestId,
       showRemoteBranches: this.getShowRemoteBranches(),
+      hiddenRemotes: this.getHiddenRemotes(),
       hard: hard
     });
   }
@@ -614,6 +616,7 @@ class GitGraphView {
       branchName: this.currentBranch !== null ? this.currentBranch : "",
       maxCommits: this.maxCommits,
       showRemoteBranches: this.getShowRemoteBranches(),
+      hiddenRemotes: this.getHiddenRemotes(),
       showTags: this.getShowTags(),
       includeReflog: this.getIncludeReflog(),
       onlyFollowFirstParent: this.getOnlyFollowFirstParent(),
@@ -771,6 +774,7 @@ class GitGraphView {
       query,
       maxResults: searchHistoryMaxResults,
       showRemoteBranches: this.getShowRemoteBranches(),
+      hiddenRemotes: this.getHiddenRemotes(),
       showTags: this.getShowTags()
     });
   }
@@ -960,6 +964,7 @@ class GitGraphView {
       gitRepos: this.gitRepos,
       gitBranches: this.gitBranches,
       gitBranchHead: this.gitBranchHead,
+      gitRemotes: this.gitRemotes,
       gitStashes: this.gitStashes,
       commits: this.commits,
       commitHead: this.commitHead,
@@ -977,6 +982,13 @@ class GitGraphView {
 
   private getCurrentRepoState(): GG.GitRepoState | null {
     return this.gitRepos[this.currentRepo] ?? null;
+  }
+
+  private getHiddenRemotes() {
+    const hiddenRemotes = this.getCurrentRepoState()?.hiddenRemotes ?? [];
+    return [
+      ...new Set(hiddenRemotes.map((remote) => remote.trim()).filter((remote) => remote !== ""))
+    ];
   }
 
   private getRepoBooleanDefaults(): Record<RepoBooleanSettingKey, boolean> {
@@ -1086,6 +1098,7 @@ class GitGraphView {
       repo: this.currentRepo,
       repoState,
       config: this.gitConfig,
+      remotes: this.gitRemotes,
       defaults: this.getRepoBooleanDefaults(),
       labels: {
         title: l10n.repositorySettings,
@@ -1110,9 +1123,23 @@ class GitGraphView {
         notSet: l10n.settingsNotSet,
         addUserDetails: l10n.settingsAddUserDetails,
         editUserDetails: l10n.settingsEditUserDetails,
-        removeUserDetails: l10n.settingsRemoveUserDetails
+        removeUserDetails: l10n.settingsRemoveUserDetails,
+        remoteConfiguration: l10n.settingsRemoteConfiguration,
+        remoteFetchUrl: l10n.settingsRemoteFetchUrl,
+        remotePushUrl: l10n.settingsRemotePushUrl,
+        remoteHidden: l10n.settingsRemoteHidden,
+        remoteVisible: l10n.settingsRemoteVisible,
+        addRemote: l10n.settingsAddRemote,
+        editRemote: l10n.settingsEditRemote,
+        deleteRemote: l10n.settingsDeleteRemote,
+        fetchRemote: l10n.settingsFetchRemote,
+        pruneRemote: l10n.settingsPruneRemote,
+        hideRemote: l10n.settingsHideRemote,
+        showRemote: l10n.settingsShowRemote,
+        noRemotes: l10n.settingsNoRemotes
       }
     });
+    this.settingsWidgetElem.focus({ preventScroll: true });
     this.bindSettingsWidget();
   }
 
@@ -1129,6 +1156,44 @@ class GitGraphView {
     document.getElementById("settingsRemoveUserDetails")?.addEventListener("click", () => {
       this.showRemoveUserDetailsDialog();
     });
+    document.getElementById("settingsAddRemote")?.addEventListener("click", () => {
+      this.showAddRemoteDialog();
+    });
+    this.settingsWidgetElem
+      .querySelectorAll<HTMLButtonElement>(".settingsToggleRemoteVisibility")
+      .forEach((button) => {
+        button.addEventListener("click", () => {
+          this.toggleRemoteVisibility(button.dataset.remote);
+        });
+      });
+    this.settingsWidgetElem
+      .querySelectorAll<HTMLButtonElement>(".settingsFetchRemote")
+      .forEach((button) => {
+        button.addEventListener("click", () => {
+          this.showFetchRemoteDialog(button.dataset.remote, button);
+        });
+      });
+    this.settingsWidgetElem
+      .querySelectorAll<HTMLButtonElement>(".settingsPruneRemote")
+      .forEach((button) => {
+        button.addEventListener("click", () => {
+          this.showPruneRemoteDialog(button.dataset.remote, button);
+        });
+      });
+    this.settingsWidgetElem
+      .querySelectorAll<HTMLButtonElement>(".settingsEditRemote")
+      .forEach((button) => {
+        button.addEventListener("click", () => {
+          this.showEditRemoteDialog(button.dataset.remote, button);
+        });
+      });
+    this.settingsWidgetElem
+      .querySelectorAll<HTMLButtonElement>(".settingsDeleteRemote")
+      .forEach((button) => {
+        button.addEventListener("click", () => {
+          this.showDeleteRemoteDialog(button.dataset.remote, button);
+        });
+      });
     this.settingsWidgetElem
       .querySelectorAll<HTMLSelectElement>(".settingsOverrideSelect")
       .forEach((select) => {
@@ -1264,6 +1329,193 @@ class GitGraphView {
         showActionRunningDialog(l10n.statusRemovingUserDetails);
       },
       this.settingsWidgetElem
+    );
+  }
+
+  private getRemoteByName(remoteName: string | undefined) {
+    if (remoteName === undefined) return null;
+    return this.gitRemotes.find((remote) => remote.name === remoteName) ?? null;
+  }
+
+  private firstRemoteUrl(urls: string[]) {
+    return urls[0] ?? "";
+  }
+
+  private toggleRemoteVisibility(remoteName: string | undefined) {
+    const remote = this.getRemoteByName(remoteName);
+    const repoState = this.getCurrentRepoState();
+    if (remote === null || repoState === null) return;
+
+    const hiddenRemotes = new Set(this.getHiddenRemotes());
+    if (hiddenRemotes.has(remote.name)) {
+      hiddenRemotes.delete(remote.name);
+    } else {
+      hiddenRemotes.add(remote.name);
+    }
+
+    const nextHiddenRemotes = [...hiddenRemotes];
+    if (nextHiddenRemotes.length === 0) {
+      delete repoState.hiddenRemotes;
+    } else {
+      repoState.hiddenRemotes = nextHiddenRemotes;
+    }
+
+    this.maxCommits = this.config.initialLoadCommits;
+    this.expandedCommit = null;
+    this.saveCurrentRepoState(repoState);
+    this.renderSettingsWidget();
+    this.renderShowLoading();
+    this.requestLoadBranchesAndCommits(true);
+  }
+
+  private showAddRemoteDialog() {
+    showFormDialog(
+      l10n.dialogAddRemoteTitle,
+      [
+        { type: "text-ref", name: l10n.dialogRemoteName, default: "" },
+        {
+          type: "text",
+          name: l10n.dialogRemoteFetchUrl,
+          default: "",
+          placeholder: null
+        },
+        {
+          type: "text",
+          name: l10n.dialogRemotePushUrl,
+          default: "",
+          placeholder: l10n.dialogAddTagOptional
+        },
+        { type: "checkbox", name: l10n.dialogAddRemoteFetch, value: false }
+      ],
+      l10n.dialogAddRemoteSubmit,
+      (values) => {
+        const name = values[0].trim();
+        const fetchUrl = values[1].trim();
+        if (name === "" || fetchUrl === "") {
+          showErrorDialog(l10n.dialogRemoteRequired, null, this.settingsWidgetElem);
+          return;
+        }
+        sendMessage({
+          command: "addRemote",
+          repo: this.currentRepo,
+          name,
+          fetchUrl,
+          pushUrl: values[2].trim() || null,
+          fetch: values[3] === "checked"
+        });
+        showActionRunningDialog(l10n.statusAddingRemote);
+      },
+      this.settingsWidgetElem
+    );
+  }
+
+  private showEditRemoteDialog(remoteName: string | undefined, sourceElem: HTMLElement) {
+    const remote = this.getRemoteByName(remoteName);
+    if (remote === null) return;
+
+    showFormDialog(
+      l10n.dialogEditRemoteTitle.replace("{0}", remote.name),
+      [
+        { type: "text-ref", name: l10n.dialogRemoteName, default: remote.name },
+        {
+          type: "text",
+          name: l10n.dialogRemoteFetchUrl,
+          default: this.firstRemoteUrl(remote.fetchUrls),
+          placeholder: null
+        },
+        {
+          type: "text",
+          name: l10n.dialogRemotePushUrl,
+          default: this.firstRemoteUrl(remote.pushUrls),
+          placeholder: l10n.dialogAddTagOptional
+        }
+      ],
+      l10n.dialogEditRemoteSubmit,
+      (values) => {
+        const name = values[0].trim();
+        const fetchUrl = values[1].trim();
+        if (name === "" || fetchUrl === "") {
+          showErrorDialog(l10n.dialogRemoteRequired, null, sourceElem);
+          return;
+        }
+        sendMessage({
+          command: "editRemote",
+          repo: this.currentRepo,
+          oldName: remote.name,
+          name,
+          fetchUrl,
+          pushUrl: values[2].trim() || null
+        });
+        showActionRunningDialog(l10n.statusEditingRemote);
+      },
+      sourceElem
+    );
+  }
+
+  private showDeleteRemoteDialog(remoteName: string | undefined, sourceElem: HTMLElement) {
+    const remote = this.getRemoteByName(remoteName);
+    if (remote === null) return;
+
+    showConfirmationDialog(
+      l10n.dialogDeleteRemoteConfirm.replace("{0}", remote.name),
+      () => {
+        sendMessage({
+          command: "deleteRemote",
+          repo: this.currentRepo,
+          name: remote.name
+        });
+        showActionRunningDialog(l10n.statusDeletingRemote);
+      },
+      sourceElem
+    );
+  }
+
+  private showPruneRemoteDialog(remoteName: string | undefined, sourceElem: HTMLElement) {
+    const remote = this.getRemoteByName(remoteName);
+    if (remote === null) return;
+
+    showConfirmationDialog(
+      l10n.dialogPruneRemoteConfirm.replace("{0}", remote.name),
+      () => {
+        sendMessage({
+          command: "pruneRemote",
+          repo: this.currentRepo,
+          name: remote.name
+        });
+        showActionRunningDialog(l10n.statusPruningRemote);
+      },
+      sourceElem
+    );
+  }
+
+  private showFetchRemoteDialog(remoteName: string | undefined, sourceElem: HTMLElement) {
+    const remote = this.getRemoteByName(remoteName);
+    if (remote === null) return;
+
+    showFormDialog(
+      l10n.dialogFetchRemoteConfirm.replace("{0}", remote.name),
+      [
+        { type: "checkbox" as const, name: l10n.dialogFetchPrune, value: false },
+        { type: "checkbox" as const, name: l10n.dialogFetchPruneTags, value: false }
+      ],
+      l10n.dialogFetchSubmit,
+      (values) => {
+        const prune = values[0] === "checked";
+        const pruneTags = values[1] === "checked";
+        if (pruneTags && !prune) {
+          showErrorDialog(l10n.dialogFetchPruneTagsRequiresPrune, null, sourceElem);
+          return;
+        }
+        sendMessage({
+          command: "fetchRemotes",
+          repo: this.currentRepo,
+          remote: remote.name,
+          prune,
+          pruneTags
+        });
+        showActionRunningDialog(l10n.statusFetchingRemotes);
+      },
+      sourceElem
     );
   }
 
@@ -3136,6 +3388,7 @@ const gitGraph = new GitGraphView(
 );
 
 const actionErrorLabels = {
+  addRemote: l10n.unableToAddRemote,
   addTag: l10n.unableToAddTag,
   applyStash: l10n.unableToApplyStash,
   branchFromStash: l10n.unableToBranchFromStash,
@@ -3145,12 +3398,14 @@ const actionErrorLabels = {
   cleanUntrackedFiles: l10n.unableToCleanUntracked,
   createBranch: l10n.unableToCreateBranch,
   deleteBranch: l10n.unableToDeleteBranch,
+  deleteRemote: l10n.unableToDeleteRemote,
   deleteRemoteBranch: l10n.unableToDeleteRemoteBranch,
   deleteTag: l10n.unableToDeleteTag,
   deleteUserDetails: l10n.unableToDeleteUserDetails,
   dropCommit: l10n.unableToDropCommit,
   dropStash: l10n.unableToDropStash,
   editHeadCommitMessage: l10n.unableToEditMessage,
+  editRemote: l10n.unableToEditRemote,
   editUserDetails: l10n.unableToEditUserDetails,
   fetchIntoLocalBranch: l10n.unableToFetchBranch,
   fetchRemotes: l10n.unableToFetch,
@@ -3158,6 +3413,7 @@ const actionErrorLabels = {
   mergeCommit: l10n.unableToMergeCommit,
   popStash: l10n.unableToPopStash,
   pullBranch: l10n.unableToPullBranch,
+  pruneRemote: l10n.unableToPruneRemote,
   pushBranch: l10n.unableToPushBranch,
   pushStash: l10n.unableToPushStash,
   pushTag: l10n.unableToPushTag,

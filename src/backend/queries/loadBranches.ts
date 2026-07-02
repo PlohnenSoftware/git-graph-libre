@@ -4,9 +4,11 @@ import type { GitQueryError, QueryResult } from "@/backend/types";
 import { isGitRepository } from "@/backend/utils/git";
 import { runGitCommand, type GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { toGitQueryError } from "@/backend/utils/queryError";
+import { isHiddenRemoteRef } from "@/backend/utils/remoteRefs";
 
 type LoadBranchesInput = {
   showRemoteBranches: boolean;
+  hiddenRemotes?: string[];
   hard: boolean;
   currentRepo: string;
   gitPath: string;
@@ -17,7 +19,7 @@ export async function loadBranches(
   git: SimpleGit,
   input: LoadBranchesInput
 ): Promise<QueryResult<"loadBranches">> {
-  const { showRemoteBranches, hard, currentRepo, gitPath } = input;
+  const { showRemoteBranches, hiddenRemotes, hard, currentRepo, gitPath } = input;
 
   let branches: string[];
   let head: string | null;
@@ -34,7 +36,12 @@ export async function loadBranches(
       }
     );
     head = summary.detached ? null : summary.current || null;
-    branches = head ? [head, ...summary.all.filter((b) => b !== head)] : [...summary.all];
+    const visibleBranches = summary.all.filter(
+      (branch) => !isHiddenRemoteRef(branch, hiddenRemotes)
+    );
+    branches = head
+      ? [head, ...visibleBranches.filter((branch) => branch !== head)]
+      : visibleBranches;
     failure = null;
   } catch (error: unknown) {
     branches = [];

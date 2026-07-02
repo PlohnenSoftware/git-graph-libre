@@ -123,6 +123,20 @@ describe("loadBranches", () => {
     expect(result.branches.some((b) => b.startsWith("remotes/origin/"))).toBe(true);
   });
 
+  it("hides selected remote-tracking branches when remote branches are shown", async () => {
+    const result = await loadBranches(simpleGit(repoWithRemote), {
+      showRemoteBranches: true,
+      hiddenRemotes: ["origin"],
+      hard: false,
+      currentRepo: repoWithRemote,
+      gitPath: "git"
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.branches.some((b) => b.startsWith("remotes/origin/"))).toBe(false);
+    expect(result.branches).toContain("main");
+  });
+
   it("returns isRepo: false for a non-git directory", async () => {
     const result = await loadBranches(simpleGit(os.tmpdir()), {
       showRemoteBranches: false,

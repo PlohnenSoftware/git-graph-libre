@@ -55,6 +55,31 @@ describe("searchCommits", () => {
     ]);
   });
 
+  it("excludes hidden remotes from search ranges and load positions", async () => {
+    const records: GitCommandRecord[] = [];
+
+    const result = await searchCommits(simpleGit(repo), {
+      query: "archived",
+      maxResults: 10,
+      showRemoteBranches: true,
+      hiddenRemotes: ["origin"],
+      dateType: "Author Date",
+      repo,
+      recordGitCommand: (record) => records.push(record)
+    });
+
+    expect(result.error).toBeNull();
+    const rangedRecords = records.filter((record) =>
+      ["searchCommits.message", "searchCommits.author", "searchCommits.positions"].includes(
+        record.label
+      )
+    );
+    expect(rangedRecords.length).toBeGreaterThan(0);
+    expect(
+      rangedRecords.every((record) => record.args.includes("--exclude=refs/remotes/origin/*"))
+    ).toBe(true);
+  });
+
   it("finds authors and emails without duplicating the same commit", async () => {
     const result = await searchCommits(simpleGit(repo), {
       query: "alice@example.com",

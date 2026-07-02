@@ -219,6 +219,30 @@ describe("loadCommits", () => {
     expect(allRefs.some((r) => r.type === "remote" && r.name === "origin/main")).toBe(true);
   });
 
+  it("excludes selected remote refs and remote log ranges", async () => {
+    const records: GitCommandRecord[] = [];
+
+    const result = await loadCommits(simpleGit(repoWithRemote), {
+      branchName: "",
+      maxCommits: 300,
+      showRemoteBranches: true,
+      hiddenRemotes: ["origin"],
+      hard: false,
+      dateType: "Author Date",
+      showUncommittedChanges: false,
+      repo: repoWithRemote,
+      recordGitCommand: (record) => records.push(record)
+    });
+
+    expect(result.error).toBeNull();
+    const allRefs = result.commits.flatMap((c) => c.refs);
+    expect(allRefs.some((r) => r.type === "remote" && r.name.startsWith("origin/"))).toBe(false);
+    const logRecord = records.find((record) => record.label === "loadCommits.log");
+    expect(logRecord?.args).toEqual(
+      expect.arrayContaining(["--exclude=refs/remotes/origin/*", "--remotes"])
+    );
+  });
+
   it("attaches annotated tags to their peeled commit", async () => {
     const taggedRepo = makeRepo();
     try {

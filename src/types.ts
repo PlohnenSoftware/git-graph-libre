@@ -13,6 +13,7 @@ export type GitRepoState = {
   columnWidths: number[] | null;
   commitOrdering?: CommitOrdering;
   displayName?: string | null;
+  hiddenRemotes?: string[];
   includeReflog?: RepoBooleanOverride;
   onlyFollowFirstParent?: RepoBooleanOverride;
   showRemoteBranches?: RepoBooleanOverride;

@@ -74,6 +74,7 @@ export function buildWebviewHtml(opts: {
     body = `<body style="${styleVars}">
 		${buildWebviewToolbar(l10nStrings)}
 		${buildWebviewStatusStrip(l10nStrings)}
+		<aside id="settingsWidget" role="dialog" tabindex="-1" aria-label="${l10nStrings.repositorySettings}" hidden></aside>
 		<div id="content">
 			<div id="commitGraph"></div>
 			<div id="commitTable"></div>
@@ -82,7 +83,6 @@ export function buildWebviewHtml(opts: {
 		<ul id="contextMenu"></ul>
 			<div id="dialogBacking"></div>
 			<div id="dialog"></div>
-			<aside id="settingsWidget" aria-label="${l10nStrings.repositorySettings}" hidden></aside>
 			<div id="scrollShadow"></div>
 		<script nonce="${nonce}">const viewState = ${escapeJsonForHtml(viewState)};</script>
 		<script nonce="${nonce}">const l10n = ${escapeJsonForHtml(l10nStrings)};</script>

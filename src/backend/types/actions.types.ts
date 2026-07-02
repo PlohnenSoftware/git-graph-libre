@@ -7,6 +7,7 @@ export const GIT_CONFIG_SCOPES = ["local", "global"] as const;
 export type GitConfigScope = (typeof GIT_CONFIG_SCOPES)[number];
 
 type ActionPayloads = {
+  addRemote: { name: string; fetchUrl: string; pushUrl: string | null; fetch: boolean };
   addTag: { tagName: string; commitHash: string; lightweight: boolean; message: string };
   applyStash: { selector: string; reinstateIndex: boolean };
   branchFromStash: { selector: string; branchName: string };
@@ -16,6 +17,7 @@ type ActionPayloads = {
   cleanUntrackedFiles: { includeDirectories: boolean };
   createBranch: { commitHash: string; branchName: string };
   deleteBranch: { branchName: string; forceDelete: boolean; deleteOnRemotes?: string[] };
+  deleteRemote: { name: string };
   deleteRemoteBranch: { branchName: string; remote: string };
   deleteTag: { tagName: string };
   deleteUserDetails: {
@@ -30,9 +32,10 @@ type ActionPayloads = {
     localBranch: string;
     force: boolean;
   };
-  fetchRemotes: { prune: boolean; pruneTags: boolean };
+  fetchRemotes: { remote?: string | null; prune: boolean; pruneTags: boolean };
   dropCommit: { commitHash: string };
   editHeadCommitMessage: { commitHash: string; message: string };
+  editRemote: { oldName: string; name: string; fetchUrl: string; pushUrl: string | null };
   editUserDetails: {
     name: string;
     email: string;
@@ -43,6 +46,7 @@ type ActionPayloads = {
   mergeBranch: { branchName: string; createNewCommit: boolean; squash: boolean; noCommit: boolean };
   mergeCommit: { commitHash: string; createNewCommit: boolean; squash: boolean; noCommit: boolean };
   popStash: { selector: string; reinstateIndex: boolean };
+  pruneRemote: { name: string };
   pullBranch: { branchName: string; remote: string; createNewCommit: boolean; squash: boolean };
   pushBranch: {
     branchName: string;

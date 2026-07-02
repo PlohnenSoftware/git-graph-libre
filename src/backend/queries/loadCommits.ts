@@ -11,6 +11,7 @@ import type {
 } from "@/backend/types";
 import { type GitCommandRecorder, runGitCommand, runGitRaw } from "@/backend/utils/gitRunner";
 import { toGitQueryError } from "@/backend/utils/queryError";
+import { isHiddenRemoteRef, remoteExcludeArgs } from "@/backend/utils/remoteRefs";
 
 const eolRegex = /\r\n|\r|\n/g;
 const gitLogFormatFieldSeparator = "%x00";
@@ -24,6 +25,7 @@ type LoadCommitsInput = {
   branchName: string;
   maxCommits: number;
   showRemoteBranches: boolean;
+  hiddenRemotes?: string[];
   showTags?: boolean;
   includeReflog?: boolean;
   onlyFollowFirstParent?: boolean;
@@ -44,6 +46,7 @@ type GitLogOptions = {
   branch: string;
   maxCommits: number;
   showRemoteBranches: boolean;
+  hiddenRemotes?: string[];
   showTags: boolean;
   includeReflog: boolean;
   onlyFollowFirstParent: boolean;
@@ -70,6 +73,7 @@ function parseRefRecord(line: string) {
 async function getRefs(
   git: SimpleGit,
   showRemoteBranches: boolean,
+  hiddenRemotes: string[] | undefined,
   showTags: boolean,
   context: GitQueryContext
 ): Promise<QueryValue<GitRefData>> {
@@ -112,6 +116,7 @@ async function getRefs(
           type: "tag"
         });
       } else if (refName.startsWith("refs/remotes/")) {
+        if (isHiddenRemoteRef(refName, hiddenRemotes)) continue;
         refData.refs.push({ hash: objectHash, name: refName.substring(13), type: "remote" });
       }
     }
@@ -130,6 +135,7 @@ async function getLog(
     branch,
     maxCommits,
     showRemoteBranches,
+    hiddenRemotes,
     showTags,
     includeReflog,
     onlyFollowFirstParent,
@@ -154,7 +160,7 @@ async function getLog(
     args.push("--branches");
     if (showTags) args.push("--tags");
     if (includeReflog) args.push("--reflog");
-    if (showRemoteBranches) args.push("--remotes");
+    if (showRemoteBranches) args.push(...remoteExcludeArgs(hiddenRemotes), "--remotes");
   }
   try {
     const stdout = await runGitRaw(git, {
@@ -256,6 +262,7 @@ export async function loadCommits(
 ): Promise<QueryResult<"loadCommits">> {
   const { branchName, maxCommits, showRemoteBranches, hard, dateType, showUncommittedChanges } =
     input;
+  const hiddenRemotes = input.hiddenRemotes;
   const showTags = input.showTags !== false;
   const includeReflog = input.includeReflog === true;
   const onlyFollowFirstParent = input.onlyFollowFirstParent === true;
@@ -267,6 +274,7 @@ export async function loadCommits(
       branch: branchName,
       maxCommits: maxCommits + 1,
       showRemoteBranches,
+      hiddenRemotes,
       showTags,
       includeReflog,
       onlyFollowFirstParent,
@@ -274,7 +282,7 @@ export async function loadCommits(
       commitOrdering,
       context
     }),
-    getRefs(git, showRemoteBranches, showTags, context)
+    getRefs(git, showRemoteBranches, hiddenRemotes, showTags, context)
   ]);
   const rawCommits = logResult.value;
   const refData = refsResult.value;
