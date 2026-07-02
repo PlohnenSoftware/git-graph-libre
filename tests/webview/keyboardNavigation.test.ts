@@ -1,0 +1,239 @@
+import { beforeAll, describe, expect, it, vi } from "vitest";
+
+import type { GitCommitDetails, GitCommitNode } from "@/backend/types";
+import type * as GG from "@/types";
+
+import { createVscodeMock, receive, setupHtml } from "./setup";
+
+const REPO = "/workspace/keyboard-repo";
+type LoadBranchesRequest = Extract<GG.RequestMessage, { command: "loadBranches" }>;
+type LoadCommitsRequest = Extract<GG.RequestMessage, { command: "loadCommits" }>;
+type CommitDetailsRequest = Extract<GG.RequestMessage, { command: "commitDetails" }>;
+
+const viewState: GG.GitGraphViewState = {
+  autoCenterCommitDetailsView: true,
+  dateFormat: "Date & Time",
+  fetchAvatars: false,
+  graphColours: ["oklch(65% 0.16 250)"],
+  commitDetailsCompactFolders: false,
+  commitDetailsFileViewMode: "tree",
+  graphFontSize: 13,
+  graphRowHeight: 24,
+  graphStyle: "rounded",
+  initialLoadCommits: 300,
+  lastActiveRepo: null,
+  loadMoreCommits: 75,
+  repos: { [REPO]: { columnWidths: null } },
+  showCurrentBranchByDefault: false,
+  shortHashLength: 8
+};
+
+const loadedCommits: GitCommitNode[] = [
+  {
+    hash: "*",
+    parentHashes: ["headhash1"],
+    author: "*",
+    email: "",
+    date: 1700000300,
+    message: "Uncommitted changes (1)",
+    refs: []
+  },
+  {
+    hash: "headhash1",
+    parentHashes: ["olderhash2"],
+    author: "Alice",
+    email: "alice@example.com",
+    date: 1700000200,
+    message: "Newest commit",
+    refs: [{ hash: "headhash1", name: "main", type: "head" }]
+  },
+  {
+    hash: "olderhash2",
+    parentHashes: [],
+    author: "Bob",
+    email: "bob@example.com",
+    date: 1700000100,
+    message: "Older commit",
+    refs: []
+  }
+];
+
+function commitDetailsFor(hash: string, parents: string[]): GitCommitDetails {
+  return {
+    hash,
+    parents,
+    author: "Alice",
+    email: "alice@example.com",
+    date: 1700000200,
+    committer: "Alice",
+    body: `Body of ${hash}`,
+    fileChanges: [
+      { oldFilePath: "src/a.ts", newFilePath: "src/a.ts", type: "M", additions: 1, deletions: 0 }
+    ]
+  };
+}
+
+describe("webview keyboard navigation", () => {
+  let vscodeMock: ReturnType<typeof createVscodeMock>;
+
+  function latestRequest<T extends GG.RequestMessage["command"]>(
+    command: T
+  ): Extract<GG.RequestMessage, { command: T }> {
+    for (let i = vscodeMock.sentMessages.length - 1; i >= 0; i--) {
+      const msg = vscodeMock.sentMessages[i];
+      if (msg.command === command) return msg as Extract<GG.RequestMessage, { command: T }>;
+    }
+    throw new Error(`Missing ${command} request`);
+  }
+
+  function countRequests(command: GG.RequestMessage["command"]) {
+    return vscodeMock.sentMessages.filter((msg) => msg.command === command).length;
+  }
+
+  function pressKey(key: string, init: KeyboardEventInit = {}, target: EventTarget = document) {
+    const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+    target.dispatchEvent(event);
+    return event;
+  }
+
+  function respondToLoadRequests() {
+    const branchesRequest: LoadBranchesRequest = latestRequest("loadBranches");
+    receive({
+      command: "loadBranches",
+      requestId: branchesRequest.requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    const commitsRequest: LoadCommitsRequest = latestRequest("loadCommits");
+    receive({
+      command: "loadCommits",
+      requestId: commitsRequest.requestId,
+      commits: loadedCommits,
+      head: "headhash1",
+      moreCommitsAvailable: false,
+      hard: true,
+      error: null
+    });
+  }
+
+  function commitRow(hash: string) {
+    return document.querySelector<HTMLTableRowElement>(`tr.commit[data-hash="${hash}"]`);
+  }
+
+  function openCommitDetails(hash: string, parents: string[]) {
+    commitRow(hash)?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const request: CommitDetailsRequest = latestRequest("commitDetails");
+    expect(request.commitHash).toBe(hash);
+    receive({
+      command: "commitDetails",
+      commitDetails: commitDetailsFor(hash, parents),
+      error: null
+    });
+  }
+
+  beforeAll(async () => {
+    vi.resetModules();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    vscodeMock = createVscodeMock();
+    setupHtml(viewState);
+    await import("@/webview/main");
+    respondToLoadRequests();
+  });
+
+  it("refreshes the graph with Ctrl+R and ignores the shortcut in inputs and dialogs", () => {
+    const loadBranchesBefore = countRequests("loadBranches");
+
+    const refreshEvent = pressKey("r", { ctrlKey: true });
+
+    expect(refreshEvent.defaultPrevented).toBe(true);
+    expect(countRequests("loadBranches")).toBe(loadBranchesBefore + 1);
+    respondToLoadRequests();
+
+    const findInput = document.getElementById("findInput");
+    const inputEvent = pressKey("r", { ctrlKey: true }, findInput ?? document);
+    expect(inputEvent.defaultPrevented).toBe(false);
+
+    document.getElementById("dialog")?.classList.add("active");
+    const dialogEvent = pressKey("r", { ctrlKey: true });
+    expect(dialogEvent.defaultPrevented).toBe(false);
+    document.getElementById("dialog")?.classList.remove("active");
+
+    expect(countRequests("loadBranches")).toBe(loadBranchesBefore + 1);
+  });
+
+  it("jumps to the HEAD commit with Ctrl+H", () => {
+    const headRow = commitRow("headhash1");
+    expect(headRow).not.toBeNull();
+
+    const jumpEvent = pressKey("h", { ctrlKey: true });
+
+    expect(jumpEvent.defaultPrevented).toBe(true);
+    expect(headRow?.classList.contains("blinking")).toBe(true);
+  });
+
+  it("navigates open commit details with plain arrow keys", () => {
+    openCommitDetails("headhash1", ["olderhash2"]);
+    expect(document.getElementById("commitDetails")).not.toBeNull();
+
+    const downEvent = pressKey("ArrowDown");
+    expect(downEvent.defaultPrevented).toBe(true);
+    expect(latestRequest("commitDetails").commitHash).toBe("olderhash2");
+    receive({
+      command: "commitDetails",
+      commitDetails: commitDetailsFor("olderhash2", []),
+      error: null
+    });
+    expect(commitRow("olderhash2")?.getAttribute("aria-selected")).toBe("true");
+    expect(commitRow("headhash1")?.getAttribute("aria-selected")).toBe("false");
+
+    const detailsRequestsAtOldest = countRequests("commitDetails");
+    pressKey("ArrowDown");
+    expect(countRequests("commitDetails")).toBe(detailsRequestsAtOldest);
+
+    pressKey("ArrowUp");
+    expect(latestRequest("commitDetails").commitHash).toBe("headhash1");
+    receive({
+      command: "commitDetails",
+      commitDetails: commitDetailsFor("headhash1", ["olderhash2"]),
+      error: null
+    });
+    expect(commitRow("headhash1")?.getAttribute("aria-selected")).toBe("true");
+
+    const detailsRequestsAtNewest = countRequests("commitDetails");
+    pressKey("ArrowUp");
+    expect(countRequests("commitDetails")).toBe(detailsRequestsAtNewest);
+    expect(commitRow("headhash1")?.getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("closes the find widget before commit details when pressing Escape", () => {
+    expect(document.getElementById("commitDetails")).not.toBeNull();
+    document.getElementById("findBtn")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(document.getElementById("findControl")?.hidden).toBe(false);
+
+    document.getElementById("contextMenu")?.classList.add("active");
+    pressKey("Escape");
+    expect(document.getElementById("findControl")?.hidden).toBe(false);
+    document.getElementById("contextMenu")?.classList.remove("active");
+
+    pressKey("Escape");
+    expect(document.getElementById("findControl")?.hidden).toBe(true);
+    expect(document.getElementById("commitDetails")).not.toBeNull();
+
+    pressKey("Escape");
+    expect(document.getElementById("commitDetails")).toBeNull();
+    expect(commitRow("headhash1")?.getAttribute("aria-selected")).toBe("false");
+  });
+
+  it("keeps arrow keys inert while no commit details are open", () => {
+    expect(document.getElementById("commitDetails")).toBeNull();
+    const detailsRequestsBefore = countRequests("commitDetails");
+
+    const downEvent = pressKey("ArrowDown");
+
+    expect(downEvent.defaultPrevented).toBe(false);
+    expect(countRequests("commitDetails")).toBe(detailsRequestsBefore);
+  });
+});

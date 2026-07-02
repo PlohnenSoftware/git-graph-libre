@@ -23,6 +23,7 @@ import {
 import { findCommitIndexes, formatFindMatchCount } from "./commitFind";
 import { Dropdown } from "./dropdown";
 import { Graph } from "./graph";
+import { resolveGlobalShortcut } from "./keyboardShortcuts";
 import { setStatusStrip } from "./statusStrip";
 import { getMonth, pad2 } from "./utils/date";
 import { addListenerToClass, blinkHeadRow, insertAfter } from "./utils/dom";
@@ -154,12 +155,9 @@ class GitGraphView {
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
       this.refresh(true);
     });
-    const blinkBtn = document.getElementById("blinkHeadBtn");
-    if (blinkBtn) {
-      blinkBtn.addEventListener("click", () => {
-        blinkHeadRow(this.commitHead);
-      });
-    }
+    document.getElementById("blinkHeadBtn")?.addEventListener("click", () => {
+      this.jumpToHead();
+    });
     this.observeWindowSizeChanges();
     this.observeWebviewStyleChanges();
     this.observeWebviewScroll();
@@ -586,30 +584,58 @@ class GitGraphView {
     }
   }
   public handleGlobalKeyboardShortcut(event: KeyboardEvent) {
-    const key = event.key.toLocaleLowerCase();
-    if ((event.ctrlKey || event.metaKey) && key === "f") {
-      if (event.altKey || isEditableTarget(event.target) || isDialogActive()) return false;
-      event.preventDefault();
-      this.showFindWidget();
-      return true;
+    const action = resolveGlobalShortcut(event, {
+      isEditableTarget: isEditableTarget(event.target),
+      isDialogActive: isDialogActive(),
+      isContextMenuActive: isContextMenuActive(),
+      isFindWidgetVisible: !this.findControlElem.hidden,
+      hasFindQuery: this.findQuery.trim() !== "",
+      isCommitDetailsOpen: this.expandedCommit !== null
+    });
+    if (action === null) return false;
+
+    event.preventDefault();
+    switch (action.type) {
+      case "closeCommitDetails":
+        this.hideCommitDetails();
+        break;
+      case "closeFind":
+        this.clearFind();
+        break;
+      case "commitDetailsNavigate":
+        this.navigateCommitDetails(action.delta);
+        break;
+      case "findNavigate":
+        this.navigateFind(action.delta);
+        break;
+      case "jumpToHead":
+        this.jumpToHead();
+        break;
+      case "refresh":
+        this.refresh(true);
+        break;
+      case "showFind":
+        this.showFindWidget();
+        break;
     }
-    if (event.key === "F3" && this.findQuery.trim() !== "") {
-      if (isEditableTarget(event.target) || isDialogActive()) return false;
-      event.preventDefault();
-      this.navigateFind(event.shiftKey ? -1 : 1);
-      return true;
-    }
-    if (
-      event.key === "Escape" &&
-      !this.findControlElem.hidden &&
-      !isEditableTarget(event.target) &&
-      !isDialogActive()
-    ) {
-      event.preventDefault();
-      this.clearFind();
-      return true;
-    }
-    return false;
+    return true;
+  }
+  private jumpToHead() {
+    if (this.commitHead === null) return;
+    const row = document.querySelector<HTMLElement>(`tr.commit[data-hash="${this.commitHead}"]`);
+    if (row === null) return;
+    if (typeof row.scrollIntoView === "function") row.scrollIntoView({ block: "center" });
+    blinkHeadRow(this.commitHead);
+  }
+  private navigateCommitDetails(delta: number) {
+    if (this.expandedCommit === null) return;
+    const targetRow = document.querySelector<HTMLElement>(
+      `tr.commit[data-id="${(this.expandedCommit.id + delta).toString()}"]`
+    );
+    const hash = targetRow?.dataset.hash;
+    if (targetRow === null || hash === undefined || hash === this.expandedCommit.hash) return;
+    this.loadCommitDetails(targetRow);
+    targetRow.focus();
   }
 
   /* State */
@@ -1706,6 +1732,10 @@ function isEditableTarget(target: EventTarget | null): boolean {
 
 function isDialogActive(): boolean {
   return dialog.classList.contains("active");
+}
+
+function isContextMenuActive(): boolean {
+  return contextMenu.classList.contains("active");
 }
 
 const contextMenu = requireElement("contextMenu");

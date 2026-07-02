@@ -147,9 +147,9 @@ class Branch {
             : `${x1.toFixed(0)},${(y1 + d).toFixed(1)}`;
           curPath += `L${transition}L${x2.toFixed(0)},${y2.toFixed(1)}`;
         } else {
-          curPath += `C${x1.toFixed(0)},${(y1 + d).toFixed(1)} ${x2.toFixed(0)},${(
-            y2 - d
-          ).toFixed(1)} ${x2.toFixed(0)},${y2.toFixed(1)}`;
+          curPath += `C${x1.toFixed(0)},${(y1 + d).toFixed(1)} ${x2.toFixed(0)},${(y2 - d).toFixed(
+            1
+          )} ${x2.toFixed(0)},${y2.toFixed(1)}`;
         }
       }
     }
