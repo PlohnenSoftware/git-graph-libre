@@ -2776,6 +2776,10 @@ class GitGraphView {
       {
         title: l10n.pushTag + ELLIPSIS,
         onClick: () => this.showPushTagDialog(refName)
+      },
+      {
+        title: l10n.createArchive,
+        onClick: () => this.createArchiveAction(refName)
       }
     ];
   }
@@ -2832,6 +2836,10 @@ class GitGraphView {
         }
       );
     }
+    menu.push({
+      title: l10n.createArchive,
+      onClick: () => this.createArchiveAction(refName)
+    });
     const pullRequestItem = this.buildCreatePullRequestMenuItem(refName, null, sourceElem);
     if (pullRequestItem !== null) {
       menu.push(null, pullRequestItem);
@@ -2852,20 +2860,30 @@ class GitGraphView {
     if (remoteBranch === null) return menu;
 
     const { remote, branchName } = remoteBranch;
-    menu.push(...this.buildIssueContextMenuItems(refName, sourceElem), {
-      title: l10n.deleteRemoteBranch + ELLIPSIS,
-      onClick: () => this.showDeleteRemoteBranchDialog(remote, branchName, refName)
-    });
-    if (this.hasLocalBranch(branchName) && this.gitBranchHead !== branchName) {
-      menu.push({
-        title: l10n.fetchIntoLocalBranch + ELLIPSIS,
-        onClick: () => this.showFetchIntoLocalBranchDialog(remote, branchName, refName)
-      });
-    }
-    menu.push({
-      title: l10n.pullBranch + ELLIPSIS,
-      onClick: () => this.showPullBranchDialog(remote, branchName, refName)
-    });
+    const remoteActions: ContextMenuElement[] = [
+      ...this.buildIssueContextMenuItems(refName, sourceElem),
+      {
+        title: l10n.deleteRemoteBranch + ELLIPSIS,
+        onClick: () => this.showDeleteRemoteBranchDialog(remote, branchName, refName)
+      },
+      ...(this.hasLocalBranch(branchName) && this.gitBranchHead !== branchName
+        ? [
+            {
+              title: l10n.fetchIntoLocalBranch + ELLIPSIS,
+              onClick: () => this.showFetchIntoLocalBranchDialog(remote, branchName, refName)
+            }
+          ]
+        : []),
+      {
+        title: l10n.pullBranch + ELLIPSIS,
+        onClick: () => this.showPullBranchDialog(remote, branchName, refName)
+      },
+      {
+        title: l10n.createArchive,
+        onClick: () => this.createArchiveAction(refName)
+      }
+    ];
+    menu.push(...remoteActions);
     const pullRequestItem = this.buildCreatePullRequestMenuItem(branchName, remote, sourceElem);
     if (pullRequestItem !== null) {
       menu.push(null, pullRequestItem);
@@ -3606,7 +3624,7 @@ class GitGraphView {
       const sourceName = sourceElem.dataset.name ?? refName;
       showRefInputDialog(
         l10n.dialogCreateBranchTitle.replace("{0}", `<b><i>${escapeHtml(sourceName)}</i></b>`),
-        refNameComps[refNameComps.length - 1],
+        refNameComps.at(-1) ?? refName,
         l10n.checkoutBranch,
         (newBranch) => {
           sendMessage({
@@ -3619,6 +3637,14 @@ class GitGraphView {
         null
       );
     }
+  }
+  private createArchiveAction(refName: string) {
+    sendMessage({
+      command: "createArchive",
+      repo: this.currentRepo,
+      ref: refName
+    });
+    showActionRunningDialog(l10n.statusCreatingArchive);
   }
   private setTableLayout(layout: "fixedLayout" | "autoLayout") {
     const classes: string[] = [layout];
@@ -4431,6 +4457,7 @@ type ResponseHandlerMap = {
 const responseHandlers: ResponseHandlerMap = {
   commitDetails: handleCommitDetailsResponse,
   copyToClipboard: handleCopyToClipboardResponse,
+  createArchive: handleCreateArchiveResponse,
   fetchAvatar: (msg) => gitGraph.loadAvatar(msg.email, msg.image),
   loadBranches: (msg) =>
     gitGraph.loadBranches(
@@ -4514,6 +4541,19 @@ function handleCopyToClipboardResponse(
     null,
     null
   );
+}
+
+function handleCreateArchiveResponse(
+  msg: Extract<GG.ResponseMessage, { command: "createArchive" }>
+) {
+  if (msg.status === null) {
+    hideDialog();
+    setStatusStrip("ready", l10n.statusReady);
+    return;
+  }
+
+  showErrorDialog(l10n.unableToCreateArchive, msg.status, null);
+  setStatusStrip("error", l10n.unableToCreateArchive);
 }
 
 function handleSuccessFlagResponse(msg: { success: boolean }, errorMessage: string) {

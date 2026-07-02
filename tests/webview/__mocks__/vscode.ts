@@ -63,6 +63,8 @@ export const shownTextDocuments: Array<{
   document: { uri: MockUri };
   options: unknown;
 }> = [];
+export const shownSaveDialogs: unknown[] = [];
+export const saveDialogResults: Array<MockUri | undefined | Error> = [];
 export const createdTerminals: Array<{
   options: unknown;
   shown: boolean;
@@ -90,6 +92,12 @@ export const workspace = {
 };
 
 export const window = {
+  showSaveDialog: async (options: unknown) => {
+    shownSaveDialogs.push(options);
+    const next = saveDialogResults.shift();
+    if (next instanceof Error) throw next;
+    return next;
+  },
   createTerminal: (options: unknown) => {
     const terminal = {
       options,
@@ -116,5 +124,7 @@ export function resetVscodeMock() {
   openedTextDocuments.splice(0);
   openedExternalUris.splice(0);
   shownTextDocuments.splice(0);
+  shownSaveDialogs.splice(0);
+  saveDialogResults.splice(0);
   createdTerminals.splice(0);
 }

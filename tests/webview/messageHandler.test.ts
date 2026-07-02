@@ -7,6 +7,8 @@ import {
   openedExternalUris,
   openedTextDocuments,
   resetVscodeMock,
+  saveDialogResults,
+  shownSaveDialogs,
   shownTextDocuments
 } from "@tests/webview/__mocks__/vscode";
 import { simpleGit } from "simple-git";
@@ -169,6 +171,59 @@ describe("registerMessageHandlers", () => {
     });
     expect(openedTextDocuments[openedTextDocuments.length - 1]?.fsPath).toBe(filePath);
     expect(shownTextDocuments[shownTextDocuments.length - 1]?.document.uri.fsPath).toBe(filePath);
+  });
+
+  it("creates archives from a save-dialog path", async () => {
+    resetVscodeMock();
+    const { handlers, posts, outputLines } = registerHandlersForTest();
+    const handler = handlers.get("createArchive");
+    const archivePath = path.join(repo, "archive.tar");
+    saveDialogResults.push({ fsPath: archivePath });
+
+    expect(handler).toBeDefined();
+    await handler?.({ command: "createArchive", repo, ref: "HEAD" });
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "createArchive",
+      status: null
+    });
+    expect(fs.existsSync(archivePath)).toBe(true);
+    expect(shownSaveDialogs).toHaveLength(1);
+    expect(
+      outputLines.some((line) => line.includes("archive.create") && line.includes('"--format=tar"'))
+    ).toBe(true);
+  });
+
+  it("does not run archive when the save dialog is canceled", async () => {
+    resetVscodeMock();
+    const { handlers, posts, outputLines } = registerHandlersForTest();
+    const handler = handlers.get("createArchive");
+    saveDialogResults.push(undefined);
+
+    expect(handler).toBeDefined();
+    await handler?.({ command: "createArchive", repo, ref: "HEAD" });
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "createArchive",
+      status: null
+    });
+    expect(outputLines.some((line) => line.includes("archive --format"))).toBe(false);
+  });
+
+  it("rejects archive output paths without tar or zip extensions", async () => {
+    resetVscodeMock();
+    const { handlers, posts, outputLines } = registerHandlersForTest();
+    const handler = handlers.get("createArchive");
+    saveDialogResults.push({ fsPath: path.join(repo, "archive.txt") });
+
+    expect(handler).toBeDefined();
+    await handler?.({ command: "createArchive", repo, ref: "HEAD" });
+
+    expect(posts[posts.length - 1]).toMatchObject({
+      command: "createArchive",
+      status: expect.stringContaining(".tar or .zip")
+    });
+    expect(outputLines.some((line) => line.includes("archive --format"))).toBe(false);
   });
 
   it("rejects file open paths outside the selected repo", async () => {

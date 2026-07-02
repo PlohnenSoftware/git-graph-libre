@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 import type { AvatarManager } from "@/avatarManager";
+import { archiveFormatFromPath, createArchive } from "@/backend/actions/archive";
 import { checkoutBranch, createBranch, deleteBranch, renameBranch } from "@/backend/actions/branch";
 import {
   deleteRemoteBranch,
@@ -183,6 +184,40 @@ async function openFile(repo: string, filePath: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+async function chooseArchiveOutputPath(repo: string) {
+  try {
+    const uri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file(repo),
+      saveLabel: l10n.t("action.createArchive"),
+      filters: {
+        [l10n.t("dialog.archiveTarFilter")]: ["tar"],
+        [l10n.t("dialog.archiveZipFilter")]: ["zip"]
+      }
+    });
+    if (uri === undefined) return { canceled: true as const };
+
+    const format = archiveFormatFromPath(uri.fsPath);
+    if (format === null) {
+      const extension = path.extname(uri.fsPath).slice(1) || "?";
+      return {
+        canceled: false as const,
+        error: l10n.t("error.invalidArchiveExtension", extension)
+      };
+    }
+
+    return {
+      canceled: false as const,
+      outputFilePath: uri.fsPath,
+      format
+    };
+  } catch {
+    return {
+      canceled: false as const,
+      error: l10n.t("error.unableToOpenArchiveSaveDialog")
+    };
   }
 }
 
@@ -395,6 +430,22 @@ export function registerMessageHandlers(
   registerAction("cleanUntrackedFiles", (msg) =>
     cleanUntrackedFiles(gitClient.getInstance(), msg, recordGitCommand)
   );
+  registerAction("createArchive", async (msg) => {
+    const output = await chooseArchiveOutputPath(msg.repo);
+    if (output.canceled) return;
+    if ("error" in output) throw new Error(output.error);
+
+    await createArchive(
+      gitClient.getInstance(),
+      {
+        repo: msg.repo,
+        ref: msg.ref,
+        outputFilePath: output.outputFilePath,
+        format: output.format
+      },
+      recordGitCommand
+    );
+  });
   registerAction("editUserDetails", (msg) =>
     editUserDetails(gitClient.getInstance(), msg, recordGitCommand)
   );

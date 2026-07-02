@@ -183,6 +183,11 @@ export type ResponseOpenExternalUrl = {
   success: boolean;
 };
 
+export type ResponseCreateArchive = {
+  command: "createArchive";
+  status: string | null;
+};
+
 export type RequestImportRepoConfig = {
   command: "importRepoConfig";
   repo: string;
@@ -240,6 +245,7 @@ export type ResponseMessage =
   | ResponseOpenFile
   | ResponseOpenSourceControl
   | ResponseOpenExternalUrl
+  | ResponseCreateArchive
   | ResponseImportRepoConfig
   | ResponseRefresh
   | ResponseStartHistorySearch;

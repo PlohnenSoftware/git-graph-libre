@@ -1672,6 +1672,86 @@ describe("webview rendering", () => {
     receiveLoadedCommits(twoCommits, "abc123");
   });
 
+  it("sends archive requests from tag, local branch, and remote branch menus", () => {
+    const tagRef = gitRef("v1.0.0", ".gitRef.tag");
+    expect(tagRef).not.toBeUndefined();
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Create Archive");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "createArchive",
+      repo: REPO,
+      ref: "v1.0.0"
+    });
+    expect(document.getElementById("statusText")?.textContent).toBe("Creating Archive...");
+    receive({ command: "createArchive", status: null });
+    expect(document.getElementById("statusText")?.textContent).toBe("Ready");
+
+    receiveLoadedCommits(
+      [
+        {
+          ...twoCommits[0],
+          refs: [
+            { hash: "abc123", name: "main", type: "head" },
+            { hash: "abc123", name: "feature/menu", type: "head" }
+          ]
+        },
+        twoCommits[1]
+      ],
+      "abc123"
+    );
+    const branchRef = gitRef("feature/menu", ".gitRef.head");
+    expect(branchRef).not.toBeUndefined();
+    branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Create Archive");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "createArchive",
+      repo: REPO,
+      ref: "feature/menu"
+    });
+    receive({ command: "createArchive", status: null });
+
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const loadRepoInfoRequest = latestLoadRepoInfoRequest();
+    receive({
+      command: "loadRepoInfo",
+      requestId: loadRepoInfoRequest.requestId,
+      repoInfo: repoInfoWithRemote,
+      error: null
+    });
+    receive({
+      command: "loadBranches",
+      requestId: null,
+      branches: ["main", "feature/menu", "remotes/origin/feature/menu"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    } as unknown as GG.ResponseMessage);
+    receiveLoadedCommits(
+      [
+        {
+          ...twoCommits[0],
+          refs: [{ hash: "abc123", name: "origin/feature/menu", type: "remote" }]
+        },
+        twoCommits[1]
+      ],
+      "abc123"
+    );
+    const remoteRef = gitRef("origin/feature/menu", ".gitRef.remote");
+    expect(remoteRef).not.toBeUndefined();
+    remoteRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Create Archive");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "createArchive",
+      repo: REPO,
+      ref: "origin/feature/menu"
+    });
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
   it("sends local branch remote action messages from context menus", () => {
     document
       .getElementById("refreshBtn")
