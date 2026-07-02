@@ -100,6 +100,13 @@ describe("dialog styles", () => {
     expect(dropdownCss).toContain("var(--vscode-focusBorder)");
   });
 
+  it("tints the details bottom separator with the commit dot hue", () => {
+    const separator = css.match(/#commitDetails td:after \{[^}]+\}/)?.[0] ?? "";
+
+    expect(separator).toContain("color-mix");
+    expect(separator).toContain("var(--git-graph-color");
+  });
+
   it("shows the commit dot hue on the details resize handle hover", () => {
     const hover =
       css.match(

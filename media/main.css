@@ -202,7 +202,11 @@ body.unableToLoad p {
   right: 0;
   bottom: 0;
   height: 2px;
-  background-color: var(--ngg-neutral-overlay-medium);
+  background-color: color-mix(
+    in srgb,
+    var(--git-graph-color, var(--ngg-neutral-icon)) 45%,
+    var(--ngg-transparent)
+  );
 }
 /* Selected rows are tinted with the hue of their own graph dot color */
 #commitTable tr.commit.commitDetailsOpen td {
