@@ -23,7 +23,8 @@ describe("branch remote actions", () => {
       branchName: "feature/menu",
       remotes: ["origin", "backup"],
       setUpstream: true,
-      mode: "force-with-lease"
+      mode: "force-with-lease",
+      noVerify: false
     });
 
     expect(git.raw).toHaveBeenNthCalledWith(1, [
@@ -51,7 +52,8 @@ describe("branch remote actions", () => {
         branchName: "feature/menu",
         remotes: [],
         setUpstream: true,
-        mode: "normal"
+        mode: "normal",
+        noVerify: false
       })
     ).rejects.toThrow("No remotes were selected");
   });
@@ -154,17 +156,40 @@ describe("branch remote actions", () => {
       remote: "origin",
       branchName: "release",
       createNewCommit: true,
-      squash: false
+      squash: false,
+      noVerify: false
     });
     await pullBranch(git, {
       repo: "/repo",
       remote: "origin",
       branchName: "release",
       createNewCommit: true,
-      squash: true
+      squash: true,
+      noVerify: true
     });
 
     expect(git.raw).toHaveBeenNthCalledWith(1, ["pull", "origin", "release", "--no-ff"]);
-    expect(git.raw).toHaveBeenNthCalledWith(2, ["pull", "origin", "release", "--squash"]);
+    expect(git.raw).toHaveBeenNthCalledWith(2, [
+      "pull",
+      "origin",
+      "release",
+      "--squash",
+      "--no-verify"
+    ]);
+  });
+
+  it("pushes a branch while bypassing git hooks", async () => {
+    const git = gitWithRaw(async () => "");
+
+    await pushBranch(git, {
+      repo: "/repo",
+      branchName: "feature/menu",
+      remotes: ["origin"],
+      setUpstream: false,
+      mode: "normal",
+      noVerify: true
+    });
+
+    expect(git.raw).toHaveBeenCalledWith(["push", "--no-verify", "origin", "feature/menu"]);
   });
 });

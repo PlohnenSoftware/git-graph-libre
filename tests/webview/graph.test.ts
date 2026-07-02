@@ -17,6 +17,7 @@ const config: Config = {
   includeReflog: false,
   initialLoadCommits: 300,
   loadMoreCommits: 100,
+  muteCommitsNotAncestorsOfHead: false,
   onlyFollowFirstParent: false,
   showCurrentBranchByDefault: false,
   showRemoteBranches: true,

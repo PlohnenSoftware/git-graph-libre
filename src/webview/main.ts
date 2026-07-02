@@ -173,6 +173,8 @@ class GitGraphView {
   private currentAuthors: string[] | null = null;
   private currentTags: string[] | null = null;
   private currentRepo: string = "";
+  private readonly selectedCommitHashes: Set<string> = new Set();
+  private commitSelectionAnchorHash: string | null = null;
 
   private readonly graph: Graph;
   private readonly config: Config;
@@ -674,6 +676,7 @@ class GitGraphView {
     this.saveState();
 
     const { expandedCommitVisible, avatarsNeeded } = this.rebuildCommitIndexes();
+    this.keepVisibleCommitSelection();
 
     this.graph.loadCommits(this.commits, this.commitHead, this.commitLookup);
 
@@ -2053,8 +2056,15 @@ class GitGraphView {
     const currentHash = this.getCurrentDisplayHash();
     const findMatchIndexes = new Set(this.findMatches);
     const activeFindCommitIndex = this.findMatches[this.activeFindMatchIndex] ?? -1;
+    const mutedHeadNonAncestors = this.mutedCommitHashesNotInHeadAncestry();
     for (let i = 0; i < this.commits.length; i++) {
-      html += this.renderCommitRow(i, currentHash, findMatchIndexes, activeFindCommitIndex);
+      html += this.renderCommitRow(
+        i,
+        currentHash,
+        findMatchIndexes,
+        activeFindCommitIndex,
+        mutedHeadNonAncestors
+      );
     }
     if (this.commits.length === 0) {
       html += `<tr class="emptyGraphRow"><td colspan="5">${l10n.emptyGraph}</td></tr>`;
@@ -2077,6 +2087,7 @@ class GitGraphView {
       const sourceElem = closestHTMLElement(e.target, ".commit");
       const hash = sourceElem?.dataset.hash;
       if (sourceElem === null || hash === undefined) return;
+      this.prepareCommitContextSelection(hash, sourceElem);
       showContextMenu(<MouseEvent>e, this.buildCommitContextMenu(hash, sourceElem), sourceElem);
     });
   }
@@ -2179,6 +2190,10 @@ class GitGraphView {
     );
   }
   private buildCommitContextMenu(hash: string, sourceElem: HTMLElement): ContextMenuElement[] {
+    if (this.shouldShowSelectedCommitContextMenu(hash)) {
+      return this.buildSelectedCommitContextMenu(sourceElem);
+    }
+
     const commitIndex = this.commitLookup[hash];
     const commit = typeof commitIndex === "number" ? this.commits[commitIndex] : null;
     const isHeadCommit = hash === this.commitHead;
@@ -2272,6 +2287,109 @@ class GitGraphView {
       });
     }
     return menu;
+  }
+  private buildSelectedCommitContextMenu(sourceElem: HTMLElement): ContextMenuElement[] {
+    const menu: ContextMenuElement[] = [];
+    const selectedCommits = this.getSelectedCommits();
+    if (selectedCommits.length < 2 || !this.selectedCommitsAreLoadedHeadChain(selectedCommits)) {
+      return menu;
+    }
+
+    const oldestHash = selectedCommits.at(-1);
+    const oldestCommit =
+      oldestHash === undefined ? undefined : this.commits[this.commitLookup[oldestHash]];
+    if (oldestCommit !== undefined && oldestCommit.parentHashes.length > 0) {
+      menu.push({
+        title: l10n.squashSelection + ELLIPSIS,
+        onClick: () => this.showSquashSelectedCommitsDialog(selectedCommits, sourceElem)
+      });
+    }
+    menu.push({
+      title: l10n.dropSelection + ELLIPSIS,
+      onClick: () => this.showDropSelectedCommitsDialog(selectedCommits, sourceElem)
+    });
+    return menu;
+  }
+  private shouldShowSelectedCommitContextMenu(hash: string) {
+    return this.selectedCommitHashes.size > 1 && this.selectedCommitHashes.has(hash);
+  }
+  private prepareCommitContextSelection(hash: string, sourceElem: HTMLElement) {
+    if (this.shouldShowSelectedCommitContextMenu(hash)) return;
+    this.clearCommitSelection();
+    this.setCommitSelected(hash, true, sourceElem);
+    this.commitSelectionAnchorHash = hash;
+  }
+  private getSelectedCommits() {
+    return [...this.selectedCommitHashes].sort(
+      (a, b) =>
+        (this.commitLookup[a] ?? Number.MAX_SAFE_INTEGER) -
+        (this.commitLookup[b] ?? Number.MAX_SAFE_INTEGER)
+    );
+  }
+  private selectedCommitsAreLoadedHeadChain(selectedCommits: readonly string[]) {
+    if (selectedCommits.length < 2 || selectedCommits[0] !== this.commitHead) return false;
+    for (let i = 0; i < selectedCommits.length - 1; i++) {
+      const currentCommit = this.commits[this.commitLookup[selectedCommits[i]]];
+      if (currentCommit?.parentHashes[0] !== selectedCommits[i + 1]) {
+        return false;
+      }
+    }
+    return true;
+  }
+  private setCommitSelected(hash: string, selected: boolean, row?: HTMLElement | null) {
+    const rowElem = row ?? this.findCommitRow(hash);
+    if (selected) {
+      this.selectedCommitHashes.add(hash);
+      rowElem?.classList.add("commitSelected");
+      rowElem?.setAttribute("aria-selected", "true");
+    } else {
+      this.selectedCommitHashes.delete(hash);
+      rowElem?.classList.remove("commitSelected");
+      rowElem?.setAttribute("aria-selected", "false");
+    }
+  }
+  private clearCommitSelection() {
+    for (const hash of this.selectedCommitHashes) {
+      this.setCommitSelected(hash, false);
+    }
+    this.selectedCommitHashes.clear();
+  }
+  private keepVisibleCommitSelection() {
+    for (const hash of this.selectedCommitHashes) {
+      if (typeof this.commitLookup[hash] !== "number") this.selectedCommitHashes.delete(hash);
+    }
+    if (
+      this.commitSelectionAnchorHash !== null &&
+      typeof this.commitLookup[this.commitSelectionAnchorHash] !== "number"
+    ) {
+      this.commitSelectionAnchorHash = null;
+    }
+  }
+  private toggleCommitSelection(hash: string, sourceElem: HTMLElement) {
+    this.setCommitSelected(hash, !this.selectedCommitHashes.has(hash), sourceElem);
+    this.commitSelectionAnchorHash = hash;
+  }
+  private selectCommitRange(anchorHash: string, targetHash: string) {
+    const anchorIndex = this.commitLookup[anchorHash];
+    const targetIndex = this.commitLookup[targetHash];
+    if (typeof anchorIndex !== "number" || typeof targetIndex !== "number") return;
+
+    this.clearCommitSelection();
+    const first = Math.min(anchorIndex, targetIndex);
+    const last = Math.max(anchorIndex, targetIndex);
+    for (let index = first; index <= last; index++) {
+      const commit = this.commits[index];
+      if (commit.hash !== "*") this.setCommitSelected(commit.hash, true);
+    }
+  }
+  private selectedCommitListHtml(selectedCommits: readonly string[]) {
+    return selectedCommits
+      .map((hash) => {
+        const commit = this.commits[this.commitLookup[hash]];
+        const message = commit === undefined ? "" : ` - ${escapeHtml(commit.message)}`;
+        return `<b>${this.displayHash(hash)}</b>${message}`;
+      })
+      .join("<br>");
   }
   private showAddTagDialog(hash: string, sourceElem: HTMLElement) {
     showFormDialog(
@@ -2394,7 +2512,8 @@ class GitGraphView {
       [
         { type: "checkbox", name: l10n.dialogMergeNoFastForward, value: true },
         { type: "checkbox", name: l10n.dialogMergeSquash, value: false },
-        { type: "checkbox", name: l10n.dialogMergeNoCommit, value: false }
+        { type: "checkbox", name: l10n.dialogMergeNoCommit, value: false },
+        { type: "checkbox", name: l10n.dialogBypassGitHooks, value: false }
       ],
       l10n.dialogYesMerge,
       (values) => {
@@ -2404,7 +2523,8 @@ class GitGraphView {
           commitHash: hash,
           createNewCommit: values[0] === "checked",
           squash: values[1] === "checked",
-          noCommit: values[2] === "checked"
+          noCommit: values[2] === "checked",
+          noVerify: values[3] === "checked"
         });
         showActionRunningDialog(l10n.statusMergingCommit);
       },
@@ -2453,6 +2573,64 @@ class GitGraphView {
           commitHash: hash
         });
         showActionRunningDialog(l10n.statusDroppingCommit);
+      },
+      sourceElem
+    );
+  }
+  private showSquashSelectedCommitsDialog(
+    selectedCommits: readonly string[],
+    sourceElem: HTMLElement
+  ) {
+    const newestCommit = this.commits[this.commitLookup[selectedCommits[0]]];
+    showFormDialog(
+      l10n.dialogSquashSelectionConfirm
+        .replace("{0}", String(selectedCommits.length))
+        .replace("{1}", this.selectedCommitListHtml(selectedCommits)),
+      [
+        {
+          type: "textarea",
+          name: l10n.dialogSquashSelectionMessage,
+          default: newestCommit?.message ?? "",
+          placeholder: null
+        },
+        { type: "checkbox", name: l10n.dialogBypassGitHooks, value: false }
+      ],
+      l10n.dialogSquashSelectionSubmit,
+      (values) => {
+        const message = this.normalizeCommitMessage(values[0]);
+        if (message.trim() === "") {
+          showErrorDialog(l10n.dialogSquashSelectionEmpty, null, sourceElem);
+          return;
+        }
+        sendMessage({
+          command: "squashCommitSelection",
+          repo: this.currentRepo,
+          commitHashes: [...selectedCommits],
+          message,
+          noVerify: values[1] === "checked"
+        });
+        this.clearCommitSelection();
+        showActionRunningDialog(l10n.statusSquashingSelection);
+      },
+      sourceElem
+    );
+  }
+  private showDropSelectedCommitsDialog(
+    selectedCommits: readonly string[],
+    sourceElem: HTMLElement
+  ) {
+    showConfirmationDialog(
+      l10n.dialogDropSelectionConfirm
+        .replace("{0}", String(selectedCommits.length))
+        .replace("{1}", this.selectedCommitListHtml(selectedCommits)),
+      () => {
+        sendMessage({
+          command: "dropCommitSelection",
+          repo: this.currentRepo,
+          commitHashes: [...selectedCommits]
+        });
+        this.clearCommitSelection();
+        showActionRunningDialog(l10n.statusDroppingSelection);
       },
       sourceElem
     );
@@ -2527,9 +2705,22 @@ class GitGraphView {
   }
   private registerCommitActivationListeners() {
     addListenerToClass("commit", "click", (e: Event) => {
+      const mouseEvent = <MouseEvent>e;
       const sourceElem = closestHTMLElement(e.target, ".commit");
       const hash = sourceElem?.dataset.hash;
       if (sourceElem === null || hash === undefined) return;
+      if (mouseEvent.shiftKey && this.commitSelectionAnchorHash !== null) {
+        mouseEvent.preventDefault();
+        this.selectCommitRange(this.commitSelectionAnchorHash, hash);
+        return;
+      }
+      if (mouseEvent.ctrlKey || mouseEvent.metaKey) {
+        mouseEvent.preventDefault();
+        this.toggleCommitSelection(hash, sourceElem);
+        return;
+      }
+      this.clearCommitSelection();
+      this.commitSelectionAnchorHash = hash;
       this.toggleCommitDetails(sourceElem, hash);
     });
     addListenerToClass("commit", "keydown", (e: Event) => {
@@ -2849,6 +3040,7 @@ class GitGraphView {
     const inputs: DialogInput[] = [
       ...remoteInputs,
       { type: "checkbox", name: l10n.dialogPushBranchSetUpstream, value: true },
+      { type: "checkbox", name: l10n.dialogBypassGitHooks, value: false },
       {
         type: "select",
         name: l10n.dialogPushBranchMode,
@@ -2877,7 +3069,8 @@ class GitGraphView {
           branchName: refName,
           remotes: selectedRemotes,
           setUpstream: values[remoteNames.length] === "checked",
-          mode: values[remoteNames.length + 1] as GitPushBranchMode
+          noVerify: values[remoteNames.length + 1] === "checked",
+          mode: values[remoteNames.length + 2] as GitPushBranchMode
         });
         showActionRunningDialog(l10n.statusPushingBranch);
       },
@@ -2950,7 +3143,8 @@ class GitGraphView {
       l10n.dialogPullBranchConfirm.replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`),
       [
         { type: "checkbox", name: l10n.dialogPullBranchNoFastForward, value: false },
-        { type: "checkbox", name: l10n.dialogPullBranchSquash, value: false }
+        { type: "checkbox", name: l10n.dialogPullBranchSquash, value: false },
+        { type: "checkbox", name: l10n.dialogBypassGitHooks, value: false }
       ],
       l10n.dialogPullBranchSubmit,
       (values) => {
@@ -2960,7 +3154,8 @@ class GitGraphView {
           remote,
           branchName,
           createNewCommit: values[0] === "checked",
-          squash: values[1] === "checked"
+          squash: values[1] === "checked",
+          noVerify: values[2] === "checked"
         });
         showActionRunningDialog(l10n.statusPullingBranch);
       },
@@ -3007,7 +3202,8 @@ class GitGraphView {
       [
         { type: "checkbox", name: l10n.dialogMergeNoFastForward, value: true },
         { type: "checkbox", name: l10n.dialogMergeSquash, value: false },
-        { type: "checkbox", name: l10n.dialogMergeNoCommit, value: false }
+        { type: "checkbox", name: l10n.dialogMergeNoCommit, value: false },
+        { type: "checkbox", name: l10n.dialogBypassGitHooks, value: false }
       ],
       l10n.dialogYesMerge,
       (values) => {
@@ -3017,7 +3213,8 @@ class GitGraphView {
           branchName: refName,
           createNewCommit: values[0] === "checked",
           squash: values[1] === "checked",
-          noCommit: values[2] === "checked"
+          noCommit: values[2] === "checked",
+          noVerify: values[3] === "checked"
         });
         showActionRunningDialog(l10n.statusMergingBranch);
       },
@@ -3045,7 +3242,8 @@ class GitGraphView {
     index: number,
     currentHash: string | null,
     findMatchIndexes: Set<number>,
-    activeFindCommitIndex: number
+    activeFindCommitIndex: number,
+    mutedHeadNonAncestors: Set<string>
   ) {
     const commit = this.commits[index];
     const message = escapeHtml(commit.message);
@@ -3056,7 +3254,8 @@ class GitGraphView {
       index,
       isHeadCommit,
       findMatchIndexes,
-      activeFindCommitIndex
+      activeFindCommitIndex,
+      mutedHeadNonAncestors.has(commit.hash)
     );
     const commitMessage = commit.hash === currentHash ? `<b>${message}</b>` : message;
     const authorTitle = escapeHtml(`${commit.author} <${commit.email}>`);
@@ -3082,18 +3281,47 @@ class GitGraphView {
     index: number,
     isHeadCommit: boolean,
     findMatchIndexes: Set<number>,
-    activeFindCommitIndex: number
+    activeFindCommitIndex: number,
+    mutedByHeadAncestry: boolean
   ) {
     if (commit.hash === "*") {
       return 'class="unsavedChanges" tabindex="0" aria-selected="false" data-hash="*"';
     }
 
     const currentAttribute = isHeadCommit ? ' aria-current="true"' : "";
+    const selectedAttribute = this.selectedCommitHashes.has(commit.hash) ? "true" : "false";
     const rowClasses = ["commit"];
     if (commit.parentHashes.length > 1) rowClasses.push("mergeCommit");
+    if (commit.parentHashes.length > 1 || mutedByHeadAncestry) rowClasses.push("mutedCommit");
+    if (this.selectedCommitHashes.has(commit.hash)) rowClasses.push("commitSelected");
     if (findMatchIndexes.has(index)) rowClasses.push("findMatch");
     if (activeFindCommitIndex === index) rowClasses.push("findMatchActive");
-    return `class="${rowClasses.join(" ")}" tabindex="0" aria-selected="false"${currentAttribute} data-hash="${commit.hash}"`;
+    return `class="${rowClasses.join(" ")}" tabindex="0" aria-selected="${selectedAttribute}"${currentAttribute} data-hash="${commit.hash}"`;
+  }
+  private mutedCommitHashesNotInHeadAncestry() {
+    const muted = new Set<string>();
+    if (!this.config.muteCommitsNotAncestorsOfHead || this.commitHead === null) return muted;
+    if (typeof this.commitLookup[this.commitHead] !== "number") return muted;
+
+    const ancestors = new Set<string>();
+    const stack = [this.commitHead];
+    while (stack.length > 0) {
+      const hash = stack.pop();
+      if (hash === undefined || ancestors.has(hash)) continue;
+      const commit = this.commits[this.commitLookup[hash]];
+      if (commit === undefined) continue;
+      ancestors.add(hash);
+      stack.push(
+        ...commit.parentHashes.filter(
+          (parentHash) => typeof this.commitLookup[parentHash] === "number"
+        )
+      );
+    }
+
+    for (const commit of this.commits) {
+      if (commit.hash !== "*" && !ancestors.has(commit.hash)) muted.add(commit.hash);
+    }
+    return muted;
   }
   private renderCommitRefs(commit: GitCommitNode) {
     let refs = "";
@@ -3965,6 +4193,7 @@ const gitGraph = new GitGraphView(
     includeReflog: viewState.includeReflog,
     initialLoadCommits: viewState.initialLoadCommits,
     loadMoreCommits: viewState.loadMoreCommits,
+    muteCommitsNotAncestorsOfHead: viewState.muteCommitsNotAncestorsOfHead,
     onlyFollowFirstParent: viewState.onlyFollowFirstParent,
     showCurrentBranchByDefault: viewState.showCurrentBranchByDefault,
     showRemoteBranches: viewState.showRemoteBranches,
@@ -3996,6 +4225,7 @@ const actionErrorLabels = {
   deleteTag: l10n.unableToDeleteTag,
   deleteUserDetails: l10n.unableToDeleteUserDetails,
   dropCommit: l10n.unableToDropCommit,
+  dropCommitSelection: l10n.unableToDropSelection,
   dropStash: l10n.unableToDropStash,
   editHeadCommitMessage: l10n.unableToEditMessage,
   editRemote: l10n.unableToEditRemote,
@@ -4016,6 +4246,7 @@ const actionErrorLabels = {
   resetToCommit: l10n.unableToReset,
   rebaseCurrentBranch: l10n.unableToRebase,
   revertCommit: l10n.unableToRevert,
+  squashCommitSelection: l10n.unableToSquashSelection,
   undoLastCommit: l10n.unableToUndoLastCommit,
   updateBranchFromUpstream: l10n.unableToUpdateBranch
 } satisfies Partial<Record<GG.ResponseMessage["command"], string>>;

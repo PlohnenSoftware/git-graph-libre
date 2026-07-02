@@ -25,6 +25,7 @@ const viewState: GG.GitGraphViewState = {
   initialLoadCommits: 300,
   lastActiveRepo: null,
   loadMoreCommits: 75,
+  muteCommitsNotAncestorsOfHead: false,
   onlyFollowFirstParent: false,
   repos: { [REPO]: { columnWidths: null } },
   showCurrentBranchByDefault: false,

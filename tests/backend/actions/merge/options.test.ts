@@ -20,17 +20,24 @@ describe("merge options", () => {
         commitHash: "abc123",
         createNewCommit: true,
         squash: true,
-        noCommit: true
+        noCommit: true,
+        noVerify: true
       },
       (record) => records.push(record)
     );
 
-    expect(git.raw).toHaveBeenCalledWith(["merge", "abc123", "--squash", "--no-commit"]);
+    expect(git.raw).toHaveBeenCalledWith([
+      "merge",
+      "abc123",
+      "--squash",
+      "--no-commit",
+      "--no-verify"
+    ]);
     expect(records[0]).toMatchObject({
       label: "merge.commit",
       kind: "action",
       repo: "/repo",
-      args: ["merge", "abc123", "--squash", "--no-commit"],
+      args: ["merge", "abc123", "--squash", "--no-commit", "--no-verify"],
       success: true
     });
   });
@@ -42,7 +49,8 @@ describe("merge options", () => {
       branchName: "feature",
       createNewCommit: true,
       squash: false,
-      noCommit: false
+      noCommit: false,
+      noVerify: false
     });
 
     expect(git.raw).toHaveBeenCalledWith(["merge", "feature", "--no-ff"]);

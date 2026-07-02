@@ -24,6 +24,7 @@ declare global {
     includeReflog: boolean;
     initialLoadCommits: number;
     loadMoreCommits: number;
+    muteCommitsNotAncestorsOfHead: boolean;
     onlyFollowFirstParent: boolean;
     showCurrentBranchByDefault: boolean;
     showRemoteBranches: boolean;

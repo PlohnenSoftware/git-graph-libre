@@ -15,9 +15,11 @@ import {
   checkoutCommit,
   cherrypickCommit,
   dropCommit,
+  dropCommitSelection,
   editHeadCommitMessage,
   resetToCommit,
   revertCommit,
+  squashCommitSelection,
   undoLastCommit
 } from "@/backend/actions/commit";
 import { mergeBranch, mergeCommit } from "@/backend/actions/merge";
@@ -244,7 +246,8 @@ export function registerMessageHandlers(
           branchName: msg.branchName,
           remotes: [msg.remoteName],
           setUpstream: true,
-          mode: "normal"
+          mode: "normal",
+          noVerify: false
         },
         recordGitCommand
       );
@@ -288,6 +291,9 @@ export function registerMessageHandlers(
     cherrypickCommit(gitClient.getInstance(), msg, recordGitCommand)
   );
   registerAction("dropCommit", (msg) => dropCommit(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("dropCommitSelection", (msg) =>
+    dropCommitSelection(gitClient.getInstance(), msg, recordGitCommand)
+  );
   registerAction("editHeadCommitMessage", (msg) =>
     editHeadCommitMessage(gitClient.getInstance(), msg, recordGitCommand)
   );
@@ -310,6 +316,9 @@ export function registerMessageHandlers(
       await rebaseCurrentBranch(gitClient.getInstance(), msg, recordGitCommand);
     }
   });
+  registerAction("squashCommitSelection", (msg) =>
+    squashCommitSelection(gitClient.getInstance(), msg, recordGitCommand)
+  );
   registerAction("undoLastCommit", (msg) =>
     undoLastCommit(gitClient.getInstance(), msg, recordGitCommand)
   );

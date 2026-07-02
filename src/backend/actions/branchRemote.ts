@@ -117,6 +117,7 @@ export async function pushBranch(
     if (input.setUpstream) args.push("--set-upstream");
     const modeArg = pushModeArg(input.mode);
     if (modeArg !== null) args.push(modeArg);
+    if (input.noVerify) args.push("--no-verify");
     args.push(remote, input.branchName);
     await runGitRaw(git, {
       label: "branchRemote.pushBranch",
@@ -234,6 +235,7 @@ export async function pullBranch(
   } else if (input.createNewCommit) {
     args.push("--no-ff");
   }
+  if (input.noVerify) args.push("--no-verify");
 
   await runGitRaw(git, {
     label: "branchRemote.pullBranch",

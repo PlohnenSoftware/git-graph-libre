@@ -24,6 +24,7 @@ function makeConfig(): Config {
     initialLoadCommits: () => 300,
     loadMoreCommits: () => 100,
     maxDepthOfRepoSearch: () => 0,
+    muteCommitsNotAncestorsOfHead: () => true,
     onlyFollowFirstParent: () => false,
     showCurrentBranchByDefault: () => false,
     showRemoteBranches: () => true,
@@ -71,6 +72,7 @@ describe("webview HTML", () => {
     expect(viewState.customBranchGlobPatterns).toEqual([
       { name: "Features", glob: "--glob=heads/feature/*" }
     ]);
+    expect(viewState.muteCommitsNotAncestorsOfHead).toBe(true);
     expect(viewState.shortHashLength).toBe(12);
     expect(result.html).toContain('id="settingsWidgetBacking" hidden');
     expect(result.html).toContain('id="settingsWidget" role="dialog" aria-modal="true"');

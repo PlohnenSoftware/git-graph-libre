@@ -42,6 +42,7 @@ type ActionPayloads = {
   };
   fetchRemotes: { remote?: string | null; prune: boolean; pruneTags: boolean };
   dropCommit: { commitHash: string };
+  dropCommitSelection: { commitHashes: string[] };
   editHeadCommitMessage: { commitHash: string; message: string };
   editRemote: { oldName: string; name: string; fetchUrl: string; pushUrl: string | null };
   editUserDetails: {
@@ -52,16 +53,35 @@ type ActionPayloads = {
     clearLocalEmail: boolean;
   };
   exportRepoConfig: unknown;
-  mergeBranch: { branchName: string; createNewCommit: boolean; squash: boolean; noCommit: boolean };
-  mergeCommit: { commitHash: string; createNewCommit: boolean; squash: boolean; noCommit: boolean };
+  mergeBranch: {
+    branchName: string;
+    createNewCommit: boolean;
+    squash: boolean;
+    noCommit: boolean;
+    noVerify: boolean;
+  };
+  mergeCommit: {
+    commitHash: string;
+    createNewCommit: boolean;
+    squash: boolean;
+    noCommit: boolean;
+    noVerify: boolean;
+  };
   popStash: { selector: string; reinstateIndex: boolean };
   pruneRemote: { name: string };
-  pullBranch: { branchName: string; remote: string; createNewCommit: boolean; squash: boolean };
+  pullBranch: {
+    branchName: string;
+    remote: string;
+    createNewCommit: boolean;
+    squash: boolean;
+    noVerify: boolean;
+  };
   pushBranch: {
     branchName: string;
     remotes: string[];
     setUpstream: boolean;
     mode: GitPushBranchMode;
+    noVerify: boolean;
   };
   pushStash: { message: string; includeUntracked: boolean };
   pushTag: { tagName: string };
@@ -76,6 +96,7 @@ type ActionPayloads = {
   };
   updateBranchFromUpstream: { branchName: string; force: boolean };
   revertCommit: { commitHash: string; parentIndex: number };
+  squashCommitSelection: { commitHashes: string[]; message: string; noVerify: boolean };
   undoLastCommit: unknown;
 };
 

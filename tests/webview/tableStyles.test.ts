@@ -28,7 +28,7 @@ describe("commit table styles", () => {
 
   it("mutes merge commit rows with the description foreground", () => {
     const muted = css.match(
-      /#commitTable tr\.commit\.mergeCommit td:nth-child\(2\) \{[^}]+\}/
+      /#commitTable tr\.commit\.mergeCommit td:nth-child\(2\),\s*#commitTable tr\.commit\.mutedCommit td:nth-child\(2\) \{[^}]+\}/
     )?.[0];
 
     expect(muted).toBeDefined();
@@ -40,6 +40,7 @@ describe("commit table styles", () => {
     expect(css).toContain("pointer-events: none;");
     expect(css).toContain("#commitTable tr.commit:hover td");
     expect(css).toContain("#commitTable tr.commit.commitDetailsOpen td");
+    expect(css).toContain("#commitTable tr.commit.commitSelected td");
     expect(css).toContain("#commitTable tr.commit.blinking td");
   });
 

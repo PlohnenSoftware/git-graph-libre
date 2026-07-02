@@ -136,7 +136,7 @@ describe("dialog styles", () => {
 
   it("tints selected commit rows with their own graph dot color", () => {
     const selectedRow = css.match(
-      /#commitTable tr\.commit\.commitDetailsOpen td \{[^}]+color-mix\([^}]+\}/
+      /#commitTable tr\.commit\.commitDetailsOpen td,\s*#commitTable tr\.commit\.commitSelected td \{[^}]+color-mix\([^}]+\}/
     )?.[0];
 
     expect(selectedRow).toBeDefined();

@@ -18,7 +18,7 @@ function requireValue(value: string, label: string) {
 
 function buildMergeArgs(
   target: string,
-  input: { createNewCommit: boolean; squash: boolean; noCommit: boolean }
+  input: { createNewCommit: boolean; squash: boolean; noCommit: boolean; noVerify: boolean }
 ) {
   const args = ["merge", target];
   if (input.squash) {
@@ -27,6 +27,7 @@ function buildMergeArgs(
     args.push("--no-ff");
   }
   if (input.noCommit) args.push("--no-commit");
+  if (input.noVerify) args.push("--no-verify");
   return args;
 }
 

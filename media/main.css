@@ -212,17 +212,20 @@ body.unableToLoad p {
   white-space: normal;
 }
 /* Selected rows are tinted with the hue of their own graph dot color */
-#commitTable tr.commit.commitDetailsOpen td {
+#commitTable tr.commit.commitDetailsOpen td,
+#commitTable tr.commit.commitSelected td {
   background-color: color-mix(
     in srgb,
     var(--git-graph-color, var(--vscode-list-activeSelectionBackground)) 18%,
     var(--ngg-transparent)
   );
 }
-#commitTable tr.commit.commitDetailsOpen td:first-child {
+#commitTable tr.commit.commitDetailsOpen td:first-child,
+#commitTable tr.commit.commitSelected td:first-child {
   box-shadow: inset 3px 0 0 var(--git-graph-color, var(--vscode-focusBorder));
 }
-#commitTable tr.commit.commitDetailsOpen:hover td {
+#commitTable tr.commit.commitDetailsOpen:hover td,
+#commitTable tr.commit.commitSelected:hover td {
   background-color: color-mix(
     in srgb,
     var(--git-graph-color, var(--vscode-list-activeSelectionBackground)) 26%,
@@ -235,8 +238,9 @@ body.unableToLoad p {
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
   white-space: normal;
 }
-/* Merge commits are visually muted so linear history stands out */
-#commitTable tr.commit.mergeCommit td:nth-child(2) {
+/* Muted commits let the active first-parent ancestry stand out */
+#commitTable tr.commit.mergeCommit td:nth-child(2),
+#commitTable tr.commit.mutedCommit td:nth-child(2) {
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
 }
 #commitTable tr.commit.findMatch td {

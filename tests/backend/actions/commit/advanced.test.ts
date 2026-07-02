@@ -1,7 +1,13 @@
 import type { SimpleGit } from "simple-git";
 import { describe, expect, it, vi } from "vitest";
 
-import { dropCommit, editHeadCommitMessage, undoLastCommit } from "@/backend/actions/commit";
+import {
+  dropCommit,
+  dropCommitSelection,
+  editHeadCommitMessage,
+  squashCommitSelection,
+  undoLastCommit
+} from "@/backend/actions/commit";
 import type { GitCommandRecord } from "@/backend/utils/gitRunner";
 
 function gitWithRaw(raw: (args: string[]) => Promise<string>): SimpleGit {
@@ -30,6 +36,52 @@ describe("advanced commit actions", () => {
       args: ["rebase", "--onto", "abc123^", "abc123"],
       success: true
     });
+  });
+
+  it("drops selected commits in the supplied order", async () => {
+    const records: GitCommandRecord[] = [];
+    const git = gitWithRaw(async () => "");
+
+    await dropCommitSelection(
+      git,
+      {
+        repo: "/repo",
+        commitHashes: ["newest", "middle", "oldest"]
+      },
+      (record) => records.push(record)
+    );
+
+    expect(git.raw).toHaveBeenNthCalledWith(1, ["rebase", "--onto", "newest^", "newest"]);
+    expect(git.raw).toHaveBeenNthCalledWith(2, ["rebase", "--onto", "middle^", "middle"]);
+    expect(git.raw).toHaveBeenNthCalledWith(3, ["rebase", "--onto", "oldest^", "oldest"]);
+    expect(records.map((record) => record.label)).toEqual([
+      "commit.drop",
+      "commit.drop",
+      "commit.drop"
+    ]);
+  });
+
+  it("squashes a selected commit chain with git hooks bypassed", async () => {
+    const records: GitCommandRecord[] = [];
+    const git = gitWithRaw(async () => "");
+
+    await squashCommitSelection(
+      git,
+      {
+        repo: "/repo",
+        commitHashes: ["newest", "middle", "oldest"],
+        message: "combined message",
+        noVerify: true
+      },
+      (record) => records.push(record)
+    );
+
+    expect(git.raw).toHaveBeenNthCalledWith(1, ["reset", "--soft", "oldest^"]);
+    expect(git.raw).toHaveBeenNthCalledWith(2, ["commit", "-m", "combined message", "--no-verify"]);
+    expect(records.map((record) => record.label)).toEqual([
+      "commit.squash.reset",
+      "commit.squash.commit"
+    ]);
   });
 
   it("undoes the last commit with a soft reset", async () => {

@@ -1,13 +1,10 @@
 import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-
+import { git, makeRepo } from "@tests/backend/helpers";
 import { simpleGit } from "simple-git";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-
 import { mergeCommit } from "@/backend/actions/merge";
-
-import { git, makeRepo } from "@tests/backend/helpers";
 
 let repo: string;
 let featureCommitHash: string;
@@ -35,7 +32,8 @@ describe("mergeCommit", () => {
       commitHash: featureCommitHash,
       createNewCommit: false,
       squash: false,
-      noCommit: false
+      noCommit: false,
+      noVerify: false
     });
 
     const log = cp.execFileSync("git", ["log", "--oneline"], { cwd: repo }).toString();
@@ -57,7 +55,8 @@ describe("mergeCommit", () => {
       commitHash: commit2Hash,
       createNewCommit: true,
       squash: false,
-      noCommit: false
+      noCommit: false,
+      noVerify: false
     });
 
     const log = cp.execFileSync("git", ["log", "--oneline"], { cwd: repo }).toString();
@@ -70,7 +69,8 @@ describe("mergeCommit", () => {
         commitHash: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
         createNewCommit: false,
         squash: false,
-        noCommit: false
+        noCommit: false,
+        noVerify: false
       })
     ).rejects.toThrow();
   });

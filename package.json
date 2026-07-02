@@ -246,6 +246,11 @@
           "default": false,
           "description": "%config.repository.onlyFollowFirstParent%"
         },
+        "git-graph-libre.repository.muteCommitsNotAncestorsOfHead": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.repository.muteCommitsNotAncestorsOfHead%"
+        },
         "git-graph-libre.graphColors": {
           "type": "array",
           "items": {

@@ -53,6 +53,7 @@ export type GitGraphViewState = {
   initialLoadCommits: number;
   lastActiveRepo: string | null;
   loadMoreCommits: number;
+  muteCommitsNotAncestorsOfHead: boolean;
   onlyFollowFirstParent: boolean;
   repos: GitRepoSet;
   showCurrentBranchByDefault: boolean;

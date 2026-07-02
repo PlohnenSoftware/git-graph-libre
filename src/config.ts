@@ -122,6 +122,8 @@ export const config = {
   includeReflog: (): boolean => getConfig("repository.includeReflog", false),
   loadMoreCommits: (): number => getConfig("loadMoreCommits", 75),
   maxDepthOfRepoSearch: (): number => getConfig("maxDepthOfRepoSearch", 0),
+  muteCommitsNotAncestorsOfHead: (): boolean =>
+    getConfig("repository.muteCommitsNotAncestorsOfHead", false),
   onlyFollowFirstParent: (): boolean => getConfig("repository.onlyFollowFirstParent", false),
   showCurrentBranchByDefault: (): boolean => getConfig("showCurrentBranchByDefault", false),
   showRemoteBranches: (): boolean => getConfig("repository.showRemoteBranches", true),

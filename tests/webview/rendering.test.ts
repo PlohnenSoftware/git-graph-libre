@@ -38,6 +38,7 @@ const defaultViewState: GG.GitGraphViewState = {
   initialLoadCommits: 300,
   lastActiveRepo: null,
   loadMoreCommits: 75,
+  muteCommitsNotAncestorsOfHead: true,
   onlyFollowFirstParent: false,
   repos: { [REPO]: { columnWidths: null } },
   showCurrentBranchByDefault: false,
@@ -67,6 +68,23 @@ const twoCommits: GitCommitNode[] = [
     email: "bob@example.com",
     date: 1699000000,
     message: "Initial commit",
+    refs: []
+  }
+];
+
+const threeCommitChain: GitCommitNode[] = [
+  twoCommits[0],
+  {
+    ...twoCommits[1],
+    parentHashes: ["ghi789"]
+  },
+  {
+    hash: "ghi789",
+    parentHashes: [],
+    author: "Cara",
+    email: "cara@example.com",
+    date: 1698000000,
+    message: "Base commit",
     refs: []
   }
 ];
@@ -1357,7 +1375,8 @@ describe("webview rendering", () => {
       commitHash: "abc123",
       createNewCommit: true,
       squash: false,
-      noCommit: false
+      noCommit: false,
+      noVerify: false
     });
 
     openHeadCommitContextMenu();
@@ -1421,6 +1440,72 @@ describe("webview rendering", () => {
       repo: REPO,
       commitHash: "abc123"
     });
+  });
+
+  it("mutes loaded commits outside the HEAD ancestry when enabled", () => {
+    receiveLoadedCommits(
+      [
+        twoCommits[0],
+        twoCommits[1],
+        {
+          hash: "side999",
+          parentHashes: [],
+          author: "Drew",
+          email: "drew@example.com",
+          date: 1_697_000_000,
+          message: "Side branch",
+          refs: []
+        }
+      ],
+      "abc123"
+    );
+
+    expect(findRow("abc123")?.classList.contains("mutedCommit")).toBe(false);
+    expect(findRow("def456")?.classList.contains("mutedCommit")).toBe(false);
+    expect(findRow("side999")?.classList.contains("mutedCommit")).toBe(true);
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("sends selection commit actions from the selected-row context menu", () => {
+    receiveLoadedCommits(threeCommitChain, "abc123");
+
+    findRow("ghi789")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    findRow("abc123")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    findRow("def456")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    const secondRow = findRow("def456");
+    expect(findRow("abc123")?.classList.contains("commitSelected")).toBe(true);
+    expect(secondRow?.classList.contains("commitSelected")).toBe(true);
+
+    secondRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Squash Selection");
+    const message = document.getElementById("dialogInput0") as HTMLTextAreaElement | null;
+    const bypassHooks = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    expect(message).not.toBeNull();
+    expect(bypassHooks).not.toBeNull();
+    if (message !== null) message.value = "Combined selection";
+    if (bypassHooks !== null) bypassHooks.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "squashCommitSelection",
+      repo: REPO,
+      commitHashes: ["abc123", "def456"],
+      message: "Combined selection",
+      noVerify: true
+    });
+
+    findRow("abc123")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    findRow("def456")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    findRow("def456")?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Drop Selection");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "dropCommitSelection",
+      repo: REPO,
+      commitHashes: ["abc123", "def456"]
+    });
+
+    receiveLoadedCommits(twoCommits, "abc123");
   });
 
   it("adds tags and checks out commits from the commit context menu", () => {
@@ -1562,7 +1647,8 @@ describe("webview rendering", () => {
       branchName: "feature/menu",
       createNewCommit: true,
       squash: false,
-      noCommit: false
+      noCommit: false,
+      noVerify: false
     });
 
     branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
@@ -1619,8 +1705,11 @@ describe("webview rendering", () => {
 
     branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
     clickContextMenuItem("Push Branch");
-    const pushMode = document.getElementById("dialogInput2") as HTMLSelectElement | null;
+    const bypassHooks = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    const pushMode = document.getElementById("dialogInput3") as HTMLSelectElement | null;
+    expect(bypassHooks).not.toBeNull();
     expect(pushMode).not.toBeNull();
+    if (bypassHooks !== null) bypassHooks.checked = true;
     if (pushMode !== null) pushMode.value = "force-with-lease";
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
@@ -1629,6 +1718,7 @@ describe("webview rendering", () => {
       branchName: "feature/menu",
       remotes: ["origin"],
       setUpstream: true,
+      noVerify: true,
       mode: "force-with-lease"
     });
 
@@ -1705,10 +1795,13 @@ describe("webview rendering", () => {
     clickContextMenuItem("Pull Branch");
     const noFastForward = document.getElementById("dialogInput0") as HTMLInputElement | null;
     const squash = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    const bypassHooks = document.getElementById("dialogInput2") as HTMLInputElement | null;
     expect(noFastForward).not.toBeNull();
     expect(squash).not.toBeNull();
+    expect(bypassHooks).not.toBeNull();
     if (noFastForward !== null) noFastForward.checked = true;
     if (squash !== null) squash.checked = true;
+    if (bypassHooks !== null) bypassHooks.checked = true;
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
       command: "pullBranch",
@@ -1716,7 +1809,8 @@ describe("webview rendering", () => {
       remote: "origin",
       branchName: "feature/menu",
       createNewCommit: true,
-      squash: true
+      squash: true,
+      noVerify: true
     });
 
     remoteRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
