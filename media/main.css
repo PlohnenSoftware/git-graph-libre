@@ -208,6 +208,7 @@ body.unableToLoad p {
   bottom: 10px;
   width: 45%;
   box-sizing: border-box;
+  padding: 0;
   overflow-x: hidden;
   overflow-y: auto;
   text-overflow: ellipsis;
@@ -241,6 +242,8 @@ body.unableToLoad p {
   gap: 6px;
   width: 100%;
   height: 30px;
+  box-sizing: border-box;
+  margin: 0;
   padding: 0;
   border: 0;
   color: var(--vscode-editor-foreground);
@@ -305,13 +308,14 @@ body.unableToLoad p {
   bottom: 10px;
   left: 45%;
   border-right: 1px solid var(--ngg-neutral-border-subtle);
+  padding: 0;
   overflow-x: hidden;
   overflow-y: scroll;
-  padding-bottom: 8px;
   box-sizing: border-box;
 }
 #commitDetailsFilesBody {
   padding-top: 4px;
+  padding-bottom: 8px;
 }
 #commitDetailsFilesBody ul {
   list-style-type: none;

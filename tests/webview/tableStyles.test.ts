@@ -36,12 +36,16 @@ describe("commit table styles", () => {
 
   it("styles commit detail collapse controls with theme tokens", () => {
     expect(css).toContain(".commitDetailsToggle {");
-    expect(css.match(/\.commitDetailsToggle \{[^}]+\}/)?.[0] ?? "").toContain("padding: 0;");
+    const commitDetailsToggleCss = css.match(/\.commitDetailsToggle \{[^}]+\}/)?.[0] ?? "";
+    expect(commitDetailsToggleCss).toContain("box-sizing: border-box;");
+    expect(commitDetailsToggleCss).toContain("margin: 0;");
+    expect(commitDetailsToggleCss).toContain("padding: 0;");
     expect(css).toContain("#commitDetails.summaryCollapsed.filesCollapsed");
     expect(css).toContain("var(--vscode-toolbar-hoverBackground");
     expect(css).toContain(".commitDetailsPaneBody.hidden");
     expect(css).toContain("#commitDetailsFilesBody > ul.gitFileList");
-    expect(css.match(/#commitDetailsSummary \{[^}]+\}/)?.[0] ?? "").not.toContain("padding:");
+    expect(css.match(/^#commitDetailsSummary \{[^}]+\}/m)?.[0] ?? "").toContain("padding: 0;");
+    expect(css.match(/^#commitDetailsFiles \{[^}]+\}/m)?.[0] ?? "").toContain("padding: 0;");
     expect(css).toContain("#commitDetailsResizeHandle");
     expect(css).toContain("body.commitDetailsResizing");
     expect(css).toContain("cursor: ns-resize;");
