@@ -99,6 +99,28 @@ describe("webview rendering", () => {
     return vscodeMock.sentMessages.filter((msg) => msg.command === "loadCommits").length;
   }
 
+  function getFindInput() {
+    const input = document.getElementById("findInput") as HTMLInputElement | null;
+    if (input === null) throw new Error("Missing find input");
+    return input;
+  }
+
+  function setFindQuery(query: string) {
+    const input = getFindInput();
+    input.value = query;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function findRow(hash: string) {
+    return document.querySelector<HTMLTableRowElement>(`tr.commit[data-hash="${hash}"]`);
+  }
+
+  function clearFind() {
+    document
+      .getElementById("findClearBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  }
+
   beforeAll(async () => {
     vi.resetModules();
     vi.spyOn(window, "scrollTo").mockImplementation(() => {});
@@ -167,6 +189,135 @@ describe("webview rendering", () => {
     expect(headRow?.dataset.hash).toBe("abc123");
     expect(commitCell?.textContent).toBe("abc1");
     expect(commitCell?.getAttribute("title")).toBe("abc123");
+  });
+
+  it("finds loaded commits by message, author, email, refs, and hashes without loading data", () => {
+    const loadCommitRequestsBefore = sentLoadCommitsCount();
+
+    document.getElementById("findBtn")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(document.getElementById("findControl")?.hidden).toBe(false);
+
+    setFindQuery("alice");
+    expect(findRow("abc123")?.classList.contains("findMatchActive")).toBe(true);
+    expect(document.getElementById("findMatchCount")?.textContent).toBe("1 of 1");
+
+    setFindQuery("v1.0.0");
+    expect(findRow("abc123")?.classList.contains("findMatchActive")).toBe(true);
+
+    setFindQuery("def456");
+    expect(findRow("def456")?.classList.contains("findMatchActive")).toBe(true);
+
+    setFindQuery("def4");
+    expect(findRow("def456")?.classList.contains("findMatchActive")).toBe(true);
+
+    setFindQuery("example.com");
+    expect(document.getElementById("findMatchCount")?.textContent).toBe("1 of 2");
+    expect(findRow("abc123")?.classList.contains("findMatch")).toBe(true);
+    expect(findRow("def456")?.classList.contains("findMatch")).toBe(true);
+    expect(findRow("abc123")?.classList.contains("findMatchActive")).toBe(true);
+
+    setFindQuery("missing");
+    expect(document.getElementById("findMatchCount")?.textContent).toBe("No matches");
+    expect(document.querySelector("tr.commit.findMatch")).toBeNull();
+
+    expect(sentLoadCommitsCount()).toBe(loadCommitRequestsBefore);
+    expect(document.querySelectorAll("tr.commit")).toHaveLength(2);
+
+    clearFind();
+    expect(document.getElementById("findControl")?.hidden).toBe(true);
+  });
+
+  it("navigates find matches with buttons and input shortcuts", () => {
+    document.getElementById("findBtn")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    setFindQuery("example.com");
+
+    expect(findRow("abc123")?.classList.contains("findMatchActive")).toBe(true);
+    expect(document.getElementById("findMatchCount")?.textContent).toBe("1 of 2");
+
+    document
+      .getElementById("findNextBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(findRow("def456")?.classList.contains("findMatchActive")).toBe(true);
+    expect(document.getElementById("findMatchCount")?.textContent).toBe("2 of 2");
+
+    document
+      .getElementById("findPreviousBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(findRow("abc123")?.classList.contains("findMatchActive")).toBe(true);
+
+    getFindInput().dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })
+    );
+
+    expect(findRow("def456")?.classList.contains("findMatchActive")).toBe(true);
+
+    getFindInput().dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true
+      })
+    );
+
+    expect(findRow("abc123")?.classList.contains("findMatchActive")).toBe(true);
+
+    clearFind();
+  });
+
+  it("opens find from keyboard without stealing text input or dialog shortcuts", () => {
+    clearFind();
+
+    const documentFindEvent = new KeyboardEvent("keydown", {
+      key: "f",
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    document.dispatchEvent(documentFindEvent);
+
+    expect(documentFindEvent.defaultPrevented).toBe(true);
+    expect(document.getElementById("findControl")?.hidden).toBe(false);
+
+    const inputFindEvent = new KeyboardEvent("keydown", {
+      key: "f",
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    getFindInput().dispatchEvent(inputFindEvent);
+
+    expect(inputFindEvent.defaultPrevented).toBe(false);
+
+    clearFind();
+    document.getElementById("dialog")?.classList.add("active");
+
+    const dialogFindEvent = new KeyboardEvent("keydown", {
+      key: "f",
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    document.dispatchEvent(dialogFindEvent);
+
+    expect(dialogFindEvent.defaultPrevented).toBe(false);
+    expect(document.getElementById("findControl")?.hidden).toBe(true);
+
+    document.getElementById("dialog")?.classList.remove("active");
+    document.getElementById("findBtn")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const escapeEvent = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true
+    });
+    getFindInput().dispatchEvent(escapeEvent);
+
+    expect(escapeEvent.defaultPrevented).toBe(true);
+    expect(document.getElementById("findControl")?.hidden).toBe(true);
   });
 
   it("copies the full commit hash from the commit context menu", () => {

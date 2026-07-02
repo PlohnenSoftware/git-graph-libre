@@ -36,7 +36,18 @@ describe("commit table styles", () => {
 
   it("uses the fixed green HEAD blink colour", () => {
     expect(css).toContain("--ngg-success-pulse: oklch(74% 0.12 152 / 0.5);");
-    expect(css).not.toContain("--vscode-editor-findMatchHighlightBackground");
+    expect(css).toContain("background-color: var(--ngg-success-pulse);");
+  });
+
+  it("styles find matches with theme tokens and OKLCH fallbacks", () => {
+    expect(css).toContain("--ngg-find-highlight: oklch(");
+    expect(css).toContain("--ngg-find-active: oklch(");
+    expect(css).toContain("#commitTable tr.commit.findMatch td");
+    expect(css).toContain("var(--vscode-editor-findMatchHighlightBackground");
+    expect(css).toContain("#commitTable tr.commit.findMatchActive td");
+    expect(css).toContain("var(--vscode-editor-findMatchBackground");
+    expect(css).toContain(".toolbarFindInput");
+    expect(css).toContain(".toolbarIconButton:disabled");
   });
 
   it("styles commit detail collapse controls with theme tokens", () => {

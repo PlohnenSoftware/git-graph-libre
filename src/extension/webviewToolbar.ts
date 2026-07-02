@@ -18,6 +18,8 @@ export function buildWebviewToolbar(l10n: LocalizedStrings): string {
   const branch = escapeAttribute(l10n.branch);
   const showRemoteBranches = escapeAttribute(l10n.showRemoteBranches);
   const toolbar = escapeAttribute(l10n.toolbar);
+  const findCommits = escapeAttribute(l10n.findCommits);
+  const findCommitsPlaceholder = escapeAttribute(l10n.findCommitsPlaceholder);
 
   return `<header id="controls" class="gitGraphToolbar" role="toolbar" aria-label="${toolbar}">
     <span id="repoControl" class="toolbarGroup toolbarRepoGroup">
@@ -32,7 +34,15 @@ export function buildWebviewToolbar(l10n: LocalizedStrings): string {
       <input type="checkbox" id="showRemoteBranchesCheckbox" value="1" checked>
       <span>${showRemoteBranches}</span>
     </label>
+    <span id="findControl" class="toolbarFind" hidden>
+      <input id="findInput" class="toolbarFindInput" type="search" aria-label="${findCommits}" placeholder="${findCommitsPlaceholder}" autocomplete="off" spellcheck="false">
+      <span id="findMatchCount" class="toolbarFindCount" aria-live="polite"></span>
+      ${buildToolbarButton({ id: "findPreviousBtn", label: l10n.findPrevious, icon: "&#8593;" })}
+      ${buildToolbarButton({ id: "findNextBtn", label: l10n.findNext, icon: "&#8595;" })}
+      ${buildToolbarButton({ id: "findClearBtn", label: l10n.findClear, icon: "&times;" })}
+    </span>
     <span class="toolbarActions">
+      ${buildToolbarButton({ id: "findBtn", label: l10n.findCommits, icon: "&#8981;" })}
       ${buildToolbarButton({ id: "blinkHeadBtn", label: l10n.locateHead, icon: "&#8982;" })}
       ${buildToolbarButton({ id: "refreshBtn", label: l10n.refresh, icon: "&#8635;" })}
     </span>

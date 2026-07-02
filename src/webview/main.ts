@@ -20,6 +20,7 @@ import {
   generateGitFileTree,
   renderCommitDetailsRowHtml
 } from "./commitDetailsView";
+import { findCommitIndexes, formatFindMatchCount } from "./commitFind";
 import { Dropdown } from "./dropdown";
 import { Graph } from "./graph";
 import { setStatusStrip } from "./statusStrip";
@@ -74,6 +75,15 @@ class GitGraphView {
   private branchDropdown: Dropdown;
   private showRemoteBranchesElem: HTMLInputElement;
   private scrollShadowElem: HTMLElement;
+  private readonly findControlElem: HTMLElement;
+  private readonly findInputElem: HTMLInputElement;
+  private readonly findMatchCountElem: HTMLElement;
+  private readonly findPreviousBtn: HTMLButtonElement;
+  private readonly findNextBtn: HTMLButtonElement;
+  private readonly findClearBtn: HTMLButtonElement;
+  private findQuery = "";
+  private findMatches: number[] = [];
+  private activeFindMatchIndex = -1;
 
   private loadBranchesCallback: ((changes: boolean, isRepo: boolean) => void) | null = null;
   private loadCommitsCallback: ((changes: boolean) => void) | null = null;
@@ -117,6 +127,30 @@ class GitGraphView {
       this.refresh(true);
     });
     this.scrollShadowElem = requireElement("scrollShadow");
+    this.findControlElem = requireElement("findControl");
+    this.findInputElem = requireElement<HTMLInputElement>("findInput");
+    this.findMatchCountElem = requireElement("findMatchCount");
+    this.findPreviousBtn = requireElement<HTMLButtonElement>("findPreviousBtn");
+    this.findNextBtn = requireElement<HTMLButtonElement>("findNextBtn");
+    this.findClearBtn = requireElement<HTMLButtonElement>("findClearBtn");
+    document.getElementById("findBtn")?.addEventListener("click", () => {
+      this.showFindWidget();
+    });
+    this.findInputElem.addEventListener("input", () => {
+      this.updateFindQuery(this.findInputElem.value);
+    });
+    this.findInputElem.addEventListener("keydown", (event) => {
+      this.handleFindInputKeydown(event);
+    });
+    this.findPreviousBtn.addEventListener("click", () => {
+      this.navigateFind(-1);
+    });
+    this.findNextBtn.addEventListener("click", () => {
+      this.navigateFind(1);
+    });
+    this.findClearBtn.addEventListener("click", () => {
+      this.clearFind();
+    });
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
       this.refresh(true);
     });
@@ -129,6 +163,9 @@ class GitGraphView {
     this.observeWindowSizeChanges();
     this.observeWebviewStyleChanges();
     this.observeWebviewScroll();
+    document.addEventListener("keydown", (event) => {
+      this.handleGlobalKeyboardShortcut(event);
+    });
 
     this.renderShowLoading();
     if (prevState) {
@@ -300,11 +337,12 @@ class GitGraphView {
       return;
     }
 
+    const activeFindHash = this.getActiveFindHash();
     this.moreCommitsAvailable = moreAvailable;
     this.commits = commits;
     this.commitHead = commitHead;
     if (this.commits.length > 0 && this.commits[0].hash === "*") {
-      const match = this.commits[0].message.match(/\((\d+)\)$/);
+      const match = /\((\d+)\)$/.exec(this.commits[0].message);
       const count = match ? match[1] : "?";
       this.commits[0].message = l10n.uncommittedChanges.replace("{0}", count);
     }
@@ -337,7 +375,7 @@ class GitGraphView {
       this.expandedCommit = null;
       this.saveState();
     }
-    this.render();
+    this.render(activeFindHash);
 
     this.triggerLoadCommitsCallback(true);
     this.fetchAvatars(avatarsNeeded);
@@ -441,6 +479,139 @@ class GitGraphView {
     }
   }
 
+  /* Find */
+  private showFindWidget() {
+    this.findControlElem.hidden = false;
+    this.updateFindUi();
+    this.findInputElem.focus();
+    this.findInputElem.select();
+  }
+  private clearFind() {
+    this.findInputElem.value = "";
+    this.findQuery = "";
+    this.findMatches = [];
+    this.activeFindMatchIndex = -1;
+    this.findControlElem.hidden = true;
+    this.updateFindUi();
+    this.renderTable();
+    this.renderGraph();
+  }
+  private updateFindQuery(query: string) {
+    this.findQuery = query;
+    this.activeFindMatchIndex = -1;
+    this.recomputeFindMatches(null);
+    this.updateFindUi();
+    this.renderTable();
+    this.renderGraph();
+    this.revealActiveFindMatch();
+  }
+  private recomputeFindMatches(preferredHash: string | null) {
+    if (this.findQuery.trim() === "") {
+      this.findMatches = [];
+      this.activeFindMatchIndex = -1;
+      return;
+    }
+
+    const previousActiveHash =
+      preferredHash ??
+      (this.activeFindMatchIndex >= 0
+        ? this.commits[this.findMatches[this.activeFindMatchIndex]]?.hash
+        : null);
+    this.findMatches = findCommitIndexes(this.commits, this.findQuery, this.config.shortHashLength);
+    if (this.findMatches.length === 0) {
+      this.activeFindMatchIndex = -1;
+      return;
+    }
+
+    const preferredIndex = this.findMatches.findIndex(
+      (commitIndex) => this.commits[commitIndex].hash === previousActiveHash
+    );
+    if (preferredIndex >= 0) {
+      this.activeFindMatchIndex = preferredIndex;
+    } else if (this.activeFindMatchIndex >= 0) {
+      this.activeFindMatchIndex = Math.min(this.activeFindMatchIndex, this.findMatches.length - 1);
+    } else {
+      this.activeFindMatchIndex = 0;
+    }
+  }
+  private getActiveFindHash() {
+    if (this.activeFindMatchIndex < 0) return null;
+    return this.commits[this.findMatches[this.activeFindMatchIndex]]?.hash ?? null;
+  }
+  private navigateFind(delta: number) {
+    if (this.findMatches.length === 0) return;
+    this.activeFindMatchIndex =
+      (this.activeFindMatchIndex + delta + this.findMatches.length) % this.findMatches.length;
+    this.updateFindUi();
+    this.renderTable();
+    this.renderGraph();
+    this.revealActiveFindMatch();
+  }
+  private updateFindUi() {
+    const hasQuery = this.findQuery.trim() !== "";
+    const hasMatches = this.findMatches.length > 0;
+    this.findPreviousBtn.disabled = !hasMatches;
+    this.findNextBtn.disabled = !hasMatches;
+    this.findControlElem.classList.toggle("findNoResults", hasQuery && !hasMatches);
+    if (hasQuery && hasMatches) {
+      this.findMatchCountElem.textContent = formatFindMatchCount(
+        l10n.findMatchCount,
+        this.activeFindMatchIndex,
+        this.findMatches.length
+      );
+    } else if (hasQuery) {
+      this.findMatchCountElem.textContent = l10n.findNoResults;
+    } else {
+      this.findMatchCountElem.textContent = "";
+    }
+  }
+  private revealActiveFindMatch() {
+    const activeCommitIndex = this.findMatches[this.activeFindMatchIndex];
+    if (activeCommitIndex === undefined) return;
+    const row = document.querySelector<HTMLTableRowElement>(
+      `tr.commit[data-id="${activeCommitIndex.toString()}"]`
+    );
+    if (typeof row?.scrollIntoView === "function") {
+      row.scrollIntoView({ block: "center" });
+    }
+  }
+  private handleFindInputKeydown(event: KeyboardEvent) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      this.navigateFind(event.shiftKey ? -1 : 1);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      this.clearFind();
+    }
+  }
+  public handleGlobalKeyboardShortcut(event: KeyboardEvent) {
+    const key = event.key.toLocaleLowerCase();
+    if ((event.ctrlKey || event.metaKey) && key === "f") {
+      if (event.altKey || isEditableTarget(event.target) || isDialogActive()) return false;
+      event.preventDefault();
+      this.showFindWidget();
+      return true;
+    }
+    if (event.key === "F3" && this.findQuery.trim() !== "") {
+      if (isEditableTarget(event.target) || isDialogActive()) return false;
+      event.preventDefault();
+      this.navigateFind(event.shiftKey ? -1 : 1);
+      return true;
+    }
+    if (
+      event.key === "Escape" &&
+      !this.findControlElem.hidden &&
+      !isEditableTarget(event.target) &&
+      !isDialogActive()
+    ) {
+      event.preventDefault();
+      this.clearFind();
+      return true;
+    }
+    return false;
+  }
+
   /* State */
   private saveState() {
     vscode.setState({
@@ -460,9 +631,11 @@ class GitGraphView {
   }
 
   /* Renderers */
-  private render() {
+  private render(preferredFindHash: string | null = null) {
     document.body.classList.remove("unableToLoad");
     setStatusStrip("ready", l10n.statusReady);
+    this.recomputeFindMatches(preferredFindHash);
+    this.updateFindUi();
     this.renderTable();
     this.renderGraph();
   }
@@ -495,6 +668,8 @@ class GitGraphView {
     let html = `<tr id="tableColHeaders"><th id="tableHeaderGraphCol" class="tableColHeader">${l10n.graph}</th><th class="tableColHeader">${l10n.description}</th><th class="tableColHeader">${l10n.date}</th><th class="tableColHeader">${l10n.author}</th><th class="tableColHeader">${l10n.commit}</th></tr>`;
     const currentHash =
       this.commits.length > 0 && this.commits[0].hash === "*" ? "*" : this.commitHead;
+    const findMatchIndexes = new Set(this.findMatches);
+    const activeFindCommitIndex = this.findMatches[this.activeFindMatchIndex] ?? -1;
     for (let i = 0; i < this.commits.length; i++) {
       let refs = "",
         refHtml = "";
@@ -521,7 +696,10 @@ class GitGraphView {
       let rowAttributes = 'class="unsavedChanges"';
       if (this.commits[i].hash !== "*") {
         const currentAttribute = isHeadCommit ? ' aria-current="true"' : "";
-        rowAttributes = `class="commit" tabindex="0" aria-selected="false"${currentAttribute} data-hash="${this.commits[i].hash}"`;
+        const rowClasses = ["commit"];
+        if (findMatchIndexes.has(i)) rowClasses.push("findMatch");
+        if (activeFindCommitIndex === i) rowClasses.push("findMatchActive");
+        rowAttributes = `class="${rowClasses.join(" ")}" tabindex="0" aria-selected="false"${currentAttribute} data-hash="${this.commits[i].hash}"`;
       }
       let avatarHtml = "";
       if (this.config.fetchAvatars) {
@@ -1515,6 +1693,19 @@ function isCommitDetailsSection(section: string | undefined): section is CommitD
 
 function getSectionToggleLabel(open: boolean, collapseLabel: string, expandLabel: string): string {
   return open ? collapseLabel : expandLabel;
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
+}
+
+function isDialogActive(): boolean {
+  return dialog.classList.contains("active");
 }
 
 const contextMenu = requireElement("contextMenu");
