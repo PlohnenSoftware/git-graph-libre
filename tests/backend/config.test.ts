@@ -37,6 +37,22 @@ describe("configuration", () => {
     expect(config.graphRowHeight()).toBe(24);
   });
 
+  it("bounds short hash display length before it reaches the webview", async () => {
+    settings.set("git-graph-libre.shortHashLength", 100);
+
+    const { config } = await import("@/config");
+
+    expect(config.shortHashLength()).toBe(64);
+  });
+
+  it("falls back when short hash display length is invalid", async () => {
+    settings.set("git-graph-libre.shortHashLength", Number.NaN);
+
+    const { config } = await import("@/config");
+
+    expect(config.shortHashLength()).toBe(8);
+  });
+
   it("reads commit details file view settings with safe defaults", async () => {
     settings.set("git-graph-libre.commitDetails.fileViewMode", "list");
     settings.set("git-graph-libre.commitDetails.compactFolders", true);

@@ -18,6 +18,7 @@ function makeConfig(): Config {
     graphFontSize: () => 15,
     graphRowHeight: () => 30,
     graphStyle: () => "rounded",
+    shortHashLength: () => 12,
     initialLoadCommits: () => 300,
     loadMoreCommits: () => 100,
     maxDepthOfRepoSearch: () => 0,
@@ -61,5 +62,6 @@ describe("webview HTML", () => {
     expect(viewState.commitDetailsFileViewMode).toBe("list");
     expect(viewState.graphFontSize).toBe(15);
     expect(viewState.graphRowHeight).toBe(30);
+    expect(viewState.shortHashLength).toBe(12);
   });
 });

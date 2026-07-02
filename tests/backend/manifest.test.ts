@@ -60,6 +60,13 @@ describe("extension manifest", () => {
       maximum: 48,
       description: "%config.graph.rowHeight%"
     });
+    expect(properties["git-graph-libre.shortHashLength"]).toMatchObject({
+      type: "number",
+      default: 8,
+      minimum: 4,
+      maximum: 64,
+      description: "%config.shortHashLength%"
+    });
   });
 
   it("contributes commit details file view settings", () => {

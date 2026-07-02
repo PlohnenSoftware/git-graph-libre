@@ -23,6 +23,7 @@ declare global {
     initialLoadCommits: number;
     loadMoreCommits: number;
     showCurrentBranchByDefault: boolean;
+    shortHashLength: number;
   }
 
   interface ContextMenuItem {

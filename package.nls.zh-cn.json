@@ -27,6 +27,7 @@
   "config.graphStyle.angular": "在图形中的分支之间过渡时使用直角线条",
   "config.graph.fontSize": "指定图形行使用的字体大小（像素）。",
   "config.graph.rowHeight": "指定图形行使用的行高（像素）。",
+  "config.shortHashLength": "指定缩写提交哈希显示的字符数。",
   "config.initialLoadCommits": "指定初始加载的提交数量。",
   "config.loadMoreCommits": "指定按下“加载更多提交”按钮时要加载的提交数量（仅在有更多提交可用时显示）。",
   "config.maxDepthOfRepoSearch": "指定在工作区中发现仓库时搜索的子文件夹最大深度。",

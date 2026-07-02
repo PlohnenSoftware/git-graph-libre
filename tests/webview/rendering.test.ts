@@ -29,7 +29,8 @@ const defaultViewState: GG.GitGraphViewState = {
   lastActiveRepo: null,
   loadMoreCommits: 75,
   repos: { [REPO]: { columnWidths: null } },
-  showCurrentBranchByDefault: false
+  showCurrentBranchByDefault: false,
+  shortHashLength: 4
 };
 
 const twoCommits: GitCommitNode[] = [
@@ -157,6 +158,34 @@ describe("webview rendering", () => {
     expect(headRow?.getAttribute("aria-selected")).toBe("false");
     expect(olderRow?.getAttribute("tabindex")).toBe("0");
     expect(olderRow?.hasAttribute("aria-current")).toBe(false);
+  });
+
+  it("renders configured short hashes while retaining full hash attributes", () => {
+    const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
+    const commitCell = headRow?.querySelectorAll("td")[4];
+
+    expect(headRow?.dataset.hash).toBe("abc123");
+    expect(commitCell?.textContent).toBe("abc1");
+    expect(commitCell?.getAttribute("title")).toBe("abc123");
+  });
+
+  it("copies the full commit hash from the commit context menu", () => {
+    const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
+    expect(headRow).not.toBeNull();
+
+    headRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const copyHashItem = Array.from(
+      document.querySelectorAll("#contextMenu .contextMenuItem")
+    ).find((item) => item.textContent?.includes("Copy Commit Hash"));
+    expect(copyHashItem).not.toBeUndefined();
+
+    copyHashItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "Commit Hash",
+      data: "abc123"
+    });
   });
 
   it("toggles commit details from keyboard activation", () => {

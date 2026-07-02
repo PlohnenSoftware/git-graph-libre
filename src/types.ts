@@ -26,6 +26,7 @@ export type GitGraphViewState = {
   loadMoreCommits: number;
   repos: GitRepoSet;
   showCurrentBranchByDefault: boolean;
+  shortHashLength: number;
 };
 
 export type Avatar = {

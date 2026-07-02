@@ -16,6 +16,7 @@ import type { RequestMessage, ResponseMessage } from "@/types";
 
 import { makeRepo } from "@tests/backend/helpers";
 import {
+  executedCommands,
   openedTextDocuments,
   resetVscodeMock,
   shownTextDocuments
@@ -59,6 +60,7 @@ describe("registerMessageHandlers", () => {
       config: {
         dateType: () => "Author Date",
         showUncommittedChanges: () => false,
+        shortHashLength: () => 4,
         gitPath: () => "git"
       } as unknown as Config,
       gitClient,
@@ -123,5 +125,30 @@ describe("registerMessageHandlers", () => {
     });
     expect(openedTextDocuments).toHaveLength(0);
     expect(shownTextDocuments).toHaveLength(0);
+  });
+
+  it("uses configured short hashes in diff titles while opening full hash revisions", async () => {
+    resetVscodeMock();
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("viewDiff");
+
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "viewDiff",
+      repo,
+      commitHash: "abcdef1234567890",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "viewDiff",
+      success: true
+    });
+    expect(executedCommands[executedCommands.length - 1]?.[3]).toBe("example.ts (abcd^ ↔ abcd)");
+    expect(JSON.stringify(executedCommands[executedCommands.length - 1])).toContain(
+      "abcdef1234567890"
+    );
   });
 });

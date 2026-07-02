@@ -27,6 +27,7 @@
   "config.graphStyle.angular": "Używaj kanciastych linii przy przejściach między gałęziami na grafie",
   "config.graph.fontSize": "Określa rozmiar czcionki w pikselach używany w wierszach grafu.",
   "config.graph.rowHeight": "Określa wysokość wiersza w pikselach używaną w wierszach grafu.",
+  "config.shortHashLength": "Określa liczbę znaków wyświetlanych w skróconych hashach commitów.",
   "config.initialLoadCommits": "Określa liczbę commitów ładowanych początkowo.",
   "config.loadMoreCommits": "Określa liczbę commitów ładowanych po naciśnięciu przycisku \"Załaduj więcej commitów\" (widocznego tylko wtedy, gdy dostępne są kolejne commity).",
   "config.maxDepthOfRepoSearch": "Określa maksymalną głębokość podfolderów przeszukiwanych podczas wykrywania repozytoriów w obszarze roboczym.",

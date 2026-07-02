@@ -36,7 +36,16 @@ export const l10n = {
 export const version = "1.98.0";
 
 export const Uri = {
-  file: (fsPath: string) => ({ fsPath })
+  file: (fsPath: string) => ({ fsPath }),
+  parse: (value: string) => {
+    const [schemeAndPath, query = ""] = value.split("?");
+    return {
+      path: schemeAndPath.replace(/^[^:]+:/, ""),
+      query,
+      value,
+      toString: () => value
+    };
+  }
 };
 
 export const executedCommands: unknown[][] = [];

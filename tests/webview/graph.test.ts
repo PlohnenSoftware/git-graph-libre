@@ -15,7 +15,8 @@ const config: Config = {
   grid: { x: 16, y: 24, offsetX: 8, offsetY: 12, expandY: 250 },
   initialLoadCommits: 300,
   loadMoreCommits: 100,
-  showCurrentBranchByDefault: false
+  showCurrentBranchByDefault: false,
+  shortHashLength: 8
 };
 
 function makeCommit(hash: string, parentHashes: string[] = []): GitCommitNode {

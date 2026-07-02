@@ -23,7 +23,8 @@ const viewState: GG.GitGraphViewState = {
   lastActiveRepo: null,
   loadMoreCommits: 75,
   repos: { [REPO]: { columnWidths: null } },
-  showCurrentBranchByDefault: false
+  showCurrentBranchByDefault: false,
+  shortHashLength: 8
 };
 
 const commits: GitCommitNode[] = [

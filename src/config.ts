@@ -1,5 +1,11 @@
 import * as vscode from "vscode";
 
+import {
+  DEFAULT_SHORT_HASH_LENGTH,
+  MAX_SHORT_HASH_LENGTH,
+  MIN_SHORT_HASH_LENGTH,
+  clampShortHashLength
+} from "./backend/utils/string";
 import type { DateType } from "./backend/types";
 import type { CommitDetailsFileViewMode, DateFormat, GraphStyle } from "./types";
 
@@ -51,6 +57,15 @@ export const config = {
   graphStyle: (): GraphStyle => getConfig("graphStyle", "rounded"),
   graphFontSize: (): number => getNumberConfig("graph.fontSize", 13, 8, 24),
   graphRowHeight: (): number => getNumberConfig("graph.rowHeight", 24, 18, 48),
+  shortHashLength: (): number =>
+    clampShortHashLength(
+      getNumberConfig(
+        "shortHashLength",
+        DEFAULT_SHORT_HASH_LENGTH,
+        MIN_SHORT_HASH_LENGTH,
+        MAX_SHORT_HASH_LENGTH
+      )
+    ),
   initialLoadCommits: (): number => getConfig("initialLoadCommits", 300),
   loadMoreCommits: (): number => getConfig("loadMoreCommits", 75),
   maxDepthOfRepoSearch: (): number => getConfig("maxDepthOfRepoSearch", 0),

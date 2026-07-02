@@ -47,7 +47,8 @@ export function buildWebviewHtml(opts: {
     lastActiveRepo: extensionState.getLastActiveRepo(),
     loadMoreCommits: config.loadMoreCommits(),
     repos: repoManager.getRepos(),
-    showCurrentBranchByDefault: config.showCurrentBranchByDefault()
+    showCurrentBranchByDefault: config.showCurrentBranchByDefault(),
+    shortHashLength: config.shortHashLength()
   };
 
   const numRepos = Object.keys(viewState.repos).length;

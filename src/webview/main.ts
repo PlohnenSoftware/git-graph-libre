@@ -6,6 +6,7 @@ import type {
   GitQueryError,
   GitResetMode
 } from "@/backend/types";
+import { abbrevCommit } from "@/backend/utils/string";
 
 import {
   alterGitFileTree,
@@ -487,6 +488,9 @@ class GitGraphView {
     this.config.grid.offsetY = headerHeight + this.config.grid.y / 2;
     this.graph.render(this.expandedCommit);
   }
+  private displayHash(hash: string) {
+    return abbrevCommit(hash, this.config.shortHashLength);
+  }
   private renderTable() {
     let html = `<tr id="tableColHeaders"><th id="tableHeaderGraphCol" class="tableColHeader">${l10n.graph}</th><th class="tableColHeader">${l10n.description}</th><th class="tableColHeader">${l10n.date}</th><th class="tableColHeader">${l10n.author}</th><th class="tableColHeader">${l10n.commit}</th></tr>`;
     const currentHash =
@@ -551,7 +555,7 @@ class GitGraphView {
         '</td><td title="' +
         escapeHtml(this.commits[i].hash) +
         '">' +
-        abbrevCommit(this.commits[i].hash) +
+        this.displayHash(this.commits[i].hash) +
         "</td></tr>";
     }
     this.tableElem.innerHTML = `<table>${html}</table>`;
@@ -611,7 +615,7 @@ class GitGraphView {
             title: l10n.addTag + ELLIPSIS,
             onClick: () => {
               showFormDialog(
-                l10n.dialogAddTagTitle.replace("{0}", `<b><i>${abbrevCommit(hash)}</i></b>`),
+                l10n.dialogAddTagTitle.replace("{0}", `<b><i>${this.displayHash(hash)}</i></b>`),
                 [
                   { type: "text-ref" as const, name: l10n.dialogAddTagName, default: "" },
                   {
@@ -649,7 +653,10 @@ class GitGraphView {
             title: l10n.createBranch + ELLIPSIS,
             onClick: () => {
               showRefInputDialog(
-                l10n.dialogCreateBranchTitle.replace("{0}", `<b><i>${abbrevCommit(hash)}</i></b>`),
+                l10n.dialogCreateBranchTitle.replace(
+                  "{0}",
+                  `<b><i>${this.displayHash(hash)}</i></b>`
+                ),
                 "",
                 l10n.dialogCreateBranchSubmit,
                 (name) => {
@@ -669,7 +676,10 @@ class GitGraphView {
             title: l10n.checkout + ELLIPSIS,
             onClick: () => {
               showConfirmationDialog(
-                l10n.dialogCheckoutConfirm.replace("{0}", `<b><i>${abbrevCommit(hash)}</i></b>`),
+                l10n.dialogCheckoutConfirm.replace(
+                  "{0}",
+                  `<b><i>${this.displayHash(hash)}</i></b>`
+                ),
                 () => {
                   sendMessage({
                     command: "checkoutCommit",
@@ -688,7 +698,7 @@ class GitGraphView {
                 showConfirmationDialog(
                   l10n.dialogCherryPickConfirm.replace(
                     "{0}",
-                    `<b><i>${abbrevCommit(hash)}</i></b>`
+                    `<b><i>${this.displayHash(hash)}</i></b>`
                   ),
                   () => {
                     sendMessage({
@@ -704,7 +714,7 @@ class GitGraphView {
                 const options = this.commits[this.commitLookup[hash]].parentHashes.map(
                   (parentHash, index) => ({
                     name:
-                      abbrevCommit(parentHash) +
+                      this.displayHash(parentHash) +
                       (typeof this.commitLookup[parentHash] === "number"
                         ? `: ${this.commits[this.commitLookup[parentHash]].message}`
                         : ""),
@@ -714,7 +724,7 @@ class GitGraphView {
                 showSelectDialog(
                   l10n.dialogCherryPickConfirm.replace(
                     "{0}",
-                    `<b><i>${abbrevCommit(hash)}</i></b>`
+                    `<b><i>${this.displayHash(hash)}</i></b>`
                   ),
                   "1",
                   options,
@@ -737,7 +747,10 @@ class GitGraphView {
             onClick: () => {
               if (this.commits[this.commitLookup[hash]].parentHashes.length === 1) {
                 showConfirmationDialog(
-                  l10n.dialogRevertConfirm.replace("{0}", `<b><i>${abbrevCommit(hash)}</i></b>`),
+                  l10n.dialogRevertConfirm.replace(
+                    "{0}",
+                    `<b><i>${this.displayHash(hash)}</i></b>`
+                  ),
                   () => {
                     sendMessage({
                       command: "revertCommit",
@@ -752,7 +765,7 @@ class GitGraphView {
                 const options = this.commits[this.commitLookup[hash]].parentHashes.map(
                   (parentHash, index) => ({
                     name:
-                      abbrevCommit(parentHash) +
+                      this.displayHash(parentHash) +
                       (typeof this.commitLookup[parentHash] === "number"
                         ? `: ${this.commits[this.commitLookup[parentHash]].message}`
                         : ""),
@@ -760,7 +773,10 @@ class GitGraphView {
                   })
                 );
                 showSelectDialog(
-                  l10n.dialogRevertConfirm.replace("{0}", `<b><i>${abbrevCommit(hash)}</i></b>`),
+                  l10n.dialogRevertConfirm.replace(
+                    "{0}",
+                    `<b><i>${this.displayHash(hash)}</i></b>`
+                  ),
                   "1",
                   options,
                   l10n.dialogYesRevert,
@@ -783,7 +799,7 @@ class GitGraphView {
             onClick: () => {
               showCheckboxDialog(
                 l10n.dialogMergeConfirm
-                  .replace("{0}", `<b><i>${abbrevCommit(hash)}</i></b>`)
+                  .replace("{0}", `<b><i>${this.displayHash(hash)}</i></b>`)
                   .replace("{1}", `<b>${l10n.labelCurrentBranch}</b>`),
                 l10n.dialogMergeNoFastForward,
                 true,
@@ -806,7 +822,7 @@ class GitGraphView {
               showSelectDialog(
                 l10n.dialogResetConfirm
                   .replace("{0}", `<b>${l10n.labelCurrentBranch}</b>`)
-                  .replace("{1}", `<b><i>${abbrevCommit(hash)}</i></b>`),
+                  .replace("{1}", `<b><i>${this.displayHash(hash)}</i></b>`),
                 "mixed",
                 [
                   { name: l10n.dialogResetSoft, value: "soft" },
@@ -1521,7 +1537,8 @@ const gitGraph = new GitGraphView(
     grid: { x: 16, y: viewState.graphRowHeight, offsetX: 8, offsetY: 12, expandY: 250 },
     initialLoadCommits: viewState.initialLoadCommits,
     loadMoreCommits: viewState.loadMoreCommits,
-    showCurrentBranchByDefault: viewState.showCurrentBranchByDefault
+    showCurrentBranchByDefault: viewState.showCurrentBranchByDefault,
+    shortHashLength: viewState.shortHashLength
   },
   vscode.getState()
 );
@@ -1703,11 +1720,6 @@ function getCommitDate(dateVal: number) {
       value = `${dateStr} ${timeStr}`;
   }
   return { title: `${dateStr} ${timeStr}`, value: value };
-}
-
-/* Utils */
-function abbrevCommit(commitHash: string) {
-  return commitHash.substring(0, 8);
 }
 
 /* Context Menu */

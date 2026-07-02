@@ -244,6 +244,13 @@
           "maximum": 48,
           "description": "%config.graph.rowHeight%"
         },
+        "git-graph-libre.shortHashLength": {
+          "type": "number",
+          "default": 8,
+          "minimum": 4,
+          "maximum": 64,
+          "description": "%config.shortHashLength%"
+        },
         "git-graph-libre.initialLoadCommits": {
           "type": "number",
           "default": 300,

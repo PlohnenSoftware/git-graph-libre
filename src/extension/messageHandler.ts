@@ -37,9 +37,10 @@ async function viewDiff(
   commitHash: string,
   oldFilePath: string,
   newFilePath: string,
-  type: GitFileChangeType
+  type: GitFileChangeType,
+  shortHashLength: number
 ): Promise<boolean> {
-  const abbrevHash = abbrevCommit(commitHash);
+  const abbrevHash = abbrevCommit(commitHash, shortHashLength);
   const pathComponents = newFilePath.split("/");
   const title =
     pathComponents[pathComponents.length - 1] +
@@ -48,7 +49,7 @@ async function viewDiff(
       ? l10n.t("diff.addedIn", abbrevHash)
       : type === "D"
         ? l10n.t("diff.deletedIn", abbrevHash)
-        : `${abbrevCommit(commitHash)}^ ↔ ${abbrevCommit(commitHash)}`) +
+        : `${abbrevHash}^ ↔ ${abbrevHash}`) +
     ")";
   try {
     await vscode.commands.executeCommand(
@@ -243,7 +244,14 @@ export function registerMessageHandlers(
   bridge.onMessage("viewDiff", async (msg) => {
     bridge.post({
       command: "viewDiff",
-      success: await viewDiff(msg.repo, msg.commitHash, msg.oldFilePath, msg.newFilePath, msg.type)
+      success: await viewDiff(
+        msg.repo,
+        msg.commitHash,
+        msg.oldFilePath,
+        msg.newFilePath,
+        msg.type,
+        config.shortHashLength()
+      )
     });
   });
 
