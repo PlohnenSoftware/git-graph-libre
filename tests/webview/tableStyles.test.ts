@@ -7,6 +7,11 @@ const dropdownCss = readFileSync(join(process.cwd(), "media/dropdown.css"), "utf
 const webviewCss = `${css}\n${dropdownCss}`;
 
 describe("commit table styles", () => {
+  it("keeps a stable vertical scrollbar for loading and short graphs", () => {
+    expect(css.match(/^html \{[^}]+\}/m)?.[0] ?? "").toContain("overflow-y: scroll;");
+    expect(css.match(/^body \{[^}]+\}/m)?.[0] ?? "").toContain("min-height: calc(100vh + 1px);");
+  });
+
   it("keeps table headers sticky and theme-native", () => {
     expect(css).toContain("#commitTable th {");
     expect(css).toContain("position: sticky;");
