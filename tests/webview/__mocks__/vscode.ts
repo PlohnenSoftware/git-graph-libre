@@ -54,6 +54,11 @@ export const shownTextDocuments: Array<{
   document: { uri: { fsPath: string } };
   options: unknown;
 }> = [];
+export const createdTerminals: Array<{
+  options: unknown;
+  shown: boolean;
+  sentText: string[];
+}> = [];
 
 export const commands = {
   executeCommand: async (...args: unknown[]) => {
@@ -69,6 +74,22 @@ export const workspace = {
 };
 
 export const window = {
+  createTerminal: (options: unknown) => {
+    const terminal = {
+      options,
+      shown: false,
+      sentText: [] as string[]
+    };
+    createdTerminals.push(terminal);
+    return {
+      show: () => {
+        terminal.shown = true;
+      },
+      sendText: (text: string) => {
+        terminal.sentText.push(text);
+      }
+    };
+  },
   showTextDocument: async (document: { uri: { fsPath: string } }, options: unknown) => {
     shownTextDocuments.push({ document, options });
   }
@@ -78,4 +99,5 @@ export function resetVscodeMock() {
   executedCommands.splice(0);
   openedTextDocuments.splice(0);
   shownTextDocuments.splice(0);
+  createdTerminals.splice(0);
 }

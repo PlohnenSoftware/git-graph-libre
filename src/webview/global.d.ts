@@ -44,6 +44,12 @@ declare global {
     name: string;
     default: string;
   }
+  interface DialogTextareaInput {
+    type: "textarea";
+    name: string;
+    default: string;
+    placeholder: string | null;
+  }
   interface DialogSelectInput {
     type: "select";
     name: string;
@@ -55,7 +61,12 @@ declare global {
     name: string;
     value: boolean;
   }
-  type DialogInput = DialogTextInput | DialogTextRefInput | DialogSelectInput | DialogCheckboxInput;
+  type DialogInput =
+    | DialogTextInput
+    | DialogTextRefInput
+    | DialogTextareaInput
+    | DialogSelectInput
+    | DialogCheckboxInput;
   type DialogInputValue = string | boolean;
 
   interface ExpandedCommit {

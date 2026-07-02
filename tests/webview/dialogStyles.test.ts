@@ -31,6 +31,7 @@ describe("dialog styles", () => {
 
   it("styles dialog text fields and selects with input theme tokens", () => {
     expect(css).toContain('#dialog table.dialogForm input[type="text"],');
+    expect(css).toContain("#dialog table.dialogForm textarea,");
     expect(css).toContain("var(--vscode-input-background)");
     expect(css).toContain("var(--vscode-input-foreground)");
     expect(css).toContain("var(--vscode-input-border");
@@ -38,6 +39,7 @@ describe("dialog styles", () => {
     expect(ruleFor(css, "#dialog table.dialogForm select")).toContain(
       "var(--vscode-dropdown-background"
     );
+    expect(css).toContain("resize: vertical;");
     expect(ruleFor(css, '#dialog.inputInvalid table.dialogForm input[type="text"]')).toContain(
       "var(--vscode-inputValidation-errorBorder"
     );

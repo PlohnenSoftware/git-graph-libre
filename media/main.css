@@ -929,6 +929,11 @@ body.commitDetailsResizing * {
 #dialog table.dialogForm input[type="text"] {
   width: 100%;
 }
+#dialog table.dialogForm textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+}
 #dialog table.dialogForm input[type="checkbox"] {
   vertical-align: text-top;
   outline-style: none;
@@ -936,6 +941,7 @@ body.commitDetailsResizing * {
   accent-color: var(--vscode-button-background, var(--ngg-accent));
 }
 #dialog table.dialogForm input[type="text"],
+#dialog table.dialogForm textarea,
 #dialog table.dialogForm select {
   box-sizing: border-box;
   height: 28px;
@@ -948,10 +954,15 @@ body.commitDetailsResizing * {
   font-family: inherit;
   font-size: 13px;
 }
+#dialog table.dialogForm textarea {
+  height: auto;
+  line-height: 18px;
+}
 #dialog table.dialogForm input[type="text"]::placeholder {
   color: var(--vscode-input-placeholderForeground);
 }
 #dialog table.dialogForm input[type="text"]:focus,
+#dialog table.dialogForm textarea:focus,
 #dialog table.dialogForm select:focus {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 0;

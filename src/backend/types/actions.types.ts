@@ -24,8 +24,10 @@ type ActionPayloads = {
     force: boolean;
   };
   fetchRemotes: { prune: boolean; pruneTags: boolean };
-  mergeBranch: { branchName: string; createNewCommit: boolean };
-  mergeCommit: { commitHash: string; createNewCommit: boolean };
+  dropCommit: { commitHash: string };
+  editHeadCommitMessage: { commitHash: string; message: string };
+  mergeBranch: { branchName: string; createNewCommit: boolean; squash: boolean; noCommit: boolean };
+  mergeCommit: { commitHash: string; createNewCommit: boolean; squash: boolean; noCommit: boolean };
   popStash: { selector: string; reinstateIndex: boolean };
   pullBranch: { branchName: string; remote: string; createNewCommit: boolean; squash: boolean };
   pushBranch: {
@@ -39,8 +41,15 @@ type ActionPayloads = {
   renameBranch: { oldName: string; newName: string };
   resetUncommittedChanges: { resetMode: Exclude<GitResetMode, "soft"> };
   resetToCommit: { commitHash: string; resetMode: GitResetMode };
+  rebaseCurrentBranch: {
+    target: string;
+    targetType: "branch" | "commit";
+    ignoreDate: boolean;
+    interactive: boolean;
+  };
   updateBranchFromUpstream: { branchName: string; force: boolean };
   revertCommit: { commitHash: string; parentIndex: number };
+  undoLastCommit: unknown;
 };
 
 export type ActionRequest = {

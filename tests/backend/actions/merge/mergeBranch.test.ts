@@ -28,7 +28,9 @@ describe("mergeBranch", () => {
   it("merges a branch with fast-forward by default", async () => {
     await mergeBranch(simpleGit(repo), {
       branchName: "feature",
-      createNewCommit: false
+      createNewCommit: false,
+      squash: false,
+      noCommit: false
     });
 
     const log = cp.execFileSync("git", ["log", "--oneline"], { cwd: repo }).toString();
@@ -44,7 +46,9 @@ describe("mergeBranch", () => {
 
     await mergeBranch(simpleGit(repo), {
       branchName: "feature2",
-      createNewCommit: true
+      createNewCommit: true,
+      squash: false,
+      noCommit: false
     });
 
     const log = cp.execFileSync("git", ["log", "--oneline"], { cwd: repo }).toString();
@@ -55,7 +59,9 @@ describe("mergeBranch", () => {
     await expect(
       mergeBranch(simpleGit(repo), {
         branchName: "nonexistent-branch",
-        createNewCommit: false
+        createNewCommit: false,
+        squash: false,
+        noCommit: false
       })
     ).rejects.toThrow();
   });

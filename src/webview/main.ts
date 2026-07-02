@@ -939,6 +939,16 @@ class GitGraphView {
   private displayHash(hash: string) {
     return abbrevCommit(hash, this.config.shortHashLength);
   }
+  private trimTrailingLineFeeds(message: string) {
+    let end = message.length;
+    while (end > 0 && message.codePointAt(end - 1) === 10) end -= 1;
+    return message.slice(0, end);
+  }
+  private normalizeCommitMessage(message: string) {
+    // Commit messages are user-controlled, so keep normalization regex-free and
+    // avoid regex backtracking hotspots over unbounded text.
+    return this.trimTrailingLineFeeds(message.split("\r\n").join("\n"));
+  }
   private renderTable() {
     let html = this.renderTableHeader();
     const currentHash = this.getCurrentDisplayHash();
@@ -1070,7 +1080,11 @@ class GitGraphView {
     );
   }
   private buildCommitContextMenu(hash: string, sourceElem: HTMLElement): ContextMenuElement[] {
-    return [
+    const commitIndex = this.commitLookup[hash];
+    const commit = typeof commitIndex === "number" ? this.commits[commitIndex] : null;
+    const isHeadCommit = hash === this.commitHead;
+    const canDropCommit = commit !== null && commit.parentHashes.length === 1;
+    const menu: ContextMenuElement[] = [
       {
         title: l10n.addTag + ELLIPSIS,
         onClick: () => this.showAddTagDialog(hash, sourceElem)
@@ -1105,11 +1119,38 @@ class GitGraphView {
             l10n.dialogRevertConfirm,
             l10n.dialogYesRevert
           )
-      },
+      }
+    ];
+    if (isHeadCommit || canDropCommit) {
+      menu.push(null);
+      if (isHeadCommit) {
+        menu.push(
+          {
+            title: l10n.undoLastCommit + ELLIPSIS,
+            onClick: () => this.showUndoLastCommitDialog(sourceElem)
+          },
+          {
+            title: l10n.editMessage + ELLIPSIS,
+            onClick: () => this.showEditHeadCommitMessageDialog(hash, sourceElem)
+          }
+        );
+      }
+      if (canDropCommit) {
+        menu.push({
+          title: l10n.dropCommit + ELLIPSIS,
+          onClick: () => this.showDropCommitDialog(hash, sourceElem)
+        });
+      }
+    }
+    menu.push(
       null,
       {
         title: l10n.merge + ELLIPSIS,
-        onClick: () => this.showMergeCommitDialog(hash)
+        onClick: () => this.showMergeCommitDialog(hash, sourceElem)
+      },
+      {
+        title: l10n.rebase + ELLIPSIS,
+        onClick: () => this.showRebaseDialog(hash, this.displayHash(hash), "commit", sourceElem)
       },
       {
         title: l10n.reset + ELLIPSIS,
@@ -1122,7 +1163,16 @@ class GitGraphView {
           sendMessage({ command: "copyToClipboard", type: "Commit Hash", data: hash });
         }
       }
-    ];
+    );
+    if (commit !== null) {
+      menu.push({
+        title: l10n.copyCommitSubject,
+        onClick: () => {
+          sendMessage({ command: "copyToClipboard", type: "Commit Subject", data: commit.message });
+        }
+      });
+    }
+    return menu;
   }
   private showAddTagDialog(hash: string, sourceElem: HTMLElement) {
     showFormDialog(
@@ -1237,23 +1287,120 @@ class GitGraphView {
       parentIndex
     });
   }
-  private showMergeCommitDialog(hash: string) {
-    showCheckboxDialog(
+  private showMergeCommitDialog(hash: string, sourceElem: HTMLElement) {
+    showFormDialog(
       l10n.dialogMergeConfirm
         .replace("{0}", `<b><i>${this.displayHash(hash)}</i></b>`)
         .replace("{1}", `<b>${l10n.labelCurrentBranch}</b>`),
-      l10n.dialogMergeNoFastForward,
-      true,
+      [
+        { type: "checkbox", name: l10n.dialogMergeNoFastForward, value: true },
+        { type: "checkbox", name: l10n.dialogMergeSquash, value: false },
+        { type: "checkbox", name: l10n.dialogMergeNoCommit, value: false }
+      ],
       l10n.dialogYesMerge,
-      (createNewCommit) => {
+      (values) => {
         sendMessage({
           command: "mergeCommit",
           repo: this.currentRepo,
           commitHash: hash,
-          createNewCommit
+          createNewCommit: values[0] === "checked",
+          squash: values[1] === "checked",
+          noCommit: values[2] === "checked"
         });
+        showActionRunningDialog(l10n.statusMergingCommit);
       },
-      null
+      sourceElem
+    );
+  }
+  private showRebaseDialog(
+    target: string,
+    targetLabel: string,
+    targetType: "branch" | "commit",
+    sourceElem: HTMLElement
+  ) {
+    showFormDialog(
+      l10n.dialogRebaseConfirm
+        .replace("{0}", `<b>${l10n.labelCurrentBranch}</b>`)
+        .replace("{1}", `<b><i>${escapeHtml(targetLabel)}</i></b>`),
+      [
+        { type: "checkbox", name: l10n.dialogRebaseInteractive, value: false },
+        { type: "checkbox", name: l10n.dialogRebaseIgnoreDate, value: true }
+      ],
+      l10n.dialogRebaseSubmit,
+      (values) => {
+        const interactive = values[0] === "checked";
+        sendMessage({
+          command: "rebaseCurrentBranch",
+          repo: this.currentRepo,
+          target,
+          targetType,
+          interactive,
+          ignoreDate: values[1] === "checked"
+        });
+        showActionRunningDialog(
+          interactive ? l10n.statusLaunchingInteractiveRebase : l10n.statusRebasing
+        );
+      },
+      sourceElem
+    );
+  }
+  private showDropCommitDialog(hash: string, sourceElem: HTMLElement) {
+    showConfirmationDialog(
+      l10n.dialogDropCommitConfirm.replace("{0}", `<b><i>${this.displayHash(hash)}</i></b>`),
+      () => {
+        sendMessage({
+          command: "dropCommit",
+          repo: this.currentRepo,
+          commitHash: hash
+        });
+        showActionRunningDialog(l10n.statusDroppingCommit);
+      },
+      sourceElem
+    );
+  }
+  private showUndoLastCommitDialog(sourceElem: HTMLElement) {
+    showConfirmationDialog(
+      l10n.dialogUndoLastCommitConfirm,
+      () => {
+        sendMessage({
+          command: "undoLastCommit",
+          repo: this.currentRepo
+        });
+        showActionRunningDialog(l10n.statusUndoingLastCommit);
+      },
+      sourceElem
+    );
+  }
+  private showEditHeadCommitMessageDialog(hash: string, sourceElem: HTMLElement) {
+    const commit = this.commits[this.commitLookup[hash]];
+    showFormDialog(
+      l10n.dialogEditMessageTitle.replace("{0}", `<b><i>${this.displayHash(hash)}</i></b>`),
+      [
+        {
+          type: "textarea",
+          name: l10n.dialogEditMessageMessage,
+          default: commit?.message ?? "",
+          placeholder: null
+        }
+      ],
+      l10n.dialogEditMessageSubmit,
+      (values) => {
+        const message = this.normalizeCommitMessage(values[0]);
+        if (message.trim() === "") {
+          showErrorDialog(l10n.dialogEditMessageEmpty, null, sourceElem);
+          return;
+        }
+        if (commit !== undefined && message === this.normalizeCommitMessage(commit.message)) return;
+
+        sendMessage({
+          command: "editHeadCommitMessage",
+          repo: this.currentRepo,
+          commitHash: hash,
+          message
+        });
+        showActionRunningDialog(l10n.statusEditingMessage);
+      },
+      sourceElem
     );
   }
   private showResetCommitDialog(hash: string, sourceElem: HTMLElement) {
@@ -1380,6 +1527,10 @@ class GitGraphView {
         {
           title: l10n.merge + ELLIPSIS,
           onClick: () => this.showMergeBranchDialog(refName)
+        },
+        {
+          title: l10n.rebase + ELLIPSIS,
+          onClick: () => this.showRebaseDialog(refName, refName, "branch", sourceElem)
         }
       );
     }
@@ -1651,20 +1802,26 @@ class GitGraphView {
     );
   }
   private showMergeBranchDialog(refName: string) {
-    showCheckboxDialog(
+    showFormDialog(
       l10n.dialogMergeConfirm
         .replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`)
         .replace("{1}", l10n.labelCurrentBranch),
-      l10n.dialogMergeNoFastForward,
-      true,
+      [
+        { type: "checkbox", name: l10n.dialogMergeNoFastForward, value: true },
+        { type: "checkbox", name: l10n.dialogMergeSquash, value: false },
+        { type: "checkbox", name: l10n.dialogMergeNoCommit, value: false }
+      ],
       l10n.dialogYesMerge,
-      (createNewCommit) => {
+      (values) => {
         sendMessage({
           command: "mergeBranch",
           repo: this.currentRepo,
           branchName: refName,
-          createNewCommit
+          createNewCommit: values[0] === "checked",
+          squash: values[1] === "checked",
+          noCommit: values[2] === "checked"
         });
+        showActionRunningDialog(l10n.statusMergingBranch);
       },
       null
     );
@@ -2625,7 +2782,9 @@ const actionErrorLabels = {
   deleteBranch: l10n.unableToDeleteBranch,
   deleteRemoteBranch: l10n.unableToDeleteRemoteBranch,
   deleteTag: l10n.unableToDeleteTag,
+  dropCommit: l10n.unableToDropCommit,
   dropStash: l10n.unableToDropStash,
+  editHeadCommitMessage: l10n.unableToEditMessage,
   fetchIntoLocalBranch: l10n.unableToFetchBranch,
   fetchRemotes: l10n.unableToFetch,
   mergeBranch: l10n.unableToMergeBranch,
@@ -2638,7 +2797,9 @@ const actionErrorLabels = {
   renameBranch: l10n.unableToRenameBranch,
   resetUncommittedChanges: l10n.unableToResetUncommitted,
   resetToCommit: l10n.unableToReset,
+  rebaseCurrentBranch: l10n.unableToRebase,
   revertCommit: l10n.unableToRevert,
+  undoLastCommit: l10n.unableToUndoLastCommit,
   updateBranchFromUpstream: l10n.unableToUpdateBranch
 } satisfies Partial<Record<GG.ResponseMessage["command"], string>>;
 
@@ -2674,6 +2835,7 @@ window.addEventListener("message", (event) => {
       if (msg.success === false) {
         const typeLabel: Record<string, string> = {
           "Commit Hash": l10n.typeCommitHash,
+          "Commit Subject": l10n.typeCommitSubject,
           "Tag Name": l10n.typeTagName,
           "Branch Name": l10n.typeBranchName,
           "Stash Name": l10n.typeStashName,
@@ -2964,6 +3126,7 @@ function renderDialogInputRow(input: DialogInput, index: number, multiElementFor
 function renderDialogInput(input: DialogInput, index: number, multiElementForm: boolean) {
   if (input.type === "select") return renderDialogSelectInput(input, index);
   if (input.type === "checkbox") return renderDialogCheckboxInput(input, index, multiElementForm);
+  if (input.type === "textarea") return renderDialogTextareaInput(input, index);
   return renderDialogTextInput(input, index);
 }
 function renderDialogSelectInput(input: Extract<DialogInput, { type: "select" }>, index: number) {
@@ -2993,6 +3156,14 @@ function renderDialogTextInput(
   }
   return `<input id="dialogInput${index}" type="text" value="${escapeHtml(input.default)}"${placeholder}/>`;
 }
+function renderDialogTextareaInput(
+  input: Extract<DialogInput, { type: "textarea" }>,
+  index: number
+) {
+  const placeholder =
+    input.placeholder === null ? "" : ` placeholder="${escapeHtml(input.placeholder)}"`;
+  return `<textarea id="dialogInput${index}"${placeholder}>${escapeHtml(input.default)}</textarea>`;
+}
 function getDialogFormValues(inputs: DialogInput[]) {
   const values: string[] = [];
   for (let i = 0; i < inputs.length; i++) {
@@ -3004,6 +3175,7 @@ function getDialogInputValue(input: DialogInput, index: number) {
   const elem = document.getElementById(`dialogInput${index}`);
   if (input.type === "select") return (<HTMLSelectElement>elem).value;
   if (input.type === "checkbox") return (<HTMLInputElement>elem).checked ? "checked" : "unchecked";
+  if (input.type === "textarea") return (<HTMLTextAreaElement>elem).value;
   return (<HTMLInputElement>elem).value;
 }
 function bindTextRefDialogInput(textRefInput: number, actionName: string) {

@@ -33,7 +33,9 @@ describe("mergeCommit", () => {
   it("merges a commit hash", async () => {
     await mergeCommit(simpleGit(repo), {
       commitHash: featureCommitHash,
-      createNewCommit: false
+      createNewCommit: false,
+      squash: false,
+      noCommit: false
     });
 
     const log = cp.execFileSync("git", ["log", "--oneline"], { cwd: repo }).toString();
@@ -53,7 +55,9 @@ describe("mergeCommit", () => {
 
     await mergeCommit(simpleGit(repo), {
       commitHash: commit2Hash,
-      createNewCommit: true
+      createNewCommit: true,
+      squash: false,
+      noCommit: false
     });
 
     const log = cp.execFileSync("git", ["log", "--oneline"], { cwd: repo }).toString();
@@ -64,7 +68,9 @@ describe("mergeCommit", () => {
     await expect(
       mergeCommit(simpleGit(repo), {
         commitHash: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-        createNewCommit: false
+        createNewCommit: false,
+        squash: false,
+        noCommit: false
       })
     ).rejects.toThrow();
   });

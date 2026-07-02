@@ -14,10 +14,14 @@ import {
 import {
   checkoutCommit,
   cherrypickCommit,
+  dropCommit,
+  editHeadCommitMessage,
   resetToCommit,
-  revertCommit
+  revertCommit,
+  undoLastCommit
 } from "@/backend/actions/commit";
 import { mergeBranch, mergeCommit } from "@/backend/actions/merge";
+import { rebaseCurrentBranch } from "@/backend/actions/rebase";
 import { fetchRemotes } from "@/backend/actions/remote";
 import {
   applyStash,
@@ -114,6 +118,26 @@ async function openSourceControl(): Promise<boolean> {
   }
 }
 
+const shellSingleQuoteEscape = String.raw`'\''`;
+
+function quoteTerminalArg(value: string) {
+  return `'${value.replaceAll("'", shellSingleQuoteEscape)}'`;
+}
+
+function openInteractiveRebaseTerminal(
+  msg: Extract<RequestMessage, { command: "rebaseCurrentBranch" }>
+) {
+  const targetLabel = msg.targetType === "commit" ? abbrevCommit(msg.target, 8) : msg.target;
+  const terminal = vscode.window.createTerminal({
+    name: `Git Graph Libre: Rebase on ${targetLabel}`,
+    cwd: msg.repo
+  });
+  terminal.show();
+  // The rebase target can be a branch/ref name, so quote it as one shell token
+  // before sending the user-visible command to the VS Code terminal.
+  terminal.sendText(`git rebase --interactive ${quoteTerminalArg(msg.target)}`);
+}
+
 export function registerMessageHandlers(
   bridge: WebviewBridge,
   deps: {
@@ -184,12 +208,38 @@ export function registerMessageHandlers(
   );
   registerAction("renameBranch", (msg) => renameBranch(gitClient.getInstance(), msg));
   registerAction("checkoutBranch", (msg) => checkoutBranch(gitClient.getInstance(), msg));
-  registerAction("checkoutCommit", (msg) => checkoutCommit(gitClient.getInstance(), msg));
-  registerAction("cherrypickCommit", (msg) => cherrypickCommit(gitClient.getInstance(), msg));
-  registerAction("revertCommit", (msg) => revertCommit(gitClient.getInstance(), msg));
-  registerAction("resetToCommit", (msg) => resetToCommit(gitClient.getInstance(), msg));
-  registerAction("mergeBranch", (msg) => mergeBranch(gitClient.getInstance(), msg));
-  registerAction("mergeCommit", (msg) => mergeCommit(gitClient.getInstance(), msg));
+  registerAction("checkoutCommit", (msg) =>
+    checkoutCommit(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("cherrypickCommit", (msg) =>
+    cherrypickCommit(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("dropCommit", (msg) => dropCommit(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("editHeadCommitMessage", (msg) =>
+    editHeadCommitMessage(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("revertCommit", (msg) =>
+    revertCommit(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("resetToCommit", (msg) =>
+    resetToCommit(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("mergeBranch", (msg) =>
+    mergeBranch(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("mergeCommit", (msg) =>
+    mergeCommit(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("rebaseCurrentBranch", async (msg) => {
+    if (msg.interactive) {
+      openInteractiveRebaseTerminal(msg);
+    } else {
+      await rebaseCurrentBranch(gitClient.getInstance(), msg, recordGitCommand);
+    }
+  });
+  registerAction("undoLastCommit", (msg) =>
+    undoLastCommit(gitClient.getInstance(), msg, recordGitCommand)
+  );
   registerAction("applyStash", (msg) => applyStash(gitClient.getInstance(), msg, recordGitCommand));
   registerAction("branchFromStash", (msg) =>
     branchFromStash(gitClient.getInstance(), msg, recordGitCommand)

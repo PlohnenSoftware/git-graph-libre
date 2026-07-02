@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { makeRepo } from "@tests/backend/helpers";
 import {
+  createdTerminals,
   executedCommands,
   openedTextDocuments,
   resetVscodeMock,
@@ -185,5 +186,34 @@ describe("registerMessageHandlers", () => {
       success: true
     });
     expect(executedCommands[executedCommands.length - 1]?.[0]).toBe("workbench.view.scm");
+  });
+
+  it("opens an interactive rebase terminal from the rebase action", async () => {
+    resetVscodeMock();
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("rebaseCurrentBranch");
+
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "rebaseCurrentBranch",
+      repo,
+      target: "feature/topic",
+      targetType: "branch",
+      ignoreDate: true,
+      interactive: true
+    });
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "rebaseCurrentBranch",
+      status: null
+    });
+    expect(createdTerminals).toHaveLength(1);
+    expect(createdTerminals[0]).toMatchObject({
+      options: {
+        cwd: repo
+      },
+      shown: true,
+      sentText: ["git rebase --interactive 'feature/topic'"]
+    });
   });
 });

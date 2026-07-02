@@ -918,17 +918,71 @@ describe("webview rendering", () => {
       command: "mergeCommit",
       repo: REPO,
       commitHash: "abc123",
-      createNewCommit: true
+      createNewCommit: true,
+      squash: false,
+      noCommit: false
     });
 
     openHeadCommitContextMenu();
-    clickContextMenuItem("Reset");
+    clickContextMenuItem("Reset current branch");
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
       command: "resetToCommit",
       repo: REPO,
       commitHash: "abc123",
       resetMode: "mixed"
+    });
+  });
+
+  it("runs advanced commit context menu actions", () => {
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Copy Commit Subject");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "Commit Subject",
+      data: "Add feature"
+    });
+
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Rebase current branch here");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "rebaseCurrentBranch",
+      repo: REPO,
+      target: "abc123",
+      targetType: "commit",
+      interactive: false,
+      ignoreDate: true
+    });
+
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Reset Last Commit");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "undoLastCommit",
+      repo: REPO
+    });
+
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Edit Message");
+    const message = document.getElementById("dialogInput0") as HTMLTextAreaElement | null;
+    if (message === null) throw new Error("Missing edit message textarea");
+    message.value = "New subject\n\nBody";
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "editHeadCommitMessage",
+      repo: REPO,
+      commitHash: "abc123",
+      message: "New subject\n\nBody"
+    });
+
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Drop Commit");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "dropCommit",
+      repo: REPO,
+      commitHash: "abc123"
     });
   });
 
@@ -1069,7 +1123,21 @@ describe("webview rendering", () => {
       command: "mergeBranch",
       repo: REPO,
       branchName: "feature/menu",
-      createNewCommit: true
+      createNewCommit: true,
+      squash: false,
+      noCommit: false
+    });
+
+    branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Rebase current branch here");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "rebaseCurrentBranch",
+      repo: REPO,
+      target: "feature/menu",
+      targetType: "branch",
+      interactive: false,
+      ignoreDate: true
     });
 
     receiveLoadedCommits(twoCommits, "abc123");
