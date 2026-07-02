@@ -126,6 +126,9 @@ export class Dropdown {
   private render() {
     this.elem.classList.add("loaded");
     this.currentValueElem.innerHTML = escapeHtml(this.options[this.selectedOption].name);
+    if (this.showInfo) {
+      this.currentValueElem.title = this.options[this.selectedOption].value;
+    }
     let html = "";
     for (let i = 0; i < this.options.length; i++) {
       html +=
@@ -133,6 +136,7 @@ export class Dropdown {
         (this.selectedOption === i ? " selected" : "") +
         '" data-id="' +
         i +
+        (this.showInfo ? `" title="${escapeHtml(this.options[i].value)}` : "") +
         '">' +
         escapeHtml(this.options[i].name) +
         (this.showInfo

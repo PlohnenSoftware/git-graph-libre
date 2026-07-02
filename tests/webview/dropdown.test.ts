@@ -10,6 +10,25 @@ describe("Dropdown", () => {
       getWebviewLocalizedStrings();
   });
 
+  it("shows full-value tooltips on info dropdowns", () => {
+    const dropdown = new Dropdown("repoSelect", true, "repo", () => {});
+
+    dropdown.setOptions(
+      [
+        { name: "alpha", value: "/workspace/alpha" },
+        { name: "beta", value: "/workspace/beta" }
+      ],
+      "/workspace/alpha"
+    );
+
+    expect(document.querySelector<HTMLElement>(".dropdownCurrentValue")?.title).toBe(
+      "/workspace/alpha"
+    );
+    const options = document.querySelectorAll<HTMLElement>(".dropdownOption");
+    expect(options[0]?.getAttribute("title")).toBe("/workspace/alpha");
+    expect(options[1]?.getAttribute("title")).toBe("/workspace/beta");
+  });
+
   it("opens, filters, selects an option, and closes on outside clicks", () => {
     const selectedValues: string[] = [];
     const dropdown = new Dropdown("repoSelect", true, "repo", (value) => {
