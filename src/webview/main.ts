@@ -1,4 +1,5 @@
 import type {
+  CommitOrdering,
   GitCommandStatus,
   GitCommitDetails,
   GitCommitNode,
@@ -7,6 +8,7 @@ import type {
   GitQueryError,
   GitResetMode
 } from "@/backend/types";
+import { COMMIT_ORDERINGS } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
 
 import {
@@ -45,6 +47,10 @@ const COLUMN_HIDE_CLASSES: Record<HideableColumn, string> = {
 
 function isHideableColumn(value: string): value is HideableColumn {
   return (HIDEABLE_COLUMNS as readonly string[]).includes(value);
+}
+
+function isCommitOrdering(value: string): value is CommitOrdering {
+  return (COMMIT_ORDERINGS as readonly string[]).includes(value);
 }
 
 function requireElement<T extends HTMLElement = HTMLElement>(id: string): T {
@@ -198,6 +204,13 @@ class GitGraphView {
         if (isHideableColumn(column)) this.hiddenColumns.add(column);
       }
       if (typeof this.gitRepos[prevState.currentRepo] !== "undefined") {
+        const savedOrdering = prevState.commitOrdering ?? "";
+        if (
+          isCommitOrdering(savedOrdering) &&
+          this.gitRepos[prevState.currentRepo].commitOrdering === undefined
+        ) {
+          this.gitRepos[prevState.currentRepo].commitOrdering = savedOrdering;
+        }
         this.currentRepo = prevState.currentRepo;
         this.maxCommits = prevState.maxCommits;
         this.expandedCommit = prevState.expandedCommit;
@@ -491,6 +504,7 @@ class GitGraphView {
       branchName: this.currentBranch !== null ? this.currentBranch : "",
       maxCommits: this.maxCommits,
       showRemoteBranches: this.showRemoteBranches,
+      commitOrdering: this.getCommitOrdering(),
       hard: hard
     });
   }
@@ -1456,15 +1470,43 @@ class GitGraphView {
     this.renderGraph();
   }
   private buildColumnVisibilityMenu(): ContextMenuElement[] {
+    const commitOrdering = this.getCommitOrdering();
     const labels: Record<HideableColumn, string> = {
       date: l10n.date,
       author: l10n.author,
       commit: l10n.commit
     };
-    return HIDEABLE_COLUMNS.map((column) => ({
+    const orderingLabels: Record<CommitOrdering, string> = {
+      date: l10n.orderCommitDate,
+      "author-date": l10n.orderAuthorDate,
+      topo: l10n.orderTopological
+    };
+    const columnItems: ContextMenuElement[] = HIDEABLE_COLUMNS.map((column) => ({
       title: `${this.hiddenColumns.has(column) ? "" : "✓ "}${labels[column]}`,
       onClick: () => this.toggleColumnVisibility(column)
     }));
+    const orderingItems: ContextMenuElement[] = COMMIT_ORDERINGS.map((ordering) => ({
+      title: `${commitOrdering === ordering ? "✓ " : ""}${orderingLabels[ordering]}`,
+      onClick: () => this.setCommitOrdering(ordering)
+    }));
+    return [...columnItems, null, ...orderingItems];
+  }
+  private getCommitOrdering(): CommitOrdering {
+    return this.gitRepos[this.currentRepo]?.commitOrdering ?? "date";
+  }
+  private setCommitOrdering(ordering: CommitOrdering) {
+    const repoState = this.gitRepos[this.currentRepo];
+    if (repoState === undefined || this.getCommitOrdering() === ordering) return;
+    repoState.commitOrdering = ordering;
+    this.maxCommits = this.config.initialLoadCommits;
+    this.saveState();
+    sendMessage({
+      command: "saveRepoState",
+      repo: this.currentRepo,
+      state: repoState
+    });
+    this.renderShowLoading();
+    this.requestLoadCommits(true, () => {});
   }
   private registerColumnHeaderMenuListener() {
     addListenerToClass("tableColHeader", "contextmenu", (e: Event) => {

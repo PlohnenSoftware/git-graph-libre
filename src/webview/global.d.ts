@@ -123,6 +123,7 @@ declare global {
     showRemoteBranches: boolean;
     expandedCommit: ExpandedCommit | null;
     hiddenColumns?: string[];
+    commitOrdering?: string;
   }
 }
 

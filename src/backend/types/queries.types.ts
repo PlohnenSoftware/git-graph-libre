@@ -5,6 +5,9 @@ import type {
   GitRepoInfo
 } from "./git.types";
 
+export const COMMIT_ORDERINGS = ["date", "author-date", "topo"] as const;
+export type CommitOrdering = (typeof COMMIT_ORDERINGS)[number];
+
 export type GitQueryError = {
   message: string;
   stderr: string | null;
@@ -61,6 +64,7 @@ type QueryPayloads = {
       branchName: string;
       maxCommits: number;
       showRemoteBranches: boolean;
+      commitOrdering: CommitOrdering;
       hard: boolean;
     };
     result: LoadCommitsResult;

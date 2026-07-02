@@ -34,6 +34,9 @@ export function getWebviewLocalizedStrings() {
     date: l10n.t("ui.date"),
     author: l10n.t("ui.author"),
     commit: l10n.t("ui.commit"),
+    orderCommitDate: l10n.t("ui.orderCommitDate"),
+    orderAuthorDate: l10n.t("ui.orderAuthorDate"),
+    orderTopological: l10n.t("ui.orderTopological"),
 
     // Error messages
     unableToLoadGitGraph: l10n.t("error.unableToLoadGitGraph"),

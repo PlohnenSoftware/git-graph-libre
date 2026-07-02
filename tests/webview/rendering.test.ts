@@ -502,6 +502,74 @@ describe("webview rendering", () => {
     expect(vscodeMock.getState()?.hiddenColumns).toEqual([]);
   });
 
+  it("changes commit ordering from the header context menu", () => {
+    function headerMenuItem(label: string) {
+      document
+        .querySelector(".tableColHeader")
+        ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+      return Array.from(document.querySelectorAll("#contextMenu .contextMenuItem")).find((item) =>
+        item.textContent?.includes(label)
+      );
+    }
+
+    const topoItem = headerMenuItem("Topological Order");
+    expect(topoItem?.textContent).toBe("Topological Order");
+    topoItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(vscodeMock.getState()?.gitRepos[REPO].commitOrdering).toBe("topo");
+    expect(vscodeMock.sentMessages).toContainEqual({
+      command: "saveRepoState",
+      repo: REPO,
+      state: { columnWidths: null, commitOrdering: "topo" }
+    });
+    const topoRequest = latestLoadCommitsRequest();
+    expect(topoRequest).toMatchObject({
+      command: "loadCommits",
+      commitOrdering: "topo",
+      maxCommits: defaultViewState.initialLoadCommits,
+      hard: true
+    });
+
+    receive({
+      command: "loadCommits",
+      requestId: topoRequest.requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+
+    expect(headerMenuItem("Topological Order")?.textContent).toBe("✓ Topological Order");
+    const dateItem = headerMenuItem("Commit Date Order");
+    expect(dateItem?.textContent).toBe("Commit Date Order");
+    dateItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(vscodeMock.getState()?.gitRepos[REPO].commitOrdering).toBe("date");
+    expect(vscodeMock.sentMessages).toContainEqual({
+      command: "saveRepoState",
+      repo: REPO,
+      state: { columnWidths: null, commitOrdering: "date" }
+    });
+    const dateRequest = latestLoadCommitsRequest();
+    expect(dateRequest).toMatchObject({
+      command: "loadCommits",
+      commitOrdering: "date",
+      maxCommits: defaultViewState.initialLoadCommits,
+      hard: true
+    });
+
+    receive({
+      command: "loadCommits",
+      requestId: dateRequest.requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+  });
+
   it("copies the full commit hash from the commit context menu", () => {
     openHeadCommitContextMenu();
     const copyHashItem = contextMenuItem("Copy Commit Hash");

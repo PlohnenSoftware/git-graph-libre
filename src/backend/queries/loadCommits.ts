@@ -1,6 +1,7 @@
 import type { SimpleGit } from "simple-git";
 
 import type {
+  CommitOrdering,
   DateType,
   GitCommitNode,
   GitLogEntry,
@@ -23,6 +24,7 @@ type LoadCommitsInput = {
   branchName: string;
   maxCommits: number;
   showRemoteBranches: boolean;
+  commitOrdering?: CommitOrdering;
   hard: boolean;
   dateType: DateType;
   showUncommittedChanges: boolean;
@@ -112,11 +114,18 @@ async function getLog(
   maxCommits: number,
   showRemoteBranches: boolean,
   dateType: DateType,
+  commitOrdering: CommitOrdering,
   context: GitQueryContext
 ): Promise<QueryValue<GitLogEntry[]>> {
   const dateField = dateType === "Author Date" ? "%at" : "%ct";
   const format = ["%H", "%P", "%an", "%ae", dateField, "%s"].join(gitLogFormatFieldSeparator);
-  const args = ["log", "-z", `--max-count=${maxCommits}`, `--format=${format}`, "--date-order"];
+  const args = [
+    "log",
+    "-z",
+    `--max-count=${maxCommits}`,
+    `--format=${format}`,
+    `--${commitOrdering}-order`
+  ];
   if (branch !== "") {
     args.push(branch);
   } else {
@@ -223,10 +232,11 @@ export async function loadCommits(
 ): Promise<QueryResult<"loadCommits">> {
   const { branchName, maxCommits, showRemoteBranches, hard, dateType, showUncommittedChanges } =
     input;
+  const commitOrdering = input.commitOrdering ?? "date";
   const context = { repo: input.repo ?? null, record: input.recordGitCommand };
 
   const [logResult, refsResult] = await Promise.all([
-    getLog(git, branchName, maxCommits + 1, showRemoteBranches, dateType, context),
+    getLog(git, branchName, maxCommits + 1, showRemoteBranches, dateType, commitOrdering, context),
     getRefs(git, showRemoteBranches, context)
   ]);
   const rawCommits = logResult.value;

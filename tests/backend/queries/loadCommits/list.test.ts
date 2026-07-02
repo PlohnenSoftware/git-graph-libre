@@ -253,6 +253,28 @@ describe("loadCommits", () => {
     expect(result.commits[0].date).toBeGreaterThan(0);
   });
 
+  it("passes the selected commit ordering to git log", async () => {
+    const records: GitCommandRecord[] = [];
+
+    const result = await loadCommits(simpleGit(repo), {
+      branchName: "",
+      maxCommits: 300,
+      showRemoteBranches: false,
+      commitOrdering: "topo",
+      hard: false,
+      dateType: "Author Date",
+      showUncommittedChanges: false,
+      repo: "/repo",
+      recordGitCommand: (record) => records.push(record)
+    });
+
+    expect(result.error).toBeNull();
+    const logRecord = records.find((record) => record.label === "loadCommits.log");
+    expect(logRecord?.args).toContain("--topo-order");
+    expect(logRecord?.args).not.toContain("--date-order");
+    expect(logRecord?.args).not.toContain("--author-date-order");
+  });
+
   it("passes hard flag through to the result", async () => {
     const result = await loadCommits(simpleGit(repo), {
       branchName: "",

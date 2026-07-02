@@ -159,6 +159,7 @@ export function registerMessageHandlers(
         branchName: msg.branchName,
         maxCommits: msg.maxCommits,
         showRemoteBranches: msg.showRemoteBranches,
+        commitOrdering: msg.commitOrdering,
         hard: msg.hard,
         dateType: config.dateType(),
         showUncommittedChanges: config.showUncommittedChanges(),

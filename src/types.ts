@@ -1,6 +1,7 @@
 import type {
   ActionRequest,
   ActionResponse,
+  CommitOrdering,
   GitFileChangeType,
   QueryRequest,
   QueryResponse
@@ -9,6 +10,7 @@ import type {
 export type GitRepoSet = { [repo: string]: GitRepoState };
 export type GitRepoState = {
   columnWidths: number[] | null;
+  commitOrdering?: CommitOrdering;
 };
 
 export type GitGraphViewState = {
