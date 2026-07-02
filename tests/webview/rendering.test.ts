@@ -843,6 +843,22 @@ describe("webview rendering", () => {
     expect(loadBranchesAfter).toBe(loadBranchesBefore);
   });
 
+  it("accepts VS Code extension messages with opaque origins", () => {
+    const loadBranchesBefore = vscodeMock.sentMessages.filter(
+      (msg) => msg.command === "loadBranches"
+    ).length;
+
+    window.dispatchEvent(new MessageEvent("message", { data: { command: "refresh" }, origin: "" }));
+    window.dispatchEvent(
+      new MessageEvent("message", { data: { command: "refresh" }, origin: "null" })
+    );
+
+    const loadBranchesAfter = vscodeMock.sentMessages.filter(
+      (msg) => msg.command === "loadBranches"
+    ).length;
+    expect(loadBranchesAfter).toBe(loadBranchesBefore + 2);
+  });
+
   it("renders commit rows with keyboard focus and selection state", () => {
     const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
     const olderRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="def456"]');

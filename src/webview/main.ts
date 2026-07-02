@@ -99,6 +99,12 @@ function formatQueryError(error: GitQueryError | null): string | null {
   return parts.join("\n");
 }
 
+function isTrustedWebviewMessageOrigin(origin: string) {
+  // VS Code extension-host messages can have an empty or opaque origin depending
+  // on the Electron/webview runtime; explicit external web origins stay blocked.
+  return origin === "" || origin === "null" || origin === globalThis.location.origin;
+}
+
 function createEmptyGitConfig(): GitRepoConfig {
   return {
     userName: { local: null, global: null },
@@ -3599,7 +3605,7 @@ function handleActionResponse(msg: GG.ResponseMessage) {
 
 /* Command Processing */
 window.addEventListener("message", (event) => {
-  if (event.origin !== globalThis.location.origin) return;
+  if (!isTrustedWebviewMessageOrigin(event.origin)) return;
 
   const msg: GG.ResponseMessage = event.data;
   if (handleActionResponse(msg)) return;
