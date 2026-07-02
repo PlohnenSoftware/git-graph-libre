@@ -40,6 +40,7 @@ describe("commit table styles", () => {
     expect(css).toContain("var(--vscode-toolbar-hoverBackground");
     expect(css).toContain(".commitDetailsPaneBody.hidden");
     expect(css).toContain("#commitDetailsFilesBody > ul.gitFileList");
+    expect(css.match(/#commitDetailsSummary \{[^}]+\}/)?.[0] ?? "").not.toContain("padding:");
     expect(css).toContain("#commitDetailsResizeHandle");
     expect(css).toContain("body.commitDetailsResizing");
     expect(css).toContain("cursor: ns-resize;");

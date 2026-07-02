@@ -207,7 +207,6 @@ body.unableToLoad p {
   top: 0;
   bottom: 10px;
   width: 45%;
-  padding: 10px;
   box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;
