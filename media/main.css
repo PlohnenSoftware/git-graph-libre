@@ -504,14 +504,6 @@ svg.fileActionIcon {
   height: 2px;
   background-color: var(--ngg-neutral-border-medium);
 }
-#commitDetailsResizeHandle:hover,
-#commitDetailsResizeHandle:focus-visible {
-  background-color: color-mix(
-    in srgb,
-    var(--git-graph-color, var(--vscode-focusBorder)) 20%,
-    var(--ngg-transparent)
-  );
-}
 #commitDetailsResizeHandle:hover:before,
 #commitDetailsResizeHandle:focus-visible:before {
   background-color: var(--git-graph-color, var(--vscode-focusBorder, var(--ngg-neutral-border-heavy)));

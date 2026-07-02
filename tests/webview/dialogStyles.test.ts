@@ -107,16 +107,18 @@ describe("dialog styles", () => {
     expect(separator).toContain("var(--git-graph-color");
   });
 
-  it("shows the commit dot hue on the details resize handle hover", () => {
-    const hover =
+  it("shows the commit dot hue on the details resize grip line hover", () => {
+    const gripHover =
       css.match(
-        /#commitDetailsResizeHandle:hover,\s*#commitDetailsResizeHandle:focus-visible \{[^}]+\}/
+        /#commitDetailsResizeHandle:hover:before,\s*#commitDetailsResizeHandle:focus-visible:before \{[^}]+\}/
       )?.[0] ?? "";
 
-    expect(hover).toContain("color-mix");
-    expect(hover).toContain("var(--git-graph-color");
-    expect(css).toContain(
+    expect(gripHover).toContain(
       "background-color: var(--git-graph-color, var(--vscode-focusBorder, var(--ngg-neutral-border-heavy)));"
+    );
+    // The grab area itself stays transparent; only the grip line takes the hue
+    expect(css).not.toMatch(
+      /#commitDetailsResizeHandle:hover,\s*#commitDetailsResizeHandle:focus-visible \{/
     );
   });
 
