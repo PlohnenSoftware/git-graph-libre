@@ -844,6 +844,9 @@ class GitGraphView {
     for (let i = 0; i < this.commits.length; i++) {
       html += this.renderCommitRow(i, currentHash, findMatchIndexes, activeFindCommitIndex);
     }
+    if (this.commits.length === 0) {
+      html += `<tr class="emptyGraphRow"><td colspan="5">${l10n.emptyGraph}</td></tr>`;
+    }
     this.tableElem.innerHTML = `<table>${html}</table>`;
     this.renderLoadMoreFooter();
     this.makeTableResizable();

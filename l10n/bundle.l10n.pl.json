@@ -28,6 +28,7 @@
   "ui.findMatchCount": "{0} z {1}",
   "ui.loading": "Ładowanie ...",
   "ui.loadMore": "Załaduj więcej commitów",
+  "ui.emptyGraph": "Brak commitów do wyświetlenia dla tej gałęzi",
   "ui.showAll": "Pokaż wszystko",
   "ui.filterPlaceholder": "Filtruj {0}...",
   "ui.noResultsFound": "Nie znaleziono wyników.",

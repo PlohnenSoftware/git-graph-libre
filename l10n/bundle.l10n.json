@@ -28,6 +28,7 @@
   "ui.findMatchCount": "{0} of {1}",
   "ui.loading": "Loading ...",
   "ui.loadMore": "Load More Commits",
+  "ui.emptyGraph": "No commits to show for this branch",
   "ui.showAll": "Show All",
   "ui.filterPlaceholder": "Filter {0}...",
   "ui.noResultsFound": "No results found.",

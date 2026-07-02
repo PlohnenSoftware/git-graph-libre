@@ -28,6 +28,7 @@
   "ui.findMatchCount": "{0} / {1}",
   "ui.loading": "加载中 ...",
   "ui.loadMore": "加载更多提交",
+  "ui.emptyGraph": "此分支没有可显示的提交",
   "ui.showAll": "显示全部",
   "ui.filterPlaceholder": "筛选{0}...",
   "ui.noResultsFound": "未找到结果。",

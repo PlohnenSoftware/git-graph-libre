@@ -25,6 +25,7 @@ export function getWebviewLocalizedStrings() {
     findMatchCount: l10n.t("ui.findMatchCount"),
     loading: l10n.t("ui.loading"),
     loadMore: l10n.t("ui.loadMore"),
+    emptyGraph: l10n.t("ui.emptyGraph"),
     showAll: l10n.t("ui.showAll"),
     filterPlaceholder: l10n.t("ui.filterPlaceholder"),
     noResultsFound: l10n.t("ui.noResultsFound"),

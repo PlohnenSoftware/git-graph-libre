@@ -220,6 +220,12 @@ body.unableToLoad p {
     var(--ngg-transparent)
   );
 }
+.emptyGraphRow td {
+  text-align: center;
+  padding: 24px 8px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  white-space: normal;
+}
 /* Merge commits are visually muted so linear history stands out */
 #commitTable tr.commit.mergeCommit td:nth-child(2) {
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));

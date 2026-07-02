@@ -992,6 +992,34 @@ describe("webview rendering", () => {
     Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
   });
 
+  it("shows a localized empty state when a branch has no commits", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadBranches",
+      requestId: latestLoadBranchesRequest().requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    receive({
+      command: "loadCommits",
+      requestId: latestLoadCommitsRequest().requestId,
+      commits: [],
+      head: null,
+      moreCommitsAvailable: false,
+      hard: true,
+      error: null
+    });
+
+    expect(document.querySelector(".emptyGraphRow")?.textContent).toBe(
+      "No commits to show for this branch"
+    );
+  });
+
   it("marks merge commits with a muted row class", () => {
     document
       .getElementById("refreshBtn")
