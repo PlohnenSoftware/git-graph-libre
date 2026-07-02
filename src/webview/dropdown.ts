@@ -250,21 +250,19 @@ export class Dropdown {
 
   private selectedValues() {
     if (!this.multiple) return [this.options[this.selectedOption]?.value ?? ""];
-    return this.sortedSelectedOptionIndexes()
+    return [...this.selectedOptions]
+      .toSorted((left, right) => left - right)
       .map((index) => this.options[index]?.value ?? "")
       .filter((value) => value !== undefined);
   }
 
   private selectedNames() {
     if (!this.multiple) return this.options[this.selectedOption]?.name ?? "";
-    return this.sortedSelectedOptionIndexes()
+    return [...this.selectedOptions]
+      .toSorted((left, right) => left - right)
       .map((index) => this.options[index]?.name ?? "")
       .filter((name) => name !== "")
       .join(", ");
-  }
-
-  private sortedSelectedOptionIndexes() {
-    return [...this.selectedOptions].sort((left, right) => left - right);
   }
 
   private emitMultiValue() {
