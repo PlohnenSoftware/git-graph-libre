@@ -14,7 +14,7 @@ function makeConfig(): Config {
     dateFormat: () => "Date & Time",
     dateType: () => "Author Date",
     fetchAvatars: () => false,
-    graphColours: () => ["oklch(65% 0.16 250)"],
+    graphColors: () => ["oklch(65% 0.16 250)"],
     graphFontSize: () => 15,
     graphRowHeight: () => 30,
     graphStyle: () => "rounded",
@@ -25,7 +25,7 @@ function makeConfig(): Config {
     showCurrentBranchByDefault: () => false,
     showStatusBarItem: () => true,
     showUncommittedChanges: () => true,
-    tabIconColourTheme: () => "colour",
+    tabIconColorTheme: () => "color",
     gitPath: () => "git"
   };
 }

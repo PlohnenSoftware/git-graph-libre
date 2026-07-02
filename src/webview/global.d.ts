@@ -15,7 +15,7 @@ declare global {
     commitDetailsCompactFolders: boolean;
     commitDetailsFileViewMode: GG.CommitDetailsFileViewMode;
     fetchAvatars: boolean;
-    graphColours: string[];
+    graphColors: string[];
     graphFontSize: number;
     graphRowHeight: number;
     graphStyle: "rounded" | "angular";

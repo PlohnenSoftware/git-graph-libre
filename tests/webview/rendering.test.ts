@@ -19,7 +19,7 @@ const defaultViewState: GG.GitGraphViewState = {
   autoCenterCommitDetailsView: true,
   dateFormat: "Date & Time",
   fetchAvatars: false,
-  graphColours: ["oklch(65% 0.16 250)"],
+  graphColors: ["oklch(65% 0.16 250)"],
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "tree",
   graphFontSize: 13,
@@ -545,6 +545,15 @@ describe("webview rendering", () => {
     expect(pushTagItem).not.toBeUndefined();
     pushTagItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
+    expect(document.querySelector("#dialog .dialogContent")).not.toBeNull();
+    expect(document.querySelector("#dialog .dialogActions")).not.toBeNull();
+    expect(document.getElementById("dialogAction")?.classList.contains("dialogBtnPrimary")).toBe(
+      true
+    );
+    const dismissBtn = document.getElementById("dialogDismiss");
+    expect(dismissBtn?.classList.contains("dialogBtn")).toBe(true);
+    expect(dismissBtn?.classList.contains("dialogBtnPrimary")).toBe(false);
+
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
 
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
@@ -555,6 +564,12 @@ describe("webview rendering", () => {
     expect(document.getElementById("statusStrip")?.dataset.state).toBe("action");
     expect(document.getElementById("statusStrip")?.getAttribute("aria-busy")).toBe("true");
     expect(document.getElementById("statusText")?.textContent).toBe("Pushing Tag...");
+
+    // The action-running dialog only offers dismiss, which becomes the primary button
+    expect(document.getElementById("dialogAction")).toBeNull();
+    expect(document.getElementById("dialogDismiss")?.classList.contains("dialogBtnPrimary")).toBe(
+      true
+    );
   });
 
   it("shows a graph error state when commit loading fails", () => {

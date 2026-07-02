@@ -15,6 +15,7 @@ type PackageManifest = {
           default: unknown;
           enum?: string[];
           enumDescriptions?: string[];
+          items?: { pattern?: string };
           minimum?: number;
           maximum?: number;
           description: string;
@@ -88,5 +89,25 @@ describe("extension manifest", () => {
       default: false,
       description: "%config.commitDetails.compactFolders%"
     });
+  });
+
+  it("contributes an OKLCH graph color palette accepted by its own pattern", () => {
+    const manifest = readManifest();
+    const colors = manifest.contributes.configuration.properties["git-graph-libre.graphColors"];
+    const defaults = colors.default as string[];
+    const itemPattern = colors.items?.pattern;
+
+    expect(itemPattern).toBeDefined();
+    if (itemPattern === undefined) return;
+    const pattern = new RegExp(itemPattern);
+
+    expect(defaults).toHaveLength(12);
+    for (const value of defaults) {
+      expect(value).toMatch(/^oklch\(/);
+      expect(value).toMatch(pattern);
+    }
+    expect("#0085d9").toMatch(pattern);
+    expect("rgb(0, 133, 217)").toMatch(pattern);
+    expect("blue").not.toMatch(pattern);
   });
 });

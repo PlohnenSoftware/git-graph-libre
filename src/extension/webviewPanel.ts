@@ -1,14 +1,14 @@
-import * as vscode from "vscode";
+import type * as vscode from "vscode";
 
-import { AvatarManager } from "@/avatarManager";
+import type { AvatarManager } from "@/avatarManager";
 import { buildExtensionUri } from "@/backend/utils/path";
-import { Config } from "@/config";
-import { ExtensionState } from "@/extensionState";
-import { RepoFileWatcher } from "@/repoFileWatcher";
-import { GitRepoSet } from "@/types";
+import type { Config } from "@/config";
+import type { ExtensionState } from "@/extensionState";
+import type { RepoFileWatcher } from "@/repoFileWatcher";
+import type { GitRepoSet } from "@/types";
 
-import { RepoManager } from "./repoManager";
-import { WebviewBridge } from "./webviewBridge";
+import type { RepoManager } from "./repoManager";
+import type { WebviewBridge } from "./webviewBridge";
 import { buildWebviewHtml } from "./webviewHtml";
 
 export function createWebviewPanel(opts: {
@@ -41,7 +41,7 @@ export function createWebviewPanel(opts: {
   let isPanelVisible = true;
 
   panel.iconPath =
-    config.tabIconColourTheme() === "colour"
+    config.tabIconColorTheme() === "color"
       ? buildExtensionUri(extensionPath, "resources", "webview-icon.svg")
       : {
           light: buildExtensionUri(extensionPath, "resources", "webview-icon-light.svg"),

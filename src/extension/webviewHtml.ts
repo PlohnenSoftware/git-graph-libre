@@ -39,7 +39,7 @@ export function buildWebviewHtml(opts: {
     commitDetailsFileViewMode: config.commitDetailsFileViewMode(),
     dateFormat: config.dateFormat(),
     fetchAvatars: config.fetchAvatars() && extensionState.isAvatarStorageAvailable(),
-    graphColours: config.graphColours(),
+    graphColors: config.graphColors(),
     graphFontSize: config.graphFontSize(),
     graphRowHeight: config.graphRowHeight(),
     graphStyle: config.graphStyle(),
@@ -54,8 +54,8 @@ export function buildWebviewHtml(opts: {
   const numRepos = Object.keys(viewState.repos).length;
   let styleVars = `--git-graph-font-size:${viewState.graphFontSize}px; --git-graph-row-height:${viewState.graphRowHeight}px; `,
     colorParams = "";
-  for (let i = 0; i < viewState.graphColours.length; i++) {
-    styleVars += `--git-graph-color${i}:${viewState.graphColours[i]}; `;
+  for (let i = 0; i < viewState.graphColors.length; i++) {
+    styleVars += `--git-graph-color${i}:${viewState.graphColors[i]}; `;
     colorParams += `[data-color="${i}"]{--git-graph-color:var(--git-graph-color${i});} `;
   }
 

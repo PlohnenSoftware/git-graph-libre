@@ -21,7 +21,7 @@
   "config.dateType.authorDate": "使用提交的作者日期",
   "config.dateType.commitDate": "使用提交的提交者日期",
   "config.fetchAvatars": "获取提交作者和提交者的头像。启用此设置即表示您同意将提交作者和提交者的电子邮件地址发送到 GitHub、GitLab 或 Gravatar（取决于仓库的远程源）。",
-  "config.graphColours": "指定图形上使用的颜色。",
+  "config.graphColors": "指定图形上使用的颜色。",
   "config.graphStyle": "指定图形的样式。",
   "config.graphStyle.rounded": "在图形中的分支之间过渡时使用平滑曲线",
   "config.graphStyle.angular": "在图形中的分支之间过渡时使用直角线条",
@@ -34,7 +34,7 @@
   "config.showCurrentBranchByDefault": "打开 Git 图形时默认显示当前分支。默认值：false（显示所有分支）",
   "config.showStatusBarItem": "显示状态栏项，单击时打开 Git 图形。",
   "config.showUncommittedChanges": "显示未提交的更改（在大型仓库上设置为 false 以减少加载时间）。",
-  "config.tabIconColourTheme": "指定 Git 图形选项卡上显示的图标的颜色主题。",
-  "config.tabIconColourTheme.colour": "显示适合大多数 Visual Studio Code 颜色主题的彩色图标",
-  "config.tabIconColourTheme.grey": "显示适合以灰度为主的 Visual Studio Code 颜色主题的灰色图标"
+  "config.tabIconColorTheme": "指定 Git 图形选项卡上显示的图标的颜色主题。",
+  "config.tabIconColorTheme.color": "显示适合大多数 Visual Studio Code 颜色主题的彩色图标",
+  "config.tabIconColorTheme.grey": "显示适合以灰度为主的 Visual Studio Code 颜色主题的灰色图标"
 }

@@ -1,8 +1,8 @@
 import type { GitCommitNode } from "@/backend/types";
 
-const MUTED_GRAPH_COLOUR = "oklch(60% 0 0)";
-const MASK_VISIBLE_COLOUR = "oklch(100% 0 0)";
-const MASK_HIDDEN_COLOUR = "oklch(0% 0 0)";
+const MUTED_GRAPH_COLOR = "oklch(60% 0 0)";
+const MASK_VISIBLE_COLOR = "oklch(100% 0 0)";
+const MASK_HIDDEN_COLOR = "oklch(0% 0 0)";
 
 interface UnavailablePoint {
   connectsTo: VertexOrNull;
@@ -12,12 +12,12 @@ type VertexOrNull = Vertex | null;
 
 class Branch {
   private lines: Line[] = [];
-  private colour: number;
+  private readonly color: number;
   private end: number = 0;
   private numUncommitted: number = 0;
 
-  constructor(colour: number) {
-    this.colour = colour;
+  constructor(color: number) {
+    this.color = color;
   }
 
   public addLine(p1: Point, p2: Point, isCommitted: boolean, lockedFirst: boolean) {
@@ -28,8 +28,8 @@ class Branch {
       this.numUncommitted++;
     }
   }
-  public getColour() {
-    return this.colour;
+  public getColor() {
+    return this.color;
   }
   public getEnd() {
     return this.end;
@@ -38,10 +38,10 @@ class Branch {
     this.end = end;
   }
   public draw(svg: SVGElement, config: Config, expandAt: number) {
-    const colour = config.graphColours[this.colour % config.graphColours.length];
+    const color = config.graphColors[this.color % config.graphColors.length];
     const lines: PlacedLine[] = [];
     let curPath = "";
-    let curColour = "";
+    let curColor = "";
     const d = config.grid.y * (config.graphStyle === "angular" ? 0.38 : 0.8);
 
     // Convert branch lines into pixel coordinates, respecting expanded commit extensions
@@ -124,17 +124,17 @@ class Branch {
 
       // If the new point belongs to a different path, render the current path and reset it for the new path
       if (curPath !== "" && i > 0 && lines[i].isCommitted !== lines[i - 1].isCommitted) {
-        this.drawPath(svg, curPath, curColour);
+        this.drawPath(svg, curPath, curColor);
         curPath = "";
-        curColour = "";
+        curColor = "";
       }
 
       // If the path hasn't been started or the new point belongs to a different path, move to p1
       if (curPath === "" || (i > 0 && (x1 !== lines[i - 1].p2.x || y1 !== lines[i - 1].p2.y)))
         curPath += `M${x1.toFixed(0)},${y1.toFixed(1)}`;
 
-      // If the path hasn't been assigned a colour, assign it
-      if (curColour === "") curColour = lines[i].isCommitted ? colour : MUTED_GRAPH_COLOUR;
+      // If the path hasn't been assigned a color, assign it
+      if (curColor === "") curColor = lines[i].isCommitted ? color : MUTED_GRAPH_COLOR;
 
       if (x1 === x2) {
         // If the path is vertical, draw a straight line
@@ -154,16 +154,16 @@ class Branch {
       }
     }
 
-    this.drawPath(svg, curPath, curColour); // Draw the remaining path
+    this.drawPath(svg, curPath, curColor); // Draw the remaining path
   }
-  private drawPath(svg: SVGElement, path: string, colour: string) {
+  private drawPath(svg: SVGElement, path: string, color: string) {
     const line1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
     const line2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
     line1.setAttribute("class", "shaddow");
     line1.setAttribute("d", path);
     line2.setAttribute("class", "line");
     line2.setAttribute("d", path);
-    line2.setAttribute("stroke", colour);
+    line2.setAttribute("stroke", color);
     svg.appendChild(line1);
     svg.appendChild(line2);
   }
@@ -245,8 +245,8 @@ class Vertex {
     }
   }
 
-  public getColour() {
-    return this.onBranch !== null ? this.onBranch.getColour() : 0;
+  public getColor() {
+    return this.onBranch !== null ? this.onBranch.getColor() : 0;
   }
   public setNotCommited() {
     this.isCommitted = false;
@@ -258,9 +258,9 @@ class Vertex {
     if (this.onBranch === null) return;
 
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    const colour = this.isCommitted
-      ? config.graphColours[this.onBranch.getColour() % config.graphColours.length]
-      : MUTED_GRAPH_COLOUR;
+    const color = this.isCommitted
+      ? config.graphColors[this.onBranch.getColor() % config.graphColors.length]
+      : MUTED_GRAPH_COLOR;
     circle.setAttribute("cx", (this.x * config.grid.x + config.grid.offsetX).toString());
     circle.setAttribute(
       "cy",
@@ -273,9 +273,9 @@ class Vertex {
     circle.setAttribute("r", "4");
     if (this.isCurrent) {
       circle.setAttribute("class", "current");
-      circle.setAttribute("stroke", colour);
+      circle.setAttribute("stroke", color);
     } else {
-      circle.setAttribute("fill", colour);
+      circle.setAttribute("fill", color);
     }
 
     svg.appendChild(circle);
@@ -294,7 +294,7 @@ export class Graph {
 
   private vertices: Vertex[] = [];
   private branches: Branch[] = [];
-  private availableColours: number[] = [];
+  private availableColors: number[] = [];
 
   constructor(id: string, config: Config) {
     this.config = config;
@@ -309,9 +309,9 @@ export class Graph {
     this.svgGradientStop2 = <SVGStopElement>document.createElementNS(svgNamespace, "stop");
 
     linearGradient.setAttribute("id", "GraphGradient");
-    this.svgGradientStop1.setAttribute("stop-color", MASK_VISIBLE_COLOUR);
+    this.svgGradientStop1.setAttribute("stop-color", MASK_VISIBLE_COLOR);
     linearGradient.appendChild(this.svgGradientStop1);
-    this.svgGradientStop2.setAttribute("stop-color", MASK_HIDDEN_COLOUR);
+    this.svgGradientStop2.setAttribute("stop-color", MASK_HIDDEN_COLOR);
     linearGradient.appendChild(this.svgGradientStop2);
     defs.appendChild(linearGradient);
     mask.setAttribute("id", "GraphMask");
@@ -334,7 +334,7 @@ export class Graph {
   ) {
     this.vertices = [];
     this.branches = [];
-    this.availableColours = [];
+    this.availableColors = [];
 
     for (let i = 0; i < commits.length; i++) {
       this.vertices.push(new Vertex(i));
@@ -408,8 +408,8 @@ export class Graph {
     );
   }
 
-  public getVertexColour(v: number) {
-    return this.vertices[v].getColour() % this.config.graphColours.length;
+  public getVertexColor(v: number) {
+    return this.vertices[v].getColor() % this.config.graphColors.length;
   }
 
   public limitMaxWidth(maxWidth: number) {
@@ -474,7 +474,7 @@ export class Graph {
       }
     } else {
       // Branch is normal
-      const branch = new Branch(this.getAvailableColour(startAt));
+      const branch = new Branch(this.getAvailableColor(startAt));
       vertex.addToBranch(branch, lastPoint.x);
       vertex.registerUnavailablePoint(lastPoint.x, vertex, branch);
       for (i = startAt + 1; i < this.vertices.length; i++) {
@@ -497,7 +497,7 @@ export class Graph {
       }
       branch.setEnd(i);
       this.branches.push(branch);
-      this.availableColours[branch.getColour()] = i;
+      this.availableColors[branch.getColor()] = i;
     }
   }
 
@@ -508,13 +508,13 @@ export class Graph {
     return -1;
   }
 
-  private getAvailableColour(startAt: number) {
-    for (let i = 0; i < this.availableColours.length; i++) {
-      if (startAt > this.availableColours[i]) {
+  private getAvailableColor(startAt: number) {
+    for (let i = 0; i < this.availableColors.length; i++) {
+      if (startAt > this.availableColors[i]) {
         return i;
       }
     }
-    this.availableColours.push(0);
-    return this.availableColours.length - 1;
+    this.availableColors.push(0);
+    return this.availableColors.length - 1;
   }
 }

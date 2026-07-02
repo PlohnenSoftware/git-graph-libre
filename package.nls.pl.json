@@ -21,7 +21,7 @@
   "config.dateType.authorDate": "Użyj daty autora commita",
   "config.dateType.commitDate": "Użyj daty zatwierdzenia commita",
   "config.fetchAvatars": "Pobieraj awatary autorów i committerów. Włączenie tej opcji oznacza zgodę na wysyłanie adresów e-mail autorów i committerów do GitHub, GitLab lub Gravatar, zależnie od zdalnego origin repozytorium.",
-  "config.graphColours": "Określa kolory używane na grafie.",
+  "config.graphColors": "Określa kolory używane na grafie.",
   "config.graphStyle": "Określa styl grafu.",
   "config.graphStyle.rounded": "Używaj płynnych krzywych przy przejściach między gałęziami na grafie",
   "config.graphStyle.angular": "Używaj kanciastych linii przy przejściach między gałęziami na grafie",
@@ -34,7 +34,7 @@
   "config.showCurrentBranchByDefault": "Domyślnie pokazuj bieżącą gałąź po otwarciu Git Graph. Domyślnie: false (pokaż wszystkie gałęzie)",
   "config.showStatusBarItem": "Pokaż element paska stanu, który po kliknięciu otwiera Git Graph.",
   "config.showUncommittedChanges": "Pokaż niezatwierdzone zmiany (ustaw false, aby skrócić czas ładowania dużych repozytoriów).",
-  "config.tabIconColourTheme": "Określa motyw kolorystyczny ikony wyświetlanej na karcie Git Graph.",
-  "config.tabIconColourTheme.colour": "Pokaż kolorową ikonę pasującą do większości motywów kolorów Visual Studio Code",
-  "config.tabIconColourTheme.grey": "Pokaż szarą ikonę pasującą do motywów Visual Studio Code opartych głównie na skali szarości"
+  "config.tabIconColorTheme": "Określa motyw kolorystyczny ikony wyświetlanej na karcie Git Graph.",
+  "config.tabIconColorTheme.color": "Pokaż kolorową ikonę pasującą do większości motywów kolorów Visual Studio Code",
+  "config.tabIconColorTheme.grey": "Pokaż szarą ikonę pasującą do motywów Visual Studio Code opartych głównie na skali szarości"
 }

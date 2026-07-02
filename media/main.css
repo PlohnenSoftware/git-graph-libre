@@ -14,6 +14,10 @@
   --ngg-success-pulse: oklch(74% 0.12 152 / 0.5);
   --ngg-find-highlight: oklch(84% 0.13 86 / 0.28);
   --ngg-find-active: oklch(84% 0.16 86 / 0.42);
+  --ngg-accent: oklch(55% 0.16 250);
+  --ngg-accent-foreground: oklch(98% 0 0);
+  --ngg-backdrop: oklch(0% 0 0 / 0.25);
+  --ngg-error: oklch(62% 0.19 25);
 }
 
 /* Body */
@@ -200,12 +204,23 @@ body.unableToLoad p {
   height: 2px;
   background-color: var(--ngg-neutral-overlay-medium);
 }
+/* Selected rows are tinted with the hue of their own graph dot color */
 #commitTable tr.commit.commitDetailsOpen td {
-  background-color: var(--vscode-list-activeSelectionBackground, var(--ngg-neutral-border-medium));
-  color: var(--vscode-list-activeSelectionForeground, var(--vscode-editor-foreground));
+  background-color: color-mix(
+    in srgb,
+    var(--git-graph-color, var(--vscode-list-activeSelectionBackground)) 18%,
+    var(--ngg-transparent)
+  );
+}
+#commitTable tr.commit.commitDetailsOpen td:first-child {
+  box-shadow: inset 3px 0 0 var(--git-graph-color, var(--vscode-focusBorder));
 }
 #commitTable tr.commit.commitDetailsOpen:hover td {
-  background-color: var(--vscode-list-activeSelectionBackground, var(--ngg-neutral-overlay-strong));
+  background-color: color-mix(
+    in srgb,
+    var(--git-graph-color, var(--vscode-list-activeSelectionBackground)) 26%,
+    var(--ngg-transparent)
+  );
 }
 #commitTable tr.commit.findMatch td {
   background-color: var(--vscode-editor-findMatchHighlightBackground, var(--ngg-find-highlight));
@@ -618,6 +633,7 @@ body.commitDetailsResizing * {
 #showRemoteBranchesCheckbox {
   width: 14px;
   vertical-align: text-top;
+  accent-color: var(--vscode-button-background, var(--ngg-accent));
 }
 .toolbarFind {
   display: inline-flex;
@@ -761,11 +777,15 @@ body.commitDetailsResizing * {
   display: none;
   position: absolute;
   background-color: var(--vscode-menu-background);
-  box-shadow: 0 1px 4px 1px var(--vscode-widget-shadow);
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
   color: var(--vscode-menu-foreground);
+  border: 1px solid var(--vscode-menu-border, var(--ngg-neutral-border-strong));
+  border-radius: 5px;
   list-style-type: none;
   margin: 0;
-  padding: 4px 0;
+  padding: 4px;
+  min-width: 160px;
+  z-index: 12;
 }
 #contextMenu.active {
   display: block;
@@ -774,16 +794,18 @@ body.commitDetailsResizing * {
   cursor: default;
 }
 #contextMenu li.contextMenuItem {
-  padding: 6px 20px;
+  padding: 4px 16px;
+  border-radius: 3px;
+  line-height: 20px;
+  white-space: nowrap;
 }
 #contextMenu li.contextMenuItem:hover {
   background-color: var(--vscode-menu-selectionBackground);
   color: var(--vscode-menu-selectionForeground);
 }
 #contextMenu li.contextMenuDivider {
-  margin: 4px 10px;
-  border-top: 1px solid var(--vscode-menu-separatorBackground);
-  opacity: 0.5;
+  margin: 4px 6px;
+  border-top: 1px solid var(--vscode-menu-separatorBackground, var(--ngg-neutral-border));
 }
 
 /* Dialogs */
@@ -794,75 +816,129 @@ body.commitDetailsResizing * {
 #dialog.active {
   display: block;
   position: fixed;
-  background-color: var(--vscode-menu-background);
-  color: var(--vscode-menu-foreground);
-  padding: 10px;
+  box-sizing: border-box;
+  background-color: var(--vscode-editorWidget-background, var(--vscode-menu-background));
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
+  padding: 14px 16px;
   left: 50%;
   top: 50%;
   transform: translateX(-50%) translateY(-50%);
-  border: 1px solid var(--ngg-neutral-border-strong);
-  border-radius: 5px;
-  text-align: center;
-  max-width: 360px;
+  border: 1px solid var(--vscode-editorWidget-border, var(--ngg-neutral-border-strong));
+  border-radius: 6px;
+  text-align: left;
+  width: max-content;
+  max-width: min(440px, 90vw);
   max-height: 80%;
   z-index: 10;
-  box-shadow: 0 0 30px 5px var(--vscode-widget-shadow);
+  box-shadow: 0 4px 16px var(--vscode-widget-shadow);
   overflow-y: auto;
 }
-
-#dialog > table.dialogForm {
-  display: inline-table;
-  width: 360px;
+#dialog .dialogContent {
+  line-height: 20px;
 }
-#dialog > table.dialogForm td {
+
+#dialog table.dialogForm {
+  width: 360px;
+  max-width: 100%;
+  border-collapse: collapse;
+}
+#dialog table.dialogForm td {
   padding-top: 10px;
   text-align: left;
   white-space: nowrap;
 }
-#dialog > table.dialogForm td:last-child {
+#dialog table.dialogForm td:last-child {
   width: 100%;
 }
-#dialog > table.dialogForm.multi td:nth-child(1) {
-  padding-right: 5px;
+#dialog table.dialogForm.multi td:nth-child(1) {
+  padding-right: 8px;
 }
-#dialog > table.dialogForm.single select {
+#dialog table.dialogForm.single select {
   width: 100%;
 }
-#dialog > table.dialogForm.single .dialogFormCheckbox {
+#dialog table.dialogForm.single .dialogFormCheckbox {
   display: inline-block;
-  text-align: center;
   width: 100%;
 }
-#dialog > table.dialogForm input[type="text"] {
+#dialog table.dialogForm input[type="text"] {
   width: 100%;
 }
-#dialog > table.dialogForm input[type="checkbox"] {
+#dialog table.dialogForm input[type="checkbox"] {
   vertical-align: text-top;
   outline-style: none;
+  margin: 0 6px 0 0;
+  accent-color: var(--vscode-button-background, var(--ngg-accent));
 }
-#dialog > table.dialogForm.multi input[type="checkbox"] {
-  margin-left: 0;
-}
-#dialog > table.dialogForm input[type="text"],
-#dialog > table.dialogForm select {
-  padding: 4px;
+#dialog table.dialogForm input[type="text"],
+#dialog table.dialogForm select {
   box-sizing: border-box;
-  border: 1px solid var(--ngg-neutral-border);
-  outline-style: none;
+  height: 28px;
+  padding: 4px 8px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--ngg-neutral-border));
+  border-radius: 4px;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
 }
-#dialog .roundedBtn {
+#dialog table.dialogForm input[type="text"]::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+#dialog table.dialogForm input[type="text"]:focus,
+#dialog table.dialogForm select:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 0;
+}
+#dialog table.dialogForm select {
+  background-color: var(--vscode-dropdown-background, var(--vscode-input-background));
+  color: var(--vscode-dropdown-foreground, var(--vscode-input-foreground));
+  border-color: var(--vscode-dropdown-border, var(--ngg-neutral-border));
+}
+#dialog.inputInvalid table.dialogForm input[type="text"] {
+  background-color: var(--vscode-inputValidation-errorBackground);
+  border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+}
+#dialog .dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+.dialogBtn {
   display: inline-block;
+  box-sizing: border-box;
+  padding: 3px 14px;
+  border: 1px solid var(--vscode-button-border, var(--ngg-transparent));
+  border-radius: 2px;
+  background-color: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-medium));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-editor-foreground));
+  font-size: 13px;
   line-height: 20px;
-  padding: 0 15px;
-  margin: 10px 6px 0 6px;
-  height: 22px;
-  border-radius: 11px;
+  text-align: center;
+  cursor: pointer;
+}
+.dialogBtn:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground, var(--ngg-neutral-overlay-strong));
+}
+.dialogBtn.dialogBtnPrimary {
+  background-color: var(--vscode-button-background, var(--ngg-accent));
+  color: var(--vscode-button-foreground, var(--ngg-accent-foreground));
+}
+.dialogBtn.dialogBtnPrimary:hover {
+  background-color: var(--vscode-button-hoverBackground, var(--ngg-accent));
 }
 #dialog .errorReason {
-  display: inline-block;
-  font-style: italic;
+  display: block;
   margin-top: 10px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background-color: var(--vscode-textCodeBlock-background, var(--ngg-neutral-overlay-subtle));
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
   text-align: left;
+  white-space: normal;
+  word-break: break-word;
 }
 #dialogBacking.active {
   display: block;
@@ -872,11 +948,15 @@ body.commitDetailsResizing * {
   top: 0;
   bottom: 0;
   z-index: 9;
+  background-color: var(--ngg-backdrop);
 }
 #dialog.noInput #dialogAction,
 #dialog.inputInvalid #dialogAction {
-  background-color: var(--ngg-neutral-overlay-medium);
   opacity: 0.5;
+}
+#dialog.noInput #dialogAction:hover,
+#dialog.inputInvalid #dialogAction:hover {
+  background-color: var(--vscode-button-background, var(--ngg-accent));
 }
 #dialog.noInput #dialogAction {
   cursor: default;
@@ -891,9 +971,15 @@ body.commitDetailsResizing * {
   line-height: 20px;
   vertical-align: sub;
 }
+#dialog .dialogErrorIcon svg {
+  fill: var(--vscode-errorForeground, var(--ngg-error));
+}
 #actionRunning {
-  margin: 0 16px;
+  display: block;
+  margin: 0 8px;
   line-height: 24px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 /* Blink animation for highlighting the current HEAD commit row */
@@ -944,6 +1030,8 @@ body.commitDetailsResizing * {
 #loadingHeader,
 .unselectable,
 .roundedBtn,
+.dialogBtn,
+#contextMenu li,
 #controls label {
   user-select: none;
 }

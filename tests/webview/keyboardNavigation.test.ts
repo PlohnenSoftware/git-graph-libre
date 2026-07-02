@@ -14,7 +14,7 @@ const viewState: GG.GitGraphViewState = {
   autoCenterCommitDetailsView: true,
   dateFormat: "Date & Time",
   fetchAvatars: false,
-  graphColours: ["oklch(65% 0.16 250)"],
+  graphColors: ["oklch(65% 0.16 250)"],
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "tree",
   graphFontSize: 13,

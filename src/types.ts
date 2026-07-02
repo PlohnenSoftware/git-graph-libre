@@ -17,7 +17,7 @@ export type GitGraphViewState = {
   commitDetailsFileViewMode: CommitDetailsFileViewMode;
   dateFormat: DateFormat;
   fetchAvatars: boolean;
-  graphColours: string[];
+  graphColors: string[];
   graphFontSize: number;
   graphRowHeight: number;
   graphStyle: GraphStyle;

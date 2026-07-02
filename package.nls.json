@@ -21,7 +21,7 @@
   "config.dateType.authorDate": "Use the author date of a commit",
   "config.dateType.commitDate": "Use the committer date of a commit",
   "config.fetchAvatars": "Fetch avatars of commit authors and committers. By enabling this setting, you consent to commit author and committer email addresses being sent GitHub, GitLab or Gravatar, depending on the repositories remote origin.",
-  "config.graphColours": "Specifies the colours used on the graph.",
+  "config.graphColors": "Specifies the colors used on the graph.",
   "config.graphStyle": "Specifies the style of the graph.",
   "config.graphStyle.rounded": "Use smooth curves when transitioning between branches on the graph",
   "config.graphStyle.angular": "Use angular lines when transitioning between branches on the graph",
@@ -34,7 +34,7 @@
   "config.showCurrentBranchByDefault": "Show the current branch by default when Git Graph is opened. Default: false (show all branches)",
   "config.showStatusBarItem": "Show a Status Bar item which opens Git Graph when clicked.",
   "config.showUncommittedChanges": "Show uncommitted changes (set to false to decrease load time on large repositories).",
-  "config.tabIconColourTheme": "Specifies the colour theme of the icon displayed on the Git Graph tab.",
-  "config.tabIconColourTheme.colour": "Show a colour icon which suits most Visual Studio Code colour themes",
-  "config.tabIconColourTheme.grey": "Show a grey icon which suits Visual Studio Code colour themes that are predominantly grayscale"
+  "config.tabIconColorTheme": "Specifies the color theme of the icon displayed on the Git Graph tab.",
+  "config.tabIconColorTheme.color": "Show a color icon which suits most Visual Studio Code color themes",
+  "config.tabIconColorTheme.grey": "Show a grey icon which suits Visual Studio Code color themes that are predominantly grayscale"
 }

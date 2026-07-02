@@ -742,7 +742,7 @@ class GitGraphView {
         ' data-id="' +
         i +
         '" data-color="' +
-        this.graph.getVertexColour(i) +
+        this.graph.getVertexColor(i) +
         '"><td></td><td>' +
         (isHeadCommit ? '<span class="commitHeadDot"></span>' : "") +
         refs +
@@ -1751,7 +1751,7 @@ const gitGraph = new GitGraphView(
     commitDetailsCompactFolders: viewState.commitDetailsCompactFolders,
     commitDetailsFileViewMode: viewState.commitDetailsFileViewMode,
     fetchAvatars: viewState.fetchAvatars,
-    graphColours: viewState.graphColours,
+    graphColors: viewState.graphColors,
     graphFontSize: viewState.graphFontSize,
     graphRowHeight: viewState.graphRowHeight,
     graphStyle: viewState.graphStyle,
@@ -2154,10 +2154,10 @@ function showFormDialog(
 }
 function showErrorDialog(message: string, reason: string | null, sourceElem: HTMLElement | null) {
   showDialog(
-    svgIcons.alert +
+    `<span class="dialogErrorIcon">${svgIcons.alert}</span>` +
       message +
       (reason !== null
-        ? `<br><span class="errorReason">${escapeHtml(reason).split("\n").join("<br>")}</span>`
+        ? `<span class="errorReason">${escapeHtml(reason).split("\n").join("<br>")}</span>`
         : ""),
     null,
     l10n.dialogDismiss,
@@ -2184,13 +2184,15 @@ function showDialog(
 ) {
   dialogBacking.className = "active";
   dialog.className = "active";
+  const dismissClass = actionName === null ? "dialogBtn dialogBtnPrimary" : "dialogBtn";
+  const actionButton =
+    actionName === null
+      ? ""
+      : `<div id="dialogAction" class="dialogBtn dialogBtnPrimary">${actionName}</div>`;
   dialog.innerHTML =
-    html +
-    "<br>" +
-    (actionName !== null ? `<div id="dialogAction" class="roundedBtn">${actionName}</div>` : "") +
-    '<div id="dialogDismiss" class="roundedBtn">' +
-    dismissName +
-    "</div>";
+    `<div class="dialogContent">${html}</div>` +
+    `<div class="dialogActions">${actionButton}` +
+    `<div id="dialogDismiss" class="${dismissClass}">${dismissName}</div></div>`;
   if (actionName !== null && actioned !== null)
     document.getElementById("dialogAction")?.addEventListener("click", actioned);
   document.getElementById("dialogDismiss")?.addEventListener("click", hideDialog);

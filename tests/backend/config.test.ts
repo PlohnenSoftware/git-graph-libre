@@ -6,7 +6,10 @@ vi.mock("vscode", () => ({
   workspace: {
     getConfiguration: (section: string) => ({
       get: <T>(key: string, defaultValue: T): T =>
-        (settings.get(`${section}.${key}`) as T | undefined) ?? defaultValue
+        (settings.get(`${section}.${key}`) as T | undefined) ?? defaultValue,
+      inspect: <T>(key: string) => ({
+        globalValue: settings.get(`${section}.${key}`) as T | undefined
+      })
     })
   }
 }));
@@ -69,5 +72,69 @@ describe("configuration", () => {
     const { config } = await import("@/config");
 
     expect(config.commitDetailsFileViewMode()).toBe("tree");
+  });
+
+  it("accepts OKLCH, HEX, and RGB graph colors and filters invalid values", async () => {
+    settings.set("git-graph-libre.graphColors", [
+      "oklch(65% 0.17 245)",
+      "oklch(62% 0.24 350 / 0.8)",
+      "#0085d9",
+      "rgb(0, 133, 217)",
+      "red",
+      "oklch(banana)"
+    ]);
+
+    const { config } = await import("@/config");
+
+    expect(config.graphColors()).toEqual([
+      "oklch(65% 0.17 245)",
+      "oklch(62% 0.24 350 / 0.8)",
+      "#0085d9",
+      "rgb(0, 133, 217)"
+    ]);
+  });
+
+  it("provides an OKLCH default graph color palette", async () => {
+    const { config } = await import("@/config");
+
+    const colors = config.graphColors();
+
+    expect(colors).toHaveLength(12);
+    for (const color of colors) {
+      expect(color).toMatch(/^oklch\(/);
+    }
+  });
+
+  it("honors values stored under the legacy graphColours key", async () => {
+    settings.set("git-graph-libre.graphColours", ["#0085d9"]);
+
+    const { config } = await import("@/config");
+
+    expect(config.graphColors()).toEqual(["#0085d9"]);
+  });
+
+  it("prefers the renamed graphColors key over the legacy key", async () => {
+    settings.set("git-graph-libre.graphColours", ["#0085d9"]);
+    settings.set("git-graph-libre.graphColors", ["rgb(1, 2, 3)"]);
+
+    const { config } = await import("@/config");
+
+    expect(config.graphColors()).toEqual(["rgb(1, 2, 3)"]);
+  });
+
+  it("normalizes tab icon themes from renamed and legacy keys", async () => {
+    settings.set("git-graph-libre.tabIconColourTheme", "grey");
+
+    const { config } = await import("@/config");
+
+    expect(config.tabIconColorTheme()).toBe("grey");
+  });
+
+  it("maps the legacy colour tab icon value to color", async () => {
+    settings.set("git-graph-libre.tabIconColourTheme", "colour");
+
+    const { config } = await import("@/config");
+
+    expect(config.tabIconColorTheme()).toBe("color");
   });
 });

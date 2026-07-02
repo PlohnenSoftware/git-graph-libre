@@ -34,7 +34,7 @@ describe("commit table styles", () => {
     expect(css).toContain("#commitTable tr.commit.blinking td");
   });
 
-  it("uses the fixed green HEAD blink colour", () => {
+  it("uses the fixed green HEAD blink color", () => {
     expect(css).toContain("--ngg-success-pulse: oklch(74% 0.12 152 / 0.5);");
     expect(css).toContain("background-color: var(--ngg-success-pulse);");
   });
@@ -68,7 +68,7 @@ describe("commit table styles", () => {
     expect(css).not.toContain("#commitDetailsClose");
   });
 
-  it("uses OKLCH for owned CSS fallback colours", () => {
+  it("uses OKLCH for owned CSS fallback colors", () => {
     expect(webviewCss).toContain("oklch(");
     expect(webviewCss).not.toMatch(/rgba?\(/);
     expect(webviewCss).not.toMatch(/hsla?\(/);

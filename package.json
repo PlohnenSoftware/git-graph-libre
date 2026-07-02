@@ -194,28 +194,28 @@
           "default": false,
           "description": "%config.fetchAvatars%"
         },
-        "git-graph-libre.graphColours": {
+        "git-graph-libre.graphColors": {
           "type": "array",
           "items": {
             "type": "string",
-            "description": "Colour (HEX or RGB)",
-            "pattern": "^\\s*(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8}|rgb[a]?\\s*\\(\\d{1,3},\\s*\\d{1,3},\\s*\\d{1,3}\\))\\s*$"
+            "description": "Color (OKLCH, HEX, or RGB)",
+            "pattern": "^\\s*(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8}|rgb[a]?\\s*\\(\\d{1,3},\\s*\\d{1,3},\\s*\\d{1,3}\\)|oklch\\(\\s*\\d{1,3}(\\.\\d+)?%\\s+\\d(\\.\\d+)?\\s+\\d{1,3}(\\.\\d+)?(\\s*/\\s*(0(\\.\\d+)?|1))?\\s*\\))\\s*$"
           },
           "default": [
-            "#0085d9",
-            "#d9008f",
-            "#00d90a",
-            "#d98500",
-            "#a300d9",
-            "#ff0000",
-            "#00d9cc",
-            "#e138e8",
-            "#85d900",
-            "#dc5b23",
-            "#6f24d6",
-            "#ffcc00"
+            "oklch(63% 0.2 245)",
+            "oklch(63% 0.2 350)",
+            "oklch(63% 0.2 145)",
+            "oklch(63% 0.2 70)",
+            "oklch(63% 0.2 305)",
+            "oklch(63% 0.2 27)",
+            "oklch(63% 0.2 190)",
+            "oklch(63% 0.2 325)",
+            "oklch(63% 0.2 130)",
+            "oklch(63% 0.2 45)",
+            "oklch(63% 0.2 295)",
+            "oklch(63% 0.2 95)"
           ],
-          "description": "%config.graphColours%"
+          "description": "%config.graphColors%"
         },
         "git-graph-libre.graphStyle": {
           "type": "string",
@@ -281,18 +281,18 @@
           "default": true,
           "description": "%config.showUncommittedChanges%"
         },
-        "git-graph-libre.tabIconColourTheme": {
+        "git-graph-libre.tabIconColorTheme": {
           "type": "string",
           "enum": [
-            "colour",
+            "color",
             "grey"
           ],
           "enumDescriptions": [
-            "%config.tabIconColourTheme.colour%",
-            "%config.tabIconColourTheme.grey%"
+            "%config.tabIconColorTheme.color%",
+            "%config.tabIconColorTheme.grey%"
           ],
-          "default": "colour",
-          "description": "%config.tabIconColourTheme%"
+          "default": "color",
+          "description": "%config.tabIconColorTheme%"
         }
       }
     }

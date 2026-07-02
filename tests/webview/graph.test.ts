@@ -8,7 +8,7 @@ const config: Config = {
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "tree",
   fetchAvatars: false,
-  graphColours: ["oklch(65% 0.16 250)"],
+  graphColors: ["oklch(65% 0.16 250)"],
   graphFontSize: 13,
   graphRowHeight: 24,
   graphStyle: "rounded",
