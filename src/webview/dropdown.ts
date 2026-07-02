@@ -152,7 +152,9 @@ export class Dropdown {
     this.optionsElem.innerHTML = html;
     this.filterInput.style.display = "none";
     this.noResultsElem.style.display = "none";
-    this.menuElem.style.cssText = "opacity:0; display:block;";
+    // min-width is cleared during measurement so the control width cannot feed
+    // back into the menu width and grow on every render
+    this.menuElem.style.cssText = "opacity:0; display:block; min-width:0;";
     // Width must be at least 130px for the filter elements. Max height for the dropdown is [filter (31px) + 9.5 * dropdown item (28px) = 297px]
     // Don't need to add 12px if showing info icons and scrollbar isn't needed. The scrollbar isn't needed if: menuElem height + filter input (25px) < 297px
     this.currentValueElem.style.width = `${Math.max(

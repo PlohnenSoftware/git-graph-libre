@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it } from "vitest";
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
 import { Dropdown } from "@/webview/dropdown";
-import { beforeEach, describe, expect, it } from "vitest";
 
 describe("Dropdown", () => {
   beforeEach(() => {
@@ -27,6 +27,28 @@ describe("Dropdown", () => {
     const options = document.querySelectorAll<HTMLElement>(".dropdownOption");
     expect(options[0]?.getAttribute("title")).toBe("/workspace/alpha");
     expect(options[1]?.getAttribute("title")).toBe("/workspace/beta");
+  });
+
+  it("keeps the control width stable across repeated renders", () => {
+    const dropdown = new Dropdown("repoSelect", false, "branch", () => {});
+    const options = [
+      { name: "main", value: "main" },
+      { name: "feature/very-long-branch-name", value: "feature/very-long-branch-name" }
+    ];
+
+    dropdown.setOptions(options, "main");
+    const widthAfterFirstRender =
+      document.querySelector<HTMLElement>(".dropdownCurrentValue")?.style.width;
+
+    for (let i = 0; i < 5; i++) dropdown.setOptions(options, "main");
+
+    expect(document.querySelector<HTMLElement>(".dropdownCurrentValue")?.style.width).toBe(
+      widthAfterFirstRender
+    );
+    // Measurement must not run with the class-level min-width applied
+    expect(document.querySelector<HTMLElement>(".dropdownMenu")?.style.cssText).not.toContain(
+      "min-width"
+    );
   });
 
   it("opens, filters, selects an option, and closes on outside clicks", () => {
