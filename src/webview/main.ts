@@ -141,6 +141,7 @@ class GitGraphView {
   private readonly findSearchHistoryBtn: HTMLButtonElement;
   private readonly fetchBtn: HTMLButtonElement;
   private readonly settingsBtn: HTMLButtonElement;
+  private readonly settingsWidgetBackingElem: HTMLElement;
   private readonly settingsWidgetElem: HTMLElement;
   private settingsWidgetOpen = false;
   private findQuery = "";
@@ -209,6 +210,7 @@ class GitGraphView {
     this.findSearchHistoryBtn = requireElement<HTMLButtonElement>("findSearchHistoryBtn");
     this.fetchBtn = requireElement<HTMLButtonElement>("fetchBtn");
     this.settingsBtn = requireElement<HTMLButtonElement>("settingsBtn");
+    this.settingsWidgetBackingElem = requireElement("settingsWidgetBacking");
     this.settingsWidgetElem = requireElement("settingsWidget");
     document.getElementById("findBtn")?.addEventListener("click", () => {
       this.showFindWidget();
@@ -236,6 +238,9 @@ class GitGraphView {
     });
     this.settingsBtn.addEventListener("click", () => {
       this.toggleSettingsWidget();
+    });
+    this.settingsWidgetBackingElem.addEventListener("click", () => {
+      this.closeSettingsWidget();
     });
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
       this.refresh(true);
@@ -1086,12 +1091,14 @@ class GitGraphView {
     this.settingsBtn.setAttribute("aria-pressed", shouldShow.toString());
 
     if (!shouldShow || repoState === null) {
+      this.settingsWidgetBackingElem.hidden = true;
       this.settingsWidgetElem.hidden = true;
       this.settingsWidgetElem.classList.remove("active");
       this.settingsWidgetElem.innerHTML = "";
       return;
     }
 
+    this.settingsWidgetBackingElem.hidden = false;
     this.settingsWidgetElem.hidden = false;
     this.settingsWidgetElem.classList.add("active");
     this.settingsWidgetElem.innerHTML = renderSettingsWidget({

@@ -406,10 +406,14 @@ describe("webview rendering", () => {
     settingsBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     const settingsWidget = document.getElementById("settingsWidget") as HTMLElement | null;
+    const settingsBacking = document.getElementById("settingsWidgetBacking") as HTMLElement | null;
     expect(settingsWidget).not.toBeNull();
+    expect(settingsBacking).not.toBeNull();
     if (settingsWidget === null) return;
     expect(settingsWidget.hidden).toBe(false);
+    expect(settingsBacking?.hidden).toBe(false);
     expect(settingsWidget.getAttribute("role")).toBe("dialog");
+    expect(settingsWidget.getAttribute("aria-modal")).toBe("true");
     expect(document.activeElement).toBe(settingsWidget);
     expect(settingsWidget.textContent).toContain("Remote Configuration");
     expect(settingsWidget.textContent).toContain("origin");
@@ -474,6 +478,8 @@ describe("webview rendering", () => {
     });
 
     settingsBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(settingsWidget.hidden).toBe(true);
+    expect(settingsBacking?.hidden).toBe(true);
     document
       .getElementById("refreshBtn")
       ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -503,6 +509,32 @@ describe("webview rendering", () => {
       hard: true,
       error: null
     });
+  });
+
+  it("closes the settings popup from its viewport backing", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const loadRepoInfoRequest = latestLoadRepoInfoRequest();
+    receive({
+      command: "loadRepoInfo",
+      requestId: loadRepoInfoRequest.requestId,
+      repoInfo: repoInfoWithRemote,
+      error: null
+    });
+
+    document
+      .getElementById("settingsBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const settingsWidget = document.getElementById("settingsWidget") as HTMLElement | null;
+    const settingsBacking = document.getElementById("settingsWidgetBacking") as HTMLElement | null;
+    expect(settingsWidget?.hidden).toBe(false);
+    expect(settingsBacking?.hidden).toBe(false);
+
+    settingsBacking?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(settingsWidget?.hidden).toBe(true);
+    expect(settingsBacking?.hidden).toBe(true);
   });
 
   it("sends remote action messages from the settings popup", () => {

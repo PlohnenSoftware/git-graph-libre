@@ -68,5 +68,7 @@ describe("webview HTML", () => {
     expect(viewState.graphFontSize).toBe(15);
     expect(viewState.graphRowHeight).toBe(30);
     expect(viewState.shortHashLength).toBe(12);
+    expect(result.html).toContain('id="settingsWidgetBacking" hidden');
+    expect(result.html).toContain('id="settingsWidget" role="dialog" aria-modal="true"');
   });
 });

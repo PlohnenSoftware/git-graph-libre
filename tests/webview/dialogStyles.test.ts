@@ -75,6 +75,19 @@ describe("dialog styles", () => {
     expect(toolbarCheckbox).toContain("accent-color: var(--vscode-button-background");
   });
 
+  it("keeps repository settings as a viewport popup above graph chrome", () => {
+    const backing = ruleFor(css, "#settingsWidgetBacking");
+    const popup = ruleFor(css, "#settingsWidget");
+    const dialog = ruleFor(css, "#dialog.active");
+
+    expect(backing).toContain("position: fixed;");
+    expect(backing).toContain("z-index: 300;");
+    expect(popup).toContain("position: fixed;");
+    expect(popup).toContain("height: min(760px, calc(100vh - 32px));");
+    expect(popup).toContain("z-index: 301;");
+    expect(dialog).toContain("z-index: 401;");
+  });
+
   it("keeps the context menu on menu theme tokens with rounded grouping", () => {
     const menu = ruleFor(css, "#contextMenu");
 

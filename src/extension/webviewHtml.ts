@@ -74,7 +74,8 @@ export function buildWebviewHtml(opts: {
     body = `<body style="${styleVars}">
 		${buildWebviewToolbar(l10nStrings)}
 		${buildWebviewStatusStrip(l10nStrings)}
-		<aside id="settingsWidget" role="dialog" tabindex="-1" aria-label="${l10nStrings.repositorySettings}" hidden></aside>
+		<div id="settingsWidgetBacking" hidden></div>
+		<aside id="settingsWidget" role="dialog" aria-modal="true" tabindex="-1" aria-label="${l10nStrings.repositorySettings}" hidden></aside>
 		<div id="content">
 			<div id="commitGraph"></div>
 			<div id="commitTable"></div>
