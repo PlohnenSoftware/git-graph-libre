@@ -1,15 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
-
+import { makeRepo } from "@tests/backend/helpers";
 import { describe, expect, it, vi } from "vitest";
-
 import type { Config } from "@/config";
 import { createCommandManager } from "@/extension/commandManager";
 import type { RepoManager } from "@/extension/repoManager";
+import type { WebviewPanel } from "@/extension/webviewPanel";
 import type { ExtensionState } from "@/extensionState";
 import type { GitRepoSet } from "@/types";
-
-import { makeRepo } from "@tests/backend/helpers";
 
 type CommandHandler = (...args: unknown[]) => unknown;
 type QuickPickItem = {
@@ -79,6 +77,9 @@ function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | nu
   };
 
   const openGraphView = vi.fn();
+  const currentPanel = {
+    startHistorySearch: vi.fn()
+  };
   const clearCache = vi.fn();
   const manager = createCommandManager({
     commandApi,
@@ -90,7 +91,7 @@ function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | nu
     repoManager,
     avatarManager: { clearCache },
     openGraphView,
-    getCurrentPanel: () => undefined
+    getCurrentPanel: () => currentPanel as unknown as WebviewPanel
   });
   manager.registerAll();
 
@@ -102,6 +103,7 @@ function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | nu
 
   return {
     clearCache,
+    currentPanel,
     disposables,
     getLastActiveRepo: () => lastActiveRepo,
     getRepos: () => ({ ...repos }),
@@ -127,6 +129,7 @@ describe("command manager", () => {
       "git-graph-libre.addRepo",
       "git-graph-libre.clearAvatarCache",
       "git-graph-libre.removeRepo",
+      "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
       "git-graph-libre.view",
       "git-graph-libre.viewActiveEditorRepo"
@@ -140,6 +143,7 @@ describe("command manager", () => {
       "git-graph-libre.addRepo",
       "git-graph-libre.clearAvatarCache",
       "git-graph-libre.removeRepo",
+      "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
       "git-graph-libre.view",
       "git-graph-libre.viewActiveEditorRepo"
@@ -278,6 +282,16 @@ describe("command manager", () => {
     await run("git-graph-libre.clearAvatarCache");
 
     expect(clearCache).toHaveBeenCalled();
+  });
+
+  it("opens the graph and starts the full-history search UI", async () => {
+    const { currentPanel, openGraphView, run } = makeHarness();
+
+    await run("git-graph-libre.searchCommits");
+
+    expect(openGraphView).toHaveBeenCalledTimes(1);
+    expect(openGraphView.mock.calls[0]).toEqual([]);
+    expect(currentPanel.startHistorySearch).toHaveBeenCalled();
   });
 
   it("disposes all command registrations", () => {

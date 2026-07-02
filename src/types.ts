@@ -113,6 +113,10 @@ export type ResponseRefresh = {
   command: "refresh";
 };
 
+export type ResponseStartHistorySearch = {
+  command: "startHistorySearch";
+};
+
 export type RequestMessage =
   | ActionRequest
   | QueryRequest
@@ -132,4 +136,5 @@ export type ResponseMessage =
   | ResponseCopyToClipboard
   | ResponseViewDiff
   | ResponseOpenFile
-  | ResponseRefresh;
+  | ResponseRefresh
+  | ResponseStartHistorySearch;

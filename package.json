@@ -106,6 +106,11 @@
       },
       {
         "category": "Git Graph Libre",
+        "command": "git-graph-libre.searchCommits",
+        "title": "%command.searchCommits%"
+      },
+      {
+        "category": "Git Graph Libre",
         "command": "git-graph-libre.viewActiveEditorRepo",
         "title": "%command.viewActiveEditorRepo%"
       },
@@ -300,6 +305,7 @@
   "activationEvents": [
     "onCommand:git-graph-libre.view",
     "onCommand:git-graph-libre.clearAvatarCache",
+    "onCommand:git-graph-libre.searchCommits",
     "onCommand:git-graph-libre.viewActiveEditorRepo",
     "onCommand:git-graph-libre.addRepo",
     "onCommand:git-graph-libre.removeRepo",

@@ -3,6 +3,7 @@
   "description": "Czysty fork Git Graph na licencji MIT. Wizualna historia, akcje gałęzi i obsługa devcontainerów.",
   "command.view": "Pokaż Git Graph (git log)",
   "command.clearAvatarCache": "Wyczyść pamięć podręczną awatarów",
+  "command.searchCommits": "Szukaj commitów w Git Graph",
   "command.viewActiveEditorRepo": "Pokaż Git Graph dla repozytorium aktywnego edytora",
   "command.addRepo": "Dodaj repozytorium Git Graph",
   "command.removeRepo": "Usuń repozytorium Git Graph",

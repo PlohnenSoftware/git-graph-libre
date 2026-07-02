@@ -1,4 +1,9 @@
-import type { GitCommitDetails, GitCommitNode, GitRepoInfo } from "./git.types";
+import type {
+  GitCommitDetails,
+  GitCommitNode,
+  GitCommitSearchResult,
+  GitRepoInfo
+} from "./git.types";
 
 export type GitQueryError = {
   message: string;
@@ -33,6 +38,11 @@ type LoadRepoInfoResult = {
   error: GitQueryError | null;
 };
 
+type SearchCommitsResult = {
+  results: GitCommitSearchResult[];
+  error: GitQueryError | null;
+};
+
 type QueryPayloads = {
   commitDetails: {
     request: { repo: string; commitHash: string };
@@ -60,6 +70,17 @@ type QueryPayloads = {
     request: { requestId: number; repo: string };
     result: LoadRepoInfoResult;
     response: { requestId: number } & LoadRepoInfoResult;
+  };
+  searchCommits: {
+    request: {
+      requestId: number;
+      repo: string;
+      query: string;
+      maxResults: number;
+      showRemoteBranches: boolean;
+    };
+    result: SearchCommitsResult;
+    response: { requestId: number } & SearchCommitsResult;
   };
 };
 

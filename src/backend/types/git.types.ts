@@ -30,6 +30,10 @@ export type GitLogEntry = {
   message: string;
 };
 
+export type GitCommitSearchResult = GitLogEntry & {
+  loadCount: number;
+};
+
 export type GitFileChange = {
   oldFilePath: string;
   newFilePath: string;

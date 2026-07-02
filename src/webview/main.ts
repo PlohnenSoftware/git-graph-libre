@@ -2,6 +2,7 @@ import type {
   GitCommandStatus,
   GitCommitDetails,
   GitCommitNode,
+  GitCommitSearchResult,
   GitFileChangeType,
   GitQueryError,
   GitResetMode
@@ -31,6 +32,8 @@ import { arraysEqual, ELLIPSIS, refInvalid } from "./utils/git";
 import { escapeHtml, unescapeHtml } from "./utils/html";
 import { svgIcons } from "./utils/icons";
 import { getVSCodeStyle, sendMessage, vscode } from "./utils/vscode";
+
+const searchHistoryMaxResults = 50;
 
 function requireElement<T extends HTMLElement = HTMLElement>(id: string): T {
   const elem = document.getElementById(id);
@@ -82,9 +85,13 @@ class GitGraphView {
   private readonly findPreviousBtn: HTMLButtonElement;
   private readonly findNextBtn: HTMLButtonElement;
   private readonly findClearBtn: HTMLButtonElement;
+  private readonly findSearchHistoryBtn: HTMLButtonElement;
   private findQuery = "";
   private findMatches: number[] = [];
   private activeFindMatchIndex = -1;
+  private activeSearchCommitsRequestId: number | null = null;
+  private activeSearchQuery: string | null = null;
+  private pendingFocusCommitHash: string | null = null;
 
   private loadBranchesCallback: ((changes: boolean, isRepo: boolean) => void) | null = null;
   private loadCommitsCallback: ((changes: boolean) => void) | null = null;
@@ -134,6 +141,7 @@ class GitGraphView {
     this.findPreviousBtn = requireElement<HTMLButtonElement>("findPreviousBtn");
     this.findNextBtn = requireElement<HTMLButtonElement>("findNextBtn");
     this.findClearBtn = requireElement<HTMLButtonElement>("findClearBtn");
+    this.findSearchHistoryBtn = requireElement<HTMLButtonElement>("findSearchHistoryBtn");
     document.getElementById("findBtn")?.addEventListener("click", () => {
       this.showFindWidget();
     });
@@ -151,6 +159,9 @@ class GitGraphView {
     });
     this.findClearBtn.addEventListener("click", () => {
       this.clearFind();
+    });
+    this.findSearchHistoryBtn.addEventListener("click", () => {
+      this.requestSearchCommits();
     });
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
       this.refresh(true);
@@ -271,19 +282,19 @@ class GitGraphView {
     }
     this.saveState();
 
-    const options = [{ name: l10n.showAll, value: "" }];
-    for (let i = 0; i < this.gitBranches.length; i++) {
-      options.push({
-        name:
-          this.gitBranches[i].indexOf("remotes/") === 0
-            ? this.gitBranches[i].substring(8)
-            : this.gitBranches[i],
-        value: this.gitBranches[i]
-      });
-    }
-    this.branchDropdown.setOptions(options, this.currentBranch);
+    this.branchDropdown.setOptions(this.getBranchDropdownOptions(), this.currentBranch);
 
     this.triggerLoadBranchesCallback(true, isRepo);
+  }
+  private getBranchDropdownOptions() {
+    const options = [{ name: l10n.showAll, value: "" }];
+    for (const branch of this.gitBranches) {
+      options.push({
+        name: branch.startsWith("remotes/") ? branch.substring(8) : branch,
+        value: branch
+      });
+    }
+    return options;
   }
   private triggerLoadBranchesCallback(changes: boolean, isRepo: boolean) {
     if (this.loadBranchesCallback !== null) {
@@ -309,6 +320,7 @@ class GitGraphView {
     if (!this.acceptLoadCommitsResponse(requestId)) return;
 
     if (errorReason !== null) {
+      this.pendingFocusCommitHash = null;
       this.renderShowError(l10n.unableToLoadGitGraph, errorReason);
       this.triggerLoadCommitsCallback(false);
       return;
@@ -374,6 +386,7 @@ class GitGraphView {
       this.saveState();
     }
     this.render(activeFindHash);
+    this.revealPendingFocusCommit();
 
     this.triggerLoadCommitsCallback(true);
     this.fetchAvatars(avatarsNeeded);
@@ -484,6 +497,10 @@ class GitGraphView {
     this.findInputElem.focus();
     this.findInputElem.select();
   }
+  public startHistorySearch() {
+    this.showFindWidget();
+    if (this.findQuery.trim() !== "") this.requestSearchCommits();
+  }
   private clearFind() {
     this.findInputElem.value = "";
     this.findQuery = "";
@@ -550,6 +567,7 @@ class GitGraphView {
     const hasMatches = this.findMatches.length > 0;
     this.findPreviousBtn.disabled = !hasMatches;
     this.findNextBtn.disabled = !hasMatches;
+    this.findSearchHistoryBtn.disabled = !hasQuery || this.activeSearchCommitsRequestId !== null;
     this.findControlElem.classList.toggle("findNoResults", hasQuery && !hasMatches);
     if (hasQuery && hasMatches) {
       this.findMatchCountElem.textContent = formatFindMatchCount(
@@ -572,6 +590,104 @@ class GitGraphView {
     if (typeof row?.scrollIntoView === "function") {
       row.scrollIntoView({ block: "center" });
     }
+  }
+  private requestSearchCommits() {
+    const query = this.findQuery.trim();
+    if (query === "" || this.activeSearchCommitsRequestId !== null || this.currentRepo === "") {
+      return;
+    }
+
+    const requestId = this.createRequestId();
+    this.activeSearchCommitsRequestId = requestId;
+    this.activeSearchQuery = query;
+    this.updateFindUi();
+    setStatusStrip("loading", l10n.statusSearchingHistory);
+    sendMessage({
+      command: "searchCommits",
+      requestId,
+      repo: this.currentRepo,
+      query,
+      maxResults: searchHistoryMaxResults,
+      showRemoteBranches: this.showRemoteBranches
+    });
+  }
+  public loadSearchCommitResults(
+    requestId: number,
+    results: GitCommitSearchResult[],
+    errorReason: string | null
+  ) {
+    const query = this.acceptSearchCommitsResponse(requestId);
+    if (query === null) return;
+
+    setStatusStrip("ready", l10n.statusReady);
+    if (errorReason !== null) {
+      showErrorDialog(l10n.unableToSearchCommits, errorReason, null);
+      return;
+    }
+    if (results.length === 0) {
+      showErrorDialog(
+        l10n.dialogSearchHistoryNoResults.replace("{0}", `<b>${escapeHtml(query)}</b>`),
+        null,
+        null
+      );
+      return;
+    }
+
+    showSelectDialog(
+      l10n.dialogSearchHistoryResults.replace("{0}", `<b>${escapeHtml(query)}</b>`),
+      results[0].hash,
+      results.map((result) => ({
+        name: `${this.displayHash(result.hash)} - ${result.message} (${result.author})`,
+        value: result.hash
+      })),
+      l10n.dialogSearchHistoryOpen,
+      (hash) => {
+        const selected = results.find((result) => result.hash === hash);
+        if (selected !== undefined) this.revealSearchResult(selected);
+      },
+      null
+    );
+  }
+  private acceptSearchCommitsResponse(requestId: number) {
+    if (this.activeSearchCommitsRequestId !== requestId) return null;
+    const query = this.activeSearchQuery ?? this.findQuery.trim();
+    this.activeSearchCommitsRequestId = null;
+    this.activeSearchQuery = null;
+    this.updateFindUi();
+    return query;
+  }
+  private revealSearchResult(result: GitCommitSearchResult) {
+    if (this.revealCommit(result.hash)) return;
+
+    this.pendingFocusCommitHash = result.hash;
+    this.currentBranch = "";
+    this.branchDropdown.setOptions(this.getBranchDropdownOptions(), "");
+    this.maxCommits = Math.max(this.maxCommits, result.loadCount);
+    this.hideCommitDetails();
+    this.saveState();
+    this.renderShowLoading();
+    this.requestLoadCommits(true, () => {});
+  }
+  private revealPendingFocusCommit() {
+    if (this.pendingFocusCommitHash === null) return;
+    const hash = this.pendingFocusCommitHash;
+    this.pendingFocusCommitHash = null;
+    if (!this.revealCommit(hash)) showErrorDialog(l10n.unableToShowSearchResult, null, null);
+  }
+  private revealCommit(hash: string) {
+    const row = this.findCommitRow(hash);
+    if (row === null) return false;
+    if (typeof row.scrollIntoView === "function") row.scrollIntoView({ block: "center" });
+    row.focus();
+    blinkHeadRow(hash);
+    return true;
+  }
+  private findCommitRow(hash: string) {
+    const elems = document.getElementsByClassName("commit") as HTMLCollectionOf<HTMLElement>;
+    for (const elem of Array.from(elems)) {
+      if (elem.dataset.hash === hash) return elem;
+    }
+    return null;
   }
   private handleFindInputKeydown(event: KeyboardEvent) {
     if (event.key === "Enter") {
@@ -622,10 +738,7 @@ class GitGraphView {
   }
   private jumpToHead() {
     if (this.commitHead === null) return;
-    const row = document.querySelector<HTMLElement>(`tr.commit[data-hash="${this.commitHead}"]`);
-    if (row === null) return;
-    if (typeof row.scrollIntoView === "function") row.scrollIntoView({ block: "center" });
-    blinkHeadRow(this.commitHead);
+    this.revealCommit(this.commitHead);
   }
   private navigateCommitDetails(delta: number) {
     if (this.expandedCommit === null) return;
@@ -1842,6 +1955,12 @@ window.addEventListener("message", (event) => {
       break;
     case "loadRepos":
       gitGraph.loadRepos(msg.repos, msg.lastActiveRepo);
+      break;
+    case "searchCommits":
+      gitGraph.loadSearchCommitResults(msg.requestId, msg.results, formatQueryError(msg.error));
+      break;
+    case "startHistorySearch":
+      gitGraph.startHistorySearch();
       break;
     case "mergeBranch":
       refreshGraphOrDisplayError(msg.status, l10n.unableToMergeBranch);

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-import type { GitCommitDetails, GitCommitNode } from "@/backend/types";
+import type { GitCommitDetails, GitCommitNode, GitCommitSearchResult } from "@/backend/types";
 import type * as GG from "@/types";
 import {
   COMMIT_DETAILS_COLLAPSED_HEIGHT,
@@ -14,6 +14,7 @@ import { createVscodeMock, receive, setupHtml } from "./setup";
 const REPO = "/workspace/my-repo";
 type LoadBranchesRequest = Extract<GG.RequestMessage, { command: "loadBranches" }>;
 type LoadCommitsRequest = Extract<GG.RequestMessage, { command: "loadCommits" }>;
+type SearchCommitsRequest = Extract<GG.RequestMessage, { command: "searchCommits" }>;
 
 const defaultViewState: GG.GitGraphViewState = {
   autoCenterCommitDetailsView: true,
@@ -93,6 +94,14 @@ describe("webview rendering", () => {
       if (msg.command === "loadCommits") return msg;
     }
     throw new Error("Missing loadCommits request");
+  }
+
+  function latestSearchCommitsRequest(): SearchCommitsRequest {
+    for (let i = vscodeMock.sentMessages.length - 1; i >= 0; i--) {
+      const msg = vscodeMock.sentMessages[i];
+      if (msg.command === "searchCommits") return msg;
+    }
+    throw new Error("Missing searchCommits request");
   }
 
   function sentLoadCommitsCount() {
@@ -264,6 +273,76 @@ describe("webview rendering", () => {
     );
 
     expect(findRow("abc123")?.classList.contains("findMatchActive")).toBe(true);
+
+    clearFind();
+  });
+
+  it("searches full history and loads enough commits to reveal a selected result", () => {
+    const archivedSearchResult: GitCommitSearchResult = {
+      hash: "ghi789",
+      parentHashes: ["def456"],
+      author: "Cara",
+      email: "cara@example.com",
+      date: 1698000000,
+      message: "Deep archived fix",
+      loadCount: 305
+    };
+    const archivedCommit: GitCommitNode = {
+      ...archivedSearchResult,
+      refs: []
+    };
+
+    document.getElementById("findBtn")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    setFindQuery("archived");
+
+    document
+      .getElementById("findSearchHistoryBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const searchRequest = latestSearchCommitsRequest();
+    expect(searchRequest).toMatchObject({
+      command: "searchCommits",
+      repo: REPO,
+      query: "archived",
+      maxResults: 50,
+      showRemoteBranches: true
+    });
+    expect(document.getElementById("statusText")?.textContent).toBe("Searching history");
+
+    receive({
+      command: "searchCommits",
+      requestId: searchRequest.requestId,
+      results: [archivedSearchResult],
+      error: null
+    });
+
+    expect(document.getElementById("dialog")?.textContent).toContain(
+      "Search history results for archived"
+    );
+    expect(document.getElementById("dialog")?.textContent).toContain("ghi7 - Deep archived fix");
+
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    const loadCommitsRequest = latestLoadCommitsRequest();
+    expect(loadCommitsRequest).toMatchObject({
+      command: "loadCommits",
+      branchName: "",
+      maxCommits: 305,
+      hard: true
+    });
+
+    receive({
+      command: "loadCommits",
+      requestId: loadCommitsRequest.requestId,
+      commits: [twoCommits[0], archivedCommit, twoCommits[1]],
+      head: "abc123",
+      moreCommitsAvailable: false,
+      hard: true,
+      error: null
+    });
+
+    expect(findRow("ghi789")).not.toBeNull();
+    expect(findRow("ghi789")?.classList.contains("blinking")).toBe(true);
 
     clearFind();
   });

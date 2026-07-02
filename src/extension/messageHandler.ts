@@ -17,6 +17,7 @@ import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadBranches } from "@/backend/queries/loadBranches";
 import { loadCommits } from "@/backend/queries/loadCommits";
 import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
+import { searchCommits } from "@/backend/queries/searchCommits";
 import type { GitFileChangeType } from "@/backend/types";
 import { formatGitCommandRecord } from "@/backend/utils/gitCommandLog";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
@@ -187,6 +188,21 @@ export function registerMessageHandlers(
       command: "loadRepoInfo",
       requestId: msg.requestId,
       ...(await loadRepoInfo(gitClient.getInstance(), {
+        repo: msg.repo,
+        recordGitCommand
+      }))
+    });
+  });
+
+  bridge.onMessage("searchCommits", async (msg) => {
+    bridge.post({
+      command: "searchCommits",
+      requestId: msg.requestId,
+      ...(await searchCommits(gitClient.getInstance(), {
+        query: msg.query,
+        maxResults: msg.maxResults,
+        showRemoteBranches: msg.showRemoteBranches,
+        dateType: config.dateType(),
         repo: msg.repo,
         recordGitCommand
       }))

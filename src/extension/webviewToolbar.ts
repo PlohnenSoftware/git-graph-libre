@@ -37,6 +37,7 @@ export function buildWebviewToolbar(l10n: LocalizedStrings): string {
     <span id="findControl" class="toolbarFind" hidden>
       <input id="findInput" class="toolbarFindInput" type="search" aria-label="${findCommits}" placeholder="${findCommitsPlaceholder}" autocomplete="off" spellcheck="false">
       <span id="findMatchCount" class="toolbarFindCount" aria-live="polite"></span>
+      ${buildToolbarButton({ id: "findSearchHistoryBtn", label: l10n.searchHistory, icon: "&#8981;" })}
       ${buildToolbarButton({ id: "findPreviousBtn", label: l10n.findPrevious, icon: "&#8593;" })}
       ${buildToolbarButton({ id: "findNextBtn", label: l10n.findNext, icon: "&#8595;" })}
       ${buildToolbarButton({ id: "findClearBtn", label: l10n.findClear, icon: "&times;" })}

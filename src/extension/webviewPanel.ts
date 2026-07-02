@@ -107,6 +107,9 @@ export function createWebviewPanel(opts: {
     reveal(column?: vscode.ViewColumn) {
       panel.reveal(column);
     },
+    startHistorySearch() {
+      bridge.post({ command: "startHistorySearch" });
+    },
     dispose
   };
 }

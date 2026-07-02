@@ -50,6 +50,12 @@ describe("buildWebviewToolbar", () => {
     expect(findClear?.tagName).toBe("BUTTON");
     expect(findClear?.getAttribute("aria-label")).toBe("Clear find");
 
+    const searchHistory = document.getElementById(
+      "findSearchHistoryBtn"
+    ) as HTMLButtonElement | null;
+    expect(searchHistory?.tagName).toBe("BUTTON");
+    expect(searchHistory?.getAttribute("aria-label")).toBe("Search full history");
+
     const locateHead = document.getElementById("blinkHeadBtn") as HTMLButtonElement | null;
     expect(locateHead?.tagName).toBe("BUTTON");
     expect(locateHead?.type).toBe("button");
@@ -74,6 +80,7 @@ describe("buildWebviewToolbar", () => {
       findPrevious: "Previous <match>",
       findNext: 'Next "match"',
       findClear: "Clear <find>",
+      searchHistory: "Search <history>",
       locateHead: "Locate <HEAD>",
       refresh: 'Refresh "now"'
     });
@@ -92,6 +99,9 @@ describe("buildWebviewToolbar", () => {
     expect(document.getElementById("findNextBtn")?.getAttribute("title")).toBe('Next "match"');
     expect(document.getElementById("findClearBtn")?.getAttribute("aria-label")).toBe(
       "Clear <find>"
+    );
+    expect(document.getElementById("findSearchHistoryBtn")?.getAttribute("title")).toBe(
+      "Search <history>"
     );
     expect(document.getElementById("blinkHeadBtn")?.getAttribute("aria-label")).toBe(
       "Locate <HEAD>"

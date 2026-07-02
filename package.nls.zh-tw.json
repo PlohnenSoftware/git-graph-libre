@@ -3,6 +3,7 @@
   "description": "延續 Git Graph MIT 譜系的 Copyleft（AGPL-3.0-or-later）分支。視覺化歷史記錄、分支操作和開發容器支援。",
   "command.view": "檢視 Git 圖形 (git log)",
   "command.clearAvatarCache": "清除頭像快取",
+  "command.searchCommits": "搜尋 Git 圖形提交",
   "command.viewActiveEditorRepo": "檢視作用中編輯器存放庫的 Git 圖形",
   "command.addRepo": "新增 Git 圖形存放庫",
   "command.removeRepo": "移除 Git 圖形存放庫",

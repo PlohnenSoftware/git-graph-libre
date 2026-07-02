@@ -235,8 +235,14 @@ export function createCommandManager(deps: CommandManagerDeps) {
     await windowApi.showInformationMessage(l10n.t("command.diagnostics.written"));
   }
 
+  function startHistorySearch() {
+    deps.openGraphView();
+    deps.getCurrentPanel()?.startHistorySearch();
+  }
+
   function registerAll() {
     register("git-graph-libre.view", () => deps.openGraphView());
+    register("git-graph-libre.searchCommits", () => startHistorySearch());
     register("git-graph-libre.viewActiveEditorRepo", () => openActiveEditorRepo());
     register("git-graph-libre.addRepo", () => addRepository());
     register("git-graph-libre.removeRepo", () => removeRepository());

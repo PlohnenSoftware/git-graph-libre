@@ -3,6 +3,7 @@
   "description": "A copyleft (AGPL-3.0-or-later) fork continuing Git Graph's MIT lineage. Visual history, branch actions, and devcontainer support.",
   "command.view": "View Git Graph (git log)",
   "command.clearAvatarCache": "Clear Avatar Cache",
+  "command.searchCommits": "Search Git Graph Commits",
   "command.viewActiveEditorRepo": "View Git Graph for Active Editor Repository",
   "command.addRepo": "Add Git Graph Repository",
   "command.removeRepo": "Remove Git Graph Repository",
