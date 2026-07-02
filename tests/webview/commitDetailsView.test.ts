@@ -41,7 +41,7 @@ const commitDetails: GitCommitDetails = {
   email: "alice+review@example.com",
   date: 1700000000,
   committer: "Bob & Carol",
-  body: "First line\n<script>alert(1)</script>",
+  body: "First line\n<script>alert(1)</script>\nSee https://example.test/review.",
   fileChanges: [
     {
       oldFilePath: "README.md",
@@ -73,6 +73,11 @@ describe("commit details view rendering", () => {
     expect(host.querySelector("#commitDetailsSummary")?.innerHTML).toContain(
       "&lt;script&gt;alert(1)&lt;/script&gt;"
     );
+    const bodyLink = Array.from(
+      host.querySelectorAll<HTMLAnchorElement>("#commitDetailsSummaryBody a")
+    ).find((link) => link.getAttribute("href")?.startsWith("https://"));
+    expect(bodyLink?.getAttribute("href")).toBe("https://example.test/review");
+    expect(bodyLink?.textContent).toBe("https://example.test/review");
     expect(host.querySelector(".commitDetailsSummaryAvatar img")?.getAttribute("src")).toBe(
       "https://avatars.test/a?name=Alice&Bob"
     );

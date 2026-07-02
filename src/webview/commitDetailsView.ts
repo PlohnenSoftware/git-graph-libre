@@ -4,6 +4,7 @@ import type { CommitDetailsFileViewMode } from "@/types";
 
 import { escapeHtml } from "./utils/html";
 import { svgIcons } from "./utils/icons";
+import { linkifyHttpUrls } from "./utils/linkify";
 
 type RenderCommitDetailsOptions = {
   commitDetails: GitCommitDetails;
@@ -78,7 +79,7 @@ export function renderCommitDetailsSummary(
   const avatar = avatars[commitDetails.email];
   const topClass = `commitDetailsSummaryTop${typeof avatar === "string" ? " withAvatar" : ""}`;
   const authorEmail = escapeHtml(commitDetails.email);
-  const body = escapeHtml(commitDetails.body).replaceAll("\n", "<br>");
+  const body = linkifyHttpUrls(commitDetails.body);
   const bodyClass = `commitDetailsPaneBody${open ? "" : " hidden"}`;
 
   return [
