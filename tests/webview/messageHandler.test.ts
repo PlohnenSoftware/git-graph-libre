@@ -171,4 +171,19 @@ describe("registerMessageHandlers", () => {
       "abcdef1234567890"
     );
   });
+
+  it("opens the VS Code Source Control view", async () => {
+    resetVscodeMock();
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("openSourceControl");
+
+    expect(handler).toBeDefined();
+    await handler?.({ command: "openSourceControl" });
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "openSourceControl",
+      success: true
+    });
+    expect(executedCommands[executedCommands.length - 1]?.[0]).toBe("workbench.view.scm");
+  });
 });

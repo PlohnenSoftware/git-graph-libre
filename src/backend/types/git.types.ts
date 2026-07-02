@@ -62,6 +62,7 @@ export type GitRemote = {
 export type GitStash = {
   index: number;
   ref: string;
+  hash: string;
   message: string;
   date: number | null;
 };

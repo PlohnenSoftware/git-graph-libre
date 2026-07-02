@@ -19,6 +19,15 @@ import {
 } from "@/backend/actions/commit";
 import { mergeBranch, mergeCommit } from "@/backend/actions/merge";
 import { fetchRemotes } from "@/backend/actions/remote";
+import {
+  applyStash,
+  branchFromStash,
+  cleanUntrackedFiles,
+  dropStash,
+  popStash,
+  pushStash,
+  resetUncommittedChanges
+} from "@/backend/actions/stash";
 import { addTag, deleteTag, pushTag } from "@/backend/actions/tag";
 import type { GitClient } from "@/backend/gitClient";
 import { commitDetails } from "@/backend/queries/commitDetails";
@@ -90,6 +99,15 @@ async function openFile(repo: string, filePath: string): Promise<boolean> {
   try {
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(absolutePath));
     await vscode.window.showTextDocument(document, { preview: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function openSourceControl(): Promise<boolean> {
+  try {
+    await vscode.commands.executeCommand("workbench.view.scm");
     return true;
   } catch {
     return false;
@@ -172,6 +190,19 @@ export function registerMessageHandlers(
   registerAction("resetToCommit", (msg) => resetToCommit(gitClient.getInstance(), msg));
   registerAction("mergeBranch", (msg) => mergeBranch(gitClient.getInstance(), msg));
   registerAction("mergeCommit", (msg) => mergeCommit(gitClient.getInstance(), msg));
+  registerAction("applyStash", (msg) => applyStash(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("branchFromStash", (msg) =>
+    branchFromStash(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("dropStash", (msg) => dropStash(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("popStash", (msg) => popStash(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("pushStash", (msg) => pushStash(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("resetUncommittedChanges", (msg) =>
+    resetUncommittedChanges(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("cleanUntrackedFiles", (msg) =>
+    cleanUntrackedFiles(gitClient.getInstance(), msg, recordGitCommand)
+  );
 
   // --- Query handlers ---
 
@@ -299,6 +330,13 @@ export function registerMessageHandlers(
     bridge.post({
       command: "openFile",
       success: await openFile(msg.repo, msg.filePath)
+    });
+  });
+
+  bridge.onMessage("openSourceControl", async () => {
+    bridge.post({
+      command: "openSourceControl",
+      success: await openSourceControl()
     });
   });
 

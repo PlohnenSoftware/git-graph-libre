@@ -9,7 +9,8 @@ import type {
   GitRemote,
   GitRepoInfo,
   GitPushBranchMode,
-  GitResetMode
+  GitResetMode,
+  GitStash
 } from "@/backend/types";
 import { COMMIT_ORDERINGS, GIT_PUSH_BRANCH_MODES } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
@@ -81,6 +82,7 @@ class GitGraphView {
   private gitBranches: string[] = [];
   private gitBranchHead: string | null = null;
   private gitRemotes: GitRemote[] = [];
+  private gitStashes: GitStash[] = [];
   private commits: GitCommitNode[] = [];
   private commitHead: string | null = null;
   private commitLookup: { [hash: string]: number } = {};
@@ -142,6 +144,7 @@ class GitGraphView {
       this.expandedCommit = null;
       this.currentBranch = null;
       this.gitRemotes = [];
+      this.gitStashes = [];
       this.updateFetchButtonVisibility();
       this.saveState();
       sendMessage({ command: "selectRepo", repo: value });
@@ -234,6 +237,7 @@ class GitGraphView {
           this.expandedCommit.filesOpen = this.expandedCommit.filesOpen !== false;
         }
         this.avatars = prevState.avatars;
+        this.gitStashes = prevState.gitStashes ?? [];
         this.loadBranches(null, prevState.gitBranches, prevState.gitBranchHead, true, true);
         this.loadCommits(
           null,
@@ -278,6 +282,7 @@ class GitGraphView {
 
     if (changedRepo) {
       this.gitRemotes = [];
+      this.gitStashes = [];
       this.updateFetchButtonVisibility();
       this.refresh(true);
     }
@@ -287,7 +292,10 @@ class GitGraphView {
     if (!this.acceptLoadRepoInfoResponse(requestId)) return;
 
     this.gitRemotes = errorReason === null && repoInfo.isRepo ? repoInfo.remotes : [];
+    this.gitStashes = errorReason === null && repoInfo.isRepo ? repoInfo.stashes : [];
+    this.saveState();
     this.updateFetchButtonVisibility();
+    this.renderLoadMoreFooter();
   }
 
   private updateFetchButtonVisibility() {
@@ -512,7 +520,9 @@ class GitGraphView {
   private requestLoadRepoInfo() {
     if (this.currentRepo === "") {
       this.gitRemotes = [];
+      this.gitStashes = [];
       this.updateFetchButtonVisibility();
+      this.renderLoadMoreFooter();
       this.activeLoadRepoInfoRequestId = null;
       return;
     }
@@ -883,6 +893,7 @@ class GitGraphView {
       gitRepos: this.gitRepos,
       gitBranches: this.gitBranches,
       gitBranchHead: this.gitBranchHead,
+      gitStashes: this.gitStashes,
       commits: this.commits,
       commitHead: this.commitHead,
       avatars: this.avatars,
@@ -945,6 +956,7 @@ class GitGraphView {
     this.restoreExpandedCommit();
 
     this.registerCommitContextMenuListener();
+    this.registerUncommittedChangesContextMenuListener();
     this.registerCommitActivationListeners();
     this.registerGitRefContextMenuListener();
     this.registerGitRefActivationListeners();
@@ -958,6 +970,104 @@ class GitGraphView {
       if (sourceElem === null || hash === undefined) return;
       showContextMenu(<MouseEvent>e, this.buildCommitContextMenu(hash, sourceElem), sourceElem);
     });
+  }
+  private registerUncommittedChangesContextMenuListener() {
+    addListenerToClass("unsavedChanges", "contextmenu", (e: Event) => {
+      e.stopPropagation();
+      const sourceElem = closestHTMLElement(e.target, ".unsavedChanges");
+      if (sourceElem === null) return;
+      showContextMenu(
+        <MouseEvent>e,
+        this.buildUncommittedChangesContextMenu(sourceElem),
+        sourceElem
+      );
+    });
+  }
+  private buildUncommittedChangesContextMenu(sourceElem: HTMLElement): ContextMenuElement[] {
+    return [
+      {
+        title: l10n.stashUncommittedChanges + ELLIPSIS,
+        onClick: () => this.showStashUncommittedChangesDialog(sourceElem)
+      },
+      null,
+      {
+        title: l10n.resetUncommittedChanges + ELLIPSIS,
+        onClick: () => this.showResetUncommittedChangesDialog(sourceElem)
+      },
+      {
+        title: l10n.cleanUntrackedFiles + ELLIPSIS,
+        onClick: () => this.showCleanUntrackedFilesDialog(sourceElem)
+      },
+      null,
+      {
+        title: l10n.openSourceControl,
+        onClick: () => {
+          sendMessage({ command: "openSourceControl" });
+        }
+      }
+    ];
+  }
+  private showStashUncommittedChangesDialog(sourceElem: HTMLElement) {
+    showFormDialog(
+      l10n.dialogStashChangesConfirm,
+      [
+        {
+          type: "text",
+          name: l10n.dialogStashChangesMessage,
+          default: "",
+          placeholder: l10n.dialogAddTagOptional
+        },
+        { type: "checkbox", name: l10n.dialogStashChangesIncludeUntracked, value: true }
+      ],
+      l10n.dialogStashChangesSubmit,
+      (values) => {
+        sendMessage({
+          command: "pushStash",
+          repo: this.currentRepo,
+          message: values[0],
+          includeUntracked: values[1] === "checked"
+        });
+        showActionRunningDialog(l10n.statusStashingChanges);
+      },
+      sourceElem
+    );
+  }
+  private showResetUncommittedChangesDialog(sourceElem: HTMLElement) {
+    showSelectDialog(
+      l10n.dialogResetUncommittedConfirm,
+      "mixed",
+      [
+        { name: l10n.dialogResetMixed, value: "mixed" },
+        { name: l10n.dialogResetHard, value: "hard" }
+      ],
+      l10n.dialogResetUncommittedSubmit,
+      (mode) => {
+        sendMessage({
+          command: "resetUncommittedChanges",
+          repo: this.currentRepo,
+          resetMode: mode as Exclude<GitResetMode, "soft">
+        });
+        showActionRunningDialog(l10n.statusResettingChanges);
+      },
+      sourceElem
+    );
+  }
+  private showCleanUntrackedFilesDialog(sourceElem: HTMLElement) {
+    showCheckboxDialog(
+      l10n.dialogCleanUntrackedConfirm,
+      l10n.dialogCleanUntrackedDirectories,
+      false,
+      l10n.dialogCleanUntrackedSubmit,
+      (includeDirectories) => {
+        sendMessage({
+          command: "cleanUntrackedFiles",
+          repo: this.currentRepo,
+          includeDirectories
+        });
+        showActionRunningDialog(l10n.statusCleaningUntracked);
+      },
+      sourceElem
+    );
   }
   private buildCommitContextMenu(hash: string, sourceElem: HTMLElement): ContextMenuElement[] {
     return [
@@ -1619,7 +1729,9 @@ class GitGraphView {
     findMatchIndexes: Set<number>,
     activeFindCommitIndex: number
   ) {
-    if (commit.hash === "*") return 'class="unsavedChanges"';
+    if (commit.hash === "*") {
+      return 'class="unsavedChanges" tabindex="0" aria-selected="false" data-hash="*"';
+    }
 
     const currentAttribute = isHeadCommit ? ' aria-current="true"' : "";
     const rowClasses = ["commit"];
@@ -1651,12 +1763,174 @@ class GitGraphView {
     return `<span class="avatar" data-email="${escapeHtml(commit.email)}">${imageHtml}</span>`;
   }
   private renderLoadMoreFooter() {
-    this.footerElem.innerHTML = this.moreCommitsAvailable
+    const stashHtml = this.renderStashFooter();
+    const loadMoreHtml = this.moreCommitsAvailable
       ? `<div id="loadMoreCommitsBtn" class="roundedBtn">${l10n.loadMore}</div>`
       : "";
+    this.footerElem.innerHTML = stashHtml + loadMoreHtml;
+
+    this.registerStashContextMenuListener();
+    this.registerStashActivationListeners();
 
     const loadMoreCommitsBtn = document.getElementById("loadMoreCommitsBtn");
     loadMoreCommitsBtn?.addEventListener("click", () => this.loadMoreCommits(loadMoreCommitsBtn));
+  }
+  private renderStashFooter() {
+    if (this.gitStashes.length === 0) return "";
+
+    const rows = this.gitStashes
+      .map((stash) => {
+        const date = stash.date === null ? null : getCommitDate(stash.date);
+        const dateHtml =
+          date === null ? "" : `<span class="stashDate" title="${date.title}">${date.value}</span>`;
+        return (
+          `<div class="stashRow" tabindex="0" data-stash-ref="${escapeHtml(
+            stash.ref
+          )}" data-stash-hash="${escapeHtml(stash.hash)}">` +
+          `<span class="stashRef">${escapeHtml(stash.ref)}</span>` +
+          `<span class="stashMessage">${escapeHtml(stash.message)}</span>` +
+          dateHtml +
+          "</div>"
+        );
+      })
+      .join("");
+
+    return `<section id="stashList" aria-label="${l10n.labelStashes}"><div class="stashListHeader">${l10n.labelStashes}</div>${rows}</section>`;
+  }
+  private registerStashContextMenuListener() {
+    addListenerToClass("stashRow", "contextmenu", (e: Event) => {
+      e.stopPropagation();
+      const sourceElem = closestHTMLElement(e.target, ".stashRow");
+      const selector = sourceElem?.dataset.stashRef;
+      const hash = sourceElem?.dataset.stashHash;
+      if (sourceElem === null || selector === undefined || hash === undefined) return;
+      showContextMenu(
+        <MouseEvent>e,
+        this.buildStashContextMenu(unescapeHtml(selector), unescapeHtml(hash), sourceElem),
+        sourceElem
+      );
+    });
+  }
+  private registerStashActivationListeners() {
+    addListenerToClass("stashRow", "keydown", (e: Event) => {
+      const keyboardEvent = <KeyboardEvent>e;
+      if (keyboardEvent.key !== "Enter" && keyboardEvent.key !== " ") return;
+      keyboardEvent.preventDefault();
+      const sourceElem = closestHTMLElement(e.target, ".stashRow");
+      sourceElem?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    });
+  }
+  private buildStashContextMenu(
+    selector: string,
+    hash: string,
+    sourceElem: HTMLElement
+  ): ContextMenuElement[] {
+    return [
+      {
+        title: l10n.applyStash + ELLIPSIS,
+        onClick: () => this.showApplyStashDialog(selector, sourceElem)
+      },
+      {
+        title: l10n.branchFromStash + ELLIPSIS,
+        onClick: () => this.showBranchFromStashDialog(selector, sourceElem)
+      },
+      {
+        title: l10n.popStash + ELLIPSIS,
+        onClick: () => this.showPopStashDialog(selector, sourceElem)
+      },
+      {
+        title: l10n.dropStash + ELLIPSIS,
+        onClick: () => this.showDropStashDialog(selector, sourceElem)
+      },
+      null,
+      {
+        title: l10n.copyStashName,
+        onClick: () => {
+          sendMessage({ command: "copyToClipboard", type: "Stash Name", data: selector });
+        }
+      },
+      {
+        title: l10n.copyStashHash,
+        onClick: () => {
+          sendMessage({ command: "copyToClipboard", type: "Stash Hash", data: hash });
+        }
+      }
+    ];
+  }
+  private showApplyStashDialog(selector: string, sourceElem: HTMLElement) {
+    this.showStashIndexDialog(
+      l10n.dialogApplyStashConfirm,
+      selector,
+      l10n.dialogApplyStashSubmit,
+      "applyStash",
+      l10n.statusApplyingStash,
+      sourceElem
+    );
+  }
+  private showPopStashDialog(selector: string, sourceElem: HTMLElement) {
+    this.showStashIndexDialog(
+      l10n.dialogPopStashConfirm,
+      selector,
+      l10n.dialogPopStashSubmit,
+      "popStash",
+      l10n.statusPoppingStash,
+      sourceElem
+    );
+  }
+  private showStashIndexDialog(
+    titleTemplate: string,
+    selector: string,
+    actionName: string,
+    command: "applyStash" | "popStash",
+    statusText: string,
+    sourceElem: HTMLElement
+  ) {
+    showFormDialog(
+      titleTemplate.replace("{0}", `<b><i>${escapeHtml(selector)}</i></b>`),
+      [{ type: "checkbox", name: l10n.dialogStashReinstateIndex, value: false }],
+      actionName,
+      (values) => {
+        sendMessage({
+          command,
+          repo: this.currentRepo,
+          selector,
+          reinstateIndex: values[0] === "checked"
+        });
+        showActionRunningDialog(statusText);
+      },
+      sourceElem
+    );
+  }
+  private showBranchFromStashDialog(selector: string, sourceElem: HTMLElement) {
+    showRefInputDialog(
+      l10n.dialogBranchFromStashTitle.replace("{0}", `<b><i>${escapeHtml(selector)}</i></b>`),
+      "",
+      l10n.dialogBranchFromStashSubmit,
+      (branchName) => {
+        sendMessage({
+          command: "branchFromStash",
+          repo: this.currentRepo,
+          selector,
+          branchName
+        });
+        showActionRunningDialog(l10n.statusCreatingBranch);
+      },
+      sourceElem
+    );
+  }
+  private showDropStashDialog(selector: string, sourceElem: HTMLElement) {
+    showConfirmationDialog(
+      l10n.dialogDropStashConfirm.replace("{0}", `<b><i>${escapeHtml(selector)}</i></b>`),
+      () => {
+        sendMessage({
+          command: "dropStash",
+          repo: this.currentRepo,
+          selector
+        });
+        showActionRunningDialog(l10n.statusDroppingStash);
+      },
+      sourceElem
+    );
   }
   private loadMoreCommits(loadMoreCommitsBtn: HTMLElement, keepCommitDetails = false) {
     if (loadMoreCommitsBtn.parentElement === null) return;
@@ -2341,21 +2615,28 @@ const gitGraph = new GitGraphView(
 
 const actionErrorLabels = {
   addTag: l10n.unableToAddTag,
+  applyStash: l10n.unableToApplyStash,
+  branchFromStash: l10n.unableToBranchFromStash,
   checkoutBranch: l10n.unableToCheckoutBranch,
   checkoutCommit: l10n.unableToCheckoutCommit,
   cherrypickCommit: l10n.unableToCherryPick,
+  cleanUntrackedFiles: l10n.unableToCleanUntracked,
   createBranch: l10n.unableToCreateBranch,
   deleteBranch: l10n.unableToDeleteBranch,
   deleteRemoteBranch: l10n.unableToDeleteRemoteBranch,
   deleteTag: l10n.unableToDeleteTag,
+  dropStash: l10n.unableToDropStash,
   fetchIntoLocalBranch: l10n.unableToFetchBranch,
   fetchRemotes: l10n.unableToFetch,
   mergeBranch: l10n.unableToMergeBranch,
   mergeCommit: l10n.unableToMergeCommit,
+  popStash: l10n.unableToPopStash,
   pullBranch: l10n.unableToPullBranch,
   pushBranch: l10n.unableToPushBranch,
+  pushStash: l10n.unableToPushStash,
   pushTag: l10n.unableToPushTag,
   renameBranch: l10n.unableToRenameBranch,
+  resetUncommittedChanges: l10n.unableToResetUncommitted,
   resetToCommit: l10n.unableToReset,
   revertCommit: l10n.unableToRevert,
   updateBranchFromUpstream: l10n.unableToUpdateBranch
@@ -2395,6 +2676,8 @@ window.addEventListener("message", (event) => {
           "Commit Hash": l10n.typeCommitHash,
           "Tag Name": l10n.typeTagName,
           "Branch Name": l10n.typeBranchName,
+          "Stash Name": l10n.typeStashName,
+          "Stash Hash": l10n.typeStashHash,
           "File Path": l10n.typeFilePath
         };
         showErrorDialog(
@@ -2447,6 +2730,9 @@ window.addEventListener("message", (event) => {
       break;
     case "openFile":
       if (msg.success === false) showErrorDialog(l10n.unableToOpenFile, null, null);
+      break;
+    case "openSourceControl":
+      if (msg.success === false) showErrorDialog(l10n.unableToOpenSourceControl, null, null);
       break;
   }
 });

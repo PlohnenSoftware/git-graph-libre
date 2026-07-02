@@ -100,6 +100,7 @@ describe("loadRepoInfo", () => {
         {
           index: 0,
           ref: "stash@{0}",
+          hash: expect.stringMatching(/^[0-9a-f]{40,64}$/i),
           message: expect.stringContaining("work in progress"),
           date: expect.any(Number)
         }

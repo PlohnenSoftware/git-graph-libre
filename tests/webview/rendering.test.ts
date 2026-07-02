@@ -107,6 +107,20 @@ const repoInfoWithRemote: GitRepoInfo = {
   ]
 };
 
+const repoInfoWithStash: GitRepoInfo = {
+  ...repoInfoWithoutRemotes,
+  stashes: [
+    {
+      index: 0,
+      ref: "stash@{0}",
+      hash: "feed1234",
+      message: "WIP on main: stash polish",
+      date: 1700500000
+    }
+  ],
+  stashCount: 1
+};
+
 describe("webview rendering", () => {
   let vscodeMock: ReturnType<typeof createVscodeMock>;
 
@@ -184,6 +198,22 @@ describe("webview rendering", () => {
     const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
     expect(headRow).not.toBeNull();
     headRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+  }
+
+  function openStashContextMenu() {
+    const stashRow = document.querySelector<HTMLElement>(".stashRow");
+    expect(stashRow).not.toBeNull();
+    stashRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+  }
+
+  function openUncommittedChangesContextMenu() {
+    const unsavedRow = document.querySelector<HTMLElement>(".unsavedChanges");
+    expect(unsavedRow).not.toBeNull();
+    unsavedRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+  }
+
+  function dismissDialog() {
+    document.getElementById("dialogDismiss")?.dispatchEvent(new MouseEvent("click"));
   }
 
   function gitRef(label: string, selector = ".gitRef") {
@@ -703,6 +733,163 @@ describe("webview rendering", () => {
     });
   });
 
+  it("renders stashes from repo info and sends stash action messages", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const loadRepoInfoRequest = latestLoadRepoInfoRequest();
+    receive({
+      command: "loadRepoInfo",
+      requestId: loadRepoInfoRequest.requestId,
+      repoInfo: repoInfoWithStash,
+      error: null
+    });
+
+    expect(document.getElementById("stashList")?.textContent).toContain("Stashes");
+    expect(document.querySelector(".stashRow")?.textContent).toContain("stash@{0}");
+    expect(document.querySelector(".stashRow")?.textContent).toContain("WIP on main");
+
+    openStashContextMenu();
+    clickContextMenuItem("Copy Stash Hash");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "Stash Hash",
+      data: "feed1234"
+    });
+
+    openStashContextMenu();
+    clickContextMenuItem("Apply Stash");
+    const applyIndex = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    expect(applyIndex).not.toBeNull();
+    if (applyIndex !== null) applyIndex.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "applyStash",
+      repo: REPO,
+      selector: "stash@{0}",
+      reinstateIndex: true
+    });
+    dismissDialog();
+
+    openStashContextMenu();
+    clickContextMenuItem("Create Branch from Stash");
+    setDialogInput("recover/stash");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "branchFromStash",
+      repo: REPO,
+      selector: "stash@{0}",
+      branchName: "recover/stash"
+    });
+    dismissDialog();
+
+    openStashContextMenu();
+    clickContextMenuItem("Pop Stash");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "popStash",
+      repo: REPO,
+      selector: "stash@{0}",
+      reinstateIndex: false
+    });
+    dismissDialog();
+
+    openStashContextMenu();
+    clickContextMenuItem("Drop Stash");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "dropStash",
+      repo: REPO,
+      selector: "stash@{0}"
+    });
+    dismissDialog();
+
+    receive({
+      command: "loadBranches",
+      requestId: latestLoadBranchesRequest().requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    receive({
+      command: "loadCommits",
+      requestId: latestLoadCommitsRequest().requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+  });
+
+  it("sends uncommitted changes action messages from the row context menu", () => {
+    receiveLoadedCommits(
+      [
+        {
+          hash: "*",
+          parentHashes: [],
+          author: "*",
+          email: "",
+          date: 1701000000,
+          message: "Uncommitted changes (2)",
+          refs: []
+        },
+        ...twoCommits
+      ],
+      "abc123"
+    );
+
+    openUncommittedChangesContextMenu();
+    clickContextMenuItem("Stash Changes");
+    const stashMessage = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    expect(stashMessage).not.toBeNull();
+    if (stashMessage !== null) stashMessage.value = "checkpoint";
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "pushStash",
+      repo: REPO,
+      message: "checkpoint",
+      includeUntracked: true
+    });
+    dismissDialog();
+
+    openUncommittedChangesContextMenu();
+    clickContextMenuItem("Reset Changes");
+    const resetMode = document.getElementById("dialogInput0") as HTMLSelectElement | null;
+    expect(resetMode).not.toBeNull();
+    if (resetMode !== null) resetMode.value = "hard";
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "resetUncommittedChanges",
+      repo: REPO,
+      resetMode: "hard"
+    });
+    dismissDialog();
+
+    openUncommittedChangesContextMenu();
+    clickContextMenuItem("Clean Untracked Files");
+    const includeDirectories = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    expect(includeDirectories).not.toBeNull();
+    if (includeDirectories !== null) includeDirectories.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "cleanUntrackedFiles",
+      repo: REPO,
+      includeDirectories: true
+    });
+    dismissDialog();
+
+    openUncommittedChangesContextMenu();
+    clickContextMenuItem("Open Source Control View");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "openSourceControl"
+    });
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
   it("runs commit context menu actions through dialogs", () => {
     openHeadCommitContextMenu();
     clickContextMenuItem("Cherry Pick");
@@ -889,6 +1076,16 @@ describe("webview rendering", () => {
   });
 
   it("sends local branch remote action messages from context menus", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const loadRepoInfoRequest = latestLoadRepoInfoRequest();
+    receive({
+      command: "loadRepoInfo",
+      requestId: loadRepoInfoRequest.requestId,
+      repoInfo: repoInfoWithRemote,
+      error: null
+    });
     receive({
       command: "loadBranches",
       requestId: null,

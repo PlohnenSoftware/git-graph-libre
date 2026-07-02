@@ -111,6 +111,14 @@ export type ResponseOpenFile = {
   success: boolean;
 };
 
+export type RequestOpenSourceControl = {
+  command: "openSourceControl";
+};
+export type ResponseOpenSourceControl = {
+  command: "openSourceControl";
+  success: boolean;
+};
+
 export type ResponseRefresh = {
   command: "refresh";
 };
@@ -128,7 +136,8 @@ export type RequestMessage =
   | RequestSaveRepoState
   | RequestCopyToClipboard
   | RequestViewDiff
-  | RequestOpenFile;
+  | RequestOpenFile
+  | RequestOpenSourceControl;
 
 export type ResponseMessage =
   | ActionResponse
@@ -138,5 +147,6 @@ export type ResponseMessage =
   | ResponseCopyToClipboard
   | ResponseViewDiff
   | ResponseOpenFile
+  | ResponseOpenSourceControl
   | ResponseRefresh
   | ResponseStartHistorySearch;

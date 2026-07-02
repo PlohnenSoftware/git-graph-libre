@@ -105,25 +105,34 @@ body.unableToLoad p {
 #commitTable tr.commit:focus-visible td,
 #commitTable tr.commit.contextMenuActive td,
 #commitTable tr.commit.dialogActive td,
-#commitTable tr.commit.commitDetailsOpen td {
+#commitTable tr.commit.commitDetailsOpen td,
+#commitTable tr.unsavedChanges:hover td,
+#commitTable tr.unsavedChanges:focus-visible td,
+#commitTable tr.unsavedChanges.contextMenuActive td,
+#commitTable tr.unsavedChanges.dialogActive td {
   background-color: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-muted));
 }
-#commitTable tr.commit:hover td {
+#commitTable tr.commit:hover td,
+#commitTable tr.unsavedChanges:hover td {
   cursor: pointer;
 }
-#commitTable tr.commit:focus-visible {
+#commitTable tr.commit:focus-visible,
+#commitTable tr.unsavedChanges:focus-visible {
   outline: none;
 }
-#commitTable tr.commit:focus-visible td {
+#commitTable tr.commit:focus-visible td,
+#commitTable tr.unsavedChanges:focus-visible td {
   box-shadow: inset 0 1px 0 var(--vscode-focusBorder), inset 0 -1px 0 var(--vscode-focusBorder);
 }
-#commitTable tr.commit:focus-visible td:first-child {
+#commitTable tr.commit:focus-visible td:first-child,
+#commitTable tr.unsavedChanges:focus-visible td:first-child {
   box-shadow:
     inset 1px 0 0 var(--vscode-focusBorder),
     inset 0 1px 0 var(--vscode-focusBorder),
     inset 0 -1px 0 var(--vscode-focusBorder);
 }
-#commitTable tr.commit:focus-visible td:last-child {
+#commitTable tr.commit:focus-visible td:last-child,
+#commitTable tr.unsavedChanges:focus-visible td:last-child {
   box-shadow:
     inset -1px 0 0 var(--vscode-focusBorder),
     inset 0 1px 0 var(--vscode-focusBorder),
@@ -771,6 +780,55 @@ body.commitDetailsResizing * {
   border-radius: 14px;
   line-height: 28px;
 }
+#stashList {
+  box-sizing: border-box;
+  max-width: min(920px, calc(100vw - 24px));
+  margin: 10px auto 4px;
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  border-radius: 5px;
+  background-color: var(--vscode-sideBar-background, var(--ngg-neutral-overlay-subtle));
+  color: var(--vscode-foreground);
+  font-size: var(--git-graph-font-size, 13px);
+}
+.stashListHeader {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-size: 12px;
+}
+.stashRow {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+  padding: 0 8px;
+}
+.stashRow:hover,
+.stashRow:focus-visible,
+.stashRow.contextMenuActive,
+.stashRow.dialogActive {
+  background-color: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-muted));
+}
+.stashRow:hover {
+  cursor: pointer;
+}
+.stashRow:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+.stashRef {
+  color: var(--vscode-gitDecoration-modifiedResourceForeground, var(--ngg-accent));
+}
+.stashMessage,
+.stashDate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stashDate {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
 
 #controls select:focus,
 #controls input:focus {
@@ -1038,6 +1096,7 @@ body.commitDetailsResizing * {
 #loadingHeader,
 .unselectable,
 .roundedBtn,
+.stashRow,
 .dialogBtn,
 #contextMenu li,
 #controls label {

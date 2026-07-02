@@ -14,7 +14,7 @@ import { toGitQueryError } from "@/backend/utils/queryError";
 const eolRegex = /\r\n|\r|\n/g;
 const gitFieldSeparatorFormat = "%x00";
 const gitFieldSeparatorOutput = "\0";
-const stashFieldCount = 3;
+const stashFieldCount = 4;
 
 type LoadRepoInfoInput = {
   repo?: string | null;
@@ -105,11 +105,12 @@ function parseStashes(stdout: string): GitStash[] {
     const index = parseStashIndex(ref);
     if (index === null) continue;
 
-    const parsedDate = Number.parseInt(fields[i + 2], 10);
+    const parsedDate = Number.parseInt(fields[i + 3], 10);
     stashes.push({
       index,
       ref,
-      message: fields[i + 1],
+      hash: fields[i + 1],
+      message: fields[i + 2],
       date: Number.isNaN(parsedDate) ? null : parsedDate
     });
   }
@@ -206,7 +207,7 @@ async function loadStashes(
         "stash",
         "list",
         "-z",
-        `--format=%gd${gitFieldSeparatorFormat}%gs${gitFieldSeparatorFormat}%ct`
+        `--format=%gd${gitFieldSeparatorFormat}%H${gitFieldSeparatorFormat}%gs${gitFieldSeparatorFormat}%ct`
       ],
       repo: context.repo,
       record: context.record

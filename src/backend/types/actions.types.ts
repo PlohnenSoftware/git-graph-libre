@@ -6,13 +6,17 @@ export type GitPushBranchMode = (typeof GIT_PUSH_BRANCH_MODES)[number];
 
 type ActionPayloads = {
   addTag: { tagName: string; commitHash: string; lightweight: boolean; message: string };
+  applyStash: { selector: string; reinstateIndex: boolean };
+  branchFromStash: { selector: string; branchName: string };
   checkoutBranch: { branchName: string; remoteBranch: string | null };
   checkoutCommit: { commitHash: string };
   cherrypickCommit: { commitHash: string; parentIndex: number };
+  cleanUntrackedFiles: { includeDirectories: boolean };
   createBranch: { commitHash: string; branchName: string };
   deleteBranch: { branchName: string; forceDelete: boolean; deleteOnRemotes?: string[] };
   deleteRemoteBranch: { branchName: string; remote: string };
   deleteTag: { tagName: string };
+  dropStash: { selector: string };
   fetchIntoLocalBranch: {
     remote: string;
     remoteBranch: string;
@@ -22,6 +26,7 @@ type ActionPayloads = {
   fetchRemotes: { prune: boolean; pruneTags: boolean };
   mergeBranch: { branchName: string; createNewCommit: boolean };
   mergeCommit: { commitHash: string; createNewCommit: boolean };
+  popStash: { selector: string; reinstateIndex: boolean };
   pullBranch: { branchName: string; remote: string; createNewCommit: boolean; squash: boolean };
   pushBranch: {
     branchName: string;
@@ -29,8 +34,10 @@ type ActionPayloads = {
     setUpstream: boolean;
     mode: GitPushBranchMode;
   };
+  pushStash: { message: string; includeUntracked: boolean };
   pushTag: { tagName: string };
   renameBranch: { oldName: string; newName: string };
+  resetUncommittedChanges: { resetMode: Exclude<GitResetMode, "soft"> };
   resetToCommit: { commitHash: string; resetMode: GitResetMode };
   updateBranchFromUpstream: { branchName: string; force: boolean };
   revertCommit: { commitHash: string; parentIndex: number };
