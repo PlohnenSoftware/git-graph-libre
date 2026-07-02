@@ -159,6 +159,7 @@ export function getWebviewLocalizedStrings() {
     detailExpandSummary: l10n.t("detail.expandSummary"),
     detailCollapseFiles: l10n.t("detail.collapseFiles"),
     detailExpandFiles: l10n.t("detail.expandFiles"),
+    detailResize: l10n.t("detail.resize"),
 
     uncommittedChanges: l10n.t("uncommittedChanges"),
 

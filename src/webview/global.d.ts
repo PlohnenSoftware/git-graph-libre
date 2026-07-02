@@ -63,6 +63,7 @@ declare global {
     srcElem: HTMLElement | null;
     commitDetails: GitCommitDetails | null;
     fileTree: GitFolder | null;
+    detailsHeight: number;
     summaryOpen: boolean;
     filesOpen: boolean;
   }

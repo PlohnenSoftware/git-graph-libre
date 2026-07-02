@@ -148,6 +148,7 @@
   "detail.expandSummary": "展开提交摘要",
   "detail.collapseFiles": "折叠更改文件",
   "detail.expandFiles": "展开更改文件",
+  "detail.resize": "调整提交详情大小",
   "uncommittedChanges": "未提交的更改（{0})",
   "tooltip.binaryFile": "此为二进制文件，无法查看差异。",
   "tooltip.renamedTo": " 重命名为 ",

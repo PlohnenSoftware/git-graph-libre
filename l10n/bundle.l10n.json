@@ -148,6 +148,7 @@
   "detail.expandSummary": "Expand commit summary",
   "detail.collapseFiles": "Collapse changed files",
   "detail.expandFiles": "Expand changed files",
+  "detail.resize": "Resize commit details",
   "uncommittedChanges": "Uncommitted Changes ({0})",
   "tooltip.binaryFile": "This is a binary file, unable to view diff.",
   "tooltip.renamedTo": " was renamed to ",

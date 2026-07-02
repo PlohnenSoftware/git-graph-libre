@@ -2,6 +2,12 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { GitCommitDetails, GitCommitNode } from "@/backend/types";
 import type * as GG from "@/types";
+import {
+  COMMIT_DETAILS_COLLAPSED_HEIGHT,
+  COMMIT_DETAILS_DEFAULT_HEIGHT,
+  COMMIT_DETAILS_KEYBOARD_RESIZE_STEP,
+  COMMIT_DETAILS_MIN_HEIGHT
+} from "@/webview/commitDetailsView";
 
 import { createVscodeMock, receive, setupHtml } from "./setup";
 
@@ -215,6 +221,59 @@ describe("webview rendering", () => {
       false
     );
     expect(vscodeMock.getState()?.expandedCommit?.summaryOpen).toBe(true);
+
+    headRow?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(document.getElementById("commitDetails")).toBeNull();
+  });
+
+  it("resizes commit details with pointer and keyboard input", () => {
+    const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
+    expect(headRow).not.toBeNull();
+
+    headRow?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    receive({ command: "commitDetails", commitDetails: firstCommitDetails, error: null });
+
+    const details = document.getElementById("commitDetails");
+    const handle = document.getElementById("commitDetailsResizeHandle");
+
+    expect(details?.style.height).toBe(`${COMMIT_DETAILS_DEFAULT_HEIGHT}px`);
+    expect(handle?.getAttribute("aria-valuenow")).toBe(COMMIT_DETAILS_DEFAULT_HEIGHT.toString());
+
+    handle?.dispatchEvent(new MouseEvent("mousedown", { button: 0, clientY: 200, bubbles: true }));
+    document.dispatchEvent(new MouseEvent("mousemove", { clientY: 320, bubbles: true }));
+    document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+
+    const draggedHeight = COMMIT_DETAILS_DEFAULT_HEIGHT + 120;
+    expect(details?.style.height).toBe(`${draggedHeight}px`);
+    expect(handle?.getAttribute("aria-valuenow")).toBe(draggedHeight.toString());
+    expect(vscodeMock.getState()?.expandedCommit?.detailsHeight).toBe(draggedHeight);
+    expect(document.body.classList.contains("commitDetailsResizing")).toBe(false);
+
+    handle?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+
+    const keyboardHeight = draggedHeight - COMMIT_DETAILS_KEYBOARD_RESIZE_STEP;
+    expect(details?.style.height).toBe(`${keyboardHeight}px`);
+    expect(vscodeMock.getState()?.expandedCommit?.detailsHeight).toBe(keyboardHeight);
+
+    handle?.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+
+    expect(details?.style.height).toBe(`${COMMIT_DETAILS_MIN_HEIGHT}px`);
+    expect(handle?.getAttribute("aria-valuenow")).toBe(COMMIT_DETAILS_MIN_HEIGHT.toString());
+
+    document
+      .getElementById("commitDetailsSummaryToggle")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    document
+      .getElementById("commitDetailsFilesToggle")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(details?.style.height).toBe(`${COMMIT_DETAILS_COLLAPSED_HEIGHT}px`);
+
+    document
+      .getElementById("commitDetailsSummaryToggle")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(details?.style.height).toBe(`${COMMIT_DETAILS_MIN_HEIGHT}px`);
 
     headRow?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(document.getElementById("commitDetails")).toBeNull();

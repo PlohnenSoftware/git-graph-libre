@@ -23,13 +23,27 @@ export type CommitDetailsFileViewOptions = {
 };
 
 const defaultCommitDetailsFileView: CommitDetailsFileViewOptions = { mode: "tree" };
+export const COMMIT_DETAILS_COLLAPSED_HEIGHT = 44;
+export const COMMIT_DETAILS_DEFAULT_HEIGHT = 250;
+export const COMMIT_DETAILS_KEYBOARD_RESIZE_STEP = 24;
+export const COMMIT_DETAILS_MAX_HEIGHT = 900;
+export const COMMIT_DETAILS_MIN_HEIGHT = 160;
 
 export type CommitDetailsSection = "summary" | "files";
 
 export type CommitDetailsSectionState = {
+  detailsHeight: number;
   summaryOpen: boolean;
   filesOpen: boolean;
 };
+
+export function clampCommitDetailsHeight(height: number): number {
+  if (typeof height !== "number" || !Number.isFinite(height)) return COMMIT_DETAILS_DEFAULT_HEIGHT;
+  return Math.min(
+    COMMIT_DETAILS_MAX_HEIGHT,
+    Math.max(COMMIT_DETAILS_MIN_HEIGHT, Math.round(height))
+  );
+}
 
 export function renderCommitDetailsRowHtml({
   commitDetails,
@@ -50,6 +64,7 @@ export function renderCommitDetailsRowHtml({
       sections.filesOpen,
       resolvedFileView
     ),
+    renderCommitDetailsResizeHandle(l10n, sections.detailsHeight),
     "</td>"
   ].join("");
 }
@@ -202,6 +217,18 @@ function renderGitFolderHeader(folder: GitFolder): string {
     '</span><span class="gitFolderName">',
     escapeHtml(folder.name),
     "</span></span>"
+  ].join("");
+}
+
+function renderCommitDetailsResizeHandle(l10n: LocalizedStrings, detailsHeight: number): string {
+  return [
+    '<div id="commitDetailsResizeHandle" role="separator" tabindex="0"',
+    ' aria-orientation="horizontal"',
+    ` aria-label="${escapeHtml(l10n.detailResize)}"`,
+    ` aria-valuemin="${COMMIT_DETAILS_MIN_HEIGHT}"`,
+    ` aria-valuemax="${COMMIT_DETAILS_MAX_HEIGHT}"`,
+    ` aria-valuenow="${clampCommitDetailsHeight(detailsHeight)}">`,
+    "</div>"
   ].join("");
 }
 

@@ -1,7 +1,11 @@
 import type { GitCommitDetails, GitFileChange } from "@/backend/types";
 import type { LocalizedStrings } from "@/extension/webviewL10n";
 import {
+  COMMIT_DETAILS_DEFAULT_HEIGHT,
+  COMMIT_DETAILS_MAX_HEIGHT,
+  COMMIT_DETAILS_MIN_HEIGHT,
   alterGitFileTree,
+  clampCommitDetailsHeight,
   generateGitFileTree,
   renderCommitDetailsRowHtml,
   renderGitFileListHtml,
@@ -21,6 +25,7 @@ const l10n = {
   detailExpandSummary: "Expand commit summary",
   detailCollapseFiles: "Collapse changed files",
   detailExpandFiles: "Expand changed files",
+  detailResize: "Resize commit details",
   tooltipBinaryFile: "Binary file",
   tooltipRenamedTo: " renamed to ",
   tooltipAddition: " addition",
@@ -49,7 +54,7 @@ const commitDetails: GitCommitDetails = {
 };
 
 describe("commit details view rendering", () => {
-  it("renders escaped summary, body, avatar, file list, and close control", () => {
+  it("renders escaped summary, body, avatar, file list, and resize control", () => {
     const fileTree = generateGitFileTree(commitDetails.fileChanges);
     const host = document.createElement("tr");
     const html = renderCommitDetailsRowHtml({
@@ -58,7 +63,7 @@ describe("commit details view rendering", () => {
       fileView: { mode: "tree" },
       avatars: { "alice+review@example.com": "https://avatars.test/a?name=Alice&Bob" },
       l10n,
-      sections: { summaryOpen: true, filesOpen: true }
+      sections: { detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT, summaryOpen: true, filesOpen: true }
     });
 
     host.innerHTML = html;
@@ -79,6 +84,12 @@ describe("commit details view rendering", () => {
     );
     expect(host.querySelector("#commitDetailsFiles .gitFile")?.textContent).toContain("README.md");
     expect(host.querySelector("#commitDetailsClose")).toBeNull();
+    expect(host.querySelector("#commitDetailsResizeHandle")?.getAttribute("aria-label")).toBe(
+      "Resize commit details"
+    );
+    expect(host.querySelector("#commitDetailsResizeHandle")?.getAttribute("aria-valuenow")).toBe(
+      COMMIT_DETAILS_DEFAULT_HEIGHT.toString()
+    );
   });
 
   it("renders collapsed section state for summary and files", () => {
@@ -91,7 +102,11 @@ describe("commit details view rendering", () => {
       fileView: { mode: "tree" },
       avatars: {},
       l10n,
-      sections: { summaryOpen: false, filesOpen: false }
+      sections: {
+        detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT,
+        summaryOpen: false,
+        filesOpen: false
+      }
     });
 
     expect(host.querySelector("#commitDetailsSummaryToggle")?.getAttribute("aria-expanded")).toBe(
@@ -110,6 +125,13 @@ describe("commit details view rendering", () => {
       "Expand changed files"
     );
     expect(host.querySelector("#commitDetailsFilesBody")?.classList.contains("hidden")).toBe(true);
+  });
+
+  it("clamps commit details resize heights to stable bounds", () => {
+    expect(clampCommitDetailsHeight(120)).toBe(COMMIT_DETAILS_MIN_HEIGHT);
+    expect(clampCommitDetailsHeight(372.4)).toBe(372);
+    expect(clampCommitDetailsHeight(950)).toBe(COMMIT_DETAILS_MAX_HEIGHT);
+    expect(clampCommitDetailsHeight(Number.NaN)).toBe(COMMIT_DETAILS_DEFAULT_HEIGHT);
   });
 
   it("builds sortable file trees and preserves folder open state", () => {

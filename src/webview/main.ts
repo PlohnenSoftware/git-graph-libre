@@ -9,7 +9,13 @@ import type {
 
 import {
   alterGitFileTree,
+  COMMIT_DETAILS_COLLAPSED_HEIGHT,
+  COMMIT_DETAILS_DEFAULT_HEIGHT,
+  COMMIT_DETAILS_KEYBOARD_RESIZE_STEP,
+  COMMIT_DETAILS_MAX_HEIGHT,
+  COMMIT_DETAILS_MIN_HEIGHT,
   type CommitDetailsSection,
+  clampCommitDetailsHeight,
   generateGitFileTree,
   renderCommitDetailsRowHtml
 } from "./commitDetailsView";
@@ -133,6 +139,9 @@ class GitGraphView {
         this.maxCommits = prevState.maxCommits;
         this.expandedCommit = prevState.expandedCommit;
         if (this.expandedCommit !== null) {
+          this.expandedCommit.detailsHeight = clampCommitDetailsHeight(
+            this.expandedCommit.detailsHeight
+          );
           this.expandedCommit.summaryOpen = this.expandedCommit.summaryOpen !== false;
           this.expandedCommit.filesOpen = this.expandedCommit.filesOpen !== false;
         }
@@ -465,7 +474,7 @@ class GitGraphView {
     const tableHeight = this.tableElem.children[0]?.clientHeight ?? 0;
     this.config.grid.expandY =
       expandedCommitElem !== null
-        ? expandedCommitElem.getBoundingClientRect().height
+        ? expandedCommitElem.getBoundingClientRect().height || this.getCommitDetailsRenderedHeight()
         : this.config.grid.expandY;
     const renderedRowHeight =
       this.commits.length > 0
@@ -1198,6 +1207,7 @@ class GitGraphView {
       srcElem: sourceElem,
       commitDetails: null,
       fileTree: null,
+      detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT,
       summaryOpen: true,
       filesOpen: true
     };
@@ -1240,6 +1250,7 @@ class GitGraphView {
     const newElem = document.createElement("tr");
     newElem.id = "commitDetails";
     this.applyCommitDetailsSectionClasses(newElem);
+    this.applyCommitDetailsHeight(newElem);
     newElem.innerHTML = renderCommitDetailsRowHtml({
       commitDetails,
       fileTree,
@@ -1251,26 +1262,31 @@ class GitGraphView {
       sections: this.expandedCommit
     });
     insertAfter(newElem, this.expandedCommit.srcElem);
+    this.updateCommitDetailsResizeHandle();
 
     this.renderGraph();
 
+    const detailsHeight = this.getCommitDetailsRenderedHeight();
     if (this.config.autoCenterCommitDetailsView) {
-      // Center Commit Detail View setting is enabled
-      // control menu height [40px] + newElem.y + (commit details view height [250px] + commit height [24px]) / 2 - (window height) / 2
-      window.scrollTo(0, newElem.offsetTop + 177 - window.innerHeight / 2);
+      window.scrollTo(
+        0,
+        newElem.offsetTop +
+          40 +
+          (detailsHeight + this.config.graphRowHeight) / 2 -
+          window.innerHeight / 2
+      );
     } else if (newElem.offsetTop + 8 < window.pageYOffset) {
-      // Commit Detail View is opening above what is visible on screen
-      // control menu height [40px] + newElem y - commit height [24px] - desired gap from top [8px] < pageYOffset
       window.scrollTo(0, newElem.offsetTop + 8);
-    } else if (
-      newElem.offsetTop + this.config.grid.expandY - window.innerHeight + 48 >
-      window.pageYOffset
-    ) {
-      // Commit Detail View is opening below what is visible on screen
-      // control menu height [40px] + newElem y + commit details view height [250px] + desired gap from bottom [8px] - window height > pageYOffset
-      window.scrollTo(0, newElem.offsetTop + this.config.grid.expandY - window.innerHeight + 48);
+    } else if (newElem.offsetTop + detailsHeight - window.innerHeight + 48 > window.pageYOffset) {
+      window.scrollTo(0, newElem.offsetTop + detailsHeight - window.innerHeight + 48);
     }
 
+    document
+      .getElementById("commitDetailsResizeHandle")
+      ?.addEventListener("mousedown", (e) => this.startCommitDetailsResize(e));
+    document
+      .getElementById("commitDetailsResizeHandle")
+      ?.addEventListener("keydown", (e) => this.resizeCommitDetailsFromKeyboard(e));
     addListenerToClass("commitDetailsToggle", "click", (e) => {
       const sourceElem = closestHTMLElement(e.target, ".commitDetailsToggle");
       const section = sourceElem?.dataset.section;
@@ -1339,6 +1355,7 @@ class GitGraphView {
     const elem = document.getElementById("commitDetails");
     if (elem !== null) {
       this.applyCommitDetailsSectionClasses(elem);
+      this.applyCommitDetailsHeight(elem);
       this.updateCommitDetailsToggle("summary", this.expandedCommit.summaryOpen);
       this.updateCommitDetailsToggle("files", this.expandedCommit.filesOpen);
     }
@@ -1350,6 +1367,89 @@ class GitGraphView {
     if (this.expandedCommit === null) return;
     elem.classList.toggle("summaryCollapsed", !this.expandedCommit.summaryOpen);
     elem.classList.toggle("filesCollapsed", !this.expandedCommit.filesOpen);
+  }
+
+  private getCommitDetailsRenderedHeight() {
+    if (this.expandedCommit === null) return COMMIT_DETAILS_DEFAULT_HEIGHT;
+    if (!this.expandedCommit.summaryOpen && !this.expandedCommit.filesOpen) {
+      return COMMIT_DETAILS_COLLAPSED_HEIGHT;
+    }
+    return clampCommitDetailsHeight(this.expandedCommit.detailsHeight);
+  }
+
+  private applyCommitDetailsHeight(elem: HTMLElement) {
+    elem.style.height = `${this.getCommitDetailsRenderedHeight()}px`;
+    this.updateCommitDetailsResizeHandle();
+  }
+
+  private updateCommitDetailsResizeHandle() {
+    if (this.expandedCommit === null) return;
+    document
+      .getElementById("commitDetailsResizeHandle")
+      ?.setAttribute(
+        "aria-valuenow",
+        clampCommitDetailsHeight(this.expandedCommit.detailsHeight).toString()
+      );
+  }
+
+  private setCommitDetailsHeight(height: number, save = true) {
+    if (this.expandedCommit === null) return;
+    this.expandedCommit.detailsHeight = clampCommitDetailsHeight(height);
+    const elem = document.getElementById("commitDetails");
+    if (elem !== null) this.applyCommitDetailsHeight(elem);
+    if (save) this.saveState();
+    this.renderGraph();
+  }
+
+  private startCommitDetailsResize(event: MouseEvent) {
+    if (event.button !== 0 || this.expandedCommit === null) return;
+    const startY = event.clientY;
+    const startHeight = clampCommitDetailsHeight(this.expandedCommit.detailsHeight);
+    const resize = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault();
+      this.setCommitDetailsHeight(startHeight + moveEvent.clientY - startY, false);
+    };
+    const stop = () => {
+      document.body.classList.remove("commitDetailsResizing");
+      document.removeEventListener("mousemove", resize);
+      if (this.expandedCommit !== null) this.saveState();
+    };
+
+    event.preventDefault();
+    document.body.classList.add("commitDetailsResizing");
+    document.addEventListener("mousemove", resize);
+    document.addEventListener("mouseup", stop, { once: true });
+  }
+
+  private resizeCommitDetailsFromKeyboard(event: KeyboardEvent) {
+    if (this.expandedCommit === null) return;
+    const currentHeight = clampCommitDetailsHeight(this.expandedCommit.detailsHeight);
+    let nextHeight: number;
+    switch (event.key) {
+      case "ArrowDown":
+        nextHeight = currentHeight + COMMIT_DETAILS_KEYBOARD_RESIZE_STEP;
+        break;
+      case "ArrowUp":
+        nextHeight = currentHeight - COMMIT_DETAILS_KEYBOARD_RESIZE_STEP;
+        break;
+      case "PageDown":
+        nextHeight = currentHeight + COMMIT_DETAILS_KEYBOARD_RESIZE_STEP * 5;
+        break;
+      case "PageUp":
+        nextHeight = currentHeight - COMMIT_DETAILS_KEYBOARD_RESIZE_STEP * 5;
+        break;
+      case "End":
+        nextHeight = COMMIT_DETAILS_MAX_HEIGHT;
+        break;
+      case "Home":
+        nextHeight = COMMIT_DETAILS_MIN_HEIGHT;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    this.setCommitDetailsHeight(nextHeight);
   }
 
   private updateCommitDetailsToggle(section: CommitDetailsSection, open: boolean) {

@@ -1,4 +1,5 @@
 import type { GitCommitNode } from "@/backend/types";
+import { COMMIT_DETAILS_DEFAULT_HEIGHT } from "@/webview/commitDetailsView";
 import { Graph } from "@/webview/graph";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -73,6 +74,7 @@ describe("graph rendering", () => {
       srcElem: null,
       commitDetails: null,
       fileTree: null,
+      detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT,
       summaryOpen: true,
       filesOpen: true
     };

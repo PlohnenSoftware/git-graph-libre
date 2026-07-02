@@ -148,6 +148,7 @@
   "detail.expandSummary": "Rozwiń podsumowanie commita",
   "detail.collapseFiles": "Zwiń zmienione pliki",
   "detail.expandFiles": "Rozwiń zmienione pliki",
+  "detail.resize": "Zmień rozmiar szczegółów commita",
   "uncommittedChanges": "Niezatwierdzone zmiany ({0})",
   "tooltip.binaryFile": "To jest plik binarny, nie można wyświetlić różnic.",
   "tooltip.renamedTo": " zmieniono nazwę na ",

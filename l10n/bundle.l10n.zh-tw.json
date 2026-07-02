@@ -148,6 +148,7 @@
   "detail.expandSummary": "展開提交摘要",
   "detail.collapseFiles": "摺疊變更檔案",
   "detail.expandFiles": "展開變更檔案",
+  "detail.resize": "調整提交詳情大小",
   "uncommittedChanges": "未提交的變更（{0})",
   "tooltip.binaryFile": "此為二進位檔案，無法檢視差異。",
   "tooltip.renamedTo": " 重新命名為 ",
