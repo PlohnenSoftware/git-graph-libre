@@ -26,6 +26,8 @@ const l10n = {
   detailCollapseFiles: "Collapse changed files",
   detailExpandFiles: "Expand changed files",
   detailResize: "Resize commit details",
+  copyFilePath: "Copy file path",
+  openFile: "Open file",
   tooltipBinaryFile: "Binary file",
   tooltipRenamedTo: " renamed to ",
   tooltipAddition: " addition",
@@ -88,6 +90,11 @@ describe("commit details view rendering", () => {
       "true"
     );
     expect(host.querySelector("#commitDetailsFiles .gitFile")?.textContent).toContain("README.md");
+    expect(host.querySelector(".gitFileCopyPath")?.getAttribute("aria-label")).toBe(
+      "Copy file path"
+    );
+    expect(host.querySelector(".gitFileCopyPath")?.getAttribute("data-filepath")).toBe("README.md");
+    expect(host.querySelector(".gitFileOpenFile")?.getAttribute("aria-label")).toBe("Open file");
     expect(host.querySelector("#commitDetailsClose")).toBeNull();
     expect(host.querySelector("#commitDetailsResizeHandle")?.getAttribute("aria-label")).toBe(
       "Resize commit details"
@@ -189,6 +196,13 @@ describe("commit details view rendering", () => {
         type: "M",
         additions: 1,
         deletions: 1
+      },
+      {
+        oldFilePath: "docs/old guide.md",
+        newFilePath: "docs/old guide.md",
+        type: "D",
+        additions: null,
+        deletions: null
       }
     ];
     const host = document.createElement("div");
@@ -197,11 +211,21 @@ describe("commit details view rendering", () => {
 
     expect(host.querySelector(".gitFileList")).not.toBeNull();
     expect(host.querySelector(".gitFolder")).toBeNull();
-    expect(host.querySelector(".gitFile")?.textContent).toContain("README.md");
-    expect(host.querySelectorAll(".gitFile")[1]?.textContent).toContain("src/new-name.ts");
-    expect(host.querySelectorAll(".gitFile")[1]?.getAttribute("data-oldfilepath")).toBe(
-      "src%2Fold-name.ts"
+    expect(host.querySelector('.gitFile[data-newfilepath="README.md"]')?.textContent).toContain(
+      "README.md"
     );
+    const renamedFile = host.querySelector<HTMLElement>(
+      '.gitFile[data-newfilepath="src%2Fnew-name.ts"]'
+    );
+    expect(renamedFile?.textContent).toContain("src/new-name.ts");
+    expect(renamedFile?.getAttribute("data-oldfilepath")).toBe("src%2Fold-name.ts");
+    const deletedFile = host.querySelector<HTMLElement>(
+      '.gitFile[data-newfilepath="docs%2Fold%20guide.md"]'
+    );
+    expect(deletedFile?.querySelector(".gitFileCopyPath")?.getAttribute("data-filepath")).toBe(
+      "docs%2Fold%20guide.md"
+    );
+    expect(deletedFile?.querySelector(".gitFileOpenFile")).toBeNull();
   });
 
   it("compacts single-child folder chains while preserving toggle paths", () => {

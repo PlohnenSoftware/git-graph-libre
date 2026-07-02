@@ -116,6 +116,26 @@ describe("commit details list mode runtime", () => {
     expect(document.querySelector(".gitFolder")).toBeNull();
 
     document
+      .querySelector<HTMLButtonElement>(".gitFileList .gitFileCopyPath")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "File Path",
+      data: "src/example.ts"
+    });
+
+    document
+      .querySelector<HTMLButtonElement>(".gitFileList .gitFileOpenFile")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "openFile",
+      repo: REPO,
+      filePath: "src/example.ts"
+    });
+
+    document
       .querySelector<HTMLElement>(".gitFileList .gitFile")
       ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 

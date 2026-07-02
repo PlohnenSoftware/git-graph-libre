@@ -33,6 +33,7 @@ export function getWebviewLocalizedStrings() {
     unableToLoadCommitDetails: l10n.t("error.unableToLoadCommitDetails"),
     unableToCopyToClipboard: l10n.t("error.unableToCopyToClipboard"),
     unableToViewDiff: l10n.t("error.unableToViewDiff"),
+    unableToOpenFile: l10n.t("error.unableToOpenFile"),
     unableToAddTag: l10n.t("error.unableToAddTag"),
     unableToCheckoutBranch: l10n.t("error.unableToCheckoutBranch"),
     unableToCheckoutCommit: l10n.t("error.unableToCheckoutCommit"),
@@ -59,6 +60,8 @@ export function getWebviewLocalizedStrings() {
     copyCommitHash: l10n.t("action.copyCommitHash"),
     copyTagName: l10n.t("action.copyTagName"),
     copyBranchName: l10n.t("action.copyBranchName"),
+    copyFilePath: l10n.t("action.copyFilePath"),
+    openFile: l10n.t("action.openFile"),
     deleteTag: l10n.t("action.deleteTag"),
     pushTag: l10n.t("action.pushTag"),
     checkoutBranch: l10n.t("action.checkoutBranch"),
@@ -68,6 +71,7 @@ export function getWebviewLocalizedStrings() {
     typeCommitHash: l10n.t("type.commitHash"),
     typeTagName: l10n.t("type.tagName"),
     typeBranchName: l10n.t("type.branchName"),
+    typeFilePath: l10n.t("type.filePath"),
 
     // label
     labelTag: l10n.t("label.tag"),

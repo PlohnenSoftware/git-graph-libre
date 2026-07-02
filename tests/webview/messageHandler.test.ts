@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import * as path from "node:path";
 
 import { simpleGit } from "simple-git";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -14,6 +15,11 @@ import type { RepoFileWatcher } from "@/repoFileWatcher";
 import type { RequestMessage, ResponseMessage } from "@/types";
 
 import { makeRepo } from "@tests/backend/helpers";
+import {
+  openedTextDocuments,
+  resetVscodeMock,
+  shownTextDocuments
+} from "@tests/webview/__mocks__/vscode";
 
 let repo: string;
 
@@ -26,7 +32,7 @@ afterAll(() => {
 });
 
 describe("registerMessageHandlers", () => {
-  it("echoes request ids when loading repository info", async () => {
+  function registerHandlersForTest() {
     const handlers = new Map<
       RequestMessage["command"],
       (msg: RequestMessage) => void | Promise<void>
@@ -62,6 +68,12 @@ describe("registerMessageHandlers", () => {
       repoFileWatcher: { start: vi.fn() } as unknown as RepoFileWatcher
     });
 
+    return { handlers, posts };
+  }
+
+  it("echoes request ids when loading repository info", async () => {
+    const { handlers, posts } = registerHandlersForTest();
+
     const handler = handlers.get("loadRepoInfo");
     expect(handler).toBeDefined();
     await handler?.({ command: "loadRepoInfo", requestId: 42, repo });
@@ -76,5 +88,40 @@ describe("registerMessageHandlers", () => {
       },
       error: null
     });
+  });
+
+  it("opens current files from repo-contained paths", async () => {
+    resetVscodeMock();
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("openFile");
+    const filePath = path.join(repo, "src/example.ts");
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, "export const value = 1;\n");
+
+    expect(handler).toBeDefined();
+    await handler?.({ command: "openFile", repo, filePath: "src/example.ts" });
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "openFile",
+      success: true
+    });
+    expect(openedTextDocuments[openedTextDocuments.length - 1]?.fsPath).toBe(filePath);
+    expect(shownTextDocuments[shownTextDocuments.length - 1]?.document.uri.fsPath).toBe(filePath);
+  });
+
+  it("rejects file open paths outside the selected repo", async () => {
+    resetVscodeMock();
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("openFile");
+
+    expect(handler).toBeDefined();
+    await handler?.({ command: "openFile", repo, filePath: "../outside.ts" });
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "openFile",
+      success: false
+    });
+    expect(openedTextDocuments).toHaveLength(0);
+    expect(shownTextDocuments).toHaveLength(0);
   });
 });

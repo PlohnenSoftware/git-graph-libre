@@ -1320,6 +1320,28 @@ class GitGraphView {
       alterGitFileTree(this.expandedCommit.fileTree, decodeURIComponent(folderPath), isOpen);
       this.saveState();
     });
+    addListenerToClass("gitFileCopyPath", "click", (e) => {
+      e.stopPropagation();
+      const sourceElem = closestHTMLElement(e.target, ".gitFileCopyPath");
+      const filePath = sourceElem?.dataset.filepath;
+      if (filePath === undefined) return;
+      sendMessage({
+        command: "copyToClipboard",
+        type: "File Path",
+        data: decodeURIComponent(filePath)
+      });
+    });
+    addListenerToClass("gitFileOpenFile", "click", (e) => {
+      e.stopPropagation();
+      const sourceElem = closestHTMLElement(e.target, ".gitFileOpenFile");
+      const filePath = sourceElem?.dataset.filepath;
+      if (filePath === undefined) return;
+      sendMessage({
+        command: "openFile",
+        repo: this.currentRepo,
+        filePath: decodeURIComponent(filePath)
+      });
+    });
     addListenerToClass("gitFile", "click", (e) => {
       const sourceElem = closestHTMLElement(e.target, ".gitFile");
       if (
@@ -1538,7 +1560,8 @@ window.addEventListener("message", (event) => {
         const typeLabel: Record<string, string> = {
           "Commit Hash": l10n.typeCommitHash,
           "Tag Name": l10n.typeTagName,
-          "Branch Name": l10n.typeBranchName
+          "Branch Name": l10n.typeBranchName,
+          "File Path": l10n.typeFilePath
         };
         showErrorDialog(
           l10n.unableToCopyToClipboard.replace("{0}", typeLabel[msg.type] ?? msg.type),
@@ -1605,6 +1628,9 @@ window.addEventListener("message", (event) => {
       break;
     case "viewDiff":
       if (msg.success === false) showErrorDialog(l10n.unableToViewDiff, null, null);
+      break;
+    case "openFile":
+      if (msg.success === false) showErrorDialog(l10n.unableToOpenFile, null, null);
       break;
   }
 });

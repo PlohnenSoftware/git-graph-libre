@@ -351,7 +351,27 @@ svg.fileIcon {
   cursor: pointer;
 }
 .gitFile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 22px;
   color: var(--vscode-gitDecoration-modifiedResourceForeground);
+}
+.gitFileMain {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gitFileName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gitFile .fileIcon {
+  margin-top: 0;
+  flex: 0 0 auto;
 }
 .gitFile.A {
   color: var(--vscode-gitDecoration-addedResourceForeground);
@@ -380,6 +400,42 @@ svg.fileIcon {
 }
 .gitFileRename {
   cursor: help;
+}
+.gitFileActions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  margin-left: auto;
+  opacity: 0.65;
+}
+.gitFile:hover .gitFileActions,
+.gitFile:focus-within .gitFileActions {
+  opacity: 1;
+}
+.gitFileAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 2px;
+  border: 0;
+  border-radius: 4px;
+  color: var(--vscode-icon-foreground, var(--ngg-neutral-icon));
+  background-color: var(--ngg-transparent);
+  cursor: pointer;
+}
+.gitFileAction:hover {
+  background-color: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-muted));
+}
+.gitFileAction:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+svg.fileActionIcon {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
 }
 #commitDetailsResizeHandle {
   position: absolute;

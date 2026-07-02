@@ -323,13 +323,41 @@ function renderGitFileListItem(
     fileChange.additions === null || fileChange.deletions === null
       ? ` title="${l10n.tooltipBinaryFile}"`
       : "",
-    '><span class="gitFileIcon">',
+    '><span class="gitFileMain"><span class="gitFileIcon">',
     svgIcons.file,
-    "</span>",
+    '</span><span class="gitFileName">',
     escapeHtml(gitFile.name),
+    "</span>",
     renderRenameBadge(fileChange, l10n),
     renderAddDelSummary(fileChange, l10n),
+    "</span>",
+    renderGitFileActions(fileChange, l10n),
     "</li>"
+  ].join("");
+}
+
+function renderGitFileActions(fileChange: GitFileChange, l10n: LocalizedStrings): string {
+  const encodedFilePath = encodeURIComponent(fileChange.newFilePath);
+  const copyLabel = escapeHtml(l10n.copyFilePath);
+  const openLabel = escapeHtml(l10n.openFile);
+  const openButton =
+    fileChange.type === "D"
+      ? ""
+      : [
+          `<button class="gitFileAction gitFileOpenFile" type="button" data-filepath="${encodedFilePath}"`,
+          ` title="${openLabel}" aria-label="${openLabel}">`,
+          svgIcons.openFile,
+          "</button>"
+        ].join("");
+
+  return [
+    '<span class="gitFileActions">',
+    `<button class="gitFileAction gitFileCopyPath" type="button" data-filepath="${encodedFilePath}"`,
+    ` title="${copyLabel}" aria-label="${copyLabel}">`,
+    svgIcons.copy,
+    "</button>",
+    openButton,
+    "</span>"
   ].join("");
 }
 

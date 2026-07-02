@@ -38,3 +38,35 @@ export const version = "1.98.0";
 export const Uri = {
   file: (fsPath: string) => ({ fsPath })
 };
+
+export const executedCommands: unknown[][] = [];
+export const openedTextDocuments: Array<{ fsPath: string }> = [];
+export const shownTextDocuments: Array<{
+  document: { uri: { fsPath: string } };
+  options: unknown;
+}> = [];
+
+export const commands = {
+  executeCommand: async (...args: unknown[]) => {
+    executedCommands.push(args);
+  }
+};
+
+export const workspace = {
+  openTextDocument: async (uri: { fsPath: string }) => {
+    openedTextDocuments.push(uri);
+    return { uri };
+  }
+};
+
+export const window = {
+  showTextDocument: async (document: { uri: { fsPath: string } }, options: unknown) => {
+    shownTextDocuments.push({ document, options });
+  }
+};
+
+export function resetVscodeMock() {
+  executedCommands.splice(0);
+  openedTextDocuments.splice(0);
+  shownTextDocuments.splice(0);
+}

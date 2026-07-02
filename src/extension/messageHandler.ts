@@ -1,3 +1,5 @@
+import * as path from "node:path";
+
 import * as vscode from "vscode";
 
 import type { AvatarManager } from "@/avatarManager";
@@ -30,7 +32,7 @@ import type { RequestMessage, ResponseMessage } from "@/types";
 import type { RepoManager } from "./repoManager";
 import type { WebviewBridge } from "./webviewBridge";
 
-function viewDiff(
+async function viewDiff(
   repo: string,
   commitHash: string,
   oldFilePath: string,
@@ -48,18 +50,41 @@ function viewDiff(
         ? l10n.t("diff.deletedIn", abbrevHash)
         : `${abbrevCommit(commitHash)}^ ↔ ${abbrevCommit(commitHash)}`) +
     ")";
-  return new Promise<boolean>((resolve) => {
-    vscode.commands
-      .executeCommand(
-        "vscode.diff",
-        encodeDiffDocUri(repo, oldFilePath, `${commitHash}^`),
-        encodeDiffDocUri(repo, newFilePath, commitHash),
-        title,
-        { preview: true }
-      )
-      .then(() => resolve(true))
-      .then(() => resolve(false));
-  });
+  try {
+    await vscode.commands.executeCommand(
+      "vscode.diff",
+      encodeDiffDocUri(repo, oldFilePath, `${commitHash}^`),
+      encodeDiffDocUri(repo, newFilePath, commitHash),
+      title,
+      { preview: true }
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveRepoFilePath(repo: string, filePath: string): string | null {
+  const repoRoot = path.resolve(repo);
+  const absolutePath = path.resolve(repoRoot, filePath);
+  const relativePath = path.relative(repoRoot, absolutePath);
+  if (relativePath === "" || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    return null;
+  }
+  return absolutePath;
+}
+
+async function openFile(repo: string, filePath: string): Promise<boolean> {
+  const absolutePath = resolveRepoFilePath(repo, filePath);
+  if (absolutePath === null) return false;
+
+  try {
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(absolutePath));
+    await vscode.window.showTextDocument(document, { preview: true });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function registerMessageHandlers(
@@ -219,6 +244,13 @@ export function registerMessageHandlers(
     bridge.post({
       command: "viewDiff",
       success: await viewDiff(msg.repo, msg.commitHash, msg.oldFilePath, msg.newFilePath, msg.type)
+    });
+  });
+
+  bridge.onMessage("openFile", async (msg) => {
+    bridge.post({
+      command: "openFile",
+      success: await openFile(msg.repo, msg.filePath)
     });
   });
 
