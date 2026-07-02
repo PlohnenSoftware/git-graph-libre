@@ -202,20 +202,6 @@ body.unableToLoad p {
   line-height: 18px;
   white-space: normal;
 }
-#commitDetails td:after {
-  content: "";
-  display: block;
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
-  background-color: color-mix(
-    in srgb,
-    var(--git-graph-color, var(--ngg-neutral-icon)) 45%,
-    var(--ngg-transparent)
-  );
-}
 /* Selected rows are tinted with the hue of their own graph dot color */
 #commitTable tr.commit.commitDetailsOpen td {
   background-color: color-mix(
@@ -233,6 +219,10 @@ body.unableToLoad p {
     var(--git-graph-color, var(--vscode-list-activeSelectionBackground)) 26%,
     var(--ngg-transparent)
   );
+}
+/* Merge commits are visually muted so linear history stands out */
+#commitTable tr.commit.mergeCommit td:nth-child(2) {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
 }
 #commitTable tr.commit.findMatch td {
   background-color: var(--vscode-editor-findMatchHighlightBackground, var(--ngg-find-highlight));
