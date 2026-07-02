@@ -1,10 +1,10 @@
 import type { GitCommitDetails, GitFileChange } from "@/backend/types";
 import type { LocalizedStrings } from "@/extension/webviewL10n";
-import type { CommitDetailsFileViewMode } from "@/types";
+import type { CommitDetailsFileViewMode, IssueLinkingConfig } from "@/types";
 
 import { escapeHtml } from "./utils/html";
 import { svgIcons } from "./utils/icons";
-import { linkifyHttpUrls } from "./utils/linkify";
+import { linkifyText } from "./utils/linkify";
 
 type RenderCommitDetailsOptions = {
   commitDetails: GitCommitDetails;
@@ -13,6 +13,7 @@ type RenderCommitDetailsOptions = {
   avatars: AvatarImageCollection;
   l10n: LocalizedStrings;
   sections: CommitDetailsSectionState;
+  issueLinking?: IssueLinkingConfig | null;
 };
 
 type GenerateGitFileTreeOptions = {
@@ -52,12 +53,19 @@ export function renderCommitDetailsRowHtml({
   fileView,
   avatars,
   l10n,
-  sections
+  sections,
+  issueLinking
 }: RenderCommitDetailsOptions): string {
   const resolvedFileView = fileView ?? defaultCommitDetailsFileView;
   return [
     '<td></td><td colspan="4">',
-    renderCommitDetailsSummary(commitDetails, avatars, l10n, sections.summaryOpen),
+    renderCommitDetailsSummary(
+      commitDetails,
+      avatars,
+      l10n,
+      sections.summaryOpen,
+      issueLinking ?? null
+    ),
     renderCommitDetailsFiles(
       fileTree,
       commitDetails.fileChanges,
@@ -74,12 +82,13 @@ export function renderCommitDetailsSummary(
   commitDetails: GitCommitDetails,
   avatars: AvatarImageCollection,
   l10n: LocalizedStrings,
-  open = true
+  open = true,
+  issueLinking: IssueLinkingConfig | null = null
 ): string {
   const avatar = avatars[commitDetails.email];
   const topClass = `commitDetailsSummaryTop${typeof avatar === "string" ? " withAvatar" : ""}`;
   const authorEmail = escapeHtml(commitDetails.email);
-  const body = linkifyHttpUrls(commitDetails.body);
+  const body = linkifyText(commitDetails.body, issueLinking);
   const bodyClass = `commitDetailsPaneBody${open ? "" : " hidden"}`;
 
   return [

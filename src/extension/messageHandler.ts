@@ -56,8 +56,10 @@ import { copyToClipboard } from "@/extension/utils/clipboard";
 import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
-import type { RequestMessage, ResponseMessage } from "@/types";
+import type { GitRepoState, RequestMessage, ResponseMessage } from "@/types";
 
+import { buildPullRequestUrl } from "./pullRequest";
+import { exportRepoConfigFile, importRepoConfigFile } from "./repoConfigFile";
 import type { RepoManager } from "./repoManager";
 import type { WebviewBridge } from "./webviewBridge";
 
@@ -134,6 +136,24 @@ async function openSourceControl(): Promise<boolean> {
   }
 }
 
+async function openExternalUrl(url: string): Promise<boolean> {
+  if (!isHttpUrl(url)) return false;
+  try {
+    return await vscode.env.openExternal(vscode.Uri.parse(url));
+  } catch {
+    return false;
+  }
+}
+
+function isHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 const shellSingleQuoteEscape = String.raw`'\''`;
 
 function quoteTerminalArg(value: string) {
@@ -199,6 +219,12 @@ export function registerMessageHandlers(
     });
   }
 
+  function getKnownRepoState(repo: string): GitRepoState {
+    const repoState = repoManager.getRepos()[repo];
+    if (repoState === undefined) throw new Error("Unknown repository.");
+    return repoState;
+  }
+
   // --- Action handlers ---
 
   registerAction("addRemote", (msg) => addRemote(gitClient.getInstance(), msg, recordGitCommand));
@@ -209,6 +235,29 @@ export function registerMessageHandlers(
     fetchRemotes(gitClient.getInstance(), msg, recordGitCommand)
   );
   registerAction("createBranch", (msg) => createBranch(gitClient.getInstance(), msg));
+  registerAction("createPullRequest", async (msg) => {
+    if (msg.pushBeforeCreate) {
+      await pushBranch(
+        gitClient.getInstance(),
+        {
+          repo: msg.repo,
+          branchName: msg.branchName,
+          remotes: [msg.remoteName],
+          setUpstream: true,
+          mode: "normal"
+        },
+        recordGitCommand
+      );
+    }
+    const url = buildPullRequestUrl({
+      branchName: msg.branchName,
+      remoteName: msg.remoteName,
+      remoteUrl: msg.remoteUrl,
+      baseBranch: msg.baseBranch,
+      urlTemplate: msg.urlTemplate
+    });
+    if (!(await openExternalUrl(url))) throw new Error("Unable to open pull request URL.");
+  });
   registerAction("deleteBranch", (msg) =>
     deleteBranch(gitClient.getInstance(), msg, recordGitCommand)
   );
@@ -283,6 +332,15 @@ export function registerMessageHandlers(
   registerAction("deleteUserDetails", (msg) =>
     deleteUserDetails(gitClient.getInstance(), msg, recordGitCommand)
   );
+  registerAction("exportRepoConfig", async (msg) => {
+    const repoState = getKnownRepoState(msg.repo);
+    repoFileWatcher.mute();
+    try {
+      await exportRepoConfigFile(msg.repo, repoState);
+    } finally {
+      repoFileWatcher.unmute();
+    }
+  });
 
   // --- Query handlers ---
 
@@ -394,6 +452,18 @@ export function registerMessageHandlers(
     outputChannel?.appendLine(formatWebviewDiagnostic(msg));
   });
 
+  bridge.onMessage("importRepoConfig", async (msg) => {
+    let status: string | null = null;
+    let state: GitRepoState | null = null;
+    try {
+      state = await importRepoConfigFile(msg.repo, getKnownRepoState(msg.repo));
+      repoManager.setRepoState(msg.repo, state);
+    } catch (error: unknown) {
+      status = error instanceof Error ? error.message : String(error);
+    }
+    bridge.post({ command: "importRepoConfig", repo: msg.repo, status, state });
+  });
+
   bridge.onMessage("fetchAvatar", (msg) => {
     avatarManager.fetchAvatarImage(msg.email, msg.repo, msg.commits);
   });
@@ -435,6 +505,13 @@ export function registerMessageHandlers(
     bridge.post({
       command: "openSourceControl",
       success: await openSourceControl()
+    });
+  });
+
+  bridge.onMessage("openExternalUrl", async (msg) => {
+    bridge.post({
+      command: "openExternalUrl",
+      success: await openExternalUrl(msg.url)
     });
   });
 

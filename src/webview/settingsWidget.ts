@@ -48,6 +48,23 @@ type SettingsLabels = {
   hideRemote: string;
   showRemote: string;
   noRemotes: string;
+  issueLinking: string;
+  issuePattern: string;
+  issueUrlTemplate: string;
+  noIssueLinking: string;
+  addIssueLinking: string;
+  removeIssueLinking: string;
+  pullRequestCreation: string;
+  pullRequestRemote: string;
+  pullRequestBaseBranch: string;
+  pullRequestUrlTemplate: string;
+  pullRequestPushBeforeCreate: string;
+  noPullRequestCreation: string;
+  configurePullRequest: string;
+  removePullRequest: string;
+  repositoryConfiguration: string;
+  exportRepositoryConfiguration: string;
+  importRepositoryConfiguration: string;
 };
 
 export type SettingsWidgetModel = {
@@ -191,6 +208,85 @@ function renderRemoteRows(model: SettingsWidgetModel) {
     .join("");
 }
 
+function renderIssueLinkingSection(model: SettingsWidgetModel) {
+  const labels = model.labels;
+  const config = model.repoState.issueLinking ?? null;
+  const body =
+    config === null
+      ? `<div class="settingsRow settingsRowFull">${escapeHtml(labels.noIssueLinking)}</div>
+        <div class="settingsActions">
+          <button id="settingsEditIssueLinking" class="settingsTextButton" type="button">${escapeHtml(labels.addIssueLinking)}</button>
+        </div>`
+      : `<div class="settingsRow">
+          <span>${escapeHtml(labels.issuePattern)}</span>
+          <span class="settingsValue" title="${escapeHtml(config.pattern)}">${escapeHtml(config.pattern)}</span>
+        </div>
+        <div class="settingsRow">
+          <span>${escapeHtml(labels.issueUrlTemplate)}</span>
+          <span class="settingsValue" title="${escapeHtml(config.urlTemplate)}">${escapeHtml(config.urlTemplate)}</span>
+        </div>
+        <div class="settingsActions">
+          <button id="settingsEditIssueLinking" class="settingsTextButton" type="button">${escapeHtml(labels.edit)}</button>
+          <button id="settingsRemoveIssueLinking" class="settingsTextButton danger" type="button">${escapeHtml(labels.removeIssueLinking)}</button>
+        </div>`;
+
+  return `<section class="settingsSection">
+    <h3>${escapeHtml(labels.issueLinking)}</h3>
+    ${body}
+  </section>`;
+}
+
+function renderPullRequestSection(model: SettingsWidgetModel) {
+  const labels = model.labels;
+  const config = model.repoState.pullRequest ?? null;
+  let pushBeforeCreateLabel = "";
+  if (config !== null) {
+    pushBeforeCreateLabel = config.pushBeforeCreate ? labels.enabled : labels.disabled;
+  }
+  const body =
+    config === null
+      ? `<div class="settingsRow settingsRowFull">${escapeHtml(labels.noPullRequestCreation)}</div>
+        <div class="settingsActions">
+          <button id="settingsEditPullRequest" class="settingsTextButton" type="button">${escapeHtml(labels.configurePullRequest)}</button>
+        </div>`
+      : `<div class="settingsRow">
+          <span>${escapeHtml(labels.pullRequestRemote)}</span>
+          <span class="settingsValue" title="${escapeHtml(config.remoteName)}">${escapeHtml(config.remoteName)}</span>
+        </div>
+        <div class="settingsRow">
+          <span>${escapeHtml(labels.pullRequestBaseBranch)}</span>
+          <span class="settingsValue" title="${escapeHtml(config.baseBranch)}">${escapeHtml(config.baseBranch)}</span>
+        </div>
+        <div class="settingsRow">
+          <span>${escapeHtml(labels.pullRequestUrlTemplate)}</span>
+          <span class="settingsValue" title="${escapeHtml(config.urlTemplate)}">${escapeHtml(config.urlTemplate)}</span>
+        </div>
+        <div class="settingsRow">
+          <span>${escapeHtml(labels.pullRequestPushBeforeCreate)}</span>
+          <span class="settingsValue">${escapeHtml(pushBeforeCreateLabel)}</span>
+        </div>
+        <div class="settingsActions">
+          <button id="settingsEditPullRequest" class="settingsTextButton" type="button">${escapeHtml(labels.edit)}</button>
+          <button id="settingsRemovePullRequest" class="settingsTextButton danger" type="button">${escapeHtml(labels.removePullRequest)}</button>
+        </div>`;
+
+  return `<section class="settingsSection">
+    <h3>${escapeHtml(labels.pullRequestCreation)}</h3>
+    ${body}
+  </section>`;
+}
+
+function renderRepositoryConfigurationSection(model: SettingsWidgetModel) {
+  const labels = model.labels;
+  return `<section class="settingsSection">
+    <h3>${escapeHtml(labels.repositoryConfiguration)}</h3>
+    <div class="settingsActions">
+      <button id="settingsExportRepoConfig" class="settingsTextButton" type="button">${escapeHtml(labels.exportRepositoryConfiguration)}</button>
+      <button id="settingsImportRepoConfig" class="settingsTextButton" type="button">${escapeHtml(labels.importRepositoryConfiguration)}</button>
+    </div>
+  </section>`;
+}
+
 export function renderSettingsWidget(model: SettingsWidgetModel) {
   const labels = model.labels;
   const repoName = getRepoDisplayName(model.repo, model.repoState);
@@ -239,5 +335,8 @@ export function renderSettingsWidget(model: SettingsWidgetModel) {
       <div class="settingsActions">
         <button id="settingsAddRemote" class="settingsTextButton" type="button">${escapeHtml(labels.addRemote)}</button>
       </div>
-    </section>`;
+    </section>
+    ${renderIssueLinkingSection(model)}
+    ${renderPullRequestSection(model)}
+    ${renderRepositoryConfigurationSection(model)}`;
 }

@@ -46,6 +46,7 @@ import { addListenerToClass, blinkHeadRow, insertAfter } from "./utils/dom";
 import { arraysEqual, ELLIPSIS, refInvalid } from "./utils/git";
 import { escapeHtml, unescapeHtml } from "./utils/html";
 import { svgIcons } from "./utils/icons";
+import { extractIssueLinks } from "./utils/linkify";
 import { getVSCodeStyle, sendMessage, vscode } from "./utils/vscode";
 
 const searchHistoryMaxResults = 50;
@@ -350,6 +351,9 @@ class GitGraphView {
     this.observeWebviewScroll();
     document.addEventListener("keydown", (event) => {
       this.handleGlobalKeyboardShortcut(event);
+    });
+    document.addEventListener("click", (event) => {
+      this.handleExternalLinkClick(event);
     });
 
     this.renderShowLoading();
@@ -1361,7 +1365,24 @@ class GitGraphView {
         pruneRemote: l10n.settingsPruneRemote,
         hideRemote: l10n.settingsHideRemote,
         showRemote: l10n.settingsShowRemote,
-        noRemotes: l10n.settingsNoRemotes
+        noRemotes: l10n.settingsNoRemotes,
+        issueLinking: l10n.settingsIssueLinking,
+        issuePattern: l10n.settingsIssuePattern,
+        issueUrlTemplate: l10n.settingsIssueUrlTemplate,
+        noIssueLinking: l10n.settingsNoIssueLinking,
+        addIssueLinking: l10n.settingsAddIssueLinking,
+        removeIssueLinking: l10n.settingsRemoveIssueLinking,
+        pullRequestCreation: l10n.settingsPullRequestCreation,
+        pullRequestRemote: l10n.settingsPullRequestRemote,
+        pullRequestBaseBranch: l10n.settingsPullRequestBaseBranch,
+        pullRequestUrlTemplate: l10n.settingsPullRequestUrlTemplate,
+        pullRequestPushBeforeCreate: l10n.settingsPullRequestPushBeforeCreate,
+        noPullRequestCreation: l10n.settingsNoPullRequestCreation,
+        configurePullRequest: l10n.settingsConfigurePullRequest,
+        removePullRequest: l10n.settingsRemovePullRequest,
+        repositoryConfiguration: l10n.settingsRepositoryConfiguration,
+        exportRepositoryConfiguration: l10n.settingsExportRepositoryConfiguration,
+        importRepositoryConfiguration: l10n.settingsImportRepositoryConfiguration
       }
     });
     this.settingsWidgetElem.focus({ preventScroll: true });
@@ -1383,6 +1404,24 @@ class GitGraphView {
     });
     document.getElementById("settingsAddRemote")?.addEventListener("click", () => {
       this.showAddRemoteDialog();
+    });
+    document.getElementById("settingsEditIssueLinking")?.addEventListener("click", () => {
+      this.showIssueLinkingDialog();
+    });
+    document.getElementById("settingsRemoveIssueLinking")?.addEventListener("click", () => {
+      this.removeIssueLinking();
+    });
+    document.getElementById("settingsEditPullRequest")?.addEventListener("click", () => {
+      this.showPullRequestSettingsDialog();
+    });
+    document.getElementById("settingsRemovePullRequest")?.addEventListener("click", () => {
+      this.removePullRequestSettings();
+    });
+    document.getElementById("settingsExportRepoConfig")?.addEventListener("click", () => {
+      this.showExportRepoConfigDialog();
+    });
+    document.getElementById("settingsImportRepoConfig")?.addEventListener("click", () => {
+      this.showImportRepoConfigDialog();
     });
     this.settingsWidgetElem
       .querySelectorAll<HTMLButtonElement>(".settingsToggleRemoteVisibility")
@@ -1430,6 +1469,16 @@ class GitGraphView {
           );
         });
       });
+  }
+
+  private handleExternalLinkClick(event: MouseEvent) {
+    const link = closestHTMLElement(event.target, "a.externalLink");
+    const url = link?.getAttribute("href");
+    if (url === null || url === undefined || url === "") return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    sendMessage({ command: "openExternalUrl", url });
   }
 
   private showRepoNameDialog() {
@@ -1742,6 +1791,219 @@ class GitGraphView {
       },
       sourceElem
     );
+  }
+
+  private showIssueLinkingDialog() {
+    const repoState = this.getCurrentRepoState();
+    if (repoState === null) return;
+    const current = repoState.issueLinking ?? null;
+
+    showFormDialog(
+      l10n.dialogIssueLinkingTitle,
+      [
+        {
+          type: "text",
+          name: l10n.dialogIssueLinkingPattern,
+          default: current?.pattern ?? String.raw`#(\d+)`,
+          placeholder: null
+        },
+        {
+          type: "text",
+          name: l10n.dialogIssueLinkingUrlTemplate,
+          default: current?.urlTemplate ?? "https://example.test/issues/$1",
+          placeholder: null
+        }
+      ],
+      l10n.dialogIssueLinkingSubmit,
+      (values) => {
+        const pattern = values[0].trim();
+        const urlTemplate = values[1].trim();
+        const validationError = this.validateIssueLinking(pattern, urlTemplate);
+        if (validationError !== null) {
+          showErrorDialog(validationError, null, this.settingsWidgetElem);
+          return;
+        }
+        repoState.issueLinking = { pattern, urlTemplate };
+        this.saveCurrentRepoState(repoState);
+        this.renderSettingsWidget();
+        this.renderTable();
+        this.renderGraph();
+      },
+      this.settingsWidgetElem
+    );
+  }
+
+  private validateIssueLinking(pattern: string, urlTemplate: string) {
+    if (pattern === "" || urlTemplate === "") return l10n.dialogIssueLinkingRequired;
+    if (!/\$[1-9]\d*/.test(urlTemplate)) return l10n.dialogIssueLinkingMissingPlaceholder;
+    try {
+      const regexp = new RegExp(pattern);
+      const sampleMatch = regexp.exec("#123");
+      const sampleUrl = urlTemplate.replace(/\$[1-9]\d*/g, sampleMatch?.[1] ?? "123");
+      this.assertHttpUrl(sampleUrl);
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  private removeIssueLinking() {
+    const repoState = this.getCurrentRepoState();
+    if (repoState === null) return;
+
+    repoState.issueLinking = null;
+    this.saveCurrentRepoState(repoState);
+    this.renderSettingsWidget();
+    this.renderTable();
+    this.renderGraph();
+  }
+
+  private showPullRequestSettingsDialog() {
+    const repoState = this.getCurrentRepoState();
+    if (repoState === null) return;
+    const remoteNames = this.getRemoteNames();
+    if (remoteNames.length === 0) {
+      showErrorDialog(l10n.dialogPullRequestNoRemotes, null, this.settingsWidgetElem);
+      return;
+    }
+
+    const current = repoState.pullRequest;
+    const defaultRemote = current?.remoteName ?? this.defaultPushRemoteName(remoteNames);
+    const remoteDefault = remoteNames.includes(defaultRemote) ? defaultRemote : remoteNames[0];
+    showFormDialog(
+      l10n.dialogPullRequestTitle,
+      [
+        {
+          type: "select",
+          name: l10n.dialogPullRequestRemote,
+          default: remoteDefault,
+          options: remoteNames.map((remote) => ({ name: remote, value: remote }))
+        },
+        {
+          type: "text",
+          name: l10n.dialogPullRequestBaseBranch,
+          default: current?.baseBranch ?? "main",
+          placeholder: null
+        },
+        {
+          type: "text",
+          name: l10n.dialogPullRequestUrlTemplate,
+          default:
+            current?.urlTemplate ??
+            "https://{host}/{owner}/{repo}/compare/{baseBranch}...{sourceBranch}?expand=1",
+          placeholder: null
+        },
+        {
+          type: "checkbox",
+          name: l10n.dialogPullRequestPushBeforeCreate,
+          value: current?.pushBeforeCreate ?? true
+        }
+      ],
+      l10n.dialogPullRequestSubmit,
+      (values) => {
+        const remoteName = values[0];
+        const baseBranch = values[1].trim();
+        const urlTemplate = values[2].trim();
+        const validationError = this.validatePullRequestSettings(
+          remoteName,
+          baseBranch,
+          urlTemplate
+        );
+        if (validationError !== null) {
+          showErrorDialog(validationError, null, this.settingsWidgetElem);
+          return;
+        }
+
+        repoState.pullRequest = {
+          remoteName,
+          baseBranch,
+          urlTemplate,
+          pushBeforeCreate: values[3] === "checked"
+        };
+        this.saveCurrentRepoState(repoState);
+        this.renderSettingsWidget();
+        this.renderTable();
+        this.renderGraph();
+      },
+      this.settingsWidgetElem
+    );
+  }
+
+  private validatePullRequestSettings(remoteName: string, baseBranch: string, urlTemplate: string) {
+    if (remoteName === "" || baseBranch === "" || urlTemplate === "") {
+      return l10n.dialogPullRequestRequired;
+    }
+    try {
+      this.assertHttpUrl(this.previewPullRequestUrl(urlTemplate, "feature/topic", baseBranch));
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  private previewPullRequestUrl(urlTemplate: string, branchName: string, baseBranch: string) {
+    const replacements: Record<string, string> = {
+      base: baseBranch,
+      baseBranch,
+      branch: branchName,
+      host: "example.test",
+      owner: "owner",
+      remoteName: "origin",
+      remoteUrl: "https://example.test/owner/repo.git",
+      repo: "repo",
+      repository: "repo",
+      sourceBranch: branchName
+    };
+    return urlTemplate.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (match, key: string) =>
+      encodeURIComponent(replacements[key] ?? match)
+    );
+  }
+
+  private assertHttpUrl(value: string) {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new Error(l10n.dialogUrlMustBeHttp);
+    }
+  }
+
+  private removePullRequestSettings() {
+    const repoState = this.getCurrentRepoState();
+    if (repoState === null) return;
+
+    repoState.pullRequest = null;
+    this.saveCurrentRepoState(repoState);
+    this.renderSettingsWidget();
+    this.renderTable();
+    this.renderGraph();
+  }
+
+  private showExportRepoConfigDialog() {
+    showConfirmationDialog(
+      l10n.dialogExportRepoConfigConfirm,
+      () => {
+        sendMessage({ command: "exportRepoConfig", repo: this.currentRepo });
+        showActionRunningDialog(l10n.statusExportingRepoConfig);
+      },
+      this.settingsWidgetElem
+    );
+  }
+
+  private showImportRepoConfigDialog() {
+    showConfirmationDialog(
+      l10n.dialogImportRepoConfigConfirm,
+      () => {
+        sendMessage({ command: "importRepoConfig", repo: this.currentRepo });
+        showActionRunningDialog(l10n.statusImportingRepoConfig);
+      },
+      this.settingsWidgetElem
+    );
+  }
+
+  public replaceRepoState(repo: string, state: GG.GitRepoState) {
+    this.gitRepos[repo] = state;
+    this.syncRepoSettingsControls();
+    this.saveState();
+    this.renderSettingsWidget();
   }
 
   /* Renderers */
@@ -2339,7 +2601,7 @@ class GitGraphView {
         onClick: () => this.checkoutBranchAction(sourceElem, refName)
       });
     }
-    menu.push({
+    menu.push(...this.buildIssueContextMenuItems(refName, sourceElem), {
       title: l10n.renameBranch + ELLIPSIS,
       onClick: () => this.showRenameBranchDialog(refName)
     });
@@ -2371,6 +2633,10 @@ class GitGraphView {
         }
       );
     }
+    const pullRequestItem = this.buildCreatePullRequestMenuItem(refName, null, sourceElem);
+    if (pullRequestItem !== null) {
+      menu.push(null, pullRequestItem);
+    }
     return menu;
   }
   private buildRemoteBranchContextMenu(
@@ -2387,7 +2653,7 @@ class GitGraphView {
     if (remoteBranch === null) return menu;
 
     const { remote, branchName } = remoteBranch;
-    menu.push({
+    menu.push(...this.buildIssueContextMenuItems(refName, sourceElem), {
       title: l10n.deleteRemoteBranch + ELLIPSIS,
       onClick: () => this.showDeleteRemoteBranchDialog(remote, branchName, refName)
     });
@@ -2401,7 +2667,102 @@ class GitGraphView {
       title: l10n.pullBranch + ELLIPSIS,
       onClick: () => this.showPullBranchDialog(remote, branchName, refName)
     });
+    const pullRequestItem = this.buildCreatePullRequestMenuItem(branchName, remote, sourceElem);
+    if (pullRequestItem !== null) {
+      menu.push(null, pullRequestItem);
+    }
     return menu;
+  }
+  private buildIssueContextMenuItems(
+    refName: string,
+    sourceElem: HTMLElement
+  ): ContextMenuElement[] {
+    const issueLinks = extractIssueLinks(refName, this.getCurrentRepoState()?.issueLinking ?? null);
+    if (issueLinks.length === 0) return [];
+
+    return [
+      null,
+      {
+        title: issueLinks.length > 1 ? l10n.viewIssue + ELLIPSIS : l10n.viewIssue,
+        onClick: () => {
+          if (issueLinks.length === 1) {
+            sendMessage({ command: "openExternalUrl", url: issueLinks[0].url });
+            return;
+          }
+
+          showSelectDialog(
+            l10n.dialogViewIssueSelect,
+            "0",
+            issueLinks.map((link, index) => ({ name: link.displayText, value: String(index) })),
+            l10n.viewIssue,
+            (value) => {
+              const link = issueLinks[Number.parseInt(value, 10)];
+              if (link !== undefined) sendMessage({ command: "openExternalUrl", url: link.url });
+            },
+            sourceElem
+          );
+        }
+      }
+    ];
+  }
+  private buildCreatePullRequestMenuItem(
+    branchName: string,
+    remoteName: string | null,
+    sourceElem: HTMLElement
+  ): ContextMenuElement | null {
+    const repoState = this.getCurrentRepoState();
+    const config = repoState?.pullRequest ?? null;
+    if (config === null) return null;
+    const remote = this.getRemoteByName(remoteName ?? config.remoteName);
+    if (remote === null) return null;
+
+    return {
+      title: l10n.createPullRequest + ELLIPSIS,
+      onClick: () => {
+        showCheckboxDialog(
+          l10n.dialogCreatePullRequestConfirm.replace(
+            "{0}",
+            `<b><i>${escapeHtml(branchName)}</i></b>`
+          ),
+          l10n.dialogCreatePullRequestPush,
+          remoteName === null && config.pushBeforeCreate,
+          l10n.dialogCreatePullRequestSubmit,
+          (pushBeforeCreate) => {
+            this.sendCreatePullRequest(branchName, remote.name, pushBeforeCreate, sourceElem);
+          },
+          sourceElem
+        );
+      }
+    };
+  }
+  private sendCreatePullRequest(
+    branchName: string,
+    remoteName: string,
+    pushBeforeCreate: boolean,
+    sourceElem: HTMLElement
+  ) {
+    const repoState = this.getCurrentRepoState();
+    const config = repoState?.pullRequest ?? null;
+    const remote = this.getRemoteByName(remoteName);
+    if (config === null || remote === null) return;
+
+    const remoteUrl = this.firstRemoteUrl(remote.fetchUrls) || this.firstRemoteUrl(remote.pushUrls);
+    if (remoteUrl === "") {
+      showErrorDialog(l10n.dialogPullRequestRemoteUrlRequired, null, sourceElem);
+      return;
+    }
+
+    sendMessage({
+      command: "createPullRequest",
+      repo: this.currentRepo,
+      branchName,
+      remoteName: remote.name,
+      remoteUrl,
+      baseBranch: config.baseBranch,
+      urlTemplate: config.urlTemplate,
+      pushBeforeCreate
+    });
+    showActionRunningDialog(l10n.statusCreatingPullRequest);
   }
   private showDeleteTagDialog(refName: string) {
     showConfirmationDialog(
@@ -3326,7 +3687,8 @@ class GitGraphView {
         mode: this.config.commitDetailsFileViewMode
       },
       l10n,
-      sections: expandedCommit
+      sections: expandedCommit,
+      issueLinking: this.getCurrentRepoState()?.issueLinking ?? null
     });
     insertAfter(newElem, sourceElem);
     this.updateCommitDetailsResizeHandle();
@@ -3627,6 +3989,7 @@ const actionErrorLabels = {
   cherrypickCommit: l10n.unableToCherryPick,
   cleanUntrackedFiles: l10n.unableToCleanUntracked,
   createBranch: l10n.unableToCreateBranch,
+  createPullRequest: l10n.unableToCreatePullRequest,
   deleteBranch: l10n.unableToDeleteBranch,
   deleteRemote: l10n.unableToDeleteRemote,
   deleteRemoteBranch: l10n.unableToDeleteRemoteBranch,
@@ -3637,6 +4000,7 @@ const actionErrorLabels = {
   editHeadCommitMessage: l10n.unableToEditMessage,
   editRemote: l10n.unableToEditRemote,
   editUserDetails: l10n.unableToEditUserDetails,
+  exportRepoConfig: l10n.unableToExportRepoConfig,
   fetchIntoLocalBranch: l10n.unableToFetchBranch,
   fetchRemotes: l10n.unableToFetch,
   mergeBranch: l10n.unableToMergeBranch,
@@ -3657,6 +4021,12 @@ const actionErrorLabels = {
 } satisfies Partial<Record<GG.ResponseMessage["command"], string>>;
 
 function handleActionResponse(msg: GG.ResponseMessage) {
+  if (msg.command === "importRepoConfig") {
+    if (msg.status === null && msg.state !== null) gitGraph.replaceRepoState(msg.repo, msg.state);
+    refreshGraphOrDisplayError(msg.status, l10n.unableToImportRepoConfig);
+    return true;
+  }
+
   const errorLabel = actionErrorLabels[msg.command as keyof typeof actionErrorLabels];
   if (errorLabel === undefined || !("status" in msg)) return false;
   refreshGraphOrDisplayError(msg.status, errorLabel);
@@ -3664,93 +4034,100 @@ function handleActionResponse(msg: GG.ResponseMessage) {
 }
 
 /* Command Processing */
-window.addEventListener("message", (event) => {
+type ResponseHandlerMap = {
+  [Command in GG.ResponseMessage["command"]]?: (
+    msg: Extract<GG.ResponseMessage, { command: Command }>
+  ) => void;
+};
+
+const responseHandlers: ResponseHandlerMap = {
+  commitDetails: handleCommitDetailsResponse,
+  copyToClipboard: handleCopyToClipboardResponse,
+  fetchAvatar: (msg) => gitGraph.loadAvatar(msg.email, msg.image),
+  loadBranches: (msg) =>
+    gitGraph.loadBranches(
+      msg.requestId,
+      msg.branches,
+      msg.head,
+      msg.hard,
+      msg.isRepo,
+      formatQueryError(msg.error)
+    ),
+  loadCommits: (msg) =>
+    gitGraph.loadCommits(
+      msg.requestId,
+      msg.commits,
+      msg.head,
+      msg.moreCommitsAvailable,
+      msg.hard,
+      formatQueryError(msg.error)
+    ),
+  loadRepoInfo: (msg) =>
+    gitGraph.loadRepoInfo(msg.requestId, msg.repoInfo, formatQueryError(msg.error)),
+  loadRepos: (msg) => gitGraph.loadRepos(msg.repos, msg.lastActiveRepo),
+  openExternalUrl: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenExternalUrl),
+  openFile: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenFile),
+  openSourceControl: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenSourceControl),
+  refresh: () => gitGraph.refresh(false),
+  searchCommits: (msg) =>
+    gitGraph.loadSearchCommitResults(msg.requestId, msg.results, formatQueryError(msg.error)),
+  startHistorySearch: () => gitGraph.startHistorySearch(),
+  viewDiff: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewDiff)
+};
+
+window.addEventListener("message", handleMessageEvent);
+
+function handleMessageEvent(event: MessageEvent) {
   if (event.origin !== globalThis.location.origin) return;
+  handleResponseMessage(event.data as GG.ResponseMessage);
+}
 
-  const msg: GG.ResponseMessage = event.data;
+function handleResponseMessage(msg: GG.ResponseMessage) {
   if (handleActionResponse(msg)) return;
+  const handler = responseHandlers[msg.command] as ((msg: GG.ResponseMessage) => void) | undefined;
+  handler?.(msg);
+}
 
-  switch (msg.command) {
-    case "commitDetails":
-      if (msg.commitDetails === null) {
-        gitGraph.hideCommitDetails();
-        showErrorDialog(l10n.unableToLoadCommitDetails, formatQueryError(msg.error), null);
-      } else {
-        gitGraph.showCommitDetails(
-          msg.commitDetails,
-          generateGitFileTree(msg.commitDetails.fileChanges, {
-            compactFolders: viewState.commitDetailsCompactFolders
-          })
-        );
-      }
-      break;
-    case "copyToClipboard":
-      if (msg.success === false) {
-        const typeLabel: Record<string, string> = {
-          "Commit Hash": l10n.typeCommitHash,
-          "Commit Subject": l10n.typeCommitSubject,
-          "Tag Name": l10n.typeTagName,
-          "Branch Name": l10n.typeBranchName,
-          "Stash Name": l10n.typeStashName,
-          "Stash Hash": l10n.typeStashHash,
-          "File Path": l10n.typeFilePath
-        };
-        showErrorDialog(
-          l10n.unableToCopyToClipboard.replace("{0}", typeLabel[msg.type] ?? msg.type),
-          null,
-          null
-        );
-      }
-      break;
-    case "fetchAvatar":
-      gitGraph.loadAvatar(msg.email, msg.image);
-      break;
-    case "loadBranches":
-      gitGraph.loadBranches(
-        msg.requestId,
-        msg.branches,
-        msg.head,
-        msg.hard,
-        msg.isRepo,
-        formatQueryError(msg.error)
-      );
-      break;
-    case "loadCommits":
-      gitGraph.loadCommits(
-        msg.requestId,
-        msg.commits,
-        msg.head,
-        msg.moreCommitsAvailable,
-        msg.hard,
-        formatQueryError(msg.error)
-      );
-      break;
-    case "loadRepoInfo":
-      gitGraph.loadRepoInfo(msg.requestId, msg.repoInfo, formatQueryError(msg.error));
-      break;
-    case "loadRepos":
-      gitGraph.loadRepos(msg.repos, msg.lastActiveRepo);
-      break;
-    case "searchCommits":
-      gitGraph.loadSearchCommitResults(msg.requestId, msg.results, formatQueryError(msg.error));
-      break;
-    case "startHistorySearch":
-      gitGraph.startHistorySearch();
-      break;
-    case "refresh":
-      gitGraph.refresh(false);
-      break;
-    case "viewDiff":
-      if (msg.success === false) showErrorDialog(l10n.unableToViewDiff, null, null);
-      break;
-    case "openFile":
-      if (msg.success === false) showErrorDialog(l10n.unableToOpenFile, null, null);
-      break;
-    case "openSourceControl":
-      if (msg.success === false) showErrorDialog(l10n.unableToOpenSourceControl, null, null);
-      break;
+function handleCommitDetailsResponse(
+  msg: Extract<GG.ResponseMessage, { command: "commitDetails" }>
+) {
+  if (msg.commitDetails === null) {
+    gitGraph.hideCommitDetails();
+    showErrorDialog(l10n.unableToLoadCommitDetails, formatQueryError(msg.error), null);
+    return;
   }
-});
+
+  gitGraph.showCommitDetails(
+    msg.commitDetails,
+    generateGitFileTree(msg.commitDetails.fileChanges, {
+      compactFolders: viewState.commitDetailsCompactFolders
+    })
+  );
+}
+
+function handleCopyToClipboardResponse(
+  msg: Extract<GG.ResponseMessage, { command: "copyToClipboard" }>
+) {
+  if (msg.success !== false) return;
+  const typeLabel: Record<string, string> = {
+    "Commit Hash": l10n.typeCommitHash,
+    "Commit Subject": l10n.typeCommitSubject,
+    "Tag Name": l10n.typeTagName,
+    "Branch Name": l10n.typeBranchName,
+    "Stash Name": l10n.typeStashName,
+    "Stash Hash": l10n.typeStashHash,
+    "File Path": l10n.typeFilePath
+  };
+  showErrorDialog(
+    l10n.unableToCopyToClipboard.replace("{0}", typeLabel[msg.type] ?? msg.type),
+    null,
+    null
+  );
+}
+
+function handleSuccessFlagResponse(msg: { success: boolean }, errorMessage: string) {
+  if (msg.success === false) showErrorDialog(errorMessage, null, null);
+}
 function refreshGraphOrDisplayError(status: GitCommandStatus, errorMessage: string) {
   if (status === null) {
     gitGraph.refresh(true);

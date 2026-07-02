@@ -50,6 +50,7 @@ export const Uri = {
 
 export const executedCommands: unknown[][] = [];
 export const openedTextDocuments: Array<{ fsPath: string }> = [];
+export const openedExternalUris: Array<{ toString: () => string; value?: string }> = [];
 export const shownTextDocuments: Array<{
   document: { uri: { fsPath: string } };
   options: unknown;
@@ -63,6 +64,13 @@ export const createdTerminals: Array<{
 export const commands = {
   executeCommand: async (...args: unknown[]) => {
     executedCommands.push(args);
+  }
+};
+
+export const env = {
+  openExternal: async (uri: { toString: () => string; value?: string }) => {
+    openedExternalUris.push(uri);
+    return true;
   }
 };
 
@@ -98,6 +106,7 @@ export const window = {
 export function resetVscodeMock() {
   executedCommands.splice(0);
   openedTextDocuments.splice(0);
+  openedExternalUris.splice(0);
   shownTextDocuments.splice(0);
   createdTerminals.splice(0);
 }

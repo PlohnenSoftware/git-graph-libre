@@ -9,13 +9,26 @@ import type {
 
 export type GitRepoSet = { [repo: string]: GitRepoState };
 export type RepoBooleanOverride = "default" | "enabled" | "disabled";
+export type IssueLinkingConfig = {
+  pattern: string;
+  urlTemplate: string;
+};
+export type PullRequestCreationConfig = {
+  remoteName: string;
+  baseBranch: string;
+  urlTemplate: string;
+  pushBeforeCreate: boolean;
+};
 export type GitRepoState = {
   columnWidths: number[] | null;
   commitOrdering?: CommitOrdering;
   displayName?: string | null;
   hiddenRemotes?: string[];
   includeReflog?: RepoBooleanOverride;
+  issueLinking?: IssueLinkingConfig | null;
+  lastConfigImportAt?: number;
   onlyFollowFirstParent?: RepoBooleanOverride;
+  pullRequest?: PullRequestCreationConfig | null;
   showRemoteBranches?: RepoBooleanOverride;
   showStashes?: RepoBooleanOverride;
   showTags?: RepoBooleanOverride;
@@ -138,6 +151,26 @@ export type ResponseOpenSourceControl = {
   success: boolean;
 };
 
+export type RequestOpenExternalUrl = {
+  command: "openExternalUrl";
+  url: string;
+};
+export type ResponseOpenExternalUrl = {
+  command: "openExternalUrl";
+  success: boolean;
+};
+
+export type RequestImportRepoConfig = {
+  command: "importRepoConfig";
+  repo: string;
+};
+export type ResponseImportRepoConfig = {
+  command: "importRepoConfig";
+  repo: string;
+  status: string | null;
+  state: GitRepoState | null;
+};
+
 export type RequestWebviewDiagnostic = {
   command: "webviewDiagnostic";
   stage: string;
@@ -166,6 +199,8 @@ export type RequestMessage =
   | RequestViewDiff
   | RequestOpenFile
   | RequestOpenSourceControl
+  | RequestOpenExternalUrl
+  | RequestImportRepoConfig
   | RequestWebviewDiagnostic;
 
 export type ResponseMessage =
@@ -177,5 +212,7 @@ export type ResponseMessage =
   | ResponseViewDiff
   | ResponseOpenFile
   | ResponseOpenSourceControl
+  | ResponseOpenExternalUrl
+  | ResponseImportRepoConfig
   | ResponseRefresh
   | ResponseStartHistorySearch;

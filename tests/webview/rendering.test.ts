@@ -2090,6 +2090,96 @@ describe("webview rendering", () => {
     expect(findRow("abc123")?.classList.contains("mergeCommit")).toBe(false);
   });
 
+  it("configures issue linking and pull request creation from settings", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithRemote,
+      error: null
+    });
+
+    document
+      .getElementById("settingsBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const settingsWidget = document.getElementById("settingsWidget") as HTMLElement | null;
+    expect(settingsWidget?.textContent).toContain("Issue Linking");
+
+    document
+      .getElementById("settingsEditIssueLinking")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const issuePattern = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    const issueUrl = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    expect(issuePattern).not.toBeNull();
+    expect(issueUrl).not.toBeNull();
+    if (issuePattern === null || issueUrl === null) return;
+    issuePattern.value = "#(\\d+)";
+    issueUrl.value = "https://issues.example.test/$1";
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(latestSaveRepoStateRequest().state.issueLinking).toEqual({
+      pattern: "#(\\d+)",
+      urlTemplate: "https://issues.example.test/$1"
+    });
+
+    document
+      .getElementById("settingsEditPullRequest")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const baseBranch = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    const urlTemplate = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    expect(baseBranch).not.toBeNull();
+    expect(urlTemplate).not.toBeNull();
+    if (baseBranch === null || urlTemplate === null) return;
+    baseBranch.value = "main";
+    urlTemplate.value = "https://example.test/{sourceBranch}";
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(latestSaveRepoStateRequest().state.pullRequest).toMatchObject({
+      remoteName: "origin",
+      baseBranch: "main",
+      urlTemplate: "https://example.test/{sourceBranch}",
+      pushBeforeCreate: true
+    });
+
+    const issueBranchCommits: GitCommitNode[] = [
+      {
+        ...twoCommits[0],
+        refs: [
+          { hash: "abc123", name: "feature/#123", type: "head" },
+          { hash: "abc123", name: "origin/feature/#123", type: "remote" }
+        ]
+      },
+      twoCommits[1]
+    ];
+    receiveLoadedCommits(issueBranchCommits, "abc123");
+    const branchRef = gitRef("feature/#123", ".gitRef.head");
+    expect(branchRef).not.toBeUndefined();
+    branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("View Issue");
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "openExternalUrl",
+      url: "https://issues.example.test/123"
+    });
+
+    branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Create Pull Request");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "createPullRequest",
+      repo: REPO,
+      branchName: "feature/#123",
+      remoteName: "origin",
+      remoteUrl: "https://example.test/repo.git",
+      baseBranch: "main",
+      urlTemplate: "https://example.test/{sourceBranch}",
+      pushBeforeCreate: true
+    });
+  });
+
   it("shows a graph error state when commit loading fails", () => {
     document
       .getElementById("refreshBtn")

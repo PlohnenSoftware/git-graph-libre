@@ -16,6 +16,14 @@ type ActionPayloads = {
   cherrypickCommit: { commitHash: string; parentIndex: number };
   cleanUntrackedFiles: { includeDirectories: boolean };
   createBranch: { commitHash: string; branchName: string };
+  createPullRequest: {
+    branchName: string;
+    remoteName: string;
+    remoteUrl: string;
+    baseBranch: string;
+    urlTemplate: string;
+    pushBeforeCreate: boolean;
+  };
   deleteBranch: { branchName: string; forceDelete: boolean; deleteOnRemotes?: string[] };
   deleteRemote: { name: string };
   deleteRemoteBranch: { branchName: string; remote: string };
@@ -43,6 +51,7 @@ type ActionPayloads = {
     clearLocalName: boolean;
     clearLocalEmail: boolean;
   };
+  exportRepoConfig: unknown;
   mergeBranch: { branchName: string; createNewCommit: boolean; squash: boolean; noCommit: boolean };
   mergeCommit: { commitHash: string; createNewCommit: boolean; squash: boolean; noCommit: boolean };
   popStash: { selector: string; reinstateIndex: boolean };

@@ -4,6 +4,7 @@ import { makeRepo } from "@tests/backend/helpers";
 import {
   createdTerminals,
   executedCommands,
+  openedExternalUris,
   openedTextDocuments,
   resetVscodeMock,
   shownTextDocuments
@@ -18,7 +19,7 @@ import type { RepoManager } from "@/extension/repoManager";
 import type { WebviewBridge } from "@/extension/webviewBridge";
 import type { ExtensionState } from "@/extensionState";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
-import type { RequestMessage, ResponseMessage } from "@/types";
+import type { GitRepoState, RequestMessage, ResponseMessage } from "@/types";
 
 let repo: string;
 
@@ -55,6 +56,19 @@ describe("registerMessageHandlers", () => {
       setGitPath: vi.fn()
     } as unknown as GitClient;
 
+    const repoStates = new Map<string, GitRepoState>([[repo, { columnWidths: null }]]);
+    const repoManager = {
+      getRepos: () => Object.fromEntries(repoStates),
+      setRepoState: (repoPath: string, state: unknown) => {
+        repoStates.set(repoPath, state as { columnWidths: null });
+      }
+    } as unknown as RepoManager;
+    const repoFileWatcher = {
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      start: vi.fn()
+    } as unknown as RepoFileWatcher;
+
     registerMessageHandlers(bridge, {
       config: {
         dateType: () => "Author Date",
@@ -63,16 +77,16 @@ describe("registerMessageHandlers", () => {
         gitPath: () => "git"
       } as unknown as Config,
       gitClient,
-      repoManager: {} as RepoManager,
+      repoManager,
       extensionState: {} as ExtensionState,
       avatarManager: { fetchAvatarImage: vi.fn() } as unknown as AvatarManager,
-      repoFileWatcher: { start: vi.fn() } as unknown as RepoFileWatcher,
+      repoFileWatcher,
       outputChannel: {
         appendLine: (line: string) => outputLines.push(line)
       }
     });
 
-    return { handlers, posts, outputLines };
+    return { handlers, posts, outputLines, repoStates, repoFileWatcher };
   }
 
   it("echoes request ids when loading repository info", async () => {
@@ -211,6 +225,89 @@ describe("registerMessageHandlers", () => {
       success: true
     });
     expect(executedCommands[executedCommands.length - 1]?.[0]).toBe("workbench.view.scm");
+  });
+
+  it("opens safe external URLs and rejects unsafe schemes", async () => {
+    resetVscodeMock();
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("openExternalUrl");
+
+    expect(handler).toBeDefined();
+    await handler?.({ command: "openExternalUrl", url: "https://example.test/pull/1" });
+    await handler?.({ command: "openExternalUrl", url: "javascript:alert(1)" });
+
+    expect(posts.at(-2)).toEqual({ command: "openExternalUrl", success: true });
+    expect(posts.at(-1)).toEqual({ command: "openExternalUrl", success: false });
+    expect(openedExternalUris.map((uri) => uri.toString())).toEqual([
+      "https://example.test/pull/1"
+    ]);
+  });
+
+  it("exports and imports repository configuration files", async () => {
+    const { handlers, posts, repoStates, repoFileWatcher } = registerHandlersForTest();
+    repoStates.set(repo, {
+      columnWidths: null,
+      displayName: "Test Repo",
+      issueLinking: { pattern: "#(\\d+)", urlTemplate: "https://issues.test/$1" }
+    });
+
+    const exportHandler = handlers.get("exportRepoConfig");
+    expect(exportHandler).toBeDefined();
+    await exportHandler?.({ command: "exportRepoConfig", repo });
+
+    expect(posts.at(-1)).toEqual({ command: "exportRepoConfig", status: null });
+    expect(repoFileWatcher.mute).toHaveBeenCalled();
+    expect(repoFileWatcher.unmute).toHaveBeenCalled();
+    const configPath = path.join(repo, ".vscode", "git-graph-libre.json");
+    expect(fs.existsSync(configPath)).toBe(true);
+
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        version: 1,
+        repoState: {
+          displayName: "Imported Repo",
+          showTags: "disabled"
+        }
+      })
+    );
+
+    const importHandler = handlers.get("importRepoConfig");
+    expect(importHandler).toBeDefined();
+    await importHandler?.({ command: "importRepoConfig", repo });
+
+    expect(posts.at(-1)).toMatchObject({
+      command: "importRepoConfig",
+      repo,
+      status: null,
+      state: {
+        displayName: "Imported Repo",
+        showTags: "disabled"
+      }
+    });
+  });
+
+  it("opens generated pull request URLs from the create pull request action", async () => {
+    resetVscodeMock();
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("createPullRequest");
+
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "createPullRequest",
+      repo,
+      branchName: "feature/demo",
+      remoteName: "origin",
+      remoteUrl: "https://github.com/owner/repo.git",
+      baseBranch: "main",
+      urlTemplate: "https://{host}/{owner}/{repo}/compare/{baseBranch}...{sourceBranch}",
+      pushBeforeCreate: false
+    });
+
+    expect(posts.at(-1)).toEqual({ command: "createPullRequest", status: null });
+    expect(openedExternalUris.map((uri) => uri.toString())).toEqual([
+      "https://github.com/owner/repo/compare/main...feature%2Fdemo"
+    ]);
   });
 
   it("opens an interactive rebase terminal from the rebase action", async () => {
