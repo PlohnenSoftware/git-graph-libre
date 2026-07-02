@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
 
-import { ExtensionContext, Memento } from "vscode";
+import type { ExtensionContext, Memento } from "vscode";
 
 import { getPathFromStr } from "./backend/utils/path";
-import { Avatar, AvatarCache, GitRepoSet } from "./types";
+import type { Avatar, AvatarCache, GitRepoSet } from "./types";
 
 const AVATAR_STORAGE_FOLDER = "/avatars";
 const AVATAR_CACHE = "avatarCache";
@@ -11,9 +11,9 @@ const LAST_ACTIVE_REPO = "lastActiveRepo";
 const REPO_STATES = "repoStates";
 
 export class ExtensionState {
-  private globalState: Memento;
-  private workspaceState: Memento;
-  private globalStoragePath: string;
+  private readonly globalState: Memento;
+  private readonly workspaceState: Memento;
+  private readonly globalStoragePath: string;
   private avatarStorageAvailable: boolean = false;
 
   constructor(context: ExtensionContext) {
@@ -61,12 +61,12 @@ export class ExtensionState {
     return this.globalState.get<AvatarCache>(AVATAR_CACHE, {});
   }
   public saveAvatar(email: string, avatar: Avatar) {
-    let avatars = this.getAvatarCache();
+    const avatars = this.getAvatarCache();
     avatars[email] = avatar;
     this.globalState.update(AVATAR_CACHE, avatars);
   }
   public removeAvatarFromCache(email: string) {
-    let avatars = this.getAvatarCache();
+    const avatars = this.getAvatarCache();
     delete avatars[email];
     this.globalState.update(AVATAR_CACHE, avatars);
   }
@@ -75,7 +75,7 @@ export class ExtensionState {
     fs.readdir(this.globalStoragePath + AVATAR_STORAGE_FOLDER, (err, files) => {
       if (err) return;
       for (let i = 0; i < files.length; i++) {
-        fs.unlink(this.globalStoragePath + AVATAR_STORAGE_FOLDER + "/" + files[i], () => {});
+        fs.unlink(`${this.globalStoragePath + AVATAR_STORAGE_FOLDER}/${files[i]}`, () => {});
       }
     });
   }

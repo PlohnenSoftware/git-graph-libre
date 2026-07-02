@@ -32,15 +32,22 @@ function extractPlaceholders(text) {
     return [];
   }
 
-  // Match {0}, {1}, {variableName}, etc.
-  const placeholders = text.match(/\{[^}]+\}/g);
+  const placeholders = [];
+  let searchFrom = 0;
+  while (searchFrom < text.length) {
+    const start = text.indexOf("{", searchFrom);
+    if (start === -1) break;
 
-  if (!placeholders) {
-    return [];
+    const end = text.indexOf("}", start + 1);
+    if (end === -1) break;
+    if (end > start + 1) {
+      placeholders.push(text.slice(start, end + 1));
+    }
+    searchFrom = end + 1;
   }
 
   // Return sorted array for consistent comparison
-  return placeholders.toSorted();
+  return placeholders.toSorted((a, b) => a.localeCompare(b));
 }
 
 /**
@@ -77,21 +84,10 @@ function checkFileSet(baseDir, baseFileName, filePattern, sectionTitle) {
   console.log(`\n${sectionTitle}`);
   console.log(`📚 Base file (${baseFileName}): ${baseKeys.length} keys\n`);
 
-  // Get all translation files
-  let files;
-  if (baseDir === ROOT_DIR) {
-    // For package.nls files, look in root directory
-    files = fs
-      .readdirSync(baseDir)
-      .filter((file) => file.startsWith(filePattern) && file !== baseFileName)
-      .toSorted();
-  } else {
-    // For bundle.l10n files, look in l10n directory
-    files = fs
-      .readdirSync(baseDir)
-      .filter((file) => file.startsWith(filePattern) && file !== baseFileName)
-      .toSorted();
-  }
+  const files = fs
+    .readdirSync(baseDir)
+    .filter((file) => file.startsWith(filePattern) && file !== baseFileName)
+    .toSorted((a, b) => a.localeCompare(b));
 
   if (files.length === 0) {
     console.log("✅ No additional translation files found\n");
@@ -126,7 +122,7 @@ function checkFileSet(baseDir, baseFileName, filePattern, sectionTitle) {
       baseKeys.length > 0 ? (((keys.length - extra.length) / baseKeys.length) * 100).toFixed(1) : 0;
     coverageStats.push({
       locale,
-      coverage: parseFloat(coverage),
+      coverage: Number.parseFloat(coverage),
       total: baseKeys.length,
       translated: keys.length - extra.length
     });
@@ -144,7 +140,9 @@ function checkFileSet(baseDir, baseFileName, filePattern, sectionTitle) {
     if (extra.length > 0) {
       hasIssues = true;
       console.log(`  ⚠️  Extra ${extra.length} key(s) not in base:`);
-      extra.forEach((k) => console.log(`     - ${k}`));
+      extra.forEach((k) => {
+        console.log(`     - ${k}`);
+      });
     }
 
     // Check parameter consistency
@@ -208,12 +206,11 @@ function printCoverageSummary(allStats) {
   });
 
   Object.keys(localeMap)
-    .toSorted()
+    .toSorted((a, b) => a.localeCompare(b))
     .forEach((locale) => {
-      const bundleCov =
-        localeMap[locale]["bundle"] !== undefined ? `${localeMap[locale]["bundle"]}%` : "N/A";
-      const packageCov =
-        localeMap[locale]["package"] !== undefined ? `${localeMap[locale]["package"]}%` : "N/A";
+      const localeStats = localeMap[locale];
+      const bundleCov = formatCoverage(localeStats.bundle);
+      const packageCov = formatCoverage(localeStats.package);
 
       console.log(
         `│ ${locale.padEnd(12)} │ ${bundleCov.padStart(16)} │ ${packageCov.padStart(16)} │`
@@ -221,6 +218,11 @@ function printCoverageSummary(allStats) {
     });
 
   console.log("└──────────────┴──────────────────┴──────────────────┘\n");
+}
+
+function formatCoverage(coverage) {
+  if (coverage === undefined) return "N/A";
+  return `${coverage}%`;
 }
 
 function checkTranslations() {

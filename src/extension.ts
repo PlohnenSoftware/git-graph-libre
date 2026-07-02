@@ -119,5 +119,3 @@ export function activate(context: vscode.ExtensionContext) {
 
   outputChannel.appendLine("Extension activated successfully");
 }
-
-export function deactivate() {}

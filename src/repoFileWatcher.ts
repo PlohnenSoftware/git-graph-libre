@@ -2,8 +2,14 @@ import * as vscode from "vscode";
 
 import { getPathFromStr, getPathFromUri } from "./backend/utils/path";
 
-const gitFileChangeRegex =
-  /^\.git\/(config|index|HEAD|packed-refs|refs\/stash|refs\/heads\/.*|refs\/remotes\/.*|refs\/tags\/.*)$/;
+const watchedGitFiles = new Set([
+  ".git/config",
+  ".git/index",
+  ".git/HEAD",
+  ".git/packed-refs",
+  ".git/refs/stash"
+]);
+const watchedGitRefPrefixes = [".git/refs/heads/", ".git/refs/remotes/", ".git/refs/tags/"];
 
 type WatcherKind = "repo" | "git";
 
@@ -14,13 +20,28 @@ function createRelativePattern(base: string, pattern: string): vscode.GlobPatter
   return new vscode.RelativePattern(base, pattern);
 }
 
+function trimTrailingSlashes(path: string) {
+  let end = path.length;
+  while (end > 1 && path[end - 1] === "/") {
+    end--;
+  }
+  return end === path.length ? path : path.slice(0, end);
+}
+
 function normalizeRepoPath(repo: string) {
   const normalized = getPathFromStr(repo);
-  return normalized.length > 1 ? normalized.replace(/\/+$/, "") : normalized;
+  return trimTrailingSlashes(normalized);
 }
 
 function shouldRefreshRepoPath(relativePath: string) {
   return relativePath !== ".git" && !relativePath.startsWith(".git/");
+}
+
+function shouldRefreshGitPath(relativePath: string) {
+  return (
+    watchedGitFiles.has(relativePath) ||
+    watchedGitRefPrefixes.some((prefix) => relativePath.startsWith(prefix))
+  );
 }
 
 export class RepoFileWatcher {
@@ -107,7 +128,7 @@ export class RepoFileWatcher {
     const relativePath = this.relativePath(uri);
     if (relativePath === null) return;
     if (kind === "repo" && !shouldRefreshRepoPath(relativePath)) return;
-    if (kind === "git" && !gitFileChangeRegex.test(relativePath)) return;
+    if (kind === "git" && !shouldRefreshGitPath(relativePath)) return;
     if (Date.now() < this.resumeAt) return;
 
     if (this.refreshTimeout !== null) {

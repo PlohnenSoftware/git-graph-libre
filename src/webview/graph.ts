@@ -11,7 +11,7 @@ interface UnavailablePoint {
 type VertexOrNull = Vertex | null;
 
 class Branch {
-  private lines: Line[] = [];
+  private readonly lines: Line[] = [];
   private readonly color: number;
   private end: number = 0;
   private numUncommitted: number = 0;
@@ -39,122 +39,150 @@ class Branch {
   }
   public draw(svg: SVGElement, config: Config, expandAt: number) {
     const color = config.graphColors[this.color % config.graphColors.length];
-    const lines: PlacedLine[] = [];
+    const lines = this.getPlacedLines(config, expandAt);
+    this.simplifyStraightLines(lines);
+
     let curPath = "";
     let curColor = "";
     const d = config.grid.y * (config.graphStyle === "angular" ? 0.38 : 0.8);
 
-    // Convert branch lines into pixel coordinates, respecting expanded commit extensions
-    for (let i = 0; i < this.lines.length; i++) {
-      const x1 = this.lines[i].p1.x * config.grid.x + config.grid.offsetX;
-      let y1 = this.lines[i].p1.y * config.grid.y + config.grid.offsetY;
-      const x2 = this.lines[i].p2.x * config.grid.x + config.grid.offsetX;
-      let y2 = this.lines[i].p2.y * config.grid.y + config.grid.offsetY;
-
-      // If a commit is expanded, we needd to stretch the graph for the height of the commit details view
-      if (expandAt > -1) {
-        if (this.lines[i].p1.y > expandAt) {
-          // If the line starts after the expansion, move the whole line lower
-          y1 += config.grid.expandY;
-          y2 += config.grid.expandY;
-        } else if (this.lines[i].p2.y > expandAt) {
-          // If the line crosses the expansion
-          if (x1 === x2) {
-            // The line is vertical, extend the endpoint past the expansion
-            y2 += config.grid.expandY;
-          } else if (this.lines[i].lockedFirst) {
-            // If the line is locked to the first point, the transition stays in its normal position
-            lines.push({
-              p1: { x: x1, y: y1 },
-              p2: { x: x2, y: y2 },
-              isCommitted: i >= this.numUncommitted,
-              lockedFirst: this.lines[i].lockedFirst
-            }); // Display the normal transition
-            lines.push({
-              p1: { x: x2, y: y1 + config.grid.y },
-              p2: { x: x2, y: y2 + config.grid.expandY },
-              isCommitted: i >= this.numUncommitted,
-              lockedFirst: this.lines[i].lockedFirst
-            }); // Extend the line over the expansion from the transition end point
-            continue;
-          } else {
-            // If the line is locked to the second point, the transition moves to after the expansion
-            lines.push({
-              p1: { x: x1, y: y1 },
-              p2: { x: x1, y: y2 - config.grid.y + config.grid.expandY },
-              isCommitted: i >= this.numUncommitted,
-              lockedFirst: this.lines[i].lockedFirst
-            }); // Extend the line over the expansion to the new transition start point
-            y1 += config.grid.expandY;
-            y2 += config.grid.expandY;
-          }
-        }
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (curPath !== "" && i > 0 && line.isCommitted !== lines[i - 1].isCommitted) {
+        this.drawPath(svg, curPath, curColor);
+        curPath = "";
+        curColor = "";
       }
-      lines.push({
-        p1: { x: x1, y: y1 },
-        p2: { x: x2, y: y2 },
-        isCommitted: i >= this.numUncommitted,
-        lockedFirst: this.lines[i].lockedFirst
-      });
+
+      curPath = this.startPathIfNeeded(curPath, line, lines[i - 1]);
+      if (curColor === "") curColor = line.isCommitted ? color : MUTED_GRAPH_COLOR;
+      curPath = this.appendLineToPath(curPath, line, d, config.graphStyle);
     }
 
-    // Simplify consecutive lines that are straight by removing the 'middle' point
+    this.drawPath(svg, curPath, curColor); // Draw the remaining path
+  }
+  private getPlacedLines(config: Config, expandAt: number) {
+    const lines: PlacedLine[] = [];
+    for (let i = 0; i < this.lines.length; i++) {
+      lines.push(...this.getPlacedLineSegments(this.lines[i], i, config, expandAt));
+    }
+    return lines;
+  }
+  private getPlacedLineSegments(line: Line, index: number, config: Config, expandAt: number) {
+    const x1 = line.p1.x * config.grid.x + config.grid.offsetX;
+    const y1 = line.p1.y * config.grid.y + config.grid.offsetY;
+    const x2 = line.p2.x * config.grid.x + config.grid.offsetX;
+    const y2 = line.p2.y * config.grid.y + config.grid.offsetY;
+    const isCommitted = index >= this.numUncommitted;
+
+    if (expandAt <= -1) return [this.toPlacedLine(x1, y1, x2, y2, isCommitted, line.lockedFirst)];
+    if (line.p1.y > expandAt) {
+      return [
+        this.toPlacedLine(
+          x1,
+          y1 + config.grid.expandY,
+          x2,
+          y2 + config.grid.expandY,
+          isCommitted,
+          line.lockedFirst
+        )
+      ];
+    }
+    if (line.p2.y <= expandAt) {
+      return [this.toPlacedLine(x1, y1, x2, y2, isCommitted, line.lockedFirst)];
+    }
+    if (x1 === x2) {
+      return [
+        this.toPlacedLine(x1, y1, x2, y2 + config.grid.expandY, isCommitted, line.lockedFirst)
+      ];
+    }
+    if (line.lockedFirst) {
+      return [
+        this.toPlacedLine(x1, y1, x2, y2, isCommitted, line.lockedFirst),
+        this.toPlacedLine(
+          x2,
+          y1 + config.grid.y,
+          x2,
+          y2 + config.grid.expandY,
+          isCommitted,
+          line.lockedFirst
+        )
+      ];
+    }
+
+    const expandedY1 = y1 + config.grid.expandY;
+    const expandedY2 = y2 + config.grid.expandY;
+    return [
+      this.toPlacedLine(
+        x1,
+        y1,
+        x1,
+        y2 - config.grid.y + config.grid.expandY,
+        isCommitted,
+        line.lockedFirst
+      ),
+      this.toPlacedLine(x1, expandedY1, x2, expandedY2, isCommitted, line.lockedFirst)
+    ];
+  }
+  private toPlacedLine(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    isCommitted: boolean,
+    lockedFirst: boolean
+  ): PlacedLine {
+    return {
+      p1: { x: x1, y: y1 },
+      p2: { x: x2, y: y2 },
+      isCommitted,
+      lockedFirst
+    };
+  }
+  private simplifyStraightLines(lines: PlacedLine[]) {
     let i = 0;
     while (i < lines.length - 1) {
-      if (
-        lines[i].p1.x === lines[i].p2.x &&
-        lines[i].p2.x === lines[i + 1].p1.x &&
-        lines[i + 1].p1.x === lines[i + 1].p2.x &&
-        lines[i].p2.y === lines[i + 1].p1.y &&
-        lines[i].isCommitted === lines[i + 1].isCommitted
-      ) {
+      if (this.canMergeStraightLine(lines[i], lines[i + 1])) {
         lines[i].p2.y = lines[i + 1].p2.y;
         lines.splice(i + 1, 1);
       } else {
         i++;
       }
     }
-
-    // Iterate through all lines, producing and adding the svg paths to the DOM
-    for (i = 0; i < lines.length; i++) {
-      const x1 = lines[i].p1.x;
-      const y1 = lines[i].p1.y;
-      const x2 = lines[i].p2.x;
-      const y2 = lines[i].p2.y;
-
-      // If the new point belongs to a different path, render the current path and reset it for the new path
-      if (curPath !== "" && i > 0 && lines[i].isCommitted !== lines[i - 1].isCommitted) {
-        this.drawPath(svg, curPath, curColor);
-        curPath = "";
-        curColor = "";
-      }
-
-      // If the path hasn't been started or the new point belongs to a different path, move to p1
-      if (curPath === "" || (i > 0 && (x1 !== lines[i - 1].p2.x || y1 !== lines[i - 1].p2.y)))
-        curPath += `M${x1.toFixed(0)},${y1.toFixed(1)}`;
-
-      // If the path hasn't been assigned a color, assign it
-      if (curColor === "") curColor = lines[i].isCommitted ? color : MUTED_GRAPH_COLOR;
-
-      if (x1 === x2) {
-        // If the path is vertical, draw a straight line
-        curPath += `L${x2.toFixed(0)},${y2.toFixed(1)}`;
-      } else {
-        // If the path moves horizontal, draw the appropriate transition
-        if (config.graphStyle === "angular") {
-          const transition = lines[i].lockedFirst
-            ? `${x2.toFixed(0)},${(y2 - d).toFixed(1)}`
-            : `${x1.toFixed(0)},${(y1 + d).toFixed(1)}`;
-          curPath += `L${transition}L${x2.toFixed(0)},${y2.toFixed(1)}`;
-        } else {
-          curPath += `C${x1.toFixed(0)},${(y1 + d).toFixed(1)} ${x2.toFixed(0)},${(y2 - d).toFixed(
-            1
-          )} ${x2.toFixed(0)},${y2.toFixed(1)}`;
-        }
-      }
+  }
+  private canMergeStraightLine(first: PlacedLine, second: PlacedLine) {
+    return (
+      first.p1.x === first.p2.x &&
+      first.p2.x === second.p1.x &&
+      second.p1.x === second.p2.x &&
+      first.p2.y === second.p1.y &&
+      first.isCommitted === second.isCommitted
+    );
+  }
+  private startPathIfNeeded(path: string, line: PlacedLine, previousLine: PlacedLine | undefined) {
+    if (path !== "" && line.p1.x === previousLine?.p2.x && line.p1.y === previousLine.p2.y) {
+      return path;
     }
+    return `${path}M${line.p1.x.toFixed(0)},${line.p1.y.toFixed(1)}`;
+  }
+  private appendLineToPath(path: string, line: PlacedLine, d: number, graphStyle: string) {
+    const x1 = line.p1.x;
+    const y1 = line.p1.y;
+    const x2 = line.p2.x;
+    const y2 = line.p2.y;
 
-    this.drawPath(svg, curPath, curColor); // Draw the remaining path
+    if (x1 === x2) {
+      return `${path}L${x2.toFixed(0)},${y2.toFixed(1)}`;
+    }
+    if (graphStyle === "angular") {
+      const transition = line.lockedFirst
+        ? `${x2.toFixed(0)},${(y2 - d).toFixed(1)}`
+        : `${x1.toFixed(0)},${(y1 + d).toFixed(1)}`;
+      return `${path}L${transition}L${x2.toFixed(0)},${y2.toFixed(1)}`;
+    }
+    return `${path}C${x1.toFixed(0)},${(y1 + d).toFixed(1)} ${x2.toFixed(0)},${(y2 - d).toFixed(
+      1
+    )} ${x2.toFixed(0)},${y2.toFixed(1)}`;
   }
   private drawPath(svg: SVGElement, path: string, color: string) {
     const line1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -171,8 +199,8 @@ class Branch {
 
 class Vertex {
   private x: number = 0;
-  private y: number;
-  private parents: Vertex[] = [];
+  private readonly y: number;
+  private readonly parents: Vertex[] = [];
   private nextParent: number = 0;
   private onBranch: Branch | null = null;
   private isCommitted: boolean = true;
@@ -283,13 +311,13 @@ class Vertex {
 }
 
 export class Graph {
-  private config: Config;
+  private readonly config: Config;
 
-  private svg: SVGElement;
+  private readonly svg: SVGElement;
   private svgGroup: SVGGElement | null = null;
-  private svgMaskRect: SVGRectElement;
-  private svgGradientStop1: SVGStopElement;
-  private svgGradientStop2: SVGStopElement;
+  private readonly svgMaskRect: SVGRectElement;
+  private readonly svgGradientStop1: SVGStopElement;
+  private readonly svgGradientStop2: SVGStopElement;
   private maxWidth: number = -1;
 
   private vertices: Vertex[] = [];
@@ -375,7 +403,7 @@ export class Graph {
       vertex.draw(group, this.config, expandedCommit !== null && i > expandedCommit.id);
     }
 
-    if (this.svgGroup !== null) this.svg.removeChild(this.svgGroup);
+    if (this.svgGroup !== null) this.svgGroup.remove();
     this.svg.appendChild(group);
     this.svgGroup = group;
     this.setDimensions(width, this.getHeight(expandedCommit));
@@ -384,7 +412,7 @@ export class Graph {
 
   public clear() {
     if (this.svgGroup !== null) {
-      this.svg.removeChild(this.svgGroup);
+      this.svgGroup.remove();
       this.svgGroup = null;
       this.setDimensions(0, 0);
     }
@@ -432,73 +460,107 @@ export class Graph {
   }
 
   private determinePath(startAt: number) {
-    let i = startAt;
-    let vertex = this.vertices[i],
-      parentVertex = this.vertices[i].getNextParent();
-    let lastPoint = vertex.isNotOnBranch() ? vertex.getNextPoint() : vertex.getPoint();
-    let curPoint: Point;
+    const vertex = this.vertices[startAt];
+    const parentVertex = vertex.getNextParent();
+    if (this.isMergeBetweenExistingBranches(vertex, parentVertex)) {
+      this.determineMergePath(startAt, vertex, parentVertex);
+      return;
+    }
 
-    if (
+    this.determineNormalPath(startAt, vertex, parentVertex);
+  }
+
+  private isMergeBetweenExistingBranches(
+    vertex: Vertex,
+    parentVertex: Vertex | null
+  ): parentVertex is Vertex {
+    return (
       parentVertex !== null &&
       vertex.isMerge() &&
       !vertex.isNotOnBranch() &&
       !parentVertex.isNotOnBranch()
-    ) {
-      // Branch is a merge between two vertices already on branches
-      let foundPointToParent = false;
-      const parentBranch = parentVertex.getBranch();
-      if (parentBranch === null) {
-        throw new Error("Expected merge parent to be on a branch");
-      }
-      for (i = startAt + 1; i < this.vertices.length; i++) {
-        const pointToParent = this.vertices[i].getPointConnectingTo(parentVertex, parentBranch); // Check if there is already a point connecting the ith vertex to the required parent
-        if (pointToParent === null) {
-          curPoint = this.vertices[i].getNextPoint(); // Parent couldn't be found, choose the next avaialble point for the vertex
-        } else {
-          curPoint = pointToParent;
-          foundPointToParent = true; // Parent was found
-        }
-        parentBranch.addLine(
-          lastPoint,
-          curPoint,
-          vertex.getIsCommitted(),
-          !foundPointToParent && this.vertices[i] !== parentVertex ? lastPoint.x < curPoint.x : true
-        );
-        this.vertices[i].registerUnavailablePoint(curPoint.x, parentVertex, parentBranch);
-        lastPoint = curPoint;
+    );
+  }
 
-        if (foundPointToParent) {
-          vertex.registerParentProcessed();
-          break;
-        }
-      }
-    } else {
-      // Branch is normal
-      const branch = new Branch(this.getAvailableColor(startAt));
-      vertex.addToBranch(branch, lastPoint.x);
-      vertex.registerUnavailablePoint(lastPoint.x, vertex, branch);
-      for (i = startAt + 1; i < this.vertices.length; i++) {
-        curPoint =
-          parentVertex === this.vertices[i] && !parentVertex.isNotOnBranch()
-            ? this.vertices[i].getPoint()
-            : this.vertices[i].getNextPoint();
-        branch.addLine(lastPoint, curPoint, vertex.getIsCommitted(), lastPoint.x < curPoint.x);
-        this.vertices[i].registerUnavailablePoint(curPoint.x, parentVertex, branch);
-        lastPoint = curPoint;
-
-        if (parentVertex === this.vertices[i]) {
-          vertex.registerParentProcessed();
-          const parentVertexOnBranch = !parentVertex.isNotOnBranch();
-          parentVertex.addToBranch(branch, curPoint.x);
-          vertex = parentVertex;
-          parentVertex = vertex.getNextParent();
-          if (parentVertexOnBranch) break;
-        }
-      }
-      branch.setEnd(i);
-      this.branches.push(branch);
-      this.availableColors[branch.getColor()] = i;
+  private determineMergePath(startAt: number, vertex: Vertex, parentVertex: Vertex) {
+    const parentBranch = parentVertex.getBranch();
+    if (parentBranch === null) {
+      throw new Error("Expected merge parent to be on a branch");
     }
+
+    let lastPoint = vertex.isNotOnBranch() ? vertex.getNextPoint() : vertex.getPoint();
+    let foundPointToParent = false;
+    for (let i = startAt + 1; i < this.vertices.length; i++) {
+      const curVertex = this.vertices[i];
+      const pointToParent = curVertex.getPointConnectingTo(parentVertex, parentBranch);
+      const curPoint = pointToParent ?? curVertex.getNextPoint();
+      foundPointToParent = foundPointToParent || pointToParent !== null;
+      parentBranch.addLine(
+        lastPoint,
+        curPoint,
+        vertex.getIsCommitted(),
+        this.shouldLockMergeLine(foundPointToParent, curVertex, parentVertex, lastPoint, curPoint)
+      );
+      curVertex.registerUnavailablePoint(curPoint.x, parentVertex, parentBranch);
+      lastPoint = curPoint;
+
+      if (foundPointToParent) {
+        vertex.registerParentProcessed();
+        break;
+      }
+    }
+  }
+
+  private shouldLockMergeLine(
+    foundPointToParent: boolean,
+    curVertex: Vertex,
+    parentVertex: Vertex,
+    lastPoint: Point,
+    curPoint: Point
+  ) {
+    return !foundPointToParent && curVertex !== parentVertex ? lastPoint.x < curPoint.x : true;
+  }
+
+  private determineNormalPath(
+    startAt: number,
+    startVertex: Vertex,
+    initialParentVertex: Vertex | null
+  ) {
+    let vertex = startVertex;
+    let parentVertex = initialParentVertex;
+    let lastPoint = vertex.isNotOnBranch() ? vertex.getNextPoint() : vertex.getPoint();
+    const branch = new Branch(this.getAvailableColor(startAt));
+    vertex.addToBranch(branch, lastPoint.x);
+    vertex.registerUnavailablePoint(lastPoint.x, vertex, branch);
+
+    let i = startAt + 1;
+    for (; i < this.vertices.length; i++) {
+      const curVertex = this.vertices[i];
+      const curPoint = this.getNormalPathPoint(parentVertex, curVertex);
+      branch.addLine(lastPoint, curPoint, vertex.getIsCommitted(), lastPoint.x < curPoint.x);
+      curVertex.registerUnavailablePoint(curPoint.x, parentVertex, branch);
+      lastPoint = curPoint;
+
+      if (parentVertex === curVertex) {
+        vertex.registerParentProcessed();
+        const parentVertexOnBranch = !parentVertex.isNotOnBranch();
+        parentVertex.addToBranch(branch, curPoint.x);
+        vertex = parentVertex;
+        parentVertex = vertex.getNextParent();
+        if (parentVertexOnBranch) break;
+      }
+    }
+
+    branch.setEnd(i);
+    this.branches.push(branch);
+    this.availableColors[branch.getColor()] = i;
+  }
+
+  private getNormalPathPoint(parentVertex: Vertex | null, curVertex: Vertex) {
+    if (parentVertex === curVertex && !parentVertex.isNotOnBranch()) {
+      return curVertex.getPoint();
+    }
+    return curVertex.getNextPoint();
   }
 
   private findStart() {

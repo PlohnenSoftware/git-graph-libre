@@ -1,4 +1,8 @@
 // Evaluate promises in parallel, with at most maxParallel running at any time
+function toRejectionError(reason: unknown) {
+  return reason instanceof Error ? reason : new Error("Promise evaluation failed");
+}
+
 export function evalPromises<X, Y>(
   data: X[],
   maxParallel: number,
@@ -8,7 +12,7 @@ export function evalPromises<X, Y>(
     if (data.length === 1) {
       createPromise(data[0])
         .then((v) => resolve([v]))
-        .catch(() => reject());
+        .catch((error: unknown) => reject(toRejectionError(error)));
     } else if (data.length === 0) {
       resolve([]);
     } else {
@@ -17,7 +21,7 @@ export function evalPromises<X, Y>(
         rejected = false,
         completed = 0;
       function startNext() {
-        let cur = nextPromise;
+        const cur = nextPromise;
         nextPromise++;
         createPromise(data[cur])
           .then((result) => {
@@ -28,8 +32,8 @@ export function evalPromises<X, Y>(
               else if (completed === data.length) resolve(results);
             }
           })
-          .catch(() => {
-            reject();
+          .catch((error: unknown) => {
+            reject(toRejectionError(error));
             rejected = true;
           });
       }

@@ -1,12 +1,12 @@
 import * as vscode from "vscode";
 
-import { Config } from "./config";
+import type { Config } from "./config";
 import * as l10n from "./l10n";
 
 export class StatusBarItem {
-  private statusBarItem: vscode.StatusBarItem;
+  private readonly statusBarItem: vscode.StatusBarItem;
   private numRepos: number = 0;
-  private config: Config;
+  private readonly config: Config;
 
   constructor(context: vscode.ExtensionContext, config: Config) {
     this.config = config;

@@ -45,5 +45,5 @@ export function setupHtml(viewState: GG.GitGraphViewState) {
 }
 
 export function receive(msg: GG.ResponseMessage) {
-  window.dispatchEvent(new MessageEvent("message", { data: msg }));
+  window.dispatchEvent(new MessageEvent("message", { data: msg, origin: window.location.origin }));
 }

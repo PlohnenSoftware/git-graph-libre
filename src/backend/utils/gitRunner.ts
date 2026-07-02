@@ -60,8 +60,51 @@ function arrayOfStrings(value: unknown): string[] | null {
   return Array.isArray(value) && value.every((item) => typeof item === "string") ? value : null;
 }
 
+function isWhitespace(char: string) {
+  return char.trim() === "";
+}
+
+function findCredentialHostSeparator(value: string, fromIndex: number) {
+  for (let i = fromIndex; i < value.length; i++) {
+    const char = value[i];
+    if (char === "@") return i;
+    if (isWhitespace(char)) return -1;
+  }
+  return -1;
+}
+
+function findUrlEnd(value: string, fromIndex: number) {
+  for (let i = fromIndex; i < value.length; i++) {
+    if (isWhitespace(value[i])) return i;
+  }
+  return value.length;
+}
+
 function redactUrlCredentials(value: string): string {
-  return value.replace(/([a-z][a-z0-9+.-]*:\/\/)([^@\s]+@)([^\s]+)/gi, "$1<redacted>@$3");
+  let output = "";
+  let cursor = 0;
+
+  while (cursor < value.length) {
+    const schemeEnd = value.indexOf("://", cursor);
+    if (schemeEnd === -1) break;
+
+    const credentialStart = schemeEnd + 3;
+    const credentialEnd = findCredentialHostSeparator(value, credentialStart);
+    if (credentialEnd === -1) {
+      output += value.slice(cursor, credentialStart);
+      cursor = credentialStart;
+      continue;
+    }
+
+    const urlEnd = findUrlEnd(value, credentialEnd + 1);
+    output += `${value.slice(cursor, credentialStart)}<redacted>@${value.slice(
+      credentialEnd + 1,
+      urlEnd
+    )}`;
+    cursor = urlEnd;
+  }
+
+  return output + value.slice(cursor);
 }
 
 function redactText(value: string): string {

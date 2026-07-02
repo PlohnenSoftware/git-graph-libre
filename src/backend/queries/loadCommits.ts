@@ -8,7 +8,7 @@ import type {
   GitRefData,
   QueryResult
 } from "@/backend/types";
-import { runGitCommand, runGitRaw, type GitCommandRecorder } from "@/backend/utils/gitRunner";
+import { type GitCommandRecorder, runGitCommand, runGitRaw } from "@/backend/utils/gitRunner";
 import { toGitQueryError } from "@/backend/utils/queryError";
 
 const eolRegex = /\r\n|\r|\n/g;
@@ -139,7 +139,7 @@ async function getLog(
         parentHashes: fields[i + 1].split(" "),
         author: fields[i + 2],
         email: fields[i + 3],
-        date: parseInt(fields[i + 4], 10),
+        date: Number.parseInt(fields[i + 4], 10),
         message: fields[i + 5]
       });
     }
@@ -164,6 +164,59 @@ async function getUnsavedChanges(git: SimpleGit, context: GitQueryContext) {
   }
 }
 
+function hasLoadedHead(commits: GitLogEntry[], head: string | null) {
+  return head !== null && commits.some((commit) => commit.hash === head);
+}
+
+async function addUnsavedChangesCommit(
+  git: SimpleGit,
+  commits: GitLogEntry[],
+  refData: GitRefData,
+  showUncommittedChanges: boolean,
+  context: GitQueryContext
+) {
+  if (!showUncommittedChanges || !hasLoadedHead(commits, refData.head)) return;
+
+  const unsaved = await getUnsavedChanges(git, context);
+  if (unsaved === null || refData.head === null) return;
+
+  commits.unshift({
+    hash: "*",
+    parentHashes: [refData.head],
+    author: "*",
+    email: "",
+    date: Math.round(Date.now() / 1000),
+    message: `Uncommitted Changes (${unsaved.changes})`
+  });
+}
+
+function createCommitNodes(commits: GitLogEntry[], refData: GitRefData) {
+  const commitNodes: GitCommitNode[] = [];
+  const commitLookup: Record<string, number> = {};
+
+  for (let i = 0; i < commits.length; i++) {
+    commitLookup[commits[i].hash] = i;
+    commitNodes.push({
+      hash: commits[i].hash,
+      parentHashes: commits[i].parentHashes,
+      author: commits[i].author,
+      email: commits[i].email,
+      date: commits[i].date,
+      message: commits[i].message,
+      refs: []
+    });
+  }
+
+  for (const ref of refData.refs) {
+    const commitIndex = commitLookup[ref.hash];
+    if (typeof commitIndex === "number") {
+      commitNodes[commitIndex].refs.push(ref);
+    }
+  }
+
+  return commitNodes;
+}
+
 export async function loadCommits(
   git: SimpleGit,
   input: LoadCommitsInput
@@ -184,44 +237,8 @@ export async function loadCommits(
   const moreCommitsAvailable = commits.length === maxCommits + 1;
   if (moreCommitsAvailable) commits = commits.slice(0, -1);
 
-  if (refData.head !== null) {
-    for (let i = 0; i < commits.length; i++) {
-      if (refData.head === commits[i].hash) {
-        const unsaved = showUncommittedChanges ? await getUnsavedChanges(git, context) : null;
-        if (unsaved !== null) {
-          commits.unshift({
-            hash: "*",
-            parentHashes: [refData.head],
-            author: "*",
-            email: "",
-            date: Math.round(Date.now() / 1000),
-            message: `Uncommitted Changes (${unsaved.changes})`
-          });
-        }
-        break;
-      }
-    }
-  }
-
-  const commitNodes: GitCommitNode[] = [];
-  const commitLookup: { [hash: string]: number } = {};
-  for (let i = 0; i < commits.length; i++) {
-    commitLookup[commits[i].hash] = i;
-    commitNodes.push({
-      hash: commits[i].hash,
-      parentHashes: commits[i].parentHashes,
-      author: commits[i].author,
-      email: commits[i].email,
-      date: commits[i].date,
-      message: commits[i].message,
-      refs: []
-    });
-  }
-  for (const ref of refData.refs) {
-    if (typeof commitLookup[ref.hash] === "number") {
-      commitNodes[commitLookup[ref.hash]].refs.push(ref);
-    }
-  }
+  await addUnsavedChangesCommit(git, commits, refData, showUncommittedChanges, context);
+  const commitNodes = createCommitNodes(commits, refData);
 
   return { commits: commitNodes, head: refData.head, moreCommitsAvailable, hard, error };
 }

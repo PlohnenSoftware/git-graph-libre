@@ -1,12 +1,12 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
-import * as http from "node:http";
+import type * as http from "node:http";
 import * as https from "node:https";
 import * as url from "node:url";
 
 import { getRemoteUrl } from "./backend/utils/git";
-import { ExtensionState } from "./extensionState";
-import { AvatarCache, ResponseMessage } from "./types";
+import type { ExtensionState } from "./extensionState";
+import type { AvatarCache, ResponseMessage } from "./types";
 
 export class AvatarManager {
   private readonly gitPath: () => string;
@@ -14,7 +14,7 @@ export class AvatarManager {
   private readonly avatarStorageFolder: string;
   private postToWebview: ((msg: ResponseMessage) => void) | null = null;
   private avatars: AvatarCache;
-  private queue: AvatarRequestQueue;
+  private readonly queue: AvatarRequestQueue;
   private remoteSourceCache: { [repo: string]: RemoteSource } = {};
   private interval: NodeJS.Timeout | null = null;
 
@@ -39,7 +39,7 @@ export class AvatarManager {
   public fetchAvatarImage(email: string, repo: string, commits: string[]) {
     if (typeof this.avatars[email] !== "undefined") {
       // Avatar exists in the cache
-      let t = new Date().getTime();
+      const t = Date.now();
       if (
         this.avatars[email].timestamp < t - 1209600000 ||
         (this.avatars[email].identicon && this.avatars[email].timestamp < t - 345600000)
@@ -81,10 +81,10 @@ export class AvatarManager {
 
   private async fetchAvatarsInterval() {
     if (this.queue.hasItems()) {
-      let avatarRequest = this.queue.takeItem();
+      const avatarRequest = this.queue.takeItem();
       if (avatarRequest === null) return; // No avatar can be checked at the current time
 
-      let remoteSource = await this.getRemoteSource(avatarRequest); // Fetch the remote source of the avatar
+      const remoteSource = await this.getRemoteSource(avatarRequest); // Fetch the remote source of the avatar
       switch (remoteSource.type) {
         case "github":
           this.fetchFromGithub(avatarRequest, remoteSource.owner, remoteSource.repo);
@@ -113,7 +113,7 @@ export class AvatarManager {
       if (remoteUrl !== null) {
         // Depending on the domain of the remote repo source, determine the type of source it is
         if (remoteUrl.startsWith("https://github.com/")) {
-          let remoteUrlComps = remoteUrl.split("/");
+          const remoteUrlComps = remoteUrl.split("/");
           remoteSource = {
             type: "github",
             owner: remoteUrlComps[3],
@@ -133,14 +133,14 @@ export class AvatarManager {
   }
 
   private fetchFromGithub(avatarRequest: AvatarRequestItem, owner: string, repo: string) {
-    let t = new Date().getTime();
+    const t = Date.now();
     if (t < this.githubTimeout) {
       // Defer request until after timeout
       this.queue.addItem(avatarRequest, this.githubTimeout, false);
       this.fetchAvatarsInterval();
       return;
     }
-    let commitIndex =
+    const commitIndex =
       avatarRequest.commits.length < 5
         ? avatarRequest.commits.length - 1 - avatarRequest.attempts
         : Math.round((4 - avatarRequest.attempts) * 0.25 * (avatarRequest.commits.length - 1));
@@ -148,7 +148,7 @@ export class AvatarManager {
       .get(
         {
           hostname: "api.github.com",
-          path: "/repos/" + owner + "/" + repo + "/commits/" + avatarRequest.commits[commitIndex],
+          path: `/repos/${owner}/${repo}/commits/${avatarRequest.commits[commitIndex]}`,
           headers: { "User-Agent": "git-graph-libre" },
           agent: false,
           timeout: 15000
@@ -161,17 +161,18 @@ export class AvatarManager {
           res.on("end", async () => {
             if (res.headers["x-ratelimit-remaining"] === "0") {
               // If the GitHub Api rate limit was reached, store the github timeout to prevent subsequent requests
-              this.githubTimeout = parseInt(<string>res.headers["x-ratelimit-reset"]) * 1000;
+              this.githubTimeout =
+                Number.parseInt(<string>res.headers["x-ratelimit-reset"], 10) * 1000;
             }
 
             if (res.statusCode === 200) {
               // Sucess
-              let commit = JSON.parse(respBody) as { author?: { avatar_url?: string } };
-              if (commit.author && commit.author.avatar_url) {
+              const commit = JSON.parse(respBody) as { author?: { avatar_url?: string } };
+              if (commit.author?.avatar_url) {
                 // Avatar url found
-                let img = await this.downloadAvatarImage(
+                const img = await this.downloadAvatarImage(
                   avatarRequest.email,
-                  commit.author.avatar_url + "&size=54"
+                  `${commit.author.avatar_url}&size=54`
                 );
                 if (img !== null) this.saveAvatar(avatarRequest.email, img, false);
                 return;
@@ -188,7 +189,7 @@ export class AvatarManager {
               // Commit not found on remote, try again with the next commit if less than 5 attempts have been made
               this.queue.addItem(avatarRequest, 0, true);
               return;
-            } else if (res.statusCode! >= 500) {
+            } else if ((res.statusCode ?? 0) >= 500) {
               // If server error, try again after 10 minutes
               this.githubTimeout = t + 600000;
               this.queue.addItem(avatarRequest, this.githubTimeout, false);
@@ -206,7 +207,7 @@ export class AvatarManager {
   }
 
   private fetchFromGitLab(avatarRequest: AvatarRequestItem) {
-    let t = new Date().getTime();
+    const t = Date.now();
     if (t < this.gitLabTimeout) {
       // Defer request until after timeout
       this.queue.addItem(avatarRequest, this.gitLabTimeout, false);
@@ -217,8 +218,8 @@ export class AvatarManager {
       .get(
         {
           hostname: "gitlab.com",
-          path: "/api/v4/users?search=" + avatarRequest.email,
-          headers: { "User-Agent": "git-graph-libre", "Private-Token": "w87U_3gAxWWaPtFgCcus" }, // Token only has read access
+          path: `/api/v4/users?search=${avatarRequest.email}`,
+          headers: { "User-Agent": "git-graph-libre" },
           agent: false,
           timeout: 15000
         },
@@ -230,15 +231,19 @@ export class AvatarManager {
           res.on("end", async () => {
             if (res.headers["ratelimit-remaining"] === "0") {
               // If the GitLab Api rate limit was reached, store the github timeout to prevent subsequent requests
-              this.gitLabTimeout = parseInt(<string>res.headers["ratelimit-reset"]) * 1000;
+              this.gitLabTimeout =
+                Number.parseInt(<string>res.headers["ratelimit-reset"], 10) * 1000;
             }
 
             if (res.statusCode === 200) {
               // Sucess
-              let users = JSON.parse(respBody) as { avatar_url?: string }[];
+              const users = JSON.parse(respBody) as { avatar_url?: string }[];
               if (users.length > 0 && users[0].avatar_url) {
                 // Avatar url found
-                let img = await this.downloadAvatarImage(avatarRequest.email, users[0].avatar_url);
+                const img = await this.downloadAvatarImage(
+                  avatarRequest.email,
+                  users[0].avatar_url
+                );
                 if (img !== null) this.saveAvatar(avatarRequest.email, img, false);
                 return;
               }
@@ -246,7 +251,7 @@ export class AvatarManager {
               // Rate limit reached, try again after timeout
               this.queue.addItem(avatarRequest, this.gitLabTimeout, false);
               return;
-            } else if (res.statusCode! >= 500) {
+            } else if ((res.statusCode ?? 0) >= 500) {
               // If server error, try again after 10 minutes
               this.gitLabTimeout = t + 600000;
               this.queue.addItem(avatarRequest, this.gitLabTimeout, false);
@@ -264,16 +269,16 @@ export class AvatarManager {
   }
 
   private async fetchFromGravatar(avatarRequest: AvatarRequestItem) {
-    let hash: string = crypto.createHash("md5").update(avatarRequest.email).digest("hex");
+    const hash: string = crypto.createHash("md5").update(avatarRequest.email).digest("hex");
     let img = await this.downloadAvatarImage(
         avatarRequest.email,
-        "https://secure.gravatar.com/avatar/" + hash + "?s=54&d=404"
+        `https://secure.gravatar.com/avatar/${hash}?s=54&d=404`
       ),
       identicon = false;
     if (img === null) {
       img = await this.downloadAvatarImage(
         avatarRequest.email,
-        "https://secure.gravatar.com/avatar/" + hash + "?s=54&d=identicon"
+        `https://secure.gravatar.com/avatar/${hash}?s=54&d=identicon`
       );
       identicon = true;
     }
@@ -281,7 +286,7 @@ export class AvatarManager {
   }
 
   private async downloadAvatarImage(email: string, imageUrl: string): Promise<string | null> {
-    let hash: string = crypto.createHash("md5").update(email).digest("hex"),
+    const hash = crypto.createHash("sha256").update(email).digest("hex"),
       imgUrl = url.parse(imageUrl);
     return new Promise((resolve) => {
       https
@@ -294,24 +299,19 @@ export class AvatarManager {
             timeout: 15000
           },
           (res: http.IncomingMessage) => {
-            let imageBufferArray: Buffer[] = [];
+            const imageBufferArray: Buffer[] = [];
             res.on("data", (chunk: Buffer) => {
               imageBufferArray.push(chunk);
             });
             res.on("end", () => {
               if (res.statusCode === 200) {
                 // If success response, save the image to the avatar folder
-                let format = res.headers["content-type"]!.split("/")[1];
-                fs.writeFile(
-                  this.avatarStorageFolder + "/" + hash + "." + format,
-                  Buffer.concat(imageBufferArray),
-                  (err) => {
-                    resolve(err ? null : hash + "." + format);
-                  }
+                this.saveDownloadedAvatar(hash, res.headers["content-type"], imageBufferArray).then(
+                  resolve
                 );
-              } else {
-                resolve(null);
+                return;
               }
+              resolve(null);
             });
           }
         )
@@ -321,15 +321,34 @@ export class AvatarManager {
     });
   }
 
+  private async saveDownloadedAvatar(
+    hash: string,
+    contentType: string | string[] | undefined,
+    imageBufferArray: Buffer[]
+  ) {
+    if (typeof contentType !== "string") return null;
+    const format = contentType.split("/")[1];
+    const fileName = `${hash}.${format}`;
+    try {
+      await fs.promises.writeFile(
+        `${this.avatarStorageFolder}/${fileName}`,
+        Buffer.concat(imageBufferArray)
+      );
+      return fileName;
+    } catch {
+      return null;
+    }
+  }
+
   private saveAvatar(email: string, image: string, identicon: boolean) {
     if (typeof this.avatars[email] !== "undefined") {
       if (!identicon || this.avatars[email].identicon) {
         this.avatars[email].image = image;
         this.avatars[email].identicon = identicon;
       }
-      this.avatars[email].timestamp = new Date().getTime();
+      this.avatars[email].timestamp = Date.now();
     } else {
-      this.avatars[email] = { image: image, timestamp: new Date().getTime(), identicon: identicon };
+      this.avatars[email] = { image: image, timestamp: Date.now(), identicon: identicon };
     }
     this.extensionState.saveAvatar(email, this.avatars[email]);
     this.sendAvatarToWebView(email, () => {});
@@ -337,7 +356,12 @@ export class AvatarManager {
 
   private sendAvatarToWebView(email: string, onError: () => void) {
     if (this.postToWebview !== null) {
-      fs.readFile(this.avatarStorageFolder + "/" + this.avatars[email].image, (err, data) => {
+      const image = this.avatars[email].image;
+      if (image === null) {
+        onError();
+        return;
+      }
+      fs.readFile(`${this.avatarStorageFolder}/${image}`, (err, data) => {
         if (err) {
           onError();
         } else if (this.postToWebview !== null) {
@@ -345,11 +369,7 @@ export class AvatarManager {
           this.postToWebview({
             command: "fetchAvatar",
             email: email,
-            image:
-              "data:image/" +
-              this.avatars[email].image!.split(".")[1] +
-              ";base64," +
-              data.toString("base64")
+            image: `data:image/${image.split(".")[1]};base64,${data.toString("base64")}`
           });
         }
       });
@@ -359,8 +379,8 @@ export class AvatarManager {
 
 // Queue implementation, ordering avatar requests by their checkAfter value
 class AvatarRequestQueue {
-  private queue: AvatarRequestItem[] = [];
-  private itemsAvailableCallback: () => void;
+  private readonly queue: AvatarRequestItem[] = [];
+  private readonly itemsAvailableCallback: () => void;
 
   constructor(itemsAvailableCallback: () => void) {
     this.itemsAvailableCallback = itemsAvailableCallback;
@@ -368,9 +388,9 @@ class AvatarRequestQueue {
 
   // Add a new avatar request to queue
   public add(email: string, repo: string, commits: string[], immediate: boolean) {
-    let emailIndex = this.queue.findIndex((v) => v.email === email && v.repo === repo);
+    const emailIndex = this.queue.findIndex((v) => v.email === email && v.repo === repo);
     if (emailIndex > -1) {
-      let l = commits.indexOf(
+      const l = commits.indexOf(
         this.queue[emailIndex].commits[this.queue[emailIndex].commits.length - 1]
       );
       // Index of the last commit of the existing request, in the new request commits
@@ -405,17 +425,18 @@ class AvatarRequestQueue {
 
   // Takes an item from the queue if possible, respecting the value set for checkAfter
   public takeItem() {
-    if (this.queue.length > 0 && this.queue[0].checkAfter < new Date().getTime())
-      return this.queue.shift()!;
+    if (this.queue.length > 0 && this.queue[0].checkAfter < Date.now()) {
+      return this.queue.shift() ?? null;
+    }
     return null;
   }
 
   // Binary insertion of avatar request item, ordered by checkAfter
   private insertItem(item: AvatarRequestItem) {
-    let l = 0,
-      r = this.queue.length - 1,
-      c,
-      prevLength = this.queue.length;
+    let l = 0;
+    let r = this.queue.length - 1;
+    let c = 0;
+    const prevLength = this.queue.length;
     while (l <= r) {
       c = (l + r) >> 1;
       if (this.queue[c].checkAfter <= item.checkAfter) l = c + 1;

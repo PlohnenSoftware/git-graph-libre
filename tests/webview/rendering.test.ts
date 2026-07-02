@@ -130,6 +130,49 @@ describe("webview rendering", () => {
       ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   }
 
+  function contextMenuItem(label: string) {
+    return Array.from(document.querySelectorAll("#contextMenu .contextMenuItem")).find((item) =>
+      item.textContent?.includes(label)
+    );
+  }
+
+  function clickContextMenuItem(label: string) {
+    const item = contextMenuItem(label);
+    expect(item).not.toBeUndefined();
+    item?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  }
+
+  function openHeadCommitContextMenu() {
+    const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
+    expect(headRow).not.toBeNull();
+    headRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+  }
+
+  function gitRef(label: string, selector = ".gitRef") {
+    return Array.from(document.querySelectorAll<HTMLElement>(selector)).find((ref) =>
+      ref.textContent?.includes(label)
+    );
+  }
+
+  function setDialogInput(value: string) {
+    const input = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    if (input === null) throw new Error("Missing dialog input");
+    input.value = value;
+    input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+  }
+
+  function receiveLoadedCommits(commits: GitCommitNode[], head: string) {
+    receive({
+      command: "loadCommits",
+      requestId: null,
+      commits,
+      head,
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    } as unknown as GG.ResponseMessage);
+  }
+
   beforeAll(async () => {
     vi.resetModules();
     vi.spyOn(window, "scrollTo").mockImplementation(() => {});
@@ -162,6 +205,26 @@ describe("webview rendering", () => {
     expect(document.getElementById("loadMoreCommitsBtn")).not.toBeNull();
   });
 
+  it("loads more commits from the footer action", () => {
+    document
+      .getElementById("loadMoreCommitsBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(document.getElementById("statusText")?.textContent).toBe("Loading more commits");
+    expect(latestLoadCommitsRequest().maxCommits).toBe(375);
+
+    const loadCommitsRequest = latestLoadCommitsRequest();
+    receive({
+      command: "loadCommits",
+      requestId: loadCommitsRequest.requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+  });
+
   it("renders the graph controls as an accessible toolbar", () => {
     const controls = document.getElementById("controls");
 
@@ -178,6 +241,21 @@ describe("webview rendering", () => {
     expect(status?.dataset.state).toBe("ready");
     expect(status?.getAttribute("aria-busy")).toBe("false");
     expect(document.getElementById("statusText")?.textContent).toBe("Ready");
+  });
+
+  it("ignores response messages from untrusted origins", () => {
+    const loadBranchesBefore = vscodeMock.sentMessages.filter(
+      (msg) => msg.command === "loadBranches"
+    ).length;
+
+    window.dispatchEvent(
+      new MessageEvent("message", { data: { command: "refresh" }, origin: "https://example.test" })
+    );
+
+    const loadBranchesAfter = vscodeMock.sentMessages.filter(
+      (msg) => msg.command === "loadBranches"
+    ).length;
+    expect(loadBranchesAfter).toBe(loadBranchesBefore);
   });
 
   it("renders commit rows with keyboard focus and selection state", () => {
@@ -327,9 +405,9 @@ describe("webview rendering", () => {
     expect(loadCommitsRequest).toMatchObject({
       command: "loadCommits",
       branchName: "",
-      maxCommits: 305,
       hard: true
     });
+    expect(loadCommitsRequest.maxCommits).toBeGreaterThanOrEqual(305);
 
     receive({
       command: "loadCommits",
@@ -400,13 +478,8 @@ describe("webview rendering", () => {
   });
 
   it("copies the full commit hash from the commit context menu", () => {
-    const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
-    expect(headRow).not.toBeNull();
-
-    headRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
-    const copyHashItem = Array.from(
-      document.querySelectorAll("#contextMenu .contextMenuItem")
-    ).find((item) => item.textContent?.includes("Copy Commit Hash"));
+    openHeadCommitContextMenu();
+    const copyHashItem = contextMenuItem("Copy Commit Hash");
     expect(copyHashItem).not.toBeUndefined();
 
     copyHashItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -415,6 +488,218 @@ describe("webview rendering", () => {
       command: "copyToClipboard",
       type: "Commit Hash",
       data: "abc123"
+    });
+  });
+
+  it("runs commit context menu actions through dialogs", () => {
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Cherry Pick");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "cherrypickCommit",
+      repo: REPO,
+      commitHash: "abc123",
+      parentIndex: 0
+    });
+
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Revert");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "revertCommit",
+      repo: REPO,
+      commitHash: "abc123",
+      parentIndex: 0
+    });
+
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Merge");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "mergeCommit",
+      repo: REPO,
+      commitHash: "abc123",
+      createNewCommit: true
+    });
+
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Reset");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "resetToCommit",
+      repo: REPO,
+      commitHash: "abc123",
+      resetMode: "mixed"
+    });
+  });
+
+  it("adds tags and checks out commits from the commit context menu", () => {
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Add Tag");
+    setDialogInput("v2.0.0");
+    const tagType = document.getElementById("dialogInput1") as HTMLSelectElement | null;
+    if (tagType === null) throw new Error("Missing tag type input");
+    tagType.value = "lightweight";
+    const tagMessage = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    if (tagMessage === null) throw new Error("Missing tag message input");
+    tagMessage.value = "Release candidate";
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "addTag",
+      repo: REPO,
+      tagName: "v2.0.0",
+      commitHash: "abc123",
+      lightweight: true,
+      message: "Release candidate"
+    });
+
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Checkout");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "checkoutCommit",
+      repo: REPO,
+      commitHash: "abc123"
+    });
+  });
+
+  it("passes the selected parent index for multi-parent commit actions", () => {
+    const mergeCommits: GitCommitNode[] = [
+      {
+        hash: "merge123",
+        parentHashes: ["left111", "right222"],
+        author: "Mia",
+        email: "mia@example.com",
+        date: 1701000000,
+        message: "Merge branches",
+        refs: [{ hash: "merge123", name: "merge-branch", type: "head" }]
+      },
+      {
+        hash: "left111",
+        parentHashes: [],
+        author: "Lee",
+        email: "lee@example.com",
+        date: 1700000000,
+        message: "Left parent",
+        refs: []
+      },
+      {
+        hash: "right222",
+        parentHashes: [],
+        author: "Rae",
+        email: "rae@example.com",
+        date: 1700001000,
+        message: "Right parent",
+        refs: []
+      }
+    ];
+    receiveLoadedCommits(mergeCommits, "merge123");
+
+    const mergeRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="merge123"]');
+    expect(mergeRow).not.toBeNull();
+    mergeRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Cherry Pick");
+    const parentSelect = document.getElementById("dialogInput0") as HTMLSelectElement | null;
+    if (parentSelect === null) throw new Error("Missing parent select input");
+    parentSelect.value = "2";
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "cherrypickCommit",
+      repo: REPO,
+      commitHash: "merge123",
+      parentIndex: 2
+    });
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("handles tag and non-current branch ref menu actions", () => {
+    const tagRef = gitRef("v1.0.0", ".gitRef.tag");
+    expect(tagRef).not.toBeUndefined();
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Copy Tag Name");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "Tag Name",
+      data: "v1.0.0"
+    });
+
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Delete Tag");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "deleteTag",
+      repo: REPO,
+      tagName: "v1.0.0"
+    });
+
+    receiveLoadedCommits(
+      [
+        {
+          ...twoCommits[0],
+          refs: [
+            { hash: "abc123", name: "main", type: "head" },
+            { hash: "abc123", name: "feature/menu", type: "head" },
+            { hash: "abc123", name: "v1.0.0", type: "tag" }
+          ]
+        },
+        twoCommits[1]
+      ],
+      "abc123"
+    );
+
+    const branchRef = gitRef("feature/menu", ".gitRef.head");
+    expect(branchRef).not.toBeUndefined();
+    branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Delete Branch");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "deleteBranch",
+      repo: REPO,
+      branchName: "feature/menu",
+      forceDelete: false
+    });
+
+    branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Merge");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "mergeBranch",
+      repo: REPO,
+      branchName: "feature/menu",
+      createNewCommit: true
+    });
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("creates branches and renames local refs from context menus", () => {
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Create Branch");
+    setDialogInput("feature/sonar-cleanup");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "createBranch",
+      repo: REPO,
+      branchName: "feature/sonar-cleanup",
+      commitHash: "abc123"
+    });
+
+    const headRef = document.querySelector<HTMLElement>(".gitRef.head");
+    headRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Rename Branch");
+    setDialogInput("main-renamed");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "renameBranch",
+      repo: REPO,
+      oldName: "main",
+      newName: "main-renamed"
     });
   });
 

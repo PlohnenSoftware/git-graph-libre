@@ -3,13 +3,13 @@ import * as vscode from "vscode";
 import { isGitRepository } from "@/backend/utils/git";
 import { getPathFromUri } from "@/backend/utils/path";
 import { evalPromises } from "@/backend/utils/promise";
-import { Config } from "@/config";
-import { ExtensionState } from "@/extensionState";
-import { StatusBarItem } from "@/statusBarItem";
-import { GitRepoSet, GitRepoState } from "@/types";
+import type { Config } from "@/config";
+import type { ExtensionState } from "@/extensionState";
+import type { StatusBarItem } from "@/statusBarItem";
+import type { GitRepoSet, GitRepoState } from "@/types";
 
 function sortRepos(repos: GitRepoSet) {
-  const repoPaths = Object.keys(repos).toSorted();
+  const repoPaths = Object.keys(repos).toSorted((a, b) => a.localeCompare(b));
   const sorted: GitRepoSet = {};
   for (let i = 0; i < repoPaths.length; i++) {
     sorted[repoPaths[i]] = repos[repoPaths[i]];
@@ -22,7 +22,7 @@ export function createRepoManager(
   statusBarItem: StatusBarItem,
   config: Config
 ) {
-  let repos = extensionState.getRepos();
+  const repos = extensionState.getRepos();
   let viewCallback: ((repos: GitRepoSet, numRepos: number) => void) | null = null;
 
   function getRepos() {
@@ -52,7 +52,7 @@ export function createRepoManager(
   function isDirectoryWithinRepos(path: string) {
     const repoPaths = Object.keys(repos);
     for (let i = 0; i < repoPaths.length; i++) {
-      if (path === repoPaths[i] || path.startsWith(repoPaths[i] + "/")) return true;
+      if (path === repoPaths[i] || path.startsWith(`${repoPaths[i]}/`)) return true;
     }
     return false;
   }
@@ -63,7 +63,7 @@ export function createRepoManager(
   }
 
   function removeReposWithinFolder(path: string) {
-    const pathFolder = path + "/";
+    const pathFolder = `${path}/`;
     const repoPaths = Object.keys(repos);
     let changes = false;
     for (let i = 0; i < repoPaths.length; i++) {
@@ -89,7 +89,7 @@ export function createRepoManager(
       for (let i = 0; i < workspaceFolders.length; i++) {
         const path = getPathFromUri(workspaceFolders[i].uri);
         rootsExact.push(path);
-        rootsFolder.push(path + "/");
+        rootsFolder.push(`${path}/`);
       }
     }
     for (let i = 0; i < repoPaths.length; i++) {

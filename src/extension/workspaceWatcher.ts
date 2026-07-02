@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
 
 import { doesPathExist, getPathFromUri, isDirectory } from "@/backend/utils/path";
-import { Config } from "@/config";
+import type { Config } from "@/config";
 
-import { RepoManager } from "./repoManager";
-import { RepoSearch } from "./workspaceSearch";
+import type { RepoManager } from "./repoManager";
+import type { RepoSearch } from "./workspaceSearch";
 
 type WorkspaceApi = Pick<
   typeof vscode.workspace,
@@ -25,9 +25,10 @@ export function createRepoWatcher(
   let processChangeEventsTimeout: NodeJS.Timeout | null = null;
 
   async function processCreateEvents() {
-    let path;
     let changes = false;
-    while ((path = createEventPaths.shift())) {
+    while (createEventPaths.length > 0) {
+      const path = createEventPaths.shift();
+      if (path === undefined) break;
       if (await isDirectory(path)) {
         if (await repoSearch.searchDirectoryForRepos(path, config.maxDepthOfRepoSearch()))
           changes = true;
@@ -38,9 +39,10 @@ export function createRepoWatcher(
   }
 
   async function processChangeEvents() {
-    let path;
     let changes = false;
-    while ((path = changeEventPaths.shift())) {
+    while (changeEventPaths.length > 0) {
+      const path = changeEventPaths.shift();
+      if (path === undefined) break;
       if (!(await doesPathExist(path))) {
         if (repoManager.removeReposWithinFolder(path)) changes = true;
       }
@@ -79,7 +81,7 @@ export function createRepoWatcher(
   }
 
   function startWatchingFolder(path: string) {
-    const watcher = workspace.createFileSystemWatcher(path + "/**");
+    const watcher = workspace.createFileSystemWatcher(`${path}/**`);
     watcher.onDidCreate((uri) => onWatcherCreate(uri));
     watcher.onDidChange((uri) => onWatcherChange(uri));
     watcher.onDidDelete((uri) => onWatcherDelete(uri));
@@ -91,27 +93,33 @@ export function createRepoWatcher(
     delete folderWatchers[path];
   }
 
+  async function handleAddedWorkspaceFolders(folders: readonly vscode.WorkspaceFolder[]) {
+    let changes = false;
+    for (const folder of folders) {
+      const path = getPathFromUri(folder.uri);
+      if (await repoSearch.searchDirectoryForRepos(path, config.maxDepthOfRepoSearch()))
+        changes = true;
+      startWatchingFolder(path);
+    }
+    if (changes) repoManager.sendRepos();
+  }
+
+  function handleRemovedWorkspaceFolders(folders: readonly vscode.WorkspaceFolder[]) {
+    let changes = false;
+    for (const folder of folders) {
+      const path = getPathFromUri(folder.uri);
+      if (repoManager.removeReposWithinFolder(path)) changes = true;
+      stopWatchingFolder(path);
+    }
+    if (changes) repoManager.sendRepos();
+  }
+
   const folderChangeHandler = workspace.onDidChangeWorkspaceFolders(async (e) => {
     if (e.added.length > 0) {
-      let path: string;
-      let changes = false;
-      for (let i = 0; i < e.added.length; i++) {
-        path = getPathFromUri(e.added[i].uri);
-        if (await repoSearch.searchDirectoryForRepos(path, config.maxDepthOfRepoSearch()))
-          changes = true;
-        startWatchingFolder(path);
-      }
-      if (changes) repoManager.sendRepos();
+      await handleAddedWorkspaceFolders(e.added);
     }
     if (e.removed.length > 0) {
-      let changes = false;
-      let path: string;
-      for (let i = 0; i < e.removed.length; i++) {
-        path = getPathFromUri(e.removed[i].uri);
-        if (repoManager.removeReposWithinFolder(path)) changes = true;
-        stopWatchingFolder(path);
-      }
-      if (changes) repoManager.sendRepos();
+      handleRemovedWorkspaceFolders(e.removed);
     }
   });
 

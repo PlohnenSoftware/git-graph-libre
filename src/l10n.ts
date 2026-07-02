@@ -33,6 +33,12 @@ function loadEnglishTranslations(translationPath: string): Record<string, string
   }
 }
 
+function resolveTranslationPath(): string | undefined {
+  if (l10n.uri?.fsPath) return path.dirname(l10n.uri.fsPath);
+  if (_extensionPath) return path.join(_extensionPath, "l10n");
+  return undefined;
+}
+
 /**
  * Translate with fallback to English
  *
@@ -59,11 +65,7 @@ export function t(
 
   if (result !== key) return result;
 
-  const translationPath = l10n.uri?.fsPath
-    ? path.dirname(l10n.uri.fsPath)
-    : _extensionPath
-      ? path.join(_extensionPath, "l10n")
-      : undefined;
+  const translationPath = resolveTranslationPath();
   if (!translationPath) return result;
   const enTranslations = loadEnglishTranslations(translationPath);
   const fallback = enTranslations[key];
@@ -88,7 +90,7 @@ function interpolate(
   if (Array.isArray(args)) {
     // Positional arguments: {0}, {1}, etc.
     return template.replace(/\{(\d+)\}/g, (_, index) => {
-      const value = args[parseInt(index, 10)];
+      const value = args[Number.parseInt(index, 10)];
       return value !== undefined ? String(value) : `{${index}}`;
     });
   } else {

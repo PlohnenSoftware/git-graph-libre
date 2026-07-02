@@ -43,15 +43,8 @@ async function viewDiff(
 ): Promise<boolean> {
   const abbrevHash = abbrevCommit(commitHash, shortHashLength);
   const pathComponents = newFilePath.split("/");
-  const title =
-    pathComponents[pathComponents.length - 1] +
-    " (" +
-    (type === "A"
-      ? l10n.t("diff.addedIn", abbrevHash)
-      : type === "D"
-        ? l10n.t("diff.deletedIn", abbrevHash)
-        : `${abbrevHash}^ ↔ ${abbrevHash}`) +
-    ")";
+  const fileName = pathComponents.at(-1);
+  const title = `${fileName} (${formatDiffTitle(type, abbrevHash)})`;
   try {
     await vscode.commands.executeCommand(
       "vscode.diff",
@@ -64,6 +57,12 @@ async function viewDiff(
   } catch {
     return false;
   }
+}
+
+function formatDiffTitle(type: GitFileChangeType, abbrevHash: string) {
+  if (type === "A") return l10n.t("diff.addedIn", abbrevHash);
+  if (type === "D") return l10n.t("diff.deletedIn", abbrevHash);
+  return `${abbrevHash}^ ↔ ${abbrevHash}`;
 }
 
 function resolveRepoFilePath(repo: string, filePath: string): string | null {

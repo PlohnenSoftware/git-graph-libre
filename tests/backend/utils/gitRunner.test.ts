@@ -46,6 +46,13 @@ describe("gitRunner", () => {
     ]);
   });
 
+  it("leaves credential-free URLs readable", () => {
+    expect(sanitizeGitArgs(["fetch", "https://example.com/repo.git"])).toEqual([
+      "fetch",
+      "https://example.com/repo.git"
+    ]);
+  });
+
   it("throws GitCommandError with normalized failure metadata", async () => {
     const records: GitCommandRecord[] = [];
     const failure = Object.assign(new Error("fatal: https://user:secret@example.com/repo.git"), {
