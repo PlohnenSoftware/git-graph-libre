@@ -269,6 +269,8 @@ export class AvatarManager {
   }
 
   private async fetchFromGravatar(avatarRequest: AvatarRequestItem) {
+    // Gravatar requires MD5 as its public lookup identifier; this is not used
+    // for passwords, integrity, authorization, randomness, or local cache trust.
     const hash: string = crypto.createHash("md5").update(avatarRequest.email).digest("hex");
     let img = await this.downloadAvatarImage(
         avatarRequest.email,
