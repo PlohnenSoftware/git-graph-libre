@@ -477,6 +477,31 @@ describe("webview rendering", () => {
     expect(document.getElementById("findControl")?.hidden).toBe(true);
   });
 
+  it("toggles column visibility from the header context menu", () => {
+    function headerMenuItem(label: string) {
+      document
+        .querySelector(".tableColHeader")
+        ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+      return Array.from(document.querySelectorAll("#contextMenu .contextMenuItem")).find((item) =>
+        item.textContent?.includes(label)
+      );
+    }
+
+    const dateItem = headerMenuItem("Date");
+    expect(dateItem?.textContent).toBe("✓ Date");
+    dateItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(document.getElementById("commitTable")?.classList.contains("hideDateCol")).toBe(true);
+    expect(vscodeMock.getState()?.hiddenColumns).toEqual(["date"]);
+
+    const hiddenDateItem = headerMenuItem("Date");
+    expect(hiddenDateItem?.textContent).toBe("Date");
+    hiddenDateItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(document.getElementById("commitTable")?.classList.contains("hideDateCol")).toBe(false);
+    expect(vscodeMock.getState()?.hiddenColumns).toEqual([]);
+  });
+
   it("copies the full commit hash from the commit context menu", () => {
     openHeadCommitContextMenu();
     const copyHashItem = contextMenuItem("Copy Commit Hash");

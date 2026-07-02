@@ -148,6 +148,14 @@ body.unableToLoad p {
 #commitTable.fixedLayout table {
   table-layout: fixed;
 }
+#commitTable.hideDateCol th:nth-child(3),
+#commitTable.hideDateCol tr:not(#commitDetails) > td:nth-child(3),
+#commitTable.hideAuthorCol th:nth-child(4),
+#commitTable.hideAuthorCol tr:not(#commitDetails) > td:nth-child(4),
+#commitTable.hideCommitCol th:nth-child(5),
+#commitTable.hideCommitCol tr:not(#commitDetails) > td:nth-child(5) {
+  display: none;
+}
 #commitTable.autoLayout td:nth-child(2),
 #commitTable.autoLayout th:nth-child(2) {
   width: 100%;

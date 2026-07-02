@@ -35,6 +35,18 @@ import { getVSCodeStyle, sendMessage, vscode } from "./utils/vscode";
 
 const searchHistoryMaxResults = 50;
 
+const HIDEABLE_COLUMNS = ["date", "author", "commit"] as const;
+type HideableColumn = (typeof HIDEABLE_COLUMNS)[number];
+const COLUMN_HIDE_CLASSES: Record<HideableColumn, string> = {
+  date: "hideDateCol",
+  author: "hideAuthorCol",
+  commit: "hideCommitCol"
+};
+
+function isHideableColumn(value: string): value is HideableColumn {
+  return (HIDEABLE_COLUMNS as readonly string[]).includes(value);
+}
+
 function requireElement<T extends HTMLElement = HTMLElement>(id: string): T {
   const elem = document.getElementById(id);
   if (elem === null) throw new Error(`Missing webview element #${id}`);
@@ -72,6 +84,7 @@ class GitGraphView {
   private showRemoteBranches: boolean = true;
   private expandedCommit: ExpandedCommit | null = null;
   private maxCommits: number;
+  private readonly hiddenColumns: Set<HideableColumn> = new Set();
 
   private readonly tableElem: HTMLElement;
   private readonly footerElem: HTMLElement;
@@ -181,6 +194,9 @@ class GitGraphView {
       this.currentBranch = prevState.currentBranch;
       this.showRemoteBranches = prevState.showRemoteBranches;
       this.showRemoteBranchesElem.checked = this.showRemoteBranches;
+      for (const column of prevState.hiddenColumns ?? []) {
+        if (isHideableColumn(column)) this.hiddenColumns.add(column);
+      }
       if (typeof this.gitRepos[prevState.currentRepo] !== "undefined") {
         this.currentRepo = prevState.currentRepo;
         this.maxCommits = prevState.maxCommits;
@@ -783,7 +799,8 @@ class GitGraphView {
       moreCommitsAvailable: this.moreCommitsAvailable,
       maxCommits: this.maxCommits,
       showRemoteBranches: this.showRemoteBranches,
-      expandedCommit: this.expandedCommit
+      expandedCommit: this.expandedCommit,
+      hiddenColumns: [...this.hiddenColumns]
     });
   }
 
@@ -836,6 +853,7 @@ class GitGraphView {
     this.registerCommitActivationListeners();
     this.registerGitRefContextMenuListener();
     this.registerGitRefActivationListeners();
+    this.registerColumnHeaderMenuListener();
   }
   private registerCommitContextMenuListener() {
     addListenerToClass("commit", "contextmenu", (e: Event) => {
@@ -1416,6 +1434,42 @@ class GitGraphView {
       );
     }
   }
+  private setTableLayout(layout: "fixedLayout" | "autoLayout") {
+    const classes: string[] = [layout];
+    for (const column of HIDEABLE_COLUMNS) {
+      if (this.hiddenColumns.has(column)) classes.push(COLUMN_HIDE_CLASSES[column]);
+    }
+    this.tableElem.className = classes.join(" ");
+  }
+  private toggleColumnVisibility(column: HideableColumn) {
+    if (this.hiddenColumns.has(column)) {
+      this.hiddenColumns.delete(column);
+    } else {
+      this.hiddenColumns.add(column);
+    }
+    this.saveState();
+    this.renderTable();
+    this.renderGraph();
+  }
+  private buildColumnVisibilityMenu(): ContextMenuElement[] {
+    const labels: Record<HideableColumn, string> = {
+      date: l10n.date,
+      author: l10n.author,
+      commit: l10n.commit
+    };
+    return HIDEABLE_COLUMNS.map((column) => ({
+      title: `${this.hiddenColumns.has(column) ? "" : "✓ "}${labels[column]}`,
+      onClick: () => this.toggleColumnVisibility(column)
+    }));
+  }
+  private registerColumnHeaderMenuListener() {
+    addListenerToClass("tableColHeader", "contextmenu", (e: Event) => {
+      e.stopPropagation();
+      const sourceElem = closestHTMLElement(e.target, ".tableColHeader");
+      if (sourceElem === null) return;
+      showContextMenu(<MouseEvent>e, this.buildColumnVisibilityMenu(), sourceElem);
+    });
+  }
   private makeTableResizable() {
     const colHeadersElem = requireElement("tableColHeaders"),
       cols = <HTMLCollectionOf<HTMLElement>>document.getElementsByClassName("tableColHeader");
@@ -1430,7 +1484,7 @@ class GitGraphView {
         cols[2].style.width = `${columnWidths[1]}px`;
         cols[3].style.width = `${columnWidths[2]}px`;
         cols[4].style.width = `${columnWidths[3]}px`;
-        this.tableElem.className = "fixedLayout";
+        this.setTableLayout("fixedLayout");
         this.graph.limitMaxWidth(columnWidths[0] + 16);
       }
     };
@@ -1456,7 +1510,7 @@ class GitGraphView {
     if (columnWidths !== null) {
       makeTableFixedLayout();
     } else {
-      this.tableElem.className = "autoLayout";
+      this.setTableLayout("autoLayout");
       this.graph.limitMaxWidth(-1);
       cols[0].style.padding =
         "0 " +

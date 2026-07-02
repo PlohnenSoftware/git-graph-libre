@@ -122,6 +122,7 @@ declare global {
     maxCommits: number;
     showRemoteBranches: boolean;
     expandedCommit: ExpandedCommit | null;
+    hiddenColumns?: string[];
   }
 }
 
