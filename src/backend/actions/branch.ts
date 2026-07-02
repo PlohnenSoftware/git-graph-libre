@@ -1,6 +1,10 @@
 import type { SimpleGit } from "simple-git";
 
 import type { ActionPayload } from "@/backend/types";
+import { deleteRemoteBranch } from "@/backend/actions/branchRemote";
+import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
+
+type DeleteBranchInput = ActionPayload<"deleteBranch"> & { repo?: string | null };
 
 export async function createBranch(
   git: SimpleGit,
@@ -11,9 +15,29 @@ export async function createBranch(
 
 export async function deleteBranch(
   git: SimpleGit,
-  input: ActionPayload<"deleteBranch">
+  input: DeleteBranchInput,
+  record?: GitCommandRecorder
 ): Promise<void> {
-  await git.deleteLocalBranch(input.branchName, input.forceDelete);
+  const repo = input.repo ?? null;
+  await runGitRaw(git, {
+    label: "branch.deleteBranch",
+    kind: "action",
+    args: ["branch", input.forceDelete ? "-D" : "-d", input.branchName],
+    repo,
+    record
+  });
+
+  for (const remote of input.deleteOnRemotes ?? []) {
+    await deleteRemoteBranch(
+      git,
+      {
+        repo,
+        branchName: input.branchName,
+        remote
+      },
+      record
+    );
+  }
 }
 
 export async function renameBranch(

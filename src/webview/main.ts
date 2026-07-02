@@ -8,9 +8,10 @@ import type {
   GitQueryError,
   GitRemote,
   GitRepoInfo,
+  GitPushBranchMode,
   GitResetMode
 } from "@/backend/types";
-import { COMMIT_ORDERINGS } from "@/backend/types";
+import { COMMIT_ORDERINGS, GIT_PUSH_BRANCH_MODES } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
 
 import {
@@ -1224,6 +1225,10 @@ class GitGraphView {
     ];
   }
   private buildBranchContextMenu(sourceElem: HTMLElement, refName: string): ContextMenuElement[] {
+    if (sourceElem.classList.contains("remote")) {
+      return this.buildRemoteBranchContextMenu(sourceElem, refName);
+    }
+
     if (!sourceElem.classList.contains("head")) {
       return [
         {
@@ -1244,6 +1249,18 @@ class GitGraphView {
       title: l10n.renameBranch + ELLIPSIS,
       onClick: () => this.showRenameBranchDialog(refName)
     });
+    if (this.gitRemotes.length > 0) {
+      menu.push(
+        {
+          title: l10n.pushBranch + ELLIPSIS,
+          onClick: () => this.showPushBranchDialog(refName)
+        },
+        {
+          title: l10n.pullBranch + ELLIPSIS,
+          onClick: () => this.showUpdateBranchFromUpstreamDialog(refName)
+        }
+      );
+    }
     if (this.gitBranchHead !== refName) {
       menu.push(
         {
@@ -1256,6 +1273,36 @@ class GitGraphView {
         }
       );
     }
+    return menu;
+  }
+  private buildRemoteBranchContextMenu(
+    sourceElem: HTMLElement,
+    refName: string
+  ): ContextMenuElement[] {
+    const remoteBranch = this.parseRemoteBranchName(refName);
+    const menu: ContextMenuElement[] = [
+      {
+        title: l10n.checkoutBranch + ELLIPSIS,
+        onClick: () => this.checkoutBranchAction(sourceElem, refName)
+      }
+    ];
+    if (remoteBranch === null) return menu;
+
+    const { remote, branchName } = remoteBranch;
+    menu.push({
+      title: l10n.deleteRemoteBranch + ELLIPSIS,
+      onClick: () => this.showDeleteRemoteBranchDialog(remote, branchName, refName)
+    });
+    if (this.hasLocalBranch(branchName) && this.gitBranchHead !== branchName) {
+      menu.push({
+        title: l10n.fetchIntoLocalBranch + ELLIPSIS,
+        onClick: () => this.showFetchIntoLocalBranchDialog(remote, branchName, refName)
+      });
+    }
+    menu.push({
+      title: l10n.pullBranch + ELLIPSIS,
+      onClick: () => this.showPullBranchDialog(remote, branchName, refName)
+    });
     return menu;
   }
   private showDeleteTagDialog(refName: string) {
@@ -1296,22 +1343,201 @@ class GitGraphView {
     );
   }
   private showDeleteBranchDialog(refName: string) {
-    showCheckboxDialog(
+    const deleteOnRemotes = this.getRemotesWithBranch(refName);
+    const inputs: DialogInput[] = [
+      { type: "checkbox", name: l10n.dialogDeleteForceDelete, value: false }
+    ];
+    if (deleteOnRemotes.length > 0) {
+      inputs.push({
+        type: "checkbox",
+        name: l10n.dialogDeleteOnRemotes.replace("{0}", deleteOnRemotes.join(", ")),
+        value: false
+      });
+    }
+
+    showFormDialog(
       l10n.dialogDeleteConfirm
         .replace("{0}", l10n.labelBranch)
         .replace("{1}", `<b><i>${escapeHtml(refName)}</i></b>`),
-      l10n.dialogDeleteForceDelete,
-      false,
+      inputs,
       l10n.deleteBranch,
-      (forceDelete) => {
-        sendMessage({
+      (values) => {
+        const request: Extract<GG.RequestMessage, { command: "deleteBranch" }> = {
           command: "deleteBranch",
           repo: this.currentRepo,
           branchName: refName,
-          forceDelete
-        });
+          forceDelete: values[0] === "checked"
+        };
+        if (deleteOnRemotes.length > 0 && values[1] === "checked") {
+          request.deleteOnRemotes = deleteOnRemotes;
+        }
+        sendMessage(request);
+        showActionRunningDialog(l10n.statusDeletingBranch);
       },
       null
+    );
+  }
+  private showPushBranchDialog(refName: string) {
+    const remoteNames = this.getRemoteNames();
+    if (remoteNames.length === 0) return;
+
+    const defaultRemote = this.defaultPushRemoteName(remoteNames);
+    const remoteInputs: DialogInput[] = remoteNames.map((remote) => ({
+      type: "checkbox" as const,
+      name: l10n.dialogPushBranchRemote.replace("{0}", remote),
+      value: remote === defaultRemote
+    }));
+    const inputs: DialogInput[] = [
+      ...remoteInputs,
+      { type: "checkbox", name: l10n.dialogPushBranchSetUpstream, value: true },
+      {
+        type: "select",
+        name: l10n.dialogPushBranchMode,
+        default: "normal",
+        options: GIT_PUSH_BRANCH_MODES.map((mode) => ({
+          name: this.pushBranchModeLabel(mode),
+          value: mode
+        }))
+      }
+    ];
+
+    showFormDialog(
+      l10n.dialogPushBranchConfirm.replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`),
+      inputs,
+      l10n.dialogPushBranchSubmit,
+      (values) => {
+        const selectedRemotes = remoteNames.filter((_, index) => values[index] === "checked");
+        if (selectedRemotes.length === 0) {
+          showErrorDialog(l10n.dialogPushBranchNoRemoteSelected, null, null);
+          return;
+        }
+
+        sendMessage({
+          command: "pushBranch",
+          repo: this.currentRepo,
+          branchName: refName,
+          remotes: selectedRemotes,
+          setUpstream: values[remoteNames.length] === "checked",
+          mode: values[remoteNames.length + 1] as GitPushBranchMode
+        });
+        showActionRunningDialog(l10n.statusPushingBranch);
+      },
+      null
+    );
+  }
+  private showUpdateBranchFromUpstreamDialog(refName: string) {
+    showFormDialog(
+      l10n.dialogUpdateBranchFromUpstreamConfirm.replace(
+        "{0}",
+        `<b><i>${escapeHtml(refName)}</i></b>`
+      ),
+      [{ type: "checkbox", name: l10n.dialogUpdateBranchForce, value: false }],
+      l10n.dialogUpdateBranchSubmit,
+      (values) => {
+        sendMessage({
+          command: "updateBranchFromUpstream",
+          repo: this.currentRepo,
+          branchName: refName,
+          force: values[0] === "checked"
+        });
+        showActionRunningDialog(l10n.statusUpdatingBranch);
+      },
+      null
+    );
+  }
+  private showDeleteRemoteBranchDialog(remote: string, branchName: string, refName: string) {
+    showConfirmationDialog(
+      l10n.dialogDeleteRemoteBranchConfirm.replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`),
+      () => {
+        sendMessage({
+          command: "deleteRemoteBranch",
+          repo: this.currentRepo,
+          branchName,
+          remote
+        });
+        showActionRunningDialog(l10n.statusDeletingRemoteBranch);
+      },
+      null
+    );
+  }
+  private showFetchIntoLocalBranchDialog(remote: string, branchName: string, refName: string) {
+    if (!this.hasLocalBranch(branchName) || this.gitBranchHead === branchName) {
+      showErrorDialog(l10n.dialogFetchIntoLocalBranchUnavailable, null, null);
+      return;
+    }
+
+    showFormDialog(
+      l10n.dialogFetchIntoLocalBranchConfirm
+        .replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`)
+        .replace("{1}", `<b><i>${escapeHtml(branchName)}</i></b>`),
+      [{ type: "checkbox", name: l10n.dialogFetchIntoLocalBranchForce, value: false }],
+      l10n.dialogFetchIntoLocalBranchSubmit,
+      (values) => {
+        sendMessage({
+          command: "fetchIntoLocalBranch",
+          repo: this.currentRepo,
+          remote,
+          remoteBranch: branchName,
+          localBranch: branchName,
+          force: values[0] === "checked"
+        });
+        showActionRunningDialog(l10n.statusFetchingBranch);
+      },
+      null
+    );
+  }
+  private showPullBranchDialog(remote: string, branchName: string, refName: string) {
+    showFormDialog(
+      l10n.dialogPullBranchConfirm.replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`),
+      [
+        { type: "checkbox", name: l10n.dialogPullBranchNoFastForward, value: false },
+        { type: "checkbox", name: l10n.dialogPullBranchSquash, value: false }
+      ],
+      l10n.dialogPullBranchSubmit,
+      (values) => {
+        sendMessage({
+          command: "pullBranch",
+          repo: this.currentRepo,
+          remote,
+          branchName,
+          createNewCommit: values[0] === "checked",
+          squash: values[1] === "checked"
+        });
+        showActionRunningDialog(l10n.statusPullingBranch);
+      },
+      null
+    );
+  }
+  private getRemoteNames() {
+    return this.gitRemotes.map((remote) => remote.name);
+  }
+  private defaultPushRemoteName(remoteNames: string[]) {
+    return remoteNames.includes("origin") ? "origin" : remoteNames[0];
+  }
+  private pushBranchModeLabel(mode: GitPushBranchMode) {
+    if (mode === "force-with-lease") return l10n.dialogPushBranchModeForceWithLease;
+    if (mode === "force") return l10n.dialogPushBranchModeForce;
+    return l10n.dialogPushBranchModeNormal;
+  }
+  private parseRemoteBranchName(refName: string) {
+    const remoteNames = this.getRemoteNames().sort((a, b) => b.length - a.length);
+    for (const remote of remoteNames) {
+      const prefix = `${remote}/`;
+      if (refName.startsWith(prefix) && refName.length > prefix.length) {
+        return { remote, branchName: refName.slice(prefix.length) };
+      }
+    }
+
+    const separator = refName.indexOf("/");
+    if (separator <= 0 || separator === refName.length - 1) return null;
+    return { remote: refName.slice(0, separator), branchName: refName.slice(separator + 1) };
+  }
+  private hasLocalBranch(branchName: string) {
+    return this.gitBranches.includes(branchName);
+  }
+  private getRemotesWithBranch(branchName: string) {
+    return this.getRemoteNames().filter((remote) =>
+      this.gitBranches.includes(`remotes/${remote}/${branchName}`)
     );
   }
   private showMergeBranchDialog(refName: string) {
@@ -2113,24 +2339,43 @@ const gitGraph = new GitGraphView(
   vscode.getState()
 );
 
+const actionErrorLabels = {
+  addTag: l10n.unableToAddTag,
+  checkoutBranch: l10n.unableToCheckoutBranch,
+  checkoutCommit: l10n.unableToCheckoutCommit,
+  cherrypickCommit: l10n.unableToCherryPick,
+  createBranch: l10n.unableToCreateBranch,
+  deleteBranch: l10n.unableToDeleteBranch,
+  deleteRemoteBranch: l10n.unableToDeleteRemoteBranch,
+  deleteTag: l10n.unableToDeleteTag,
+  fetchIntoLocalBranch: l10n.unableToFetchBranch,
+  fetchRemotes: l10n.unableToFetch,
+  mergeBranch: l10n.unableToMergeBranch,
+  mergeCommit: l10n.unableToMergeCommit,
+  pullBranch: l10n.unableToPullBranch,
+  pushBranch: l10n.unableToPushBranch,
+  pushTag: l10n.unableToPushTag,
+  renameBranch: l10n.unableToRenameBranch,
+  resetToCommit: l10n.unableToReset,
+  revertCommit: l10n.unableToRevert,
+  updateBranchFromUpstream: l10n.unableToUpdateBranch
+} satisfies Partial<Record<GG.ResponseMessage["command"], string>>;
+
+function handleActionResponse(msg: GG.ResponseMessage) {
+  const errorLabel = actionErrorLabels[msg.command as keyof typeof actionErrorLabels];
+  if (errorLabel === undefined || !("status" in msg)) return false;
+  refreshGraphOrDisplayError(msg.status, errorLabel);
+  return true;
+}
+
 /* Command Processing */
 window.addEventListener("message", (event) => {
   if (event.origin !== globalThis.location.origin) return;
 
   const msg: GG.ResponseMessage = event.data;
+  if (handleActionResponse(msg)) return;
+
   switch (msg.command) {
-    case "addTag":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToAddTag);
-      break;
-    case "checkoutBranch":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToCheckoutBranch);
-      break;
-    case "checkoutCommit":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToCheckoutCommit);
-      break;
-    case "cherrypickCommit":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToCherryPick);
-      break;
     case "commitDetails":
       if (msg.commitDetails === null) {
         gitGraph.hideCommitDetails();
@@ -2159,20 +2404,8 @@ window.addEventListener("message", (event) => {
         );
       }
       break;
-    case "createBranch":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToCreateBranch);
-      break;
-    case "deleteBranch":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToDeleteBranch);
-      break;
-    case "deleteTag":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToDeleteTag);
-      break;
     case "fetchAvatar":
       gitGraph.loadAvatar(msg.email, msg.image);
-      break;
-    case "fetchRemotes":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToFetch);
       break;
     case "loadBranches":
       gitGraph.loadBranches(
@@ -2206,26 +2439,8 @@ window.addEventListener("message", (event) => {
     case "startHistorySearch":
       gitGraph.startHistorySearch();
       break;
-    case "mergeBranch":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToMergeBranch);
-      break;
-    case "mergeCommit":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToMergeCommit);
-      break;
-    case "pushTag":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToPushTag);
-      break;
-    case "renameBranch":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToRenameBranch);
-      break;
     case "refresh":
       gitGraph.refresh(false);
-      break;
-    case "resetToCommit":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToReset);
-      break;
-    case "revertCommit":
-      refreshGraphOrDisplayError(msg.status, l10n.unableToRevert);
       break;
     case "viewDiff":
       if (msg.success === false) showErrorDialog(l10n.unableToViewDiff, null, null);

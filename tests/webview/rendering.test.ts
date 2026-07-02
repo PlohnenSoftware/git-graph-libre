@@ -888,6 +888,148 @@ describe("webview rendering", () => {
     receiveLoadedCommits(twoCommits, "abc123");
   });
 
+  it("sends local branch remote action messages from context menus", () => {
+    receive({
+      command: "loadBranches",
+      requestId: null,
+      branches: ["main", "feature/menu", "remotes/origin/feature/menu"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    } as unknown as GG.ResponseMessage);
+    receiveLoadedCommits(
+      [
+        {
+          ...twoCommits[0],
+          refs: [
+            { hash: "abc123", name: "main", type: "head" },
+            { hash: "abc123", name: "feature/menu", type: "head" }
+          ]
+        },
+        twoCommits[1]
+      ],
+      "abc123"
+    );
+
+    const branchRef = gitRef("feature/menu", ".gitRef.head");
+    expect(branchRef).not.toBeUndefined();
+
+    branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Push Branch");
+    const pushMode = document.getElementById("dialogInput2") as HTMLSelectElement | null;
+    expect(pushMode).not.toBeNull();
+    if (pushMode !== null) pushMode.value = "force-with-lease";
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "pushBranch",
+      repo: REPO,
+      branchName: "feature/menu",
+      remotes: ["origin"],
+      setUpstream: true,
+      mode: "force-with-lease"
+    });
+
+    branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Pull Branch");
+    const forceUpdate = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    expect(forceUpdate).not.toBeNull();
+    if (forceUpdate !== null) forceUpdate.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "updateBranchFromUpstream",
+      repo: REPO,
+      branchName: "feature/menu",
+      force: true
+    });
+
+    branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Delete Branch");
+    const deleteOnRemote = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    expect(deleteOnRemote).not.toBeNull();
+    if (deleteOnRemote !== null) deleteOnRemote.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "deleteBranch",
+      repo: REPO,
+      branchName: "feature/menu",
+      forceDelete: false,
+      deleteOnRemotes: ["origin"]
+    });
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("sends remote branch action messages from context menus", () => {
+    receive({
+      command: "loadBranches",
+      requestId: null,
+      branches: ["main", "feature/menu", "remotes/origin/feature/menu"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    } as unknown as GG.ResponseMessage);
+    receiveLoadedCommits(
+      [
+        {
+          ...twoCommits[0],
+          refs: [{ hash: "abc123", name: "origin/feature/menu", type: "remote" }]
+        },
+        twoCommits[1]
+      ],
+      "abc123"
+    );
+
+    const remoteRef = gitRef("origin/feature/menu", ".gitRef.remote");
+    expect(remoteRef).not.toBeUndefined();
+
+    remoteRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Fetch into local branch");
+    const forceFetch = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    expect(forceFetch).not.toBeNull();
+    if (forceFetch !== null) forceFetch.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "fetchIntoLocalBranch",
+      repo: REPO,
+      remote: "origin",
+      remoteBranch: "feature/menu",
+      localBranch: "feature/menu",
+      force: true
+    });
+
+    remoteRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Pull Branch");
+    const noFastForward = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    const squash = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    expect(noFastForward).not.toBeNull();
+    expect(squash).not.toBeNull();
+    if (noFastForward !== null) noFastForward.checked = true;
+    if (squash !== null) squash.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "pullBranch",
+      repo: REPO,
+      remote: "origin",
+      branchName: "feature/menu",
+      createNewCommit: true,
+      squash: true
+    });
+
+    remoteRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Delete Remote Branch");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "deleteRemoteBranch",
+      repo: REPO,
+      remote: "origin",
+      branchName: "feature/menu"
+    });
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
   it("creates branches and renames local refs from context menus", () => {
     openHeadCommitContextMenu();
     clickContextMenuItem("Create Branch");

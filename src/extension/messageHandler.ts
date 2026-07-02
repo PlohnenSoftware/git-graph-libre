@@ -5,6 +5,13 @@ import * as vscode from "vscode";
 import type { AvatarManager } from "@/avatarManager";
 import { checkoutBranch, createBranch, deleteBranch, renameBranch } from "@/backend/actions/branch";
 import {
+  deleteRemoteBranch,
+  fetchIntoLocalBranch,
+  pullBranch,
+  pushBranch,
+  updateBranchFromUpstream
+} from "@/backend/actions/branchRemote";
+import {
   checkoutCommit,
   cherrypickCommit,
   resetToCommit,
@@ -143,7 +150,20 @@ export function registerMessageHandlers(
     fetchRemotes(gitClient.getInstance(), msg, recordGitCommand)
   );
   registerAction("createBranch", (msg) => createBranch(gitClient.getInstance(), msg));
-  registerAction("deleteBranch", (msg) => deleteBranch(gitClient.getInstance(), msg));
+  registerAction("deleteBranch", (msg) =>
+    deleteBranch(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("deleteRemoteBranch", (msg) =>
+    deleteRemoteBranch(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("fetchIntoLocalBranch", (msg) =>
+    fetchIntoLocalBranch(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("pullBranch", (msg) => pullBranch(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("pushBranch", (msg) => pushBranch(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("updateBranchFromUpstream", (msg) =>
+    updateBranchFromUpstream(gitClient.getInstance(), msg, recordGitCommand)
+  );
   registerAction("renameBranch", (msg) => renameBranch(gitClient.getInstance(), msg));
   registerAction("checkoutBranch", (msg) => checkoutBranch(gitClient.getInstance(), msg));
   registerAction("checkoutCommit", (msg) => checkoutCommit(gitClient.getInstance(), msg));
