@@ -961,6 +961,37 @@ describe("webview rendering", () => {
     );
   });
 
+  it("auto-loads more commits when scrolled to the bottom", () => {
+    const loadCommitsBefore = sentLoadCommitsCount();
+    expect(document.getElementById("loadMoreCommitsBtn")).not.toBeNull();
+
+    Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+    Object.defineProperty(window, "scrollY", { value: 10000, configurable: true });
+    document.dispatchEvent(new Event("scroll"));
+
+    expect(sentLoadCommitsCount()).toBe(loadCommitsBefore + 1);
+    expect(document.getElementById("loadMoreCommitsBtn")).toBeNull();
+    expect(document.getElementById("loadingHeader")).not.toBeNull();
+
+    // Further scrolls while loading do not send duplicate requests
+    document.dispatchEvent(new Event("scroll"));
+    expect(sentLoadCommitsCount()).toBe(loadCommitsBefore + 1);
+
+    const loadCommitsRequest = latestLoadCommitsRequest();
+    receive({
+      command: "loadCommits",
+      requestId: loadCommitsRequest.requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+    expect(document.getElementById("loadMoreCommitsBtn")).not.toBeNull();
+
+    Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+  });
+
   it("shows a graph error state when commit loading fails", () => {
     document
       .getElementById("refreshBtn")

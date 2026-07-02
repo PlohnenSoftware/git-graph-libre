@@ -1337,13 +1337,13 @@ class GitGraphView {
     const loadMoreCommitsBtn = document.getElementById("loadMoreCommitsBtn");
     loadMoreCommitsBtn?.addEventListener("click", () => this.loadMoreCommits(loadMoreCommitsBtn));
   }
-  private loadMoreCommits(loadMoreCommitsBtn: HTMLElement) {
+  private loadMoreCommits(loadMoreCommitsBtn: HTMLElement, keepCommitDetails = false) {
     if (loadMoreCommitsBtn.parentElement === null) return;
 
     loadMoreCommitsBtn.parentElement.innerHTML = `<h2 id="loadingHeader">${svgIcons.loading}${l10n.loading}</h2>`;
     setStatusStrip("loading", l10n.statusLoadingMore);
     this.maxCommits += this.config.loadMoreCommits;
-    this.hideCommitDetails();
+    if (!keepCommitDetails) this.hideCommitDetails();
     this.saveState();
     this.requestLoadCommits(true, () => {});
   }
@@ -1622,7 +1622,15 @@ class GitGraphView {
         active = window.scrollY > 0;
         this.scrollShadowElem.className = active ? "active" : "";
       }
+      this.autoLoadMoreCommitsOnScroll();
     });
+  }
+  private autoLoadMoreCommitsOnScroll() {
+    if (!this.moreCommitsAvailable) return;
+    const loadMoreCommitsBtn = document.getElementById("loadMoreCommitsBtn");
+    if (loadMoreCommitsBtn === null) return;
+    if (window.innerHeight + window.scrollY < document.body.scrollHeight - 96) return;
+    this.loadMoreCommits(loadMoreCommitsBtn, true);
   }
 
   /* Commit Details */
