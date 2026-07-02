@@ -36,6 +36,7 @@ describe("commit table styles", () => {
 
   it("styles commit detail collapse controls with theme tokens", () => {
     expect(css).toContain(".commitDetailsToggle {");
+    expect(css.match(/\.commitDetailsToggle \{[^}]+\}/)?.[0] ?? "").toContain("padding: 0;");
     expect(css).toContain("#commitDetails.summaryCollapsed.filesCollapsed");
     expect(css).toContain("var(--vscode-toolbar-hoverBackground");
     expect(css).toContain(".commitDetailsPaneBody.hidden");
