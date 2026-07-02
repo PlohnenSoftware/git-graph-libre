@@ -1,6 +1,11 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-import type { GitCommitDetails, GitCommitNode, GitCommitSearchResult } from "@/backend/types";
+import type {
+  GitCommitDetails,
+  GitCommitNode,
+  GitCommitSearchResult,
+  GitRepoInfo
+} from "@/backend/types";
 import type * as GG from "@/types";
 import {
   COMMIT_DETAILS_COLLAPSED_HEIGHT,
@@ -14,6 +19,7 @@ import { createVscodeMock, receive, setupHtml } from "./setup";
 const REPO = "/workspace/my-repo";
 type LoadBranchesRequest = Extract<GG.RequestMessage, { command: "loadBranches" }>;
 type LoadCommitsRequest = Extract<GG.RequestMessage, { command: "loadCommits" }>;
+type LoadRepoInfoRequest = Extract<GG.RequestMessage, { command: "loadRepoInfo" }>;
 type SearchCommitsRequest = Extract<GG.RequestMessage, { command: "searchCommits" }>;
 
 const defaultViewState: GG.GitGraphViewState = {
@@ -77,6 +83,30 @@ const firstCommitDetails: GitCommitDetails = {
   ]
 };
 
+const repoInfoWithoutRemotes: GitRepoInfo = {
+  isRepo: true,
+  head: "main",
+  headCommit: "abc123",
+  remotes: [],
+  stashes: [],
+  stashCount: 0,
+  config: {
+    userName: null,
+    userEmail: null
+  }
+};
+
+const repoInfoWithRemote: GitRepoInfo = {
+  ...repoInfoWithoutRemotes,
+  remotes: [
+    {
+      name: "origin",
+      fetchUrls: ["https://example.test/repo.git"],
+      pushUrls: ["https://example.test/repo.git"]
+    }
+  ]
+};
+
 describe("webview rendering", () => {
   let vscodeMock: ReturnType<typeof createVscodeMock>;
 
@@ -94,6 +124,14 @@ describe("webview rendering", () => {
       if (msg.command === "loadCommits") return msg;
     }
     throw new Error("Missing loadCommits request");
+  }
+
+  function latestLoadRepoInfoRequest(): LoadRepoInfoRequest {
+    for (let i = vscodeMock.sentMessages.length - 1; i >= 0; i--) {
+      const msg = vscodeMock.sentMessages[i];
+      if (msg.command === "loadRepoInfo") return msg;
+    }
+    throw new Error("Missing loadRepoInfo request");
   }
 
   function latestSearchCommitsRequest(): SearchCommitsRequest {
@@ -179,6 +217,13 @@ describe("webview rendering", () => {
     vscodeMock = createVscodeMock();
     setupHtml(defaultViewState);
     await import("@/webview/main");
+    const loadRepoInfoRequest = latestLoadRepoInfoRequest();
+    receive({
+      command: "loadRepoInfo",
+      requestId: loadRepoInfoRequest.requestId,
+      repoInfo: repoInfoWithoutRemotes,
+      error: null
+    });
     const loadBranchesRequest = latestLoadBranchesRequest();
     receive({
       command: "loadBranches",
@@ -231,7 +276,81 @@ describe("webview rendering", () => {
     expect(controls?.tagName).toBe("HEADER");
     expect(controls?.getAttribute("role")).toBe("toolbar");
     expect(document.getElementById("refreshBtn")?.tagName).toBe("BUTTON");
+    expect((document.getElementById("fetchBtn") as HTMLButtonElement | null)?.hidden).toBe(true);
     expect(document.getElementById("blinkHeadBtn")?.getAttribute("aria-label")).toBe("Locate HEAD");
+  });
+
+  it("shows fetch for repos with remotes and sends the selected prune options", () => {
+    const fetchBtn = document.getElementById("fetchBtn") as HTMLButtonElement | null;
+    expect(fetchBtn).not.toBeNull();
+    expect(fetchBtn?.hidden).toBe(true);
+
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const loadRepoInfoRequest = latestLoadRepoInfoRequest();
+    receive({
+      command: "loadRepoInfo",
+      requestId: loadRepoInfoRequest.requestId,
+      repoInfo: repoInfoWithRemote,
+      error: null
+    });
+
+    expect(fetchBtn?.hidden).toBe(false);
+    expect(fetchBtn?.disabled).toBe(false);
+
+    const sentFetchesBefore = vscodeMock.sentMessages.filter(
+      (msg) => msg.command === "fetchRemotes"
+    ).length;
+    fetchBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const pruneTagsOnly = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    expect(pruneTagsOnly).not.toBeNull();
+    if (pruneTagsOnly !== null) pruneTagsOnly.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages.filter((msg) => msg.command === "fetchRemotes")).toHaveLength(
+      sentFetchesBefore
+    );
+    expect(document.getElementById("dialog")?.textContent).toContain(
+      "Enable prune before pruning tags."
+    );
+
+    fetchBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const prune = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    const pruneTags = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    expect(prune).not.toBeNull();
+    expect(pruneTags).not.toBeNull();
+    if (prune !== null) prune.checked = true;
+    if (pruneTags !== null) pruneTags.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "fetchRemotes",
+      repo: REPO,
+      prune: true,
+      pruneTags: true
+    });
+    expect(document.getElementById("statusText")?.textContent).toBe("Fetching Remotes...");
+
+    receive({ command: "fetchRemotes", status: null });
+    receive({
+      command: "loadBranches",
+      requestId: latestLoadBranchesRequest().requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    receive({
+      command: "loadCommits",
+      requestId: latestLoadCommitsRequest().requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
   });
 
   it("renders the graph status strip as ready after loading commits", () => {

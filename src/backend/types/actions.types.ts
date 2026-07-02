@@ -10,6 +10,7 @@ type ActionPayloads = {
   createBranch: { commitHash: string; branchName: string };
   deleteBranch: { branchName: string; forceDelete: boolean };
   deleteTag: { tagName: string };
+  fetchRemotes: { prune: boolean; pruneTags: boolean };
   mergeBranch: { branchName: string; createNewCommit: boolean };
   mergeCommit: { commitHash: string; createNewCommit: boolean };
   pushTag: { tagName: string };

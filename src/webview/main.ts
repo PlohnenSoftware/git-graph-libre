@@ -6,6 +6,8 @@ import type {
   GitCommitSearchResult,
   GitFileChangeType,
   GitQueryError,
+  GitRemote,
+  GitRepoInfo,
   GitResetMode
 } from "@/backend/types";
 import { COMMIT_ORDERINGS } from "@/backend/types";
@@ -77,6 +79,7 @@ class GitGraphView {
   private gitRepos: GG.GitRepoSet;
   private gitBranches: string[] = [];
   private gitBranchHead: string | null = null;
+  private gitRemotes: GitRemote[] = [];
   private commits: GitCommitNode[] = [];
   private commitHead: string | null = null;
   private commitLookup: { [hash: string]: number } = {};
@@ -105,6 +108,7 @@ class GitGraphView {
   private readonly findNextBtn: HTMLButtonElement;
   private readonly findClearBtn: HTMLButtonElement;
   private readonly findSearchHistoryBtn: HTMLButtonElement;
+  private readonly fetchBtn: HTMLButtonElement;
   private findQuery = "";
   private findMatches: number[] = [];
   private activeFindMatchIndex = -1;
@@ -115,6 +119,7 @@ class GitGraphView {
   private loadBranchesCallback: ((changes: boolean, isRepo: boolean) => void) | null = null;
   private loadCommitsCallback: ((changes: boolean) => void) | null = null;
   private nextRequestId = 1;
+  private activeLoadRepoInfoRequestId: number | null = null;
   private activeLoadBranchesRequestId: number | null = null;
   private activeLoadCommitsRequestId: number | null = null;
 
@@ -135,6 +140,8 @@ class GitGraphView {
       this.maxCommits = this.config.initialLoadCommits;
       this.expandedCommit = null;
       this.currentBranch = null;
+      this.gitRemotes = [];
+      this.updateFetchButtonVisibility();
       this.saveState();
       sendMessage({ command: "selectRepo", repo: value });
       this.refresh(true);
@@ -161,6 +168,7 @@ class GitGraphView {
     this.findNextBtn = requireElement<HTMLButtonElement>("findNextBtn");
     this.findClearBtn = requireElement<HTMLButtonElement>("findClearBtn");
     this.findSearchHistoryBtn = requireElement<HTMLButtonElement>("findSearchHistoryBtn");
+    this.fetchBtn = requireElement<HTMLButtonElement>("fetchBtn");
     document.getElementById("findBtn")?.addEventListener("click", () => {
       this.showFindWidget();
     });
@@ -181,6 +189,9 @@ class GitGraphView {
     });
     this.findSearchHistoryBtn.addEventListener("click", () => {
       this.requestSearchCommits();
+    });
+    this.fetchBtn.addEventListener("click", () => {
+      this.showFetchDialog();
     });
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
       this.refresh(true);
@@ -265,8 +276,29 @@ class GitGraphView {
     this.repoDropdown.setOptions(options, this.currentRepo);
 
     if (changedRepo) {
+      this.gitRemotes = [];
+      this.updateFetchButtonVisibility();
       this.refresh(true);
     }
+  }
+
+  public loadRepoInfo(requestId: number, repoInfo: GitRepoInfo, errorReason: string | null = null) {
+    if (!this.acceptLoadRepoInfoResponse(requestId)) return;
+
+    this.gitRemotes = errorReason === null && repoInfo.isRepo ? repoInfo.remotes : [];
+    this.updateFetchButtonVisibility();
+  }
+
+  private updateFetchButtonVisibility() {
+    const hasRemotes = this.currentRepo !== "" && this.gitRemotes.length > 0;
+    this.fetchBtn.hidden = !hasRemotes;
+    this.fetchBtn.disabled = !hasRemotes;
+  }
+
+  private acceptLoadRepoInfoResponse(requestId: number) {
+    if (this.activeLoadRepoInfoRequestId !== requestId) return false;
+    this.activeLoadRepoInfoRequestId = null;
+    return true;
   }
 
   public loadBranches(
@@ -476,6 +508,22 @@ class GitGraphView {
   }
 
   /* Requests */
+  private requestLoadRepoInfo() {
+    if (this.currentRepo === "") {
+      this.gitRemotes = [];
+      this.updateFetchButtonVisibility();
+      this.activeLoadRepoInfoRequestId = null;
+      return;
+    }
+
+    const requestId = this.createRequestId();
+    this.activeLoadRepoInfoRequestId = requestId;
+    sendMessage({
+      command: "loadRepoInfo",
+      requestId,
+      repo: this.currentRepo
+    });
+  }
   private requestLoadBranches(
     hard: boolean,
     loadedCallback: (changes: boolean, isRepo: boolean) => void
@@ -509,6 +557,7 @@ class GitGraphView {
     });
   }
   private requestLoadBranchesAndCommits(hard: boolean) {
+    this.requestLoadRepoInfo();
     this.requestLoadBranches(hard, (branchChanges: boolean, isRepo: boolean) => {
       if (isRepo) {
         this.requestLoadCommits(hard, (commitChanges: boolean) => {
@@ -787,6 +836,34 @@ class GitGraphView {
   private jumpToHead() {
     if (this.commitHead === null) return;
     this.revealCommit(this.commitHead);
+  }
+  private showFetchDialog() {
+    if (this.currentRepo === "" || this.gitRemotes.length === 0) return;
+
+    showFormDialog(
+      l10n.dialogFetchConfirm,
+      [
+        { type: "checkbox" as const, name: l10n.dialogFetchPrune, value: false },
+        { type: "checkbox" as const, name: l10n.dialogFetchPruneTags, value: false }
+      ],
+      l10n.dialogFetchSubmit,
+      (values) => {
+        const prune = values[0] === "checked";
+        const pruneTags = values[1] === "checked";
+        if (pruneTags && !prune) {
+          showErrorDialog(l10n.dialogFetchPruneTagsRequiresPrune, null, this.fetchBtn);
+          return;
+        }
+        sendMessage({
+          command: "fetchRemotes",
+          repo: this.currentRepo,
+          prune,
+          pruneTags
+        });
+        showActionRunningDialog(l10n.statusFetchingRemotes);
+      },
+      this.fetchBtn
+    );
   }
   private navigateCommitDetails(delta: number) {
     if (this.expandedCommit === null) return;
@@ -2094,6 +2171,9 @@ window.addEventListener("message", (event) => {
     case "fetchAvatar":
       gitGraph.loadAvatar(msg.email, msg.image);
       break;
+    case "fetchRemotes":
+      refreshGraphOrDisplayError(msg.status, l10n.unableToFetch);
+      break;
     case "loadBranches":
       gitGraph.loadBranches(
         msg.requestId,
@@ -2113,6 +2193,9 @@ window.addEventListener("message", (event) => {
         msg.hard,
         formatQueryError(msg.error)
       );
+      break;
+    case "loadRepoInfo":
+      gitGraph.loadRepoInfo(msg.requestId, msg.repoInfo, formatQueryError(msg.error));
       break;
     case "loadRepos":
       gitGraph.loadRepos(msg.repos, msg.lastActiveRepo);

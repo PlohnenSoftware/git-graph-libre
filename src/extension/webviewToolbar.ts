@@ -8,9 +8,15 @@ function escapeAttribute(value: string): string {
     .replaceAll(">", "&gt;");
 }
 
-function buildToolbarButton(opts: { id: string; label: string; icon: string }): string {
+function buildToolbarButton(opts: {
+  id: string;
+  label: string;
+  icon: string;
+  hidden?: boolean;
+}): string {
   const label = escapeAttribute(opts.label);
-  return `<button id="${opts.id}" class="toolbarIconButton" type="button" title="${label}" aria-label="${label}"><span class="toolbarIcon" aria-hidden="true">${opts.icon}</span></button>`;
+  const hidden = opts.hidden === true ? " hidden" : "";
+  return `<button id="${opts.id}" class="toolbarIconButton" type="button" title="${label}" aria-label="${label}"${hidden}><span class="toolbarIcon" aria-hidden="true">${opts.icon}</span></button>`;
 }
 
 export function buildWebviewToolbar(l10n: LocalizedStrings): string {
@@ -45,6 +51,7 @@ export function buildWebviewToolbar(l10n: LocalizedStrings): string {
     <span class="toolbarActions">
       ${buildToolbarButton({ id: "findBtn", label: l10n.findCommits, icon: "&#8981;" })}
       ${buildToolbarButton({ id: "blinkHeadBtn", label: l10n.locateHead, icon: "&#8982;" })}
+      ${buildToolbarButton({ id: "fetchBtn", label: l10n.fetch, icon: "&#8645;", hidden: true })}
       ${buildToolbarButton({ id: "refreshBtn", label: l10n.refresh, icon: "&#8635;" })}
     </span>
   </header>`;

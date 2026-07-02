@@ -11,6 +11,7 @@ import {
   revertCommit
 } from "@/backend/actions/commit";
 import { mergeBranch, mergeCommit } from "@/backend/actions/merge";
+import { fetchRemotes } from "@/backend/actions/remote";
 import { addTag, deleteTag, pushTag } from "@/backend/actions/tag";
 import type { GitClient } from "@/backend/gitClient";
 import { commitDetails } from "@/backend/queries/commitDetails";
@@ -138,6 +139,9 @@ export function registerMessageHandlers(
   registerAction("addTag", (msg) => addTag(gitClient.getInstance(), msg));
   registerAction("deleteTag", (msg) => deleteTag(gitClient.getInstance(), msg));
   registerAction("pushTag", (msg) => pushTag(gitClient.getInstance(), msg));
+  registerAction("fetchRemotes", (msg) =>
+    fetchRemotes(gitClient.getInstance(), msg, recordGitCommand)
+  );
   registerAction("createBranch", (msg) => createBranch(gitClient.getInstance(), msg));
   registerAction("deleteBranch", (msg) => deleteBranch(gitClient.getInstance(), msg));
   registerAction("renameBranch", (msg) => renameBranch(gitClient.getInstance(), msg));
