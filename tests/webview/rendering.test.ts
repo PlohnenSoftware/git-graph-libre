@@ -992,6 +992,45 @@ describe("webview rendering", () => {
     Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
   });
 
+  it("marks merge commits with a muted row class", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const loadBranchesRequest = latestLoadBranchesRequest();
+    receive({
+      command: "loadBranches",
+      requestId: loadBranchesRequest.requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    receive({
+      command: "loadCommits",
+      requestId: latestLoadCommitsRequest().requestId,
+      commits: [
+        {
+          hash: "merge99",
+          parentHashes: ["abc123", "def456"],
+          author: "Alice",
+          email: "alice@example.com",
+          date: 1700000100,
+          message: "Merge branch",
+          refs: []
+        },
+        ...twoCommits
+      ],
+      head: "merge99",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+
+    expect(findRow("merge99")?.classList.contains("mergeCommit")).toBe(true);
+    expect(findRow("abc123")?.classList.contains("mergeCommit")).toBe(false);
+  });
+
   it("shows a graph error state when commit loading fails", () => {
     document
       .getElementById("refreshBtn")

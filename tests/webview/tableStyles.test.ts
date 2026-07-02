@@ -26,6 +26,15 @@ describe("commit table styles", () => {
     expect(css).toContain("var(--vscode-list-activeSelectionBackground");
   });
 
+  it("mutes merge commit rows with the description foreground", () => {
+    const muted = css.match(
+      /#commitTable tr\.commit\.mergeCommit td:nth-child\(2\) \{[^}]+\}/
+    )?.[0];
+
+    expect(muted).toBeDefined();
+    expect(muted).toContain("var(--vscode-descriptionForeground");
+  });
+
   it("keeps the graph visible above full-row states", () => {
     expect(css).toContain("z-index: 5;");
     expect(css).toContain("pointer-events: none;");

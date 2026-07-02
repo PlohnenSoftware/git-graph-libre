@@ -1303,6 +1303,7 @@ class GitGraphView {
 
     const currentAttribute = isHeadCommit ? ' aria-current="true"' : "";
     const rowClasses = ["commit"];
+    if (commit.parentHashes.length > 1) rowClasses.push("mergeCommit");
     if (findMatchIndexes.has(index)) rowClasses.push("findMatch");
     if (activeFindCommitIndex === index) rowClasses.push("findMatchActive");
     return `class="${rowClasses.join(" ")}" tabindex="0" aria-selected="false"${currentAttribute} data-hash="${commit.hash}"`;
