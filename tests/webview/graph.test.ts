@@ -82,6 +82,7 @@ describe("graph rendering", () => {
       srcElem: null,
       commitDetails: null,
       fileTree: null,
+      comparison: null,
       detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT,
       summaryOpen: true,
       filesOpen: true

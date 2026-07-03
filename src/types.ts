@@ -125,6 +125,8 @@ export type RequestViewDiff = {
   command: "viewDiff";
   repo: string;
   commitHash: string;
+  oldRef?: string;
+  newRef?: string;
   oldFilePath: string;
   newFilePath: string;
   type: GitFileChangeType;

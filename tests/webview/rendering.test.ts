@@ -1396,6 +1396,53 @@ describe("webview rendering", () => {
     });
   });
 
+  it("compares loaded commits with HEAD from the commit context menu", () => {
+    const baseRow = findRow("def456");
+    expect(baseRow).not.toBeNull();
+    baseRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Compare with HEAD");
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "commitComparison",
+      repo: REPO,
+      commitHash: "def456",
+      baseRef: "def456",
+      compareRef: "HEAD"
+    });
+
+    const comparisonDetails: GitCommitDetails = {
+      ...firstCommitDetails,
+      hash: "def456",
+      parents: [],
+      fileChanges: [
+        {
+          oldFilePath: "src/example.ts",
+          newFilePath: "src/example.ts",
+          type: "M",
+          additions: 4,
+          deletions: 2
+        }
+      ]
+    };
+    receive({ command: "commitComparison", commitDetails: comparisonDetails, error: null });
+    expect(baseRow?.classList.contains("commitDetailsOpen")).toBe(true);
+
+    openFirstGitFileContextMenu();
+    clickContextMenuItem("View File Diff");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "viewDiff",
+      repo: REPO,
+      commitHash: "def456",
+      oldRef: "def456",
+      newRef: "HEAD",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
   it("runs advanced commit context menu actions", () => {
     openHeadCommitContextMenu();
     clickContextMenuItem("Copy Commit Subject");
@@ -1667,6 +1714,34 @@ describe("webview rendering", () => {
       targetType: "branch",
       interactive: false,
       ignoreDate: true
+    });
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("compares non-head ref labels with HEAD", () => {
+    receiveLoadedCommits(
+      [
+        twoCommits[0],
+        {
+          ...twoCommits[1],
+          refs: [{ hash: "def456", name: "feature/old", type: "head" }]
+        }
+      ],
+      "abc123"
+    );
+
+    const branchRef = gitRef("feature/old", ".gitRef.head");
+    expect(branchRef).not.toBeUndefined();
+    branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Compare with HEAD");
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "commitComparison",
+      repo: REPO,
+      commitHash: "def456",
+      baseRef: "def456",
+      compareRef: "HEAD"
     });
 
     receiveLoadedCommits(twoCommits, "abc123");

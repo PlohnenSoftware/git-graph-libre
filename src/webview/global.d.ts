@@ -82,6 +82,7 @@ declare global {
     srcElem: HTMLElement | null;
     commitDetails: GitCommitDetails | null;
     fileTree: GitFolder | null;
+    comparison: { baseRef: string; compareRef: string } | null;
     detailsHeight: number;
     summaryOpen: boolean;
     filesOpen: boolean;

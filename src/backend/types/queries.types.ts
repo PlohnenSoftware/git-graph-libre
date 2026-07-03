@@ -52,6 +52,11 @@ type QueryPayloads = {
     result: CommitDetailsResult;
     response: CommitDetailsResult;
   };
+  commitComparison: {
+    request: { repo: string; commitHash: string; baseRef: string; compareRef: string };
+    result: CommitDetailsResult;
+    response: CommitDetailsResult;
+  };
   loadBranches: {
     request: {
       requestId: number;

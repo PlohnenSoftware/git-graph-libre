@@ -45,6 +45,7 @@ import {
 import { addTag, deleteTag, pushTag } from "@/backend/actions/tag";
 import { deleteUserDetails, editUserDetails } from "@/backend/actions/userConfig";
 import type { GitClient } from "@/backend/gitClient";
+import { commitComparison } from "@/backend/queries/commitComparison";
 import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadBranches } from "@/backend/queries/loadBranches";
 import { loadCommits } from "@/backend/queries/loadCommits";
@@ -67,6 +68,17 @@ import { exportRepoConfigFile, importRepoConfigFile } from "./repoConfigFile";
 import type { RepoManager } from "./repoManager";
 import type { WebviewBridge } from "./webviewBridge";
 
+type ViewDiffInput = {
+  repo: string;
+  commitHash: string;
+  oldFilePath: string;
+  newFilePath: string;
+  type: GitFileChangeType;
+  shortHashLength: number;
+  oldRef?: string;
+  newRef?: string;
+};
+
 function formatWebviewDiagnostic(msg: Extract<RequestMessage, { command: "webviewDiagnostic" }>) {
   const parts = [`[webview] ${msg.stage}`];
   if (msg.repo !== undefined) parts.push(`repo=${JSON.stringify(msg.repo)}`);
@@ -76,23 +88,23 @@ function formatWebviewDiagnostic(msg: Extract<RequestMessage, { command: "webvie
   return parts.join(" ");
 }
 
-async function viewDiff(
-  repo: string,
-  commitHash: string,
-  oldFilePath: string,
-  newFilePath: string,
-  type: GitFileChangeType,
-  shortHashLength: number
-): Promise<boolean> {
+async function viewDiff(input: ViewDiffInput): Promise<boolean> {
+  const { repo, commitHash, oldFilePath, newFilePath, type, shortHashLength, oldRef, newRef } =
+    input;
   const abbrevHash = abbrevCommit(commitHash, shortHashLength);
+  const oldRevision = oldRef ?? `${commitHash}^`;
+  const newRevision = newRef ?? commitHash;
   const pathComponents = newFilePath.split("/");
   const fileName = pathComponents.at(-1);
-  const title = `${fileName} (${formatDiffTitle(type, abbrevHash)})`;
+  const title =
+    oldRef === undefined && newRef === undefined
+      ? `${fileName} (${formatDiffTitle(type, abbrevHash)})`
+      : `${fileName} (${formatRevisionDiffTitle(oldRevision, newRevision, shortHashLength)})`;
   try {
     await vscode.commands.executeCommand(
       "vscode.diff",
-      encodeDiffDocUri(repo, oldFilePath, `${commitHash}^`),
-      encodeDiffDocUri(repo, newFilePath, commitHash),
+      encodeDiffDocUri(repo, oldFilePath, oldRevision),
+      encodeDiffDocUri(repo, newFilePath, newRevision),
       title,
       { preview: true }
     );
@@ -106,6 +118,10 @@ function formatDiffTitle(type: GitFileChangeType, abbrevHash: string) {
   if (type === "A") return l10n.t("diff.addedIn", abbrevHash);
   if (type === "D") return l10n.t("diff.deletedIn", abbrevHash);
   return `${abbrevHash}^ ↔ ${abbrevHash}`;
+}
+
+function formatRevisionDiffTitle(oldRef: string, newRef: string, shortHashLength: number) {
+  return `${abbrevCommit(oldRef, shortHashLength)} ↔ ${abbrevCommit(newRef, shortHashLength)}`;
 }
 
 function resolveRepoFilePath(repo: string, filePath: string): string | null {
@@ -548,6 +564,20 @@ export function registerMessageHandlers(
     });
   });
 
+  bridge.onMessage("commitComparison", async (msg) => {
+    bridge.post({
+      command: "commitComparison",
+      ...(await commitComparison(gitClient.getInstance(), {
+        commitHash: msg.commitHash,
+        baseRef: msg.baseRef,
+        compareRef: msg.compareRef,
+        dateType: config.dateType(),
+        repo: msg.repo,
+        recordGitCommand
+      }))
+    });
+  });
+
   // --- Infrastructure handlers ---
 
   bridge.onMessage("selectRepo", (msg) => {
@@ -603,14 +633,16 @@ export function registerMessageHandlers(
   bridge.onMessage("viewDiff", async (msg) => {
     bridge.post({
       command: "viewDiff",
-      success: await viewDiff(
-        msg.repo,
-        msg.commitHash,
-        msg.oldFilePath,
-        msg.newFilePath,
-        msg.type,
-        config.shortHashLength()
-      )
+      success: await viewDiff({
+        repo: msg.repo,
+        commitHash: msg.commitHash,
+        oldFilePath: msg.oldFilePath,
+        newFilePath: msg.newFilePath,
+        type: msg.type,
+        shortHashLength: config.shortHashLength(),
+        oldRef: msg.oldRef,
+        newRef: msg.newRef
+      })
     });
   });
 

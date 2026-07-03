@@ -1,6 +1,7 @@
+import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { makeRepo } from "@tests/backend/helpers";
+import { git, makeRepo } from "@tests/backend/helpers";
 import {
   createdTerminals,
   executedCommands,
@@ -34,7 +35,7 @@ afterAll(() => {
 });
 
 describe("registerMessageHandlers", () => {
-  function registerHandlersForTest() {
+  function registerHandlersForTest(activeRepo = repo) {
     const handlers = new Map<
       RequestMessage["command"],
       (msg: RequestMessage) => void | Promise<void>
@@ -53,12 +54,12 @@ describe("registerMessageHandlers", () => {
       }
     } as WebviewBridge;
     const gitClient = {
-      getInstance: () => simpleGit(repo),
+      getInstance: () => simpleGit(activeRepo),
       setRepo: vi.fn(),
       setGitPath: vi.fn()
     } as unknown as GitClient;
 
-    const repoStates = new Map<string, GitRepoState>([[repo, { columnWidths: null }]]);
+    const repoStates = new Map<string, GitRepoState>([[activeRepo, { columnWidths: null }]]);
     const repoManager = {
       getRepos: () => Object.fromEntries(repoStates),
       setRepoState: (repoPath: string, state: unknown) => {
@@ -265,6 +266,54 @@ describe("registerMessageHandlers", () => {
     expect(JSON.stringify(executedCommands[executedCommands.length - 1])).toContain(
       "abcdef1234567890"
     );
+
+    await handler?.({
+      command: "viewDiff",
+      repo,
+      commitHash: "def4567890abcdef",
+      oldRef: "def4567890abcdef",
+      newRef: "HEAD",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+    expect(executedCommands[executedCommands.length - 1]?.[3]).toBe("example.ts (def4 ↔ HEAD)");
+  });
+
+  it("routes commit comparison queries", async () => {
+    const comparisonRepo = makeRepo();
+    try {
+      const baseHash = cp
+        .execFileSync("git", ["rev-parse", "HEAD"], { cwd: comparisonRepo })
+        .toString()
+        .trim();
+      fs.writeFileSync(path.join(comparisonRepo, "f"), "x\nchanged\n");
+      git(["add", "."], comparisonRepo);
+      git(["commit", "-m", "change file"], comparisonRepo);
+
+      const { handlers, posts } = registerHandlersForTest(comparisonRepo);
+      const handler = handlers.get("commitComparison");
+
+      expect(handler).toBeDefined();
+      await handler?.({
+        command: "commitComparison",
+        repo: comparisonRepo,
+        commitHash: baseHash,
+        baseRef: baseHash,
+        compareRef: "HEAD"
+      });
+
+      expect(posts[posts.length - 1]).toMatchObject({
+        command: "commitComparison",
+        commitDetails: {
+          hash: baseHash,
+          fileChanges: [expect.objectContaining({ newFilePath: "f", type: "M" })]
+        },
+        error: null
+      });
+    } finally {
+      fs.rmSync(comparisonRepo, { recursive: true, force: true });
+    }
   });
 
   it("opens files at a selected revision through the virtual document provider", async () => {

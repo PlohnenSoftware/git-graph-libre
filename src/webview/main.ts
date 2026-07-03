@@ -433,6 +433,7 @@ class GitGraphView {
     this.expandedCommit = expandedCommit;
     if (this.expandedCommit === null) return;
 
+    this.expandedCommit.comparison ??= null;
     this.expandedCommit.detailsHeight = clampCommitDetailsHeight(this.expandedCommit.detailsHeight);
     this.expandedCommit.summaryOpen = this.expandedCommit.summaryOpen !== false;
     this.expandedCommit.filesOpen = this.expandedCommit.filesOpen !== false;
@@ -2214,7 +2215,11 @@ class GitGraphView {
       {
         title: l10n.createBranch + ELLIPSIS,
         onClick: () => this.showCreateBranchDialog(hash, sourceElem)
-      },
+      }
+    ];
+    const compareWithHeadItem = this.buildCompareWithHeadMenuItem(hash, sourceElem);
+    if (compareWithHeadItem !== null) menu.push(compareWithHeadItem);
+    menu.push(
       null,
       {
         title: l10n.checkout + ELLIPSIS,
@@ -2242,7 +2247,7 @@ class GitGraphView {
             l10n.dialogYesRevert
           )
       }
-    ];
+    );
     if (isHeadCommit || canDropCommit) {
       menu.push(null);
       if (isHeadCommit) {
@@ -2757,6 +2762,10 @@ class GitGraphView {
     const menu = isTag
       ? this.buildTagContextMenu(refName)
       : this.buildBranchContextMenu(sourceElem, refName);
+    const refCommitHash = this.getCommitHashForElement(sourceElem);
+    const compareWithHeadItem =
+      refCommitHash === null ? null : this.buildCompareWithHeadMenuItem(refCommitHash, sourceElem);
+    if (compareWithHeadItem !== null) menu.push(compareWithHeadItem);
     const copyType = isTag ? "Tag Name" : "Branch Name";
     const copyTitle = isTag ? l10n.copyTagName : l10n.copyBranchName;
     menu.push(null, {
@@ -2766,6 +2775,23 @@ class GitGraphView {
       }
     });
     return menu;
+  }
+  private buildCompareWithHeadMenuItem(hash: string, sourceElem: HTMLElement): ContextMenuElement {
+    if (!this.canCompareWithHead(hash)) return null;
+    return {
+      title: l10n.compareWithHead,
+      onClick: () => this.loadCommitComparisonWithHead(sourceElem, hash)
+    };
+  }
+  private canCompareWithHead(hash: string) {
+    return this.commitHead !== null && hash !== "*" && hash !== this.commitHead;
+  }
+  private getCommitHashForElement(sourceElem: HTMLElement): string | null {
+    const row = closestHTMLElement(sourceElem, "tr.commit");
+    return row?.dataset.hash ?? null;
+  }
+  private getCommitRowForElement(sourceElem: HTMLElement): HTMLTableRowElement | null {
+    return closestHTMLElement(sourceElem, "tr.commit") as HTMLTableRowElement | null;
   }
   private buildTagContextMenu(refName: string): ContextMenuElement[] {
     return [
@@ -3893,6 +3919,7 @@ class GitGraphView {
       srcElem: sourceElem,
       commitDetails: null,
       fileTree: null,
+      comparison: null,
       detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT,
       summaryOpen: true,
       filesOpen: true
@@ -3902,6 +3929,33 @@ class GitGraphView {
       command: "commitDetails",
       repo: this.currentRepo,
       commitHash: hash
+    });
+  }
+  private loadCommitComparisonWithHead(sourceElem: HTMLElement, hash: string) {
+    if (!this.canCompareWithHead(hash)) return;
+    const row = this.getCommitRowForElement(sourceElem);
+    const id = row?.dataset.id;
+    if (row === null || id === undefined || this.commitHead === null) return;
+
+    this.hideCommitDetails();
+    this.expandedCommit = {
+      id: Number.parseInt(id, 10),
+      hash,
+      srcElem: row,
+      commitDetails: null,
+      fileTree: null,
+      comparison: { baseRef: hash, compareRef: "HEAD" },
+      detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT,
+      summaryOpen: true,
+      filesOpen: true
+    };
+    this.saveState();
+    sendMessage({
+      command: "commitComparison",
+      repo: this.currentRepo,
+      commitHash: hash,
+      baseRef: hash,
+      compareRef: "HEAD"
     });
   }
   public hideCommitDetails() {
@@ -4099,7 +4153,7 @@ class GitGraphView {
     if (revisionFileExists) {
       menu.push(null, {
         title: l10n.resetFileToRevision + ELLIPSIS,
-        onClick: () => this.showResetFileToRevisionDialog(fileChange.newFilePath, sourceElem)
+        onClick: () => this.showResetFileToRevisionDialog(fileChange, sourceElem)
       });
     }
 
@@ -4120,17 +4174,30 @@ class GitGraphView {
   }
 
   private gitFileExistsAtRevision(fileChange: GitFileChange) {
+    if (this.expandedCommit?.comparison !== null && this.expandedCommit?.comparison !== undefined) {
+      return this.expandedCommit.hash !== "*";
+    }
     return (
       this.expandedCommit !== null && this.expandedCommit.hash !== "*" && fileChange.type !== "D"
     );
   }
 
+  private getExpandedFileRevision(fileChange: GitFileChange): string | null {
+    if (this.expandedCommit === null) return null;
+    if (this.expandedCommit.comparison === null) return this.expandedCommit.hash;
+    return fileChange.type === "D"
+      ? this.expandedCommit.comparison.baseRef
+      : this.expandedCommit.comparison.compareRef;
+  }
+
   private viewGitFileDiff(fileChange: GitFileChange) {
     if (this.expandedCommit === null) return;
+    const comparison = this.expandedCommit.comparison;
     sendMessage({
       command: "viewDiff",
       repo: this.currentRepo,
       commitHash: this.expandedCommit.hash,
+      ...(comparison === null ? {} : { oldRef: comparison.baseRef, newRef: comparison.compareRef }),
       oldFilePath: fileChange.oldFilePath,
       newFilePath: fileChange.newFilePath,
       type: fileChange.type
@@ -4138,21 +4205,23 @@ class GitGraphView {
   }
 
   private viewGitFileAtRevision(fileChange: GitFileChange) {
-    if (this.expandedCommit === null) return;
+    const commitHash = this.getExpandedFileRevision(fileChange);
+    if (commitHash === null) return;
     sendMessage({
       command: "viewFileAtRevision",
       repo: this.currentRepo,
-      commitHash: this.expandedCommit.hash,
+      commitHash,
       filePath: fileChange.newFilePath
     });
   }
 
   private compareGitFileWithWorkingTree(fileChange: GitFileChange) {
-    if (this.expandedCommit === null) return;
+    const commitHash = this.getExpandedFileRevision(fileChange);
+    if (commitHash === null) return;
     sendMessage({
       command: "compareFileWithWorkingTree",
       repo: this.currentRepo,
-      commitHash: this.expandedCommit.hash,
+      commitHash,
       filePath: fileChange.newFilePath
     });
   }
@@ -4165,9 +4234,10 @@ class GitGraphView {
     });
   }
 
-  private showResetFileToRevisionDialog(filePath: string, sourceElem: HTMLElement) {
-    if (this.expandedCommit === null) return;
-    const commitHash = this.expandedCommit.hash;
+  private showResetFileToRevisionDialog(fileChange: GitFileChange, sourceElem: HTMLElement) {
+    const commitHash = this.getExpandedFileRevision(fileChange);
+    if (commitHash === null) return;
+    const filePath = fileChange.newFilePath;
     showConfirmationDialog(
       l10n.dialogResetFileToRevisionConfirm
         .replace("{0}", escapeHtml(filePath))
@@ -4455,6 +4525,7 @@ type ResponseHandlerMap = {
 };
 
 const responseHandlers: ResponseHandlerMap = {
+  commitComparison: handleCommitComparisonResponse,
   commitDetails: handleCommitDetailsResponse,
   copyToClipboard: handleCopyToClipboardResponse,
   createArchive: handleCreateArchiveResponse,
@@ -4512,6 +4583,23 @@ function handleCommitDetailsResponse(
   if (msg.commitDetails === null) {
     gitGraph.hideCommitDetails();
     showErrorDialog(l10n.unableToLoadCommitDetails, formatQueryError(msg.error), null);
+    return;
+  }
+
+  gitGraph.showCommitDetails(
+    msg.commitDetails,
+    generateGitFileTree(msg.commitDetails.fileChanges, {
+      compactFolders: viewState.commitDetailsCompactFolders
+    })
+  );
+}
+
+function handleCommitComparisonResponse(
+  msg: Extract<GG.ResponseMessage, { command: "commitComparison" }>
+) {
+  if (msg.commitDetails === null) {
+    gitGraph.hideCommitDetails();
+    showErrorDialog(l10n.unableToLoadCommitComparison, formatQueryError(msg.error), null);
     return;
   }
 
