@@ -417,6 +417,22 @@ describe("webview rendering", () => {
     clearFind();
   });
 
+  it("closes the settings popup from its header close button", () => {
+    document
+      .getElementById("settingsBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const settingsWidget = document.getElementById("settingsWidget");
+    expect(settingsWidget?.hidden).toBe(false);
+    const closeBtn = document.getElementById("settingsCloseBtn");
+    expect(closeBtn?.getAttribute("aria-label")).toBe("Close settings");
+
+    closeBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(document.getElementById("settingsWidget")?.hidden).toBe(true);
+    expect(document.getElementById("settingsBtn")?.getAttribute("aria-pressed")).toBe("false");
+  });
+
   it("persists repository settings overrides and reloads with resolved flags", () => {
     const settingsBtn = document.getElementById("settingsBtn") as HTMLButtonElement | null;
     expect(settingsBtn).not.toBeNull();

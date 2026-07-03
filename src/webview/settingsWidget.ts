@@ -13,6 +13,7 @@ export type RepoBooleanSettingKey =
 
 type SettingsLabels = {
   title: string;
+  close: string;
   general: string;
   repositoryName: string;
   edit: string;
@@ -293,6 +294,7 @@ export function renderSettingsWidget(model: SettingsWidgetModel) {
   const hasDetails = hasUserDetails(model.config);
   return `<div class="settingsWidgetHeader">
       <h2>${escapeHtml(labels.title)}</h2>
+      <button id="settingsCloseBtn" class="settingsCloseButton" type="button" title="${escapeHtml(labels.close)}" aria-label="${escapeHtml(labels.close)}">&times;</button>
     </div>
     <section class="settingsSection">
       <h3>${escapeHtml(labels.general)}</h3>

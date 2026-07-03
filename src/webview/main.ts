@@ -1343,6 +1343,7 @@ class GitGraphView {
       defaults: this.getRepoBooleanDefaults(),
       labels: {
         title: l10n.repositorySettings,
+        close: l10n.settingsClose,
         general: l10n.settingsGeneral,
         repositoryName: l10n.settingsRepositoryName,
         edit: l10n.settingsEdit,
@@ -1402,6 +1403,9 @@ class GitGraphView {
   }
 
   private bindSettingsWidget() {
+    document.getElementById("settingsCloseBtn")?.addEventListener("click", () => {
+      this.closeSettingsWidget();
+    });
     document.getElementById("settingsEditRepoName")?.addEventListener("click", () => {
       this.showRepoNameDialog();
     });

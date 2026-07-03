@@ -890,8 +890,31 @@ body.commitDetailsResizing * {
 .settingsWidgetHeader {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   min-height: 24px;
   margin-bottom: 8px;
+}
+.settingsCloseButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--ngg-transparent);
+  border-radius: 4px;
+  background-color: var(--ngg-transparent);
+  color: var(--vscode-foreground);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.settingsCloseButton:hover {
+  background-color: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-medium));
+}
+.settingsCloseButton:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
 }
 .settingsWidgetHeader h2 {
   margin: 0;
