@@ -29,46 +29,89 @@ describe("Dropdown", () => {
     expect(options[1]?.getAttribute("title")).toBe("/workspace/beta");
   });
 
-  it("keeps the control width stable across repeated renders", () => {
+  it("does not write inline widths from menu content", () => {
     const dropdown = new Dropdown("repoSelect", false, "branch", () => {});
-    const options = [
-      { name: "main", value: "main" },
-      { name: "feature/very-long-branch-name", value: "feature/very-long-branch-name" }
-    ];
 
-    dropdown.setOptions(options, "main");
-    const widthAfterFirstRender =
-      document.querySelector<HTMLElement>(".dropdownCurrentValue")?.style.width;
-
-    for (let i = 0; i < 5; i++) dropdown.setOptions(options, "main");
-
-    expect(document.querySelector<HTMLElement>(".dropdownCurrentValue")?.style.width).toBe(
-      widthAfterFirstRender
+    dropdown.setOptions(
+      [
+        { name: "main", value: "main" },
+        { name: "feature/very-long-branch-name", value: "feature/very-long-branch-name" }
+      ],
+      "main"
     );
-    // Measurement must not run with the class-level min-width applied
-    expect(document.querySelector<HTMLElement>(".dropdownMenu")?.style.cssText).not.toContain(
-      "min-width"
-    );
+
+    expect(document.querySelector<HTMLElement>(".dropdownCurrentValue")?.style.width).toBe("");
+    expect(document.querySelector<HTMLElement>(".dropdownMenu")?.style.cssText).toBe("");
   });
 
-  it("caps the control width so wide menus cannot stretch the toolbar", () => {
-    const dropdown = new Dropdown("repoSelect", false, "branch", () => {});
-    const menu = document.querySelector<HTMLElement>(".dropdownMenu");
-    expect(menu).not.toBeNull();
-    Object.defineProperty(menu, "offsetWidth", { value: 640, configurable: true });
+  it("truncates ref display names while keeping full names selectable and filterable", () => {
+    const selectedValues: string[][] = [];
+    const dropdown = new Dropdown(
+      "repoSelect",
+      false,
+      "branches",
+      (values) => {
+        selectedValues.push(values);
+      },
+      true,
+      { maxDisplayChars: 40, truncation: "ref" }
+    );
+
+    const checkout = "origin/dependabot/github_actions/actions/checkout-7";
+    const setupNode = "origin/dependabot/github_actions/actions/setup-node-6";
+    dropdown.setOptions(
+      [
+        { name: "Show All", value: "" },
+        { name: checkout, value: checkout },
+        { name: setupNode, value: setupNode }
+      ],
+      null
+    );
+
+    const currentValue = document.querySelector<HTMLElement>(".dropdownCurrentValue");
+    currentValue?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const options = document.querySelectorAll<HTMLElement>(".dropdownOption");
+    expect(options[1]?.textContent).toContain("origin/\u2026/actions/checkout-7");
+    expect(options[2]?.textContent).toContain("origin/\u2026/actions/setup-node-6");
+    expect(options[1]?.getAttribute("title")).toBe(checkout);
+    expect(options[2]?.getAttribute("title")).toBe(setupNode);
+
+    const filterInput = document.querySelector<HTMLInputElement>(".dropdownFilterInput");
+    if (filterInput === null) throw new Error("Missing dropdown filter input");
+    filterInput.value = "setup-node";
+    filterInput.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+
+    expect(options[1]?.style.display).toBe("none");
+    expect(options[2]?.style.display).toBe("block");
+
+    options[2]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(selectedValues.at(-1)).toEqual([setupNode]);
+    expect(currentValue?.textContent).toBe("origin/\u2026/actions/setup-node-6");
+    expect(currentValue?.title).toBe(setupNode);
+  });
+
+  it("middle-truncates multi-select summaries independently", () => {
+    const dropdown = new Dropdown("repoSelect", false, "authors", () => {}, true, {
+      maxDisplayChars: 18,
+      truncation: "middle"
+    });
 
     dropdown.setOptions(
       [
         { name: "Show All", value: "" },
-        {
-          name: "origin/dependabot/github_actions/actions/checkout-7",
-          value: "origin/dependabot/github_actions/actions/checkout-7"
-        }
+        { name: "averyverylongauthor@example.test", value: "averyverylongauthor@example.test" },
+        { name: "anotherverylongauthor@example.test", value: "anotherverylongauthor@example.test" }
       ],
-      ""
+      ["averyverylongauthor@example.test", "anotherverylongauthor@example.test"]
     );
 
-    expect(document.querySelector<HTMLElement>(".dropdownCurrentValue")?.style.width).toBe("300px");
+    const currentValue = document.querySelector<HTMLElement>(".dropdownCurrentValue");
+    expect(currentValue?.textContent).toBe("averyvery\u2026ple.test, anotherve\u2026ple.test");
+    expect(currentValue?.title).toBe(
+      "averyverylongauthor@example.test, anotherverylongauthor@example.test"
+    );
   });
 
   it("opens, filters, selects an option, and closes on outside clicks", () => {

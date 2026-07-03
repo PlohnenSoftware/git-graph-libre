@@ -32,6 +32,7 @@ describe("buildWebviewToolbar", () => {
 
     const findControl = document.getElementById("findControl") as HTMLElement | null;
     expect(findControl?.hidden).toBe(true);
+    expect(findControl?.parentElement?.id).toBe("controls");
     expect(document.getElementById("findInput")?.getAttribute("aria-label")).toBe("Find commits");
     expect(document.getElementById("findInput")?.getAttribute("placeholder")).toBe("Find commits");
     expect(document.getElementById("findMatchCount")?.getAttribute("aria-live")).toBe("polite");

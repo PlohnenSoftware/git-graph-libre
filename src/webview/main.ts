@@ -48,12 +48,14 @@ import { arraysEqual, ELLIPSIS, refInvalid } from "./utils/git";
 import { escapeHtml, unescapeHtml } from "./utils/html";
 import { svgIcons } from "./utils/icons";
 import { extractIssueLinks } from "./utils/linkify";
-import { getVSCodeStyle, sendMessage, vscode } from "./utils/vscode";
+import { sendMessage, vscode } from "./utils/vscode";
 
 const searchHistoryMaxResults = 50;
 const FILTER_SHOW_ALL_VALUE = "";
 const HEAD_REF_VALUE = "HEAD";
 const diagnosticMessageMaxLength = 500;
+const REF_DROPDOWN_DISPLAY_CHARS = 40;
+const AUTHOR_DROPDOWN_DISPLAY_CHARS = 30;
 
 const HIDEABLE_COLUMNS = ["date", "author", "commit"] as const;
 type HideableColumn = (typeof HIDEABLE_COLUMNS)[number];
@@ -272,7 +274,8 @@ class GitGraphView {
         this.renderShowLoading();
         this.requestLoadCommits(true, () => {});
       },
-      true
+      true,
+      { maxDisplayChars: REF_DROPDOWN_DISPLAY_CHARS, truncation: "ref" }
     );
     this.authorDropdown = new Dropdown(
       "authorSelect",
@@ -286,7 +289,8 @@ class GitGraphView {
         this.renderShowLoading();
         this.requestLoadCommits(true, () => {});
       },
-      true
+      true,
+      { maxDisplayChars: AUTHOR_DROPDOWN_DISPLAY_CHARS, truncation: "middle" }
     );
     this.tagDropdown = new Dropdown(
       "tagSelect",
@@ -300,7 +304,8 @@ class GitGraphView {
         this.renderShowLoading();
         this.requestLoadCommits(true, () => {});
       },
-      true
+      true,
+      { maxDisplayChars: REF_DROPDOWN_DISPLAY_CHARS, truncation: "ref" }
     );
     this.showRemoteBranchesElem = requireElement<HTMLInputElement>("showRemoteBranchesCheckbox");
     this.showRemoteBranchesElem.addEventListener("change", () => {
@@ -358,7 +363,6 @@ class GitGraphView {
       this.jumpToHead();
     });
     this.observeWindowSizeChanges();
-    this.observeWebviewStyleChanges();
     this.observeWebviewScroll();
     this.observeTopBarHeight();
     document.addEventListener("keydown", (event) => {
@@ -890,6 +894,7 @@ class GitGraphView {
   /* Find */
   private showFindWidget() {
     this.findControlElem.hidden = false;
+    this.publishTopBarHeight();
     this.updateFindUi();
     this.findInputElem.focus();
     this.findInputElem.select();
@@ -904,6 +909,7 @@ class GitGraphView {
     this.findMatches = [];
     this.activeFindMatchIndex = -1;
     this.findControlElem.hidden = true;
+    this.publishTopBarHeight();
     this.updateFindUi();
     this.renderTable();
     this.renderGraph();
@@ -4087,17 +4093,6 @@ class GitGraphView {
         windowHeight = window.outerHeight;
       }
     });
-  }
-  private observeWebviewStyleChanges() {
-    let fontFamily = getVSCodeStyle("--vscode-editor-font-family");
-    new MutationObserver(() => {
-      const ff = getVSCodeStyle("--vscode-editor-font-family");
-      if (ff !== fontFamily) {
-        fontFamily = ff;
-        this.repoDropdown.refresh();
-        this.branchDropdown.refresh();
-      }
-    }).observe(document.documentElement, { attributes: true, attributeFilter: ["style"] });
   }
   private observeWebviewScroll() {
     let active = window.scrollY > 0;

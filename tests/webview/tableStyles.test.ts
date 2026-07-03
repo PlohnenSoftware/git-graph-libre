@@ -43,9 +43,23 @@ describe("commit table styles", () => {
 
     expect(css).toContain("@media (max-width: 640px)");
     expect(css).toContain(".toolbarGroup .dropdown {");
+    expect(css).toContain("#branchControl .dropdown");
+    expect(css).toContain("flex-basis: 200px;");
+    expect(css).toContain("#authorControl .dropdown");
+    expect(css).toContain("flex-basis: 160px;");
+    expect(css).toContain("#tagControl .dropdown");
+    expect(css).toContain("flex-basis: 140px;");
     const currentValue = dropdownCss.match(/^\.dropdownCurrentValue \{[^}]+\}/m)?.[0] ?? "";
     expect(currentValue).toContain("max-width: 100%;");
     expect(currentValue).toContain("text-overflow: ellipsis;");
+  });
+
+  it("keeps the find widget on its own toolbar row", () => {
+    const find = css.match(/^\.toolbarFind \{[^}]+\}/m)?.[0] ?? "";
+
+    expect(find).toContain("order: 10;");
+    expect(find).toContain("flex: 0 0 100%;");
+    expect(find).toContain("max-width: 100%;");
   });
 
   it("keeps revealed commit rows clear of the sticky overlay", () => {

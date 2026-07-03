@@ -60,7 +60,9 @@
   border: 1px solid var(--vscode-dropdown-border, var(--ngg-neutral-border-strong));
   border-radius: 0 0 4px 4px;
   box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+  max-height: 297px;
   overflow-x: hidden;
+  overflow-y: auto;
   margin-top: -1px;
   white-space: nowrap;
 }

@@ -1,9 +1,15 @@
 import { escapeHtml } from "./utils/html";
 import { svgIcons } from "./utils/icons";
+import { truncateMiddle, truncateRefName } from "./utils/truncate";
 
 export interface DropdownOption {
   name: string;
   value: string;
+}
+
+export interface DropdownDisplayOptions {
+  maxDisplayChars?: number;
+  truncation?: "middle" | "ref";
 }
 
 export class Dropdown {
@@ -13,6 +19,7 @@ export class Dropdown {
   private dropdownVisible: boolean = false;
   private readonly showInfo: boolean;
   private readonly multiple: boolean;
+  private readonly displayOptions: DropdownDisplayOptions;
   private readonly changeCallback: ((value: string) => void) | ((values: string[]) => void);
 
   private readonly elem: HTMLElement;
@@ -26,24 +33,30 @@ export class Dropdown {
     id: string,
     showInfo: boolean,
     dropdownType: string,
-    changeCallback: (value: string) => void
+    changeCallback: (value: string) => void,
+    displayOptions?: DropdownDisplayOptions
   );
   constructor(
     id: string,
     showInfo: boolean,
     dropdownType: string,
     changeCallback: (values: string[]) => void,
-    multiple: true
+    multiple: true,
+    displayOptions?: DropdownDisplayOptions
   );
   constructor(
     id: string,
     showInfo: boolean,
     dropdownType: string,
     changeCallback: ((value: string) => void) | ((values: string[]) => void),
-    multiple = false
+    multipleOrDisplayOptions: boolean | DropdownDisplayOptions = false,
+    displayOptions: DropdownDisplayOptions = {}
   ) {
     this.showInfo = showInfo;
-    this.multiple = multiple;
+    this.multiple =
+      typeof multipleOrDisplayOptions === "boolean" ? multipleOrDisplayOptions : false;
+    this.displayOptions =
+      typeof multipleOrDisplayOptions === "boolean" ? displayOptions : multipleOrDisplayOptions;
     this.changeCallback = changeCallback;
     const elem = document.getElementById(id);
     if (elem === null) throw new Error(`Missing dropdown element: ${id}`);
@@ -265,39 +278,70 @@ export class Dropdown {
       .join(", ");
   }
 
+  private selectedDisplayNames() {
+    if (!this.multiple)
+      return this.formatDisplayName(this.options[this.selectedOption]?.name ?? "");
+    return [...this.selectedOptions]
+      .toSorted((left, right) => left - right)
+      .map((index) => this.formatDisplayName(this.options[index]?.name ?? ""))
+      .filter((name) => name !== "")
+      .join(", ");
+  }
+
   private emitMultiValue() {
     (this.changeCallback as (values: string[]) => void)(this.selectedValues());
   }
 
   private render() {
     this.elem.classList.add("loaded");
-    this.currentValueElem.innerHTML = escapeHtml(this.selectedNames());
-    if (this.showInfo) {
-      this.currentValueElem.title = this.selectedValues().join(", ");
-    }
+    const selectedNames = this.selectedNames();
+    const selectedDisplayNames = this.selectedDisplayNames();
+    this.currentValueElem.innerHTML = escapeHtml(selectedDisplayNames);
+    this.updateCurrentValueTitle(selectedNames, selectedDisplayNames);
     this.optionsElem.className = this.showInfo ? "dropdownOptions showInfo" : "dropdownOptions";
     this.optionsElem.innerHTML = this.options
       .map((option, index) => this.renderOption(option, index))
       .join("");
     this.filterInput.style.display = "none";
     this.noResultsElem.style.display = "none";
-    // min-width is cleared during measurement so the control width cannot feed
-    // back into the menu width and grow on every render
-    this.menuElem.style.cssText = "opacity:0; display:block; min-width:0;";
-    // Width must be at least 130px for the filter elements. Max height for the dropdown is [filter (31px) + 9.5 * dropdown item (28px) = 297px]
-    // Don't need to add 12px if showing info icons and scrollbar isn't needed. The scrollbar isn't needed if: menuElem height + filter input (25px) < 297px
-    this.currentValueElem.style.width = `${this.measuredCurrentValueWidth()}px`;
-    this.menuElem.style.cssText = "right:0; overflow-y:auto; max-height:297px;";
     if (this.dropdownVisible) this.filter();
+  }
+
+  private updateCurrentValueTitle(selectedNames: string, selectedDisplayNames: string) {
+    if (this.showInfo) {
+      this.currentValueElem.title = this.selectedValues().join(", ");
+      return;
+    }
+
+    if (selectedDisplayNames === selectedNames) {
+      this.currentValueElem.removeAttribute("title");
+      return;
+    }
+
+    this.currentValueElem.title = selectedNames;
   }
 
   private renderOption(option: DropdownOption, index: number) {
     const isSelected = this.isOptionIndexSelected(index);
     const className = isSelected ? "dropdownOption selected" : "dropdownOption";
-    const title = this.showInfo ? ` title="${escapeHtml(option.value)}"` : "";
+    const displayName = this.formatDisplayName(option.name);
+    const titleValue = this.optionTitle(option, displayName);
+    const title = titleValue === null ? "" : ` title="${escapeHtml(titleValue)}"`;
     return `<div class="${className}" data-id="${index}"${title}>${this.renderOptionCheck(
       isSelected
-    )}${escapeHtml(option.name)}${this.renderOptionInfo(option.value)}</div>`;
+    )}${escapeHtml(displayName)}${this.renderOptionInfo(option.value)}</div>`;
+  }
+
+  private optionTitle(option: DropdownOption, displayName: string) {
+    if (this.showInfo) return option.value;
+    return displayName === option.name ? null : option.name;
+  }
+
+  private formatDisplayName(name: string) {
+    const maxChars = this.displayOptions.maxDisplayChars;
+    if (maxChars === undefined) return name;
+    if (this.displayOptions.truncation === "ref") return truncateRefName(name, maxChars);
+    return truncateMiddle(name, maxChars);
   }
 
   private isOptionIndexSelected(index: number) {
@@ -315,14 +359,6 @@ export class Dropdown {
     if (!this.showInfo) return "";
     const escapedValue = escapeHtml(value);
     return `<div class="dropdownOptionInfo" title="${escapedValue}">${svgIcons.info}</div>`;
-  }
-
-  private measuredCurrentValueWidth() {
-    const needsScrollbarPadding = !this.showInfo || this.menuElem.offsetHeight >= 272;
-    const scrollbarPadding = needsScrollbarPadding ? 12 : 0;
-    // Cap the control width so long option names (e.g. remote branches) cannot
-    // stretch the toolbar; the open menu may be wider than the control.
-    return Math.min(Math.max(this.menuElem.offsetWidth + scrollbarPadding, 130), 300);
   }
 
   private filter() {

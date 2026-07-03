@@ -646,8 +646,21 @@ body.commitDetailsResizing * {
   flex: 0 1 auto;
 }
 .toolbarGroup .dropdown {
-  min-width: 0;
+  min-width: 130px;
   max-width: 100%;
+  flex: 0 1 160px;
+}
+#repoControl .dropdown {
+  flex-basis: 220px;
+}
+#branchControl .dropdown {
+  flex-basis: 200px;
+}
+#authorControl .dropdown {
+  flex-basis: 160px;
+}
+#tagControl .dropdown {
+  flex-basis: 140px;
 }
 #showRemoteBranchesControl {
   flex: 0 0 auto;
@@ -670,15 +683,18 @@ body.commitDetailsResizing * {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-width: 180px;
-  max-width: min(380px, 100%);
-  flex: 1 1 220px;
+  order: 10;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 0 100%;
 }
 .toolbarFind[hidden] {
   display: none;
 }
 .toolbarFindInput {
-  width: 100%;
+  width: min(360px, 100%);
+  max-width: 100%;
+  flex: 0 1 360px;
   min-width: 120px;
   height: 28px;
   box-sizing: border-box;
@@ -888,9 +904,7 @@ body.commitDetailsResizing * {
     max-width: 100%;
   }
   .toolbarFind {
-    flex: 1 1 100%;
-    min-width: 0;
-    max-width: 100%;
+    flex-basis: 100%;
   }
 }
 
