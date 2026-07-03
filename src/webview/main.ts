@@ -208,6 +208,7 @@ class GitGraphView {
   private readonly findClearBtn: HTMLButtonElement;
   private readonly findSearchHistoryBtn: HTMLButtonElement;
   private readonly fetchBtn: HTMLButtonElement;
+  private readonly terminalBtn: HTMLButtonElement;
   private readonly settingsBtn: HTMLButtonElement;
   private readonly settingsWidgetBackingElem: HTMLElement;
   private readonly settingsWidgetElem: HTMLElement;
@@ -317,6 +318,7 @@ class GitGraphView {
     this.findClearBtn = requireElement<HTMLButtonElement>("findClearBtn");
     this.findSearchHistoryBtn = requireElement<HTMLButtonElement>("findSearchHistoryBtn");
     this.fetchBtn = requireElement<HTMLButtonElement>("fetchBtn");
+    this.terminalBtn = requireElement<HTMLButtonElement>("terminalBtn");
     this.settingsBtn = requireElement<HTMLButtonElement>("settingsBtn");
     this.settingsWidgetBackingElem = requireElement("settingsWidgetBacking");
     this.settingsWidgetElem = requireElement("settingsWidget");
@@ -343,6 +345,9 @@ class GitGraphView {
     });
     this.fetchBtn.addEventListener("click", () => {
       this.showFetchDialog();
+    });
+    this.terminalBtn.addEventListener("click", () => {
+      this.openTerminal();
     });
     this.settingsBtn.addEventListener("click", () => {
       this.toggleSettingsWidget();
@@ -1181,6 +1186,12 @@ class GitGraphView {
       this.fetchBtn
     );
   }
+
+  private openTerminal() {
+    if (this.currentRepo === "") return;
+    sendMessage({ command: "openTerminal", repo: this.currentRepo });
+  }
+
   private navigateCommitDetails(delta: number) {
     if (this.expandedCommit === null) return;
     const targetRow = document.querySelector<HTMLElement>(
@@ -4560,6 +4571,7 @@ const responseHandlers: ResponseHandlerMap = {
   openExternalUrl: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenExternalUrl),
   openFile: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenFile),
   openSourceControl: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenSourceControl),
+  openTerminal: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenTerminal),
   refresh: () => gitGraph.refresh(false),
   searchCommits: (msg) =>
     gitGraph.loadSearchCommitResults(msg.requestId, msg.results, formatQueryError(msg.error)),

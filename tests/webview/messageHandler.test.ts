@@ -10,7 +10,8 @@ import {
   resetVscodeMock,
   saveDialogResults,
   shownSaveDialogs,
-  shownTextDocuments
+  shownTextDocuments,
+  window as vscodeWindow
 } from "@tests/webview/__mocks__/vscode";
 import { simpleGit } from "simple-git";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -491,5 +492,47 @@ describe("registerMessageHandlers", () => {
       shown: true,
       sentText: ["git rebase --interactive 'feature/topic'"]
     });
+  });
+
+  it("opens a repository terminal from the toolbar request", async () => {
+    resetVscodeMock();
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("openTerminal");
+
+    expect(handler).toBeDefined();
+    await handler?.({ command: "openTerminal", repo });
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "openTerminal",
+      success: true
+    });
+    expect(createdTerminals).toHaveLength(1);
+    expect(createdTerminals[0]).toMatchObject({
+      options: {
+        name: `Git Graph Libre: ${path.basename(repo)}`,
+        cwd: repo
+      },
+      shown: true,
+      sentText: []
+    });
+  });
+
+  it("reports terminal creation failures", async () => {
+    resetVscodeMock();
+    const createTerminal = vi.spyOn(vscodeWindow, "createTerminal").mockImplementationOnce(() => {
+      throw new Error("terminal unavailable");
+    });
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("openTerminal");
+
+    expect(handler).toBeDefined();
+    await handler?.({ command: "openTerminal", repo });
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "openTerminal",
+      success: false
+    });
+    expect(createdTerminals).toHaveLength(0);
+    createTerminal.mockRestore();
   });
 });

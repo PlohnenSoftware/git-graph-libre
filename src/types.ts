@@ -176,6 +176,15 @@ export type ResponseOpenSourceControl = {
   success: boolean;
 };
 
+export type RequestOpenTerminal = {
+  command: "openTerminal";
+  repo: string;
+};
+export type ResponseOpenTerminal = {
+  command: "openTerminal";
+  success: boolean;
+};
+
 export type RequestOpenExternalUrl = {
   command: "openExternalUrl";
   url: string;
@@ -231,6 +240,7 @@ export type RequestMessage =
   | RequestCompareFileWithWorkingTree
   | RequestOpenFile
   | RequestOpenSourceControl
+  | RequestOpenTerminal
   | RequestOpenExternalUrl
   | RequestImportRepoConfig
   | RequestWebviewDiagnostic;
@@ -246,6 +256,7 @@ export type ResponseMessage =
   | ResponseCompareFileWithWorkingTree
   | ResponseOpenFile
   | ResponseOpenSourceControl
+  | ResponseOpenTerminal
   | ResponseOpenExternalUrl
   | ResponseCreateArchive
   | ResponseImportRepoConfig
