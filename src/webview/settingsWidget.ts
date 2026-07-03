@@ -1,4 +1,5 @@
 import type { GitRemote, GitRepoConfig } from "@/backend/types";
+import { octicon } from "@/octicons";
 import type { GitRepoState, RepoBooleanOverride } from "@/types";
 
 import { escapeHtml } from "./utils/html";
@@ -294,7 +295,7 @@ export function renderSettingsWidget(model: SettingsWidgetModel) {
   const hasDetails = hasUserDetails(model.config);
   return `<div class="settingsWidgetHeader">
       <h2>${escapeHtml(labels.title)}</h2>
-      <button id="settingsCloseBtn" class="settingsCloseButton" type="button" title="${escapeHtml(labels.close)}" aria-label="${escapeHtml(labels.close)}">&times;</button>
+      <button id="settingsCloseBtn" class="settingsCloseButton" type="button" title="${escapeHtml(labels.close)}" aria-label="${escapeHtml(labels.close)}">${octicon("x")}</button>
     </div>
     <section class="settingsSection">
       <h3>${escapeHtml(labels.general)}</h3>

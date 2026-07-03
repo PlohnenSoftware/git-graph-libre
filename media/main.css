@@ -36,14 +36,15 @@ body.unableToLoad h2,
 body.unableToLoad p {
   text-align: center;
 }
-#scrollShadow.active {
-  position: fixed;
-  top: 0px;
-  left: 0px;
-  width: 100%;
-  height: 0px;
-  box-shadow: 0 -6px 6px 6px var(--vscode-scrollbar-shadow);
-  z-index: 200;
+/* Top bar: readiness strip + toolbar float above the scrolling graph */
+#topBar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: var(--vscode-editor-background);
+}
+#topBar.scrolled {
+  box-shadow: 0 3px 6px var(--vscode-scrollbar-shadow, var(--ngg-neutral-overlay-medium));
 }
 
 /* Content */
@@ -144,7 +145,7 @@ body.unableToLoad p {
 }
 #commitTable th {
   position: sticky;
-  top: 0;
+  top: var(--ngg-sticky-top, 0px);
   z-index: 10;
   background-color: var(--vscode-editor-background);
   color: var(--vscode-descriptionForeground);
@@ -152,6 +153,12 @@ body.unableToLoad p {
   line-height: 18px;
   padding: 6px 12px;
   box-shadow: 0 1px 0 var(--vscode-scrollbar-shadow, var(--ngg-neutral-overlay-medium));
+}
+#commitTable tr.commit,
+#commitTable tr.unsavedChanges {
+  /* Keep rows revealed by find/locate clear of the sticky top bar + headers */
+  scroll-margin-top: calc(var(--ngg-sticky-top, 0px) + 40px);
+  scroll-margin-bottom: 40px;
 }
 
 #commitTable.fixedLayout table {
@@ -594,6 +601,9 @@ body.commitDetailsResizing * {
 }
 #loadingHeader svg {
   display: inline;
+  width: 20px;
+  height: 20px;
+  margin-top: 6px;
   fill: var(--ngg-neutral-icon);
   margin-right: 10px;
   vertical-align: top;
@@ -611,12 +621,9 @@ body.commitDetailsResizing * {
 /* Controls */
 #controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  position: relative;
-  left: 0;
-  right: 0;
-  top: 0;
+  gap: 4px 10px;
   min-height: 40px;
   padding: 4px 8px;
   box-sizing: border-box;
@@ -625,10 +632,7 @@ body.commitDetailsResizing * {
   color: var(--vscode-editor-foreground);
   font-size: 13px;
 }
-#repoControl,
-#branchControl,
-#authorControl,
-#tagControl,
+.toolbarGroup,
 #showRemoteBranchesControl {
   display: inline-flex;
   align-items: center;
@@ -636,17 +640,17 @@ body.commitDetailsResizing * {
   white-space: nowrap;
   margin: 0;
 }
-#repoControl,
-#branchControl,
-#authorControl,
-#tagControl {
+.toolbarGroup {
   min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
 }
-#repoSelect,
-#branchSelect,
-#authorSelect,
-#tagSelect {
-  margin-left: 0;
+.toolbarGroup .dropdown {
+  min-width: 0;
+  max-width: min(300px, 100%);
+}
+#showRemoteBranchesControl {
+  flex: 0 0 auto;
 }
 .toolbarLabel {
   color: var(--vscode-descriptionForeground);
@@ -667,8 +671,8 @@ body.commitDetailsResizing * {
   align-items: center;
   gap: 4px;
   min-width: 180px;
-  max-width: min(380px, 42vw);
-  flex: 0 1 380px;
+  max-width: min(380px, 100%);
+  flex: 1 1 220px;
 }
 .toolbarFind[hidden] {
   display: none;
@@ -744,21 +748,38 @@ body.commitDetailsResizing * {
   outline-offset: 2px;
 }
 .toolbarIcon {
-  font-size: 16px;
-  line-height: 1;
-  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
+.toolbarIcon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+/* Readiness strip: collapses while scrolled unless it is busy or in error */
 .statusStrip {
   display: flex;
   align-items: center;
   gap: 7px;
-  min-height: 24px;
+  height: 24px;
   padding: 0 8px;
   box-sizing: border-box;
+  overflow: hidden;
   border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-overlay-strong));
   background-color: var(--vscode-sideBar-background);
   color: var(--vscode-descriptionForeground);
   font-size: 12px;
+  transition:
+    height 160ms ease,
+    opacity 160ms ease,
+    border-bottom-width 160ms ease;
+}
+#topBar.scrolled .statusStrip[data-state="ready"] {
+  height: 0;
+  opacity: 0;
+  border-bottom-width: 0;
 }
 .statusIndicator {
   width: 8px;
@@ -852,6 +873,29 @@ body.commitDetailsResizing * {
   cursor: pointer;
 }
 
+/* Narrow view: drop dropdown labels (groups keep title tooltips) and let the
+   filter groups share rows instead of overflowing */
+@media (max-width: 640px) {
+  #controls {
+    gap: 4px 8px;
+  }
+  .toolbarLabel {
+    display: none;
+  }
+  .toolbarGroup {
+    flex: 1 1 calc(50% - 8px);
+  }
+  .toolbarGroup .dropdown {
+    flex: 1 1 auto;
+    max-width: 100%;
+  }
+  .toolbarFind {
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
 /* Repository Settings */
 #settingsWidgetBacking {
   position: fixed;
@@ -908,6 +952,12 @@ body.commitDetailsResizing * {
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
+}
+.settingsCloseButton svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 .settingsCloseButton:hover {
   background-color: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-medium));
@@ -1080,7 +1130,7 @@ body.commitDetailsResizing * {
   margin: 0;
   padding: 4px;
   min-width: 160px;
-  z-index: 12;
+  z-index: 250;
 }
 #contextMenu.active {
   display: block;
@@ -1311,8 +1361,8 @@ body.commitDetailsResizing * {
   margin-right: 10px;
   vertical-align: top;
   animation: loadingIconAnimation 2s linear infinite;
-  width: 18px !important;
-  height: 24px !important;
+  width: 16px;
+  height: 24px;
 }
 
 /* Buttons */

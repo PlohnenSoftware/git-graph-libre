@@ -75,8 +75,10 @@ export function buildWebviewHtml(opts: {
   let body: string;
   if (numRepos > 0) {
     body = `<body style="${styleVars}">
-		${buildWebviewToolbar(l10nStrings)}
+		<div id="topBar">
 		${buildWebviewStatusStrip(l10nStrings)}
+		${buildWebviewToolbar(l10nStrings)}
+		</div>
 		<div id="settingsWidgetBacking" hidden></div>
 		<aside id="settingsWidget" role="dialog" aria-modal="true" tabindex="-1" aria-label="${l10nStrings.repositorySettings}" hidden></aside>
 		<div id="content">
@@ -87,7 +89,6 @@ export function buildWebviewHtml(opts: {
 		<ul id="contextMenu"></ul>
 			<div id="dialogBacking"></div>
 			<div id="dialog"></div>
-			<div id="scrollShadow"></div>
 		<script nonce="${nonce}">const viewState = ${escapeJsonForHtml(viewState)};</script>
 		<script nonce="${nonce}">const l10n = ${escapeJsonForHtml(l10nStrings)};</script>
 		<script src="${compiledOutputUri("web.min.js")}"></script>

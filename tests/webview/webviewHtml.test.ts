@@ -83,4 +83,30 @@ describe("webview HTML", () => {
     expect(result.html).toContain('id="settingsWidgetBacking" hidden');
     expect(result.html).toContain('id="settingsWidget" role="dialog" aria-modal="true"');
   });
+
+  it("wraps the status strip and toolbar in a floating top bar", () => {
+    const result = buildWebviewHtml({
+      webview: {
+        cspSource: "vscode-webview:",
+        asWebviewUri: (uri: vscode.Uri) => `webview://${uri.fsPath}` as unknown as vscode.Uri
+      } as unknown as vscode.Webview,
+      config: makeConfig(),
+      extensionPath: "/extension",
+      extensionState: {
+        isAvatarStorageAvailable: () => true,
+        getLastActiveRepo: () => "/repo"
+      } as ExtensionState,
+      repoManager: {
+        getRepos: () => ({ "/repo": { columnWidths: null } })
+      } as unknown as RepoManager
+    });
+
+    const topBarIndex = result.html.indexOf('<div id="topBar">');
+    const statusIndex = result.html.indexOf('id="statusStrip"');
+    const controlsIndex = result.html.indexOf('id="controls"');
+    expect(topBarIndex).toBeGreaterThan(-1);
+    expect(statusIndex).toBeGreaterThan(topBarIndex);
+    expect(controlsIndex).toBeGreaterThan(statusIndex);
+    expect(result.html).not.toContain("scrollShadow");
+  });
 });

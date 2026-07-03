@@ -27,8 +27,10 @@ export function createVscodeMock(initialState?: WebViewState | null) {
 export function setupHtml(viewState: GG.GitGraphViewState) {
   const l10nStrings = getWebviewLocalizedStrings();
   document.body.innerHTML = `
-    ${buildWebviewToolbar(l10nStrings)}
+    <div id="topBar">
     ${buildWebviewStatusStrip(l10nStrings)}
+    ${buildWebviewToolbar(l10nStrings)}
+    </div>
     <div id="settingsWidgetBacking" hidden></div>
     <aside id="settingsWidget" role="dialog" aria-modal="true" tabindex="-1" aria-label="${l10nStrings.repositorySettings}" hidden></aside>
     <div id="content">
@@ -39,7 +41,6 @@ export function setupHtml(viewState: GG.GitGraphViewState) {
     <ul id="contextMenu"></ul>
     <div id="dialogBacking"></div>
     <div id="dialog"></div>
-    <div id="scrollShadow"></div>
   `;
 
   (global as unknown as { viewState: GG.GitGraphViewState }).viewState = viewState;

@@ -67,13 +67,15 @@
     "sonar:scan": "sonar-scanner",
     "sonar:scan:local": "sonar-scanner -Dsonar.host.url=http://127.0.0.1:9000",
     "sonar:secrets": "sonar analyze secrets .",
-    "l10n:check": "node ./scripts/check-l10n.js"
+    "l10n:check": "node ./scripts/check-l10n.js",
+    "icons:generate": "node ./scripts/generate-octicons.js && biome format --write src/octicons.ts"
   },
   "dependencies": {
     "simple-git": "^3.36.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.2",
+    "@primer/octicons": "^19.29.1",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.19.39",
     "@types/vscode": "~1.98.0",

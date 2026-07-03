@@ -12,12 +12,42 @@ describe("commit table styles", () => {
     expect(css.match(/^body \{[^}]+\}/m)?.[0] ?? "").toContain("min-height: calc(100vh + 1px);");
   });
 
-  it("keeps table headers sticky and theme-native", () => {
-    expect(css).toContain("#commitTable th {");
-    expect(css).toContain("position: sticky;");
-    expect(css).toContain("top: 0;");
-    expect(css).toContain("var(--vscode-editor-background)");
-    expect(css).toContain("var(--vscode-panel-border");
+  it("keeps table headers sticky below the floating top bar", () => {
+    const th = css.match(/^#commitTable th \{[^}]+\}/m)?.[0] ?? "";
+    expect(th).toContain("position: sticky;");
+    expect(th).toContain("top: var(--ngg-sticky-top, 0px);");
+    expect(th).toContain("var(--vscode-editor-background)");
+    expect(th).toContain("var(--vscode-panel-border");
+  });
+
+  it("floats the top bar and collapses the ready status strip while scrolled", () => {
+    const topBar = css.match(/^#topBar \{[^}]+\}/m)?.[0] ?? "";
+    expect(topBar).toContain("position: sticky;");
+    expect(topBar).toContain("top: 0;");
+    expect(topBar).toContain("var(--vscode-editor-background)");
+
+    expect(css).toContain("#topBar.scrolled {");
+    const collapsed =
+      css.match(/^#topBar\.scrolled \.statusStrip\[data-state="ready"\] \{[^}]+\}/m)?.[0] ?? "";
+    expect(collapsed).toContain("height: 0;");
+    expect(collapsed).toContain("opacity: 0;");
+    expect(css).not.toContain("#scrollShadow");
+  });
+
+  it("lets the toolbar wrap and shrink for narrow views", () => {
+    const controls = css.match(/^#controls \{[^}]+\}/m)?.[0] ?? "";
+    expect(controls).toContain("display: flex;");
+    expect(controls).toContain("flex-wrap: wrap;");
+
+    expect(css).toContain("@media (max-width: 640px)");
+    expect(css).toContain(".toolbarGroup .dropdown {");
+    const currentValue = dropdownCss.match(/^\.dropdownCurrentValue \{[^}]+\}/m)?.[0] ?? "";
+    expect(currentValue).toContain("max-width: 100%;");
+    expect(currentValue).toContain("text-overflow: ellipsis;");
+  });
+
+  it("keeps revealed commit rows clear of the sticky overlay", () => {
+    expect(css).toContain("scroll-margin-top: calc(var(--ngg-sticky-top, 0px) + 40px);");
   });
 
   it("uses VS Code theme tokens for interactive row states", () => {

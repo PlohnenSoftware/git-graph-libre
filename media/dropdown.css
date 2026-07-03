@@ -1,6 +1,7 @@
 .dropdown {
   display: none;
   position: relative;
+  max-width: 100%;
   font-size: 13px;
   vertical-align: top;
   font-weight: normal;
@@ -18,6 +19,9 @@
   height: 28px;
   line-height: 26px;
   padding: 0 24px 0 10px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
@@ -93,6 +97,10 @@
   right: 10px;
 }
 .dropdownOptionInfo svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
   fill: currentColor;
   opacity: 0.55;
 }

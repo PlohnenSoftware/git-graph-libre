@@ -40,46 +40,68 @@ describe("buildWebviewToolbar", () => {
     expect(find?.tagName).toBe("BUTTON");
     expect(find?.type).toBe("button");
     expect(find?.getAttribute("aria-label")).toBe("Find commits");
-    expect(find?.textContent).toContain("⌕");
+    expect(find?.querySelector("svg.octicon-search")).not.toBeNull();
 
     const findPrevious = document.getElementById("findPreviousBtn") as HTMLButtonElement | null;
     expect(findPrevious?.tagName).toBe("BUTTON");
     expect(findPrevious?.getAttribute("aria-label")).toBe("Previous match");
+    expect(findPrevious?.querySelector("svg.octicon-arrow-up")).not.toBeNull();
 
     const findNext = document.getElementById("findNextBtn") as HTMLButtonElement | null;
     expect(findNext?.tagName).toBe("BUTTON");
     expect(findNext?.getAttribute("aria-label")).toBe("Next match");
+    expect(findNext?.querySelector("svg.octicon-arrow-down")).not.toBeNull();
 
     const findClear = document.getElementById("findClearBtn") as HTMLButtonElement | null;
     expect(findClear?.tagName).toBe("BUTTON");
     expect(findClear?.getAttribute("aria-label")).toBe("Clear find");
+    expect(findClear?.querySelector("svg.octicon-x")).not.toBeNull();
 
     const searchHistory = document.getElementById(
       "findSearchHistoryBtn"
     ) as HTMLButtonElement | null;
     expect(searchHistory?.tagName).toBe("BUTTON");
     expect(searchHistory?.getAttribute("aria-label")).toBe("Search full history");
+    expect(searchHistory?.querySelector("svg.octicon-history")).not.toBeNull();
 
     const locateHead = document.getElementById("blinkHeadBtn") as HTMLButtonElement | null;
     expect(locateHead?.tagName).toBe("BUTTON");
     expect(locateHead?.type).toBe("button");
     expect(locateHead?.getAttribute("aria-label")).toBe("Locate HEAD");
-    expect(locateHead?.textContent).toContain("⌖");
+    expect(locateHead?.querySelector("svg.octicon-crosshairs")).not.toBeNull();
 
     const fetch = document.getElementById("fetchBtn") as HTMLButtonElement | null;
     expect(fetch?.tagName).toBe("BUTTON");
     expect(fetch?.type).toBe("button");
     expect(fetch?.hidden).toBe(true);
     expect(fetch?.getAttribute("aria-label")).toBe("Fetch");
-    expect(fetch?.textContent).toContain("⇅");
+    expect(fetch?.querySelector("svg.octicon-download")).not.toBeNull();
 
     expect(document.getElementById("terminalBtn")).toBeNull();
+
+    const settings = document.getElementById("settingsBtn") as HTMLButtonElement | null;
+    expect(settings?.querySelector("svg.octicon-gear")).not.toBeNull();
 
     const refresh = document.getElementById("refreshBtn") as HTMLButtonElement | null;
     expect(refresh?.tagName).toBe("BUTTON");
     expect(refresh?.type).toBe("button");
     expect(refresh?.getAttribute("aria-label")).toBe("Refresh");
-    expect(refresh?.textContent).toContain("↻");
+    expect(refresh?.querySelector("svg.octicon-sync")).not.toBeNull();
+
+    for (const svg of Array.from(document.querySelectorAll("#controls svg"))) {
+      expect(svg.getAttribute("aria-hidden")).toBe("true");
+      expect(svg.getAttribute("fill")).toBe("currentColor");
+    }
+  });
+
+  it("labels each dropdown group with a tooltip for narrow layouts", () => {
+    renderToolbar();
+
+    expect(document.getElementById("repoControl")?.getAttribute("title")).toBe("Repo");
+    expect(document.getElementById("branchControl")?.getAttribute("title")).toBe("Branches");
+    expect(document.getElementById("authorControl")?.getAttribute("title")).toBe("Authors");
+    expect(document.getElementById("tagControl")?.getAttribute("title")).toBe("Tags");
+    expect(document.querySelectorAll("#controls .toolbarGroup").length).toBe(4);
   });
 
   it("escapes localized labels before embedding them in toolbar markup", () => {

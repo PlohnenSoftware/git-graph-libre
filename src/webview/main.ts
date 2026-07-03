@@ -200,7 +200,7 @@ class GitGraphView {
   private readonly authorDropdown: Dropdown;
   private readonly tagDropdown: Dropdown;
   private readonly showRemoteBranchesElem: HTMLInputElement;
-  private readonly scrollShadowElem: HTMLElement;
+  private readonly topBarElem: HTMLElement;
   private readonly findControlElem: HTMLElement;
   private readonly findInputElem: HTMLInputElement;
   private readonly findMatchCountElem: HTMLElement;
@@ -309,7 +309,7 @@ class GitGraphView {
         this.showRemoteBranchesElem.checked ? "enabled" : "disabled"
       );
     });
-    this.scrollShadowElem = requireElement("scrollShadow");
+    this.topBarElem = requireElement("topBar");
     this.findControlElem = requireElement("findControl");
     this.findInputElem = requireElement<HTMLInputElement>("findInput");
     this.findMatchCountElem = requireElement("findMatchCount");
@@ -360,6 +360,7 @@ class GitGraphView {
     this.observeWindowSizeChanges();
     this.observeWebviewStyleChanges();
     this.observeWebviewScroll();
+    this.observeTopBarHeight();
     document.addEventListener("keydown", (event) => {
       this.handleGlobalKeyboardShortcut(event);
     });
@@ -464,7 +465,7 @@ class GitGraphView {
     }
     const repoControl = document.getElementById("repoControl");
     if (repoControl !== null) {
-      repoControl.style.display = repoPaths.length > 1 ? "inline" : "none";
+      repoControl.style.display = repoPaths.length > 1 ? "" : "none";
     }
     this.repoDropdown.setOptions(options, this.currentRepo);
     this.syncRepoSettingsControls();
@@ -1079,8 +1080,10 @@ class GitGraphView {
   private revealCommit(hash: string) {
     const row = this.findCommitRow(hash);
     if (row === null) return false;
-    if (typeof row.scrollIntoView === "function") row.scrollIntoView({ block: "center" });
-    row.focus();
+    if (typeof row.scrollIntoView === "function") {
+      row.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    row.focus({ preventScroll: true });
     blinkHeadRow(hash);
     return true;
   }
@@ -1152,7 +1155,20 @@ class GitGraphView {
   }
   private jumpToHead() {
     if (this.commitHead === null) return;
-    this.revealCommit(this.commitHead);
+    if (this.revealCommit(this.commitHead)) return;
+
+    // The HEAD row is not rendered (excluded by the active filters), so clear
+    // the filters and reveal it once the reloaded commits have been rendered.
+    this.pendingFocusCommitHash = this.commitHead;
+    this.currentBranch = FILTER_SHOW_ALL_VALUE;
+    this.currentBranches = null;
+    this.currentAuthors = null;
+    this.currentTags = null;
+    this.updateFilterDropdowns();
+    this.hideCommitDetails();
+    this.saveState();
+    this.renderShowLoading();
+    this.requestLoadCommits(true, () => {});
   }
   private showFetchDialog() {
     if (this.currentRepo === "" || this.gitRemotes.length === 0) return;
@@ -4085,14 +4101,32 @@ class GitGraphView {
   }
   private observeWebviewScroll() {
     let active = window.scrollY > 0;
-    this.scrollShadowElem.className = active ? "active" : "";
+    this.topBarElem.classList.toggle("scrolled", active);
     document.addEventListener("scroll", () => {
       if (active !== window.scrollY > 0) {
         active = window.scrollY > 0;
-        this.scrollShadowElem.className = active ? "active" : "";
+        this.topBarElem.classList.toggle("scrolled", active);
       }
       this.autoLoadMoreCommitsOnScroll();
     });
+  }
+  private observeTopBarHeight() {
+    const publishHeight = () => {
+      document.documentElement.style.setProperty(
+        "--ngg-sticky-top",
+        `${this.topBarElem.offsetHeight}px`
+      );
+    };
+    publishHeight();
+    if (typeof ResizeObserver === "function") {
+      new ResizeObserver(publishHeight).observe(this.topBarElem);
+    } else {
+      window.addEventListener("resize", publishHeight);
+    }
+  }
+  private getStickyOverlayHeight() {
+    const colHeadersElem = document.getElementById("tableColHeaders");
+    return this.topBarElem.offsetHeight + (colHeadersElem?.clientHeight ?? 0);
   }
   private autoLoadMoreCommitsOnScroll() {
     if (!this.moreCommitsAvailable) return;
@@ -4215,16 +4249,19 @@ class GitGraphView {
     this.renderGraph();
 
     const detailsHeight = this.getCommitDetailsRenderedHeight();
+    // The top bar and column headers overlay the top of the viewport, so the
+    // usable region starts below the sticky overlay.
+    const stickyOverlay = this.getStickyOverlayHeight();
     if (this.config.autoCenterCommitDetailsView) {
       window.scrollTo(
         0,
         newElem.offsetTop +
           40 +
           (detailsHeight + this.config.graphRowHeight) / 2 -
-          window.innerHeight / 2
+          (window.innerHeight + stickyOverlay) / 2
       );
-    } else if (newElem.offsetTop + 8 < window.pageYOffset) {
-      window.scrollTo(0, newElem.offsetTop + 8);
+    } else if (newElem.offsetTop - stickyOverlay - 8 < window.pageYOffset) {
+      window.scrollTo(0, newElem.offsetTop - stickyOverlay - 8);
     } else if (newElem.offsetTop + detailsHeight - window.innerHeight + 48 > window.pageYOffset) {
       window.scrollTo(0, newElem.offsetTop + detailsHeight - window.innerHeight + 48);
     }
