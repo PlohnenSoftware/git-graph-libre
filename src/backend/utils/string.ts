@@ -10,7 +10,3 @@ export function clampShortHashLength(length: number): number {
 export function abbrevCommit(commitHash: string, length = DEFAULT_SHORT_HASH_LENGTH) {
   return commitHash.substring(0, clampShortHashLength(length));
 }
-
-export function escapeRefName(str: string) {
-  return str.replace(/'/g, "'");
-}

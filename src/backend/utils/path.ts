@@ -3,8 +3,6 @@ import * as path from "node:path";
 
 import * as vscode from "vscode";
 
-const FS_REGEX = /\\/g;
-
 export function isDirectory(filePath: string) {
   return new Promise<boolean>((resolve) => {
     fs.stat(filePath, (err, stats) => {
@@ -20,11 +18,11 @@ export function doesPathExist(filePath: string) {
 }
 
 export function getPathFromUri(uri: vscode.Uri) {
-  return uri.fsPath.replace(FS_REGEX, "/");
+  return uri.fsPath.replaceAll("\\", "/");
 }
 
 export function getPathFromStr(str: string) {
-  return str.replace(FS_REGEX, "/");
+  return str.replaceAll("\\", "/");
 }
 
 export function buildExtensionUri(extensionPath: string, ...pathComps: string[]) {
