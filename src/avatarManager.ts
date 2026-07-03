@@ -37,7 +37,10 @@ export class AvatarManager {
   }
 
   public fetchAvatarImage(email: string, repo: string, commits: string[]) {
-    if (typeof this.avatars[email] !== "undefined") {
+    if (this.avatars[email] === undefined) {
+      // Avatar not in the cache, request it
+      this.queue.add(email, repo, commits, true);
+    } else {
       // Avatar exists in the cache
       const t = Date.now();
       if (
@@ -55,9 +58,6 @@ export class AvatarManager {
           this.queue.add(email, repo, commits, true);
         });
       }
-    } else {
-      // Avatar not in the cache, request it
-      this.queue.add(email, repo, commits, true);
     }
   }
 
@@ -110,20 +110,18 @@ export class AvatarManager {
       // Fetch the remote repo source
       let remoteUrl = await getRemoteUrl(avatarRequest.repo, this.gitPath()),
         remoteSource: RemoteSource;
-      if (remoteUrl !== null) {
+      if (remoteUrl === null) {
+        remoteSource = { type: "gravatar" };
+      } else if (remoteUrl.startsWith("https://github.com/")) {
         // Depending on the domain of the remote repo source, determine the type of source it is
-        if (remoteUrl.startsWith("https://github.com/")) {
-          const remoteUrlComps = remoteUrl.split("/");
-          remoteSource = {
-            type: "github",
-            owner: remoteUrlComps[3],
-            repo: remoteUrlComps[4].replace(/\.git$/, "")
-          };
-        } else if (remoteUrl.startsWith("https://gitlab.com/")) {
-          remoteSource = { type: "gitlab" };
-        } else {
-          remoteSource = { type: "gravatar" };
-        }
+        const remoteUrlComps = remoteUrl.split("/");
+        remoteSource = {
+          type: "github",
+          owner: remoteUrlComps[3],
+          repo: remoteUrlComps[4].replace(/\.git$/, "")
+        };
+      } else if (remoteUrl.startsWith("https://gitlab.com/")) {
+        remoteSource = { type: "gitlab" };
       } else {
         remoteSource = { type: "gravatar" };
       }
@@ -343,14 +341,14 @@ export class AvatarManager {
   }
 
   private saveAvatar(email: string, image: string, identicon: boolean) {
-    if (typeof this.avatars[email] !== "undefined") {
+    if (this.avatars[email] === undefined) {
+      this.avatars[email] = { image: image, timestamp: Date.now(), identicon: identicon };
+    } else {
       if (!identicon || this.avatars[email].identicon) {
         this.avatars[email].image = image;
         this.avatars[email].identicon = identicon;
       }
       this.avatars[email].timestamp = Date.now();
-    } else {
-      this.avatars[email] = { image: image, timestamp: Date.now(), identicon: identicon };
     }
     this.extensionState.saveAvatar(email, this.avatars[email]);
     this.sendAvatarToWebView(email, () => {});
