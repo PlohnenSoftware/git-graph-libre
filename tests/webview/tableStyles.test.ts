@@ -60,6 +60,7 @@ describe("commit table styles", () => {
     expect(find).toContain("order: 10;");
     expect(find).toContain("flex: 0 0 100%;");
     expect(find).toContain("max-width: 100%;");
+    expect(find).toContain("justify-content: flex-end;");
   });
 
   it("keeps revealed commit rows clear of the sticky overlay", () => {

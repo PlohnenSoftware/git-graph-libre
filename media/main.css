@@ -682,6 +682,7 @@ body.commitDetailsResizing * {
 .toolbarFind {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 4px;
   order: 10;
   min-width: 0;
