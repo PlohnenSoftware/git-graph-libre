@@ -93,7 +93,7 @@ describe("commit table styles", () => {
 
   it("uses the configurable persistent reveal highlight color", () => {
     expect(css).toContain("--ngg-reveal-highlight: oklch(90% 0.25 150 / 0.42);");
-    expect(css).toContain("animation: headPulse 1100ms ease-in-out infinite;");
+    expect(css).toContain("animation: headPulse 900ms ease-in-out infinite;");
     expect(css).toContain("var(--ngg-reveal-highlight) 20%");
     expect(css).toContain("background-color: var(--ngg-reveal-highlight);");
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");

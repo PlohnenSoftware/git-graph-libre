@@ -1509,7 +1509,7 @@ body.commitDetailsResizing * {
 
 /* Blink animation for highlighting the current HEAD commit row */
 #commitTable tr.commit.blinking td {
-  animation: headPulse 1100ms ease-in-out infinite;
+  animation: headPulse 900ms ease-in-out infinite;
 }
 
 @keyframes headPulse {
