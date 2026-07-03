@@ -11,9 +11,9 @@
   --ngg-neutral-border-strong: oklch(60% 0 0 / 0.5);
   --ngg-neutral-border-heavy: oklch(60% 0 0 / 0.75);
   --ngg-success: oklch(74% 0.12 152);
-  --ngg-reveal-highlight: oklch(87.44% 0.2383 150 / 0.5);
-  --ngg-find-highlight: oklch(84% 0.13 86 / 0.28);
-  --ngg-find-active: oklch(84% 0.16 86 / 0.42);
+  --ngg-reveal-highlight: oklch(90% 0.25 150 / 0.42);
+  --ngg-find-highlight: oklch(80% 0.2 150 / 0.28);
+  --ngg-find-active: oklch(90% 0.25 150 / 0.42);
   --ngg-accent: oklch(55% 0.16 250);
   --ngg-accent-foreground: oklch(98% 0 0);
   --ngg-backdrop: oklch(0% 0 0 / 0.25);
@@ -251,10 +251,10 @@ body.unableToLoad p {
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
 }
 #commitTable tr.commit.findMatch td {
-  background-color: var(--vscode-editor-findMatchHighlightBackground, var(--ngg-find-highlight));
+  background-color: var(--ngg-find-highlight);
 }
 #commitTable tr.commit.findMatchActive td {
-  background-color: var(--vscode-editor-findMatchBackground, var(--ngg-find-active));
+  background-color: var(--ngg-find-active);
   box-shadow: inset 0 1px 0 var(--vscode-focusBorder), inset 0 -1px 0 var(--vscode-focusBorder);
 }
 #commitTable tr.commit.findMatchActive td:first-child {
@@ -1509,7 +1509,7 @@ body.commitDetailsResizing * {
 
 /* Blink animation for highlighting the current HEAD commit row */
 #commitTable tr.commit.blinking td {
-  animation: headPulse 320ms ease-in-out infinite;
+  animation: headPulse 1100ms ease-in-out infinite;
 }
 
 @keyframes headPulse {
