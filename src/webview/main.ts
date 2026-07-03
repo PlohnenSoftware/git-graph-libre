@@ -57,7 +57,7 @@ const HEAD_REF_VALUE = "HEAD";
 const diagnosticMessageMaxLength = 500;
 const REF_DROPDOWN_DISPLAY_CHARS = 40;
 const AUTHOR_DROPDOWN_DISPLAY_CHARS = 30;
-const DEFAULT_REVEAL_HIGHLIGHT_COLOR = "oklch(87.44% 0.2383 150 / 0.5)";
+const DEFAULT_REVEAL_HIGHLIGHT_COLOR = "oklch(90% 0.25 150 / 0.42)";
 
 const HIDEABLE_COLUMNS = ["date", "author", "commit"] as const;
 type HideableColumn = (typeof HIDEABLE_COLUMNS)[number];

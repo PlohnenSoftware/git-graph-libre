@@ -24,7 +24,7 @@ function makeConfig(): Config {
     graphFontSize: () => 15,
     graphRowHeight: () => 30,
     graphStyle: () => "rounded",
-    revealHighlightColor: () => "oklch(87.44% 0.2383 150 / 0.5)",
+    revealHighlightColor: () => "oklch(90% 0.25 150 / 0.42)",
     includeReflog: () => false,
     shortHashLength: () => 12,
     initialLoadCommits: () => 300,
@@ -71,13 +71,13 @@ describe("webview HTML", () => {
 
     expect(result.html).toContain("--git-graph-font-size:15px;");
     expect(result.html).toContain("--git-graph-row-height:30px;");
-    expect(result.html).toContain("--ngg-reveal-highlight:oklch(87.44% 0.2383 150 / 0.5);");
+    expect(result.html).toContain("--ngg-reveal-highlight:oklch(90% 0.25 150 / 0.42);");
     expect(viewState.commitDetailsCompactFolders).toBe(true);
     expect(viewState.commitDetailsFileViewMode).toBe("list");
     expect(viewState.contextMenuActionsVisibility.tag.push).toBe(false);
     expect(viewState.graphFontSize).toBe(15);
     expect(viewState.graphRowHeight).toBe(30);
-    expect(viewState.revealHighlightColor).toBe("oklch(87.44% 0.2383 150 / 0.5)");
+    expect(viewState.revealHighlightColor).toBe("oklch(90% 0.25 150 / 0.42)");
     expect(viewState.customBranchGlobPatterns).toEqual([
       { name: "Features", glob: "--glob=heads/feature/*" }
     ]);

@@ -135,7 +135,7 @@ describe("extension manifest", () => {
 
     expect(setting).toMatchObject({
       type: "string",
-      default: "oklch(87.44% 0.2383 150 / 0.5)",
+      default: "oklch(90% 0.25 150 / 0.42)",
       description: "%config.revealHighlightColor%"
     });
     expect(setting.pattern).toBeDefined();

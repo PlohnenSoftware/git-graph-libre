@@ -176,8 +176,8 @@ describe("settings widget rendering", () => {
         key: "git-graph-libre.revealHighlightColor",
         configKey: "revealHighlightColor",
         type: "string",
-        value: "oklch(87.44% 0.2383 150 / 0.5)",
-        defaultValue: "oklch(87.44% 0.2383 150 / 0.5)"
+        value: "oklch(90% 0.25 150 / 0.42)",
+        defaultValue: "oklch(90% 0.25 150 / 0.42)"
       })
     ]);
 
@@ -188,7 +188,7 @@ describe("settings widget rendering", () => {
     expect(html).toContain("--glob=heads&#x2F;feature&#x2F;*");
     expect(html).toContain("settingsColorSwatch");
     expect(html).toContain("settingsColorStringEditor");
-    expect(html).toContain("--settings-swatch:oklch(87.44% 0.2383 150 &#x2F; 0.5)");
+    expect(html).toContain("--settings-swatch:oklch(90% 0.25 150 &#x2F; 0.42)");
     expect(html).toContain('data-channel="lightness"');
     expect(html).not.toContain("[object Object]");
   });

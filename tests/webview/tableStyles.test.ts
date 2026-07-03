@@ -92,20 +92,20 @@ describe("commit table styles", () => {
   });
 
   it("uses the configurable persistent reveal highlight color", () => {
-    expect(css).toContain("--ngg-reveal-highlight: oklch(87.44% 0.2383 150 / 0.5);");
-    expect(css).toContain("animation: headPulse 320ms ease-in-out infinite;");
+    expect(css).toContain("--ngg-reveal-highlight: oklch(90% 0.25 150 / 0.42);");
+    expect(css).toContain("animation: headPulse 1100ms ease-in-out infinite;");
     expect(css).toContain("var(--ngg-reveal-highlight) 20%");
     expect(css).toContain("background-color: var(--ngg-reveal-highlight);");
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
-  it("styles find matches with theme tokens and OKLCH fallbacks", () => {
-    expect(css).toContain("--ngg-find-highlight: oklch(");
-    expect(css).toContain("--ngg-find-active: oklch(");
+  it("styles find matches with shared OKLCH highlights", () => {
+    expect(css).toContain("--ngg-find-highlight: oklch(80% 0.2 150 / 0.28);");
+    expect(css).toContain("--ngg-find-active: oklch(90% 0.25 150 / 0.42);");
     expect(css).toContain("#commitTable tr.commit.findMatch td");
-    expect(css).toContain("var(--vscode-editor-findMatchHighlightBackground");
+    expect(css).toContain("background-color: var(--ngg-find-highlight);");
     expect(css).toContain("#commitTable tr.commit.findMatchActive td");
-    expect(css).toContain("var(--vscode-editor-findMatchBackground");
+    expect(css).toContain("background-color: var(--ngg-find-active);");
     expect(css).toContain(".toolbarFindInput");
     expect(css).toContain(".toolbarIconButton:disabled");
   });

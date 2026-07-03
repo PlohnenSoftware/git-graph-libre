@@ -35,7 +35,7 @@ const DEFAULT_GRAPH_COLORS = [
   "oklch(63% 0.2 295)",
   "oklch(63% 0.2 95)"
 ];
-const DEFAULT_REVEAL_HIGHLIGHT_COLOR = "oklch(87.44% 0.2383 150 / 0.5)";
+const DEFAULT_REVEAL_HIGHLIGHT_COLOR = "oklch(90% 0.25 150 / 0.42)";
 
 function getConfig<T>(key: string, defaultValue: T): T {
   return vscode.workspace.getConfiguration("git-graph-libre").get(key, defaultValue);

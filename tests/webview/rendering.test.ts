@@ -44,7 +44,7 @@ const defaultViewState: GG.GitGraphViewState = {
   graphFontSize: 13,
   graphRowHeight: 24,
   graphStyle: "rounded",
-  revealHighlightColor: "oklch(87.44% 0.2383 150 / 0.5)",
+  revealHighlightColor: "oklch(90% 0.25 150 / 0.42)",
   includeReflog: false,
   initialLoadCommits: 300,
   lastActiveRepo: null,
@@ -510,8 +510,8 @@ describe("webview rendering", () => {
         title: "revealHighlightColor",
         description: "Reveal color",
         type: "string",
-        value: "oklch(87.44% 0.2383 150 / 0.5)",
-        defaultValue: "oklch(87.44% 0.2383 150 / 0.5)",
+        value: "oklch(90% 0.25 150 / 0.42)",
+        defaultValue: "oklch(90% 0.25 150 / 0.42)",
         scope: "default"
       }
     ];
@@ -554,7 +554,7 @@ describe("webview rendering", () => {
     const revealColor = settingsWidget?.querySelector<HTMLInputElement>(
       'input[data-setting-key="git-graph-libre.revealHighlightColor"]'
     );
-    expect(revealColor?.value).toBe("oklch(87.44% 0.2383 150 / 0.5)");
+    expect(revealColor?.value).toBe("oklch(90% 0.25 150 / 0.42)");
 
     receive({
       command: "updateExtensionSetting",
@@ -688,7 +688,7 @@ describe("webview rendering", () => {
           description: "",
           type: "string",
           value: "#0085d9",
-          defaultValue: "oklch(87.44% 0.2383 150 / 0.5)",
+          defaultValue: "oklch(90% 0.25 150 / 0.42)",
           scope: "global"
         },
         {
@@ -930,7 +930,7 @@ describe("webview rendering", () => {
           description: "",
           type: "string",
           value: "blue",
-          defaultValue: "oklch(87.44% 0.2383 150 / 0.5)",
+          defaultValue: "oklch(90% 0.25 150 / 0.42)",
           scope: "global"
         },
         {
@@ -1038,7 +1038,7 @@ describe("webview rendering", () => {
     expect(document.body.style.getPropertyValue("--git-graph-font-size")).toBe("13px");
     expect(document.body.style.getPropertyValue("--git-graph-row-height")).toBe("24px");
     expect(document.body.style.getPropertyValue("--ngg-reveal-highlight")).toBe(
-      "oklch(87.44% 0.2383 150 / 0.5)"
+      "oklch(90% 0.25 150 / 0.42)"
     );
 
     receive({

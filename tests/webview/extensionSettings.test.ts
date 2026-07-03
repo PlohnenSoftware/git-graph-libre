@@ -90,7 +90,7 @@ describe("extension settings helpers", () => {
     const accepted = sanitizeImportedExtensionSettings(extensionPath, {
       "git-graph-libre.repository.showTags": false,
       "git-graph-libre.dateType": "Commit Date",
-      "git-graph-libre.revealHighlightColor": "oklch(87.44% 0.2383 150 / 0.5)",
+      "git-graph-libre.revealHighlightColor": "oklch(90% 0.25 150 / 0.42)",
       "git-graph-libre.graphColors": ["oklch(63% 0.2 245)"],
       "git-graph-libre.contextMenuActionsVisibility": { branch: { checkout: false } },
       "git-graph-libre.customBranchGlobPatterns": [
@@ -109,7 +109,7 @@ describe("extension settings helpers", () => {
     expect(accepted.accepted).toMatchObject({
       "git-graph-libre.repository.showTags": false,
       "git-graph-libre.dateType": "Commit Date",
-      "git-graph-libre.revealHighlightColor": "oklch(87.44% 0.2383 150 / 0.5)",
+      "git-graph-libre.revealHighlightColor": "oklch(90% 0.25 150 / 0.42)",
       "git-graph-libre.graphColors": ["oklch(63% 0.2 245)"],
       "git-graph-libre.contextMenuActionsVisibility": { branch: { checkout: false } },
       "git-graph-libre.customBranchGlobPatterns": [

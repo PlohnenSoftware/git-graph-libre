@@ -15,7 +15,7 @@ const config: Config = {
   graphFontSize: 13,
   graphRowHeight: 24,
   graphStyle: "rounded",
-  revealHighlightColor: "oklch(87.44% 0.2383 150 / 0.5)",
+  revealHighlightColor: "oklch(90% 0.25 150 / 0.42)",
   grid: { x: 16, y: 24, offsetX: 8, offsetY: 12, expandY: 250 },
   includeReflog: false,
   initialLoadCommits: 300,
