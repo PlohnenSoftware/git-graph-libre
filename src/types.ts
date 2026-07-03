@@ -9,6 +9,8 @@ import type {
 
 export type GitRepoSet = { [repo: string]: GitRepoState };
 export type RepoBooleanOverride = "default" | "enabled" | "disabled";
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 export type IssueLinkingConfig = {
   pattern: string;
   urlTemplate: string;
@@ -115,6 +117,24 @@ export type CustomBranchGlobPattern = {
   glob: string;
 };
 
+export type SettingsWidgetTab = "repository" | "extension";
+export type ExtensionSettingType = "boolean" | "number" | "string" | "array" | "object";
+export type ExtensionSettingScope = "default" | "global" | "workspace" | "workspaceFolder";
+export type ExtensionSetting = {
+  key: string;
+  configKey: string;
+  title: string;
+  description: string;
+  type: ExtensionSettingType;
+  value: JsonValue;
+  defaultValue: JsonValue;
+  scope: ExtensionSettingScope;
+  enum?: string[];
+  enumDescriptions?: string[];
+  minimum?: number;
+  maximum?: number;
+};
+
 export type GitGraphViewState = {
   autoCenterCommitDetailsView: boolean;
   commitDetailsCompactFolders: boolean;
@@ -138,6 +158,7 @@ export type GitGraphViewState = {
   showStashes: boolean;
   showTags: boolean;
   includeReflog: boolean;
+  settingsWidgetTab?: SettingsWidgetTab;
   shortHashLength: number;
 };
 
@@ -278,6 +299,50 @@ export type ResponseImportRepoConfig = {
   state: GitRepoState | null;
 };
 
+export type RequestLoadExtensionSettings = {
+  command: "loadExtensionSettings";
+  requestId: number;
+};
+export type ResponseLoadExtensionSettings = {
+  command: "loadExtensionSettings";
+  requestId: number;
+  settings: ExtensionSetting[];
+  status: string | null;
+};
+
+export type RequestUpdateExtensionSetting = {
+  command: "updateExtensionSetting";
+  key: string;
+  value: JsonValue;
+  global: true;
+};
+export type ResponseUpdateExtensionSetting = {
+  command: "updateExtensionSetting";
+  key: string;
+  status: string | null;
+  settings: ExtensionSetting[];
+};
+
+export type RequestExportExtensionSettings = {
+  command: "exportExtensionSettings";
+};
+export type ResponseExportExtensionSettings = {
+  command: "exportExtensionSettings";
+  status: string | null;
+  exportedPath: string | null;
+};
+
+export type RequestImportExtensionSettings = {
+  command: "importExtensionSettings";
+};
+export type ResponseImportExtensionSettings = {
+  command: "importExtensionSettings";
+  status: string | null;
+  settings: ExtensionSetting[];
+  importedKeys: string[];
+  skippedKeys: string[];
+};
+
 export type RequestWebviewDiagnostic = {
   command: "webviewDiagnostic";
   stage: string;
@@ -310,6 +375,10 @@ export type RequestMessage =
   | RequestOpenSourceControl
   | RequestOpenExternalUrl
   | RequestImportRepoConfig
+  | RequestLoadExtensionSettings
+  | RequestUpdateExtensionSetting
+  | RequestExportExtensionSettings
+  | RequestImportExtensionSettings
   | RequestWebviewDiagnostic;
 
 export type ResponseMessage =
@@ -326,5 +395,9 @@ export type ResponseMessage =
   | ResponseOpenExternalUrl
   | ResponseCreateArchive
   | ResponseImportRepoConfig
+  | ResponseLoadExtensionSettings
+  | ResponseUpdateExtensionSetting
+  | ResponseExportExtensionSettings
+  | ResponseImportExtensionSettings
   | ResponseRefresh
   | ResponseStartHistorySearch;

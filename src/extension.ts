@@ -64,6 +64,7 @@ export function activate(context: vscode.ExtensionContext) {
       extensionState,
       avatarManager,
       repoFileWatcher,
+      extensionPath: context.extensionPath,
       outputChannel
     });
     currentPanel = createWebviewPanel({

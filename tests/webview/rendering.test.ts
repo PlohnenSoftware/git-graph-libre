@@ -20,9 +20,17 @@ import { createVscodeMock, receive, setupHtml } from "./setup";
 const REPO = "/workspace/my-repo";
 type LoadBranchesRequest = Extract<GG.RequestMessage, { command: "loadBranches" }>;
 type LoadCommitsRequest = Extract<GG.RequestMessage, { command: "loadCommits" }>;
+type LoadExtensionSettingsRequest = Extract<
+  GG.RequestMessage,
+  { command: "loadExtensionSettings" }
+>;
 type LoadRepoInfoRequest = Extract<GG.RequestMessage, { command: "loadRepoInfo" }>;
 type SaveRepoStateRequest = Extract<GG.RequestMessage, { command: "saveRepoState" }>;
 type SearchCommitsRequest = Extract<GG.RequestMessage, { command: "searchCommits" }>;
+type UpdateExtensionSettingRequest = Extract<
+  GG.RequestMessage,
+  { command: "updateExtensionSetting" }
+>;
 
 const defaultViewState: GG.GitGraphViewState = {
   autoCenterCommitDetailsView: true,
@@ -169,6 +177,14 @@ describe("webview rendering", () => {
     throw new Error("Missing loadCommits request");
   }
 
+  function latestLoadExtensionSettingsRequest(): LoadExtensionSettingsRequest {
+    for (let i = vscodeMock.sentMessages.length - 1; i >= 0; i--) {
+      const msg = vscodeMock.sentMessages[i];
+      if (msg.command === "loadExtensionSettings") return msg;
+    }
+    throw new Error("Missing loadExtensionSettings request");
+  }
+
   function latestLoadRepoInfoRequest(): LoadRepoInfoRequest {
     for (let i = vscodeMock.sentMessages.length - 1; i >= 0; i--) {
       const msg = vscodeMock.sentMessages[i];
@@ -183,6 +199,14 @@ describe("webview rendering", () => {
       if (msg.command === "searchCommits") return msg;
     }
     throw new Error("Missing searchCommits request");
+  }
+
+  function latestUpdateExtensionSettingRequest(): UpdateExtensionSettingRequest {
+    for (let i = vscodeMock.sentMessages.length - 1; i >= 0; i--) {
+      const msg = vscodeMock.sentMessages[i];
+      if (msg.command === "updateExtensionSetting") return msg;
+    }
+    throw new Error("Missing updateExtensionSetting request");
   }
 
   function latestSaveRepoStateRequest(): SaveRepoStateRequest {
@@ -434,6 +458,608 @@ describe("webview rendering", () => {
 
     expect(document.getElementById("settingsWidget")?.hidden).toBe(true);
     expect(document.getElementById("settingsBtn")?.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("renders the extension settings tab and wires accessible tab controls", () => {
+    const settingsBtn = document.getElementById("settingsBtn") as HTMLButtonElement | null;
+    expect(settingsBtn).not.toBeNull();
+    if (document.getElementById("settingsWidget")?.hidden !== false) {
+      settingsBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }
+
+    const extensionTab = document.getElementById(
+      "settingsExtensionTab"
+    ) as HTMLButtonElement | null;
+    expect(extensionTab?.getAttribute("role")).toBe("tab");
+    extensionTab?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const loadSettingsRequest = latestLoadExtensionSettingsRequest();
+    expect(loadSettingsRequest.requestId).toBeGreaterThan(0);
+    expect(vscodeMock.getState()?.settingsWidgetTab).toBe("extension");
+    expect(document.getElementById("settingsRepositoryPanel")?.hidden).toBe(true);
+    expect(document.getElementById("settingsExtensionPanel")?.hidden).toBe(false);
+    expect(document.getElementById("settingsExtensionPanel")?.getAttribute("role")).toBe(
+      "tabpanel"
+    );
+
+    const settings: GG.ExtensionSetting[] = [
+      {
+        key: "git-graph-libre.repository.showTags",
+        configKey: "repository.showTags",
+        title: "repository.showTags",
+        description: "Show tags",
+        type: "boolean",
+        value: true,
+        defaultValue: true,
+        scope: "global"
+      },
+      {
+        key: "git-graph-libre.graphColors",
+        configKey: "graphColors",
+        title: "graphColors",
+        description: "Graph colors",
+        type: "array",
+        value: ["oklch(63% 0.2 245)", "oklch(63% 0.2 350)"],
+        defaultValue: [],
+        scope: "default"
+      }
+    ];
+    receive({
+      command: "loadExtensionSettings",
+      requestId: loadSettingsRequest.requestId,
+      settings,
+      status: null
+    });
+
+    const settingsWidget = document.getElementById("settingsWidget") as HTMLElement | null;
+    expect(settingsWidget?.textContent).toContain("Extension Settings");
+    expect(settingsWidget?.querySelectorAll(".settingsColorSwatch")).toHaveLength(2);
+
+    const showTags = settingsWidget?.querySelector<HTMLInputElement>(
+      'input[data-setting-key="git-graph-libre.repository.showTags"]'
+    );
+    expect(showTags?.checked).toBe(true);
+    if (showTags === undefined || showTags === null) return;
+    showTags.checked = false;
+    showTags.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(latestUpdateExtensionSettingRequest()).toEqual({
+      command: "updateExtensionSetting",
+      key: "git-graph-libre.repository.showTags",
+      value: false,
+      global: true
+    });
+
+    const lightness = settingsWidget?.querySelector<HTMLInputElement>(
+      '.settingsPaletteSlider[data-channel="lightness"]'
+    );
+    expect(lightness).not.toBeNull();
+    if (lightness === undefined || lightness === null) return;
+    lightness.value = "70";
+    lightness.dispatchEvent(new Event("input", { bubbles: true }));
+    const paletteRequest = latestUpdateExtensionSettingRequest();
+    expect(paletteRequest.key).toBe("git-graph-libre.graphColors");
+    expect(paletteRequest.value).toEqual(["oklch(70% 0.2 245)", "oklch(70% 0.2 350)"]);
+
+    receive({
+      command: "updateExtensionSetting",
+      key: "git-graph-libre.dateType",
+      status: null,
+      settings: [
+        {
+          key: "git-graph-libre.autoCenterCommitDetailsView",
+          configKey: "autoCenterCommitDetailsView",
+          title: "autoCenterCommitDetailsView",
+          description: "",
+          type: "boolean",
+          value: false,
+          defaultValue: true,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.commitDetails.compactFolders",
+          configKey: "commitDetails.compactFolders",
+          title: "commitDetails.compactFolders",
+          description: "",
+          type: "boolean",
+          value: true,
+          defaultValue: false,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.commitDetails.fileViewMode",
+          configKey: "commitDetails.fileViewMode",
+          title: "commitDetails.fileViewMode",
+          description: "",
+          type: "string",
+          value: "list",
+          defaultValue: "tree",
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.contextMenuActionsVisibility",
+          configKey: "contextMenuActionsVisibility",
+          title: "contextMenuActionsVisibility",
+          description: "",
+          type: "object",
+          value: { branch: { checkout: false } },
+          defaultValue: {},
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.customBranchGlobPatterns",
+          configKey: "customBranchGlobPatterns",
+          title: "customBranchGlobPatterns",
+          description: "",
+          type: "array",
+          value: [{ name: "Releases", glob: "heads/release/*" }],
+          defaultValue: [],
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.dateFormat",
+          configKey: "dateFormat",
+          title: "dateFormat",
+          description: "",
+          type: "string",
+          value: "Relative",
+          defaultValue: "Date & Time",
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.dateType",
+          configKey: "dateType",
+          title: "dateType",
+          description: "Date type",
+          type: "string",
+          value: "Commit Date",
+          defaultValue: "Author Date",
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.fetchAvatars",
+          configKey: "fetchAvatars",
+          title: "fetchAvatars",
+          description: "",
+          type: "boolean",
+          value: true,
+          defaultValue: false,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.graph.fontSize",
+          configKey: "graph.fontSize",
+          title: "graph.fontSize",
+          description: "",
+          type: "number",
+          value: 15,
+          defaultValue: 13,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.graph.rowHeight",
+          configKey: "graph.rowHeight",
+          title: "graph.rowHeight",
+          description: "",
+          type: "number",
+          value: 30,
+          defaultValue: 24,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.graphColors",
+          configKey: "graphColors",
+          title: "graphColors",
+          description: "",
+          type: "array",
+          value: ["oklch(70% 0.2 245)", "ignored"],
+          defaultValue: [],
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.graphStyle",
+          configKey: "graphStyle",
+          title: "graphStyle",
+          description: "",
+          type: "string",
+          value: "angular",
+          defaultValue: "rounded",
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.initialLoadCommits",
+          configKey: "initialLoadCommits",
+          title: "initialLoadCommits",
+          description: "",
+          type: "number",
+          value: 250,
+          defaultValue: 300,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.loadMoreCommits",
+          configKey: "loadMoreCommits",
+          title: "loadMoreCommits",
+          description: "",
+          type: "number",
+          value: 50,
+          defaultValue: 75,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.repository.includeReflog",
+          configKey: "repository.includeReflog",
+          title: "repository.includeReflog",
+          description: "",
+          type: "boolean",
+          value: true,
+          defaultValue: false,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.repository.muteCommitsNotAncestorsOfHead",
+          configKey: "repository.muteCommitsNotAncestorsOfHead",
+          title: "repository.muteCommitsNotAncestorsOfHead",
+          description: "",
+          type: "boolean",
+          value: false,
+          defaultValue: true,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.repository.onlyFollowFirstParent",
+          configKey: "repository.onlyFollowFirstParent",
+          title: "repository.onlyFollowFirstParent",
+          description: "",
+          type: "boolean",
+          value: true,
+          defaultValue: false,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.repository.showRemoteBranches",
+          configKey: "repository.showRemoteBranches",
+          title: "repository.showRemoteBranches",
+          description: "",
+          type: "boolean",
+          value: false,
+          defaultValue: true,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.repository.showStashes",
+          configKey: "repository.showStashes",
+          title: "repository.showStashes",
+          description: "",
+          type: "boolean",
+          value: false,
+          defaultValue: true,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.repository.showTags",
+          configKey: "repository.showTags",
+          title: "repository.showTags",
+          description: "",
+          type: "boolean",
+          value: false,
+          defaultValue: true,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.shortHashLength",
+          configKey: "shortHashLength",
+          title: "shortHashLength",
+          description: "",
+          type: "number",
+          value: 10,
+          defaultValue: 8,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.showCurrentBranchByDefault",
+          configKey: "showCurrentBranchByDefault",
+          title: "showCurrentBranchByDefault",
+          description: "",
+          type: "boolean",
+          value: true,
+          defaultValue: false,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.showUncommittedChanges",
+          configKey: "showUncommittedChanges",
+          title: "showUncommittedChanges",
+          description: "",
+          type: "boolean",
+          value: true,
+          defaultValue: true,
+          scope: "global"
+        }
+      ]
+    });
+    expect(latestLoadBranchesRequest().hard).toBe(true);
+    expect(document.body.style.getPropertyValue("--git-graph-font-size")).toBe("15px");
+    expect(document.body.style.getPropertyValue("--git-graph-row-height")).toBe("30px");
+
+    receive({
+      command: "updateExtensionSetting",
+      key: "git-graph-libre.graph.fontSize",
+      status: null,
+      settings: [
+        {
+          key: "git-graph-libre.autoCenterCommitDetailsView",
+          configKey: "autoCenterCommitDetailsView",
+          title: "autoCenterCommitDetailsView",
+          description: "",
+          type: "boolean",
+          value: true,
+          defaultValue: true,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.commitDetails.compactFolders",
+          configKey: "commitDetails.compactFolders",
+          title: "commitDetails.compactFolders",
+          description: "",
+          type: "boolean",
+          value: false,
+          defaultValue: false,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.commitDetails.fileViewMode",
+          configKey: "commitDetails.fileViewMode",
+          title: "commitDetails.fileViewMode",
+          description: "",
+          type: "string",
+          value: "tree",
+          defaultValue: "tree",
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.contextMenuActionsVisibility",
+          configKey: "contextMenuActionsVisibility",
+          title: "contextMenuActionsVisibility",
+          description: "",
+          type: "object",
+          value: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
+          defaultValue: {},
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.customBranchGlobPatterns",
+          configKey: "customBranchGlobPatterns",
+          title: "customBranchGlobPatterns",
+          description: "",
+          type: "array",
+          value: defaultViewState.customBranchGlobPatterns,
+          defaultValue: [],
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.dateFormat",
+          configKey: "dateFormat",
+          title: "dateFormat",
+          description: "",
+          type: "string",
+          value: "Date & Time",
+          defaultValue: "Date & Time",
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.fetchAvatars",
+          configKey: "fetchAvatars",
+          title: "fetchAvatars",
+          description: "",
+          type: "boolean",
+          value: false,
+          defaultValue: false,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.graph.fontSize",
+          configKey: "graph.fontSize",
+          title: "graph.fontSize",
+          description: "",
+          type: "number",
+          value: defaultViewState.graphFontSize,
+          defaultValue: 13,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.graph.rowHeight",
+          configKey: "graph.rowHeight",
+          title: "graph.rowHeight",
+          description: "",
+          type: "number",
+          value: defaultViewState.graphRowHeight,
+          defaultValue: 24,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.graphColors",
+          configKey: "graphColors",
+          title: "graphColors",
+          description: "",
+          type: "array",
+          value: defaultViewState.graphColors,
+          defaultValue: [],
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.graphStyle",
+          configKey: "graphStyle",
+          title: "graphStyle",
+          description: "",
+          type: "string",
+          value: "rounded",
+          defaultValue: "rounded",
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.initialLoadCommits",
+          configKey: "initialLoadCommits",
+          title: "initialLoadCommits",
+          description: "",
+          type: "number",
+          value: defaultViewState.initialLoadCommits,
+          defaultValue: 300,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.loadMoreCommits",
+          configKey: "loadMoreCommits",
+          title: "loadMoreCommits",
+          description: "",
+          type: "number",
+          value: defaultViewState.loadMoreCommits,
+          defaultValue: 75,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.repository.includeReflog",
+          configKey: "repository.includeReflog",
+          title: "repository.includeReflog",
+          description: "",
+          type: "boolean",
+          value: defaultViewState.includeReflog,
+          defaultValue: false,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.repository.muteCommitsNotAncestorsOfHead",
+          configKey: "repository.muteCommitsNotAncestorsOfHead",
+          title: "repository.muteCommitsNotAncestorsOfHead",
+          description: "",
+          type: "boolean",
+          value: defaultViewState.muteCommitsNotAncestorsOfHead,
+          defaultValue: true,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.repository.onlyFollowFirstParent",
+          configKey: "repository.onlyFollowFirstParent",
+          title: "repository.onlyFollowFirstParent",
+          description: "",
+          type: "boolean",
+          value: defaultViewState.onlyFollowFirstParent,
+          defaultValue: false,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.repository.showRemoteBranches",
+          configKey: "repository.showRemoteBranches",
+          title: "repository.showRemoteBranches",
+          description: "",
+          type: "boolean",
+          value: defaultViewState.showRemoteBranches,
+          defaultValue: true,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.repository.showStashes",
+          configKey: "repository.showStashes",
+          title: "repository.showStashes",
+          description: "",
+          type: "boolean",
+          value: defaultViewState.showStashes,
+          defaultValue: true,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.repository.showTags",
+          configKey: "repository.showTags",
+          title: "repository.showTags",
+          description: "",
+          type: "boolean",
+          value: defaultViewState.showTags,
+          defaultValue: true,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.shortHashLength",
+          configKey: "shortHashLength",
+          title: "shortHashLength",
+          description: "",
+          type: "number",
+          value: defaultViewState.shortHashLength,
+          defaultValue: 8,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.showCurrentBranchByDefault",
+          configKey: "showCurrentBranchByDefault",
+          title: "showCurrentBranchByDefault",
+          description: "",
+          type: "boolean",
+          value: defaultViewState.showCurrentBranchByDefault,
+          defaultValue: false,
+          scope: "global"
+        }
+      ]
+    });
+    expect(document.body.style.getPropertyValue("--git-graph-font-size")).toBe("13px");
+    expect(document.body.style.getPropertyValue("--git-graph-row-height")).toBe("24px");
+
+    receive({
+      command: "updateExtensionSetting",
+      key: "git-graph-libre.unknown",
+      status: null,
+      settings: [
+        {
+          key: "git-graph-libre.unknownBoolean",
+          configKey: "unknownBoolean",
+          title: "unknownBoolean",
+          description: "",
+          type: "boolean",
+          value: true,
+          defaultValue: false,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.unknownNumber",
+          configKey: "unknownNumber",
+          title: "unknownNumber",
+          description: "",
+          type: "number",
+          value: 1,
+          defaultValue: 0,
+          scope: "global"
+        },
+        {
+          key: "git-graph-libre.unknownString",
+          configKey: "unknownString",
+          title: "unknownString",
+          description: "",
+          type: "string",
+          value: "value",
+          defaultValue: "",
+          scope: "global"
+        }
+      ]
+    });
+
+    document
+      .getElementById("settingsExtensionTab")
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    expect(document.getElementById("settingsRepositoryTab")?.getAttribute("aria-selected")).toBe(
+      "true"
+    );
+    document
+      .getElementById("settingsRepositoryTab")
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    expect(document.getElementById("settingsExtensionTab")?.getAttribute("aria-selected")).toBe(
+      "true"
+    );
+    document
+      .getElementById("settingsExtensionTab")
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    expect(document.getElementById("settingsRepositoryTab")?.getAttribute("aria-selected")).toBe(
+      "true"
+    );
+
+    settingsBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(document.getElementById("settingsWidget")?.hidden).toBe(true);
   });
 
   it("persists repository settings overrides and reloads with resolved flags", () => {

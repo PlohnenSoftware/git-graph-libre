@@ -1,8 +1,14 @@
 import type { GitRemote, GitRepoConfig } from "@/backend/types";
 import { octicon } from "@/octicons";
-import type { GitRepoState, RepoBooleanOverride } from "@/types";
+import type {
+  ExtensionSetting,
+  GitRepoState,
+  RepoBooleanOverride,
+  SettingsWidgetTab
+} from "@/types";
 
 import { escapeHtml } from "./utils/html";
+import { toOklch } from "./utils/oklchColor";
 
 export const REPO_BOOLEAN_OVERRIDES = ["default", "enabled", "disabled"] as const;
 export type RepoBooleanSettingKey =
@@ -15,6 +21,8 @@ export type RepoBooleanSettingKey =
 type SettingsLabels = {
   title: string;
   close: string;
+  repositoryTab: string;
+  extensionTab: string;
   general: string;
   repositoryName: string;
   edit: string;
@@ -67,6 +75,19 @@ type SettingsLabels = {
   repositoryConfiguration: string;
   exportRepositoryConfiguration: string;
   importRepositoryConfiguration: string;
+  extensionSettings: string;
+  extensionSettingsLoading: string;
+  extensionScopeDefault: string;
+  extensionScopeGlobal: string;
+  extensionScopeWorkspace: string;
+  extensionScopeWorkspaceFolder: string;
+  extensionJsonEdit: string;
+  extensionGraphColors: string;
+  extensionGraphColorsPreview: string;
+  extensionGraphColorsLightness: string;
+  extensionGraphColorsChroma: string;
+  exportExtensionSettings: string;
+  importExtensionSettings: string;
 };
 
 export type SettingsWidgetModel = {
@@ -75,6 +96,8 @@ export type SettingsWidgetModel = {
   config: GitRepoConfig;
   remotes: GitRemote[];
   defaults: Record<RepoBooleanSettingKey, boolean>;
+  activeTab: SettingsWidgetTab;
+  extensionSettings: ExtensionSetting[] | null;
   labels: SettingsLabels;
 };
 
@@ -289,15 +312,11 @@ function renderRepositoryConfigurationSection(model: SettingsWidgetModel) {
   </section>`;
 }
 
-export function renderSettingsWidget(model: SettingsWidgetModel) {
+function renderRepositoryTab(model: SettingsWidgetModel) {
   const labels = model.labels;
   const repoName = getRepoDisplayName(model.repo, model.repoState);
   const hasDetails = hasUserDetails(model.config);
-  return `<div class="settingsWidgetHeader">
-      <h2>${escapeHtml(labels.title)}</h2>
-      <button id="settingsCloseBtn" class="settingsCloseButton" type="button" title="${escapeHtml(labels.close)}" aria-label="${escapeHtml(labels.close)}">${octicon("x")}</button>
-    </div>
-    <section class="settingsSection">
+  return `<section class="settingsSection">
       <h3>${escapeHtml(labels.general)}</h3>
       <div class="settingsRow">
         <span>${escapeHtml(labels.repositoryName)}</span>
@@ -342,4 +361,163 @@ export function renderSettingsWidget(model: SettingsWidgetModel) {
     ${renderIssueLinkingSection(model)}
     ${renderPullRequestSection(model)}
     ${renderRepositoryConfigurationSection(model)}`;
+}
+
+function renderExtensionTab(model: SettingsWidgetModel) {
+  const labels = model.labels;
+  if (model.extensionSettings === null) {
+    return `<section class="settingsSection">
+      <h3>${escapeHtml(labels.extensionSettings)}</h3>
+      <div class="settingsRow settingsRowFull">${escapeHtml(labels.extensionSettingsLoading)}</div>
+    </section>`;
+  }
+
+  return `<section class="settingsSection settingsExtensionActionsSection">
+      <h3>${escapeHtml(labels.extensionSettings)}</h3>
+      <div class="settingsActions">
+        <button id="settingsExportExtensionSettings" class="settingsTextButton" type="button">${escapeHtml(labels.exportExtensionSettings)}</button>
+        <button id="settingsImportExtensionSettings" class="settingsTextButton" type="button">${escapeHtml(labels.importExtensionSettings)}</button>
+      </div>
+    </section>
+    <section class="settingsSection settingsExtensionList">
+      <h3>${escapeHtml(labels.extensionSettings)}</h3>
+      ${model.extensionSettings.map((setting) => renderExtensionSettingRow(setting, labels)).join("")}
+    </section>`;
+}
+
+function renderExtensionSettingRow(setting: ExtensionSetting, labels: SettingsLabels) {
+  const description =
+    setting.description === ""
+      ? ""
+      : `<div class="settingsDescription">${escapeHtml(setting.description)}</div>`;
+  return `<div class="settingsExtensionRow" data-setting-key="${escapeHtml(setting.key)}">
+    <div class="settingsExtensionMeta">
+      <span class="settingsValue" title="${escapeHtml(setting.key)}">${escapeHtml(setting.title)}</span>
+      <span class="settingsScope">${escapeHtml(scopeLabel(setting.scope, labels))}</span>
+      ${description}
+    </div>
+    <div class="settingsExtensionEditor">
+      ${renderExtensionSettingEditor(setting, labels)}
+    </div>
+  </div>`;
+}
+
+function renderExtensionSettingEditor(setting: ExtensionSetting, labels: SettingsLabels) {
+  if (setting.key === "git-graph-libre.graphColors") return renderGraphColorsEditor(setting, labels);
+  if (setting.enum !== undefined) return renderEnumEditor(setting);
+  if (setting.type === "boolean") return renderBooleanEditor(setting);
+  if (setting.type === "number") return renderNumberEditor(setting);
+  if (setting.type === "string") return renderStringEditor(setting);
+  return renderJsonEditor(setting, labels);
+}
+
+function renderBooleanEditor(setting: ExtensionSetting) {
+  const checked = setting.value === true ? " checked" : "";
+  return `<input class="settingsExtensionInput" type="checkbox" data-setting-key="${escapeHtml(setting.key)}" data-setting-type="boolean"${checked}>`;
+}
+
+function renderNumberEditor(setting: ExtensionSetting) {
+  const minimum = setting.minimum === undefined ? "" : ` min="${setting.minimum}"`;
+  const maximum = setting.maximum === undefined ? "" : ` max="${setting.maximum}"`;
+  return `<input class="settingsExtensionInput settingsNumberInput" type="number" data-setting-key="${escapeHtml(setting.key)}" data-setting-type="number" value="${escapeHtml(scalarSettingValue(setting.value))}"${minimum}${maximum}>`;
+}
+
+function renderStringEditor(setting: ExtensionSetting) {
+  return `<input class="settingsExtensionInput settingsStringInput" type="text" data-setting-key="${escapeHtml(setting.key)}" data-setting-type="string" value="${escapeHtml(scalarSettingValue(setting.value))}">`;
+}
+
+function renderEnumEditor(setting: ExtensionSetting) {
+  const value = scalarSettingValue(setting.value);
+  const options = setting.enum ?? [];
+  return `<select class="settingsExtensionInput settingsEnumInput" data-setting-key="${escapeHtml(setting.key)}" data-setting-type="string">
+    ${options
+      .map((option, index) => {
+        const selected = option === value ? " selected" : "";
+        const label = setting.enumDescriptions?.[index] ?? option;
+        return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(label)}</option>`;
+      })
+      .join("")}
+  </select>`;
+}
+
+function renderJsonEditor(setting: ExtensionSetting, labels: SettingsLabels) {
+  const value = JSON.stringify(setting.value, null, 2);
+  return `<span class="settingsValue settingsJsonValue" title="${escapeHtml(value)}">${escapeHtml(value)}</span>
+    <button class="settingsTextButton settingsEditJsonSetting" type="button" data-setting-key="${escapeHtml(setting.key)}">${escapeHtml(labels.extensionJsonEdit)}</button>`;
+}
+
+function renderGraphColorsEditor(setting: ExtensionSetting, labels: SettingsLabels) {
+  const colors = Array.isArray(setting.value)
+    ? setting.value.filter((value): value is string => typeof value === "string")
+    : [];
+  const firstColor = colors[0] === undefined ? null : toOklch(colors[0]);
+  const lightness = firstColor?.l ?? 63;
+  const chroma = firstColor?.c ?? 0.2;
+  return `<div class="settingsGraphColorsEditor">
+    <div class="settingsColorGrid" aria-label="${escapeHtml(labels.extensionGraphColors)}">
+      ${colors.map((color) => renderColorSwatch(color)).join("")}
+    </div>
+    <div class="settingsColorPreview" aria-label="${escapeHtml(labels.extensionGraphColorsPreview)}">
+      ${colors
+        .slice(0, 8)
+        .map((color) => `<span style="--settings-swatch:${escapeHtml(color)}"></span>`)
+        .join("")}
+    </div>
+    <label class="settingsPaletteSliderRow">
+      <span>${escapeHtml(labels.extensionGraphColorsLightness)}</span>
+      <input class="settingsPaletteSlider" type="range" min="0" max="100" step="1" value="${escapeHtml(String(Math.round(lightness)))}" data-setting-key="${escapeHtml(setting.key)}" data-channel="lightness">
+    </label>
+    <label class="settingsPaletteSliderRow">
+      <span>${escapeHtml(labels.extensionGraphColorsChroma)}</span>
+      <input class="settingsPaletteSlider" type="range" min="0" max="0.4" step="0.01" value="${escapeHtml(String(Math.round(chroma * 100) / 100))}" data-setting-key="${escapeHtml(setting.key)}" data-channel="chroma">
+    </label>
+    ${renderJsonEditor(setting, labels)}
+  </div>`;
+}
+
+function renderColorSwatch(color: string) {
+  return `<span class="settingsColorSwatch" title="${escapeHtml(color)}" style="--settings-swatch:${escapeHtml(color)}"></span>`;
+}
+
+function scalarSettingValue(value: ExtensionSetting["value"]) {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return "";
+}
+
+function scopeLabel(scope: ExtensionSetting["scope"], labels: SettingsLabels) {
+  const scopeLabels: Record<ExtensionSetting["scope"], string> = {
+    default: labels.extensionScopeDefault,
+    global: labels.extensionScopeGlobal,
+    workspace: labels.extensionScopeWorkspace,
+    workspaceFolder: labels.extensionScopeWorkspaceFolder
+  };
+  return scopeLabels[scope];
+}
+
+function tabSelectedAttr(activeTab: SettingsWidgetTab, tab: SettingsWidgetTab) {
+  return activeTab === tab ? "true" : "false";
+}
+
+function tabHiddenAttr(activeTab: SettingsWidgetTab, tab: SettingsWidgetTab) {
+  return activeTab === tab ? "" : " hidden";
+}
+
+export function renderSettingsWidget(model: SettingsWidgetModel) {
+  const labels = model.labels;
+  return `<div class="settingsWidgetHeader">
+      <h2>${escapeHtml(labels.title)}</h2>
+      <button id="settingsCloseBtn" class="settingsCloseButton" type="button" title="${escapeHtml(labels.close)}" aria-label="${escapeHtml(labels.close)}">${octicon("x")}</button>
+    </div>
+    <div class="settingsTabs" role="tablist" aria-label="${escapeHtml(labels.title)}">
+      <button id="settingsRepositoryTab" class="settingsTab" role="tab" type="button" aria-selected="${tabSelectedAttr(model.activeTab, "repository")}" aria-controls="settingsRepositoryPanel" tabindex="${model.activeTab === "repository" ? "0" : "-1"}" data-settings-tab="repository">${escapeHtml(labels.repositoryTab)}</button>
+      <button id="settingsExtensionTab" class="settingsTab" role="tab" type="button" aria-selected="${tabSelectedAttr(model.activeTab, "extension")}" aria-controls="settingsExtensionPanel" tabindex="${model.activeTab === "extension" ? "0" : "-1"}" data-settings-tab="extension">${escapeHtml(labels.extensionTab)}</button>
+    </div>
+    <div id="settingsRepositoryPanel" class="settingsTabPanel" role="tabpanel" aria-labelledby="settingsRepositoryTab"${tabHiddenAttr(model.activeTab, "repository")}>
+      ${renderRepositoryTab(model)}
+    </div>
+    <div id="settingsExtensionPanel" class="settingsTabPanel" role="tabpanel" aria-labelledby="settingsExtensionTab"${tabHiddenAttr(model.activeTab, "extension")}>
+      ${renderExtensionTab(model)}
+    </div>`;
 }

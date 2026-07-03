@@ -62,8 +62,10 @@ import { copyToClipboard } from "@/extension/utils/clipboard";
 import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
-import type { GitRepoState, RequestMessage, ResponseMessage } from "@/types";
+import type { ExtensionSetting, GitRepoState, RequestMessage, ResponseMessage } from "@/types";
 
+import { loadExtensionSettings, updateExtensionSetting } from "./extensionSettings";
+import { exportExtensionSettingsFile, importExtensionSettingsFile } from "./extensionSettingsFile";
 import { buildPullRequestUrl } from "./pullRequest";
 import { exportRepoConfigFile, importRepoConfigFile } from "./repoConfigFile";
 import type { RepoManager } from "./repoManager";
@@ -294,6 +296,7 @@ export function registerMessageHandlers(
     extensionState: ExtensionState;
     avatarManager: AvatarManager;
     repoFileWatcher: RepoFileWatcher;
+    extensionPath?: string;
     outputChannel?: Pick<vscode.OutputChannel, "appendLine">;
   }
 ) {
@@ -304,6 +307,7 @@ export function registerMessageHandlers(
     extensionState,
     avatarManager,
     repoFileWatcher,
+    extensionPath = process.cwd(),
     outputChannel
   } = deps;
 
@@ -334,6 +338,14 @@ export function registerMessageHandlers(
     const repoState = repoManager.getRepos()[repo];
     if (repoState === undefined) throw new Error("Unknown repository.");
     return repoState;
+  }
+
+  function safeLoadExtensionSettings(): ExtensionSetting[] {
+    try {
+      return loadExtensionSettings(extensionPath);
+    } catch {
+      return [];
+    }
   }
 
   // --- Action handlers ---
@@ -533,6 +545,17 @@ export function registerMessageHandlers(
     });
   });
 
+  bridge.onMessage("loadExtensionSettings", async (msg) => {
+    let status: string | null = null;
+    let settings: ExtensionSetting[] = [];
+    try {
+      settings = loadExtensionSettings(extensionPath);
+    } catch (error: unknown) {
+      status = error instanceof Error ? error.message : String(error);
+    }
+    bridge.post({ command: "loadExtensionSettings", requestId: msg.requestId, settings, status });
+  });
+
   bridge.onMessage("searchCommits", async (msg) => {
     bridge.post({
       command: "searchCommits",
@@ -624,6 +647,52 @@ export function registerMessageHandlers(
       status = error instanceof Error ? error.message : String(error);
     }
     bridge.post({ command: "importRepoConfig", repo: msg.repo, status, state });
+  });
+
+  bridge.onMessage("updateExtensionSetting", async (msg) => {
+    let status: string | null = null;
+    let settings: ExtensionSetting[] = [];
+    try {
+      settings = await updateExtensionSetting(extensionPath, msg.key, msg.value);
+    } catch (error: unknown) {
+      status = error instanceof Error ? error.message : String(error);
+      settings = safeLoadExtensionSettings();
+    }
+    bridge.post({ command: "updateExtensionSetting", key: msg.key, status, settings });
+  });
+
+  bridge.onMessage("exportExtensionSettings", async () => {
+    let status: string | null = null;
+    let exportedPath: string | null = null;
+    try {
+      exportedPath = await exportExtensionSettingsFile(extensionPath);
+    } catch (error: unknown) {
+      status = error instanceof Error ? error.message : String(error);
+    }
+    bridge.post({ command: "exportExtensionSettings", status, exportedPath });
+  });
+
+  bridge.onMessage("importExtensionSettings", async () => {
+    let status: string | null = null;
+    let settings: ExtensionSetting[] = [];
+    let importedKeys: string[] = [];
+    let skippedKeys: string[] = [];
+    try {
+      const result = await importExtensionSettingsFile(extensionPath);
+      settings = result.settings;
+      importedKeys = result.importedKeys;
+      skippedKeys = result.skippedKeys;
+    } catch (error: unknown) {
+      status = error instanceof Error ? error.message : String(error);
+      settings = safeLoadExtensionSettings();
+    }
+    bridge.post({
+      command: "importExtensionSettings",
+      status,
+      settings,
+      importedKeys,
+      skippedKeys
+    });
   });
 
   bridge.onMessage("fetchAvatar", (msg) => {

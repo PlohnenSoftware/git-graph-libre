@@ -985,6 +985,38 @@ body.commitDetailsResizing * {
   font-size: 14px;
   font-weight: 600;
 }
+.settingsTabs {
+  display: flex;
+  gap: 2px;
+  margin: 0 -4px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+}
+.settingsTab {
+  min-width: 96px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-bottom: 2px solid var(--ngg-transparent);
+  background-color: var(--vscode-tab-inactiveBackground, var(--ngg-transparent));
+  color: var(--vscode-tab-inactiveForeground, var(--vscode-descriptionForeground));
+  cursor: pointer;
+  font: inherit;
+}
+.settingsTab[aria-selected="true"] {
+  border-bottom-color: var(--vscode-panelTitle-activeBorder, var(--vscode-focusBorder));
+  background-color: var(--vscode-tab-activeBackground, var(--ngg-neutral-overlay-subtle));
+  color: var(--vscode-tab-activeForeground, var(--vscode-foreground));
+}
+.settingsTab:hover {
+  background-color: var(--vscode-tab-hoverBackground, var(--ngg-neutral-overlay-muted));
+}
+.settingsTab:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -2px;
+}
+.settingsTabPanel[hidden] {
+  display: none;
+}
 .settingsSection {
   display: grid;
   grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
@@ -1045,6 +1077,122 @@ body.commitDetailsResizing * {
 .settingsOverrideSelect:focus {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 0;
+}
+.settingsExtensionList {
+  align-items: start;
+}
+.settingsExtensionRow {
+  display: grid;
+  grid-column: 2;
+  grid-template-columns: minmax(220px, 360px) minmax(0, 1fr);
+  gap: 10px;
+  min-height: 36px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.settingsExtensionMeta,
+.settingsExtensionEditor {
+  min-width: 0;
+}
+.settingsDescription {
+  margin-top: 3px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-size: 12px;
+  line-height: 16px;
+}
+.settingsExtensionInput {
+  height: 26px;
+  box-sizing: border-box;
+  border: 1px solid var(--vscode-input-border, var(--ngg-neutral-border));
+  border-radius: 4px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font: inherit;
+}
+.settingsExtensionInput[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--vscode-button-background, var(--ngg-accent));
+}
+.settingsNumberInput {
+  width: 96px;
+  padding: 0 6px;
+}
+.settingsStringInput,
+.settingsEnumInput {
+  width: min(360px, 100%);
+  padding: 0 6px;
+}
+.settingsEnumInput {
+  background-color: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+}
+.settingsExtensionInput:focus,
+.settingsPaletteSlider:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 0;
+}
+.settingsJsonValue {
+  max-width: min(360px, 42vw);
+  font-family: var(--vscode-editor-font-family);
+}
+.settingsGraphColorsEditor {
+  display: grid;
+  gap: 8px;
+}
+.settingsColorGrid,
+.settingsColorPreview {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.settingsColorSwatch {
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  border-radius: 4px;
+  background-color: var(--settings-swatch);
+}
+.settingsColorPreview {
+  width: min(260px, 100%);
+  height: 32px;
+}
+.settingsColorPreview span {
+  position: relative;
+  width: 24px;
+  height: 20px;
+}
+.settingsColorPreview span:before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 0;
+  width: 2px;
+  height: 20px;
+  background-color: var(--settings-swatch);
+}
+.settingsColorPreview span:after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 7px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--settings-swatch);
+  box-shadow: 0 0 0 1px var(--vscode-editor-background);
+}
+.settingsPaletteSliderRow {
+  display: grid;
+  grid-template-columns: minmax(80px, 120px) minmax(140px, 260px);
+  align-items: center;
+  gap: 8px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+.settingsPaletteSlider {
+  width: 100%;
 }
 .settingsActions {
   grid-column: 2;
@@ -1109,12 +1257,14 @@ body.commitDetailsResizing * {
 @media (max-width: 720px) {
   .settingsSection,
   .settingsRow,
+  .settingsExtensionRow,
   .settingsRemoteRow,
   .settingsRemoteUrls {
     grid-template-columns: 1fr;
   }
   .settingsSection h3,
   .settingsActions,
+  .settingsExtensionRow,
   .settingsRemoteRow,
   .settingsRemoteRow .settingsActions,
   .settingsRowFull {

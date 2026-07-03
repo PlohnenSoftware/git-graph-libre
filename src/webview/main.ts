@@ -48,6 +48,7 @@ import { arraysEqual, ELLIPSIS, refInvalid } from "./utils/git";
 import { escapeHtml, unescapeHtml } from "./utils/html";
 import { svgIcons } from "./utils/icons";
 import { extractIssueLinks } from "./utils/linkify";
+import { rewritePaletteLightnessChroma } from "./utils/oklchColor";
 import { sendMessage, vscode } from "./utils/vscode";
 
 const searchHistoryMaxResults = 50;
@@ -166,6 +167,24 @@ function normalizeFilterSelection(values: readonly string[] | null | undefined):
   return selected.length === 0 ? null : selected;
 }
 
+function normalizeCustomBranchGlobPattern(value: GG.JsonValue): GG.CustomBranchGlobPattern | null {
+  if (!isJsonObject(value)) return null;
+  const name = value.name;
+  const glob = value.glob;
+  if (typeof name !== "string" || typeof glob !== "string") return null;
+  const trimmedName = name.trim();
+  const trimmedGlob = glob.trim();
+  if (trimmedName === "" || trimmedGlob === "") return null;
+  return {
+    name: trimmedName,
+    glob: trimmedGlob.startsWith("--glob=") ? trimmedGlob : `--glob=${trimmedGlob}`
+  };
+}
+
+function isJsonObject(value: GG.JsonValue): value is { [key: string]: GG.JsonValue } {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 class GitGraphView {
   private gitRepos: GG.GitRepoSet;
   private gitBranches: string[] = [];
@@ -215,6 +234,8 @@ class GitGraphView {
   private readonly settingsWidgetBackingElem: HTMLElement;
   private readonly settingsWidgetElem: HTMLElement;
   private settingsWidgetOpen = false;
+  private settingsWidgetTab: GG.SettingsWidgetTab = "repository";
+  private extensionSettings: GG.ExtensionSetting[] | null = null;
   private findQuery = "";
   private findMatches: number[] = [];
   private activeFindMatchIndex = -1;
@@ -226,6 +247,7 @@ class GitGraphView {
   private loadCommitsCallback: ((changes: boolean) => void) | null = null;
   private nextRequestId = 1;
   private activeLoadRepoInfoRequestId: number | null = null;
+  private activeLoadExtensionSettingsRequestId: number | null = null;
   private activeLoadBranchesRequestId: number | null = null;
   private activeLoadCommitsRequestId: number | null = null;
 
@@ -386,6 +408,7 @@ class GitGraphView {
     this.showRemoteBranches = prevState.showRemoteBranches;
     this.showRemoteBranchesElem.checked = this.showRemoteBranches;
     this.settingsWidgetOpen = prevState.settingsWidgetOpen === true;
+    this.settingsWidgetTab = this.normalizeSettingsWidgetTab(prevState.settingsWidgetTab);
     this.restoreHiddenColumns(prevState.hiddenColumns ?? []);
 
     const repoState = this.gitRepos[prevState.currentRepo];
@@ -816,6 +839,47 @@ class GitGraphView {
       showStashes: this.getShowStashes()
     });
   }
+  private requestLoadExtensionSettings() {
+    if (this.extensionSettings !== null || this.activeLoadExtensionSettingsRequestId !== null) {
+      return;
+    }
+
+    const requestId = this.createRequestId();
+    this.activeLoadExtensionSettingsRequestId = requestId;
+    sendMessage({ command: "loadExtensionSettings", requestId });
+  }
+  public loadExtensionSettings(
+    requestId: number,
+    settings: GG.ExtensionSetting[],
+    status: string | null
+  ) {
+    if (this.activeLoadExtensionSettingsRequestId !== requestId) return;
+    this.activeLoadExtensionSettingsRequestId = null;
+    if (status !== null) {
+      showErrorDialog(l10n.unableToLoadExtensionSettings, status, this.settingsWidgetElem);
+      return;
+    }
+
+    this.extensionSettings = settings;
+    this.renderSettingsWidget();
+  }
+  public acceptExtensionSettingsUpdate(
+    settings: GG.ExtensionSetting[],
+    status: string | null,
+    errorLabel: string
+  ) {
+    if (status !== null) {
+      setStatusStrip("error", errorLabel);
+      showErrorDialog(errorLabel, status, this.settingsWidgetElem);
+      return;
+    }
+
+    hideDialog();
+    setStatusStrip("ready", l10n.statusReady);
+    this.extensionSettings = settings;
+    this.applyExtensionSettings(settings);
+    this.renderSettingsWidget();
+  }
   private requestLoadBranches(
     hard: boolean,
     loadedCallback: (changes: boolean, isRepo: boolean) => void
@@ -1239,8 +1303,13 @@ class GitGraphView {
       showRemoteBranches: this.showRemoteBranches,
       expandedCommit: this.expandedCommit,
       hiddenColumns: [...this.hiddenColumns],
-      settingsWidgetOpen: this.settingsWidgetOpen
+      settingsWidgetOpen: this.settingsWidgetOpen,
+      settingsWidgetTab: this.settingsWidgetTab
     });
+  }
+
+  private normalizeSettingsWidgetTab(tab: GG.SettingsWidgetTab | undefined): GG.SettingsWidgetTab {
+    return tab === "extension" ? "extension" : "repository";
   }
 
   private getCurrentRepoState(): GG.GitRepoState | null {
@@ -1292,6 +1361,170 @@ class GitGraphView {
   private syncRepoSettingsControls() {
     this.showRemoteBranches = this.getShowRemoteBranches();
     this.showRemoteBranchesElem.checked = this.showRemoteBranches;
+  }
+
+  private applyExtensionSettings(settings: GG.ExtensionSetting[]) {
+    const beforeRemoteBranches = this.getShowRemoteBranches();
+    const beforeStashes = this.getShowStashes();
+    const beforeTags = this.getShowTags();
+    const beforeIncludeReflog = this.getIncludeReflog();
+    const beforeFirstParent = this.getOnlyFollowFirstParent();
+    let reloadHistory = false;
+
+    for (const setting of settings) {
+      reloadHistory = this.applyExtensionSetting(setting) || reloadHistory;
+    }
+
+    this.syncGraphColorStyles();
+    this.syncRepoSettingsControls();
+    this.updateFilterDropdowns();
+
+    const repoFilterDefaultsChanged =
+      beforeRemoteBranches !== this.getShowRemoteBranches() ||
+      beforeStashes !== this.getShowStashes() ||
+      beforeTags !== this.getShowTags() ||
+      beforeIncludeReflog !== this.getIncludeReflog() ||
+      beforeFirstParent !== this.getOnlyFollowFirstParent();
+    reloadHistory = reloadHistory || repoFilterDefaultsChanged;
+
+    this.renderTable();
+    this.renderGraph();
+    if (reloadHistory) {
+      this.maxCommits = this.config.initialLoadCommits;
+      this.renderShowLoading();
+      this.requestLoadBranchesAndCommits(true);
+    }
+  }
+
+  private applyExtensionSetting(setting: GG.ExtensionSetting) {
+    const value = setting.value;
+    if (setting.configKey === "dateType") return true;
+    if (setting.configKey === "showUncommittedChanges") return typeof value === "boolean";
+    if (this.applyBooleanExtensionSetting(setting.configKey, value)) return false;
+    if (this.applyNumberExtensionSetting(setting.configKey, value)) return false;
+    if (this.applyStringExtensionSetting(setting.configKey, value)) return false;
+    this.applyStructuredExtensionSetting(setting.configKey, value);
+    return false;
+  }
+
+  private applyBooleanExtensionSetting(configKey: string, value: GG.JsonValue) {
+    if (typeof value !== "boolean") return false;
+    switch (configKey) {
+      case "autoCenterCommitDetailsView":
+        this.config.autoCenterCommitDetailsView = value;
+        return true;
+      case "commitDetails.compactFolders":
+        this.config.commitDetailsCompactFolders = value;
+        viewState.commitDetailsCompactFolders = value;
+        return true;
+      case "fetchAvatars":
+        this.config.fetchAvatars = value;
+        return true;
+      case "repository.includeReflog":
+        this.config.includeReflog = value;
+        return true;
+      case "repository.muteCommitsNotAncestorsOfHead":
+        this.config.muteCommitsNotAncestorsOfHead = value;
+        return true;
+      case "repository.onlyFollowFirstParent":
+        this.config.onlyFollowFirstParent = value;
+        return true;
+      case "repository.showRemoteBranches":
+        this.config.showRemoteBranches = value;
+        return true;
+      case "repository.showStashes":
+        this.config.showStashes = value;
+        return true;
+      case "repository.showTags":
+        this.config.showTags = value;
+        return true;
+      case "showCurrentBranchByDefault":
+        this.config.showCurrentBranchByDefault = value;
+        return true;
+    }
+    return false;
+  }
+
+  private applyNumberExtensionSetting(configKey: string, value: GG.JsonValue) {
+    if (typeof value !== "number") return false;
+    switch (configKey) {
+      case "graph.fontSize":
+        this.applyGraphFontSize(value);
+        return true;
+      case "graph.rowHeight":
+        this.applyGraphRowHeight(value);
+        return true;
+      case "initialLoadCommits":
+        this.config.initialLoadCommits = value;
+        return true;
+      case "loadMoreCommits":
+        this.config.loadMoreCommits = value;
+        return true;
+      case "shortHashLength":
+        this.config.shortHashLength = value;
+        return true;
+    }
+    return false;
+  }
+
+  private applyStringExtensionSetting(configKey: string, value: GG.JsonValue) {
+    if (typeof value !== "string") return false;
+    switch (configKey) {
+      case "commitDetails.fileViewMode":
+        if (value === "tree" || value === "list") this.config.commitDetailsFileViewMode = value;
+        return true;
+      case "dateFormat":
+        if (value === "Date & Time" || value === "Date Only" || value === "Relative") {
+          viewState.dateFormat = value;
+        }
+        return true;
+      case "graphStyle":
+        if (value === "rounded" || value === "angular") this.config.graphStyle = value;
+        return true;
+    }
+    return false;
+  }
+
+  private applyStructuredExtensionSetting(configKey: string, value: GG.JsonValue) {
+    if (configKey === "contextMenuActionsVisibility" && isJsonObject(value)) {
+      this.config.contextMenuActionsVisibility = value as GG.ContextMenuActionsVisibility;
+    } else if (configKey === "customBranchGlobPatterns" && Array.isArray(value)) {
+      this.config.customBranchGlobPatterns = value
+        .map(normalizeCustomBranchGlobPattern)
+        .filter((pattern): pattern is GG.CustomBranchGlobPattern => pattern !== null);
+    } else if (configKey === "graphColors" && Array.isArray(value)) {
+      this.config.graphColors = value.filter((color): color is string => typeof color === "string");
+    }
+  }
+
+  private applyGraphFontSize(value: number) {
+    this.config.graphFontSize = value;
+    document.body.style.setProperty("--git-graph-font-size", `${value}px`);
+  }
+
+  private applyGraphRowHeight(value: number) {
+    this.config.graphRowHeight = value;
+    this.config.grid.y = value;
+    document.body.style.setProperty("--git-graph-row-height", `${value}px`);
+  }
+
+  private syncGraphColorStyles() {
+    for (let i = 0; i < this.config.graphColors.length; i++) {
+      document.body.style.setProperty(`--git-graph-color${i}`, this.config.graphColors[i]);
+    }
+
+    let style = document.getElementById("graphColorStyle");
+    if (style === null) {
+      style = document.createElement("style");
+      style.id = "graphColorStyle";
+      document.head.appendChild(style);
+    }
+    style.textContent = this.config.graphColors
+      .map(
+        (_color, index) =>
+          `[data-color="${index}"]{--git-graph-color:var(--git-graph-color${index});}`
+      )
+      .join(" ");
   }
 
   private saveCurrentRepoState(repoState: GG.GitRepoState) {
@@ -1365,9 +1598,13 @@ class GitGraphView {
       config: this.gitConfig,
       remotes: this.gitRemotes,
       defaults: this.getRepoBooleanDefaults(),
+      activeTab: this.settingsWidgetTab,
+      extensionSettings: this.extensionSettings,
       labels: {
         title: l10n.repositorySettings,
         close: l10n.settingsClose,
+        repositoryTab: l10n.settingsRepositoryTab,
+        extensionTab: l10n.settingsExtensionTab,
         general: l10n.settingsGeneral,
         repositoryName: l10n.settingsRepositoryName,
         edit: l10n.settingsEdit,
@@ -1419,17 +1656,32 @@ class GitGraphView {
         removePullRequest: l10n.settingsRemovePullRequest,
         repositoryConfiguration: l10n.settingsRepositoryConfiguration,
         exportRepositoryConfiguration: l10n.settingsExportRepositoryConfiguration,
-        importRepositoryConfiguration: l10n.settingsImportRepositoryConfiguration
+        importRepositoryConfiguration: l10n.settingsImportRepositoryConfiguration,
+        extensionSettings: l10n.settingsExtensionSettings,
+        extensionSettingsLoading: l10n.settingsExtensionSettingsLoading,
+        extensionScopeDefault: l10n.settingsExtensionScopeDefault,
+        extensionScopeGlobal: l10n.settingsExtensionScopeGlobal,
+        extensionScopeWorkspace: l10n.settingsExtensionScopeWorkspace,
+        extensionScopeWorkspaceFolder: l10n.settingsExtensionScopeWorkspaceFolder,
+        extensionJsonEdit: l10n.settingsExtensionJsonEdit,
+        extensionGraphColors: l10n.settingsExtensionGraphColors,
+        extensionGraphColorsPreview: l10n.settingsExtensionGraphColorsPreview,
+        extensionGraphColorsLightness: l10n.settingsExtensionGraphColorsLightness,
+        extensionGraphColorsChroma: l10n.settingsExtensionGraphColorsChroma,
+        exportExtensionSettings: l10n.settingsExportExtensionSettings,
+        importExtensionSettings: l10n.settingsImportExtensionSettings
       }
     });
     this.settingsWidgetElem.focus({ preventScroll: true });
     this.bindSettingsWidget();
+    if (this.settingsWidgetTab === "extension") this.requestLoadExtensionSettings();
   }
 
   private bindSettingsWidget() {
     document.getElementById("settingsCloseBtn")?.addEventListener("click", () => {
       this.closeSettingsWidget();
     });
+    this.bindSettingsTabs();
     document.getElementById("settingsEditRepoName")?.addEventListener("click", () => {
       this.showRepoNameDialog();
     });
@@ -1463,6 +1715,13 @@ class GitGraphView {
     document.getElementById("settingsImportRepoConfig")?.addEventListener("click", () => {
       this.showImportRepoConfigDialog();
     });
+    document.getElementById("settingsExportExtensionSettings")?.addEventListener("click", () => {
+      this.exportExtensionSettings();
+    });
+    document.getElementById("settingsImportExtensionSettings")?.addEventListener("click", () => {
+      this.importExtensionSettings();
+    });
+    this.bindExtensionSettingEditors();
     this.settingsWidgetElem
       .querySelectorAll<HTMLButtonElement>(".settingsToggleRemoteVisibility")
       .forEach((button) => {
@@ -1509,6 +1768,155 @@ class GitGraphView {
           );
         });
       });
+  }
+
+  private bindSettingsTabs() {
+    const tabs = Array.from(
+      this.settingsWidgetElem.querySelectorAll<HTMLButtonElement>(".settingsTab")
+    );
+    for (const tab of tabs) {
+      tab.addEventListener("click", () => {
+        this.selectSettingsTab(
+          this.normalizeSettingsWidgetTab(
+            tab.dataset.settingsTab as GG.SettingsWidgetTab | undefined
+          )
+        );
+      });
+      tab.addEventListener("keydown", (event: KeyboardEvent) => {
+        this.handleSettingsTabKeydown(event, tabs, tab);
+      });
+    }
+  }
+
+  private handleSettingsTabKeydown(
+    event: KeyboardEvent,
+    tabs: HTMLButtonElement[],
+    tab: HTMLButtonElement
+  ) {
+    const index = tabs.indexOf(tab);
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+    if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = tabs.length - 1;
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    const nextTab = tabs[nextIndex];
+    this.selectSettingsTab(
+      this.normalizeSettingsWidgetTab(
+        nextTab.dataset.settingsTab as GG.SettingsWidgetTab | undefined
+      )
+    );
+    nextTab.focus();
+  }
+
+  private selectSettingsTab(tab: GG.SettingsWidgetTab) {
+    if (this.settingsWidgetTab === tab) return;
+    this.settingsWidgetTab = tab;
+    this.saveState();
+    this.renderSettingsWidget();
+  }
+
+  private bindExtensionSettingEditors() {
+    this.settingsWidgetElem
+      .querySelectorAll<HTMLInputElement | HTMLSelectElement>(".settingsExtensionInput")
+      .forEach((input) => {
+        input.addEventListener("change", () => {
+          this.updateExtensionSetting(input.dataset.settingKey, this.extensionInputValue(input));
+        });
+      });
+    this.settingsWidgetElem
+      .querySelectorAll<HTMLButtonElement>(".settingsEditJsonSetting")
+      .forEach((button) => {
+        button.addEventListener("click", () => {
+          this.showJsonSettingDialog(button.dataset.settingKey, button);
+        });
+      });
+    this.settingsWidgetElem
+      .querySelectorAll<HTMLInputElement>(".settingsPaletteSlider")
+      .forEach((slider) => {
+        slider.addEventListener("input", () => {
+          this.updateGraphColorPalette(slider);
+        });
+      });
+  }
+
+  private extensionInputValue(input: HTMLInputElement | HTMLSelectElement): GG.JsonValue {
+    const type = input.dataset.settingType;
+    if (type === "boolean") return input instanceof HTMLInputElement && input.checked;
+    if (type === "number") return Number(input.value);
+    return input.value;
+  }
+
+  private updateExtensionSetting(key: string | undefined, value: GG.JsonValue) {
+    if (key === undefined) return;
+    sendMessage({ command: "updateExtensionSetting", key, value, global: true });
+    setStatusStrip("action", `${l10n.statusUpdatingExtensionSetting}...`);
+  }
+
+  private showJsonSettingDialog(key: string | undefined, sourceElem: HTMLElement) {
+    const setting = this.findExtensionSetting(key);
+    if (setting === null) return;
+
+    showFormDialog(
+      setting.title,
+      [
+        {
+          type: "textarea",
+          name: "",
+          default: JSON.stringify(setting.value, null, 2),
+          placeholder: null
+        }
+      ],
+      l10n.settingsExtensionJsonEdit,
+      (values) => {
+        try {
+          this.updateExtensionSetting(setting.key, JSON.parse(values[0]) as GG.JsonValue);
+        } catch (error) {
+          showErrorDialog(
+            l10n.settingsExtensionJsonInvalid,
+            error instanceof Error ? error.message : String(error),
+            sourceElem
+          );
+        }
+      },
+      sourceElem
+    );
+  }
+
+  private updateGraphColorPalette(slider: HTMLInputElement) {
+    const setting = this.findExtensionSetting(slider.dataset.settingKey);
+    if (setting === null || !Array.isArray(setting.value)) return;
+
+    const colors = setting.value.filter((value): value is string => typeof value === "string");
+    const lightnessSlider = this.settingsWidgetElem.querySelector<HTMLInputElement>(
+      '.settingsPaletteSlider[data-channel="lightness"]'
+    );
+    const chromaSlider = this.settingsWidgetElem.querySelector<HTMLInputElement>(
+      '.settingsPaletteSlider[data-channel="chroma"]'
+    );
+    const lightness = Number(lightnessSlider?.value ?? 63);
+    const chroma = Number(chromaSlider?.value ?? 0.2);
+    this.updateExtensionSetting(
+      setting.key,
+      rewritePaletteLightnessChroma(colors, lightness, chroma)
+    );
+  }
+
+  private findExtensionSetting(key: string | undefined) {
+    if (key === undefined || this.extensionSettings === null) return null;
+    return this.extensionSettings.find((setting) => setting.key === key) ?? null;
+  }
+
+  private exportExtensionSettings() {
+    sendMessage({ command: "exportExtensionSettings" });
+    showActionRunningDialog(l10n.statusExportingExtensionSettings);
+  }
+
+  private importExtensionSettings() {
+    sendMessage({ command: "importExtensionSettings" });
+    showActionRunningDialog(l10n.statusImportingExtensionSettings);
   }
 
   private handleExternalLinkClick(event: MouseEvent) {
@@ -4768,6 +5176,26 @@ function handleActionResponse(msg: GG.ResponseMessage) {
     refreshGraphOrDisplayError(msg.status, l10n.unableToImportRepoConfig);
     return true;
   }
+  if (msg.command === "updateExtensionSetting") {
+    gitGraph.acceptExtensionSettingsUpdate(
+      msg.settings,
+      msg.status,
+      l10n.unableToUpdateExtensionSetting
+    );
+    return true;
+  }
+  if (msg.command === "exportExtensionSettings") {
+    handleExtensionSettingsFileResponse(msg.status, l10n.unableToExportExtensionSettings);
+    return true;
+  }
+  if (msg.command === "importExtensionSettings") {
+    gitGraph.acceptExtensionSettingsUpdate(
+      msg.settings,
+      msg.status,
+      l10n.unableToImportExtensionSettings
+    );
+    return true;
+  }
 
   const errorLabel = actionErrorLabels[msg.command as keyof typeof actionErrorLabels];
   if (errorLabel === undefined || !("status" in msg)) return false;
@@ -4808,6 +5236,8 @@ const responseHandlers: ResponseHandlerMap = {
     ),
   loadRepoInfo: (msg) =>
     gitGraph.loadRepoInfo(msg.requestId, msg.repoInfo, formatQueryError(msg.error)),
+  loadExtensionSettings: (msg) =>
+    gitGraph.loadExtensionSettings(msg.requestId, msg.settings, msg.status),
   loadRepos: (msg) => gitGraph.loadRepos(msg.repos, msg.lastActiveRepo),
   compareFileWithWorkingTree: (msg) =>
     handleSuccessFlagResponse(msg, l10n.unableToCompareFileWithWorkingTree),
@@ -4915,6 +5345,16 @@ function handleCreateArchiveResponse(
 
 function handleSuccessFlagResponse(msg: { success: boolean }, errorMessage: string) {
   if (msg.success === false) showErrorDialog(errorMessage, null, null);
+}
+function handleExtensionSettingsFileResponse(status: string | null, errorMessage: string) {
+  if (status === null) {
+    hideDialog();
+    setStatusStrip("ready", l10n.statusReady);
+    return;
+  }
+
+  setStatusStrip("error", errorMessage);
+  showErrorDialog(errorMessage, status, null);
 }
 function refreshGraphOrDisplayError(status: GitCommandStatus, errorMessage: string) {
   if (status === null) {

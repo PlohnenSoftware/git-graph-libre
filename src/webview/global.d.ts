@@ -138,6 +138,7 @@ declare global {
     gitRemotes?: GitRemote[];
     gitStashes?: GitStash[];
     settingsWidgetOpen?: boolean;
+    settingsWidgetTab?: GG.SettingsWidgetTab;
     commits: GitCommitNode[];
     commitHead: string | null;
     avatars: AvatarImageCollection;

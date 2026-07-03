@@ -3,14 +3,21 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { git, makeRepo } from "@tests/backend/helpers";
 import {
+  ConfigurationTarget,
+  configurationGlobalValues,
+  configurationUpdates,
   createdTerminals,
   executedCommands,
+  openDialogResults,
   openedExternalUris,
   openedTextDocuments,
   resetVscodeMock,
   saveDialogResults,
+  setConfigurationValue,
   shownSaveDialogs,
-  shownTextDocuments
+  shownTextDocuments,
+  shownWarningMessages,
+  warningMessageResults
 } from "@tests/webview/__mocks__/vscode";
 import { simpleGit } from "simple-git";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -35,7 +42,7 @@ afterAll(() => {
 });
 
 describe("registerMessageHandlers", () => {
-  function registerHandlersForTest(activeRepo = repo) {
+  function registerHandlersForTest(activeRepo = repo, options: { extensionPath?: string } = {}) {
     const handlers = new Map<
       RequestMessage["command"],
       (msg: RequestMessage) => void | Promise<void>
@@ -84,6 +91,7 @@ describe("registerMessageHandlers", () => {
       extensionState: {} as ExtensionState,
       avatarManager: { fetchAvatarImage: vi.fn() } as unknown as AvatarManager,
       repoFileWatcher,
+      extensionPath: options.extensionPath,
       outputChannel: {
         appendLine: (line: string) => outputLines.push(line)
       }
@@ -459,6 +467,184 @@ describe("registerMessageHandlers", () => {
         displayName: "Imported Repo",
         showTags: "disabled"
       }
+    });
+  });
+
+  it("loads, updates, exports, and imports extension settings", async () => {
+    resetVscodeMock();
+    setConfigurationValue("git-graph-libre", "graph.fontSize", 17);
+    setConfigurationValue("git-graph-libre", "graphColors", [
+      "oklch(63% 0.2 245)",
+      "oklch(63% 0.2 350)"
+    ]);
+    const { handlers, posts } = registerHandlersForTest();
+
+    const loadHandler = handlers.get("loadExtensionSettings");
+    expect(loadHandler).toBeDefined();
+    await loadHandler?.({ command: "loadExtensionSettings", requestId: 91 });
+
+    const manifest = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
+    const expectedSettings = Object.keys(
+      manifest.contributes.configuration.properties as Record<string, unknown>
+    ).filter((key) => key.startsWith("git-graph-libre."));
+    const loadResponse = posts.at(-1);
+    expect(loadResponse).toMatchObject({
+      command: "loadExtensionSettings",
+      requestId: 91,
+      status: null
+    });
+    if (loadResponse?.command !== "loadExtensionSettings") {
+      throw new Error("Missing loadExtensionSettings response");
+    }
+    const loadedSettings = loadResponse.settings;
+    expect(loadedSettings).toHaveLength(expectedSettings.length);
+    expect(
+      loadedSettings.find((setting) => setting.key === "git-graph-libre.graph.fontSize")
+    ).toMatchObject({
+      value: 17,
+      scope: "global",
+      minimum: 8,
+      maximum: 24
+    });
+    expect(
+      loadedSettings.find((setting) => setting.key === "git-graph-libre.graphColors")
+    ).toMatchObject({
+      type: "array",
+      value: ["oklch(63% 0.2 245)", "oklch(63% 0.2 350)"]
+    });
+
+    const updateHandler = handlers.get("updateExtensionSetting");
+    expect(updateHandler).toBeDefined();
+    await updateHandler?.({
+      command: "updateExtensionSetting",
+      key: "git-graph-libre.graph.fontSize",
+      value: 99,
+      global: true
+    });
+
+    expect(configurationUpdates.at(-1)).toEqual({
+      section: "git-graph-libre",
+      key: "graph.fontSize",
+      value: 24,
+      target: ConfigurationTarget.Global
+    });
+    expect(posts.at(-1)).toMatchObject({
+      command: "updateExtensionSetting",
+      key: "git-graph-libre.graph.fontSize",
+      status: null
+    });
+
+    await updateHandler?.({
+      command: "updateExtensionSetting",
+      key: "git-graph-libre.unknown",
+      value: true,
+      global: true
+    });
+    expect(posts.at(-1)).toMatchObject({
+      command: "updateExtensionSetting",
+      key: "git-graph-libre.unknown",
+      status: "Unknown setting: git-graph-libre.unknown",
+      settings: expect.arrayContaining([
+        expect.objectContaining({ key: "git-graph-libre.graph.fontSize" })
+      ])
+    });
+
+    const exportPath = path.join(repo, "git-graph-libre.settings.json");
+    saveDialogResults.push({ fsPath: exportPath });
+    const exportHandler = handlers.get("exportExtensionSettings");
+    expect(exportHandler).toBeDefined();
+    await exportHandler?.({ command: "exportExtensionSettings" });
+
+    expect(shownSaveDialogs).toHaveLength(1);
+    expect(posts.at(-1)).toEqual({
+      command: "exportExtensionSettings",
+      status: null,
+      exportedPath: exportPath
+    });
+    const exported = JSON.parse(fs.readFileSync(exportPath, "utf8"));
+    expect(exported).toMatchObject({
+      kind: "git-graph-libre.extension-settings",
+      version: 1,
+      settings: {
+        "git-graph-libre.graph.fontSize": 24,
+        "git-graph-libre.graphColors": ["oklch(63% 0.2 245)", "oklch(63% 0.2 350)"]
+      }
+    });
+    expect(exported.settings["git-graph-libre.loadMoreCommits"]).toBeUndefined();
+
+    const importPath = path.join(repo, "imported-extension-settings.json");
+    fs.writeFileSync(
+      importPath,
+      JSON.stringify({
+        kind: "git-graph-libre.extension-settings",
+        version: 1,
+        settings: {
+          "git-graph-libre.graph.rowHeight": 18,
+          "git-graph-libre.unknown": true
+        }
+      })
+    );
+    openDialogResults.push([{ fsPath: importPath }]);
+    warningMessageResults.push("Apply Settings");
+    const importHandler = handlers.get("importExtensionSettings");
+    expect(importHandler).toBeDefined();
+    await importHandler?.({ command: "importExtensionSettings" });
+
+    expect(shownWarningMessages).toHaveLength(1);
+    expect(configurationGlobalValues.get("git-graph-libre.graph.rowHeight")).toBe(18);
+    expect(posts.at(-1)).toMatchObject({
+      command: "importExtensionSettings",
+      status: null,
+      importedKeys: ["git-graph-libre.graph.rowHeight"],
+      skippedKeys: ["git-graph-libre.unknown"]
+    });
+  });
+
+  it("reports extension settings failures from an unreadable manifest path", async () => {
+    resetVscodeMock();
+    const badExtensionPath = path.join(repo, "missing-extension");
+    const { handlers, posts } = registerHandlersForTest(repo, { extensionPath: badExtensionPath });
+
+    await handlers.get("loadExtensionSettings")?.({
+      command: "loadExtensionSettings",
+      requestId: 111
+    });
+    expect(posts.at(-1)).toMatchObject({
+      command: "loadExtensionSettings",
+      requestId: 111,
+      settings: [],
+      status: expect.stringContaining("package.json")
+    });
+
+    await handlers.get("updateExtensionSetting")?.({
+      command: "updateExtensionSetting",
+      key: "git-graph-libre.graph.fontSize",
+      value: 14,
+      global: true
+    });
+    expect(posts.at(-1)).toMatchObject({
+      command: "updateExtensionSetting",
+      key: "git-graph-libre.graph.fontSize",
+      settings: [],
+      status: expect.stringContaining("package.json")
+    });
+
+    saveDialogResults.push({ fsPath: path.join(repo, "bad-export.json") });
+    await handlers.get("exportExtensionSettings")?.({ command: "exportExtensionSettings" });
+    expect(posts.at(-1)).toMatchObject({
+      command: "exportExtensionSettings",
+      exportedPath: null,
+      status: expect.stringContaining("package.json")
+    });
+
+    openDialogResults.push(undefined);
+    await handlers.get("importExtensionSettings")?.({ command: "importExtensionSettings" });
+    expect(posts.at(-1)).toMatchObject({
+      command: "importExtensionSettings",
+      settings: [],
+      importedKeys: [],
+      skippedKeys: [],
+      status: expect.stringContaining("package.json")
     });
   });
 

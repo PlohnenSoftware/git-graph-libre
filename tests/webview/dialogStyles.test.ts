@@ -88,6 +88,26 @@ describe("dialog styles", () => {
     expect(dialog).toContain("z-index: 401;");
   });
 
+  it("styles settings tabs and graph color editors with stable dimensions", () => {
+    const tabs = ruleFor(css, ".settingsTabs");
+    const tab = ruleFor(css, ".settingsTab");
+    const selectedTab = ruleFor(css, '.settingsTab[aria-selected="true"]');
+    const extensionRow = ruleFor(css, ".settingsExtensionRow");
+    const swatch = ruleFor(css, ".settingsColorSwatch");
+
+    expect(tabs).toContain("display: flex;");
+    expect(tabs).toContain("var(--vscode-panel-border");
+    expect(tab).toContain("min-width: 96px;");
+    expect(tab).toContain("height: 30px;");
+    expect(selectedTab).toContain("var(--vscode-panelTitle-activeBorder");
+    expect(extensionRow).toContain("grid-template-columns: minmax(220px, 360px) minmax(0, 1fr);");
+    expect(css).toContain(".settingsTabPanel[hidden]");
+    expect(css).toContain(".settingsGraphColorsEditor");
+    expect(swatch).toContain("width: 18px;");
+    expect(swatch).toContain("height: 18px;");
+    expect(swatch).toContain("background-color: var(--settings-swatch);");
+  });
+
   it("keeps the context menu on menu theme tokens with rounded grouping", () => {
     const menu = ruleFor(css, "#contextMenu");
 
