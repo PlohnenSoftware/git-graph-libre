@@ -33,6 +33,7 @@
   "config.repository.onlyFollowFirstParent": "Domyślnie podążaj tylko za pierwszym rodzicem commitów. Ustawienia repozytorium mogą nadpisać to dla konkretnego repozytorium.",
   "config.repository.muteCommitsNotAncestorsOfHead": "Wyciszaj commity, które nie są załadowanymi przodkami HEAD. Działa tylko wtedy, gdy commit HEAD jest załadowany w grafie.",
   "config.graphColors": "Określa kolory używane na grafie.",
+  "config.revealHighlightColor": "Określa kolor podświetlenia ujawnionego wiersza commita.",
   "config.graphStyle": "Określa styl grafu.",
   "config.graphStyle.rounded": "Używaj płynnych krzywych przy przejściach między gałęziami na grafie",
   "config.graphStyle.angular": "Używaj kanciastych linii przy przejściach między gałęziami na grafie",

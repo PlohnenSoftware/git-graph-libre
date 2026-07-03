@@ -326,6 +326,12 @@
           ],
           "description": "%config.graphColors%"
         },
+        "git-graph-libre.revealHighlightColor": {
+          "type": "string",
+          "default": "oklch(87.44% 0.2383 150 / 0.5)",
+          "pattern": "^\\s*(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8}|rgb[a]?\\s*\\(\\d{1,3},\\s*\\d{1,3},\\s*\\d{1,3}\\)|oklch\\(\\s*\\d{1,3}(\\.\\d+)?%\\s+\\d(\\.\\d+)?\\s+\\d{1,3}(\\.\\d+)?(\\s*/\\s*(0(\\.\\d+)?|1))?\\s*\\))\\s*$",
+          "description": "%config.revealHighlightColor%"
+        },
         "git-graph-libre.graphStyle": {
           "type": "string",
           "enum": [

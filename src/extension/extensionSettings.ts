@@ -19,6 +19,7 @@ type ManifestSetting = {
   enumDescriptions?: string[];
   minimum?: number;
   maximum?: number;
+  pattern?: string;
   items?: {
     pattern?: string;
   };
@@ -223,6 +224,9 @@ function expectString(key: string, setting: ManifestSetting, value: unknown): st
   if (typeof value !== "string") throw new TypeError(`${key} must be a string.`);
   if (setting.enum !== undefined && !setting.enum.includes(value)) {
     throw new Error(`${key} must be one of: ${setting.enum.join(", ")}.`);
+  }
+  if (setting.pattern !== undefined && !new RegExp(setting.pattern).test(value)) {
+    throw new TypeError(`${key} has an invalid value.`);
   }
   return value;
 }

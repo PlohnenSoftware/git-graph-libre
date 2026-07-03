@@ -90,6 +90,7 @@ describe("extension settings helpers", () => {
     const accepted = sanitizeImportedExtensionSettings(extensionPath, {
       "git-graph-libre.repository.showTags": false,
       "git-graph-libre.dateType": "Commit Date",
+      "git-graph-libre.revealHighlightColor": "oklch(87.44% 0.2383 150 / 0.5)",
       "git-graph-libre.graphColors": ["oklch(63% 0.2 245)"],
       "git-graph-libre.contextMenuActionsVisibility": { branch: { checkout: false } },
       "git-graph-libre.customBranchGlobPatterns": [
@@ -99,6 +100,7 @@ describe("extension settings helpers", () => {
     const rejected = sanitizeImportedExtensionSettings(extensionPath, {
       "git-graph-libre.graph.fontSize": "bad",
       "git-graph-libre.graphStyle": "bad",
+      "git-graph-libre.revealHighlightColor": "blue",
       "git-graph-libre.graphColors.invalid": ["not a setting"],
       "git-graph-libre.graphColors": ["bad color"],
       "git-graph-libre.contextMenuActionsVisibility": null
@@ -107,6 +109,7 @@ describe("extension settings helpers", () => {
     expect(accepted.accepted).toMatchObject({
       "git-graph-libre.repository.showTags": false,
       "git-graph-libre.dateType": "Commit Date",
+      "git-graph-libre.revealHighlightColor": "oklch(87.44% 0.2383 150 / 0.5)",
       "git-graph-libre.graphColors": ["oklch(63% 0.2 245)"],
       "git-graph-libre.contextMenuActionsVisibility": { branch: { checkout: false } },
       "git-graph-libre.customBranchGlobPatterns": [
@@ -114,6 +117,7 @@ describe("extension settings helpers", () => {
       ]
     });
     expect(rejected.skippedKeys).toContain("git-graph-libre.graphStyle");
+    expect(rejected.skippedKeys).toContain("git-graph-libre.revealHighlightColor");
     expect(rejected.skippedKeys).toContain("git-graph-libre.graph.fontSize");
     expect(rejected.skippedKeys).toContain("git-graph-libre.graphColors.invalid");
     expect(rejected.skippedKeys).toContain("git-graph-libre.graphColors");

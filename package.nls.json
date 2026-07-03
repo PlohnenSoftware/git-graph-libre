@@ -33,6 +33,7 @@
   "config.repository.onlyFollowFirstParent": "Follow only the first parent of commits by default. Repository settings can override this per repository.",
   "config.repository.muteCommitsNotAncestorsOfHead": "Mute commits that are not loaded ancestors of HEAD. This only applies when the HEAD commit is loaded in the graph.",
   "config.graphColors": "Specifies the colors used on the graph.",
+  "config.revealHighlightColor": "Specifies the color used to highlight a revealed commit row.",
   "config.graphStyle": "Specifies the style of the graph.",
   "config.graphStyle.rounded": "Use smooth curves when transitioning between branches on the graph",
   "config.graphStyle.angular": "Use angular lines when transitioning between branches on the graph",

@@ -23,6 +23,7 @@ const viewState: GG.GitGraphViewState = {
   graphFontSize: 13,
   graphRowHeight: 24,
   graphStyle: "rounded",
+  revealHighlightColor: "oklch(87.44% 0.2383 150 / 0.5)",
   includeReflog: false,
   initialLoadCommits: 300,
   lastActiveRepo: null,
@@ -197,6 +198,9 @@ describe("webview keyboard navigation", () => {
     expect(jumpEvent.defaultPrevented).toBe(true);
     expect(headRow?.classList.contains("blinking")).toBe(true);
     expect(scrollIntoViewMock).toHaveBeenCalledWith({ block: "center", behavior: "smooth" });
+
+    headRow?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    expect(headRow?.classList.contains("blinking")).toBe(false);
   });
 
   it("navigates open commit details with plain arrow keys", () => {
@@ -320,5 +324,7 @@ describe("webview keyboard navigation", () => {
       error: null
     });
     expect(commitRow("hiddenhead9")?.classList.contains("blinking")).toBe(true);
+    commitRow("hiddenhead9")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(commitRow("hiddenhead9")?.classList.contains("blinking")).toBe(false);
   });
 });

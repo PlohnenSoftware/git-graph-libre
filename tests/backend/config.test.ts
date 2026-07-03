@@ -108,6 +108,17 @@ describe("configuration", () => {
     ]);
   });
 
+  it("accepts OKLCH, HEX, and RGB reveal highlight colors", async () => {
+    settings.set("git-graph-libre.revealHighlightColor", "#0085d9");
+
+    const { config } = await import("@/config");
+
+    expect(config.revealHighlightColor()).toBe("#0085d9");
+
+    settings.set("git-graph-libre.revealHighlightColor", "red");
+    expect(config.revealHighlightColor()).toBe("oklch(87.44% 0.2383 150 / 0.5)");
+  });
+
   it("provides an OKLCH default graph color palette", async () => {
     const { config } = await import("@/config");
 

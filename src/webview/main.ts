@@ -43,12 +43,12 @@ import {
 } from "./settingsWidget";
 import { setStatusStrip } from "./statusStrip";
 import { getMonth, pad2 } from "./utils/date";
-import { addListenerToClass, blinkHeadRow, insertAfter } from "./utils/dom";
+import { addListenerToClass, insertAfter, startRevealHighlight } from "./utils/dom";
 import { arraysEqual, ELLIPSIS, refInvalid } from "./utils/git";
 import { escapeHtml, unescapeHtml } from "./utils/html";
 import { svgIcons } from "./utils/icons";
 import { extractIssueLinks } from "./utils/linkify";
-import { rewritePaletteLightnessChroma } from "./utils/oklchColor";
+import { rewritePaletteLightnessChroma, toOklch } from "./utils/oklchColor";
 import { sendMessage, vscode } from "./utils/vscode";
 
 const searchHistoryMaxResults = 50;
@@ -57,6 +57,7 @@ const HEAD_REF_VALUE = "HEAD";
 const diagnosticMessageMaxLength = 500;
 const REF_DROPDOWN_DISPLAY_CHARS = 40;
 const AUTHOR_DROPDOWN_DISPLAY_CHARS = 30;
+const DEFAULT_REVEAL_HIGHLIGHT_COLOR = "oklch(87.44% 0.2383 150 / 0.5)";
 
 const HIDEABLE_COLUMNS = ["date", "author", "commit"] as const;
 type HideableColumn = (typeof HIDEABLE_COLUMNS)[number];
@@ -1154,7 +1155,7 @@ class GitGraphView {
       row.scrollIntoView({ block: "center", behavior: "smooth" });
     }
     row.focus({ preventScroll: true });
-    blinkHeadRow(hash);
+    startRevealHighlight(row);
     return true;
   }
   private findCommitRow(hash: string) {
@@ -1481,6 +1482,9 @@ class GitGraphView {
       case "graphStyle":
         if (value === "rounded" || value === "angular") this.config.graphStyle = value;
         return true;
+      case "revealHighlightColor":
+        this.applyRevealHighlightColor(value);
+        return true;
     }
     return false;
   }
@@ -1506,6 +1510,12 @@ class GitGraphView {
     this.config.graphRowHeight = value;
     this.config.grid.y = value;
     document.body.style.setProperty("--git-graph-row-height", `${value}px`);
+  }
+
+  private applyRevealHighlightColor(value: string) {
+    const color = toOklch(value) === null ? DEFAULT_REVEAL_HIGHLIGHT_COLOR : value;
+    this.config.revealHighlightColor = color;
+    document.body.style.setProperty("--ngg-reveal-highlight", color);
   }
 
   private syncGraphColorStyles() {
@@ -5107,6 +5117,7 @@ const gitGraph = new GitGraphView(
     graphFontSize: viewState.graphFontSize,
     graphRowHeight: viewState.graphRowHeight,
     graphStyle: viewState.graphStyle,
+    revealHighlightColor: viewState.revealHighlightColor,
     grid: { x: 16, y: viewState.graphRowHeight, offsetX: 8, offsetY: 12, expandY: 250 },
     includeReflog: viewState.includeReflog,
     initialLoadCommits: viewState.initialLoadCommits,

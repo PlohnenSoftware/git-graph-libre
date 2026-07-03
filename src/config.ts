@@ -35,6 +35,7 @@ const DEFAULT_GRAPH_COLORS = [
   "oklch(63% 0.2 295)",
   "oklch(63% 0.2 95)"
 ];
+const DEFAULT_REVEAL_HIGHLIGHT_COLOR = "oklch(87.44% 0.2383 150 / 0.5)";
 
 function getConfig<T>(key: string, defaultValue: T): T {
   return vscode.workspace.getConfiguration("git-graph-libre").get(key, defaultValue);
@@ -80,6 +81,11 @@ function isGraphColor(value: string): boolean {
   );
 }
 
+function getColorConfig(key: string, defaultValue: string): string {
+  const value = getConfig<unknown>(key, defaultValue);
+  return typeof value === "string" && isGraphColor(value) ? value : defaultValue;
+}
+
 function customBranchGlobPatterns(): CustomBranchGlobPattern[] {
   const patterns = getConfig<unknown[]>("customBranchGlobPatterns", []);
   if (!Array.isArray(patterns)) return [];
@@ -113,6 +119,8 @@ export const config = {
   graphStyle: (): GraphStyle => getConfig("graphStyle", "rounded"),
   graphFontSize: (): number => getNumberConfig("graph.fontSize", 13, 8, 24),
   graphRowHeight: (): number => getNumberConfig("graph.rowHeight", 24, 18, 48),
+  revealHighlightColor: (): string =>
+    getColorConfig("revealHighlightColor", DEFAULT_REVEAL_HIGHLIGHT_COLOR),
   shortHashLength: (): number =>
     clampShortHashLength(
       getNumberConfig(

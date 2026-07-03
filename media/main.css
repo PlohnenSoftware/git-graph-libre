@@ -11,7 +11,7 @@
   --ngg-neutral-border-strong: oklch(60% 0 0 / 0.5);
   --ngg-neutral-border-heavy: oklch(60% 0 0 / 0.75);
   --ngg-success: oklch(74% 0.12 152);
-  --ngg-success-pulse: oklch(74% 0.12 152 / 0.5);
+  --ngg-reveal-highlight: oklch(87.44% 0.2383 150 / 0.5);
   --ngg-find-highlight: oklch(84% 0.13 86 / 0.28);
   --ngg-find-active: oklch(84% 0.16 86 / 0.42);
   --ngg-accent: oklch(55% 0.16 250);
@@ -1140,6 +1140,12 @@ body.commitDetailsResizing * {
   display: grid;
   gap: 8px;
 }
+.settingsColorStringEditor {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 6px;
+}
 .settingsColorGrid,
 .settingsColorPreview {
   display: flex;
@@ -1503,19 +1509,29 @@ body.commitDetailsResizing * {
 
 /* Blink animation for highlighting the current HEAD commit row */
 #commitTable tr.commit.blinking td {
-  /* two short pulses */
-  animation: headPulse 320ms ease-in-out 2;
+  animation: headPulse 320ms ease-in-out infinite;
 }
 
 @keyframes headPulse {
   0% {
-    background-color: var(--ngg-transparent);
+    background-color: color-mix(
+      in srgb,
+      var(--ngg-reveal-highlight) 20%,
+      var(--ngg-transparent)
+    );
   }
   50% {
-    background-color: var(--ngg-success-pulse);
+    background-color: var(--ngg-reveal-highlight);
   }
   100% {
     background-color: var(--ngg-transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #commitTable tr.commit.blinking td {
+    animation: none;
+    background-color: var(--ngg-reveal-highlight);
   }
 }
 #actionRunning svg {

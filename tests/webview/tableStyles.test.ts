@@ -91,9 +91,12 @@ describe("commit table styles", () => {
     expect(css).toContain("#commitTable tr.commit.blinking td");
   });
 
-  it("uses the fixed green HEAD blink color", () => {
-    expect(css).toContain("--ngg-success-pulse: oklch(74% 0.12 152 / 0.5);");
-    expect(css).toContain("background-color: var(--ngg-success-pulse);");
+  it("uses the configurable persistent reveal highlight color", () => {
+    expect(css).toContain("--ngg-reveal-highlight: oklch(87.44% 0.2383 150 / 0.5);");
+    expect(css).toContain("animation: headPulse 320ms ease-in-out infinite;");
+    expect(css).toContain("var(--ngg-reveal-highlight) 20%");
+    expect(css).toContain("background-color: var(--ngg-reveal-highlight);");
+    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
   it("styles find matches with theme tokens and OKLCH fallbacks", () => {

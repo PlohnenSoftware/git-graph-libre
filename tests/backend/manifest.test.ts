@@ -15,6 +15,7 @@ type PackageManifest = {
           default: unknown;
           enum?: string[];
           enumDescriptions?: string[];
+          pattern?: string;
           items?: { pattern?: string; properties?: Record<string, { type: string }> };
           minimum?: number;
           maximum?: number;
@@ -122,6 +123,25 @@ describe("extension manifest", () => {
       expect(value).toMatch(/^oklch\(/);
       expect(value).toMatch(pattern);
     }
+    expect("#0085d9").toMatch(pattern);
+    expect("rgb(0, 133, 217)").toMatch(pattern);
+    expect("blue").not.toMatch(pattern);
+  });
+
+  it("contributes the reveal highlight color setting with the required default", () => {
+    const manifest = readManifest();
+    const setting =
+      manifest.contributes.configuration.properties["git-graph-libre.revealHighlightColor"];
+
+    expect(setting).toMatchObject({
+      type: "string",
+      default: "oklch(87.44% 0.2383 150 / 0.5)",
+      description: "%config.revealHighlightColor%"
+    });
+    expect(setting.pattern).toBeDefined();
+    if (setting.pattern === undefined) return;
+    const pattern = new RegExp(setting.pattern);
+    expect(setting.default).toMatch(pattern);
     expect("#0085d9").toMatch(pattern);
     expect("rgb(0, 133, 217)").toMatch(pattern);
     expect("blue").not.toMatch(pattern);

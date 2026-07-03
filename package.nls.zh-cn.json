@@ -33,6 +33,7 @@
   "config.repository.onlyFollowFirstParent": "默认仅跟随提交的第一个父提交。仓库设置可按仓库覆盖此值。",
   "config.repository.muteCommitsNotAncestorsOfHead": "淡化不是已加载 HEAD 祖先的提交。仅当 HEAD 提交已加载到图中时生效。",
   "config.graphColors": "指定图形上使用的颜色。",
+  "config.revealHighlightColor": "指定定位到提交行时使用的高亮颜色。",
   "config.graphStyle": "指定图形的样式。",
   "config.graphStyle.rounded": "在图形中的分支之间过渡时使用平滑曲线",
   "config.graphStyle.angular": "在图形中的分支之间过渡时使用直角线条",

@@ -404,6 +404,7 @@ function renderExtensionSettingRow(setting: ExtensionSetting, labels: SettingsLa
 
 function renderExtensionSettingEditor(setting: ExtensionSetting, labels: SettingsLabels) {
   if (setting.key === "git-graph-libre.graphColors") return renderGraphColorsEditor(setting, labels);
+  if (setting.key === "git-graph-libre.revealHighlightColor") return renderColorStringEditor(setting);
   if (setting.enum !== undefined) return renderEnumEditor(setting);
   if (setting.type === "boolean") return renderBooleanEditor(setting);
   if (setting.type === "number") return renderNumberEditor(setting);
@@ -424,6 +425,14 @@ function renderNumberEditor(setting: ExtensionSetting) {
 
 function renderStringEditor(setting: ExtensionSetting) {
   return `<input class="settingsExtensionInput settingsStringInput" type="text" data-setting-key="${escapeHtml(setting.key)}" data-setting-type="string" value="${escapeHtml(scalarSettingValue(setting.value))}">`;
+}
+
+function renderColorStringEditor(setting: ExtensionSetting) {
+  const value = scalarSettingValue(setting.value);
+  return `<span class="settingsColorStringEditor">
+    ${renderColorSwatch(value)}
+    ${renderStringEditor(setting)}
+  </span>`;
 }
 
 function renderEnumEditor(setting: ExtensionSetting) {

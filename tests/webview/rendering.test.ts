@@ -44,6 +44,7 @@ const defaultViewState: GG.GitGraphViewState = {
   graphFontSize: 13,
   graphRowHeight: 24,
   graphStyle: "rounded",
+  revealHighlightColor: "oklch(87.44% 0.2383 150 / 0.5)",
   includeReflog: false,
   initialLoadCommits: 300,
   lastActiveRepo: null,
@@ -502,6 +503,16 @@ describe("webview rendering", () => {
         value: ["oklch(63% 0.2 245)", "oklch(63% 0.2 350)"],
         defaultValue: [],
         scope: "default"
+      },
+      {
+        key: "git-graph-libre.revealHighlightColor",
+        configKey: "revealHighlightColor",
+        title: "revealHighlightColor",
+        description: "Reveal color",
+        type: "string",
+        value: "oklch(87.44% 0.2383 150 / 0.5)",
+        defaultValue: "oklch(87.44% 0.2383 150 / 0.5)",
+        scope: "default"
       }
     ];
     receive({
@@ -513,7 +524,7 @@ describe("webview rendering", () => {
 
     const settingsWidget = document.getElementById("settingsWidget") as HTMLElement | null;
     expect(settingsWidget?.textContent).toContain("Extension Settings");
-    expect(settingsWidget?.querySelectorAll(".settingsColorSwatch")).toHaveLength(2);
+    expect(settingsWidget?.querySelectorAll(".settingsColorSwatch")).toHaveLength(3);
 
     const showTags = settingsWidget?.querySelector<HTMLInputElement>(
       'input[data-setting-key="git-graph-libre.repository.showTags"]'
@@ -539,6 +550,11 @@ describe("webview rendering", () => {
     const paletteRequest = latestUpdateExtensionSettingRequest();
     expect(paletteRequest.key).toBe("git-graph-libre.graphColors");
     expect(paletteRequest.value).toEqual(["oklch(70% 0.2 245)", "oklch(70% 0.2 350)"]);
+
+    const revealColor = settingsWidget?.querySelector<HTMLInputElement>(
+      'input[data-setting-key="git-graph-libre.revealHighlightColor"]'
+    );
+    expect(revealColor?.value).toBe("oklch(87.44% 0.2383 150 / 0.5)");
 
     receive({
       command: "updateExtensionSetting",
@@ -666,6 +682,16 @@ describe("webview rendering", () => {
           scope: "global"
         },
         {
+          key: "git-graph-libre.revealHighlightColor",
+          configKey: "revealHighlightColor",
+          title: "revealHighlightColor",
+          description: "",
+          type: "string",
+          value: "#0085d9",
+          defaultValue: "oklch(87.44% 0.2383 150 / 0.5)",
+          scope: "global"
+        },
+        {
           key: "git-graph-libre.initialLoadCommits",
           configKey: "initialLoadCommits",
           title: "initialLoadCommits",
@@ -780,6 +806,7 @@ describe("webview rendering", () => {
     expect(latestLoadBranchesRequest().hard).toBe(true);
     expect(document.body.style.getPropertyValue("--git-graph-font-size")).toBe("15px");
     expect(document.body.style.getPropertyValue("--git-graph-row-height")).toBe("30px");
+    expect(document.body.style.getPropertyValue("--ngg-reveal-highlight")).toBe("#0085d9");
 
     receive({
       command: "updateExtensionSetting",
@@ -897,6 +924,16 @@ describe("webview rendering", () => {
           scope: "global"
         },
         {
+          key: "git-graph-libre.revealHighlightColor",
+          configKey: "revealHighlightColor",
+          title: "revealHighlightColor",
+          description: "",
+          type: "string",
+          value: "blue",
+          defaultValue: "oklch(87.44% 0.2383 150 / 0.5)",
+          scope: "global"
+        },
+        {
           key: "git-graph-libre.initialLoadCommits",
           configKey: "initialLoadCommits",
           title: "initialLoadCommits",
@@ -1000,6 +1037,9 @@ describe("webview rendering", () => {
     });
     expect(document.body.style.getPropertyValue("--git-graph-font-size")).toBe("13px");
     expect(document.body.style.getPropertyValue("--git-graph-row-height")).toBe("24px");
+    expect(document.body.style.getPropertyValue("--ngg-reveal-highlight")).toBe(
+      "oklch(87.44% 0.2383 150 / 0.5)"
+    );
 
     receive({
       command: "updateExtensionSetting",
@@ -1676,6 +1716,8 @@ describe("webview rendering", () => {
 
     expect(findRow("ghi789")).not.toBeNull();
     expect(findRow("ghi789")?.classList.contains("blinking")).toBe(true);
+    findRow("ghi789")?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(findRow("ghi789")?.classList.contains("blinking")).toBe(false);
 
     clearFind();
   });

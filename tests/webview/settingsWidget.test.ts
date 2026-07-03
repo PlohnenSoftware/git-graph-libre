@@ -171,6 +171,13 @@ describe("settings widget rendering", () => {
         type: "array",
         value: ["oklch(63% 0.2 245)", "#ff0000"],
         defaultValue: []
+      }),
+      setting({
+        key: "git-graph-libre.revealHighlightColor",
+        configKey: "revealHighlightColor",
+        type: "string",
+        value: "oklch(87.44% 0.2383 150 / 0.5)",
+        defaultValue: "oklch(87.44% 0.2383 150 / 0.5)"
       })
     ]);
 
@@ -180,6 +187,8 @@ describe("settings widget rendering", () => {
     expect(html).toContain("Edit JSON");
     expect(html).toContain("--glob=heads&#x2F;feature&#x2F;*");
     expect(html).toContain("settingsColorSwatch");
+    expect(html).toContain("settingsColorStringEditor");
+    expect(html).toContain("--settings-swatch:oklch(87.44% 0.2383 150 &#x2F; 0.5)");
     expect(html).toContain('data-channel="lightness"');
     expect(html).not.toContain("[object Object]");
   });

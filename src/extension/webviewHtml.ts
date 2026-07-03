@@ -45,6 +45,7 @@ export function buildWebviewHtml(opts: {
     graphFontSize: config.graphFontSize(),
     graphRowHeight: config.graphRowHeight(),
     graphStyle: config.graphStyle(),
+    revealHighlightColor: config.revealHighlightColor(),
     includeReflog: config.includeReflog(),
     initialLoadCommits: config.initialLoadCommits(),
     lastActiveRepo: extensionState.getLastActiveRepo(),
@@ -60,7 +61,7 @@ export function buildWebviewHtml(opts: {
   };
 
   const numRepos = Object.keys(viewState.repos).length;
-  let styleVars = `--git-graph-font-size:${viewState.graphFontSize}px; --git-graph-row-height:${viewState.graphRowHeight}px; `,
+  let styleVars = `--git-graph-font-size:${viewState.graphFontSize}px; --git-graph-row-height:${viewState.graphRowHeight}px; --ngg-reveal-highlight:${viewState.revealHighlightColor}; `,
     colorParams = "";
   for (let i = 0; i < viewState.graphColors.length; i++) {
     styleVars += `--git-graph-color${i}:${viewState.graphColors[i]}; `;

@@ -20,6 +20,7 @@ declare global {
     graphFontSize: number;
     graphRowHeight: number;
     graphStyle: "rounded" | "angular";
+    revealHighlightColor: string;
     customBranchGlobPatterns: GG.CustomBranchGlobPattern[];
     grid: { x: number; y: number; offsetX: number; offsetY: number; expandY: number };
     includeReflog: boolean;

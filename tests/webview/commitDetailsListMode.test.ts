@@ -22,6 +22,7 @@ const viewState: GG.GitGraphViewState = {
   graphFontSize: 13,
   graphRowHeight: 24,
   graphStyle: "rounded",
+  revealHighlightColor: "oklch(87.44% 0.2383 150 / 0.5)",
   includeReflog: false,
   initialLoadCommits: 300,
   lastActiveRepo: null,

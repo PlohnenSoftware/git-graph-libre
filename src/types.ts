@@ -146,6 +146,7 @@ export type GitGraphViewState = {
   graphFontSize: number;
   graphRowHeight: number;
   graphStyle: GraphStyle;
+  revealHighlightColor: string;
   customBranchGlobPatterns: CustomBranchGlobPattern[];
   initialLoadCommits: number;
   lastActiveRepo: string | null;
