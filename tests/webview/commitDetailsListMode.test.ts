@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitCommitDetails, GitCommitNode } from "@/backend/types";
+import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import type * as GG from "@/types";
 
 import { createVscodeMock, receive, setupHtml } from "./setup";
@@ -13,6 +14,7 @@ const viewState: GG.GitGraphViewState = {
   autoCenterCommitDetailsView: false,
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "list",
+  contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
   dateFormat: "Date & Time",
   fetchAvatars: false,
   graphColors: ["oklch(65% 0.16 250)"],

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { GitCommitNode } from "@/backend/types";
+import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import { COMMIT_DETAILS_DEFAULT_HEIGHT } from "@/webview/commitDetailsView";
 import { Graph } from "@/webview/graph";
 
@@ -7,6 +8,7 @@ const config: Config = {
   autoCenterCommitDetailsView: true,
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "tree",
+  contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
   fetchAvatars: false,
   graphColors: ["oklch(65% 0.16 250)"],
   customBranchGlobPatterns: [],

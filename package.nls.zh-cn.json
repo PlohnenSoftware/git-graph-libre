@@ -25,6 +25,7 @@
   "config.customBranchGlobPatterns": "在“分支”下拉菜单中显示的自定义分支 glob 预设。每个 glob 都会作为 --glob=<pattern> 传递给 git log。",
   "config.customBranchGlobPatterns.name": "在“分支”下拉菜单中显示的名称。",
   "config.customBranchGlobPatterns.glob": "Git 引用 glob 模式，例如 heads/feature/* 或 refs/remotes/origin/release/*。",
+  "config.contextMenuActionsVisibility": "控制 Git 图形上下文菜单中显示的操作。将已知 group/action 布尔值设为 false 可隐藏操作。",
   "config.repository.showRemoteBranches": "默认显示远程分支。仓库设置可按仓库覆盖此值。",
   "config.repository.showStashes": "默认显示贮藏。仓库设置可按仓库覆盖此值。",
   "config.repository.showTags": "默认显示标签。仓库设置可按仓库覆盖此值。",

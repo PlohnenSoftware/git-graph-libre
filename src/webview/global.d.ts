@@ -14,6 +14,7 @@ declare global {
     autoCenterCommitDetailsView: boolean;
     commitDetailsCompactFolders: boolean;
     commitDetailsFileViewMode: GG.CommitDetailsFileViewMode;
+    contextMenuActionsVisibility: GG.ContextMenuActionsVisibility;
     fetchAvatars: boolean;
     graphColors: string[];
     graphFontSize: number;

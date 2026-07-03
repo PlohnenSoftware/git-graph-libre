@@ -25,6 +25,7 @@
   "config.customBranchGlobPatterns": "Custom branch glob presets shown in the Branches dropdown. Each glob is passed to git log as --glob=<pattern>.",
   "config.customBranchGlobPatterns.name": "Display name shown in the Branches dropdown.",
   "config.customBranchGlobPatterns.glob": "Git ref glob pattern, for example heads/feature/* or refs/remotes/origin/release/*.",
+  "config.contextMenuActionsVisibility": "Controls which actions are shown in Git Graph context menus. Set known group/action booleans to false to hide them.",
   "config.repository.showRemoteBranches": "Show remote branches by default. Repository settings can override this per repository.",
   "config.repository.showStashes": "Show stashes by default. Repository settings can override this per repository.",
   "config.repository.showTags": "Show tags by default. Repository settings can override this per repository.",

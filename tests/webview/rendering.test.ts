@@ -6,6 +6,7 @@ import type {
   GitCommitSearchResult,
   GitRepoInfo
 } from "@/backend/types";
+import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import type * as GG from "@/types";
 import {
   COMMIT_DETAILS_COLLAPSED_HEIGHT,
@@ -31,6 +32,7 @@ const defaultViewState: GG.GitGraphViewState = {
   customBranchGlobPatterns: [{ name: "Features", glob: "--glob=heads/feature/*" }],
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "tree",
+  contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
   graphFontSize: 13,
   graphRowHeight: 24,
   graphStyle: "rounded",
@@ -360,30 +362,12 @@ describe("webview rendering", () => {
     expect(document.getElementById("refreshBtn")?.tagName).toBe("BUTTON");
     expect((document.getElementById("fetchBtn") as HTMLButtonElement | null)?.hidden).toBe(true);
     expect(document.getElementById("blinkHeadBtn")?.getAttribute("aria-label")).toBe("Locate HEAD");
-    expect(document.getElementById("terminalBtn")?.getAttribute("aria-label")).toBe(
-      "Open Terminal"
-    );
+    expect(document.getElementById("terminalBtn")).toBeNull();
     expect(document.getElementById("settingsBtn")?.getAttribute("aria-label")).toBe(
       "Repository Settings"
     );
     expect(document.getElementById("authorSelect")?.classList.contains("dropdown")).toBe(true);
     expect(document.getElementById("tagSelect")?.classList.contains("dropdown")).toBe(true);
-  });
-
-  it("sends an open-terminal request from the toolbar", () => {
-    document
-      .getElementById("terminalBtn")
-      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-
-    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
-      command: "openTerminal",
-      repo: REPO
-    });
-    receive({ command: "openTerminal", success: true });
-
-    receive({ command: "openTerminal", success: false });
-    expect(document.getElementById("dialog")?.textContent).toContain("Unable to Open Terminal");
-    dismissDialog();
   });
 
   it("sends selected branch glob, author, and tag filters from toolbar dropdowns", () => {

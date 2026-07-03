@@ -221,6 +221,56 @@
             }
           }
         },
+        "git-graph-libre.contextMenuActionsVisibility": {
+          "type": "object",
+          "default": {},
+          "description": "%config.contextMenuActionsVisibility%",
+          "additionalProperties": false,
+          "properties": {
+            "branch": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "boolean"
+              }
+            },
+            "commit": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "boolean"
+              }
+            },
+            "commitDetailsViewFile": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "boolean"
+              }
+            },
+            "remoteBranch": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "boolean"
+              }
+            },
+            "stash": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "boolean"
+              }
+            },
+            "tag": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "boolean"
+              }
+            },
+            "uncommittedChanges": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
         "git-graph-libre.repository.showRemoteBranches": {
           "type": "boolean",
           "default": true,

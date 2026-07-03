@@ -285,22 +285,6 @@ function openInteractiveRebaseTerminal(
   terminal.sendText(`git rebase --interactive ${quoteTerminalArg(msg.target)}`);
 }
 
-function openRepositoryTerminal(repo: string) {
-  if (repo.trim() === "") return false;
-
-  try {
-    const repoName = path.basename(path.resolve(repo)) || repo;
-    const terminal = vscode.window.createTerminal({
-      name: `Git Graph Libre: ${repoName}`,
-      cwd: repo
-    });
-    terminal.show();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function registerMessageHandlers(
   bridge: WebviewBridge,
   deps: {
@@ -704,13 +688,6 @@ export function registerMessageHandlers(
     bridge.post({
       command: "openSourceControl",
       success: await openSourceControl()
-    });
-  });
-
-  bridge.onMessage("openTerminal", (msg) => {
-    bridge.post({
-      command: "openTerminal",
-      success: openRepositoryTerminal(msg.repo)
     });
   });
 

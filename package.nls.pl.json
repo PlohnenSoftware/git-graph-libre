@@ -25,6 +25,7 @@
   "config.customBranchGlobPatterns": "Niestandardowe presety globów gałęzi pokazywane w menu Gałęzie. Każdy glob jest przekazywany do git log jako --glob=<wzorzec>.",
   "config.customBranchGlobPatterns.name": "Nazwa wyświetlana w menu Gałęzie.",
   "config.customBranchGlobPatterns.glob": "Wzorzec glob refów Git, na przykład heads/feature/* albo refs/remotes/origin/release/*.",
+  "config.contextMenuActionsVisibility": "Kontroluje akcje widoczne w menu kontekstowych Git Graph. Ustaw znane wartości group/action na false, aby je ukryć.",
   "config.repository.showRemoteBranches": "Domyślnie pokazuj gałęzie zdalne. Ustawienia repozytorium mogą nadpisać to dla konkretnego repozytorium.",
   "config.repository.showStashes": "Domyślnie pokazuj schowki. Ustawienia repozytorium mogą nadpisać to dla konkretnego repozytorium.",
   "config.repository.showTags": "Domyślnie pokazuj tagi. Ustawienia repozytorium mogą nadpisać to dla konkretnego repozytorium.",

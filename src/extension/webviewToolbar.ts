@@ -62,7 +62,6 @@ export function buildWebviewToolbar(l10n: LocalizedStrings): string {
       ${buildToolbarButton({ id: "findBtn", label: l10n.findCommits, icon: "&#8981;" })}
       ${buildToolbarButton({ id: "blinkHeadBtn", label: l10n.locateHead, icon: "&#8982;" })}
       ${buildToolbarButton({ id: "fetchBtn", label: l10n.fetch, icon: "&#8645;", hidden: true })}
-      ${buildToolbarButton({ id: "terminalBtn", label: l10n.openTerminal, icon: "&gt;_" })}
       ${buildToolbarButton({ id: "settingsBtn", label: l10n.repositorySettings, icon: "&#9881;" })}
       ${buildToolbarButton({ id: "refreshBtn", label: l10n.refresh, icon: "&#8635;" })}
     </span>

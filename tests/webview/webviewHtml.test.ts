@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type * as vscode from "vscode";
 import type { Config } from "@/config";
+import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import type { RepoManager } from "@/extension/repoManager";
 import { buildWebviewHtml } from "@/extension/webviewHtml";
 import type { ExtensionState } from "@/extensionState";
@@ -11,6 +12,10 @@ function makeConfig(): Config {
     autoCenterCommitDetailsView: () => true,
     commitDetailsCompactFolders: () => true,
     commitDetailsFileViewMode: () => "list",
+    contextMenuActionsVisibility: () => ({
+      ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
+      tag: { ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.tag, push: false }
+    }),
     dateFormat: () => "Date & Time",
     dateType: () => "Author Date",
     fetchAvatars: () => false,
@@ -67,6 +72,7 @@ describe("webview HTML", () => {
     expect(result.html).toContain("--git-graph-row-height:30px;");
     expect(viewState.commitDetailsCompactFolders).toBe(true);
     expect(viewState.commitDetailsFileViewMode).toBe("list");
+    expect(viewState.contextMenuActionsVisibility.tag.push).toBe(false);
     expect(viewState.graphFontSize).toBe(15);
     expect(viewState.graphRowHeight).toBe(30);
     expect(viewState.customBranchGlobPatterns).toEqual([

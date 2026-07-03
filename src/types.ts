@@ -19,6 +19,82 @@ export type PullRequestCreationConfig = {
   urlTemplate: string;
   pushBeforeCreate: boolean;
 };
+export type ContextMenuActionsVisibility = {
+  branch: {
+    checkout: boolean;
+    rename: boolean;
+    delete: boolean;
+    merge: boolean;
+    rebase: boolean;
+    push: boolean;
+    pull: boolean;
+    viewIssue: boolean;
+    createPullRequest: boolean;
+    createArchive: boolean;
+    compareWithHead: boolean;
+    copyName: boolean;
+  };
+  commit: {
+    addTag: boolean;
+    createBranch: boolean;
+    compareWithHead: boolean;
+    checkout: boolean;
+    cherryPick: boolean;
+    revert: boolean;
+    undoLastCommit: boolean;
+    editMessage: boolean;
+    drop: boolean;
+    merge: boolean;
+    rebase: boolean;
+    reset: boolean;
+    copyHash: boolean;
+    copySubject: boolean;
+    squashSelection: boolean;
+    dropSelection: boolean;
+  };
+  commitDetailsViewFile: {
+    viewDiff: boolean;
+    viewFileAtRevision: boolean;
+    compareWithWorkingTree: boolean;
+    openFile: boolean;
+    resetFileToRevision: boolean;
+    copyAbsoluteFilePath: boolean;
+    copyRelativeFilePath: boolean;
+  };
+  remoteBranch: {
+    checkout: boolean;
+    delete: boolean;
+    fetchIntoLocalBranch: boolean;
+    pull: boolean;
+    viewIssue: boolean;
+    createPullRequest: boolean;
+    createArchive: boolean;
+    compareWithHead: boolean;
+    copyName: boolean;
+  };
+  stash: {
+    apply: boolean;
+    createBranch: boolean;
+    pop: boolean;
+    drop: boolean;
+    copyName: boolean;
+    copyHash: boolean;
+  };
+  tag: {
+    viewDetails: boolean;
+    delete: boolean;
+    push: boolean;
+    createArchive: boolean;
+    compareWithHead: boolean;
+    copyName: boolean;
+  };
+  uncommittedChanges: {
+    stash: boolean;
+    reset: boolean;
+    clean: boolean;
+    openSourceControlView: boolean;
+  };
+};
 export type GitRepoState = {
   columnWidths: number[] | null;
   commitOrdering?: CommitOrdering;
@@ -43,6 +119,7 @@ export type GitGraphViewState = {
   autoCenterCommitDetailsView: boolean;
   commitDetailsCompactFolders: boolean;
   commitDetailsFileViewMode: CommitDetailsFileViewMode;
+  contextMenuActionsVisibility: ContextMenuActionsVisibility;
   dateFormat: DateFormat;
   fetchAvatars: boolean;
   graphColors: string[];
@@ -176,15 +253,6 @@ export type ResponseOpenSourceControl = {
   success: boolean;
 };
 
-export type RequestOpenTerminal = {
-  command: "openTerminal";
-  repo: string;
-};
-export type ResponseOpenTerminal = {
-  command: "openTerminal";
-  success: boolean;
-};
-
 export type RequestOpenExternalUrl = {
   command: "openExternalUrl";
   url: string;
@@ -240,7 +308,6 @@ export type RequestMessage =
   | RequestCompareFileWithWorkingTree
   | RequestOpenFile
   | RequestOpenSourceControl
-  | RequestOpenTerminal
   | RequestOpenExternalUrl
   | RequestImportRepoConfig
   | RequestWebviewDiagnostic;
@@ -256,7 +323,6 @@ export type ResponseMessage =
   | ResponseCompareFileWithWorkingTree
   | ResponseOpenFile
   | ResponseOpenSourceControl
-  | ResponseOpenTerminal
   | ResponseOpenExternalUrl
   | ResponseCreateArchive
   | ResponseImportRepoConfig

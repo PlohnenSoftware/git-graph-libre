@@ -209,7 +209,6 @@ class GitGraphView {
   private readonly findClearBtn: HTMLButtonElement;
   private readonly findSearchHistoryBtn: HTMLButtonElement;
   private readonly fetchBtn: HTMLButtonElement;
-  private readonly terminalBtn: HTMLButtonElement;
   private readonly settingsBtn: HTMLButtonElement;
   private readonly settingsWidgetBackingElem: HTMLElement;
   private readonly settingsWidgetElem: HTMLElement;
@@ -319,7 +318,6 @@ class GitGraphView {
     this.findClearBtn = requireElement<HTMLButtonElement>("findClearBtn");
     this.findSearchHistoryBtn = requireElement<HTMLButtonElement>("findSearchHistoryBtn");
     this.fetchBtn = requireElement<HTMLButtonElement>("fetchBtn");
-    this.terminalBtn = requireElement<HTMLButtonElement>("terminalBtn");
     this.settingsBtn = requireElement<HTMLButtonElement>("settingsBtn");
     this.settingsWidgetBackingElem = requireElement("settingsWidgetBacking");
     this.settingsWidgetElem = requireElement("settingsWidget");
@@ -346,9 +344,6 @@ class GitGraphView {
     });
     this.fetchBtn.addEventListener("click", () => {
       this.showFetchDialog();
-    });
-    this.terminalBtn.addEventListener("click", () => {
-      this.openTerminal();
     });
     this.settingsBtn.addEventListener("click", () => {
       this.toggleSettingsWidget();
@@ -1186,11 +1181,6 @@ class GitGraphView {
       },
       this.fetchBtn
     );
-  }
-
-  private openTerminal() {
-    if (this.currentRepo === "") return;
-    sendMessage({ command: "openTerminal", repo: this.currentRepo });
   }
 
   private navigateCommitDetails(delta: number) {
@@ -2128,28 +2118,40 @@ class GitGraphView {
       );
     });
   }
+  private isContextMenuActionVisible(group: keyof GG.ContextMenuActionsVisibility, action: string) {
+    return (
+      (this.config.contextMenuActionsVisibility[group] as Record<string, boolean>)[action] !== false
+    );
+  }
+  private visibleContextMenuItem(
+    group: keyof GG.ContextMenuActionsVisibility,
+    action: string,
+    item: ContextMenuItem
+  ): ContextMenuElement {
+    return this.isContextMenuActionVisible(group, action) ? item : null;
+  }
   private buildUncommittedChangesContextMenu(sourceElem: HTMLElement): ContextMenuElement[] {
     return [
-      {
+      this.visibleContextMenuItem("uncommittedChanges", "stash", {
         title: l10n.stashUncommittedChanges + ELLIPSIS,
         onClick: () => this.showStashUncommittedChangesDialog(sourceElem)
-      },
+      }),
       null,
-      {
+      this.visibleContextMenuItem("uncommittedChanges", "reset", {
         title: l10n.resetUncommittedChanges + ELLIPSIS,
         onClick: () => this.showResetUncommittedChangesDialog(sourceElem)
-      },
-      {
+      }),
+      this.visibleContextMenuItem("uncommittedChanges", "clean", {
         title: l10n.cleanUntrackedFiles + ELLIPSIS,
         onClick: () => this.showCleanUntrackedFilesDialog(sourceElem)
-      },
+      }),
       null,
-      {
+      this.visibleContextMenuItem("uncommittedChanges", "openSourceControlView", {
         title: l10n.openSourceControl,
         onClick: () => {
           sendMessage({ command: "openSourceControl" });
         }
-      }
+      })
     ];
   }
   private showStashUncommittedChangesDialog(sourceElem: HTMLElement) {
@@ -2223,25 +2225,35 @@ class GitGraphView {
     const commit = typeof commitIndex === "number" ? this.commits[commitIndex] : null;
     const isHeadCommit = hash === this.commitHead;
     const canDropCommit = commit !== null && commit.parentHashes.length === 1;
-    const menu: ContextMenuElement[] = [
-      {
-        title: l10n.addTag + ELLIPSIS,
-        onClick: () => this.showAddTagDialog(hash, sourceElem)
-      },
-      {
-        title: l10n.createBranch + ELLIPSIS,
-        onClick: () => this.showCreateBranchDialog(hash, sourceElem)
-      }
-    ];
+    const menu = this.buildCommitCreateMenuItems(hash, sourceElem);
     const compareWithHeadItem = this.buildCompareWithHeadMenuItem(hash, sourceElem);
     if (compareWithHeadItem !== null) menu.push(compareWithHeadItem);
-    menu.push(
+    menu.push(...this.buildCommitChangeMenuItems(hash, sourceElem));
+    this.appendHeadCommitMenuItems(menu, hash, sourceElem, { isHeadCommit, canDropCommit });
+    menu.push(...this.buildCommitIntegrationMenuItems(hash, sourceElem));
+    this.appendCommitSubjectMenuItem(menu, commit);
+    return menu;
+  }
+  private buildCommitCreateMenuItems(hash: string, sourceElem: HTMLElement): ContextMenuElement[] {
+    return [
+      this.visibleContextMenuItem("commit", "addTag", {
+        title: l10n.addTag + ELLIPSIS,
+        onClick: () => this.showAddTagDialog(hash, sourceElem)
+      }),
+      this.visibleContextMenuItem("commit", "createBranch", {
+        title: l10n.createBranch + ELLIPSIS,
+        onClick: () => this.showCreateBranchDialog(hash, sourceElem)
+      })
+    ];
+  }
+  private buildCommitChangeMenuItems(hash: string, sourceElem: HTMLElement): ContextMenuElement[] {
+    return [
       null,
-      {
+      this.visibleContextMenuItem("commit", "checkout", {
         title: l10n.checkout + ELLIPSIS,
         onClick: () => this.showCheckoutCommitDialog(hash, sourceElem)
-      },
-      {
+      }),
+      this.visibleContextMenuItem("commit", "cherryPick", {
         title: l10n.cherryPick + ELLIPSIS,
         onClick: () =>
           this.showParentCommitActionDialog(
@@ -2251,8 +2263,8 @@ class GitGraphView {
             l10n.dialogCherryPickConfirm,
             l10n.dialogYesCherryPick
           )
-      },
-      {
+      }),
+      this.visibleContextMenuItem("commit", "revert", {
         title: l10n.revert + ELLIPSIS,
         onClick: () =>
           this.showParentCommitActionDialog(
@@ -2262,60 +2274,71 @@ class GitGraphView {
             l10n.dialogRevertConfirm,
             l10n.dialogYesRevert
           )
-      }
-    );
-    if (isHeadCommit || canDropCommit) {
-      menu.push(null);
-      if (isHeadCommit) {
-        menu.push(
-          {
-            title: l10n.undoLastCommit + ELLIPSIS,
-            onClick: () => this.showUndoLastCommitDialog(sourceElem)
-          },
-          {
-            title: l10n.editMessage + ELLIPSIS,
-            onClick: () => this.showEditHeadCommitMessageDialog(hash, sourceElem)
-          }
-        );
-      }
-      if (canDropCommit) {
-        menu.push({
-          title: l10n.dropCommit + ELLIPSIS,
-          onClick: () => this.showDropCommitDialog(hash, sourceElem)
-        });
-      }
+      })
+    ];
+  }
+  private appendHeadCommitMenuItems(
+    menu: ContextMenuElement[],
+    hash: string,
+    sourceElem: HTMLElement,
+    state: { isHeadCommit: boolean; canDropCommit: boolean }
+  ) {
+    const items: ContextMenuItem[] = [];
+    if (state.isHeadCommit && this.isContextMenuActionVisible("commit", "undoLastCommit")) {
+      items.push({
+        title: l10n.undoLastCommit + ELLIPSIS,
+        onClick: () => this.showUndoLastCommitDialog(sourceElem)
+      });
     }
-    menu.push(
+    if (state.isHeadCommit && this.isContextMenuActionVisible("commit", "editMessage")) {
+      items.push({
+        title: l10n.editMessage + ELLIPSIS,
+        onClick: () => this.showEditHeadCommitMessageDialog(hash, sourceElem)
+      });
+    }
+    if (state.canDropCommit && this.isContextMenuActionVisible("commit", "drop")) {
+      items.push({
+        title: l10n.dropCommit + ELLIPSIS,
+        onClick: () => this.showDropCommitDialog(hash, sourceElem)
+      });
+    }
+    if (items.length > 0) menu.push(null, ...items);
+  }
+  private buildCommitIntegrationMenuItems(
+    hash: string,
+    sourceElem: HTMLElement
+  ): ContextMenuElement[] {
+    return [
       null,
-      {
+      this.visibleContextMenuItem("commit", "merge", {
         title: l10n.merge + ELLIPSIS,
         onClick: () => this.showMergeCommitDialog(hash, sourceElem)
-      },
-      {
+      }),
+      this.visibleContextMenuItem("commit", "rebase", {
         title: l10n.rebase + ELLIPSIS,
         onClick: () => this.showRebaseDialog(hash, this.displayHash(hash), "commit", sourceElem)
-      },
-      {
+      }),
+      this.visibleContextMenuItem("commit", "reset", {
         title: l10n.reset + ELLIPSIS,
         onClick: () => this.showResetCommitDialog(hash, sourceElem)
-      },
+      }),
       null,
-      {
+      this.visibleContextMenuItem("commit", "copyHash", {
         title: l10n.copyCommitHash,
         onClick: () => {
           sendMessage({ command: "copyToClipboard", type: "Commit Hash", data: hash });
         }
+      })
+    ];
+  }
+  private appendCommitSubjectMenuItem(menu: ContextMenuElement[], commit: GitCommitNode | null) {
+    if (commit === null || !this.isContextMenuActionVisible("commit", "copySubject")) return;
+    menu.push({
+      title: l10n.copyCommitSubject,
+      onClick: () => {
+        sendMessage({ command: "copyToClipboard", type: "Commit Subject", data: commit.message });
       }
-    );
-    if (commit !== null) {
-      menu.push({
-        title: l10n.copyCommitSubject,
-        onClick: () => {
-          sendMessage({ command: "copyToClipboard", type: "Commit Subject", data: commit.message });
-        }
-      });
-    }
-    return menu;
+    });
   }
   private buildSelectedCommitContextMenu(sourceElem: HTMLElement): ContextMenuElement[] {
     const menu: ContextMenuElement[] = [];
@@ -2327,16 +2350,22 @@ class GitGraphView {
     const oldestHash = selectedCommits.at(-1);
     const oldestCommit =
       oldestHash === undefined ? undefined : this.commits[this.commitLookup[oldestHash]];
-    if (oldestCommit !== undefined && oldestCommit.parentHashes.length > 0) {
+    if (
+      oldestCommit !== undefined &&
+      oldestCommit.parentHashes.length > 0 &&
+      this.isContextMenuActionVisible("commit", "squashSelection")
+    ) {
       menu.push({
         title: l10n.squashSelection + ELLIPSIS,
         onClick: () => this.showSquashSelectedCommitsDialog(selectedCommits, sourceElem)
       });
     }
-    menu.push({
-      title: l10n.dropSelection + ELLIPSIS,
-      onClick: () => this.showDropSelectedCommitsDialog(selectedCommits, sourceElem)
-    });
+    if (this.isContextMenuActionVisible("commit", "dropSelection")) {
+      menu.push({
+        title: l10n.dropSelection + ELLIPSIS,
+        onClick: () => this.showDropSelectedCommitsDialog(selectedCommits, sourceElem)
+      });
+    }
     return menu;
   }
   private shouldShowSelectedCommitContextMenu(hash: string) {
@@ -2784,16 +2813,21 @@ class GitGraphView {
     if (compareWithHeadItem !== null) menu.push(compareWithHeadItem);
     const copyType = isTag ? "Tag Name" : "Branch Name";
     const copyTitle = isTag ? l10n.copyTagName : l10n.copyBranchName;
-    menu.push(null, {
-      title: copyTitle,
-      onClick: () => {
-        sendMessage({ command: "copyToClipboard", type: copyType, data: refName });
-      }
-    });
+    const copyGroup = this.contextMenuCopyGroupForRef(sourceElem, isTag);
+    if (this.isContextMenuActionVisible(copyGroup, "copyName")) {
+      menu.push(null, {
+        title: copyTitle,
+        onClick: () => {
+          sendMessage({ command: "copyToClipboard", type: copyType, data: refName });
+        }
+      });
+    }
     return menu;
   }
   private buildCompareWithHeadMenuItem(hash: string, sourceElem: HTMLElement): ContextMenuElement {
     if (!this.canCompareWithHead(hash)) return null;
+    const group = this.contextMenuGroupForRef(sourceElem);
+    if (!this.isContextMenuActionVisible(group, "compareWithHead")) return null;
     return {
       title: l10n.compareWithHead,
       onClick: () => this.loadCommitComparisonWithHead(sourceElem, hash)
@@ -2801,6 +2835,20 @@ class GitGraphView {
   }
   private canCompareWithHead(hash: string) {
     return this.commitHead !== null && hash !== "*" && hash !== this.commitHead;
+  }
+  private contextMenuCopyGroupForRef(
+    sourceElem: HTMLElement,
+    isTag: boolean
+  ): keyof GG.ContextMenuActionsVisibility {
+    if (isTag) return "tag";
+    if (sourceElem.classList.contains("remote")) return "remoteBranch";
+    return "branch";
+  }
+  private contextMenuGroupForRef(sourceElem: HTMLElement): keyof GG.ContextMenuActionsVisibility {
+    if (sourceElem.classList.contains("tag")) return "tag";
+    if (sourceElem.classList.contains("remote")) return "remoteBranch";
+    if (sourceElem.classList.contains("head")) return "branch";
+    return "commit";
   }
   private getCommitHashForElement(sourceElem: HTMLElement): string | null {
     const row = closestHTMLElement(sourceElem, "tr.commit");
@@ -2811,22 +2859,30 @@ class GitGraphView {
   }
   private buildTagContextMenu(refName: string): ContextMenuElement[] {
     return [
-      {
-        title: l10n.viewTagDetails + ELLIPSIS,
-        onClick: () => this.loadTagDetails(refName)
-      },
-      {
-        title: l10n.deleteTag + ELLIPSIS,
-        onClick: () => this.showDeleteTagDialog(refName)
-      },
-      {
-        title: l10n.pushTag + ELLIPSIS,
-        onClick: () => this.showPushTagDialog(refName)
-      },
-      {
-        title: l10n.createArchive,
-        onClick: () => this.createArchiveAction(refName)
-      }
+      this.isContextMenuActionVisible("tag", "viewDetails")
+        ? {
+            title: l10n.viewTagDetails + ELLIPSIS,
+            onClick: () => this.loadTagDetails(refName)
+          }
+        : null,
+      this.isContextMenuActionVisible("tag", "delete")
+        ? {
+            title: l10n.deleteTag + ELLIPSIS,
+            onClick: () => this.showDeleteTagDialog(refName)
+          }
+        : null,
+      this.isContextMenuActionVisible("tag", "push")
+        ? {
+            title: l10n.pushTag + ELLIPSIS,
+            onClick: () => this.showPushTagDialog(refName)
+          }
+        : null,
+      this.isContextMenuActionVisible("tag", "createArchive")
+        ? {
+            title: l10n.createArchive,
+            onClick: () => this.createArchiveAction(refName)
+          }
+        : null
     ];
   }
   private loadTagDetails(refName: string) {
@@ -2839,62 +2895,102 @@ class GitGraphView {
     }
 
     if (!sourceElem.classList.contains("head")) {
-      return [
-        {
-          title: l10n.checkoutBranch + ELLIPSIS,
-          onClick: () => this.checkoutBranchAction(sourceElem, refName)
-        }
-      ];
+      return this.buildDetachedBranchContextMenu(sourceElem, refName);
     }
 
     const menu: ContextMenuElement[] = [];
-    if (this.gitBranchHead !== refName) {
-      menu.push({
-        title: l10n.checkoutBranch,
+    this.appendBranchCheckoutItem(menu, sourceElem, refName);
+    menu.push(...this.buildBranchMetadataItems(refName, sourceElem));
+    this.appendBranchRemoteItems(menu, refName);
+    this.appendBranchMutationItems(menu, sourceElem, refName);
+    this.appendBranchArchiveItem(menu, refName);
+    this.appendBranchPullRequestItem(menu, refName, sourceElem);
+    return menu;
+  }
+  private buildDetachedBranchContextMenu(
+    sourceElem: HTMLElement,
+    refName: string
+  ): ContextMenuElement[] {
+    return [
+      this.visibleContextMenuItem("branch", "checkout", {
+        title: l10n.checkoutBranch + ELLIPSIS,
         onClick: () => this.checkoutBranchAction(sourceElem, refName)
-      });
-    }
-    menu.push(...this.buildIssueContextMenuItems(refName, sourceElem), {
-      title: l10n.renameBranch + ELLIPSIS,
-      onClick: () => this.showRenameBranchDialog(refName)
+      })
+    ];
+  }
+  private appendBranchCheckoutItem(
+    menu: ContextMenuElement[],
+    sourceElem: HTMLElement,
+    refName: string
+  ) {
+    if (this.gitBranchHead === refName) return;
+    if (!this.isContextMenuActionVisible("branch", "checkout")) return;
+
+    menu.push({
+      title: l10n.checkoutBranch,
+      onClick: () => this.checkoutBranchAction(sourceElem, refName)
     });
-    if (this.gitRemotes.length > 0) {
-      menu.push(
-        {
-          title: l10n.pushBranch + ELLIPSIS,
-          onClick: () => this.showPushBranchDialog(refName)
-        },
-        {
-          title: l10n.pullBranch + ELLIPSIS,
-          onClick: () => this.showUpdateBranchFromUpstreamDialog(refName)
-        }
-      );
-    }
-    if (this.gitBranchHead !== refName) {
-      menu.push(
-        {
-          title: l10n.deleteBranch + ELLIPSIS,
-          onClick: () => this.showDeleteBranchDialog(refName)
-        },
-        {
-          title: l10n.merge + ELLIPSIS,
-          onClick: () => this.showMergeBranchDialog(refName)
-        },
-        {
-          title: l10n.rebase + ELLIPSIS,
-          onClick: () => this.showRebaseDialog(refName, refName, "branch", sourceElem)
-        }
-      );
-    }
+  }
+  private buildBranchMetadataItems(refName: string, sourceElem: HTMLElement): ContextMenuElement[] {
+    return [
+      ...this.buildIssueContextMenuItems(refName, sourceElem),
+      this.visibleContextMenuItem("branch", "rename", {
+        title: l10n.renameBranch + ELLIPSIS,
+        onClick: () => this.showRenameBranchDialog(refName)
+      })
+    ];
+  }
+  private appendBranchRemoteItems(menu: ContextMenuElement[], refName: string) {
+    if (this.gitRemotes.length === 0) return;
+
+    menu.push(
+      this.visibleContextMenuItem("branch", "push", {
+        title: l10n.pushBranch + ELLIPSIS,
+        onClick: () => this.showPushBranchDialog(refName)
+      }),
+      this.visibleContextMenuItem("branch", "pull", {
+        title: l10n.pullBranch + ELLIPSIS,
+        onClick: () => this.showUpdateBranchFromUpstreamDialog(refName)
+      })
+    );
+  }
+  private appendBranchMutationItems(
+    menu: ContextMenuElement[],
+    sourceElem: HTMLElement,
+    refName: string
+  ) {
+    if (this.gitBranchHead === refName) return;
+
+    menu.push(
+      this.visibleContextMenuItem("branch", "delete", {
+        title: l10n.deleteBranch + ELLIPSIS,
+        onClick: () => this.showDeleteBranchDialog(refName)
+      }),
+      this.visibleContextMenuItem("branch", "merge", {
+        title: l10n.merge + ELLIPSIS,
+        onClick: () => this.showMergeBranchDialog(refName)
+      }),
+      this.visibleContextMenuItem("branch", "rebase", {
+        title: l10n.rebase + ELLIPSIS,
+        onClick: () => this.showRebaseDialog(refName, refName, "branch", sourceElem)
+      })
+    );
+  }
+  private appendBranchArchiveItem(menu: ContextMenuElement[], refName: string) {
+    if (!this.isContextMenuActionVisible("branch", "createArchive")) return;
+
     menu.push({
       title: l10n.createArchive,
       onClick: () => this.createArchiveAction(refName)
     });
+  }
+  private appendBranchPullRequestItem(
+    menu: ContextMenuElement[],
+    refName: string,
+    sourceElem: HTMLElement
+  ) {
     const pullRequestItem = this.buildCreatePullRequestMenuItem(refName, null, sourceElem);
-    if (pullRequestItem !== null) {
-      menu.push(null, pullRequestItem);
-    }
-    return menu;
+    if (pullRequestItem !== null) menu.push(null, pullRequestItem);
   }
   private buildRemoteBranchContextMenu(
     sourceElem: HTMLElement,
@@ -2902,21 +2998,27 @@ class GitGraphView {
   ): ContextMenuElement[] {
     const remoteBranch = this.parseRemoteBranchName(refName);
     const menu: ContextMenuElement[] = [
-      {
-        title: l10n.checkoutBranch + ELLIPSIS,
-        onClick: () => this.checkoutBranchAction(sourceElem, refName)
-      }
+      this.isContextMenuActionVisible("remoteBranch", "checkout")
+        ? {
+            title: l10n.checkoutBranch + ELLIPSIS,
+            onClick: () => this.checkoutBranchAction(sourceElem, refName)
+          }
+        : null
     ];
     if (remoteBranch === null) return menu;
 
     const { remote, branchName } = remoteBranch;
     const remoteActions: ContextMenuElement[] = [
       ...this.buildIssueContextMenuItems(refName, sourceElem),
-      {
-        title: l10n.deleteRemoteBranch + ELLIPSIS,
-        onClick: () => this.showDeleteRemoteBranchDialog(remote, branchName, refName)
-      },
-      ...(this.hasLocalBranch(branchName) && this.gitBranchHead !== branchName
+      this.isContextMenuActionVisible("remoteBranch", "delete")
+        ? {
+            title: l10n.deleteRemoteBranch + ELLIPSIS,
+            onClick: () => this.showDeleteRemoteBranchDialog(remote, branchName, refName)
+          }
+        : null,
+      ...(this.hasLocalBranch(branchName) &&
+      this.gitBranchHead !== branchName &&
+      this.isContextMenuActionVisible("remoteBranch", "fetchIntoLocalBranch")
         ? [
             {
               title: l10n.fetchIntoLocalBranch + ELLIPSIS,
@@ -2924,14 +3026,18 @@ class GitGraphView {
             }
           ]
         : []),
-      {
-        title: l10n.pullBranch + ELLIPSIS,
-        onClick: () => this.showPullBranchDialog(remote, branchName, refName)
-      },
-      {
-        title: l10n.createArchive,
-        onClick: () => this.createArchiveAction(refName)
-      }
+      this.isContextMenuActionVisible("remoteBranch", "pull")
+        ? {
+            title: l10n.pullBranch + ELLIPSIS,
+            onClick: () => this.showPullBranchDialog(remote, branchName, refName)
+          }
+        : null,
+      this.isContextMenuActionVisible("remoteBranch", "createArchive")
+        ? {
+            title: l10n.createArchive,
+            onClick: () => this.createArchiveAction(refName)
+          }
+        : null
     ];
     menu.push(...remoteActions);
     const pullRequestItem = this.buildCreatePullRequestMenuItem(branchName, remote, sourceElem);
@@ -2946,6 +3052,8 @@ class GitGraphView {
   ): ContextMenuElement[] {
     const issueLinks = extractIssueLinks(refName, this.getCurrentRepoState()?.issueLinking ?? null);
     if (issueLinks.length === 0) return [];
+    const group = sourceElem.classList.contains("remote") ? "remoteBranch" : "branch";
+    if (!this.isContextMenuActionVisible(group, "viewIssue")) return [];
 
     return [
       null,
@@ -2980,6 +3088,8 @@ class GitGraphView {
     const repoState = this.getCurrentRepoState();
     const config = repoState?.pullRequest ?? null;
     if (config === null) return null;
+    const group = remoteName === null ? "branch" : "remoteBranch";
+    if (!this.isContextMenuActionVisible(group, "createPullRequest")) return null;
     const remote = this.getRemoteByName(remoteName ?? config.remoteName);
     if (remote === null) return null;
 
@@ -3542,35 +3652,47 @@ class GitGraphView {
     sourceElem: HTMLElement
   ): ContextMenuElement[] {
     return [
-      {
-        title: l10n.applyStash + ELLIPSIS,
-        onClick: () => this.showApplyStashDialog(selector, sourceElem)
-      },
-      {
-        title: l10n.branchFromStash + ELLIPSIS,
-        onClick: () => this.showBranchFromStashDialog(selector, sourceElem)
-      },
-      {
-        title: l10n.popStash + ELLIPSIS,
-        onClick: () => this.showPopStashDialog(selector, sourceElem)
-      },
-      {
-        title: l10n.dropStash + ELLIPSIS,
-        onClick: () => this.showDropStashDialog(selector, sourceElem)
-      },
+      this.isContextMenuActionVisible("stash", "apply")
+        ? {
+            title: l10n.applyStash + ELLIPSIS,
+            onClick: () => this.showApplyStashDialog(selector, sourceElem)
+          }
+        : null,
+      this.isContextMenuActionVisible("stash", "createBranch")
+        ? {
+            title: l10n.branchFromStash + ELLIPSIS,
+            onClick: () => this.showBranchFromStashDialog(selector, sourceElem)
+          }
+        : null,
+      this.isContextMenuActionVisible("stash", "pop")
+        ? {
+            title: l10n.popStash + ELLIPSIS,
+            onClick: () => this.showPopStashDialog(selector, sourceElem)
+          }
+        : null,
+      this.isContextMenuActionVisible("stash", "drop")
+        ? {
+            title: l10n.dropStash + ELLIPSIS,
+            onClick: () => this.showDropStashDialog(selector, sourceElem)
+          }
+        : null,
       null,
-      {
-        title: l10n.copyStashName,
-        onClick: () => {
-          sendMessage({ command: "copyToClipboard", type: "Stash Name", data: selector });
-        }
-      },
-      {
-        title: l10n.copyStashHash,
-        onClick: () => {
-          sendMessage({ command: "copyToClipboard", type: "Stash Hash", data: hash });
-        }
-      }
+      this.isContextMenuActionVisible("stash", "copyName")
+        ? {
+            title: l10n.copyStashName,
+            onClick: () => {
+              sendMessage({ command: "copyToClipboard", type: "Stash Name", data: selector });
+            }
+          }
+        : null,
+      this.isContextMenuActionVisible("stash", "copyHash")
+        ? {
+            title: l10n.copyStashHash,
+            onClick: () => {
+              sendMessage({ command: "copyToClipboard", type: "Stash Hash", data: hash });
+            }
+          }
+        : null
     ];
   }
   private showApplyStashDialog(selector: string, sourceElem: HTMLElement) {
@@ -4204,7 +4326,11 @@ class GitGraphView {
     const menu: ContextMenuElement[] = [];
     const revisionFileExists = this.gitFileExistsAtRevision(fileChange);
 
-    if (fileChange.additions !== null && fileChange.deletions !== null) {
+    if (
+      fileChange.additions !== null &&
+      fileChange.deletions !== null &&
+      this.isContextMenuActionVisible("commitDetailsViewFile", "viewDiff")
+    ) {
       menu.push({
         title: l10n.viewFileDiff,
         onClick: () => this.viewGitFileDiff(fileChange)
@@ -4213,25 +4339,35 @@ class GitGraphView {
 
     if (revisionFileExists) {
       menu.push(
-        {
-          title: l10n.viewFileAtRevision,
-          onClick: () => this.viewGitFileAtRevision(fileChange)
-        },
-        {
-          title: l10n.compareFileWithWorkingTree,
-          onClick: () => this.compareGitFileWithWorkingTree(fileChange)
-        }
+        this.isContextMenuActionVisible("commitDetailsViewFile", "viewFileAtRevision")
+          ? {
+              title: l10n.viewFileAtRevision,
+              onClick: () => this.viewGitFileAtRevision(fileChange)
+            }
+          : null,
+        this.isContextMenuActionVisible("commitDetailsViewFile", "compareWithWorkingTree")
+          ? {
+              title: l10n.compareFileWithWorkingTree,
+              onClick: () => this.compareGitFileWithWorkingTree(fileChange)
+            }
+          : null
       );
     }
 
-    if (fileChange.type !== "D") {
+    if (
+      fileChange.type !== "D" &&
+      this.isContextMenuActionVisible("commitDetailsViewFile", "openFile")
+    ) {
       menu.push({
         title: l10n.openFile,
         onClick: () => this.openWorkingFile(fileChange.newFilePath)
       });
     }
 
-    if (revisionFileExists) {
+    if (
+      revisionFileExists &&
+      this.isContextMenuActionVisible("commitDetailsViewFile", "resetFileToRevision")
+    ) {
       menu.push(null, {
         title: l10n.resetFileToRevision + ELLIPSIS,
         onClick: () => this.showResetFileToRevisionDialog(fileChange, sourceElem)
@@ -4240,15 +4376,19 @@ class GitGraphView {
 
     if (menu.length > 0) menu.push(null);
     menu.push(
-      {
-        title: l10n.copyAbsoluteFilePath,
-        onClick: () =>
-          this.copyFilePathToClipboard(this.absoluteFilePathForRepo(fileChange.newFilePath))
-      },
-      {
-        title: l10n.copyRelativeFilePath,
-        onClick: () => this.copyFilePathToClipboard(fileChange.newFilePath)
-      }
+      this.isContextMenuActionVisible("commitDetailsViewFile", "copyAbsoluteFilePath")
+        ? {
+            title: l10n.copyAbsoluteFilePath,
+            onClick: () =>
+              this.copyFilePathToClipboard(this.absoluteFilePathForRepo(fileChange.newFilePath))
+          }
+        : null,
+      this.isContextMenuActionVisible("commitDetailsViewFile", "copyRelativeFilePath")
+        ? {
+            title: l10n.copyRelativeFilePath,
+            onClick: () => this.copyFilePathToClipboard(fileChange.newFilePath)
+          }
+        : null
     );
 
     return menu;
@@ -4516,6 +4656,7 @@ const gitGraph = new GitGraphView(
     autoCenterCommitDetailsView: viewState.autoCenterCommitDetailsView,
     commitDetailsCompactFolders: viewState.commitDetailsCompactFolders,
     commitDetailsFileViewMode: viewState.commitDetailsFileViewMode,
+    contextMenuActionsVisibility: viewState.contextMenuActionsVisibility,
     fetchAvatars: viewState.fetchAvatars,
     graphColors: viewState.graphColors,
     customBranchGlobPatterns: viewState.customBranchGlobPatterns,
@@ -4637,7 +4778,6 @@ const responseHandlers: ResponseHandlerMap = {
   openExternalUrl: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenExternalUrl),
   openFile: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenFile),
   openSourceControl: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenSourceControl),
-  openTerminal: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenTerminal),
   refresh: () => gitGraph.refresh(false),
   searchCommits: (msg) =>
     gitGraph.loadSearchCommitResults(msg.requestId, msg.results, formatQueryError(msg.error)),
@@ -4812,15 +4952,21 @@ function getCommitDate(dateVal: number) {
 }
 
 /* Context Menu */
-function showContextMenu(e: MouseEvent, items: ContextMenuElement[], sourceElem: HTMLElement) {
-  let html = "",
-    i: number,
-    event = <MouseEvent>e;
-  for (i = 0; i < items.length; i++) {
+function showContextMenu(event: MouseEvent, items: ContextMenuElement[], sourceElem: HTMLElement) {
+  event.preventDefault();
+  const visibleItems = normalizeContextMenuItems(items);
+  if (visibleItems.length === 0) {
+    hideContextMenu();
+    return;
+  }
+
+  let html = "";
+  for (let i = 0; i < visibleItems.length; i++) {
+    const item = visibleItems[i];
     html +=
-      items[i] !== null
-        ? `<li class="contextMenuItem" data-index="${i}">${items[i]?.title}</li>`
-        : '<li class="contextMenuDivider"></li>';
+      item === null
+        ? '<li class="contextMenuDivider"></li>'
+        : `<li class="contextMenuItem" data-index="${i}">${item.title}</li>`;
   }
 
   hideContextMenuListener();
@@ -4844,11 +4990,30 @@ function showContextMenu(e: MouseEvent, items: ContextMenuElement[], sourceElem:
     ev.stopPropagation();
     hideContextMenu();
     if (!(ev.target instanceof HTMLElement) || ev.target.dataset.index === undefined) return;
-    items[Number.parseInt(ev.target.dataset.index, 10)]?.onClick();
+    visibleItems[Number.parseInt(ev.target.dataset.index, 10)]?.onClick();
   });
 
   contextMenuSource = sourceElem;
   contextMenuSource.classList.add("contextMenuActive");
+}
+function normalizeContextMenuItems(items: ContextMenuElement[]) {
+  const visibleItems: ContextMenuElement[] = [];
+  let dividerPending = false;
+
+  for (const item of items) {
+    if (item === null) {
+      dividerPending = visibleItems.length > 0;
+      continue;
+    }
+
+    if (dividerPending) {
+      visibleItems.push(null);
+      dividerPending = false;
+    }
+    visibleItems.push(item);
+  }
+
+  return visibleItems;
 }
 function hideContextMenu() {
   contextMenu.className = "";

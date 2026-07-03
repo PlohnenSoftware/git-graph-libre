@@ -73,11 +73,7 @@ describe("buildWebviewToolbar", () => {
     expect(fetch?.getAttribute("aria-label")).toBe("Fetch");
     expect(fetch?.textContent).toContain("⇅");
 
-    const terminal = document.getElementById("terminalBtn") as HTMLButtonElement | null;
-    expect(terminal?.tagName).toBe("BUTTON");
-    expect(terminal?.type).toBe("button");
-    expect(terminal?.getAttribute("aria-label")).toBe("Open Terminal");
-    expect(terminal?.textContent).toContain(">_");
+    expect(document.getElementById("terminalBtn")).toBeNull();
 
     const refresh = document.getElementById("refreshBtn") as HTMLButtonElement | null;
     expect(refresh?.tagName).toBe("BUTTON");
@@ -102,7 +98,6 @@ describe("buildWebviewToolbar", () => {
       findClear: "Clear <find>",
       searchHistory: "Search <history>",
       fetch: 'Fetch "remote"',
-      openTerminal: 'Open "terminal"',
       locateHead: "Locate <HEAD>",
       refresh: 'Refresh "now"'
     });
@@ -128,9 +123,6 @@ describe("buildWebviewToolbar", () => {
       "Search <history>"
     );
     expect(document.getElementById("fetchBtn")?.getAttribute("title")).toBe('Fetch "remote"');
-    expect(document.getElementById("terminalBtn")?.getAttribute("aria-label")).toBe(
-      'Open "terminal"'
-    );
     expect(document.getElementById("blinkHeadBtn")?.getAttribute("aria-label")).toBe(
       "Locate <HEAD>"
     );

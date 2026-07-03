@@ -6,8 +6,10 @@ import {
   MAX_SHORT_HASH_LENGTH,
   MIN_SHORT_HASH_LENGTH
 } from "./backend/utils/string";
+import { normalizeContextMenuActionsVisibility } from "./contextMenuVisibility";
 import type {
   CommitDetailsFileViewMode,
+  ContextMenuActionsVisibility,
   CustomBranchGlobPattern,
   DateFormat,
   GraphStyle
@@ -100,6 +102,8 @@ export const config = {
   commitDetailsCompactFolders: (): boolean => getConfig("commitDetails.compactFolders", false),
   commitDetailsFileViewMode: (): CommitDetailsFileViewMode =>
     getStringUnionConfig("commitDetails.fileViewMode", "tree", commitDetailsFileViewModes),
+  contextMenuActionsVisibility: (): ContextMenuActionsVisibility =>
+    normalizeContextMenuActionsVisibility(getConfig("contextMenuActionsVisibility", {})),
   dateFormat: (): DateFormat => getConfig("dateFormat", "Date & Time"),
   dateType: (): DateType => getConfig("dateType", "Author Date"),
   fetchAvatars: (): boolean => getConfig("fetchAvatars", false),
