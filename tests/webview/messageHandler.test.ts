@@ -136,6 +136,27 @@ describe("registerMessageHandlers", () => {
     });
   });
 
+  it("routes tag detail queries", async () => {
+    git(["tag", "-a", "v-details", "-m", "Release details", "-m", "Body"], repo);
+    const { handlers, posts, outputLines } = registerHandlersForTest();
+
+    const handler = handlers.get("tagDetails");
+    expect(handler).toBeDefined();
+    await handler?.({ command: "tagDetails", repo, tagName: "v-details" });
+
+    expect(posts[posts.length - 1]).toMatchObject({
+      command: "tagDetails",
+      tagName: "v-details",
+      tagDetails: {
+        type: "annotated",
+        subject: "Release details",
+        body: "Body"
+      },
+      error: null
+    });
+    expect(outputLines.some((line) => line.includes("tagDetails.info"))).toBe(true);
+  });
+
   it("writes webview diagnostics to the output channel", async () => {
     const { handlers, outputLines } = registerHandlersForTest();
     const handler = handlers.get("webviewDiagnostic");

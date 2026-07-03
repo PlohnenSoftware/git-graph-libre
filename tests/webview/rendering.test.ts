@@ -1691,6 +1691,80 @@ describe("webview rendering", () => {
     });
 
     tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("View Tag Details");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "tagDetails",
+      repo: REPO,
+      tagName: "v1.0.0"
+    });
+    expect(document.getElementById("statusText")?.textContent).toBe("Loading tag details...");
+    receive({
+      command: "tagDetails",
+      tagName: "v1.0.0",
+      tagDetails: {
+        tagName: "v1.0.0",
+        type: "annotated",
+        objectHash: "tagobject123",
+        targetHash: "abc123",
+        targetType: "commit",
+        taggerName: "Alice",
+        taggerEmail: "alice@example.com",
+        taggerDate: 1700000000,
+        subject: "Release v1.0.0",
+        body: "Stable release",
+        signature: null
+      },
+      error: null
+    });
+    expect(document.querySelector("#dialog .dialogContent")?.textContent).toContain("Tag v1.0.0");
+    expect(document.querySelector("#dialog .dialogContent")?.textContent).toContain("Annotated");
+    expect(document.querySelector("#dialog .dialogContent")?.textContent).toContain(
+      "Release v1.0.0"
+    );
+    dismissDialog();
+
+    receive({
+      command: "tagDetails",
+      tagName: "v-light",
+      tagDetails: {
+        tagName: "v-light",
+        type: "lightweight",
+        objectHash: "def456",
+        targetHash: "def456",
+        targetType: "commit",
+        taggerName: null,
+        taggerEmail: null,
+        taggerDate: null,
+        subject: "",
+        body: "",
+        signature: { status: "valid", key: "ABCDEF", signer: "Tag Signer" }
+      },
+      error: null
+    });
+    expect(document.querySelector("#dialog .dialogContent")?.textContent).toContain("Lightweight");
+    expect(document.querySelector("#dialog .dialogContent")?.textContent).toContain(
+      "Not available"
+    );
+    expect(document.querySelector("#dialog .dialogContent")?.textContent).toContain("Tag Signer");
+    dismissDialog();
+
+    receive({
+      command: "tagDetails",
+      tagName: "missing",
+      tagDetails: null,
+      error: {
+        message: "missing tag",
+        stderr: null,
+        exitCode: 128,
+        task: "for-each-ref"
+      }
+    });
+    expect(document.querySelector("#dialog .dialogContent")?.textContent).toContain(
+      "Unable to load tag details"
+    );
+    dismissDialog();
+
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
     clickContextMenuItem("Delete Tag");
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({

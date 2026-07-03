@@ -51,6 +51,7 @@ import { loadBranches } from "@/backend/queries/loadBranches";
 import { loadCommits } from "@/backend/queries/loadCommits";
 import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
 import { searchCommits } from "@/backend/queries/searchCommits";
+import { tagDetails } from "@/backend/queries/tagDetails";
 import type { GitFileChangeType } from "@/backend/types";
 import { formatGitCommandRecord } from "@/backend/utils/gitCommandLog";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
@@ -589,6 +590,17 @@ export function registerMessageHandlers(
         compareRef: msg.compareRef,
         dateType: config.dateType(),
         repo: msg.repo,
+        recordGitCommand
+      }))
+    });
+  });
+
+  bridge.onMessage("tagDetails", async (msg) => {
+    bridge.post({
+      command: "tagDetails",
+      ...(await tagDetails(gitClient.getInstance(), {
+        repo: msg.repo,
+        tagName: msg.tagName,
         recordGitCommand
       }))
     });

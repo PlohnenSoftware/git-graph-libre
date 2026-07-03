@@ -2,7 +2,8 @@ import type {
   GitCommitDetails,
   GitCommitNode,
   GitCommitSearchResult,
-  GitRepoInfo
+  GitRepoInfo,
+  GitTagDetails
 } from "./git.types";
 
 export const COMMIT_ORDERINGS = ["date", "author-date", "topo"] as const;
@@ -43,6 +44,12 @@ type LoadRepoInfoResult = {
 
 type SearchCommitsResult = {
   results: GitCommitSearchResult[];
+  error: GitQueryError | null;
+};
+
+type TagDetailsResult = {
+  tagName: string;
+  tagDetails: GitTagDetails | null;
   error: GitQueryError | null;
 };
 
@@ -107,6 +114,11 @@ type QueryPayloads = {
     };
     result: SearchCommitsResult;
     response: { requestId: number } & SearchCommitsResult;
+  };
+  tagDetails: {
+    request: { repo: string; tagName: string };
+    result: TagDetailsResult;
+    response: TagDetailsResult;
   };
 };
 

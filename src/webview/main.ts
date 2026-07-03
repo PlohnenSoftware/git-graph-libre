@@ -11,7 +11,8 @@ import type {
   GitRepoConfig,
   GitRepoInfo,
   GitResetMode,
-  GitStash
+  GitStash,
+  GitTagDetails
 } from "@/backend/types";
 import { COMMIT_ORDERINGS, GIT_PUSH_BRANCH_MODES } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
@@ -2811,6 +2812,10 @@ class GitGraphView {
   private buildTagContextMenu(refName: string): ContextMenuElement[] {
     return [
       {
+        title: l10n.viewTagDetails + ELLIPSIS,
+        onClick: () => this.loadTagDetails(refName)
+      },
+      {
         title: l10n.deleteTag + ELLIPSIS,
         onClick: () => this.showDeleteTagDialog(refName)
       },
@@ -2823,6 +2828,10 @@ class GitGraphView {
         onClick: () => this.createArchiveAction(refName)
       }
     ];
+  }
+  private loadTagDetails(refName: string) {
+    sendMessage({ command: "tagDetails", repo: this.currentRepo, tagName: refName });
+    showActionRunningDialog(l10n.statusLoadingTagDetails);
   }
   private buildBranchContextMenu(sourceElem: HTMLElement, refName: string): ContextMenuElement[] {
     if (sourceElem.classList.contains("remote")) {
@@ -3042,6 +3051,63 @@ class GitGraphView {
       },
       null
     );
+  }
+  public showTagDetails(details: GitTagDetails) {
+    const tagType =
+      details.type === "annotated" ? l10n.tagDetailsTypeAnnotated : l10n.tagDetailsTypeLightweight;
+    const target = `${details.targetType} ${abbrevCommit(
+      details.targetHash,
+      this.config.shortHashLength
+    )}`;
+    const tagger = this.formatTagger(details);
+    const date =
+      details.taggerDate === null
+        ? l10n.tagDetailsNotAvailable
+        : getCommitDate(details.taggerDate).title;
+    const message = [details.subject, details.body]
+      .filter((part) => part.trim() !== "")
+      .join("\n\n");
+    const signature = this.formatTagSignature(details);
+
+    showDialog(
+      `<b>${l10n.tagDetailsTitle.replace("{0}", escapeHtml(details.tagName))}</b>` +
+        `<br><span class="messageContent">` +
+        `<b>${l10n.tagDetailsType}: </b>${escapeHtml(tagType)}<br>` +
+        `<b>${l10n.tagDetailsObject}: </b>${escapeHtml(abbrevCommit(details.objectHash, this.config.shortHashLength))}<br>` +
+        `<b>${l10n.tagDetailsTarget}: </b>${escapeHtml(target)}<br>` +
+        `<b>${l10n.tagDetailsTagger}: </b>${tagger}<br>` +
+        `<b>${l10n.tagDetailsDate}: </b>${escapeHtml(date)}<br>` +
+        `<b>${l10n.tagDetailsSignature}: </b>${escapeHtml(signature)}<br><br>` +
+        `<b>${l10n.tagDetailsMessage}: </b><br>${escapeHtml(message || l10n.tagDetailsNoMessage).replaceAll("\n", "<br>")}` +
+        `</span>`,
+      null,
+      l10n.dialogDismiss,
+      null,
+      null
+    );
+    setStatusStrip("ready", l10n.statusReady);
+  }
+  private formatTagger(details: GitTagDetails) {
+    if (details.taggerName === null && details.taggerEmail === null) {
+      return escapeHtml(l10n.tagDetailsNotAvailable);
+    }
+    const name = escapeHtml(details.taggerName ?? l10n.tagDetailsNotAvailable);
+    if (details.taggerEmail === null) return name;
+    const email = escapeHtml(details.taggerEmail);
+    return `${name} &lt;<a href="mailto:${email}" tabindex="-1">${email}</a>&gt;`;
+  }
+  private formatTagSignature(details: GitTagDetails) {
+    if (details.signature === null) return l10n.tagDetailsSignatureUnsigned;
+    const statusLabels: Record<NonNullable<GitTagDetails["signature"]>["status"], string> = {
+      valid: l10n.tagDetailsSignatureValid,
+      bad: l10n.tagDetailsSignatureBad,
+      failed: l10n.tagDetailsSignatureFailed,
+      unknown: l10n.tagDetailsSignatureUnknown
+    };
+    const parts = [statusLabels[details.signature.status]];
+    if (details.signature.signer !== null) parts.push(details.signature.signer);
+    if (details.signature.key !== null) parts.push(details.signature.key);
+    return parts.join(" · ");
   }
   private showRenameBranchDialog(refName: string) {
     showRefInputDialog(
@@ -4576,6 +4642,7 @@ const responseHandlers: ResponseHandlerMap = {
   searchCommits: (msg) =>
     gitGraph.loadSearchCommitResults(msg.requestId, msg.results, formatQueryError(msg.error)),
   startHistorySearch: () => gitGraph.startHistorySearch(),
+  tagDetails: handleTagDetailsResponse,
   viewDiff: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewDiff),
   viewFileAtRevision: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewFileAtRevision)
 };
@@ -4625,6 +4692,16 @@ function handleCommitComparisonResponse(
       compactFolders: viewState.commitDetailsCompactFolders
     })
   );
+}
+
+function handleTagDetailsResponse(msg: Extract<GG.ResponseMessage, { command: "tagDetails" }>) {
+  if (msg.tagDetails === null) {
+    showErrorDialog(l10n.unableToLoadTagDetails, formatQueryError(msg.error), null);
+    setStatusStrip("error", l10n.unableToLoadTagDetails);
+    return;
+  }
+
+  gitGraph.showTagDetails(msg.tagDetails);
 }
 
 function handleCopyToClipboardResponse(

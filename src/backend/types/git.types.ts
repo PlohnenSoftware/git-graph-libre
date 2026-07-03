@@ -53,6 +53,28 @@ export type GitCommitDetails = {
   fileChanges: GitFileChange[];
 };
 
+export type GitTagSignatureStatus = "valid" | "bad" | "failed" | "unknown";
+
+export type GitTagSignature = {
+  status: GitTagSignatureStatus;
+  key: string | null;
+  signer: string | null;
+};
+
+export type GitTagDetails = {
+  tagName: string;
+  type: "annotated" | "lightweight";
+  objectHash: string;
+  targetHash: string;
+  targetType: string;
+  taggerName: string | null;
+  taggerEmail: string | null;
+  taggerDate: number | null;
+  subject: string;
+  body: string;
+  signature: GitTagSignature | null;
+};
+
 export type GitRemote = {
   name: string;
   fetchUrls: string[];
