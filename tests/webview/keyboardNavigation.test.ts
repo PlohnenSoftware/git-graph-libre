@@ -82,6 +82,8 @@ function commitDetailsFor(hash: string, parents: string[]): GitCommitDetails {
   };
 }
 
+const scrollIntoViewMock = vi.fn();
+
 describe("webview keyboard navigation", () => {
   let vscodeMock: ReturnType<typeof createVscodeMock>;
 
@@ -150,6 +152,14 @@ describe("webview keyboard navigation", () => {
   beforeAll(async () => {
     vi.resetModules();
     vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    // jsdom implements neither of these; providing them covers the smooth
+    // reveal path and the ResizeObserver branch of the top bar tracking.
+    HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
     vscodeMock = createVscodeMock();
     setupHtml(viewState);
     await import("@/webview/main");
@@ -180,11 +190,13 @@ describe("webview keyboard navigation", () => {
   it("jumps to the HEAD commit with Ctrl+H", () => {
     const headRow = commitRow("headhash1");
     expect(headRow).not.toBeNull();
+    scrollIntoViewMock.mockClear();
 
     const jumpEvent = pressKey("h", { ctrlKey: true });
 
     expect(jumpEvent.defaultPrevented).toBe(true);
     expect(headRow?.classList.contains("blinking")).toBe(true);
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({ block: "center", behavior: "smooth" });
   });
 
   it("navigates open commit details with plain arrow keys", () => {
@@ -248,5 +260,65 @@ describe("webview keyboard navigation", () => {
 
     expect(downEvent.defaultPrevented).toBe(false);
     expect(countRequests("commitDetails")).toBe(detailsRequestsBefore);
+  });
+
+  it("clears filters and reloads to locate a HEAD that is not rendered", () => {
+    // Reload with a HEAD hash that is not among the rendered rows
+    pressKey("r", { ctrlKey: true });
+    const branchesRequest: LoadBranchesRequest = latestRequest("loadBranches");
+    receive({
+      command: "loadBranches",
+      requestId: branchesRequest.requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    const commitsRequest: LoadCommitsRequest = latestRequest("loadCommits");
+    receive({
+      command: "loadCommits",
+      requestId: commitsRequest.requestId,
+      commits: loadedCommits,
+      head: "hiddenhead9",
+      moreCommitsAvailable: false,
+      hard: true,
+      error: null
+    });
+    expect(commitRow("hiddenhead9")).toBeNull();
+
+    const loadCommitsBefore = countRequests("loadCommits");
+    document.getElementById("blinkHeadBtn")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(countRequests("loadCommits")).toBe(loadCommitsBefore + 1);
+    expect(document.getElementById("loadingHeader")).not.toBeNull();
+    const reloadRequest: LoadCommitsRequest = latestRequest("loadCommits");
+    expect(reloadRequest.branchName).toBe("");
+    expect(reloadRequest.branches).toBeNull();
+    expect(reloadRequest.authors).toBeNull();
+    expect(reloadRequest.tags).toBeNull();
+
+    // Once the reloaded commits contain the HEAD row it is revealed and blinks
+    receive({
+      command: "loadCommits",
+      requestId: reloadRequest.requestId,
+      commits: [
+        ...loadedCommits,
+        {
+          hash: "hiddenhead9",
+          parentHashes: [],
+          author: "Alice",
+          email: "alice@example.com",
+          date: 1700000000,
+          message: "Filtered-out HEAD commit",
+          refs: []
+        }
+      ],
+      head: "hiddenhead9",
+      moreCommitsAvailable: false,
+      hard: true,
+      error: null
+    });
+    expect(commitRow("hiddenhead9")?.classList.contains("blinking")).toBe(true);
   });
 });

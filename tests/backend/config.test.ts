@@ -20,6 +20,20 @@ describe("configuration", () => {
     vi.resetModules();
   });
 
+  it("normalizes context menu action visibility from user settings", async () => {
+    settings.set("git-graph-libre.contextMenuActionsVisibility", {
+      tag: { push: false },
+      bogusGroup: { anything: false }
+    });
+
+    const { config } = await import("@/config");
+    const visibility = config.contextMenuActionsVisibility();
+
+    expect(visibility.tag.push).toBe(false);
+    expect(visibility.tag.delete).toBe(true);
+    expect("bogusGroup" in visibility).toBe(false);
+  });
+
   it("bounds graph density settings before they reach the webview", async () => {
     settings.set("git-graph-libre.graph.fontSize", 40);
     settings.set("git-graph-libre.graph.rowHeight", 10);

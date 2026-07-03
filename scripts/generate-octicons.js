@@ -34,7 +34,8 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-const escapeTsString = (value) => value.replaceAll("\\", "\\\\").replaceAll("'", "\\'");
+const escapeTsString = (value) =>
+  value.replaceAll("\\", String.raw`\\`).replaceAll("'", String.raw`\'`);
 
 const entries = ICON_NAMES.map((name) => {
   const { width, path: pathMarkup } = data[name].heights["16"];
