@@ -320,7 +320,9 @@ export class Dropdown {
   private measuredCurrentValueWidth() {
     const needsScrollbarPadding = !this.showInfo || this.menuElem.offsetHeight >= 272;
     const scrollbarPadding = needsScrollbarPadding ? 12 : 0;
-    return Math.max(this.menuElem.offsetWidth + scrollbarPadding, 130);
+    // Cap the control width so long option names (e.g. remote branches) cannot
+    // stretch the toolbar; the open menu may be wider than the control.
+    return Math.min(Math.max(this.menuElem.offsetWidth + scrollbarPadding, 130), 300);
   }
 
   private filter() {

@@ -36,15 +36,15 @@ body.unableToLoad h2,
 body.unableToLoad p {
   text-align: center;
 }
-/* Top bar: readiness strip + toolbar float above the scrolling graph */
+/* Top bar: readiness strip + toolbar float above the scrolling graph. The
+   sticky table header offsets itself by --ngg-sticky-top (published from the
+   top bar height in the same frame as any state change), so both move as one
+   floating unit. */
 #topBar {
   position: sticky;
   top: 0;
   z-index: 20;
   background-color: var(--vscode-editor-background);
-}
-#topBar.scrolled {
-  box-shadow: 0 3px 6px var(--vscode-scrollbar-shadow, var(--ngg-neutral-overlay-medium));
 }
 
 /* Content */
@@ -647,7 +647,7 @@ body.commitDetailsResizing * {
 }
 .toolbarGroup .dropdown {
   min-width: 0;
-  max-width: min(300px, 100%);
+  max-width: 100%;
 }
 #showRemoteBranchesControl {
   flex: 0 0 auto;
@@ -758,7 +758,9 @@ body.commitDetailsResizing * {
   height: 16px;
   fill: currentColor;
 }
-/* Readiness strip: collapses while scrolled unless it is busy or in error */
+/* Readiness strip: collapses while scrolled unless it is busy or in error.
+   The collapse is intentionally not animated: the sticky table header offset
+   must match the top bar height in every frame, so height changes snap. */
 .statusStrip {
   display: flex;
   align-items: center;
@@ -771,10 +773,6 @@ body.commitDetailsResizing * {
   background-color: var(--vscode-sideBar-background);
   color: var(--vscode-descriptionForeground);
   font-size: 12px;
-  transition:
-    height 160ms ease,
-    opacity 160ms ease,
-    border-bottom-width 160ms ease;
 }
 #topBar.scrolled .statusStrip[data-state="ready"] {
   height: 0;

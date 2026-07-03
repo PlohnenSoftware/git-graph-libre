@@ -51,6 +51,26 @@ describe("Dropdown", () => {
     );
   });
 
+  it("caps the control width so wide menus cannot stretch the toolbar", () => {
+    const dropdown = new Dropdown("repoSelect", false, "branch", () => {});
+    const menu = document.querySelector<HTMLElement>(".dropdownMenu");
+    expect(menu).not.toBeNull();
+    Object.defineProperty(menu, "offsetWidth", { value: 640, configurable: true });
+
+    dropdown.setOptions(
+      [
+        { name: "Show All", value: "" },
+        {
+          name: "origin/dependabot/github_actions/actions/checkout-7",
+          value: "origin/dependabot/github_actions/actions/checkout-7"
+        }
+      ],
+      ""
+    );
+
+    expect(document.querySelector<HTMLElement>(".dropdownCurrentValue")?.style.width).toBe("300px");
+  });
+
   it("opens, filters, selects an option, and closes on outside clicks", () => {
     const selectedValues: string[] = [];
     const dropdown = new Dropdown("repoSelect", true, "repo", (value) => {

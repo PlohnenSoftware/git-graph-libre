@@ -26,11 +26,13 @@ describe("commit table styles", () => {
     expect(topBar).toContain("top: 0;");
     expect(topBar).toContain("var(--vscode-editor-background)");
 
-    expect(css).toContain("#topBar.scrolled {");
     const collapsed =
       css.match(/^#topBar\.scrolled \.statusStrip\[data-state="ready"\] \{[^}]+\}/m)?.[0] ?? "";
     expect(collapsed).toContain("height: 0;");
     expect(collapsed).toContain("opacity: 0;");
+    // The sticky header offset snaps with the top bar height, so the strip
+    // must not animate its height out of sync.
+    expect(css.match(/^\.statusStrip \{[^}]+\}/m)?.[0] ?? "").not.toContain("transition");
     expect(css).not.toContain("#scrollShadow");
   });
 

@@ -4106,22 +4106,26 @@ class GitGraphView {
       if (active !== window.scrollY > 0) {
         active = window.scrollY > 0;
         this.topBarElem.classList.toggle("scrolled", active);
+        // Publish in the same frame as the class change so the sticky table
+        // header and the top bar move together without a seam.
+        this.publishTopBarHeight();
       }
       this.autoLoadMoreCommitsOnScroll();
     });
   }
+  private publishTopBarHeight() {
+    document.documentElement.style.setProperty(
+      "--ngg-sticky-top",
+      `${this.topBarElem.offsetHeight}px`
+    );
+  }
   private observeTopBarHeight() {
-    const publishHeight = () => {
-      document.documentElement.style.setProperty(
-        "--ngg-sticky-top",
-        `${this.topBarElem.offsetHeight}px`
-      );
-    };
-    publishHeight();
+    this.publishTopBarHeight();
+    // Covers toolbar wrap/unwrap on window resizes and font-size changes.
     if (typeof ResizeObserver === "function") {
-      new ResizeObserver(publishHeight).observe(this.topBarElem);
+      new ResizeObserver(() => this.publishTopBarHeight()).observe(this.topBarElem);
     } else {
-      window.addEventListener("resize", publishHeight);
+      window.addEventListener("resize", () => this.publishTopBarHeight());
     }
   }
   private getStickyOverlayHeight() {
