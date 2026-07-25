@@ -10,6 +10,7 @@ import { registerMessageHandlers } from "./extension/messageHandler";
 import { createRepoManager } from "./extension/repoManager";
 import { type WebviewBridge, webviewBridgeFactory } from "./extension/webviewBridge";
 import { createWebviewPanel, type WebviewPanel } from "./extension/webviewPanel";
+import { createLogger } from "./extension/utils/logger";
 import { createRepoSearch } from "./extension/workspaceSearch";
 import { createRepoWatcher } from "./extension/workspaceWatcher";
 import { ExtensionState } from "./extensionState";
@@ -20,10 +21,10 @@ import { StatusBarItem } from "./statusBarItem";
 
 export function activate(context: vscode.ExtensionContext) {
   initL10n(context.extensionPath);
-  const outputChannel = vscode.window.createOutputChannel(l10n.t("outputChannel.text"));
+  const logger = createLogger(l10n.t("outputChannel.text"));
   const extensionState = new ExtensionState(context);
   const avatarManager = new AvatarManager(config.gitPath, extensionState);
-  const statusBarItem = new StatusBarItem(context, config);
+  const statusBarItem = new StatusBarItem(context, config, logger);
   const gitClient = gitClientFactory(extensionState.getLastActiveRepo() ?? "", config.gitPath());
   const repoManager = createRepoManager(extensionState, statusBarItem, config);
   const repoSearch = createRepoSearch(repoManager, config);
@@ -31,11 +32,11 @@ export function activate(context: vscode.ExtensionContext) {
   let currentPanel: WebviewPanel | undefined;
 
   function openGraphView(targetRepo?: string) {
-    outputChannel.appendLine(`[panel] open target=${JSON.stringify(targetRepo ?? null)}`);
+    logger.log(`[panel] open target=${JSON.stringify(targetRepo ?? null)}`);
     if (targetRepo) extensionState.setLastActiveRepo(targetRepo);
     const column = vscode.window.activeTextEditor?.viewColumn;
     if (currentPanel) {
-      outputChannel.appendLine("[panel] reveal existing");
+      logger.log("[panel] reveal existing");
       currentPanel.reveal(column);
       return;
     }
@@ -65,7 +66,7 @@ export function activate(context: vscode.ExtensionContext) {
       avatarManager,
       repoFileWatcher,
       extensionPath: context.extensionPath,
-      outputChannel
+      outputChannel: logger
     });
     currentPanel = createWebviewPanel({
       panel,
@@ -76,7 +77,7 @@ export function activate(context: vscode.ExtensionContext) {
       extensionState,
       avatarManager,
       repoManager,
-      outputChannel,
+      outputChannel: logger,
       onDispose: () => {
         currentPanel = undefined;
       },
@@ -86,7 +87,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const commandManager = createCommandManager({
     extensionVersion: String(context.extension.packageJSON.version ?? "unknown"),
-    outputChannel,
+    outputChannel: logger,
     config,
     extensionState,
     repoManager,
@@ -103,7 +104,7 @@ export function activate(context: vscode.ExtensionContext) {
   })();
 
   context.subscriptions.push(
-    outputChannel,
+    logger.channel,
     ...commandManager.registerAll(),
     vscode.workspace.registerTextDocumentContentProvider(
       DiffDocProvider.scheme,
@@ -121,5 +122,5 @@ export function activate(context: vscode.ExtensionContext) {
     repoWatcher
   );
 
-  outputChannel.appendLine("Extension activated successfully");
+  logger.log("Extension activated successfully");
 }
