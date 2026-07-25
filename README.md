@@ -9,7 +9,7 @@
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
 
 <!-- Badges to restore after publication (with the new publisher/repo IDs):
-     GitHub release, marketplace downloads/installs, open-vsx downloads -->
+     GitHub release, marketplace downloads/installs -->
 
 ## Features
 
@@ -46,7 +46,6 @@ Marketplace listings are coming soon — this fork has not been published yet.
 Once it is, it will be available from:
 
 - VS Code Marketplace: _link to follow after publication_
-- Open VSX Registry: _link to follow after publication_
 
 Until then, you can build and install it locally: `pnpm install`, package a
 VSIX with `pnpm exec vsce package`, then in VS Code run
