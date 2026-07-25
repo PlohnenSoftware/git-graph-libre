@@ -1,3 +1,5 @@
+import * as vscode from "vscode";
+
 import * as l10n from "@/l10n";
 
 /**
@@ -454,21 +456,8 @@ export function getWebviewLocalizedStrings() {
     // Time
     timeNeedFormatMonth: l10n.t("time.needFormatMonth"),
     timeDateFormat: l10n.t("time.dateformat"),
-    timeSecond: l10n.t("time.second"),
-    timeMinute: l10n.t("time.minute"),
-    timeHour: l10n.t("time.hour"),
-    timeDay: l10n.t("time.day"),
-    timeWeek: l10n.t("time.week"),
-    timeMonth: l10n.t("time.month"),
-    timeYear: l10n.t("time.year"),
-    timeAgo: l10n.t("time.ago"),
-    timeSeconds: l10n.t("time.seconds"),
-    timeMinutes: l10n.t("time.minutes"),
-    timeHours: l10n.t("time.hours"),
-    timeDays: l10n.t("time.days"),
-    timeWeeks: l10n.t("time.weeks"),
-    timeMonths: l10n.t("time.months"),
-    timeYears: l10n.t("time.years"),
+    // BCP 47 tag for Intl in the webview, which cannot read vscode.env itself.
+    locale: vscode.env.language,
 
     // Months
     monthJan: l10n.t("month.jan"),

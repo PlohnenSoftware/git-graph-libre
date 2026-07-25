@@ -42,7 +42,7 @@ import {
   resolveRepoBooleanOverride
 } from "./settingsWidget";
 import { setStatusStrip } from "./statusStrip";
-import { getMonth, pad2 } from "./utils/date";
+import { formatRelativeDate, getMonth, pad2 } from "./utils/date";
 import { addListenerToClass, insertAfter, startRevealHighlight } from "./utils/dom";
 import { arraysEqual, ELLIPSIS, refInvalid } from "./utils/git";
 import { escapeHtml, unescapeHtml } from "./utils/html";
@@ -5396,42 +5396,9 @@ function getCommitDate(dateVal: number) {
     case "Date Only":
       value = dateStr;
       break;
-    case "Relative": {
-      let diff = Math.round(Date.now() / 1000) - dateVal;
-      let unit: string;
-      let unitPlural: string;
-      if (diff < 60) {
-        unit = l10n.timeSecond;
-        unitPlural = l10n.timeSeconds;
-      } else if (diff < 3600) {
-        unit = l10n.timeMinute;
-        unitPlural = l10n.timeMinutes;
-        diff /= 60;
-      } else if (diff < 86400) {
-        unit = l10n.timeHour;
-        unitPlural = l10n.timeHours;
-        diff /= 3600;
-      } else if (diff < 604800) {
-        unit = l10n.timeDay;
-        unitPlural = l10n.timeDays;
-        diff /= 86400;
-      } else if (diff < 2629800) {
-        unit = l10n.timeWeek;
-        unitPlural = l10n.timeWeeks;
-        diff /= 604800;
-      } else if (diff < 31557600) {
-        unit = l10n.timeMonth;
-        unitPlural = l10n.timeMonths;
-        diff /= 2629800;
-      } else {
-        unit = l10n.timeYear;
-        unitPlural = l10n.timeYears;
-        diff /= 31557600;
-      }
-      diff = Math.round(diff);
-      value = `${diff} ${diff !== 1 ? unitPlural : unit} ${l10n.timeAgo}`;
+    case "Relative":
+      value = formatRelativeDate(date, new Date(), l10n.locale);
       break;
-    }
     default:
       value = `${dateStr} ${timeStr}`;
   }
