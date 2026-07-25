@@ -6,7 +6,5 @@
 coverage/
 .scannerwork/
 *.vsix
-/graphify-out/.graphify_*
-/graphify-out/cache/
 
 *.orig

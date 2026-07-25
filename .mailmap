@@ -1,0 +1,12 @@
+# Canonical author identities.
+#
+# Commits authored from different machines carry per-machine author names.
+# Map them onto a single identity so `git shortlog`/`git log --author` and the
+# contributor rosters in LICENSE.mit stay consistent.
+
+Zamkorus <gral1322@gmail.com> Zamkorus build-deb <gral1322@gmail.com>
+Zamkorus <gral1322@gmail.com> Zamkorus mobile <gral1322@gmail.com>
+
+# Upstream contributors who committed under more than one name.
+Asis Pattisahusiwa <79239132+asispts@users.noreply.github.com> asispts <79239132+asispts@users.noreply.github.com>
+Michael Hutchison <mhutchie@16right.com> Michael Hutchison <michael@16right.com>
