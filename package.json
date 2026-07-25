@@ -78,7 +78,7 @@
     "@primer/octicons": "^19.31.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "^26.1.1",
-    "@types/vscode": "~1.125.0",
+    "@types/vscode": "~1.98.0",
     "@vitest/coverage-v8": "4.1.10",
     "@vscode/l10n-dev": "^0.0.35",
     "@vscode/test-cli": "^0.0.15",
