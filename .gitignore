@@ -10,5 +10,7 @@ coverage/
 # graphify sidecars (AI-dev only; the generated graph artifacts are tracked)
 /graphify-out/.graphify_*
 /graphify-out/cache/
+/graphify-out/manifest.json
+/graphify-out/graph.html
 
 *.orig
