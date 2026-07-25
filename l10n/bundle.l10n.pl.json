@@ -1,6 +1,7 @@
 {
   "statusBar.text": "Git Graph Libre",
   "statusBar.tooltip": "Pokaż Git Graph",
+  "statusBar.tooltipWatching": "Nie znaleziono repozytorium Git — trwa obserwowanie",
   "outputChannel.text": "Git Graph Libre",
   "ui.toolbar": "Elementy sterujące Git Graph",
   "ui.statusStrip": "Status Git Graph",

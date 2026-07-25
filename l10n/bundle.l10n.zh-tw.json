@@ -1,6 +1,7 @@
 {
   "statusBar.text": "Git Graph Libre",
   "statusBar.tooltip": "檢視 Git 分支圖",
+  "statusBar.tooltipWatching": "未找到 Git 儲存庫 — 正在監視",
   "outputChannel.text": "Git Graph Libre",
   "ui.toolbar": "Git 圖形控制項",
   "ui.statusStrip": "Git 圖形狀態",
