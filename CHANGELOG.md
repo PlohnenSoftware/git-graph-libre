@@ -9,21 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Tab icons now carry the libre bird, in colour and grey variants for light and
-  dark themes, selected by the existing `tabIconColorTheme` setting.
 - The status bar item now stays visible when no Git repository is found, showing
   an eye icon and "No Git repository found — watching for one" instead of
   disappearing. With a repository it shows a graph icon and the usual tooltip.
 - The extension's output channel now timestamps every line and records lifecycle
   events (activation, panel open/reveal, status bar state), making it more useful
   when reporting a problem.
-
-### Changed
-
-- The default graph palette is now a uniform OKLCH ramp, `oklch(59% 0.21 <hue>)`
-  across 12 hues, varying only in hue so the colours read as equally bright.
-- Drop Open VSX as a distribution target; releases go to the VS Code Marketplace
-  only.
 
 ### Fixed
 
@@ -35,6 +26,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2026-07-01
 
+### Added
+
+- **Finding commits**: a find widget over loaded commits, plus a full-history
+  search command that queries beyond what is currently loaded.
+- **Keyboard navigation**: shortcuts for moving through the graph, opening and
+  closing commit details, and jumping to HEAD.
+- **Commit details**: collapse controls, tree and list file view modes, a
+  resizable panel, per-file actions, clickable URLs and issue links, and a
+  configurable short hash length.
+- **Commit actions**: actions on the selected commit and on commit rows,
+  including a rebase suite, comparison against HEAD, and archiving a ref.
+- **Stashes and uncommitted changes**: a full action suite for both.
+- **Branch and remote actions**: upstream-aware branch actions, a fetch action
+  enabled only when remotes exist, and a remote settings popup.
+- **Repository settings**: a modal settings panel with per-repo toggles, plus a
+  tabbed extension settings hub and configuration export/import.
+- **Graph controls**: filter dropdowns, per-repo commit ordering, column
+  show/hide from the header context menu, graph density settings, and automatic
+  loading of more commits when scrolled to the bottom.
+- **Toolbar**: a Source Control title-bar button, a status strip, a repository
+  terminal action, and a tag details context action.
+- A `contextMenuActionsVisibility` setting to hide individual context menu
+  entries, and a persistent reveal highlight setting.
+- Tab icons carrying the libre bird, in colour and grey variants for light and
+  dark themes, selected by the existing `tabIconColorTheme` setting.
+- Polish (`pl`) localization.
+
 ### Changed
 
 - Relicense the project from MIT to GNU AGPL-3.0-or-later. The work as a whole
@@ -45,7 +63,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `git-graph-libre.*`, and the view/clear-avatar-cache commands and diff
   document scheme are renamed accordingly — re-apply any custom settings under
   the new prefix.
+- BREAKING: settings renamed to American spelling — `graphColours` becomes
+  `graphColors` and `tabIconColourTheme` becomes `tabIconColorTheme`. Values
+  stored under the old keys are still honoured for now.
+- The default graph palette is now a uniform OKLCH ramp,
+  `oklch(59% 0.21 <hue>)` across 12 hues, varying only in hue so the colours
+  read as equally bright. `graphColors` still accepts HEX and RGB.
+- Selected commit rows are tinted with their own graph dot colour, and merge
+  commit rows are muted.
+- Dialogs, menus and dropdowns now use native VS Code theme tokens, with OKLCH
+  fallbacks where a theme does not define one.
+- Activation is scoped to concrete events rather than starting eagerly, and repo
+  file watchers use `RelativePattern`.
+- Drop Open VSX as a distribution target; releases go to the VS Code Marketplace
+  only.
 - Bump the extension version to 1.0.0 for the relicensed release line.
+
+### Fixed
+
+- Git output parsing is hardened throughout: NUL-separated `git log` fields,
+  structured `for-each-ref` ref parsing, and stricter diff parsing, so commit
+  messages containing separator-like text no longer corrupt the graph.
+- Stale asynchronous load responses can no longer overwrite newer ones.
+- The branch selector no longer grows on every refresh.
+- Webview state is restored correctly on first load, and the scrollbar no longer
+  shifts during rendering.
+- Toolbar dropdowns no longer truncate, and the sticky header seam and navbar
+  dropdown width are corrected.
+- Graph hover states and focus rings render correctly.
+- Avatar cache checks and remote source determination are corrected.
+- Branches with no commits show a localized empty state.
+- Security and reliability findings from static analysis are resolved, covering
+  nonce generation, regular expression use, credential handling in logged Git
+  commands, and avatar hashing.
 
 ## [0.4.0] - 2026-04-10
 
