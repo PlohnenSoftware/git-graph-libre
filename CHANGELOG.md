@@ -9,12 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Tab icons now carry the libre bird, in colour and grey variants for light and
+  dark themes, selected by the existing `tabIconColorTheme` setting.
 - The status bar item now stays visible when no Git repository is found, showing
   an eye icon and "No Git repository found — watching for one" instead of
   disappearing. With a repository it shows a graph icon and the usual tooltip.
 - The extension's output channel now timestamps every line and records lifecycle
   events (activation, panel open/reveal, status bar state), making it more useful
   when reporting a problem.
+
+### Changed
+
+- The default graph palette is now a uniform OKLCH ramp, `oklch(59% 0.21 <hue>)`
+  across 12 hues, varying only in hue so the colours read as equally bright.
+- Drop Open VSX as a distribution target; releases go to the VS Code Marketplace
+  only.
 
 ### Fixed
 
@@ -24,19 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   forms — Polish rendered "2 minut temu" where "2 minuty temu" is correct, and
   was wrong for 1, 2–4, 22–24 and so on, in every unit.
 
-## [1.0.0] - 2026-07-25
-
-### Added
-
-- Tab icons now carry the libre bird, in colour and grey variants for light and
-  dark themes, selected by the existing `tabIconColorTheme` setting.
+## [1.0.0] - 2026-07-01
 
 ### Changed
 
-- The default graph palette is now a uniform OKLCH ramp, `oklch(59% 0.21 <hue>)`
-  across 12 hues, varying only in hue so the colours read as equally bright.
-- Drop Open VSX as a distribution target; releases go to the VS Code Marketplace
-  only.
 - Relicense the project from MIT to GNU AGPL-3.0-or-later. The work as a whole
   is now distributed under the AGPL; incorporated MIT-licensed material from
   the mhutchie/asispts lineage remains credited in `NOTICE.md`.
