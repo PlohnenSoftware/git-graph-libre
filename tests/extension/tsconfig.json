@@ -2,8 +2,9 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "noEmit": false,
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "node16",
+    "moduleResolution": "node16",
+    "rootDir": "../..",
     "outDir": "../out/extension"
   },
   "include": ["./**/*.ts"]

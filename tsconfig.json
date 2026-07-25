@@ -12,10 +12,11 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "esModuleInterop": true,
-    "baseUrl": ".",
+    "typeRoots": ["./node_modules/@types"],
+    "types": ["node", "vscode", "mocha"],
     "paths": {
-      "@/*": ["src/*"],
-      "@tests/*": ["tests/*"]
+      "@/*": ["./src/*"],
+      "@tests/*": ["./tests/*"]
     }
   }
 }
