@@ -98,8 +98,8 @@
         "command": "git-graph-libre.view",
         "title": "%command.view%",
         "icon": {
-          "light": "resources/webview-icon-light.svg",
-          "dark": "resources/webview-icon-dark.svg"
+          "light": "resources/webview-icon-grey-light.svg",
+          "dark": "resources/webview-icon-grey-dark.svg"
         }
       },
       {

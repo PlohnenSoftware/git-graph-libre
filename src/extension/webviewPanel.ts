@@ -42,13 +42,14 @@ export function createWebviewPanel(opts: {
   let isGraphViewLoaded = false;
   let isPanelVisible = true;
 
-  panel.iconPath =
-    config.tabIconColorTheme() === "color"
-      ? buildExtensionUri(extensionPath, "resources", "webview-icon.svg")
-      : {
-          light: buildExtensionUri(extensionPath, "resources", "webview-icon-light.svg"),
-          dark: buildExtensionUri(extensionPath, "resources", "webview-icon-dark.svg")
-        };
+  // Both tab icon variants ship a light/dark pair: the grey one has to invert to
+  // stay legible, and the color one keeps its graph hues but greys the bird to
+  // suit the background. The setting values double as the filename segment.
+  const iconVariant = config.tabIconColorTheme();
+  panel.iconPath = {
+    light: buildExtensionUri(extensionPath, "resources", `webview-icon-${iconVariant}-light.svg`),
+    dark: buildExtensionUri(extensionPath, "resources", `webview-icon-${iconVariant}-dark.svg`)
+  };
 
   function update() {
     const result = buildWebviewHtml({

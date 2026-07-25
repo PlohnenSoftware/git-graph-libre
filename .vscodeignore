@@ -13,6 +13,7 @@
 !l10n/
 
 !resources/icon.png
-!resources/webview-icon.svg
-!resources/webview-icon-dark.svg
-!resources/webview-icon-light.svg
+!resources/webview-icon-color-dark.svg
+!resources/webview-icon-color-light.svg
+!resources/webview-icon-grey-dark.svg
+!resources/webview-icon-grey-light.svg
