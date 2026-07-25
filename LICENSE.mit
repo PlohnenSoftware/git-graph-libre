@@ -31,6 +31,12 @@ From commit 4af8583 up to and including commit 28300bd:
   Krzysztof Zabłocki (zamkorus)    2026-03-25
   Mr.Lee                           2026-04-06 to 2026-04-10
 
+Individual later commits from that fork, incorporated in part after the
+branches diverged (see NOTICE.md for which, and for what was taken from each).
+These add no further copyright holders; all four were authored by asispts:
+
+  Asis Pattisahusiwa (asispts)     2026-07-21 to 2026-07-24
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights

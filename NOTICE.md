@@ -30,7 +30,18 @@ This project descends from the MIT-licensed lineage of Git Graph:
   later, non-MIT code is included.
 - [asispts/neo-git-graph](https://github.com/asispts/neo-git-graph) by Asis
   Pattisahusiwa (asispts), the MIT fork of that lineage, incorporated up to
-  and including commit `28300bd64b5793e4ed9540004655f29b673c6d8b`.
+  and including commit `28300bd64b5793e4ed9540004655f29b673c6d8b` (2026-05-14).
+  The branches diverge after that commit, and the later upstream history is
+  **not** incorporated wholesale. These individual later commits are, however,
+  incorporated in part:
+  - `8402626` — relative date formatting built on `Intl.RelativeTimeFormat`,
+    adopted into `src/webview/utils/date.ts` largely as written upstream.
+  - `b4c215f` — centralized output-channel logging. Reimplemented here, but the
+    design and the timestamp format come from upstream.
+  - `4afcb69`, `deba9af` — keeping the status bar item visible with no
+    repository, with icons and a watching state. Reimplemented here against a
+    different localization layer; the behavior, the icon choices, and the
+    tooltip wording come from upstream.
 
 The MIT license grants permission to sublicense, which allows this material to
 be incorporated into the AGPL-licensed whole. As the MIT license requires, its
