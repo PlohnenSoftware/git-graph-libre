@@ -22,18 +22,18 @@ const rgbGraphColorRegex = /^\s*rgba?\s*\(\d{1,3},\s*\d{1,3},\s*\d{1,3}\)\s*$/;
 const oklchGraphColorRegex = /^\s*oklch\(\s*[\d.]+%\s+[\d.]+\s+[\d.]+(\s*\/\s*[\d.]+)?\s*\)\s*$/;
 
 const DEFAULT_GRAPH_COLORS = [
-  "oklch(63% 0.2 245)",
-  "oklch(63% 0.2 350)",
-  "oklch(63% 0.2 145)",
-  "oklch(63% 0.2 70)",
-  "oklch(63% 0.2 305)",
-  "oklch(63% 0.2 27)",
-  "oklch(63% 0.2 190)",
-  "oklch(63% 0.2 325)",
-  "oklch(63% 0.2 130)",
-  "oklch(63% 0.2 45)",
-  "oklch(63% 0.2 295)",
-  "oklch(63% 0.2 95)"
+  "oklch(59% 0.21 245)",
+  "oklch(59% 0.21 350)",
+  "oklch(59% 0.21 145)",
+  "oklch(59% 0.21 70)",
+  "oklch(59% 0.21 305)",
+  "oklch(59% 0.21 27)",
+  "oklch(59% 0.21 190)",
+  "oklch(59% 0.21 325)",
+  "oklch(59% 0.21 130)",
+  "oklch(59% 0.21 45)",
+  "oklch(59% 0.21 295)",
+  "oklch(59% 0.21 95)"
 ];
 const DEFAULT_REVEAL_HIGHLIGHT_COLOR = "oklch(90% 0.25 150 / 0.42)";
 
