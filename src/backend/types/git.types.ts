@@ -11,6 +11,22 @@ export type GitRefData = {
   refs: GitRef[];
 };
 
+export type GitCommitSignatureStatus =
+  | "valid"
+  | "valid-untrusted"
+  | "bad"
+  | "expired"
+  | "expired-key"
+  | "revoked-key"
+  | "unverifiable"
+  | "unknown";
+
+export type GitCommitSignature = {
+  status: GitCommitSignatureStatus;
+  key: string | null;
+  signer: string | null;
+};
+
 export type GitCommitNode = {
   hash: string;
   parentHashes: string[];
@@ -19,6 +35,8 @@ export type GitCommitNode = {
   date: number;
   message: string;
   refs: GitRef[];
+  /** Undefined until signature verification has been requested for this commit. */
+  signature?: GitCommitSignature | null;
 };
 
 export type GitLogEntry = {
@@ -28,6 +46,8 @@ export type GitLogEntry = {
   email: string;
   date: number;
   message: string;
+  /** Undefined when the log query intentionally skipped signature verification. */
+  signature?: GitCommitSignature | null;
 };
 
 export type GitCommitSearchResult = GitLogEntry & {
@@ -47,8 +67,10 @@ export type GitCommitDetails = {
   parents: string[];
   author: string;
   email: string;
-  date: number;
+  authorDate: number;
   committer: string;
+  committerEmail: string;
+  committerDate: number;
   body: string;
   fileChanges: GitFileChange[];
 };

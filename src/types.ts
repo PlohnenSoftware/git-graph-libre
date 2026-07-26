@@ -142,6 +142,7 @@ export type GitGraphViewState = {
   contextMenuActionsVisibility: ContextMenuActionsVisibility;
   dateFormat: DateFormat;
   fetchAvatars: boolean;
+  showSignatureColumn: boolean;
   graphColors: string[];
   graphFontSize: number;
   graphRowHeight: number;

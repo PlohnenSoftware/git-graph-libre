@@ -17,6 +17,7 @@ const viewState: GG.GitGraphViewState = {
   contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
   dateFormat: "Date & Time",
   fetchAvatars: false,
+  showSignatureColumn: false,
   graphColors: ["oklch(65% 0.16 250)"],
   customBranchGlobPatterns: [],
   graphFontSize: 13,
@@ -54,8 +55,10 @@ const commitDetails: GitCommitDetails = {
   parents: ["def456"],
   author: "Alice",
   email: "alice@example.com",
-  date: 1_700_000_000,
+  authorDate: 1_700_000_000,
   committer: "Alice",
+  committerEmail: "alice@example.com",
+  committerDate: 1_700_000_000,
   body: "Detailed message",
   fileChanges: [
     {

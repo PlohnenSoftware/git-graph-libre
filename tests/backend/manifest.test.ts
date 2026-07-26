@@ -39,8 +39,11 @@ describe("extension manifest", () => {
     expect(manifest.activationEvents).not.toContain("onStartupFinished");
     expect(manifest.activationEvents).toContain("workspaceContains:.git");
     expect(manifest.activationEvents).toContain("workspaceContains:**/.git");
-    expect(manifest.activationEvents).toEqual(
-      expect.arrayContaining(commands.map((command) => `onCommand:${command}`))
+    // VS Code generates onCommand activation for contributed commands since 1.74,
+    // so listing them in activationEvents would only duplicate the manifest.
+    expect(commands.length).toBeGreaterThan(0);
+    expect(manifest.activationEvents.filter((event) => event.startsWith("onCommand:"))).toEqual(
+      []
     );
   });
 
@@ -89,6 +92,18 @@ describe("extension manifest", () => {
       type: "boolean",
       default: false,
       description: "%config.commitDetails.compactFolders%"
+    });
+  });
+
+  it("contributes a default-off signature column setting", () => {
+    const manifest = readManifest();
+    const setting =
+      manifest.contributes.configuration.properties["git-graph-libre.columns.signature"];
+
+    expect(setting).toMatchObject({
+      type: "boolean",
+      default: false,
+      description: "%config.columns.signature%"
     });
   });
 

@@ -36,6 +36,7 @@ const defaultViewState: GG.GitGraphViewState = {
   autoCenterCommitDetailsView: true,
   dateFormat: "Date & Time",
   fetchAvatars: false,
+  showSignatureColumn: false,
   graphColors: ["oklch(65% 0.16 250)"],
   customBranchGlobPatterns: [{ name: "Features", glob: "--glob=heads/feature/*" }],
   commitDetailsCompactFolders: false,
@@ -105,8 +106,10 @@ const firstCommitDetails: GitCommitDetails = {
   parents: ["def456"],
   author: "Alice",
   email: "alice@example.com",
-  date: 1700000000,
+  authorDate: 1700000000,
   committer: "Alice",
+  committerEmail: "alice@example.com",
+  committerDate: 1700000000,
   body: "Detailed message",
   fileChanges: [
     {
@@ -344,6 +347,7 @@ describe("webview rendering", () => {
       error: null
     });
     const loadCommitsRequest = latestLoadCommitsRequest();
+    expect(loadCommitsRequest.showSignature).toBe(false);
     receive({
       command: "loadCommits",
       requestId: loadCommitsRequest.requestId,
@@ -1784,19 +1788,95 @@ describe("webview rendering", () => {
       );
     }
 
+    const loadsBeforeDateToggle = sentLoadCommitsCount();
     const dateItem = headerMenuItem("Date");
     expect(dateItem?.textContent).toBe("✓ Date");
     dateItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(document.getElementById("commitTable")?.classList.contains("hideDateCol")).toBe(true);
-    expect(vscodeMock.getState()?.hiddenColumns).toEqual(["date"]);
+    expect(vscodeMock.getState()?.hiddenColumns).toEqual(["signature", "date"]);
+    expect(sentLoadCommitsCount()).toBe(loadsBeforeDateToggle);
 
     const hiddenDateItem = headerMenuItem("Date");
     expect(hiddenDateItem?.textContent).toBe("Date");
     hiddenDateItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(document.getElementById("commitTable")?.classList.contains("hideDateCol")).toBe(false);
+    expect(vscodeMock.getState()?.hiddenColumns).toEqual(["signature"]);
+    expect(vscodeMock.getState()?.columnVisibilityVersion).toBe(1);
+    expect(sentLoadCommitsCount()).toBe(loadsBeforeDateToggle);
+
+    for (const [label, column, className] of [
+      ["Author", "author", "hideAuthorCol"],
+      ["Commit", "commit", "hideCommitCol"]
+    ] as const) {
+      const visibleItem = headerMenuItem(label);
+      expect(visibleItem?.textContent).toBe(`✓ ${label}`);
+      visibleItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(document.getElementById("commitTable")?.classList.contains(className)).toBe(true);
+      expect(vscodeMock.getState()?.hiddenColumns).toEqual(["signature", column]);
+
+      const hiddenItem = headerMenuItem(label);
+      expect(hiddenItem?.textContent).toBe(label);
+      hiddenItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(document.getElementById("commitTable")?.classList.contains(className)).toBe(false);
+      expect(vscodeMock.getState()?.hiddenColumns).toEqual(["signature"]);
+    }
+    expect(sentLoadCommitsCount()).toBe(loadsBeforeDateToggle);
+
+    const signatureItem = headerMenuItem("Signature");
+    expect(signatureItem?.textContent).toBe("Signature");
+    signatureItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(document.getElementById("commitTable")?.classList.contains("hideSignatureCol")).toBe(
+      false
+    );
     expect(vscodeMock.getState()?.hiddenColumns).toEqual([]);
+    expect(sentLoadCommitsCount()).toBe(loadsBeforeDateToggle + 1);
+    const signatureRequest = latestLoadCommitsRequest();
+    expect(signatureRequest).toMatchObject({ showSignature: true, hard: true });
+    expect(
+      document.querySelector('tr.commit[data-hash="abc123"] .commitSignature-pending')?.textContent
+    ).toBe("…");
+
+    receive({
+      command: "loadCommits",
+      requestId: signatureRequest.requestId,
+      commits: [
+        {
+          ...twoCommits[0],
+          signature: { status: "valid", signer: "Alice", key: "ABC123" }
+        },
+        { ...twoCommits[1], signature: null }
+      ],
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+
+    const validSignature = document.querySelector(
+      'tr.commit[data-hash="abc123"] .commitSignature-valid'
+    );
+    expect(validSignature?.textContent).toBe("✓");
+    expect(validSignature?.getAttribute("title")).toContain("Valid signature");
+    expect(validSignature?.getAttribute("title")).toContain("Signer: Alice");
+    expect(validSignature?.getAttribute("aria-label")).toContain("Key: ABC123");
+    const unsignedSignature = document.querySelector(
+      'tr.commit[data-hash="def456"] .commitSignature-unsigned'
+    );
+    expect(unsignedSignature?.textContent).toBe("—");
+    expect(unsignedSignature?.getAttribute("title")).toBe("Unsigned commit");
+
+    const loadsBeforeHide = sentLoadCommitsCount();
+    const shownSignatureItem = headerMenuItem("Signature");
+    expect(shownSignatureItem?.textContent).toBe("✓ Signature");
+    shownSignatureItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(document.getElementById("commitTable")?.classList.contains("hideSignatureCol")).toBe(
+      true
+    );
+    expect(vscodeMock.getState()?.hiddenColumns).toEqual(["signature"]);
+    expect(sentLoadCommitsCount()).toBe(loadsBeforeHide);
   });
 
   it("changes commit ordering from the header context menu", () => {

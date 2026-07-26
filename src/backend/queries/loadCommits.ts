@@ -3,6 +3,7 @@ import type { SimpleGit } from "simple-git";
 import type {
   CommitOrdering,
   DateType,
+  GitCommitSignature,
   GitCommitNode,
   GitLogEntry,
   GitQueryError,
@@ -17,10 +18,20 @@ import { isHiddenRemoteRef, remoteExcludeArgs } from "@/backend/utils/remoteRefs
 const eolRegex = /\r\n|\r|\n/g;
 const gitLogFormatFieldSeparator = "%x00";
 const gitLogOutputFieldSeparator = "\0";
-const gitLogFieldCount = 6;
+const gitLogBaseFieldCount = 6;
+const gitLogSignatureFieldCount = 3;
 const gitRefFormatFieldSeparator = "%00";
 const gitRefOutputFieldSeparator = "\0";
 const gitRefFieldCount = 3;
+const gitCommitSignatureStatuses: Readonly<Record<string, GitCommitSignature["status"]>> = {
+  G: "valid",
+  U: "valid-untrusted",
+  B: "bad",
+  X: "expired",
+  Y: "expired-key",
+  R: "revoked-key",
+  E: "unverifiable"
+};
 
 type LoadCommitsInput = {
   branchName: string;
@@ -34,6 +45,7 @@ type LoadCommitsInput = {
   includeReflog?: boolean;
   onlyFollowFirstParent?: boolean;
   commitOrdering?: CommitOrdering;
+  showSignature?: boolean;
   hard: boolean;
   dateType: DateType;
   showUncommittedChanges: boolean;
@@ -57,6 +69,7 @@ type GitLogOptions = {
   onlyFollowFirstParent: boolean;
   dateType: DateType;
   commitOrdering: CommitOrdering;
+  showSignature: boolean;
   context: GitQueryContext;
 };
 
@@ -72,6 +85,20 @@ function parseRefRecord(line: string) {
     objectHash: fields[0],
     refName: fields[1],
     peeledHash: fields[2] ?? ""
+  };
+}
+
+export function parseCommitSignature(
+  status: string,
+  signer: string,
+  key: string
+): GitCommitSignature | null {
+  if (status === "" || status === "N") return null;
+
+  return {
+    status: gitCommitSignatureStatuses[status] ?? "unknown",
+    signer: signer || null,
+    key: key || null
   };
 }
 
@@ -147,11 +174,14 @@ async function getLog(
     onlyFollowFirstParent,
     dateType,
     commitOrdering,
+    showSignature,
     context
   }: GitLogOptions
 ): Promise<QueryValue<GitLogEntry[]>> {
   const dateField = dateType === "Author Date" ? "%at" : "%ct";
-  const format = ["%H", "%P", "%an", "%ae", dateField, "%s"].join(gitLogFormatFieldSeparator);
+  const formatFields = ["%H", "%P", "%an", "%ae", dateField, "%s"];
+  if (showSignature) formatFields.push("%G?", "%GS", "%GK");
+  const format = formatFields.join(gitLogFormatFieldSeparator);
   const args = [
     "log",
     "-z",
@@ -179,15 +209,24 @@ async function getLog(
     const fields = stdout.split(gitLogOutputFieldSeparator);
     if (fields[fields.length - 1] === "") fields.pop();
     const commits: GitLogEntry[] = [];
-    for (let i = 0; i + gitLogFieldCount - 1 < fields.length; i += gitLogFieldCount) {
-      commits.push({
+    const fieldCount = gitLogBaseFieldCount + (showSignature ? gitLogSignatureFieldCount : 0);
+    for (let i = 0; i + fieldCount - 1 < fields.length; i += fieldCount) {
+      const commit: GitLogEntry = {
         hash: fields[i],
         parentHashes: fields[i + 1].split(" "),
         author: fields[i + 2],
         email: fields[i + 3],
         date: Number.parseInt(fields[i + 4], 10),
         message: fields[i + 5]
-      });
+      };
+      if (showSignature) {
+        commit.signature = parseCommitSignature(
+          fields[i + gitLogBaseFieldCount],
+          fields[i + gitLogBaseFieldCount + 1],
+          fields[i + gitLogBaseFieldCount + 2]
+        );
+      }
+      commits.push(commit);
     }
     return { value: commits, error: null };
   } catch (error: unknown) {
@@ -249,7 +288,8 @@ function createCommitNodes(commits: GitLogEntry[], refData: GitRefData) {
       email: commits[i].email,
       date: commits[i].date,
       message: commits[i].message,
-      refs: []
+      refs: [],
+      ...(commits[i].signature === undefined ? {} : { signature: commits[i].signature })
     });
   }
 
@@ -279,6 +319,7 @@ export async function loadCommits(
   const includeReflog = input.includeReflog === true;
   const onlyFollowFirstParent = input.onlyFollowFirstParent === true;
   const commitOrdering = input.commitOrdering ?? "date";
+  const showSignature = input.showSignature === true;
   const context = { repo: input.repo ?? null, record: input.recordGitCommand };
 
   const [logResult, refsResult] = await Promise.all([
@@ -293,6 +334,7 @@ export async function loadCommits(
       onlyFollowFirstParent,
       dateType,
       commitOrdering,
+      showSignature,
       context
     }),
     getRefs(git, showRemoteBranches, hiddenRemotes, showTags || selectedTags !== null, context)

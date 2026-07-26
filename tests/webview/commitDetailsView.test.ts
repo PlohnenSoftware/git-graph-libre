@@ -17,8 +17,10 @@ const l10n = {
   detailCommit: "Commit: ",
   detailParents: "Parents: ",
   detailAuthor: "Author: ",
+  detailAuthorDate: "Author Date: ",
   detailDate: "Date: ",
   detailCommitter: "Committer: ",
+  detailCommitterDate: "Committer Date: ",
   detailSummary: "Summary",
   detailFiles: "Files",
   detailCollapseSummary: "Collapse commit summary",
@@ -41,8 +43,10 @@ const commitDetails: GitCommitDetails = {
   parents: ["def456"],
   author: "Alice <unsafe>",
   email: "alice+review@example.com",
-  date: 1700000000,
+  authorDate: 1700000000,
   committer: "Bob & Carol",
+  committerEmail: "bob&carol@example.com",
+  committerDate: 1700000100,
   body: "First line\n<script>alert(1)</script>\nSee https://example.test/review.",
   fileChanges: [
     {
@@ -54,6 +58,26 @@ const commitDetails: GitCommitDetails = {
     }
   ]
 };
+
+function renderSummaryHost(details: GitCommitDetails): HTMLTableRowElement {
+  const host = document.createElement("tr");
+  host.innerHTML = renderCommitDetailsRowHtml({
+    commitDetails: details,
+    fileTree: generateGitFileTree(details.fileChanges),
+    fileView: { mode: "tree" },
+    avatars: {},
+    l10n,
+    sections: { detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT, summaryOpen: true, filesOpen: true }
+  });
+  return host;
+}
+
+function summaryLabels(details: GitCommitDetails): string[] {
+  return Array.from(
+    renderSummaryHost(details).querySelectorAll(".commitDetailsSummaryKeyValues > b"),
+    (label) => label.textContent?.trim() ?? ""
+  );
+}
 
 describe("commit details view rendering", () => {
   it("renders escaped summary, body, avatar, file list, and resize control", () => {
@@ -70,6 +94,19 @@ describe("commit details view rendering", () => {
 
     host.innerHTML = html;
 
+    expect(
+      Array.from(host.querySelectorAll(".commitDetailsSummaryKeyValues > b"), (label) =>
+        label.textContent?.trim()
+      )
+    ).toEqual(["Commit:", "Parents:", "Author:", "Author Date:", "Committer:", "Committer Date:"]);
+    const identityLinks = host.querySelectorAll<HTMLAnchorElement>(
+      '.commitDetailsSummaryKeyValues a[href^="mailto:"]'
+    );
+    expect(Array.from(identityLinks, (link) => link.textContent)).toEqual([
+      "alice+review@example.com",
+      "bob&carol@example.com"
+    ]);
+    expect(identityLinks[1].getAttribute("href")).toBe("mailto:bob%26carol%40example.com");
     expect(html).toContain("&lt;script&gt;alert(1)&lt;&#x2F;script&gt;");
     expect(host.querySelector("#commitDetailsSummary")?.innerHTML).not.toContain("<script>");
     expect(host.querySelector("#commitDetailsSummary")?.innerHTML).toContain(
@@ -102,6 +139,50 @@ describe("commit details view rendering", () => {
     expect(host.querySelector("#commitDetailsResizeHandle")?.getAttribute("aria-valuenow")).toBe(
       COMMIT_DETAILS_DEFAULT_HEIGHT.toString()
     );
+  });
+
+  it("renders one shared date when author and committer metadata matches", () => {
+    const matchingDetails: GitCommitDetails = {
+      ...commitDetails,
+      committer: commitDetails.author,
+      committerEmail: commitDetails.email,
+      committerDate: commitDetails.authorDate
+    };
+    const host = renderSummaryHost(matchingDetails);
+
+    expect(summaryLabels(matchingDetails)).toEqual([
+      "Commit:",
+      "Parents:",
+      "Author:",
+      "Committer:",
+      "Date:"
+    ]);
+    expect(host.querySelector(".commitDetailsSummaryKeyValues")?.textContent).toContain(
+      new Date(matchingDetails.authorDate * 1000).toString()
+    );
+  });
+
+  it("renders role-specific dates when either identity or timestamp differs", () => {
+    const identityDiffers = {
+      ...commitDetails,
+      committerDate: commitDetails.authorDate
+    };
+    const timestampDiffers = {
+      ...commitDetails,
+      committer: commitDetails.author,
+      committerEmail: commitDetails.email
+    };
+    const expectedLabels = [
+      "Commit:",
+      "Parents:",
+      "Author:",
+      "Author Date:",
+      "Committer:",
+      "Committer Date:"
+    ];
+
+    expect(summaryLabels(identityDiffers)).toEqual(expectedLabels);
+    expect(summaryLabels(timestampDiffers)).toEqual(expectedLabels);
   });
 
   it("renders collapsed section state for summary and files", () => {

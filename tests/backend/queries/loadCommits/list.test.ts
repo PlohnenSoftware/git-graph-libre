@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { git, makeRepo } from "@tests/backend/helpers";
 import { type SimpleGit, simpleGit } from "simple-git";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { loadCommits } from "@/backend/queries/loadCommits";
+import { loadCommits, parseCommitSignature } from "@/backend/queries/loadCommits";
 import type { GitCommandRecord } from "@/backend/utils/gitRunner";
 
 let repo: string;
@@ -29,6 +29,99 @@ afterAll(() => {
 });
 
 describe("loadCommits", () => {
+  it("maps Git signature states and keeps unsigned commits distinct", () => {
+    expect(parseCommitSignature("N", "", "")).toBeNull();
+    expect(parseCommitSignature("", "", "")).toBeNull();
+    expect(parseCommitSignature("G", "Alice", "ABC123")).toEqual({
+      status: "valid",
+      signer: "Alice",
+      key: "ABC123"
+    });
+    expect(parseCommitSignature("U", "Alice", "ABC123")?.status).toBe("valid-untrusted");
+    expect(parseCommitSignature("B", "", "")?.status).toBe("bad");
+    expect(parseCommitSignature("X", "", "")?.status).toBe("expired");
+    expect(parseCommitSignature("Y", "", "")?.status).toBe("expired-key");
+    expect(parseCommitSignature("R", "", "")?.status).toBe("revoked-key");
+    expect(parseCommitSignature("E", "", "")?.status).toBe("unverifiable");
+    expect(parseCommitSignature("?", "", "")?.status).toBe("unknown");
+  });
+
+  it("only asks Git to verify signatures when the column is visible", async () => {
+    const hiddenRecords: GitCommandRecord[] = [];
+    await loadCommits(simpleGit(repo), {
+      branchName: "",
+      maxCommits: 300,
+      showRemoteBranches: false,
+      showSignature: false,
+      hard: false,
+      dateType: "Author Date",
+      showUncommittedChanges: false,
+      recordGitCommand: (record) => hiddenRecords.push(record)
+    });
+    const hiddenFormat = hiddenRecords
+      .find((record) => record.label === "loadCommits.log")
+      ?.args.find((arg) => arg.startsWith("--format="));
+    expect(hiddenFormat).not.toContain("%G?");
+
+    const visibleRecords: GitCommandRecord[] = [];
+    const visibleResult = await loadCommits(simpleGit(repo), {
+      branchName: "",
+      maxCommits: 300,
+      showRemoteBranches: false,
+      showSignature: true,
+      hard: false,
+      dateType: "Author Date",
+      showUncommittedChanges: false,
+      recordGitCommand: (record) => visibleRecords.push(record)
+    });
+    const visibleFormat = visibleRecords
+      .find((record) => record.label === "loadCommits.log")
+      ?.args.find((arg) => arg.startsWith("--format="));
+    expect(visibleFormat).toContain("%G?");
+    expect(visibleFormat).toContain("%GS");
+    expect(visibleFormat).toContain("%GK");
+    expect(visibleResult.commits.every((commit) => commit.signature === null)).toBe(true);
+  });
+
+  it("parses signer and key metadata into commit nodes", async () => {
+    const signedLog = [
+      "abc123",
+      "",
+      "Alice",
+      "alice@example.com",
+      "1700000000",
+      "Signed commit",
+      "G",
+      "Alice Signer",
+      "ABC123"
+    ].join("\0");
+    const signedGit = {
+      raw: async (args: string[]) => {
+        if (args[0] === "log") return `${signedLog}\0`;
+        if (args[0] === "rev-parse") return "abc123\n";
+        if (args[0] === "for-each-ref") return "abc123\0refs/heads/main\0\0\n";
+        throw new Error(`unexpected git command: ${args[0]}`);
+      }
+    } as unknown as SimpleGit;
+
+    const result = await loadCommits(signedGit, {
+      branchName: "main",
+      maxCommits: 10,
+      showRemoteBranches: false,
+      showSignature: true,
+      hard: false,
+      dateType: "Author Date",
+      showUncommittedChanges: false
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.commits[0].signature).toEqual({
+      status: "valid",
+      signer: "Alice Signer",
+      key: "ABC123"
+    });
+  });
+
   it("returns commits with expected fields", async () => {
     const result = await loadCommits(simpleGit(repo), {
       branchName: "",

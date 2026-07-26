@@ -59,12 +59,41 @@ const REF_DROPDOWN_DISPLAY_CHARS = 40;
 const AUTHOR_DROPDOWN_DISPLAY_CHARS = 30;
 const DEFAULT_REVEAL_HIGHLIGHT_COLOR = "oklch(90% 0.25 150 / 0.42)";
 
-const HIDEABLE_COLUMNS = ["date", "author", "commit"] as const;
+const HIDEABLE_COLUMNS = ["date", "author", "commit", "signature"] as const;
 type HideableColumn = (typeof HIDEABLE_COLUMNS)[number];
 const COLUMN_HIDE_CLASSES: Record<HideableColumn, string> = {
   date: "hideDateCol",
   author: "hideAuthorCol",
-  commit: "hideCommitCol"
+  commit: "hideCommitCol",
+  signature: "hideSignatureCol"
+};
+const COLUMN_VISIBILITY_STATE_VERSION = 1;
+const SIGNATURE_COLUMN_DEFAULT_WIDTH = 64;
+const SIGNATURE_COLUMN_SETTING_KEY = "git-graph-libre.columns.signature";
+const COMMIT_SIGNATURE_PRESENTATIONS: Record<
+  NonNullable<GitCommitNode["signature"]>["status"],
+  { glyph: string; tone: string; label: string }
+> = {
+  valid: { glyph: "✓", tone: "valid", label: l10n.signatureValid },
+  "valid-untrusted": {
+    glyph: "!",
+    tone: "warning",
+    label: l10n.signatureValidUntrusted
+  },
+  bad: { glyph: "×", tone: "invalid", label: l10n.signatureBad },
+  expired: { glyph: "!", tone: "warning", label: l10n.signatureExpired },
+  "expired-key": {
+    glyph: "!",
+    tone: "warning",
+    label: l10n.signatureExpiredKey
+  },
+  "revoked-key": {
+    glyph: "×",
+    tone: "invalid",
+    label: l10n.signatureRevokedKey
+  },
+  unverifiable: { glyph: "?", tone: "unknown", label: l10n.signatureUnverifiable },
+  unknown: { glyph: "?", tone: "unknown", label: l10n.signatureUnknown }
 };
 const REPO_BOOLEAN_SETTING_KEYS: readonly RepoBooleanSettingKey[] = [
   "includeReflog",
@@ -260,6 +289,7 @@ class GitGraphView {
   ) {
     this.gitRepos = repos;
     this.config = config;
+    if (!config.showSignatureColumn) this.hiddenColumns.add("signature");
     this.maxCommits = config.initialLoadCommits;
     this.graph = new Graph("commitGraph", this.config);
     this.tableElem = requireElement("commitTable");
@@ -410,7 +440,10 @@ class GitGraphView {
     this.showRemoteBranchesElem.checked = this.showRemoteBranches;
     this.settingsWidgetOpen = prevState.settingsWidgetOpen === true;
     this.settingsWidgetTab = this.normalizeSettingsWidgetTab(prevState.settingsWidgetTab);
-    this.restoreHiddenColumns(prevState.hiddenColumns ?? []);
+    this.restoreHiddenColumns(
+      prevState.hiddenColumns ?? [],
+      prevState.columnVisibilityVersion === COLUMN_VISIBILITY_STATE_VERSION
+    );
 
     const repoState = this.gitRepos[prevState.currentRepo];
     if (repoState === undefined) return;
@@ -428,7 +461,8 @@ class GitGraphView {
     this.currentTags = prevState.currentTags ?? null;
   }
 
-  private restoreHiddenColumns(columns: readonly string[]) {
+  private restoreHiddenColumns(columns: readonly string[], replaceDefaults: boolean) {
+    if (replaceDefaults) this.hiddenColumns.clear();
     for (const column of columns) {
       if (isHideableColumn(column)) this.hiddenColumns.add(column);
     }
@@ -744,8 +778,14 @@ class GitGraphView {
     return (
       a.hash === b.hash &&
       arraysEqual(a.refs, b.refs, (ra, rb) => ra.name === rb.name && ra.type === rb.type) &&
-      arraysEqual(a.parentHashes, b.parentHashes, (pa, pb) => pa === pb)
+      arraysEqual(a.parentHashes, b.parentHashes, (pa, pb) => pa === pb) &&
+      this.isSameCommitSignature(a.signature, b.signature)
     );
+  }
+  private isSameCommitSignature(a: GitCommitNode["signature"], b: GitCommitNode["signature"]) {
+    if (a === b) return true;
+    if (a === null || a === undefined || b === null || b === undefined) return false;
+    return a.status === b.status && a.signer === b.signer && a.key === b.key;
   }
   private refreshUncommittedChangesCommit(commits: GitCommitNode[]) {
     if (this.commits.length === 0 || this.commits[0].hash !== "*") return;
@@ -867,7 +907,8 @@ class GitGraphView {
   public acceptExtensionSettingsUpdate(
     settings: GG.ExtensionSetting[],
     status: string | null,
-    errorLabel: string
+    errorLabel: string,
+    changedKeys: readonly string[]
   ) {
     if (status !== null) {
       setStatusStrip("error", errorLabel);
@@ -878,7 +919,7 @@ class GitGraphView {
     hideDialog();
     setStatusStrip("ready", l10n.statusReady);
     this.extensionSettings = settings;
-    this.applyExtensionSettings(settings);
+    this.applyExtensionSettings(settings, changedKeys);
     this.renderSettingsWidget();
   }
   private requestLoadBranches(
@@ -918,6 +959,7 @@ class GitGraphView {
       includeReflog: this.getIncludeReflog(),
       onlyFollowFirstParent: this.getOnlyFollowFirstParent(),
       commitOrdering: this.getCommitOrdering(),
+      showSignature: !this.hiddenColumns.has("signature"),
       hard: hard
     });
   }
@@ -1304,6 +1346,7 @@ class GitGraphView {
       showRemoteBranches: this.showRemoteBranches,
       expandedCommit: this.expandedCommit,
       hiddenColumns: [...this.hiddenColumns],
+      columnVisibilityVersion: COLUMN_VISIBILITY_STATE_VERSION,
       settingsWidgetOpen: this.settingsWidgetOpen,
       settingsWidgetTab: this.settingsWidgetTab
     });
@@ -1364,7 +1407,7 @@ class GitGraphView {
     this.showRemoteBranchesElem.checked = this.showRemoteBranches;
   }
 
-  private applyExtensionSettings(settings: GG.ExtensionSetting[]) {
+  private applyExtensionSettings(settings: GG.ExtensionSetting[], changedKeys: readonly string[]) {
     const beforeRemoteBranches = this.getShowRemoteBranches();
     const beforeStashes = this.getShowStashes();
     const beforeTags = this.getShowTags();
@@ -1374,6 +1417,18 @@ class GitGraphView {
 
     for (const setting of settings) {
       reloadHistory = this.applyExtensionSetting(setting) || reloadHistory;
+    }
+
+    if (changedKeys.includes(SIGNATURE_COLUMN_SETTING_KEY)) {
+      const wasHidden = this.hiddenColumns.has("signature");
+      if (this.config.showSignatureColumn) {
+        this.hiddenColumns.delete("signature");
+      } else {
+        this.hiddenColumns.add("signature");
+      }
+      const isHidden = this.hiddenColumns.has("signature");
+      if (wasHidden !== isHidden) this.saveState();
+      if (wasHidden && !isHidden) reloadHistory = true;
     }
 
     this.syncGraphColorStyles();
@@ -1420,6 +1475,10 @@ class GitGraphView {
         return true;
       case "fetchAvatars":
         this.config.fetchAvatars = value;
+        return true;
+      case "columns.signature":
+        this.config.showSignatureColumn = value;
+        viewState.showSignatureColumn = value;
         return true;
       case "repository.includeReflog":
         this.config.includeReflog = value;
@@ -2522,7 +2581,7 @@ class GitGraphView {
       );
     }
     if (this.commits.length === 0) {
-      html += `<tr class="emptyGraphRow"><td colspan="5">${l10n.emptyGraph}</td></tr>`;
+      html += `<tr class="emptyGraphRow"><td colspan="6">${l10n.emptyGraph}</td></tr>`;
     }
     this.tableElem.innerHTML = `<table>${html}</table>`;
     this.renderLoadMoreFooter();
@@ -3916,7 +3975,7 @@ class GitGraphView {
     });
   }
   private renderTableHeader() {
-    return `<tr id="tableColHeaders"><th id="tableHeaderGraphCol" class="tableColHeader">${l10n.graph}</th><th class="tableColHeader">${l10n.description}</th><th class="tableColHeader">${l10n.date}</th><th class="tableColHeader">${l10n.author}</th><th class="tableColHeader">${l10n.commit}</th></tr>`;
+    return `<tr id="tableColHeaders"><th id="tableHeaderGraphCol" class="tableColHeader">${l10n.graph}</th><th class="tableColHeader">${l10n.description}</th><th class="tableColHeader">${l10n.date}</th><th class="tableColHeader">${l10n.author}</th><th class="tableColHeader">${l10n.commit}</th><th class="tableColHeader signatureCol">${l10n.signature}</th></tr>`;
   }
   private getCurrentDisplayHash() {
     return this.commits.length > 0 && this.commits[0].hash === "*" ? "*" : this.commitHead;
@@ -3956,8 +4015,41 @@ class GitGraphView {
       escapeHtml(commit.author) +
       `</td><td title="${escapeHtml(commit.hash)}">` +
       this.displayHash(commit.hash) +
-      "</td></tr>"
+      `</td>${this.renderCommitSignatureCell(commit)}</tr>`
     );
+  }
+  private renderCommitSignatureCell(commit: GitCommitNode) {
+    const signature = commit.hash === "*" ? null : commit.signature;
+    return `<td class="signatureCol">${this.renderCommitSignature(signature)}</td>`;
+  }
+  private renderCommitSignature(signature: GitCommitNode["signature"]) {
+    if (signature === undefined) {
+      return this.renderCommitSignatureStatus("…", "pending", l10n.signatureLoading);
+    }
+    if (signature === null) {
+      return this.renderCommitSignatureStatus("—", "unsigned", l10n.signatureUnsigned);
+    }
+
+    const status = COMMIT_SIGNATURE_PRESENTATIONS[signature.status];
+    const details = [status.label];
+    if (signature.signer !== null) {
+      details.push(l10n.signatureSigner.replace("{0}", signature.signer));
+    }
+    if (signature.key !== null) details.push(l10n.signatureKey.replace("{0}", signature.key));
+    return this.renderCommitSignatureStatus(
+      status.glyph,
+      status.tone,
+      details.join("\n"),
+      details.join(". ")
+    );
+  }
+  private renderCommitSignatureStatus(
+    glyph: string,
+    tone: string,
+    title: string,
+    ariaLabel = title
+  ) {
+    return `<span class="commitSignature commitSignature-${tone}" role="img" aria-label="${escapeHtml(ariaLabel)}" title="${escapeHtml(title)}">${glyph}</span>`;
   }
   private renderCommitRowAttributes(
     commit: GitCommitNode,
@@ -4258,7 +4350,8 @@ class GitGraphView {
       date.title +
       '">' +
       date.value +
-      '</td><td title="* <>">*</td><td title="*">*</td>';
+      '</td><td title="* <>">*</td><td title="*">*</td>' +
+      `<td class="signatureCol">${this.renderCommitSignature(null)}</td>`;
   }
   private renderShowLoading(message = l10n.statusLoadingGraph) {
     hideDialogAndContextMenu();
@@ -4323,7 +4416,8 @@ class GitGraphView {
     this.tableElem.className = classes.join(" ");
   }
   private toggleColumnVisibility(column: HideableColumn) {
-    if (this.hiddenColumns.has(column)) {
+    const wasHidden = this.hiddenColumns.has(column);
+    if (wasHidden) {
       this.hiddenColumns.delete(column);
     } else {
       this.hiddenColumns.add(column);
@@ -4331,13 +4425,22 @@ class GitGraphView {
     this.saveState();
     this.renderTable();
     this.renderGraph();
+    if (
+      column === "signature" &&
+      wasHidden &&
+      this.commits.some((commit) => commit.hash !== "*" && commit.signature === undefined)
+    ) {
+      setStatusStrip("loading", l10n.signatureLoading);
+      this.requestLoadCommits(true, () => {});
+    }
   }
   private buildColumnVisibilityMenu(): ContextMenuElement[] {
     const commitOrdering = this.getCommitOrdering();
     const labels: Record<HideableColumn, string> = {
       date: l10n.date,
       author: l10n.author,
-      commit: l10n.commit
+      commit: l10n.commit,
+      signature: l10n.signature
     };
     const orderingLabels: Record<CommitOrdering, string> = {
       date: l10n.orderCommitDate,
@@ -4386,6 +4489,14 @@ class GitGraphView {
       mouseX = -1,
       col = -1;
 
+    if (columnWidths !== null && columnWidths.length !== 5) {
+      const fallbackWidths = [64, 120, 124, 72, SIGNATURE_COLUMN_DEFAULT_WIDTH];
+      columnWidths = fallbackWidths.map((fallback, index) =>
+        Math.max(columnWidths?.[index] ?? fallback, 40)
+      );
+      this.gitRepos[this.currentRepo].columnWidths = columnWidths;
+    }
+
     const makeTableFixedLayout = () => {
       if (columnWidths !== null) {
         cols[0].style.width = `${columnWidths[0]}px`;
@@ -4393,6 +4504,7 @@ class GitGraphView {
         cols[2].style.width = `${columnWidths[1]}px`;
         cols[3].style.width = `${columnWidths[2]}px`;
         cols[4].style.width = `${columnWidths[3]}px`;
+        cols[5].style.width = `${columnWidths[4]}px`;
         this.setTableLayout("fixedLayout");
         this.graph.limitMaxWidth(columnWidths[0] + 16);
       }
@@ -4436,7 +4548,8 @@ class GitGraphView {
           cols[0].clientWidth - 24,
           cols[2].clientWidth - 24,
           cols[3].clientWidth - 24,
-          cols[4].clientWidth - 24
+          cols[4].clientWidth - 24,
+          Math.max(cols[5].clientWidth - 24, SIGNATURE_COLUMN_DEFAULT_WIDTH)
         ];
         makeTableFixedLayout();
       }
@@ -5112,6 +5225,7 @@ const gitGraph = new GitGraphView(
     commitDetailsFileViewMode: viewState.commitDetailsFileViewMode,
     contextMenuActionsVisibility: viewState.contextMenuActionsVisibility,
     fetchAvatars: viewState.fetchAvatars,
+    showSignatureColumn: viewState.showSignatureColumn,
     graphColors: viewState.graphColors,
     customBranchGlobPatterns: viewState.customBranchGlobPatterns,
     graphFontSize: viewState.graphFontSize,
@@ -5191,7 +5305,8 @@ function handleActionResponse(msg: GG.ResponseMessage) {
     gitGraph.acceptExtensionSettingsUpdate(
       msg.settings,
       msg.status,
-      l10n.unableToUpdateExtensionSetting
+      l10n.unableToUpdateExtensionSetting,
+      [msg.key]
     );
     return true;
   }
@@ -5203,7 +5318,8 @@ function handleActionResponse(msg: GG.ResponseMessage) {
     gitGraph.acceptExtensionSettingsUpdate(
       msg.settings,
       msg.status,
-      l10n.unableToImportExtensionSettings
+      l10n.unableToImportExtensionSettings,
+      msg.importedKeys
     );
     return true;
   }

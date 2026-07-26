@@ -229,14 +229,28 @@ The extension is already split into clean layers:
   must be completed by a human. Do not commit tokens, generated `.scannerwork/`
   output, generated `coverage/` output, or local SonarQube server data. The
   project key is `git-graph-libre`.
-- No local SonarQube server is installed on this machine. The setup recorded in
-  the slice notes below — a ZIP install under `~/.local/opt/sonarqube` backed by
-  `postgresql.service`, run as a `sonarqube.service` systemd user unit for user
-  `z`, with a token at `/home/z/.sonar/neo-git-graph.token`, on WSL — belonged
-  to an earlier machine. None of those paths exist now, and this machine is not
-  WSL. Treat every `sonar:*` command recorded below as unrunnable until the
-  server, token, and project key are re-established, and update this section
-  when they are.
+- SonarQube state on this machine (`2026-07-27`): no local server, but a remote
+  one is configured. `sonar-scanner` `8.0.1.6346` is installed at
+  `/opt/sonar-scanner`, and its global config
+  `/opt/sonar-scanner/conf/sonar-scanner.properties` sets `sonar.host.url` to the
+  maintainer's private instance. Read the address from that file when you need it;
+  do not record it here or anywhere else in the repository. The scanner reaches
+  that server but has **no token**, so every scan fails with
+  `HTTP 401 Unauthorized` on `/api/v2/analysis/version`. Supply one as
+  `SONAR_TOKEN` — for example from a `chmod 600` file outside the repo — and
+  prefer `pnpm run sonar:scan`, because
+  `pnpm run sonar:scan:local` overrides the host with
+  `-Dsonar.host.url=http://127.0.0.1:9000` where nothing is listening. The
+  separate SonarQube CLI is also absent, so `pnpm run sonar:auth`,
+  `sonar:auth:status`, and `sonar:secrets` cannot run at all; those scripts still
+  point at `http://127.0.0.1:9000`.
+- The setup recorded in the older slice notes below — a ZIP install under
+  `~/.local/opt/sonarqube` backed by `postgresql.service`, run as a
+  `sonarqube.service` systemd user unit for user `z`, with a token at
+  `/home/z/.sonar/neo-git-graph.token`, on WSL — belonged to an earlier machine.
+  None of those paths exist now, and this machine is not WSL. Treat the exact
+  commands recorded in those notes as historical evidence, not as runnable
+  instructions.
 - `sonar.coverage.exclusions=scripts/**,esbuild.js` keeps repo build tooling
   (l10n checker, octicons generator, esbuild driver) out of coverage
   requirements: these scripts run at build time outside the extension and have
@@ -380,7 +394,7 @@ together):
 | 7 Stash management | Partial — actions done; graph stash rows remain |
 | 8 Comparison and multi-select | Partial — compare-with-HEAD and multi-select done; arbitrary two-commit/ref comparison and external directory diff remain |
 | 9 Repository and remote management | Mostly complete — repository dropdown ordering preference remains |
-| 10 Advanced history, text, integrations | Partial — issue links, config export, archive done; text rendering, signatures, mailmap, code review, encoding remain |
+| 10 Advanced history, text, integrations | Partial — issue links, config export, archive, commit signature status done; text rendering, tag signatures, mailmap, code review, encoding remain |
 | 12 Toolbar dropdown name truncation and find row | Complete |
 | 13 Settings hub: tabbed widget, color editor, settings export | Complete |
 | 14 Reveal highlight: persistent blink and configurable color | Complete |
@@ -816,7 +830,7 @@ Acceptance:
 
 ### Phase 10: Advanced History, Text, and Integrations
 
-**Status: partially complete** — issue linking, repo config export/import sharing (`7a18099`), and ref archives (`b4d97fe`) are done. Remaining: markdown/emoji message rendering, inline commit body, commit/tag signature status, `.mailmap` support, code-review state, file encoding setting, and an uncommitted-changes details view.
+**Status: partially complete** — issue linking, repo config export/import sharing (`7a18099`), ref archives (`b4d97fe`), and commit signature status are done. Remaining: markdown/emoji message rendering, inline commit body, tag signature status, `.mailmap` support, code-review state, file encoding setting, and an uncommitted-changes details view.
 
 Goal: close feature gaps after the core UX is strong.
 
@@ -835,6 +849,50 @@ Acceptance:
 - Each advanced feature has a toggle or clear entry point.
 - Unsafe HTML is not introduced.
 - Tests cover parsing, escaping, and message contracts.
+
+Slice progress:
+
+- `2026-07-27`: Added commit signature status as an opt-in table column.
+  `GitCommitSignature` carries a normalized `status` mapped from `git log %G?`
+  (`G`, `U`, `B`, `X`, `Y`, `R`, `E`, plus `unknown` for anything unrecognized)
+  alongside `%GS` signer and `%GK` key. `%G?`/`%GS`/`%GK` are appended to the log
+  format only when `showSignature` is requested, so an unsigned or
+  signature-blind repository pays no verification cost; `signature` is therefore
+  `undefined` when the query skipped it and `null` when the commit is unsigned.
+  The column is hidden unless `git-graph-libre.columns.signature` is on
+  (default `false`), can be toggled per-session from the table header context
+  menu, and reacts to live setting changes. Persisted column visibility is
+  versioned with `COLUMN_VISIBILITY_STATE_VERSION` so the new default replaces
+  stale saved state instead of resurrecting it. In the same slice,
+  `GitCommitDetails` gained `authorDate`, `committerEmail`, and `committerDate`
+  in place of the single `dateType`-dependent `date` field, so commit details
+  render author and committer rows independently and collapse to one Date row
+  only when both identity and date match. Verified with:
+  - `git fetch --all --prune` (branch level with `origin/AI-dev`)
+  - `pnpm run typecheck`
+  - `pnpm run lint` (`176` files; one pre-existing `biome.jsonc` schema-version
+    info, `2.5.2` against CLI `2.5.5`)
+  - `pnpm run lint:strict:staged` (`34` files, clean)
+  - `pnpm run test` (backend `37` files / `195` tests; webview `30` files /
+    `244` tests)
+  - `pnpm run l10n:check` passed with `100%` package and bundle coverage for
+    `pl`, `zh-cn`, and `zh-tw`
+  - `pnpm run package`
+  - `pnpm run test:coverage` (`67` files / `439` tests, `coverage/lcov.info`
+    written)
+  - Fixed one stale assertion found by the gate: `tests/backend/manifest.test.ts`
+    still required an `onCommand:` activation event per contributed command after
+    those entries were dropped from the manifest. With `engines.vscode`
+    `^1.98.0`, VS Code generates that activation implicitly, so the test now
+    asserts no `onCommand:` events are listed instead.
+  - SonarQube quality gate **not run**: the scanner reaches the configured
+    server but has no credentials —
+    `GET <sonar.host.url>/api/v2/analysis/version` returned
+    `HTTP 401 Unauthorized`, and no token exists in `SONAR_TOKEN` or under
+    `~/.sonar`. Remaining risk: no new-code coverage percentage,
+    duplicated-lines density, or new-violation count for this slice. Biome
+    strict was clean over the touched files, and coverage was generated and is
+    ready for the first authenticated scan.
 
 ### Phase 12: Toolbar Dropdown Name Truncation and Find Row (Bug)
 
@@ -1349,7 +1407,7 @@ Maintainer-set priorities (`2026-07-03`): Phases 12, 13, and 14 are complete.
    docked-bottom commit details (Phase 2), graph stash rows (Phase 7),
    arbitrary two-commit/ref comparison and external directory diff
    (Phase 8), repository dropdown ordering (Phase 9), text
-   rendering/signatures/mailmap/encoding (Phase 10).
+   rendering/tag signatures/mailmap/encoding (Phase 10).
 
 ## Documentation and Verification Rules
 

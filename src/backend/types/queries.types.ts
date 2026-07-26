@@ -89,6 +89,7 @@ type QueryPayloads = {
       includeReflog: boolean;
       onlyFollowFirstParent: boolean;
       commitOrdering: CommitOrdering;
+      showSignature: boolean;
       hard: boolean;
     };
     result: LoadCommitsResult;

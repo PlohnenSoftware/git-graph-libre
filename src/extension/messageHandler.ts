@@ -509,6 +509,7 @@ export function registerMessageHandlers(
         includeReflog: msg.includeReflog,
         onlyFollowFirstParent: msg.onlyFollowFirstParent,
         commitOrdering: msg.commitOrdering,
+        showSignature: msg.showSignature,
         hard: msg.hard,
         dateType: config.dateType(),
         showUncommittedChanges: config.showUncommittedChanges(),

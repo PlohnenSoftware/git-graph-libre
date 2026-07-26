@@ -21,6 +21,7 @@
   "config.dateType": "指定在 Git 圖形中顯示的日期類型。",
   "config.dateType.authorDate": "使用提交的作者日期",
   "config.dateType.commitDate": "使用提交的提交者日期",
+  "config.columns.signature": "預設顯示提交簽章欄。您可以從表頭內容選單暫時切換該欄。僅當該欄可見時才會執行簽章驗證。",
   "config.fetchAvatars": "取得提交作者和提交者的頭像。啟用此設定即表示您同意將提交作者和提交者的電子郵件地址傳送到 GitHub、GitLab 或 Gravatar（取決於存放庫的遠端來源）。",
   "config.customBranchGlobPatterns": "在「分支」下拉選單中顯示的自訂分支 glob 預設。每個 glob 都會作為 --glob=<pattern> 傳遞給 git log。",
   "config.customBranchGlobPatterns.name": "在「分支」下拉選單中顯示的名稱。",

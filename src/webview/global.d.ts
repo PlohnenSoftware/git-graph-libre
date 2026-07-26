@@ -16,6 +16,7 @@ declare global {
     commitDetailsFileViewMode: GG.CommitDetailsFileViewMode;
     contextMenuActionsVisibility: GG.ContextMenuActionsVisibility;
     fetchAvatars: boolean;
+    showSignatureColumn: boolean;
     graphColors: string[];
     graphFontSize: number;
     graphRowHeight: number;
@@ -153,6 +154,7 @@ declare global {
     showRemoteBranches: boolean;
     expandedCommit: ExpandedCommit | null;
     hiddenColumns?: string[];
+    columnVisibilityVersion?: number;
     commitOrdering?: string;
   }
 }

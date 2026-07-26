@@ -74,7 +74,7 @@ export async function commitDetails(
     const repo = input.repo ?? null;
     const record = input.recordGitCommand;
     const [details, nameStatusLines, numStatLines] = await Promise.all([
-      fetchCommitInfo(git, input.commitHash, input.dateType, repo, record),
+      fetchCommitInfo(git, input.commitHash, repo, record),
       fetchNameStatus(git, input.commitHash, repo, record),
       fetchNumStat(git, input.commitHash, repo, record)
     ]);

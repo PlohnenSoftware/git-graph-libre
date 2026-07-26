@@ -58,7 +58,7 @@ export function renderCommitDetailsRowHtml({
 }: RenderCommitDetailsOptions): string {
   const resolvedFileView = fileView ?? defaultCommitDetailsFileView;
   return [
-    '<td></td><td colspan="4">',
+    '<td></td><td colspan="5">',
     renderCommitDetailsSummary(
       commitDetails,
       avatars,
@@ -87,9 +87,30 @@ export function renderCommitDetailsSummary(
 ): string {
   const avatar = avatars[commitDetails.email];
   const topClass = `commitDetailsSummaryTop${typeof avatar === "string" ? " withAvatar" : ""}`;
-  const authorEmail = escapeHtml(commitDetails.email);
   const body = linkifyText(commitDetails.body, issueLinking);
   const bodyClass = `commitDetailsPaneBody${open ? "" : " hidden"}`;
+  const authorIdentity = renderCommitIdentity(commitDetails.author, commitDetails.email);
+  const committerIdentity = renderCommitIdentity(
+    commitDetails.committer,
+    commitDetails.committerEmail
+  );
+  const sameIdentity =
+    commitDetails.author === commitDetails.committer &&
+    commitDetails.email === commitDetails.committerEmail;
+  const sameDate = commitDetails.authorDate === commitDetails.committerDate;
+  const identityAndDateRows =
+    sameIdentity && sameDate
+      ? [
+          `<b>${l10n.detailAuthor}</b>${authorIdentity}<br>`,
+          `<b>${l10n.detailCommitter}</b>${committerIdentity}<br>`,
+          `<b>${l10n.detailDate}</b>${new Date(commitDetails.authorDate * 1000).toString()}`
+        ].join("")
+      : [
+          `<b>${l10n.detailAuthor}</b>${authorIdentity}<br>`,
+          `<b>${l10n.detailAuthorDate}</b>${new Date(commitDetails.authorDate * 1000).toString()}<br>`,
+          `<b>${l10n.detailCommitter}</b>${committerIdentity}<br>`,
+          `<b>${l10n.detailCommitterDate}</b>${new Date(commitDetails.committerDate * 1000).toString()}`
+        ].join("");
 
   return [
     '<div id="commitDetailsSummary">',
@@ -103,11 +124,8 @@ export function renderCommitDetailsSummary(
     '<span class="commitDetailsSummaryKeyValues">',
     `<b>${l10n.detailCommit}</b>${escapeHtml(commitDetails.hash)}<br>`,
     `<b>${l10n.detailParents}</b>${commitDetails.parents.join(", ")}<br>`,
-    `<b>${l10n.detailAuthor}</b>${escapeHtml(commitDetails.author)} &lt;<a href="mailto:${encodeURIComponent(
-      commitDetails.email
-    )}">${authorEmail}</a>&gt;<br>`,
-    `<b>${l10n.detailDate}</b>${new Date(commitDetails.date * 1000).toString()}<br>`,
-    `<b>${l10n.detailCommitter}</b>${escapeHtml(commitDetails.committer)}</span>`,
+    identityAndDateRows,
+    "</span>",
     typeof avatar === "string"
       ? `<span class="commitDetailsSummaryAvatar"><img src="${escapeHtml(avatar)}"></span>`
       : "",
@@ -115,6 +133,12 @@ export function renderCommitDetailsSummary(
     body,
     "</div></div>"
   ].join("");
+}
+
+function renderCommitIdentity(name: string, email: string): string {
+  return `${escapeHtml(name)} &lt;<a href="mailto:${encodeURIComponent(email)}">${escapeHtml(
+    email
+  )}</a>&gt;`;
 }
 
 export function renderCommitDetailsFiles(

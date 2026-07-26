@@ -10,6 +10,7 @@ const config: Config = {
   commitDetailsFileViewMode: "tree",
   contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
   fetchAvatars: false,
+  showSignatureColumn: false,
   graphColors: ["oklch(65% 0.16 250)"],
   customBranchGlobPatterns: [],
   graphFontSize: 13,

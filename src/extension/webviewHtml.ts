@@ -40,6 +40,7 @@ export function buildWebviewHtml(opts: {
     contextMenuActionsVisibility: config.contextMenuActionsVisibility(),
     dateFormat: config.dateFormat(),
     fetchAvatars: config.fetchAvatars() && extensionState.isAvatarStorageAvailable(),
+    showSignatureColumn: config.showSignatureColumn(),
     graphColors: config.graphColors(),
     customBranchGlobPatterns: config.customBranchGlobPatterns(),
     graphFontSize: config.graphFontSize(),

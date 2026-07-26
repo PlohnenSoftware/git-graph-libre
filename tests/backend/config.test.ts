@@ -44,6 +44,14 @@ describe("configuration", () => {
     expect(config.graphRowHeight()).toBe(18);
   });
 
+  it("keeps the signature column off by default and reads its permanent setting", async () => {
+    const { config } = await import("@/config");
+    expect(config.showSignatureColumn()).toBe(false);
+
+    settings.set("git-graph-libre.columns.signature", true);
+    expect(config.showSignatureColumn()).toBe(true);
+  });
+
   it("falls back when graph density settings are invalid", async () => {
     settings.set("git-graph-libre.graph.fontSize", Number.NaN);
     settings.set("git-graph-libre.graph.rowHeight", "compact");

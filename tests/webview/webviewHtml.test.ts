@@ -19,6 +19,7 @@ function makeConfig(): Config {
     dateFormat: () => "Date & Time",
     dateType: () => "Author Date",
     fetchAvatars: () => false,
+    showSignatureColumn: () => false,
     graphColors: () => ["oklch(65% 0.16 250)"],
     customBranchGlobPatterns: () => [{ name: "Features", glob: "--glob=heads/feature/*" }],
     graphFontSize: () => 15,
@@ -74,6 +75,7 @@ describe("webview HTML", () => {
     expect(result.html).toContain("--ngg-reveal-highlight:oklch(90% 0.25 150 / 0.42);");
     expect(viewState.commitDetailsCompactFolders).toBe(true);
     expect(viewState.commitDetailsFileViewMode).toBe("list");
+    expect(viewState.showSignatureColumn).toBe(false);
     expect(viewState.contextMenuActionsVisibility.tag.push).toBe(false);
     expect(viewState.graphFontSize).toBe(15);
     expect(viewState.graphRowHeight).toBe(30);

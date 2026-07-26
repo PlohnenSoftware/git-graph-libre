@@ -57,7 +57,7 @@ export async function commitComparison(
     const repo = input.repo ?? null;
     const record = input.recordGitCommand;
     const [details, nameStatusLines, numStatLines] = await Promise.all([
-      fetchCommitInfo(git, input.commitHash, input.dateType, repo, record),
+      fetchCommitInfo(git, input.commitHash, repo, record),
       fetchComparisonDiff(git, "--name-status", input, repo, record),
       fetchComparisonDiff(git, "--numstat", input, repo, record)
     ]);

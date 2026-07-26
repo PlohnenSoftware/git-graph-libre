@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Commit signature status**: an optional Signature column shows whether each
+  commit is signed and whether the signature verifies, with the signer and key in
+  the tooltip. It is off by default (`git-graph-libre.columns.signature`) and can
+  be toggled from the table header context menu. Verification only runs while the
+  column is visible, so the extra `git log` work is never paid for when hidden.
+- Commit details now show the author and the committer with their own identity
+  and date rows, collapsing back to a single Date row when the two match. Author
+  and committer dates are read independently of the `dateType` setting.
 - The status bar item now stays visible when no Git repository is found, showing
   an eye icon and "No Git repository found — watching for one" instead of
   disappearing. With a repository it shows a graph icon and the usual tooltip.

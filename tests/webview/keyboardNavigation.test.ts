@@ -15,6 +15,7 @@ const viewState: GG.GitGraphViewState = {
   autoCenterCommitDetailsView: true,
   dateFormat: "Date & Time",
   fetchAvatars: false,
+  showSignatureColumn: false,
   graphColors: ["oklch(65% 0.16 250)"],
   customBranchGlobPatterns: [],
   commitDetailsCompactFolders: false,
@@ -74,8 +75,10 @@ function commitDetailsFor(hash: string, parents: string[]): GitCommitDetails {
     parents,
     author: "Alice",
     email: "alice@example.com",
-    date: 1700000200,
+    authorDate: 1700000200,
     committer: "Alice",
+    committerEmail: "alice@example.com",
+    committerDate: 1700000200,
     body: `Body of ${hash}`,
     fileChanges: [
       { oldFilePath: "src/a.ts", newFilePath: "src/a.ts", type: "M", additions: 1, deletions: 0 }

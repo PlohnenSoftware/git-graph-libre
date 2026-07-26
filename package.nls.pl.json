@@ -21,6 +21,7 @@
   "config.dateType": "Określa typ daty wyświetlanej w Git Graph.",
   "config.dateType.authorDate": "Użyj daty autora commita",
   "config.dateType.commitDate": "Użyj daty zatwierdzenia commita",
+  "config.columns.signature": "Domyślnie pokazuj kolumnę podpisu commita. Możesz ją tymczasowo przełączyć w menu kontekstowym nagłówka tabeli. Weryfikacja podpisów działa tylko wtedy, gdy kolumna jest widoczna.",
   "config.fetchAvatars": "Pobieraj awatary autorów i committerów. Włączenie tej opcji oznacza zgodę na wysyłanie adresów e-mail autorów i committerów do GitHub, GitLab lub Gravatar, zależnie od zdalnego origin repozytorium.",
   "config.customBranchGlobPatterns": "Niestandardowe presety globów gałęzi pokazywane w menu Gałęzie. Każdy glob jest przekazywany do git log jako --glob=<wzorzec>.",
   "config.customBranchGlobPatterns.name": "Nazwa wyświetlana w menu Gałęzie.",

@@ -197,6 +197,11 @@
           "default": "Author Date",
           "description": "%config.dateType%"
         },
+        "git-graph-libre.columns.signature": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.columns.signature%"
+        },
         "git-graph-libre.fetchAvatars": {
           "type": "boolean",
           "default": false,
@@ -414,13 +419,6 @@
     }
   },
   "activationEvents": [
-    "onCommand:git-graph-libre.view",
-    "onCommand:git-graph-libre.clearAvatarCache",
-    "onCommand:git-graph-libre.searchCommits",
-    "onCommand:git-graph-libre.viewActiveEditorRepo",
-    "onCommand:git-graph-libre.addRepo",
-    "onCommand:git-graph-libre.removeRepo",
-    "onCommand:git-graph-libre.showDiagnostics",
     "workspaceContains:.git",
     "workspaceContains:**/.git"
   ],

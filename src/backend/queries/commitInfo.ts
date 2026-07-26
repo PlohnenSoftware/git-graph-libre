@@ -1,12 +1,12 @@
 import type { SimpleGit } from "simple-git";
 
-import type { DateType, GitCommitDetails } from "@/backend/types";
+import type { GitCommitDetails } from "@/backend/types";
 import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
 
 const eolRegex = /\r\n|\r|\n/g;
 const gitFieldSeparatorFormat = "%x00";
 const gitFieldSeparatorOutput = "\0";
-const commitInfoFieldCount = 7;
+const commitInfoFieldCount = 9;
 
 function trimTrailingBlankLines(text: string) {
   const lines = text.split(eolRegex);
@@ -18,12 +18,12 @@ function trimTrailingBlankLines(text: string) {
 export async function fetchCommitInfo(
   git: SimpleGit,
   commitHash: string,
-  dateType: DateType,
   repo: string | null,
   record?: GitCommandRecorder
 ): Promise<GitCommitDetails> {
-  const dateField = dateType === "Author Date" ? "%at" : "%ct";
-  const format = ["%H", "%P", "%an", "%ae", dateField, "%cn", "%B"].join(gitFieldSeparatorFormat);
+  const format = ["%H", "%P", "%an", "%ae", "%at", "%cn", "%ce", "%ct", "%B"].join(
+    gitFieldSeparatorFormat
+  );
   const stdout = await runGitRaw(git, {
     label: "commitDetails.info",
     args: ["show", "--quiet", commitHash, `--format=${format}`],
@@ -38,9 +38,11 @@ export async function fetchCommitInfo(
     parents: commitInfo[1] === "" ? [] : commitInfo[1].split(" "),
     author: commitInfo[2],
     email: commitInfo[3],
-    date: Number.parseInt(commitInfo[4], 10),
+    authorDate: Number.parseInt(commitInfo[4], 10),
     committer: commitInfo[5],
-    body: trimTrailingBlankLines(commitInfo.slice(6).join(gitFieldSeparatorOutput)),
+    committerEmail: commitInfo[6],
+    committerDate: Number.parseInt(commitInfo[7], 10),
+    body: trimTrailingBlankLines(commitInfo.slice(8).join(gitFieldSeparatorOutput)),
     fileChanges: []
   };
 }

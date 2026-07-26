@@ -112,6 +112,7 @@ export const config = {
     normalizeContextMenuActionsVisibility(getConfig("contextMenuActionsVisibility", {})),
   dateFormat: (): DateFormat => getConfig("dateFormat", "Date & Time"),
   dateType: (): DateType => getConfig("dateType", "Author Date"),
+  showSignatureColumn: (): boolean => getConfig("columns.signature", false),
   fetchAvatars: (): boolean => getConfig("fetchAvatars", false),
   graphColors: (): string[] =>
     getConfigWithLegacy("graphColors", "graphColours", DEFAULT_GRAPH_COLORS).filter(isGraphColor),

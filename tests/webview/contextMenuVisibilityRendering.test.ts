@@ -15,6 +15,7 @@ const defaultViewState: GG.GitGraphViewState = {
   contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
   dateFormat: "Date & Time",
   fetchAvatars: false,
+  showSignatureColumn: false,
   graphColors: ["oklch(65% 0.16 250)"],
   customBranchGlobPatterns: [],
   graphFontSize: 13,
@@ -76,9 +77,12 @@ function latestRequest<T extends GG.RequestMessage["command"]>(
   throw new Error(`Missing ${command} request`);
 }
 
-async function bootWebview(viewState: GG.GitGraphViewState) {
+async function bootWebview(
+  viewState: GG.GitGraphViewState,
+  initialState?: Parameters<typeof createVscodeMock>[0]
+) {
   vi.resetModules();
-  const vscodeMock = createVscodeMock();
+  const vscodeMock = createVscodeMock(initialState);
   setupHtml(viewState);
   await import("@/webview/main");
 
@@ -106,6 +110,7 @@ async function bootWebview(viewState: GG.GitGraphViewState) {
     hard: true,
     error: null
   });
+  return vscodeMock;
 }
 
 function withVisibility(
@@ -127,6 +132,49 @@ function contextMenuItems() {
 }
 
 describe("context menu visibility rendering", () => {
+  it("uses the permanent signature default and restores a temporary header override", async () => {
+    const viewState = { ...defaultViewState, showSignatureColumn: true };
+    const vscodeMock = await bootWebview(viewState);
+    expect(latestRequest(vscodeMock.sentMessages, "loadCommits").showSignature).toBe(true);
+    expect(document.getElementById("commitTable")?.classList.contains("hideSignatureCol")).toBe(
+      false
+    );
+
+    document
+      .querySelector<HTMLElement>(".tableColHeader")
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const signatureItem = Array.from(
+      document.querySelectorAll<HTMLElement>("#contextMenu .contextMenuItem")
+    ).find((item) => item.textContent?.includes("Signature"));
+    expect(signatureItem?.textContent).toBe("✓ Signature");
+    signatureItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const savedState = vscodeMock.getState();
+    expect(savedState?.hiddenColumns).toContain("signature");
+    expect(savedState?.columnVisibilityVersion).toBe(1);
+
+    await bootWebview(viewState, savedState);
+    expect(document.getElementById("commitTable")?.classList.contains("hideSignatureCol")).toBe(
+      true
+    );
+  });
+
+  it("migrates old Date/Author/Commit visibility state without enabling signatures", async () => {
+    const vscodeMock = await bootWebview(defaultViewState);
+    const currentState = vscodeMock.getState();
+    expect(currentState).toBeDefined();
+    const legacyState = {
+      ...currentState,
+      hiddenColumns: ["date"],
+      columnVisibilityVersion: undefined
+    } as NonNullable<typeof currentState>;
+
+    await bootWebview(defaultViewState, legacyState);
+    const table = document.getElementById("commitTable");
+    expect(table?.classList.contains("hideDateCol")).toBe(true);
+    expect(table?.classList.contains("hideSignatureCol")).toBe(true);
+  });
+
   it("hides disabled tag actions and removes redundant dividers", async () => {
     await bootWebview(
       withVisibility({

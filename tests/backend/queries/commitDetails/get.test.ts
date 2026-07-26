@@ -41,14 +41,17 @@ describe("commitDetails", () => {
         parents: expect.any(Array),
         author: expect.any(String),
         email: expect.any(String),
-        date: expect.any(Number),
+        authorDate: expect.any(Number),
         committer: expect.any(String),
+        committerEmail: expect.any(String),
+        committerDate: expect.any(Number),
         body: expect.any(String),
         fileChanges: expect.any(Array)
       },
       error: null
     });
-    expect(expectCommitDetails(result).date).toBeGreaterThan(0);
+    expect(expectCommitDetails(result).authorDate).toBeGreaterThan(0);
+    expect(expectCommitDetails(result).committerDate).toBeGreaterThan(0);
   });
 
   it("returns file changes for the initial commit", async () => {
@@ -79,6 +82,48 @@ describe("commitDetails", () => {
       expect(details.committer).toBe(name);
     } finally {
       fs.rmSync(separatorRepo, { recursive: true, force: true });
+    }
+  });
+
+  it("returns distinct author and committer identities and dates", async () => {
+    const metadataRepo = makeRepo();
+    const authorDate = "2024-01-02T03:04:05+00:00";
+    const committerDate = "2024-02-03T04:05:06+00:00";
+    try {
+      fs.writeFileSync(path.join(metadataRepo, "metadata"), "value");
+      git(["add", "."], metadataRepo);
+      cp.execFileSync("git", ["commit", "--no-gpg-sign", "-m", "distinct metadata"], {
+        cwd: metadataRepo,
+        env: {
+          ...process.env,
+          GIT_AUTHOR_NAME: "Original Author",
+          GIT_AUTHOR_EMAIL: "author@example.com",
+          GIT_AUTHOR_DATE: authorDate,
+          GIT_COMMITTER_NAME: "Commit Integrator",
+          GIT_COMMITTER_EMAIL: "committer@example.com",
+          GIT_COMMITTER_DATE: committerDate
+        }
+      });
+      const hash = cp
+        .execFileSync("git", ["rev-parse", "HEAD"], { cwd: metadataRepo })
+        .toString()
+        .trim();
+
+      const details = expectCommitDetails(
+        await commitDetails(simpleGit(metadataRepo), {
+          commitHash: hash,
+          dateType: "Commit Date"
+        })
+      );
+
+      expect(details.author).toBe("Original Author");
+      expect(details.email).toBe("author@example.com");
+      expect(details.authorDate).toBe(Date.parse(authorDate) / 1000);
+      expect(details.committer).toBe("Commit Integrator");
+      expect(details.committerEmail).toBe("committer@example.com");
+      expect(details.committerDate).toBe(Date.parse(committerDate) / 1000);
+    } finally {
+      fs.rmSync(metadataRepo, { recursive: true, force: true });
     }
   });
 
@@ -186,7 +231,7 @@ describe("commitDetails", () => {
     }
   });
 
-  it("uses commit date when dateType is Commit Date", async () => {
+  it("returns both dates when dateType is Commit Date", async () => {
     const result = await commitDetails(simpleGit(repo), { commitHash, dateType: "Commit Date" });
     expect(result).toEqual({
       commitDetails: {
@@ -194,14 +239,17 @@ describe("commitDetails", () => {
         parents: expect.any(Array),
         author: expect.any(String),
         email: expect.any(String),
-        date: expect.any(Number),
+        authorDate: expect.any(Number),
         committer: expect.any(String),
+        committerEmail: expect.any(String),
+        committerDate: expect.any(Number),
         body: expect.any(String),
         fileChanges: expect.any(Array)
       },
       error: null
     });
-    expect(expectCommitDetails(result).date).toBeGreaterThan(0);
+    expect(expectCommitDetails(result).authorDate).toBeGreaterThan(0);
+    expect(expectCommitDetails(result).committerDate).toBeGreaterThan(0);
   });
 
   it("body contains the commit message", async () => {
