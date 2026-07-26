@@ -12,5 +12,7 @@ coverage/
 /graphify-out/cache/
 /graphify-out/manifest.json
 /graphify-out/graph.html
+# dated curated-graph backups written by `graphify update`
+/graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
 
 *.orig
