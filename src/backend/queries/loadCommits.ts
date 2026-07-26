@@ -161,74 +161,84 @@ async function getRefs(
   }
 }
 
-async function getLog(
-  git: SimpleGit,
-  {
-    refs,
-    authors,
-    maxCommits,
-    showRemoteBranches,
-    hiddenRemotes,
-    showTags,
-    includeReflog,
-    onlyFollowFirstParent,
-    dateType,
-    commitOrdering,
-    showSignature,
-    context
-  }: GitLogOptions
-): Promise<QueryValue<GitLogEntry[]>> {
+function buildLogFormat(dateType: DateType, showSignature: boolean): string {
   const dateField = dateType === "Author Date" ? "%at" : "%ct";
   const formatFields = ["%H", "%P", "%an", "%ae", dateField, "%s"];
   if (showSignature) formatFields.push("%G?", "%GS", "%GK");
-  const format = formatFields.join(gitLogFormatFieldSeparator);
+  return formatFields.join(gitLogFormatFieldSeparator);
+}
+
+function buildLogArgs({
+  refs,
+  authors,
+  maxCommits,
+  showRemoteBranches,
+  hiddenRemotes,
+  showTags,
+  includeReflog,
+  onlyFollowFirstParent,
+  dateType,
+  commitOrdering,
+  showSignature
+}: GitLogOptions): string[] {
   const args = [
     "log",
     "-z",
     `--max-count=${maxCommits}`,
-    `--format=${format}`,
+    `--format=${buildLogFormat(dateType, showSignature)}`,
     `--${commitOrdering}-order`
   ];
   if (onlyFollowFirstParent) args.push("--first-parent");
   args.push(...authorArgs(authors));
-  if (refs === null) {
-    args.push("--branches");
-    if (showTags) args.push("--tags");
-    if (includeReflog) args.push("--reflog");
-    if (showRemoteBranches) args.push(...remoteExcludeArgs(hiddenRemotes), "--remotes");
-  } else {
+  if (refs !== null) {
     args.push(...refs);
+    return args;
   }
+  args.push("--branches");
+  if (showTags) args.push("--tags");
+  if (includeReflog) args.push("--reflog");
+  if (showRemoteBranches) args.push(...remoteExcludeArgs(hiddenRemotes), "--remotes");
+  return args;
+}
+
+function parseLogEntries(stdout: string, showSignature: boolean): GitLogEntry[] {
+  const fields = stdout.split(gitLogOutputFieldSeparator);
+  if (fields.at(-1) === "") fields.pop();
+  const fieldCount = gitLogBaseFieldCount + (showSignature ? gitLogSignatureFieldCount : 0);
+  const commits: GitLogEntry[] = [];
+  for (let i = 0; i + fieldCount - 1 < fields.length; i += fieldCount) {
+    const commit: GitLogEntry = {
+      hash: fields[i],
+      parentHashes: fields[i + 1].split(" "),
+      author: fields[i + 2],
+      email: fields[i + 3],
+      date: Number.parseInt(fields[i + 4], 10),
+      message: fields[i + 5]
+    };
+    if (showSignature) {
+      commit.signature = parseCommitSignature(
+        fields[i + gitLogBaseFieldCount],
+        fields[i + gitLogBaseFieldCount + 1],
+        fields[i + gitLogBaseFieldCount + 2]
+      );
+    }
+    commits.push(commit);
+  }
+  return commits;
+}
+
+async function getLog(
+  git: SimpleGit,
+  options: GitLogOptions
+): Promise<QueryValue<GitLogEntry[]>> {
   try {
     const stdout = await runGitRaw(git, {
       label: "loadCommits.log",
-      args: [...args, "--"],
-      repo: context.repo,
-      record: context.record
+      args: [...buildLogArgs(options), "--"],
+      repo: options.context.repo,
+      record: options.context.record
     });
-    const fields = stdout.split(gitLogOutputFieldSeparator);
-    if (fields[fields.length - 1] === "") fields.pop();
-    const commits: GitLogEntry[] = [];
-    const fieldCount = gitLogBaseFieldCount + (showSignature ? gitLogSignatureFieldCount : 0);
-    for (let i = 0; i + fieldCount - 1 < fields.length; i += fieldCount) {
-      const commit: GitLogEntry = {
-        hash: fields[i],
-        parentHashes: fields[i + 1].split(" "),
-        author: fields[i + 2],
-        email: fields[i + 3],
-        date: Number.parseInt(fields[i + 4], 10),
-        message: fields[i + 5]
-      };
-      if (showSignature) {
-        commit.signature = parseCommitSignature(
-          fields[i + gitLogBaseFieldCount],
-          fields[i + gitLogBaseFieldCount + 1],
-          fields[i + gitLogBaseFieldCount + 2]
-        );
-      }
-      commits.push(commit);
-    }
-    return { value: commits, error: null };
+    return { value: parseLogEntries(stdout, options.showSignature), error: null };
   } catch (error: unknown) {
     return { value: [], error: toGitQueryError(error, "Unable to load commits") };
   }

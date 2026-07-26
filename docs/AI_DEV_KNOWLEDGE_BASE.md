@@ -230,20 +230,33 @@ The extension is already split into clean layers:
   output, generated `coverage/` output, or local SonarQube server data. The
   project key is `git-graph-libre`.
 - SonarQube state on this machine (`2026-07-27`): no local server, but a remote
-  one is configured. `sonar-scanner` `8.0.1.6346` is installed at
+  one is configured and working. `sonar-scanner` `8.0.1.6346` is installed at
   `/opt/sonar-scanner`, and its global config
-  `/opt/sonar-scanner/conf/sonar-scanner.properties` sets `sonar.host.url` to the
-  maintainer's private instance. Read the address from that file when you need it;
-  do not record it here or anywhere else in the repository. The scanner reaches
-  that server but has **no token**, so every scan fails with
-  `HTTP 401 Unauthorized` on `/api/v2/analysis/version`. Supply one as
-  `SONAR_TOKEN` — for example from a `chmod 600` file outside the repo — and
-  prefer `pnpm run sonar:scan`, because
-  `pnpm run sonar:scan:local` overrides the host with
-  `-Dsonar.host.url=http://127.0.0.1:9000` where nothing is listening. The
-  separate SonarQube CLI is also absent, so `pnpm run sonar:auth`,
+  `/opt/sonar-scanner/conf/sonar-scanner.properties` holds both `sonar.host.url`
+  and `sonar.token` for the maintainer's private instance. Read the address from
+  that file when you need it; never record the address or the token anywhere in
+  this repository. Run `pnpm run sonar:scan`, not `pnpm run sonar:scan:local` —
+  the latter overrides the host with `-Dsonar.host.url=http://127.0.0.1:9000`
+  where nothing is listening. **Never prefix the command with an empty
+  `SONAR_TOKEN=`**: the environment variable takes precedence over `sonar.token`
+  from the config file, so the scan authenticates anonymously and fails with
+  `HTTP 401 Unauthorized` on `/api/v2/analysis/version` even though a valid token
+  is present. A `401` is not by itself evidence that no credential exists. The
+  separate SonarQube CLI is absent, so `pnpm run sonar:auth`,
   `sonar:auth:status`, and `sonar:secrets` cannot run at all; those scripts still
   point at `http://127.0.0.1:9000`.
+- Scan a committed revision with coverage already generated. A scan of a
+  staged-but-uncommitted tree logs `Missing blame information` for every changed
+  file and tags the analysis with the *previous* revision, which makes new-code
+  classification unreliable; a scan without `coverage/lcov.info` logs `No LCOV
+  files were found` and records no coverage at all. Run
+  `pnpm run test:coverage`, commit, then scan.
+- The `Previous Version` new-code window is only as tight as
+  `sonar.projectVersion`. That value has stayed `1.0.0` since the
+  `0.4.1-ai-dev` analysis of `2026-07-03`, so new code currently spans 16,408
+  lines — the whole 1.0.0 body of work, not the slice in front of you. Expect
+  gate conditions to describe the release rather than your change until the
+  version is deliberately advanced.
 - The setup recorded in the older slice notes below — a ZIP install under
   `~/.local/opt/sonarqube` backed by `postgresql.service`, run as a
   `sonarqube.service` systemd user unit for user `z`, with a token at
@@ -885,14 +898,29 @@ Slice progress:
     those entries were dropped from the manifest. With `engines.vscode`
     `^1.98.0`, VS Code generates that activation implicitly, so the test now
     asserts no `onCommand:` events are listed instead.
-  - SonarQube quality gate **not run**: the scanner reaches the configured
-    server but has no credentials —
-    `GET <sonar.host.url>/api/v2/analysis/version` returned
-    `HTTP 401 Unauthorized`, and no token exists in `SONAR_TOKEN` or under
-    `~/.sonar`. Remaining risk: no new-code coverage percentage,
-    duplicated-lines density, or new-violation count for this slice. Biome
-    strict was clean over the touched files, and coverage was generated and is
-    ready for the first authenticated scan.
+  - SonarQube scan of committed revision `a20cd94`, analysis
+    `68c1e955-1fb8-45c7-935f-5efb2b5684aa`: quality gate **ERROR**.
+    `new_violations` `1` against a threshold of `0` and `new_coverage` `80.7%`
+    against a threshold of `90%` both failed; `new_duplicated_lines_density`
+    `0.0` passed.
+  - The one violation was `typescript:S3776` in
+    `src/backend/queries/loadCommits.ts`: `getLog` reached cognitive complexity
+    `17` against the `15` allowed once signature handling was added. Fixed by
+    splitting it into `buildLogFormat`, `buildLogArgs`, and `parseLogEntries`,
+    which also resolved `typescript:S7755` on a line the split moved
+    (`fields.at(-1)` in place of `fields[fields.length - 1]`). No behavior
+    change; the full suite still passes at `67` files / `439` tests.
+  - The coverage condition is not a property of this slice. With
+    `sonar.projectVersion` still `1.0.0` the `Previous Version` window reaches
+    back to the `0.4.1-ai-dev` analysis of `2026-07-03`, covering 16,408 new
+    lines with `465` uncovered of `3,121` to cover. Closing it means either
+    broad coverage work across the 1.0.0 surface or advancing
+    `sonar.projectVersion` to open a new baseline. **Open maintainer decision.**
+  - Correction for future agents: an earlier attempt in this slice reported the
+    gate as unrunnable after a `401`. That was wrong — the command had been
+    prefixed with an empty `SONAR_TOKEN=`, which overrode the valid
+    `sonar.token` in the scanner config. See the SonarQube notes under Current
+    Architecture.
 
 ### Phase 12: Toolbar Dropdown Name Truncation and Find Row (Bug)
 
