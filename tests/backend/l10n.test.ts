@@ -43,11 +43,38 @@ describe("l10n fallback", () => {
     expect(t("ui.date")).toBe("ui.date");
   });
 
-  it("falls back to the English bundle under the extension path", async () => {
+  it.each([
+    { name: "resolves a plain key from the bundle", key: "ui.date", args: [], expected: "Date" },
+    {
+      name: "returns a key that the bundle does not define",
+      key: "no.such.key.exists",
+      args: [],
+      expected: "no.such.key.exists"
+    },
+    {
+      name: "interpolates a positional placeholder",
+      key: "signature.signer",
+      args: ["Alice <alice@example.com>"],
+      expected: "Signer: Alice <alice@example.com>"
+    },
+    {
+      name: "leaves a positional placeholder that has no argument",
+      key: "signature.signer",
+      args: [],
+      expected: "Signer: {0}"
+    }
+  ])("falls back to the English bundle and $name", async ({ key, args, expected }) => {
     const { initL10n, t } = await import("@/l10n");
     initL10n(repoRoot);
 
-    expect(t("ui.date")).toBe("Date");
+    expect(t(key, ...args)).toBe(expected);
+  });
+
+  it("interpolates named placeholders in the fallback", async () => {
+    const { initL10n, t } = await import("@/l10n");
+    initL10n(repoRoot);
+
+    expect(t("signature.key", { 0: "ABCD1234" })).toBe("Key: ABCD1234");
   });
 
   it("prefers the l10n uri over the extension path", async () => {
@@ -63,36 +90,6 @@ describe("l10n fallback", () => {
     vscodeL10n.uri = { fsPath: "/nonexistent/l10n/bundle.l10n.json" };
 
     expect(t("ui.date")).toBe("ui.date");
-  });
-
-  it("returns the key for a key absent from the bundle", async () => {
-    const { initL10n, t } = await import("@/l10n");
-    initL10n(repoRoot);
-
-    expect(t("no.such.key.exists")).toBe("no.such.key.exists");
-  });
-
-  it("interpolates positional placeholders in the fallback", async () => {
-    const { initL10n, t } = await import("@/l10n");
-    initL10n(repoRoot);
-
-    expect(t("signature.signer", "Alice <alice@example.com>")).toBe(
-      "Signer: Alice <alice@example.com>"
-    );
-  });
-
-  it("leaves a positional placeholder in place when no argument is supplied", async () => {
-    const { initL10n, t } = await import("@/l10n");
-    initL10n(repoRoot);
-
-    expect(t("signature.signer")).toBe("Signer: {0}");
-  });
-
-  it("interpolates named placeholders in the fallback", async () => {
-    const { initL10n, t } = await import("@/l10n");
-    initL10n(repoRoot);
-
-    expect(t("signature.key", { 0: "ABCD1234" })).toBe("Key: ABCD1234");
   });
 
   it("caches the bundle across calls", async () => {

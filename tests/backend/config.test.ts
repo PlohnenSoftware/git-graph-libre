@@ -187,4 +187,93 @@ describe("configuration", () => {
       { name: "Releases", glob: "--glob=refs/remotes/origin/release/*" }
     ]);
   });
+
+  it.each([
+    { accessor: "autoCenterCommitDetailsView", expected: true },
+    { accessor: "dateFormat", expected: "Date & Time" },
+    { accessor: "dateType", expected: "Author Date" },
+    { accessor: "fetchAvatars", expected: false },
+    { accessor: "graphStyle", expected: "rounded" },
+    { accessor: "graphFontSize", expected: 13 },
+    { accessor: "graphRowHeight", expected: 24 },
+    { accessor: "revealHighlightColor", expected: "oklch(90% 0.25 150 / 0.42)" },
+    { accessor: "shortHashLength", expected: 8 },
+    { accessor: "initialLoadCommits", expected: 300 },
+    { accessor: "includeReflog", expected: false },
+    { accessor: "loadMoreCommits", expected: 75 },
+    { accessor: "maxDepthOfRepoSearch", expected: 0 },
+    { accessor: "muteCommitsNotAncestorsOfHead", expected: false },
+    { accessor: "onlyFollowFirstParent", expected: false },
+    { accessor: "showCurrentBranchByDefault", expected: false },
+    { accessor: "showRemoteBranches", expected: true },
+    { accessor: "showStatusBarItem", expected: true },
+    { accessor: "showStashes", expected: true },
+    { accessor: "showTags", expected: true },
+    { accessor: "showUncommittedChanges", expected: true },
+    { accessor: "showSignatureColumn", expected: false },
+    { accessor: "commitDetailsCompactFolders", expected: false },
+    { accessor: "commitDetailsFileViewMode", expected: "tree" },
+    { accessor: "tabIconColorTheme", expected: "color" },
+    { accessor: "gitPath", expected: "git" },
+    { accessor: "customBranchGlobPatterns", expected: [] }
+  ])("reads $accessor with its manifest default", async ({ accessor, expected }) => {
+    const { config } = await import("@/config");
+    const read = (config as unknown as Record<string, () => unknown>)[accessor];
+
+    expect(read()).toEqual(expected);
+  });
+
+  it("returns the default graph colors when nothing is configured", async () => {
+    const { config } = await import("@/config");
+
+    const colors = config.graphColors();
+
+    expect(colors.length).toBeGreaterThan(0);
+    expect(colors.every((color) => typeof color === "string")).toBe(true);
+  });
+
+  it.each([
+    {
+      name: "drops graph colors that are not valid color values",
+      setting: "git-graph-libre.graphColors",
+      value: ["oklch(65% 0.16 250)", "not-a-color", 42],
+      accessor: "graphColors",
+      expected: ["oklch(65% 0.16 250)"]
+    },
+    {
+      name: "reads graph colors from the legacy British spelling",
+      setting: "git-graph-libre.graphColours",
+      value: ["oklch(70% 0.1 20)"],
+      accessor: "graphColors",
+      expected: ["oklch(70% 0.1 20)"]
+    },
+    {
+      name: "reads the grey tab icon theme from the legacy British spelling",
+      setting: "git-graph-libre.tabIconColourTheme",
+      value: "grey",
+      accessor: "tabIconColorTheme",
+      expected: "grey"
+    },
+    {
+      name: "takes the git executable path from the git extension settings",
+      setting: "git.path",
+      value: "/usr/local/bin/git",
+      accessor: "gitPath",
+      expected: "/usr/local/bin/git"
+    },
+    {
+      name: "falls back when the reveal highlight color is not a color",
+      setting: "git-graph-libre.revealHighlightColor",
+      value: "definitely not a color",
+      accessor: "revealHighlightColor",
+      expected: "oklch(90% 0.25 150 / 0.42)"
+    }
+  ])("$name", async ({ setting, value, accessor, expected }) => {
+    settings.set(setting, value);
+
+    const { config } = await import("@/config");
+    const read = (config as unknown as Record<string, () => unknown>)[accessor];
+
+    expect(read()).toEqual(expected);
+  });
 });
