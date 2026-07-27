@@ -910,12 +910,29 @@ Slice progress:
     which also resolved `typescript:S7755` on a line the split moved
     (`fields.at(-1)` in place of `fields[fields.length - 1]`). No behavior
     change; the full suite still passes at `67` files / `439` tests.
-  - The coverage condition is not a property of this slice. With
+  - The coverage condition was not a property of this slice. With
     `sonar.projectVersion` still `1.0.0` the `Previous Version` window reaches
     back to the `0.4.1-ai-dev` analysis of `2026-07-03`, covering 16,408 new
-    lines with `465` uncovered of `3,121` to cover. Closing it means either
-    broad coverage work across the 1.0.0 surface or advancing
-    `sonar.projectVersion` to open a new baseline. **Open maintainer decision.**
+    lines with `465` uncovered of `3,121` to cover. The maintainer chose to close
+    it with coverage work rather than by advancing the version, so the baseline
+    still starts at `0.4.1-ai-dev`.
+  - Closed by covering the modules that had no tests at all: `avatarManager`
+    (cache and staleness rules, remote-source detection, and the full GitHub and
+    GitLab response branches with their rate-limit and back-off paths),
+    `statusBarItem`, `diffDocProvider`, `l10n`, the output-channel logger, every
+    `config` accessor, and two untested areas of `main.ts` — commit-table column
+    resizing and the repository settings widget actions. Test count went from
+    `423` to `566`; line coverage reached `92.1%` and blended line-and-branch
+    coverage `86.2%`.
+  - Final gate on revision `a6410e01`: **`OK`** — `new_coverage` `85.0%` against
+    the `85%` threshold, `new_violations` `0`, `new_duplicated_lines_density`
+    `0.0`. Note the threshold was `90%` earlier in this slice and the maintainer
+    lowered it to `85%`; read the current value from the server rather than
+    assuming either number.
+  - Coverage sits barely above the threshold, so the next slice that adds
+    lightly-tested code will push `new_coverage` back under it. The largest
+    remaining pools are `src/webview/main.ts` (`265` uncovered lines),
+    `src/avatarManager.ts` (`24`), and `src/extension/messageHandler.ts` (`25`).
   - Correction for future agents: an earlier attempt in this slice reported the
     gate as unrunnable after a `401`. That was wrong — the command had been
     prefixed with an empty `SONAR_TOKEN=`, which overrode the valid
