@@ -2563,7 +2563,7 @@ class GitGraphView {
   private normalizeCommitMessage(message: string) {
     // Commit messages are user-controlled, so keep normalization regex-free and
     // avoid regex backtracking hotspots over unbounded text.
-    return this.trimTrailingLineFeeds(message.split("\r\n").join("\n"));
+    return this.trimTrailingLineFeeds(message.replaceAll("\r\n", "\n"));
   }
   private renderTable() {
     let html = this.renderTableHeader();
@@ -4369,7 +4369,7 @@ class GitGraphView {
     this.tableElem.innerHTML =
       `<h2>${escapeHtml(message)}</h2>` +
       (reason !== null
-        ? `<p class="errorReason">${escapeHtml(reason).split("\n").join("<br>")}</p>`
+        ? `<p class="errorReason">${escapeHtml(reason).replaceAll("\n", "<br>")}</p>`
         : "");
     this.footerElem.innerHTML = "";
   }
@@ -5783,7 +5783,7 @@ function showErrorDialog(message: string, reason: string | null, sourceElem: HTM
     `<span class="dialogErrorIcon">${svgIcons.alert}</span>` +
       message +
       (reason !== null
-        ? `<span class="errorReason">${escapeHtml(reason).split("\n").join("<br>")}</span>`
+        ? `<span class="errorReason">${escapeHtml(reason).replaceAll("\n", "<br>")}</span>`
         : ""),
     null,
     l10n.dialogDismiss,

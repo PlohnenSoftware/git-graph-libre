@@ -47,7 +47,7 @@ function trimTrailingLineFeeds(message: string) {
 function normalizeCommitMessage(message: string) {
   // Commit messages are user-controlled, so keep normalization regex-free and
   // avoid regex backtracking hotspots over unbounded text.
-  return trimTrailingLineFeeds(message.split("\r\n").join("\n"));
+  return trimTrailingLineFeeds(message.replaceAll("\r\n", "\n"));
 }
 
 export async function checkoutCommit(

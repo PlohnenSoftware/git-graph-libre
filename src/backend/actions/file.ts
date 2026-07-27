@@ -17,7 +17,7 @@ function requireValue(value: string, label: string) {
 
 function requireRepoRelativePath(filePath: string) {
   requireValue(filePath, "File path");
-  const normalized = filePath.split("\\").join("/");
+  const normalized = filePath.replaceAll("\\", "/");
   if (normalized.startsWith("/") || normalized.split("/").includes("..")) {
     throw new Error("File path must stay inside the repository.");
   }
