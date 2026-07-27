@@ -7,7 +7,7 @@ coverage/
 .scannerwork/
 *.vsix
 
-# graphify sidecars (AI-dev only; the generated graph artifacts are tracked)
+# graphify sidecars (the generated graph artifacts are tracked)
 /graphify-out/.graphify_*
 /graphify-out/cache/
 /graphify-out/manifest.json

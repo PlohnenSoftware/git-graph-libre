@@ -8,10 +8,10 @@ arrive with.
 Required before your first action in a session:
 
 1. Read `README.md` for what this extension is and how it is configured.
-2. Read `docs/AI_DEV_KNOWLEDGE_BASE.md` in full: branch containment, clean-room
-   and licensing rules, workflow and commit rules, the active roadmap and work
-   order, the graphify map, verification and quality gates, and the handoff
-   process.
+2. Read `docs/AI_DEV_KNOWLEDGE_BASE.md` in full: branch and release policy,
+   clean-room and licensing rules, workflow and commit rules, the active roadmap
+   and work order, the graphify map, verification and quality gates, and the
+   handoff process.
 
 Do not write code, edit docs, run a gate, commit, or push before those two
 reads are done. When resuming mid-task, re-read the knowledge base sections

@@ -44,23 +44,28 @@ The rule for this branch is:
 ## Maintainer and Agent Source of Truth
 
 This document is the central maintainer and agentic knowledge base for the
-`AI-dev` branch. `README.md` remains the public project entry point, but agent,
-Claude, Codex, and other continuation files should be short pointers here
-instead of duplicating rules.
+`AI-dev` and `main` branches. `README.md` remains the public project entry
+point, while agent, Claude, Codex, and other continuation files should be short
+pointers here instead of duplicating rules.
 
-### Branch containment
+### Branch and release policy
 
-`AI-dev` is the only branch that carries AI/agent tooling. Release branches
-(`v1.0.0` and any later line) must stay free of it:
+The AI/agent tooling was deliberately kept off the first `v1.0.0` release. On
+`2026-07-27` the maintainer lifted that restriction for `main` and releases
+starting with `v1.1.0`:
 
 - `CLAUDE.md`, `CODEX.md`, `agents.md`, `docs/AI_DEV_KNOWLEDGE_BASE.md`, and
-  `graphify-out/` exist only here. Never add them to a release branch, and
-  never link to them from `README.md` or any other published file.
-- Tooling config that only these artifacts need — the `/graphify-out/` ignores
-  in `.gitignore` and the `graphify-out/**` Sonar exclusion — also belongs only
-  here. Both had leaked onto `v1.0.0` and had to be removed.
-- Integrate by rebasing `AI-dev` onto the updated release branch. Never merge
-  `AI-dev` into a release branch.
+  `graphify-out/` may be tracked on both `AI-dev` and `main` and included in
+  release-tag history. They remain development/maintenance artifacts and do not
+  need to be linked from the public README or packaged into the VSIX.
+- Supporting configuration such as the `/graphify-out/` ignores in `.gitignore`
+  and the `graphify-out/**` Sonar exclusion may also be carried on `main`.
+- After the completed `AI-dev` tree passes the full release gates, release by
+  fast-forwarding `main` to that exact commit and tagging it. Keep the `AI-dev`
+  branch on the remote after publication; do not delete it or rewrite its
+  history merely to manufacture a separate release lineage.
+- `v1.0.0` remains the historical clean first-release boundary; do not rewrite
+  that tag or its history.
 
 At the start of every agent session:
 
@@ -88,8 +93,8 @@ Workflow rules:
 - Prefer small, atomic, reviewable commits and push normally after each coherent
   milestone unless the maintainer says not to push.
 - On `AI-dev`, include a commit trailer identifying the agent, for example
-  `Co-Authored-By: Codex <codex@openai.com>`. Never add an agent trailer to a
-  commit on a release branch; see Branch containment above.
+  `Co-Authored-By: Codex <codex@openai.com>`. When `main` is fast-forwarded for
+  a release, retain the validated commits and their trailers unchanged.
 - Add or update tests for every feature or behavior change.
 - Use focused checks during a slice and the documented full gate at phase
   boundaries or before calling a larger slice complete.

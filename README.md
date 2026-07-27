@@ -48,9 +48,9 @@ Once it is, it will be available from:
 
 - VS Code Marketplace: _link to follow after publication_
 
-Until then, you can build and install it locally: `pnpm install`, package a
-VSIX with `pnpm exec vsce package`, then in VS Code run
-`Extensions: Install from VSIX...`.
+Until then, you can build and install it locally: `pnpm install`, package the
+bundled extension with `pnpm exec vsce package --no-dependencies`, then in VS
+Code run `Extensions: Install from VSIX...`.
 
 ## Configuration
 
