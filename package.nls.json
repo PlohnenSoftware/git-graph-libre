@@ -31,6 +31,7 @@
   "config.repository.showStashes": "Show stashes by default. Repository settings can override this per repository.",
   "config.repository.showTags": "Show tags by default. Repository settings can override this per repository.",
   "config.repository.includeReflog": "Include commits only mentioned by reflog entries by default. Repository settings can override this per repository.",
+  "config.repository.includeUnreachableCommits": "Discover and include unreachable commit objects when showing all branches. This scans the Git object database and can be slower on large repositories. Repository settings can override this per repository.",
   "config.repository.onlyFollowFirstParent": "Follow only the first parent of commits by default. Repository settings can override this per repository.",
   "config.repository.muteCommitsNotAncestorsOfHead": "Mute commits that are not loaded ancestors of HEAD. This only applies when the HEAD commit is loaded in the graph.",
   "config.graphColors": "Specifies the colors used on the graph.",

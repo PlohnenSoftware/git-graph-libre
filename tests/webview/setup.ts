@@ -1,14 +1,14 @@
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
 import { buildWebviewStatusStrip } from "@/extension/webviewStatusStrip";
 import { buildWebviewToolbar } from "@/extension/webviewToolbar";
-import type * as GG from "@/types";
+import type * as GGL from "@/types";
 
 export function createVscodeMock(initialState?: WebViewState | null) {
-  const sent: GG.RequestMessage[] = [];
+  const sent: GGL.RequestMessage[] = [];
   let state: WebViewState | null | undefined = initialState;
 
   const mock = {
-    postMessage: (msg: GG.RequestMessage) => sent.push(msg),
+    postMessage: (msg: GGL.RequestMessage) => sent.push(msg),
     getState: () => state,
     setState: (s: WebViewState) => {
       state = s;
@@ -24,7 +24,7 @@ export function createVscodeMock(initialState?: WebViewState | null) {
   };
 }
 
-export function setupHtml(viewState: GG.GitGraphViewState) {
+export function setupHtml(viewState: GGL.GitGraphViewState) {
   const l10nStrings = getWebviewLocalizedStrings();
   document.body.innerHTML = `
     <div id="topBar">
@@ -38,15 +38,15 @@ export function setupHtml(viewState: GG.GitGraphViewState) {
       <div id="commitTable"></div>
     </div>
     <div id="footer"></div>
-    <ul id="contextMenu"></ul>
+    <ul id="contextMenu" role="menu"></ul>
     <div id="dialogBacking"></div>
     <div id="dialog"></div>
   `;
 
-  (global as unknown as { viewState: GG.GitGraphViewState }).viewState = viewState;
+  (global as unknown as { viewState: GGL.GitGraphViewState }).viewState = viewState;
   (global as unknown as { l10n: ReturnType<typeof getWebviewLocalizedStrings> }).l10n = l10nStrings;
 }
 
-export function receive(msg: GG.ResponseMessage) {
+export function receive(msg: GGL.ResponseMessage) {
   window.dispatchEvent(new MessageEvent("message", { data: msg, origin: window.location.origin }));
 }

@@ -2,16 +2,16 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { GitCommitDetails, GitCommitNode } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
-import type * as GG from "@/types";
+import type * as GGL from "@/types";
 
 import { createVscodeMock, receive, setupHtml } from "./setup";
 
 const REPO = "/workspace/keyboard-repo";
-type LoadBranchesRequest = Extract<GG.RequestMessage, { command: "loadBranches" }>;
-type LoadCommitsRequest = Extract<GG.RequestMessage, { command: "loadCommits" }>;
-type CommitDetailsRequest = Extract<GG.RequestMessage, { command: "commitDetails" }>;
+type LoadBranchesRequest = Extract<GGL.RequestMessage, { command: "loadBranches" }>;
+type LoadCommitsRequest = Extract<GGL.RequestMessage, { command: "loadCommits" }>;
+type CommitDetailsRequest = Extract<GGL.RequestMessage, { command: "commitDetails" }>;
 
-const viewState: GG.GitGraphViewState = {
+const viewState: GGL.GitGraphViewState = {
   autoCenterCommitDetailsView: true,
   dateFormat: "Date & Time",
   fetchAvatars: false,
@@ -26,6 +26,7 @@ const viewState: GG.GitGraphViewState = {
   graphStyle: "rounded",
   revealHighlightColor: "oklch(90% 0.25 150 / 0.42)",
   includeReflog: false,
+  includeUnreachableCommits: false,
   initialLoadCommits: 300,
   lastActiveRepo: null,
   loadMoreCommits: 75,
@@ -91,17 +92,17 @@ const scrollIntoViewMock = vi.fn();
 describe("webview keyboard navigation", () => {
   let vscodeMock: ReturnType<typeof createVscodeMock>;
 
-  function latestRequest<T extends GG.RequestMessage["command"]>(
+  function latestRequest<T extends GGL.RequestMessage["command"]>(
     command: T
-  ): Extract<GG.RequestMessage, { command: T }> {
+  ): Extract<GGL.RequestMessage, { command: T }> {
     for (let i = vscodeMock.sentMessages.length - 1; i >= 0; i--) {
       const msg = vscodeMock.sentMessages[i];
-      if (msg.command === command) return msg as Extract<GG.RequestMessage, { command: T }>;
+      if (msg.command === command) return msg as Extract<GGL.RequestMessage, { command: T }>;
     }
     throw new Error(`Missing ${command} request`);
   }
 
-  function countRequests(command: GG.RequestMessage["command"]) {
+  function countRequests(command: GGL.RequestMessage["command"]) {
     return vscodeMock.sentMessages.filter((msg) => msg.command === command).length;
   }
 

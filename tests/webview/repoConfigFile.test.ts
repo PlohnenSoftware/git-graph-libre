@@ -57,6 +57,7 @@ describe("repo configuration file helpers", () => {
           displayName: "Imported",
           hiddenRemotes: ["origin", "", "origin"],
           includeReflog: "enabled",
+          includeUnreachableCommits: "enabled",
           issueLinking: { pattern: "#(\\d+)", urlTemplate: "https://issues.test/$1" },
           onlyFollowFirstParent: "disabled",
           pullRequest: {
@@ -79,6 +80,7 @@ describe("repo configuration file helpers", () => {
       displayName: "Imported",
       hiddenRemotes: ["origin"],
       includeReflog: "enabled",
+      includeUnreachableCommits: "enabled",
       issueLinking: { pattern: "#(\\d+)", urlTemplate: "https://issues.test/$1" },
       onlyFollowFirstParent: "disabled",
       pullRequest: {

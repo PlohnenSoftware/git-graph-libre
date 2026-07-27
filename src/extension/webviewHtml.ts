@@ -48,6 +48,7 @@ export function buildWebviewHtml(opts: {
     graphStyle: config.graphStyle(),
     revealHighlightColor: config.revealHighlightColor(),
     includeReflog: config.includeReflog(),
+    includeUnreachableCommits: config.includeUnreachableCommits(),
     initialLoadCommits: config.initialLoadCommits(),
     lastActiveRepo: extensionState.getLastActiveRepo(),
     loadMoreCommits: config.loadMoreCommits(),
@@ -88,7 +89,7 @@ export function buildWebviewHtml(opts: {
 			<div id="commitTable"></div>
 		</div>
 		<div id="footer"></div>
-		<ul id="contextMenu"></ul>
+		<ul id="contextMenu" role="menu"></ul>
 			<div id="dialogBacking"></div>
 			<div id="dialog"></div>
 		<script nonce="${nonce}">const viewState = ${escapeJsonForHtml(viewState)};</script>

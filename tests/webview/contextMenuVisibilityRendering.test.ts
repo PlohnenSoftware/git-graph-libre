@@ -2,13 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { GitCommitNode, GitRepoInfo } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
-import type * as GG from "@/types";
+import type * as GGL from "@/types";
 
 import { createVscodeMock, receive, setupHtml } from "./setup";
 
 const REPO = "/workspace/context-menu-visibility";
 
-const defaultViewState: GG.GitGraphViewState = {
+const defaultViewState: GGL.GitGraphViewState = {
   autoCenterCommitDetailsView: true,
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "tree",
@@ -23,6 +23,7 @@ const defaultViewState: GG.GitGraphViewState = {
   graphStyle: "rounded",
   revealHighlightColor: "oklch(90% 0.25 150 / 0.42)",
   includeReflog: false,
+  includeUnreachableCommits: false,
   initialLoadCommits: 300,
   lastActiveRepo: null,
   loadMoreCommits: 75,
@@ -66,19 +67,19 @@ const commits: GitCommitNode[] = [
   }
 ];
 
-function latestRequest<T extends GG.RequestMessage["command"]>(
-  messages: GG.RequestMessage[],
+function latestRequest<T extends GGL.RequestMessage["command"]>(
+  messages: GGL.RequestMessage[],
   command: T
-): Extract<GG.RequestMessage, { command: T }> {
+): Extract<GGL.RequestMessage, { command: T }> {
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
-    if (msg.command === command) return msg as Extract<GG.RequestMessage, { command: T }>;
+    if (msg.command === command) return msg as Extract<GGL.RequestMessage, { command: T }>;
   }
   throw new Error(`Missing ${command} request`);
 }
 
 async function bootWebview(
-  viewState: GG.GitGraphViewState,
+  viewState: GGL.GitGraphViewState,
   initialState?: Parameters<typeof createVscodeMock>[0]
 ) {
   vi.resetModules();
@@ -114,8 +115,8 @@ async function bootWebview(
 }
 
 function withVisibility(
-  visibility: Partial<GG.ContextMenuActionsVisibility>
-): GG.GitGraphViewState {
+  visibility: Partial<GGL.ContextMenuActionsVisibility>
+): GGL.GitGraphViewState {
   return {
     ...defaultViewState,
     contextMenuActionsVisibility: {
@@ -204,7 +205,7 @@ describe("context menu visibility rendering", () => {
       withVisibility({
         commit: Object.fromEntries(
           Object.keys(DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.commit).map((key) => [key, false])
-        ) as GG.ContextMenuActionsVisibility["commit"]
+        ) as GGL.ContextMenuActionsVisibility["commit"]
       })
     );
 
@@ -220,7 +221,7 @@ describe("context menu visibility rendering", () => {
       withVisibility({
         branch: Object.fromEntries(
           Object.keys(DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.branch).map((key) => [key, false])
-        ) as GG.ContextMenuActionsVisibility["branch"]
+        ) as GGL.ContextMenuActionsVisibility["branch"]
       })
     );
 

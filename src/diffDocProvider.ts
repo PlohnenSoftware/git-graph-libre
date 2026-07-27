@@ -4,7 +4,7 @@ import type { GitInstance } from "./backend/gitClient";
 import { getPathFromStr } from "./backend/utils/path";
 
 export class DiffDocProvider implements vscode.TextDocumentContentProvider {
-  public static scheme = "git-graph-libre";
+  public static readonly scheme = "git-graph-libre";
   private readonly gitClient: GitInstance;
   private readonly onDidChangeEventEmitter = new vscode.EventEmitter<vscode.Uri>();
   private readonly docs = new Map<string, DiffDocument>();

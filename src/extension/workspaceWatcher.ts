@@ -53,9 +53,9 @@ export function createRepoWatcher(
 
   async function onWatcherCreate(uri: vscode.Uri) {
     let path = getPathFromUri(uri);
-    if (path.indexOf("/.git/") > -1) return;
+    if (path.includes("/.git/")) return;
     if (path.endsWith("/.git")) path = path.slice(0, -5);
-    if (createEventPaths.indexOf(path) > -1) return;
+    if (createEventPaths.includes(path)) return;
 
     createEventPaths.push(path);
     if (processCreateEventsTimeout !== null) clearTimeout(processCreateEventsTimeout);
@@ -64,9 +64,9 @@ export function createRepoWatcher(
 
   function onWatcherChange(uri: vscode.Uri) {
     let path = getPathFromUri(uri);
-    if (path.indexOf("/.git/") > -1) return;
+    if (path.includes("/.git/")) return;
     if (path.endsWith("/.git")) path = path.slice(0, -5);
-    if (changeEventPaths.indexOf(path) > -1) return;
+    if (changeEventPaths.includes(path)) return;
 
     changeEventPaths.push(path);
     if (processChangeEventsTimeout !== null) clearTimeout(processChangeEventsTimeout);
@@ -75,7 +75,7 @@ export function createRepoWatcher(
 
   function onWatcherDelete(uri: vscode.Uri) {
     let path = getPathFromUri(uri);
-    if (path.indexOf("/.git/") > -1) return;
+    if (path.includes("/.git/")) return;
     if (path.endsWith("/.git")) path = path.slice(0, -5);
     if (repoManager.removeReposWithinFolder(path)) repoManager.sendRepos();
   }
@@ -126,9 +126,9 @@ export function createRepoWatcher(
   return {
     startWatching() {
       const rootFolders = workspace.workspaceFolders;
-      if (typeof rootFolders !== "undefined") {
-        for (let i = 0; i < rootFolders.length; i++) {
-          startWatchingFolder(getPathFromUri(rootFolders[i].uri));
+      if (rootFolders !== undefined) {
+        for (const folder of rootFolders) {
+          startWatchingFolder(getPathFromUri(folder.uri));
         }
       }
     },

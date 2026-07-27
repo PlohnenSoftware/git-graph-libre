@@ -3,8 +3,8 @@ import type { SimpleGit } from "simple-git";
 import type {
   CommitOrdering,
   DateType,
-  GitCommitSignature,
   GitCommitNode,
+  GitCommitSignature,
   GitLogEntry,
   GitQueryError,
   GitRefData,
@@ -43,6 +43,7 @@ type LoadCommitsInput = {
   hiddenRemotes?: string[];
   showTags?: boolean;
   includeReflog?: boolean;
+  includeUnreachableCommits?: boolean;
   onlyFollowFirstParent?: boolean;
   commitOrdering?: CommitOrdering;
   showSignature?: boolean;
@@ -59,6 +60,7 @@ type GitQueryContext = {
 };
 
 type GitLogOptions = {
+  label: string;
   refs: string[] | null;
   authors: string[] | null;
   maxCommits: number;
@@ -66,6 +68,7 @@ type GitLogOptions = {
   hiddenRemotes?: string[];
   showTags: boolean;
   includeReflog: boolean;
+  additionalRefs: string[];
   onlyFollowFirstParent: boolean;
   dateType: DateType;
   commitOrdering: CommitOrdering;
@@ -176,6 +179,7 @@ function buildLogArgs({
   hiddenRemotes,
   showTags,
   includeReflog,
+  additionalRefs,
   onlyFollowFirstParent,
   dateType,
   commitOrdering,
@@ -194,11 +198,50 @@ function buildLogArgs({
     args.push(...refs);
     return args;
   }
-  args.push("--branches");
+  args.push("--ignore-missing", "HEAD", "--branches");
   if (showTags) args.push("--tags");
   if (includeReflog) args.push("--reflog");
   if (showRemoteBranches) args.push(...remoteExcludeArgs(hiddenRemotes), "--remotes");
+  args.push(...additionalRefs);
   return args;
+}
+
+export function parseUnreachableCommitHashes(stdout: string): string[] {
+  const hashes = new Set<string>();
+  for (const line of stdout.split(eolRegex)) {
+    const fields = line.trim().split(" ");
+    const isUnreachableCommit = fields[0] === "unreachable" && fields[1] === "commit";
+    const isDanglingCommit = fields[0] === "dangling" && fields[1] === "commit";
+    const hash = fields[2];
+    if ((isUnreachableCommit || isDanglingCommit) && hash !== undefined) {
+      hashes.add(hash);
+    }
+  }
+  return [...hashes];
+}
+
+async function getUnreachableCommitHashes(
+  git: SimpleGit,
+  enabled: boolean,
+  refs: string[] | null,
+  context: GitQueryContext
+): Promise<QueryValue<string[]>> {
+  if (!enabled || refs !== null) return { value: [], error: null };
+
+  try {
+    const stdout = await runGitRaw(git, {
+      label: "loadCommits.unreachable",
+      args: ["fsck", "--unreachable", "--no-reflogs", "--no-progress", "--connectivity-only"],
+      repo: context.repo,
+      record: context.record
+    });
+    return { value: parseUnreachableCommitHashes(stdout), error: null };
+  } catch (error: unknown) {
+    return {
+      value: [],
+      error: toGitQueryError(error, "Unable to discover unreachable commits")
+    };
+  }
 }
 
 function parseLogEntries(stdout: string, showSignature: boolean): GitLogEntry[] {
@@ -227,13 +270,10 @@ function parseLogEntries(stdout: string, showSignature: boolean): GitLogEntry[] 
   return commits;
 }
 
-async function getLog(
-  git: SimpleGit,
-  options: GitLogOptions
-): Promise<QueryValue<GitLogEntry[]>> {
+async function getLog(git: SimpleGit, options: GitLogOptions): Promise<QueryValue<GitLogEntry[]>> {
   try {
     const stdout = await runGitRaw(git, {
-      label: "loadCommits.log",
+      label: options.label,
       args: [...buildLogArgs(options), "--"],
       repo: options.context.repo,
       record: options.context.record
@@ -261,6 +301,14 @@ async function getUnsavedChanges(git: SimpleGit, context: GitQueryContext) {
 
 function hasLoadedHead(commits: GitLogEntry[], head: string | null) {
   return head !== null && commits.some((commit) => commit.hash === head);
+}
+
+function moveHeadIntoPage(commits: GitLogEntry[], head: string, maxCommits: number) {
+  const headIndex = commits.findIndex((commit) => commit.hash === head);
+  if (headIndex < maxCommits) return commits;
+  const headCommit = commits[headIndex];
+  if (headCommit === undefined) return commits;
+  return [headCommit, ...commits.slice(0, headIndex), ...commits.slice(headIndex + 1)];
 }
 
 async function addUnsavedChangesCommit(
@@ -327,35 +375,70 @@ export async function loadCommits(
     tags: selectedTags
   });
   const includeReflog = input.includeReflog === true;
+  const includeUnreachableCommits = input.includeUnreachableCommits === true;
   const onlyFollowFirstParent = input.onlyFollowFirstParent === true;
   const commitOrdering = input.commitOrdering ?? "date";
   const showSignature = input.showSignature === true;
   const context = { repo: input.repo ?? null, record: input.recordGitCommand };
 
+  const refsPromise = getRefs(
+    git,
+    showRemoteBranches,
+    hiddenRemotes,
+    showTags || selectedTags !== null,
+    context
+  );
+  const unreachableResult = await getUnreachableCommitHashes(
+    git,
+    includeUnreachableCommits,
+    refs,
+    context
+  );
+  const sharedLogOptions = {
+    authors: input.authors ?? null,
+    showRemoteBranches,
+    hiddenRemotes,
+    showTags,
+    includeReflog,
+    onlyFollowFirstParent,
+    dateType,
+    commitOrdering,
+    showSignature,
+    context
+  };
   const [logResult, refsResult] = await Promise.all([
     getLog(git, {
+      ...sharedLogOptions,
+      label: "loadCommits.log",
       refs,
-      authors: input.authors ?? null,
       maxCommits: maxCommits + 1,
-      showRemoteBranches,
-      hiddenRemotes,
-      showTags,
-      includeReflog,
-      onlyFollowFirstParent,
-      dateType,
-      commitOrdering,
-      showSignature,
-      context
+      additionalRefs: unreachableResult.value
     }),
-    getRefs(git, showRemoteBranches, hiddenRemotes, showTags || selectedTags !== null, context)
+    refsPromise
   ]);
-  const rawCommits = logResult.value;
   const refData = refsResult.value;
-  const error = logResult.error ?? refsResult.error;
+  let rawCommits = logResult.value;
+  let detachedHeadError: GitQueryError | null = null;
+  if (refs === null && refData.head !== null) {
+    if (!hasLoadedHead(rawCommits, refData.head)) {
+      const detachedHeadResult = await getLog(git, {
+        ...sharedLogOptions,
+        label: "loadCommits.detachedHead",
+        refs: ["HEAD"],
+        maxCommits: 1,
+        additionalRefs: []
+      });
+      const detachedHead = detachedHeadResult.value[0];
+      if (detachedHead !== undefined) rawCommits = [detachedHead, ...rawCommits];
+      detachedHeadError = detachedHeadResult.error;
+    }
+    rawCommits = moveHeadIntoPage(rawCommits, refData.head, maxCommits);
+  }
+  const error = logResult.error ?? refsResult.error ?? unreachableResult.error ?? detachedHeadError;
 
   let commits = rawCommits;
-  const moreCommitsAvailable = commits.length === maxCommits + 1;
-  if (moreCommitsAvailable) commits = commits.slice(0, -1);
+  const moreCommitsAvailable = commits.length > maxCommits;
+  if (moreCommitsAvailable) commits = commits.slice(0, maxCommits);
 
   await addUnsavedChangesCommit(git, commits, refData, showUncommittedChanges, context);
   const commitNodes = createCommitNodes(commits, refData);

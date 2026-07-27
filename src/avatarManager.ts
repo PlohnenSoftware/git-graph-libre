@@ -2,7 +2,6 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import type * as http from "node:http";
 import * as https from "node:https";
-import * as url from "node:url";
 
 import { getRemoteUrl } from "./backend/utils/git";
 import type { ExtensionState } from "./extensionState";
@@ -287,13 +286,13 @@ export class AvatarManager {
 
   private async downloadAvatarImage(email: string, imageUrl: string): Promise<string | null> {
     const hash = crypto.createHash("sha256").update(email).digest("hex"),
-      imgUrl = url.parse(imageUrl);
+      imgUrl = new URL(imageUrl);
     return new Promise((resolve) => {
       https
         .get(
           {
             hostname: imgUrl.hostname,
-            path: imgUrl.path,
+            path: `${imgUrl.pathname}${imgUrl.search}`,
             headers: { "User-Agent": "git-graph-libre" },
             agent: false,
             timeout: 15000
@@ -390,22 +389,19 @@ class AvatarRequestQueue {
   public add(email: string, repo: string, commits: string[], immediate: boolean) {
     const emailIndex = this.queue.findIndex((v) => v.email === email && v.repo === repo);
     if (emailIndex > -1) {
-      const l = commits.indexOf(
-        this.queue[emailIndex].commits[this.queue[emailIndex].commits.length - 1]
-      );
+      const lastExistingCommit = this.queue[emailIndex].commits.at(-1);
+      const l = lastExistingCommit === undefined ? -1 : commits.indexOf(lastExistingCommit);
       // Index of the last commit of the existing request, in the new request commits
       if (l > -1 && l < commits.length - 1) {
         this.queue[emailIndex].commits.push(...commits.slice(l + 1)); // Append all new commits
       }
     } else {
+      const lastCheckAfter = this.queue.at(-1)?.checkAfter ?? -1;
       this.insertItem({
         email: email,
         repo: repo,
         commits: commits,
-        checkAfter:
-          immediate || this.queue.length === 0
-            ? 0
-            : this.queue[this.queue.length - 1].checkAfter + 1,
+        checkAfter: immediate ? 0 : lastCheckAfter + 1,
         attempts: 0
       });
     }

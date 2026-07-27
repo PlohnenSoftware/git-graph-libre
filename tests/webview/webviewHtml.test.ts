@@ -27,6 +27,7 @@ function makeConfig(): Config {
     graphStyle: () => "rounded",
     revealHighlightColor: () => "oklch(90% 0.25 150 / 0.42)",
     includeReflog: () => false,
+    includeUnreachableCommits: () => false,
     shortHashLength: () => 12,
     initialLoadCommits: () => 300,
     loadMoreCommits: () => 100,
@@ -80,6 +81,7 @@ describe("webview HTML", () => {
     expect(viewState.graphFontSize).toBe(15);
     expect(viewState.graphRowHeight).toBe(30);
     expect(viewState.revealHighlightColor).toBe("oklch(90% 0.25 150 / 0.42)");
+    expect(viewState.includeUnreachableCommits).toBe(false);
     expect(viewState.customBranchGlobPatterns).toEqual([
       { name: "Features", glob: "--glob=heads/feature/*" }
     ]);

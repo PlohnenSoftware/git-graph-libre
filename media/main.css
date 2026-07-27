@@ -625,6 +625,37 @@ body.commitDetailsResizing * {
 .gitRef.active {
   border-color: var(--git-graph-color);
 }
+.gitRefGroup {
+  display: inline-flex;
+  height: 18px;
+  margin-top: 2px;
+  margin-right: 5px;
+  overflow: hidden;
+  background-color: var(--ngg-neutral-overlay-muted);
+  border: 1px solid var(--ngg-neutral-border-heavy);
+  border-radius: 5px;
+  vertical-align: top;
+  font-size: 12px;
+  cursor: default;
+}
+.gitRefGroup.active {
+  border-color: var(--git-graph-color);
+}
+.gitRefGroup > .gitRef {
+  height: 18px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+.gitRefGroup > .gitRefAlias {
+  padding-left: 6px;
+  background-color: var(--vscode-badge-background, var(--ngg-neutral-overlay-medium));
+  color: var(--vscode-badge-foreground, var(--vscode-descriptionForeground));
+  border-left: 1px solid var(--ngg-neutral-border-heavy);
+}
+.gitRefGroup > .gitRefAlias > svg {
+  display: none;
+}
 .gitRef > svg {
   background-color: var(--git-graph-color);
   fill: var(--vscode-editor-background);
@@ -1355,6 +1386,15 @@ body.commitDetailsResizing * {
   line-height: 20px;
   white-space: nowrap;
 }
+#contextMenu li.contextMenuItemCheckbox {
+  padding-left: 6px;
+}
+.contextMenuCheck {
+  display: inline-flex;
+  width: 16px;
+  margin-right: 4px;
+  justify-content: center;
+}
 #contextMenu li.contextMenuItem:hover {
   background-color: var(--vscode-menu-selectionBackground);
   color: var(--vscode-menu-selectionForeground);
@@ -1604,6 +1644,7 @@ body.commitDetailsResizing * {
 #commitTable th,
 #commitTable td,
 .gitRef,
+.gitRefGroup,
 #loadingHeader,
 .unselectable,
 .roundedBtn,

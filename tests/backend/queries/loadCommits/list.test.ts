@@ -1,9 +1,14 @@
+import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { git, makeRepo } from "@tests/backend/helpers";
 import { type SimpleGit, simpleGit } from "simple-git";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { loadCommits, parseCommitSignature } from "@/backend/queries/loadCommits";
+import {
+  loadCommits,
+  parseCommitSignature,
+  parseUnreachableCommitHashes
+} from "@/backend/queries/loadCommits";
 import type { GitCommandRecord } from "@/backend/utils/gitRunner";
 
 let repo: string;
@@ -29,6 +34,20 @@ afterAll(() => {
 });
 
 describe("loadCommits", () => {
+  it("parses unreachable and dangling commit diagnostics only", () => {
+    expect(
+      parseUnreachableCommitHashes(
+        [
+          "unreachable commit abc123",
+          "unreachable tree tree123",
+          "dangling commit def456",
+          "unreachable commit abc123",
+          "missing commit missing123"
+        ].join("\n")
+      )
+    ).toEqual(["abc123", "def456"]);
+  });
+
   it("maps Git signature states and keeps unsigned commits distinct", () => {
     expect(parseCommitSignature("N", "", "")).toBeNull();
     expect(parseCommitSignature("", "", "")).toBeNull();
@@ -165,6 +184,196 @@ describe("loadCommits", () => {
     expect(headCommit?.refs.some((r) => r.type === "head")).toBe(true);
   });
 
+  it("includes a detached HEAD commit in the default all-branches view", async () => {
+    const detachedRepo = makeRepo();
+    try {
+      git(["checkout", "--detach"], detachedRepo);
+      fs.writeFileSync(path.join(detachedRepo, "detached"), "detached");
+      git(["add", "."], detachedRepo);
+      git(["commit", "-m", "detached tip"], detachedRepo);
+      const detachedHead = cp
+        .execFileSync("git", ["rev-parse", "HEAD"], { cwd: detachedRepo, encoding: "utf8" })
+        .trim();
+      const records: GitCommandRecord[] = [];
+
+      const result = await loadCommits(simpleGit(detachedRepo), {
+        branchName: "",
+        maxCommits: 300,
+        showRemoteBranches: false,
+        includeReflog: false,
+        hard: false,
+        dateType: "Author Date",
+        showUncommittedChanges: false,
+        recordGitCommand: (record) => records.push(record)
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.head).toBe(detachedHead);
+      expect(result.commits.some((commit) => commit.hash === detachedHead)).toBe(true);
+      expect(records.find((record) => record.label === "loadCommits.log")?.args).toEqual(
+        expect.arrayContaining(["--ignore-missing", "HEAD", "--branches"])
+      );
+    } finally {
+      fs.rmSync(detachedRepo, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps detached HEAD visible when the all-branches page limit would exclude it", async () => {
+    const mainLog = [
+      "main123",
+      "",
+      "Main Author",
+      "main@example.test",
+      "1700000000",
+      "newer branch commit"
+    ].join("\0");
+    const headLog = [
+      "head123",
+      "",
+      "Detached Author",
+      "detached@example.test",
+      "1600000000",
+      "older detached commit"
+    ].join("\0");
+    const limitedGit = {
+      raw: async (args: string[]) => {
+        if (args[0] === "rev-parse") return "head123\n";
+        if (args[0] === "for-each-ref") return "";
+        if (args[0] === "log") {
+          return args.includes("--max-count=1") ? `${headLog}\0` : `${mainLog}\0`;
+        }
+        throw new Error(`unexpected git command: ${args[0]}`);
+      }
+    } as unknown as SimpleGit;
+    const records: GitCommandRecord[] = [];
+
+    const result = await loadCommits(limitedGit, {
+      branchName: "",
+      maxCommits: 1,
+      showRemoteBranches: false,
+      hard: false,
+      dateType: "Author Date",
+      showUncommittedChanges: false,
+      recordGitCommand: (record) => records.push(record)
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.head).toBe("head123");
+    expect(result.commits.map((commit) => commit.hash)).toEqual(["head123"]);
+    expect(result.moreCommitsAvailable).toBe(true);
+    expect(records.find((record) => record.label === "loadCommits.detachedHead")?.args).toEqual(
+      expect.arrayContaining(["--max-count=1", "HEAD"])
+    );
+  });
+
+  it("keeps HEAD when it is the extra paging sentinel", async () => {
+    const mainLog = [
+      "main123",
+      "",
+      "Main Author",
+      "main@example.test",
+      "1700000000",
+      "newer branch commit"
+    ].join("\0");
+    const headLog = [
+      "head123",
+      "",
+      "Detached Author",
+      "detached@example.test",
+      "1600000000",
+      "older detached commit"
+    ].join("\0");
+    const limitedGit = {
+      raw: async (args: string[]) => {
+        if (args[0] === "rev-parse") return "head123\n";
+        if (args[0] === "for-each-ref") return "";
+        if (args[0] === "log") return `${mainLog}\0${headLog}\0`;
+        throw new Error(`unexpected git command: ${args[0]}`);
+      }
+    } as unknown as SimpleGit;
+    const records: GitCommandRecord[] = [];
+
+    const result = await loadCommits(limitedGit, {
+      branchName: "",
+      maxCommits: 1,
+      showRemoteBranches: false,
+      hard: false,
+      dateType: "Author Date",
+      showUncommittedChanges: false,
+      recordGitCommand: (record) => records.push(record)
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.commits.map((commit) => commit.hash)).toEqual(["head123"]);
+    expect(result.moreCommitsAvailable).toBe(true);
+    expect(records.some((record) => record.label === "loadCommits.detachedHead")).toBe(false);
+  });
+
+  it("discovers unreachable commit objects only when explicitly enabled", async () => {
+    const discoveryRepo = makeRepo();
+    try {
+      git(["checkout", "--detach"], discoveryRepo);
+      fs.writeFileSync(path.join(discoveryRepo, "unreachable"), "unreachable");
+      git(["add", "."], discoveryRepo);
+      git(["commit", "-m", "unreachable tip"], discoveryRepo);
+      const unreachableHash = cp
+        .execFileSync("git", ["rev-parse", "HEAD"], { cwd: discoveryRepo, encoding: "utf8" })
+        .trim();
+      git(["checkout", "main"], discoveryRepo);
+      git(["reflog", "expire", "--expire=now", "--all"], discoveryRepo);
+
+      const defaultResult = await loadCommits(simpleGit(discoveryRepo), {
+        branchName: "",
+        maxCommits: 300,
+        showRemoteBranches: false,
+        includeUnreachableCommits: false,
+        hard: false,
+        dateType: "Author Date",
+        showUncommittedChanges: false
+      });
+      const discoveryRecords: GitCommandRecord[] = [];
+      const discoveryResult = await loadCommits(simpleGit(discoveryRepo), {
+        branchName: "",
+        maxCommits: 300,
+        showRemoteBranches: false,
+        includeUnreachableCommits: true,
+        hard: false,
+        dateType: "Author Date",
+        showUncommittedChanges: false,
+        recordGitCommand: (record) => discoveryRecords.push(record)
+      });
+
+      expect(defaultResult.commits.some((commit) => commit.hash === unreachableHash)).toBe(false);
+      expect(discoveryResult.error).toBeNull();
+      expect(discoveryResult.commits.some((commit) => commit.hash === unreachableHash)).toBe(true);
+      expect(
+        discoveryRecords.find((record) => record.label === "loadCommits.unreachable")?.args
+      ).toEqual(
+        expect.arrayContaining(["fsck", "--unreachable", "--no-reflogs", "--connectivity-only"])
+      );
+    } finally {
+      fs.rmSync(discoveryRepo, { recursive: true, force: true });
+    }
+  });
+
+  it("does not scan for unreachable objects when refs are explicitly filtered", async () => {
+    const records: GitCommandRecord[] = [];
+
+    const result = await loadCommits(simpleGit(repo), {
+      branchName: "main",
+      maxCommits: 300,
+      showRemoteBranches: false,
+      includeUnreachableCommits: true,
+      hard: false,
+      dateType: "Author Date",
+      showUncommittedChanges: false,
+      recordGitCommand: (record) => records.push(record)
+    });
+
+    expect(result.error).toBeNull();
+    expect(records.some((record) => record.label === "loadCommits.unreachable")).toBe(false);
+  });
+
   it("limits to maxCommits and sets moreCommitsAvailable: true", async () => {
     const result = await loadCommits(simpleGit(repo), {
       branchName: "",
@@ -181,7 +390,7 @@ describe("loadCommits", () => {
       hard: false,
       error: null
     });
-    expect(result.commits.length).toBe(1);
+    expect(result.commits).toHaveLength(1);
   });
 
   it("moreCommitsAvailable is false when all commits fit", async () => {

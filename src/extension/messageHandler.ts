@@ -507,6 +507,7 @@ export function registerMessageHandlers(
         hiddenRemotes: msg.hiddenRemotes,
         showTags: msg.showTags,
         includeReflog: msg.includeReflog,
+        includeUnreachableCommits: msg.includeUnreachableCommits,
         onlyFollowFirstParent: msg.onlyFollowFirstParent,
         commitOrdering: msg.commitOrdering,
         showSignature: msg.showSignature,

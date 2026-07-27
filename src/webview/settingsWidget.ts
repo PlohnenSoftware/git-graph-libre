@@ -13,6 +13,7 @@ import { toOklch } from "./utils/oklchColor";
 export const REPO_BOOLEAN_OVERRIDES = ["default", "enabled", "disabled"] as const;
 export type RepoBooleanSettingKey =
   | "includeReflog"
+  | "includeUnreachableCommits"
   | "onlyFollowFirstParent"
   | "showRemoteBranches"
   | "showStashes"
@@ -31,6 +32,7 @@ type SettingsLabels = {
   showStashes: string;
   showTags: string;
   includeReflog: string;
+  includeUnreachableCommits: string;
   onlyFollowFirstParent: string;
   defaultOn: string;
   defaultOff: string;
@@ -106,6 +108,7 @@ const booleanSettingOrder: Array<{ key: RepoBooleanSettingKey; label: keyof Sett
   { key: "showStashes", label: "showStashes" },
   { key: "showTags", label: "showTags" },
   { key: "includeReflog", label: "includeReflog" },
+  { key: "includeUnreachableCommits", label: "includeUnreachableCommits" },
   { key: "onlyFollowFirstParent", label: "onlyFollowFirstParent" }
 ];
 
@@ -403,8 +406,10 @@ function renderExtensionSettingRow(setting: ExtensionSetting, labels: SettingsLa
 }
 
 function renderExtensionSettingEditor(setting: ExtensionSetting, labels: SettingsLabels) {
-  if (setting.key === "git-graph-libre.graphColors") return renderGraphColorsEditor(setting, labels);
-  if (setting.key === "git-graph-libre.revealHighlightColor") return renderColorStringEditor(setting);
+  if (setting.key === "git-graph-libre.graphColors")
+    return renderGraphColorsEditor(setting, labels);
+  if (setting.key === "git-graph-libre.revealHighlightColor")
+    return renderColorStringEditor(setting);
   if (setting.enum !== undefined) return renderEnumEditor(setting);
   if (setting.type === "boolean") return renderBooleanEditor(setting);
   if (setting.type === "number") return renderNumberEditor(setting);

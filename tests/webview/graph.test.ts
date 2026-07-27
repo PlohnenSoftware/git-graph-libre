@@ -19,6 +19,7 @@ const config: Config = {
   revealHighlightColor: "oklch(90% 0.25 150 / 0.42)",
   grid: { x: 16, y: 24, offsetX: 8, offsetY: 12, expandY: 250 },
   includeReflog: false,
+  includeUnreachableCommits: false,
   initialLoadCommits: 300,
   loadMoreCommits: 100,
   muteCommitsNotAncestorsOfHead: false,

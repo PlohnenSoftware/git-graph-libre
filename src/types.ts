@@ -103,6 +103,7 @@ export type GitRepoState = {
   displayName?: string | null;
   hiddenRemotes?: string[];
   includeReflog?: RepoBooleanOverride;
+  includeUnreachableCommits?: RepoBooleanOverride;
   issueLinking?: IssueLinkingConfig | null;
   lastConfigImportAt?: number;
   onlyFollowFirstParent?: RepoBooleanOverride;
@@ -160,6 +161,7 @@ export type GitGraphViewState = {
   showStashes: boolean;
   showTags: boolean;
   includeReflog: boolean;
+  includeUnreachableCommits: boolean;
   settingsWidgetTab?: SettingsWidgetTab;
   shortHashLength: number;
 };

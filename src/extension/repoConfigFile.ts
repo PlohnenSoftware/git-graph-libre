@@ -23,6 +23,7 @@ const exportableKeys = [
   "displayName",
   "hiddenRemotes",
   "includeReflog",
+  "includeUnreachableCommits",
   "issueLinking",
   "onlyFollowFirstParent",
   "pullRequest",
@@ -93,6 +94,9 @@ function sanitizeRepoState(value: Record<string, unknown>): Partial<GitRepoState
   }
   if (isStringArray(value.hiddenRemotes)) state.hiddenRemotes = uniqueNonEmpty(value.hiddenRemotes);
   if (isRepoBooleanOverride(value.includeReflog)) state.includeReflog = value.includeReflog;
+  if (isRepoBooleanOverride(value.includeUnreachableCommits)) {
+    state.includeUnreachableCommits = value.includeUnreachableCommits;
+  }
   if (isIssueLinkingConfig(value.issueLinking) || value.issueLinking === null) {
     state.issueLinking = value.issueLinking;
   }

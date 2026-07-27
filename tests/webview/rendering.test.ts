@@ -7,7 +7,7 @@ import type {
   GitRepoInfo
 } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
-import type * as GG from "@/types";
+import type * as GGL from "@/types";
 import {
   COMMIT_DETAILS_COLLAPSED_HEIGHT,
   COMMIT_DETAILS_DEFAULT_HEIGHT,
@@ -18,21 +18,21 @@ import {
 import { createVscodeMock, receive, setupHtml } from "./setup";
 
 const REPO = "/workspace/my-repo";
-type LoadBranchesRequest = Extract<GG.RequestMessage, { command: "loadBranches" }>;
-type LoadCommitsRequest = Extract<GG.RequestMessage, { command: "loadCommits" }>;
+type LoadBranchesRequest = Extract<GGL.RequestMessage, { command: "loadBranches" }>;
+type LoadCommitsRequest = Extract<GGL.RequestMessage, { command: "loadCommits" }>;
 type LoadExtensionSettingsRequest = Extract<
-  GG.RequestMessage,
+  GGL.RequestMessage,
   { command: "loadExtensionSettings" }
 >;
-type LoadRepoInfoRequest = Extract<GG.RequestMessage, { command: "loadRepoInfo" }>;
-type SaveRepoStateRequest = Extract<GG.RequestMessage, { command: "saveRepoState" }>;
-type SearchCommitsRequest = Extract<GG.RequestMessage, { command: "searchCommits" }>;
+type LoadRepoInfoRequest = Extract<GGL.RequestMessage, { command: "loadRepoInfo" }>;
+type SaveRepoStateRequest = Extract<GGL.RequestMessage, { command: "saveRepoState" }>;
+type SearchCommitsRequest = Extract<GGL.RequestMessage, { command: "searchCommits" }>;
 type UpdateExtensionSettingRequest = Extract<
-  GG.RequestMessage,
+  GGL.RequestMessage,
   { command: "updateExtensionSetting" }
 >;
 
-const defaultViewState: GG.GitGraphViewState = {
+const defaultViewState: GGL.GitGraphViewState = {
   autoCenterCommitDetailsView: true,
   dateFormat: "Date & Time",
   fetchAvatars: false,
@@ -47,6 +47,7 @@ const defaultViewState: GG.GitGraphViewState = {
   graphStyle: "rounded",
   revealHighlightColor: "oklch(90% 0.25 150 / 0.42)",
   includeReflog: false,
+  includeUnreachableCommits: false,
   initialLoadCommits: 300,
   lastActiveRepo: null,
   loadMoreCommits: 75,
@@ -320,7 +321,7 @@ describe("webview rendering", () => {
       moreCommitsAvailable: true,
       hard: true,
       error: null
-    } as unknown as GG.ResponseMessage);
+    } as unknown as GGL.ResponseMessage);
   }
 
   beforeAll(async () => {
@@ -397,6 +398,42 @@ describe("webview rendering", () => {
     );
     expect(document.getElementById("authorSelect")?.classList.contains("dropdown")).toBe(true);
     expect(document.getElementById("tagSelect")?.classList.contains("dropdown")).toBe(true);
+  });
+
+  it("groups local and matching remote branch refs without losing ref actions", () => {
+    receiveLoadedCommits(
+      [
+        {
+          ...twoCommits[0],
+          refs: [
+            { hash: "abc123", name: "main", type: "head" },
+            { hash: "abc123", name: "origin/main", type: "remote" },
+            { hash: "abc123", name: "upstream/main", type: "remote" },
+            { hash: "abc123", name: "v1.0.0", type: "tag" }
+          ]
+        },
+        twoCommits[1]
+      ],
+      "abc123"
+    );
+
+    const group = document.querySelector<HTMLElement>(".gitRefGroup.active");
+    expect(group?.querySelector(".gitRefPrimary.head")?.textContent).toContain("main");
+    const aliases = Array.from(group?.querySelectorAll<HTMLElement>(".gitRefAlias.remote") ?? []);
+    expect(aliases.map((alias) => alias.textContent?.trim())).toEqual(["origin", "upstream"]);
+    expect(aliases.map((alias) => alias.title)).toEqual(["origin/main", "upstream/main"]);
+    expect(document.querySelectorAll(".gitRefGroup")).toHaveLength(1);
+    expect(document.querySelectorAll(".gitRef.tag")).toHaveLength(1);
+
+    aliases[0]?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Copy Branch Name");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "Branch Name",
+      data: "origin/main"
+    });
+
+    receiveLoadedCommits(twoCommits, "abc123");
   });
 
   it("sends selected branch glob, author, and tag filters from toolbar dropdowns", () => {
@@ -487,7 +524,7 @@ describe("webview rendering", () => {
       "tabpanel"
     );
 
-    const settings: GG.ExtensionSetting[] = [
+    const settings: GGL.ExtensionSetting[] = [
       {
         key: "git-graph-libre.repository.showTags",
         configKey: "repository.showTags",
@@ -1317,8 +1354,8 @@ describe("webview rendering", () => {
   });
 
   it("sends remote action messages from the settings popup", () => {
-    function finishAction(command: GG.ResponseMessage["command"], repoInfo = repoInfoWithRemote) {
-      receive({ command, status: null } as unknown as GG.ResponseMessage);
+    function finishAction(command: GGL.ResponseMessage["command"], repoInfo = repoInfoWithRemote) {
+      receive({ command, status: null } as unknown as GGL.ResponseMessage);
       const repoInfoRequest = latestLoadRepoInfoRequest();
       receive({
         command: "loadRepoInfo",
@@ -1877,6 +1914,72 @@ describe("webview rendering", () => {
     );
     expect(vscodeMock.getState()?.hiddenColumns).toEqual(["signature"]);
     expect(sentLoadCommitsCount()).toBe(loadsBeforeHide);
+  });
+
+  it("toggles unreachable-commit discovery from a checked header menu item", () => {
+    function openDiscoveryMenuItem() {
+      document
+        .querySelector(".tableColHeader")
+        ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+      return contextMenuItem("Include unreachable commits") as HTMLElement | undefined;
+    }
+
+    const disabledItem = openDiscoveryMenuItem();
+    expect(disabledItem?.getAttribute("role")).toBe("menuitemcheckbox");
+    expect(disabledItem?.getAttribute("aria-checked")).toBe("false");
+    disabledItem
+      ?.querySelector(".contextMenuCheck")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(latestSaveRepoStateRequest().state.includeUnreachableCommits).toBe("enabled");
+
+    const enabledBranchesRequest = latestLoadBranchesRequest();
+    receive({
+      command: "loadBranches",
+      requestId: enabledBranchesRequest.requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    const enabledCommitsRequest = latestLoadCommitsRequest();
+    expect(enabledCommitsRequest.includeUnreachableCommits).toBe(true);
+    receive({
+      command: "loadCommits",
+      requestId: enabledCommitsRequest.requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
+
+    const enabledItem = openDiscoveryMenuItem();
+    expect(enabledItem?.getAttribute("aria-checked")).toBe("true");
+    enabledItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(latestSaveRepoStateRequest().state.includeUnreachableCommits).toBeUndefined();
+
+    const defaultBranchesRequest = latestLoadBranchesRequest();
+    receive({
+      command: "loadBranches",
+      requestId: defaultBranchesRequest.requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    const defaultCommitsRequest = latestLoadCommitsRequest();
+    expect(defaultCommitsRequest.includeUnreachableCommits).toBe(false);
+    receive({
+      command: "loadCommits",
+      requestId: defaultCommitsRequest.requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
+    });
   });
 
   it("changes commit ordering from the header context menu", () => {
@@ -2644,7 +2747,7 @@ describe("webview rendering", () => {
       hard: true,
       isRepo: true,
       error: null
-    } as unknown as GG.ResponseMessage);
+    } as unknown as GGL.ResponseMessage);
     receiveLoadedCommits(
       [
         {
@@ -2687,7 +2790,7 @@ describe("webview rendering", () => {
       hard: true,
       isRepo: true,
       error: null
-    } as unknown as GG.ResponseMessage);
+    } as unknown as GGL.ResponseMessage);
     receiveLoadedCommits(
       [
         {
@@ -2763,7 +2866,7 @@ describe("webview rendering", () => {
       hard: true,
       isRepo: true,
       error: null
-    } as unknown as GG.ResponseMessage);
+    } as unknown as GGL.ResponseMessage);
     receiveLoadedCommits(
       [
         {

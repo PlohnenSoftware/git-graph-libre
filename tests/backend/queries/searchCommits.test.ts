@@ -121,7 +121,7 @@ describe("searchCommits", () => {
         record.label
       )
     );
-    expect(rangedRecords.length).toBe(3);
+    expect(rangedRecords).toHaveLength(3);
     for (const record of rangedRecords) {
       expect(record.args).toEqual(expect.arrayContaining(["main", "refs/tags/v-search", "--"]));
       expect(record.args).not.toContain("--branches");

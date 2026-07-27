@@ -70,6 +70,7 @@ export function getWebviewLocalizedStrings() {
     settingsShowStashes: l10n.t("settings.showStashes"),
     settingsShowTags: l10n.t("settings.showTags"),
     settingsIncludeReflog: l10n.t("settings.includeReflog"),
+    settingsIncludeUnreachableCommits: l10n.t("settings.includeUnreachableCommits"),
     settingsOnlyFollowFirstParent: l10n.t("settings.onlyFollowFirstParent"),
     settingsDefaultOn: l10n.t("settings.defaultOn"),
     settingsDefaultOff: l10n.t("settings.defaultOff"),

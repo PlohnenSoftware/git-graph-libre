@@ -31,6 +31,7 @@
   "config.repository.showStashes": "Domyślnie pokazuj schowki. Ustawienia repozytorium mogą nadpisać to dla konkretnego repozytorium.",
   "config.repository.showTags": "Domyślnie pokazuj tagi. Ustawienia repozytorium mogą nadpisać to dla konkretnego repozytorium.",
   "config.repository.includeReflog": "Domyślnie uwzględniaj commity wspomniane tylko w reflogu. Ustawienia repozytorium mogą nadpisać to dla konkretnego repozytorium.",
+  "config.repository.includeUnreachableCommits": "Wykrywaj i uwzględniaj nieosiągalne obiekty commitów podczas wyświetlania wszystkich gałęzi. Skanuje to bazę obiektów Git i może działać wolniej w dużych repozytoriach. Ustawienia repozytorium mogą nadpisać to dla konkretnego repozytorium.",
   "config.repository.onlyFollowFirstParent": "Domyślnie podążaj tylko za pierwszym rodzicem commitów. Ustawienia repozytorium mogą nadpisać to dla konkretnego repozytorium.",
   "config.repository.muteCommitsNotAncestorsOfHead": "Wyciszaj commity, które nie są załadowanymi przodkami HEAD. Działa tylko wtedy, gdy commit HEAD jest załadowany w grafie.",
   "config.graphColors": "Określa kolory używane na grafie.",

@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 
 import type { ExtensionContext, Memento } from "vscode";
 
-import { getPathFromStr } from "./backend/utils/path";
+import { getPathFromUri } from "./backend/utils/path";
 import type { Avatar, AvatarCache, GitRepoSet } from "./types";
 
 const AVATAR_STORAGE_FOLDER = "/avatars";
@@ -20,7 +20,7 @@ export class ExtensionState {
     this.globalState = context.globalState;
     this.workspaceState = context.workspaceState;
 
-    this.globalStoragePath = getPathFromStr(context.globalStoragePath);
+    this.globalStoragePath = getPathFromUri(context.globalStorageUri);
     fs.stat(this.globalStoragePath + AVATAR_STORAGE_FOLDER, (err) => {
       if (!err) {
         this.avatarStorageAvailable = true;
@@ -74,8 +74,8 @@ export class ExtensionState {
     this.globalState.update(AVATAR_CACHE, {});
     fs.readdir(this.globalStoragePath + AVATAR_STORAGE_FOLDER, (err, files) => {
       if (err) return;
-      for (let i = 0; i < files.length; i++) {
-        fs.unlink(`${this.globalStoragePath + AVATAR_STORAGE_FOLDER}/${files[i]}`, () => {});
+      for (const file of files) {
+        fs.unlink(`${this.globalStoragePath + AVATAR_STORAGE_FOLDER}/${file}`, () => {});
       }
     });
   }

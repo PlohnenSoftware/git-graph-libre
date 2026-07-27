@@ -16,7 +16,7 @@ export async function searchDirectoryForRepos(
   gitPath: string,
   knownRepoPaths: string[]
 ): Promise<string[]> {
-  if (knownRepoPaths.some((r) => directory === r || directory.startsWith(r + "/"))) {
+  if (knownRepoPaths.some((r) => directory === r || directory.startsWith(`${r}/`))) {
     return [];
   }
 
@@ -35,9 +35,9 @@ export async function searchDirectoryForRepos(
   }
 
   const dirs: string[] = [];
-  for (let i = 0; i < dirContents.length; i++) {
-    if (dirContents[i] !== ".git" && (await isDirectory(directory + "/" + dirContents[i]))) {
-      dirs.push(directory + "/" + dirContents[i]);
+  for (const entry of dirContents) {
+    if (entry !== ".git" && (await isDirectory(`${directory}/${entry}`))) {
+      dirs.push(`${directory}/${entry}`);
     }
   }
 

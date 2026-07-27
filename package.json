@@ -1,7 +1,7 @@
 {
   "name": "git-graph-libre",
   "displayName": "%displayName%",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "%description%",
   "categories": [
     "SCM Providers",
@@ -298,6 +298,11 @@
           "type": "boolean",
           "default": false,
           "description": "%config.repository.includeReflog%"
+        },
+        "git-graph-libre.repository.includeUnreachableCommits": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.repository.includeUnreachableCommits%"
         },
         "git-graph-libre.repository.onlyFollowFirstParent": {
           "type": "boolean",

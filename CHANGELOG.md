@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-27
+
 ### Added
 
+- **History recovery**: an opt-in repository setting finds unreachable and
+  orphaned commits that have not yet been pruned, making otherwise hidden work
+  discoverable from the graph. It is available in Repository Settings and as a
+  checkbox in the table-header context menu.
 - **Commit signature status**: an optional Signature column shows whether each
   commit is signed and whether the signature verifies, with the signer and key in
   the tooltip. It is off by default (`git-graph-libre.columns.signature`) and can
@@ -24,8 +30,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   events (activation, panel open/reveal, status bar state), making it more useful
   when reporting a problem.
 
+### Changed
+
+- Matching local and remote branch labels are grouped into one compact marker:
+  the local branch keeps the primary name while each remote is shown as a short
+  alias. Every segment retains its own branch actions and full-name tooltip.
+- Rename the internal webview type namespace from `GG` to `GGL` so its shorthand
+  matches Git Graph Libre throughout source and tests.
+
 ### Fixed
 
+- Show All now includes `HEAD` explicitly, so a detached commit remains visible
+  even when no branch, tag, remote-tracking ref, or reflog entry reaches it and
+  even when the normal page limit would otherwise exclude it.
 - Relative commit dates are now formatted with `Intl.RelativeTimeFormat`, so each
   language supplies its own plural rules and word order. The previous
   singular/plural pair could not express languages with more than two plural
@@ -149,7 +166,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/PlohnenSoftware/git-graph-libre/releases/tag/v1.0.0
 [0.4.0]: https://github.com/asispts/neo-git-graph/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/asispts/neo-git-graph/compare/v0.2.0...v0.3.0

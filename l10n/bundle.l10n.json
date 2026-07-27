@@ -72,6 +72,7 @@
   "settings.showStashes": "Show stashes",
   "settings.showTags": "Show tags",
   "settings.includeReflog": "Include reflog",
+  "settings.includeUnreachableCommits": "Include unreachable commits",
   "settings.onlyFollowFirstParent": "Only follow first parent",
   "settings.defaultOn": "Default: On",
   "settings.defaultOff": "Default: Off",

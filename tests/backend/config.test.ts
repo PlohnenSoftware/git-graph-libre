@@ -200,6 +200,7 @@ describe("configuration", () => {
     { accessor: "shortHashLength", expected: 8 },
     { accessor: "initialLoadCommits", expected: 300 },
     { accessor: "includeReflog", expected: false },
+    { accessor: "includeUnreachableCommits", expected: false },
     { accessor: "loadMoreCommits", expected: 75 },
     { accessor: "maxDepthOfRepoSearch", expected: 0 },
     { accessor: "muteCommitsNotAncestorsOfHead", expected: false },

@@ -31,6 +31,7 @@
   "config.repository.showStashes": "預設顯示貯藏。存放庫設定可依存放庫覆寫此值。",
   "config.repository.showTags": "預設顯示標籤。存放庫設定可依存放庫覆寫此值。",
   "config.repository.includeReflog": "預設包含僅由 reflog 提到的提交。存放庫設定可依存放庫覆寫此值。",
+  "config.repository.includeUnreachableCommits": "顯示所有分支時，探索並包含無法到達的提交物件。此操作會掃描 Git 物件資料庫，在大型存放庫中可能較慢。存放庫設定可依存放庫覆寫此值。",
   "config.repository.onlyFollowFirstParent": "預設僅跟隨提交的第一個父提交。存放庫設定可依存放庫覆寫此值。",
   "config.repository.muteCommitsNotAncestorsOfHead": "淡化不是已載入 HEAD 祖先的提交。僅當 HEAD 提交已載入到圖形中時生效。",
   "config.graphColors": "指定圖形上使用的顏色。",

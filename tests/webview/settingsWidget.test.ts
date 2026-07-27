@@ -23,6 +23,7 @@ const labels: SettingsWidgetModel["labels"] = {
   showStashes: "Show stashes",
   showTags: "Show tags",
   includeReflog: "Include reflog",
+  includeUnreachableCommits: "Include unreachable commits",
   onlyFollowFirstParent: "Only follow first parent",
   defaultOn: "Default: On",
   defaultOff: "Default: Off",
@@ -102,6 +103,7 @@ function render(extensionSettings: ExtensionSetting[] | null) {
     remotes: [],
     defaults: {
       includeReflog: false,
+      includeUnreachableCommits: false,
       onlyFollowFirstParent: false,
       showRemoteBranches: true,
       showStashes: true,

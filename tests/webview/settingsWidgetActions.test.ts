@@ -2,19 +2,19 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { GitCommitNode, GitRepoInfo } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
-import type * as GG from "@/types";
+import type * as GGL from "@/types";
 
 import { createVscodeMock, receive, setupHtml } from "./setup";
 
 const REPO = "/workspace/my-repo";
 
-type LoadBranchesRequest = Extract<GG.RequestMessage, { command: "loadBranches" }>;
-type LoadCommitsRequest = Extract<GG.RequestMessage, { command: "loadCommits" }>;
-type LoadRepoInfoRequest = Extract<GG.RequestMessage, { command: "loadRepoInfo" }>;
+type LoadBranchesRequest = Extract<GGL.RequestMessage, { command: "loadBranches" }>;
+type LoadCommitsRequest = Extract<GGL.RequestMessage, { command: "loadCommits" }>;
+type LoadRepoInfoRequest = Extract<GGL.RequestMessage, { command: "loadRepoInfo" }>;
 
 // A repository with every optional setting populated, so the settings widget
 // renders the remove/clear actions alongside the edit ones.
-const repoState: GG.GitRepoState = {
+const repoState: GGL.GitRepoState = {
   columnWidths: null,
   displayName: "My Repo",
   issueLinking: { pattern: "#(\\d+)", urlTemplate: "https://example.test/issues/$1" },
@@ -26,7 +26,7 @@ const repoState: GG.GitRepoState = {
   }
 };
 
-const viewState: GG.GitGraphViewState = {
+const viewState: GGL.GitGraphViewState = {
   autoCenterCommitDetailsView: true,
   dateFormat: "Date & Time",
   fetchAvatars: false,
@@ -41,6 +41,7 @@ const viewState: GG.GitGraphViewState = {
   graphStyle: "rounded",
   revealHighlightColor: "oklch(90% 0.25 150 / 0.42)",
   includeReflog: false,
+  includeUnreachableCommits: false,
   initialLoadCommits: 300,
   lastActiveRepo: null,
   loadMoreCommits: 75,
@@ -89,10 +90,10 @@ const repoInfo: GitRepoInfo = {
 
 let vscodeMock: ReturnType<typeof createVscodeMock>;
 
-function latest<T extends GG.RequestMessage["command"]>(command: T) {
+function latest<T extends GGL.RequestMessage["command"]>(command: T) {
   for (let i = vscodeMock.sentMessages.length - 1; i >= 0; i--) {
     const msg = vscodeMock.sentMessages[i];
-    if (msg.command === command) return msg as Extract<GG.RequestMessage, { command: T }>;
+    if (msg.command === command) return msg as Extract<GGL.RequestMessage, { command: T }>;
   }
   throw new Error(`Missing ${command} request`);
 }
@@ -126,7 +127,7 @@ async function bootWithSettingsOpen() {
     moreCommitsAvailable: false,
     hard: true,
     error: null
-  } as unknown as GG.ResponseMessage);
+  } as unknown as GGL.ResponseMessage);
   document.getElementById("settingsBtn")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   vscodeMock.clearMessages();
 }
@@ -141,7 +142,7 @@ function click(id: string) {
 // controls only render once that response arrives.
 function openExtensionTab() {
   click("settingsExtensionTab");
-  const settings: GG.ExtensionSetting[] = [
+  const settings: GGL.ExtensionSetting[] = [
     {
       key: "git-graph-libre.repository.showTags",
       configKey: "repository.showTags",
@@ -158,7 +159,7 @@ function openExtensionTab() {
     requestId: latest("loadExtensionSettings").requestId,
     settings,
     status: null
-  } as unknown as GG.ResponseMessage);
+  } as unknown as GGL.ResponseMessage);
 }
 
 function dialogIsOpen() {

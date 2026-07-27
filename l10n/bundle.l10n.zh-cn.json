@@ -72,6 +72,7 @@
   "settings.showStashes": "显示贮藏",
   "settings.showTags": "显示标签",
   "settings.includeReflog": "包含 reflog",
+  "settings.includeUnreachableCommits": "包含不可达提交",
   "settings.onlyFollowFirstParent": "仅跟随第一父提交",
   "settings.defaultOn": "默认：开",
   "settings.defaultOff": "默认：关",

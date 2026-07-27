@@ -90,7 +90,7 @@ function parseRemotes(stdout: string): GitRemote[] {
 
 function splitNulTerminatedFields(stdout: string) {
   const fields = stdout.split(gitFieldSeparatorOutput);
-  if (fields[fields.length - 1] === "") fields.pop();
+  if (fields.at(-1) === "") fields.pop();
   return fields;
 }
 

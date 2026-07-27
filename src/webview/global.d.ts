@@ -1,20 +1,20 @@
 import type { GitCommitDetails, GitCommitNode, GitRemote, GitStash } from "@/backend/types";
-import * as GG from "@/types";
+import * as GGL from "@/types";
 
 declare global {
   function acquireVsCodeApi(): {
     getState(): WebViewState | null | undefined;
-    postMessage(message: GG.RequestMessage): void;
+    postMessage(message: GGL.RequestMessage): void;
     setState(state: WebViewState): void;
   };
 
-  const viewState: GG.GitGraphViewState;
+  const viewState: GGL.GitGraphViewState;
 
   interface Config {
     autoCenterCommitDetailsView: boolean;
     commitDetailsCompactFolders: boolean;
-    commitDetailsFileViewMode: GG.CommitDetailsFileViewMode;
-    contextMenuActionsVisibility: GG.ContextMenuActionsVisibility;
+    commitDetailsFileViewMode: GGL.CommitDetailsFileViewMode;
+    contextMenuActionsVisibility: GGL.ContextMenuActionsVisibility;
     fetchAvatars: boolean;
     showSignatureColumn: boolean;
     graphColors: string[];
@@ -22,9 +22,10 @@ declare global {
     graphRowHeight: number;
     graphStyle: "rounded" | "angular";
     revealHighlightColor: string;
-    customBranchGlobPatterns: GG.CustomBranchGlobPattern[];
+    customBranchGlobPatterns: GGL.CustomBranchGlobPattern[];
     grid: { x: number; y: number; offsetX: number; offsetY: number; expandY: number };
     includeReflog: boolean;
+    includeUnreachableCommits: boolean;
     initialLoadCommits: number;
     loadMoreCommits: number;
     muteCommitsNotAncestorsOfHead: boolean;
@@ -38,6 +39,7 @@ declare global {
 
   interface ContextMenuItem {
     title: string;
+    checked?: boolean;
     onClick: () => void;
   }
 
@@ -132,7 +134,7 @@ declare global {
   type AvatarImageCollection = { [email: string]: string };
 
   interface WebViewState {
-    gitRepos: GG.GitRepoSet;
+    gitRepos: GGL.GitRepoSet;
     gitBranches: string[];
     gitBranchHead: string | null;
     gitAuthors?: string[];
@@ -140,7 +142,7 @@ declare global {
     gitRemotes?: GitRemote[];
     gitStashes?: GitStash[];
     settingsWidgetOpen?: boolean;
-    settingsWidgetTab?: GG.SettingsWidgetTab;
+    settingsWidgetTab?: GGL.SettingsWidgetTab;
     commits: GitCommitNode[];
     commitHead: string | null;
     avatars: AvatarImageCollection;
@@ -159,5 +161,5 @@ declare global {
   }
 }
 
-export as namespace GG;
-export = GG;
+export as namespace GGL;
+export = GGL;

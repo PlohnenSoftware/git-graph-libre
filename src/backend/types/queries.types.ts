@@ -87,6 +87,7 @@ type QueryPayloads = {
       hiddenRemotes?: string[];
       showTags: boolean;
       includeReflog: boolean;
+      includeUnreachableCommits: boolean;
       onlyFollowFirstParent: boolean;
       commitOrdering: CommitOrdering;
       showSignature: boolean;

@@ -48,19 +48,19 @@ function resolveTranslationPath(): string | undefined {
  * @param args - Optional arguments for string interpolation
  * @returns Translated string
  */
-export function t(key: string, ...args: Array<string | number | boolean>): string;
-export function t(key: string, args: Record<string, string | number | boolean>): string;
-export function t(
-  key: string,
-  ...args: Array<string | number | boolean | Record<string, string | number | boolean>>
-): string {
+type TranslationValue = string | number | boolean;
+type TranslationRecord = Record<string, TranslationValue>;
+
+export function t(key: string, ...args: TranslationValue[]): string;
+export function t(key: string, args: TranslationRecord): string;
+export function t(key: string, ...args: Array<TranslationValue | TranslationRecord>): string {
   // Try to get translation from current locale
   let result: string;
 
   if (args.length === 1 && typeof args[0] === "object" && !Array.isArray(args[0])) {
     result = l10n.t(key, args[0]);
   } else {
-    result = l10n.t(key, ...(args as Array<string | number | boolean>));
+    result = l10n.t(key, ...(args as TranslationValue[]));
   }
 
   if (result !== key) return result;
@@ -74,7 +74,7 @@ export function t(
   if (args.length === 1 && typeof args[0] === "object") {
     return interpolate(fallback, args[0]);
   } else if (args.length > 0) {
-    return interpolate(fallback, args as Array<string | number | boolean>);
+    return interpolate(fallback, args as TranslationValue[]);
   }
   return fallback;
 }
@@ -83,10 +83,7 @@ export function t(
  * Simple string interpolation for fallback translations
  * Supports both positional ({0}, {1}) and named ({name}) placeholders
  */
-function interpolate(
-  template: string,
-  args: Record<string, string | number | boolean> | Array<string | number | boolean>
-): string {
+function interpolate(template: string, args: TranslationRecord | TranslationValue[]): string {
   if (Array.isArray(args)) {
     // Positional arguments: {0}, {1}, etc.
     return template.replace(/\{(\d+)\}/g, (_, index) => {

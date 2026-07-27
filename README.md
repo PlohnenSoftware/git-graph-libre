@@ -14,6 +14,7 @@
 ## Features
 
 - **Graph view**: See branches, tags, and uncommitted changes in one graph
+- **History recovery**: Keep detached HEAD visible and optionally discover unreachable commits
 - **Commit details**: Click a commit to see message, files, and diffs
 - **Branch actions**: Create, checkout, rename, delete, and merge
 - **Tag actions**: Create, delete, and push tags
@@ -55,21 +56,23 @@ VSIX with `pnpm exec vsce package`, then in VS Code run
 
 All settings use the `git-graph-libre` prefix.
 
-| Setting                       | Default         | Description                                      |
-| ----------------------------- | --------------- | ------------------------------------------------ |
-| `autoCenterCommitDetailsView` | `true`          | Center commit details when opened                |
-| `dateFormat`                  | `"Date & Time"` | `"Date & Time"`, `"Date Only"`, or `"Relative"`  |
-| `dateType`                    | `"Author Date"` | `"Author Date"` or `"Commit Date"`               |
-| `fetchAvatars`                | `false`         | Fetch avatars (sends email to external services) |
-| `graphColours`                | 12 defaults     | Colors for graph lines                           |
-| `graphStyle`                  | `"rounded"`     | `"rounded"` or `"angular"`                       |
-| `initialLoadCommits`          | `300`           | Commits to load on open                          |
-| `loadMoreCommits`             | `100`           | Commits to load on demand                        |
-| `maxDepthOfRepoSearch`        | `0`             | Folder depth for repo search                     |
-| `showCurrentBranchByDefault`  | `false`         | Show only current branch on open                 |
-| `showStatusBarItem`           | `true`          | Show status bar button                           |
-| `showUncommittedChanges`      | `true`          | Show uncommitted changes node                    |
-| `tabIconColourTheme`          | `"colour"`      | `"colour"` or `"grey"`                           |
+| Setting                                        | Default         | Description                                      |
+| ---------------------------------------------- | --------------- | ------------------------------------------------ |
+| `autoCenterCommitDetailsView`                  | `true`          | Center commit details when opened                |
+| `dateFormat`                                   | `"Date & Time"` | `"Date & Time"`, `"Date Only"`, or `"Relative"`  |
+| `dateType`                                     | `"Author Date"` | `"Author Date"` or `"Commit Date"`               |
+| `fetchAvatars`                                 | `false`         | Fetch avatars (sends email to external services) |
+| `graphColors`                                  | 12 defaults     | Colors for graph lines                           |
+| `graphStyle`                                   | `"rounded"`     | `"rounded"` or `"angular"`                       |
+| `initialLoadCommits`                           | `300`           | Commits to load on open                          |
+| `loadMoreCommits`                              | `100`           | Commits to load on demand                        |
+| `maxDepthOfRepoSearch`                         | `0`             | Folder depth for repo search                     |
+| `repository.includeReflog`                     | `false`         | Include commits referenced only by reflogs       |
+| `repository.includeUnreachableCommits`         | `false`         | Scan for unreachable commits in Show All         |
+| `showCurrentBranchByDefault`                   | `false`         | Show only current branch on open                 |
+| `showStatusBarItem`                            | `true`          | Show status bar button                           |
+| `showUncommittedChanges`                       | `true`          | Show uncommitted changes node                    |
+| `tabIconColorTheme`                            | `"color"`       | `"color"` or `"grey"`                            |
 
 ## License
 

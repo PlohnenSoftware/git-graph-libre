@@ -102,7 +102,7 @@ describe("buildWebviewToolbar", () => {
     expect(document.getElementById("branchControl")?.getAttribute("title")).toBe("Branches");
     expect(document.getElementById("authorControl")?.getAttribute("title")).toBe("Authors");
     expect(document.getElementById("tagControl")?.getAttribute("title")).toBe("Tags");
-    expect(document.querySelectorAll("#controls .toolbarGroup").length).toBe(4);
+    expect(document.querySelectorAll("#controls .toolbarGroup")).toHaveLength(4);
   });
 
   it("escapes localized labels before embedding them in toolbar markup", () => {

@@ -128,10 +128,14 @@ Workflow rules:
   findings. The default target is `pnpm run lint:strict:staged` after staging,
   or an equivalent `biome.strict.jsonc` command over the touched files before
   staging. Do not commit with known Biome failures in touched code.
-- For meaningful code slices, generate coverage with `pnpm run test:coverage`
-  before SonarQube and require the local SonarQube quality gate to pass. If the
-  SonarQube server is unavailable or the gate cannot be run, record the exact
-  reason and remaining risk in the handoff.
+- For meaningful code slices, all gates run **before the commit**. The required
+  order is: strict Biome on touched files, full package/typecheck/lint, full
+  tests, localization checks, fresh `pnpm run test:coverage`, then
+  `pnpm run sonar:scan` and an explicit server-side quality-gate poll. Commit
+  only after the SonarQube quality gate is `OK`. If any gate changes code, rerun
+  every affected check plus coverage and Sonar before committing. If the server
+  is unavailable or the gate cannot run, do not silently substitute a
+  post-commit scan; record the exact reason and remaining risk in the handoff.
 - SonarQube's local new-code definition is `Previous Version`. The
   `sonar.projectVersion` value is therefore an analysis baseline, not only a
   package-release label. Advance it deliberately when starting a stricter local
@@ -217,7 +221,7 @@ The extension is already split into clean layers:
   CI, maintainers, and future agents have one stable command surface. Use
   `biome.jsonc` for repository-wide migration-friendly checks and
   `biome.strict.jsonc` as the stricter target for new files and touched code.
-- SonarQube is the optional deeper analysis gate beside Biome. Use
+- SonarQube is the required deeper pre-commit analysis gate beside Biome. Use
   `sonar-project.properties` for project metadata and exclusions, run
   `pnpm run test:coverage` to generate `coverage/lcov.info`, then run
   `pnpm run sonar:scan:local` against the local server at
@@ -245,28 +249,32 @@ The extension is already split into clean layers:
   separate SonarQube CLI is absent, so `pnpm run sonar:auth`,
   `sonar:auth:status`, and `sonar:secrets` cannot run at all; those scripts still
   point at `http://127.0.0.1:9000`.
-- Scan a committed revision with coverage already generated. A scan of a
-  staged-but-uncommitted tree logs `Missing blame information` for every changed
-  file and tags the analysis with the *previous* revision, which makes new-code
-  classification unreliable; a scan without `coverage/lcov.info` logs `No LCOV
-  files were found` and records no coverage at all. Run
-  `pnpm run test:coverage`, commit, then scan.
+- Scan the completed, uncommitted working tree with fresh coverage **before**
+  committing. SonarQube logs `Missing blame information` for changed/new files
+  and identifies the report with the current HEAD revision; those warnings are
+  expected in this pre-commit workflow and do not replace the requirement to
+  poll the compute-engine task and quality-gate APIs. A scan without
+  `coverage/lcov.info` records no coverage, so always run
+  `pnpm run test:coverage` immediately before the scan. Fix gate findings, rerun
+  affected checks and coverage, rescan until the gate is `OK`, and only then
+  commit.
 - The `Previous Version` new-code window is only as tight as
-  `sonar.projectVersion`. That value has stayed `1.0.0` since the
-  `0.4.1-ai-dev` analysis of `2026-07-03`, so new code currently spans 16,408
-  lines — the whole 1.0.0 body of work, not the slice in front of you. Expect
-  gate conditions to describe the release rather than your change until the
-  version is deliberately advanced.
+  `sonar.projectVersion`. It remained `1.0.0` from the `0.4.1-ai-dev` analysis
+  of `2026-07-03` through the completed 1.0.0 quality work. On `2026-07-27` it
+  was deliberately advanced to `1.1.0` with the package's backward-compatible
+  history-recovery and ref-label feature release, starting the next stricter
+  analysis epoch. The first 1.1.0 analysis follows the same pre-commit rule and
+  must use fresh coverage from the completed working tree.
 - The project uses the maintainer's `ZAM` quality gate, and **not all of its
   conditions are scoped to new code**. As of `2026-07-27` it requires
-  `new_coverage` at least `85`, `new_duplicated_lines_density` at most `1`,
-  `new_violations` `0`, `new_security_hotspots_reviewed` `100`, and — project-wide,
-  with no new-code qualifier — `software_quality_reliability_issues` `0` and
-  `software_quality_security_issues` `0`. Those last two mean a slice can fail the
-  gate on pre-existing issues it never touched, so read the gate off the server
-  (`/api/qualitygates/get_by_project` then `/api/qualitygates/show`) rather than
-  assuming the conditions above are still current, and expect to fix inherited
-  reliability or security findings as part of getting a slice green.
+  `new_coverage` at least `85`, `new_duplicated_lines_density` at most `1`, and
+  `new_violations` `0`. It also applies project-wide limits of at most `20`
+  maintainability issues, at most `180` minutes maintainability remediation
+  effort, `0` reliability issues, and `0` security issues. These project-wide
+  conditions mean a slice can fail on pre-existing issues it never touched, so
+  read the gate off the server (`/api/qualitygates/get_by_project` then
+  `/api/qualitygates/show`) rather than assuming the conditions above are still
+  current, and expect to fix inherited findings needed to get the slice green.
 - The setup recorded in the older slice notes below — a ZIP install under
   `~/.local/opt/sonarqube` backed by `postgresql.service`, run as a
   `sonarqube.service` systemd user unit for user `z`, with a token at
@@ -349,10 +357,12 @@ may not define the token):
 
 ## Graphify Map
 
-Regenerated on `2026-07-25` from branch `AI-dev` at commit `67e2045`, which is
-reachable; `graph.json` records it in `built_at_commit`. Refresh after code
-changes with `graphify update .` then `graphify tree`, and if a query looks stale
-compare `built_at_commit` against `git rev-parse HEAD`.
+Regenerated on `2026-07-27` from the current `AI-dev` working tree based on
+commit `5029961`; `graph.json` records that base in `built_at_commit` while its
+nodes and edges include the uncommitted history-recovery slice. Refresh after
+code changes with `graphify update .` then `graphify tree`, and if a query looks
+stale compare `built_at_commit` against `git rev-parse HEAD` and inspect the
+working tree.
 
 Artifacts in this repository:
 
@@ -755,7 +765,7 @@ Acceptance:
 
 ### Phase 6: Repo Settings and View Options
 
-**Status: mostly complete** — the repository settings modal covers display-name override, per-repo view toggles (stashes, tags, reflog commits, first parent, remote branches), user details, remotes, issue linking, and config export. Remaining: initial-branches-on-load selection.
+**Status: mostly complete** — the repository settings modal covers display-name override, per-repo view toggles (stashes, tags, reflog and unreachable commits, first parent, remote branches), user details, remotes, issue linking, and config export. The all-branches view also keeps a detached HEAD visible. Remaining: initial-branches-on-load selection.
 
 Goal: keep the toolbar clean while still exposing repo-scoped rendering options.
 
@@ -780,6 +790,56 @@ Acceptance:
 - Changes persist across webview reloads.
 - Settings changes rerender without restarting the extension.
 - The settings UI remains compact and does not dominate the graph.
+
+Slice progress:
+
+- `2026-07-27`: Hardened the all-branches graph and ref labels. The default
+  revision set now explicitly includes `HEAD` with `--ignore-missing`, so a
+  checked-out detached commit remains visible even when no branch or tag points
+  to it. Added opt-in `repository.includeUnreachableCommits` discovery using a
+  read-only `git fsck --unreachable --no-reflogs --connectivity-only` scan; it
+  applies only to Show All, is persisted globally or per repository, and is
+  available as a checked item in the table-header context menu. Matching local
+  and remote branches on the same commit now render as one segmented badge with
+  the local name followed by compact remote-name segments; every underlying ref
+  retains its own tooltip, checkout behavior, and context-menu actions. The UI
+  was reimplemented from this repository's own ref model after reviewing only
+  the referenced project's public feature description and supplied screenshot;
+  no source code from the referenced project was consulted or copied. Renamed
+  the internal webview type namespace from `GG` to the project-specific `GGL`
+  across declarations, runtime source, and test fixtures.
+
+  Verification:
+  - `git fetch --all --prune` (branch level with `origin/AI-dev` before work)
+  - strict Biome format and lint checks over all `49` touched/new TypeScript,
+    JSON, and CSS files passed with warnings treated as errors
+  - `pnpm run format` reported only six pre-existing format drifts in untouched
+    files: `.vscode/settings.json`, `tests/backend/avatarManager.test.ts`,
+    `tests/backend/diffDocProvider.test.ts`, `tests/backend/manifest.test.ts`,
+    `tests/backend/statusBarItem.test.ts`, and `tests/webview/utils/dom.test.ts`
+  - `pnpm run package` passed (TypeScript, whole-tree Biome lint, and production
+    extension/webview builds); the only lint output was the existing Biome
+    schema-version information (`2.5.2` configuration vs `2.5.5` CLI)
+  - `pnpm run test` passed: backend `42` files / `299` tests and webview `34`
+    files / `283` tests
+  - `pnpm run test:ext` passed all `49` extension-host tests after the extension
+    test TypeScript config was given explicit local aliases compatible with
+    TypeScript 6
+  - `pnpm run l10n:check` passed with `100%` package and bundle coverage for
+    `pl`, `zh-cn`, and `zh-tw`
+  - `pnpm run test:coverage` passed: `76` files / `582` tests, with raw LCOV
+    line coverage `91.9%`, branch coverage `77.7%`, and function coverage
+    `89.1%`
+  - `graphify update .` and `graphify tree` rebuilt the tracked map at `2,023`
+    nodes / `4,758` edges and regenerated `GRAPH_TREE.html`
+  - Pre-commit SonarQube scans were run from the completed working tree with
+    fresh LCOV. The first scans exposed inherited maintainability findings and
+    an uncovered extension-host path; both were fixed and all affected gates
+    were rerun. Final task `1d55f137-4655-4902-a28d-e2af75ccf720`, analysis
+    `47796099-6a08-435b-a519-551af75bfbc4`, passed the `ZAM` quality gate:
+    new coverage `88.2%`, new duplicated-lines density `0.0%`, and `0` new or
+    unresolved issues. Project-wide maintainability issues/effort,
+    reliability issues, and security issues were also all `0`.
 
 ### Phase 7: Stash Management
 
@@ -1486,9 +1546,9 @@ Maintainer-set priorities (`2026-07-03`): Phases 12, 13, and 14 are complete.
   target for fresh work.
 - Treat Biome and SonarQube as pre-commit gates for meaningful code slices:
   strict Biome must be clean for touched/staged files, coverage must be generated
-  with `pnpm run test:coverage`, and the local SonarQube quality gate should be
-  `OK`. If the gate cannot be run, record that it was skipped, why, and what
-  risk remains.
+  with `pnpm run test:coverage`, and the configured SonarQube quality gate must
+  be `OK` before committing. If the gate cannot be run, do not commit; record
+  why it is blocked and what risk remains.
 - While touching a file in an agile cycle, fix existing local code issues in
   that file when they are reasonable to address in the slice, including findings
   reported by Biome, SonarQube, typechecking, and obvious maintainability

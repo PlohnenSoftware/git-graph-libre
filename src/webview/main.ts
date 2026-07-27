@@ -33,6 +33,7 @@ import { findCommitIndexes, formatFindMatchCount } from "./commitFind";
 import { Dropdown, type DropdownOption } from "./dropdown";
 import { Graph } from "./graph";
 import { resolveGlobalShortcut } from "./keyboardShortcuts";
+import { groupCommitRefs, parseRemoteBranchName } from "./refLabels";
 import {
   getRepoBasename,
   getRepoDisplayName,
@@ -97,6 +98,7 @@ const COMMIT_SIGNATURE_PRESENTATIONS: Record<
 };
 const REPO_BOOLEAN_SETTING_KEYS: readonly RepoBooleanSettingKey[] = [
   "includeReflog",
+  "includeUnreachableCommits",
   "onlyFollowFirstParent",
   "showRemoteBranches",
   "showStashes",
@@ -126,7 +128,7 @@ function trimRepoTrailingSeparators(repo: string) {
 
 function postWebviewDiagnostic(
   stage: string,
-  opts: Omit<GG.RequestWebviewDiagnostic, "command" | "stage"> = {}
+  opts: Omit<GGL.RequestWebviewDiagnostic, "command" | "stage"> = {}
 ) {
   try {
     sendMessage({ command: "webviewDiagnostic", stage, ...opts });
@@ -197,7 +199,9 @@ function normalizeFilterSelection(values: readonly string[] | null | undefined):
   return selected.length === 0 ? null : selected;
 }
 
-function normalizeCustomBranchGlobPattern(value: GG.JsonValue): GG.CustomBranchGlobPattern | null {
+function normalizeCustomBranchGlobPattern(
+  value: GGL.JsonValue
+): GGL.CustomBranchGlobPattern | null {
   if (!isJsonObject(value)) return null;
   const name = value.name;
   const glob = value.glob;
@@ -211,12 +215,12 @@ function normalizeCustomBranchGlobPattern(value: GG.JsonValue): GG.CustomBranchG
   };
 }
 
-function isJsonObject(value: GG.JsonValue): value is { [key: string]: GG.JsonValue } {
+function isJsonObject(value: GGL.JsonValue): value is { [key: string]: GGL.JsonValue } {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 class GitGraphView {
-  private gitRepos: GG.GitRepoSet;
+  private gitRepos: GGL.GitRepoSet;
   private gitBranches: string[] = [];
   private gitBranchHead: string | null = null;
   private gitAuthors: string[] = [];
@@ -264,8 +268,8 @@ class GitGraphView {
   private readonly settingsWidgetBackingElem: HTMLElement;
   private readonly settingsWidgetElem: HTMLElement;
   private settingsWidgetOpen = false;
-  private settingsWidgetTab: GG.SettingsWidgetTab = "repository";
-  private extensionSettings: GG.ExtensionSetting[] | null = null;
+  private settingsWidgetTab: GGL.SettingsWidgetTab = "repository";
+  private extensionSettings: GGL.ExtensionSetting[] | null = null;
   private findQuery = "";
   private findMatches: number[] = [];
   private activeFindMatchIndex = -1;
@@ -282,7 +286,7 @@ class GitGraphView {
   private activeLoadCommitsRequestId: number | null = null;
 
   constructor(
-    repos: GG.GitRepoSet,
+    repos: GGL.GitRepoSet,
     lastActiveRepo: string | null,
     config: Config,
     prevState: WebViewState | null
@@ -468,7 +472,7 @@ class GitGraphView {
     }
   }
 
-  private restorePreviousRepoState(prevState: WebViewState, repoState: GG.GitRepoState) {
+  private restorePreviousRepoState(prevState: WebViewState, repoState: GGL.GitRepoState) {
     const savedOrdering = prevState.commitOrdering ?? "";
     if (isCommitOrdering(savedOrdering) && repoState.commitOrdering === undefined) {
       repoState.commitOrdering = savedOrdering;
@@ -504,7 +508,7 @@ class GitGraphView {
   }
 
   /* Loading Data */
-  public loadRepos(repos: GG.GitRepoSet, lastActiveRepo: string | null) {
+  public loadRepos(repos: GGL.GitRepoSet, lastActiveRepo: string | null) {
     this.gitRepos = repos;
     this.saveState();
 
@@ -521,8 +525,7 @@ class GitGraphView {
     }
 
     const options: { name: string; value: string }[] = [];
-    for (let i = 0; i < repoPaths.length; i++) {
-      const repoPath = repoPaths[i];
+    for (const repoPath of repoPaths) {
       options.push({ name: getRepoDisplayName(repoPath, repos[repoPath]), value: repoPath });
     }
     const repoControl = document.getElementById("repoControl");
@@ -839,9 +842,9 @@ class GitGraphView {
     this.saveState();
     const avatarsElems = <HTMLCollectionOf<HTMLElement>>document.getElementsByClassName("avatar"),
       escapedEmail = escapeHtml(email);
-    for (let i = 0; i < avatarsElems.length; i++) {
-      if (avatarsElems[i].dataset.email === escapedEmail) {
-        avatarsElems[i].innerHTML = `<img class="avatarImg" src="${image}">`;
+    for (const avatarElem of avatarsElems) {
+      if (avatarElem.dataset.email === escapedEmail) {
+        avatarElem.innerHTML = `<img class="avatarImg" src="${image}">`;
       }
     }
   }
@@ -891,7 +894,7 @@ class GitGraphView {
   }
   public loadExtensionSettings(
     requestId: number,
-    settings: GG.ExtensionSetting[],
+    settings: GGL.ExtensionSetting[],
     status: string | null
   ) {
     if (this.activeLoadExtensionSettingsRequestId !== requestId) return;
@@ -905,7 +908,7 @@ class GitGraphView {
     this.renderSettingsWidget();
   }
   public acceptExtensionSettingsUpdate(
-    settings: GG.ExtensionSetting[],
+    settings: GGL.ExtensionSetting[],
     status: string | null,
     errorLabel: string,
     changedKeys: readonly string[]
@@ -948,7 +951,7 @@ class GitGraphView {
       command: "loadCommits",
       requestId,
       repo: this.currentRepo,
-      branchName: this.currentBranch !== null ? this.currentBranch : "",
+      branchName: this.currentBranch ?? "",
       branches: this.currentBranches,
       authors: this.currentAuthors,
       tags: this.currentTags,
@@ -957,6 +960,7 @@ class GitGraphView {
       hiddenRemotes: this.getHiddenRemotes(),
       showTags: this.getShowTags(),
       includeReflog: this.getIncludeReflog(),
+      includeUnreachableCommits: this.getIncludeUnreachableCommits(),
       onlyFollowFirstParent: this.getOnlyFollowFirstParent(),
       commitOrdering: this.getCommitOrdering(),
       showSignature: !this.hiddenColumns.has("signature"),
@@ -988,12 +992,12 @@ class GitGraphView {
   }
   private fetchAvatars(avatars: { [email: string]: string[] }) {
     const emails = Object.keys(avatars);
-    for (let i = 0; i < emails.length; i++) {
+    for (const email of emails) {
       sendMessage({
         command: "fetchAvatar",
         repo: this.currentRepo,
-        email: emails[i],
-        commits: avatars[emails[i]]
+        email,
+        commits: avatars[email]
       });
     }
   }
@@ -1352,11 +1356,13 @@ class GitGraphView {
     });
   }
 
-  private normalizeSettingsWidgetTab(tab: GG.SettingsWidgetTab | undefined): GG.SettingsWidgetTab {
+  private normalizeSettingsWidgetTab(
+    tab: GGL.SettingsWidgetTab | undefined
+  ): GGL.SettingsWidgetTab {
     return tab === "extension" ? "extension" : "repository";
   }
 
-  private getCurrentRepoState(): GG.GitRepoState | null {
+  private getCurrentRepoState(): GGL.GitRepoState | null {
     return this.gitRepos[this.currentRepo] ?? null;
   }
 
@@ -1370,6 +1376,7 @@ class GitGraphView {
   private getRepoBooleanDefaults(): Record<RepoBooleanSettingKey, boolean> {
     return {
       includeReflog: this.config.includeReflog,
+      includeUnreachableCommits: this.config.includeUnreachableCommits,
       onlyFollowFirstParent: this.config.onlyFollowFirstParent,
       showRemoteBranches: this.config.showRemoteBranches,
       showStashes: this.config.showStashes,
@@ -1398,6 +1405,10 @@ class GitGraphView {
     return this.getRepoBooleanSetting("includeReflog");
   }
 
+  private getIncludeUnreachableCommits() {
+    return this.getRepoBooleanSetting("includeUnreachableCommits");
+  }
+
   private getOnlyFollowFirstParent() {
     return this.getRepoBooleanSetting("onlyFollowFirstParent");
   }
@@ -1407,11 +1418,12 @@ class GitGraphView {
     this.showRemoteBranchesElem.checked = this.showRemoteBranches;
   }
 
-  private applyExtensionSettings(settings: GG.ExtensionSetting[], changedKeys: readonly string[]) {
+  private applyExtensionSettings(settings: GGL.ExtensionSetting[], changedKeys: readonly string[]) {
     const beforeRemoteBranches = this.getShowRemoteBranches();
     const beforeStashes = this.getShowStashes();
     const beforeTags = this.getShowTags();
     const beforeIncludeReflog = this.getIncludeReflog();
+    const beforeIncludeUnreachable = this.getIncludeUnreachableCommits();
     const beforeFirstParent = this.getOnlyFollowFirstParent();
     let reloadHistory = false;
 
@@ -1440,6 +1452,7 @@ class GitGraphView {
       beforeStashes !== this.getShowStashes() ||
       beforeTags !== this.getShowTags() ||
       beforeIncludeReflog !== this.getIncludeReflog() ||
+      beforeIncludeUnreachable !== this.getIncludeUnreachableCommits() ||
       beforeFirstParent !== this.getOnlyFollowFirstParent();
     reloadHistory = reloadHistory || repoFilterDefaultsChanged;
 
@@ -1452,7 +1465,7 @@ class GitGraphView {
     }
   }
 
-  private applyExtensionSetting(setting: GG.ExtensionSetting) {
+  private applyExtensionSetting(setting: GGL.ExtensionSetting) {
     const value = setting.value;
     if (setting.configKey === "dateType") return true;
     if (setting.configKey === "showUncommittedChanges") return typeof value === "boolean";
@@ -1463,7 +1476,7 @@ class GitGraphView {
     return false;
   }
 
-  private applyBooleanExtensionSetting(configKey: string, value: GG.JsonValue) {
+  private applyBooleanExtensionSetting(configKey: string, value: GGL.JsonValue) {
     if (typeof value !== "boolean") return false;
     switch (configKey) {
       case "autoCenterCommitDetailsView":
@@ -1482,6 +1495,9 @@ class GitGraphView {
         return true;
       case "repository.includeReflog":
         this.config.includeReflog = value;
+        return true;
+      case "repository.includeUnreachableCommits":
+        this.config.includeUnreachableCommits = value;
         return true;
       case "repository.muteCommitsNotAncestorsOfHead":
         this.config.muteCommitsNotAncestorsOfHead = value;
@@ -1505,7 +1521,7 @@ class GitGraphView {
     return false;
   }
 
-  private applyNumberExtensionSetting(configKey: string, value: GG.JsonValue) {
+  private applyNumberExtensionSetting(configKey: string, value: GGL.JsonValue) {
     if (typeof value !== "number") return false;
     switch (configKey) {
       case "graph.fontSize":
@@ -1527,7 +1543,7 @@ class GitGraphView {
     return false;
   }
 
-  private applyStringExtensionSetting(configKey: string, value: GG.JsonValue) {
+  private applyStringExtensionSetting(configKey: string, value: GGL.JsonValue) {
     if (typeof value !== "string") return false;
     switch (configKey) {
       case "commitDetails.fileViewMode":
@@ -1548,13 +1564,13 @@ class GitGraphView {
     return false;
   }
 
-  private applyStructuredExtensionSetting(configKey: string, value: GG.JsonValue) {
+  private applyStructuredExtensionSetting(configKey: string, value: GGL.JsonValue) {
     if (configKey === "contextMenuActionsVisibility" && isJsonObject(value)) {
-      this.config.contextMenuActionsVisibility = value as GG.ContextMenuActionsVisibility;
+      this.config.contextMenuActionsVisibility = value as GGL.ContextMenuActionsVisibility;
     } else if (configKey === "customBranchGlobPatterns" && Array.isArray(value)) {
       this.config.customBranchGlobPatterns = value
         .map(normalizeCustomBranchGlobPattern)
-        .filter((pattern): pattern is GG.CustomBranchGlobPattern => pattern !== null);
+        .filter((pattern): pattern is GGL.CustomBranchGlobPattern => pattern !== null);
     } else if (configKey === "graphColors" && Array.isArray(value)) {
       this.config.graphColors = value.filter((color): color is string => typeof color === "string");
     }
@@ -1596,7 +1612,7 @@ class GitGraphView {
       .join(" ");
   }
 
-  private saveCurrentRepoState(repoState: GG.GitRepoState) {
+  private saveCurrentRepoState(repoState: GGL.GitRepoState) {
     this.saveState();
     sendMessage({
       command: "saveRepoState",
@@ -1605,7 +1621,7 @@ class GitGraphView {
     });
   }
 
-  private setRepoBooleanSetting(key: RepoBooleanSettingKey, value: GG.RepoBooleanOverride) {
+  private setRepoBooleanSetting(key: RepoBooleanSettingKey, value: GGL.RepoBooleanOverride) {
     const repoState = this.getCurrentRepoState();
     if (repoState === null) return;
 
@@ -1682,6 +1698,7 @@ class GitGraphView {
         showStashes: l10n.settingsShowStashes,
         showTags: l10n.settingsShowTags,
         includeReflog: l10n.settingsIncludeReflog,
+        includeUnreachableCommits: l10n.settingsIncludeUnreachableCommits,
         onlyFollowFirstParent: l10n.settingsOnlyFollowFirstParent,
         defaultOn: l10n.settingsDefaultOn,
         defaultOff: l10n.settingsDefaultOff,
@@ -1847,7 +1864,7 @@ class GitGraphView {
       tab.addEventListener("click", () => {
         this.selectSettingsTab(
           this.normalizeSettingsWidgetTab(
-            tab.dataset.settingsTab as GG.SettingsWidgetTab | undefined
+            tab.dataset.settingsTab as GGL.SettingsWidgetTab | undefined
           )
         );
       });
@@ -1874,13 +1891,13 @@ class GitGraphView {
     const nextTab = tabs[nextIndex];
     this.selectSettingsTab(
       this.normalizeSettingsWidgetTab(
-        nextTab.dataset.settingsTab as GG.SettingsWidgetTab | undefined
+        nextTab.dataset.settingsTab as GGL.SettingsWidgetTab | undefined
       )
     );
     nextTab.focus();
   }
 
-  private selectSettingsTab(tab: GG.SettingsWidgetTab) {
+  private selectSettingsTab(tab: GGL.SettingsWidgetTab) {
     if (this.settingsWidgetTab === tab) return;
     this.settingsWidgetTab = tab;
     this.saveState();
@@ -1911,14 +1928,14 @@ class GitGraphView {
       });
   }
 
-  private extensionInputValue(input: HTMLInputElement | HTMLSelectElement): GG.JsonValue {
+  private extensionInputValue(input: HTMLInputElement | HTMLSelectElement): GGL.JsonValue {
     const type = input.dataset.settingType;
     if (type === "boolean") return input instanceof HTMLInputElement && input.checked;
     if (type === "number") return Number(input.value);
     return input.value;
   }
 
-  private updateExtensionSetting(key: string | undefined, value: GG.JsonValue) {
+  private updateExtensionSetting(key: string | undefined, value: GGL.JsonValue) {
     if (key === undefined) return;
     sendMessage({ command: "updateExtensionSetting", key, value, global: true });
     setStatusStrip("action", `${l10n.statusUpdatingExtensionSetting}...`);
@@ -1941,7 +1958,7 @@ class GitGraphView {
       l10n.settingsExtensionJsonEdit,
       (values) => {
         try {
-          this.updateExtensionSetting(setting.key, JSON.parse(values[0]) as GG.JsonValue);
+          this.updateExtensionSetting(setting.key, JSON.parse(values[0]) as GGL.JsonValue);
         } catch (error) {
           showErrorDialog(
             l10n.settingsExtensionJsonInvalid,
@@ -2516,7 +2533,7 @@ class GitGraphView {
     );
   }
 
-  public replaceRepoState(repo: string, state: GG.GitRepoState) {
+  public replaceRepoState(repo: string, state: GGL.GitRepoState) {
     this.gitRepos[repo] = state;
     this.syncRepoSettingsControls();
     this.saveState();
@@ -2617,13 +2634,16 @@ class GitGraphView {
       );
     });
   }
-  private isContextMenuActionVisible(group: keyof GG.ContextMenuActionsVisibility, action: string) {
+  private isContextMenuActionVisible(
+    group: keyof GGL.ContextMenuActionsVisibility,
+    action: string
+  ) {
     return (
       (this.config.contextMenuActionsVisibility[group] as Record<string, boolean>)[action] !== false
     );
   }
   private visibleContextMenuItem(
-    group: keyof GG.ContextMenuActionsVisibility,
+    group: keyof GGL.ContextMenuActionsVisibility,
     action: string,
     item: ContextMenuItem
   ): ContextMenuElement {
@@ -3338,12 +3358,12 @@ class GitGraphView {
   private contextMenuCopyGroupForRef(
     sourceElem: HTMLElement,
     isTag: boolean
-  ): keyof GG.ContextMenuActionsVisibility {
+  ): keyof GGL.ContextMenuActionsVisibility {
     if (isTag) return "tag";
     if (sourceElem.classList.contains("remote")) return "remoteBranch";
     return "branch";
   }
-  private contextMenuGroupForRef(sourceElem: HTMLElement): keyof GG.ContextMenuActionsVisibility {
+  private contextMenuGroupForRef(sourceElem: HTMLElement): keyof GGL.ContextMenuActionsVisibility {
     if (sourceElem.classList.contains("tag")) return "tag";
     if (sourceElem.classList.contains("remote")) return "remoteBranch";
     if (sourceElem.classList.contains("head")) return "branch";
@@ -3495,7 +3515,7 @@ class GitGraphView {
     sourceElem: HTMLElement,
     refName: string
   ): ContextMenuElement[] {
-    const remoteBranch = this.parseRemoteBranchName(refName);
+    const remoteBranch = parseRemoteBranchName(refName, this.getRemoteNames());
     const menu: ContextMenuElement[] = [
       this.isContextMenuActionVisible("remoteBranch", "checkout")
         ? {
@@ -3754,7 +3774,7 @@ class GitGraphView {
       inputs,
       l10n.deleteBranch,
       (values) => {
-        const request: Extract<GG.RequestMessage, { command: "deleteBranch" }> = {
+        const request: Extract<GGL.RequestMessage, { command: "deleteBranch" }> = {
           command: "deleteBranch",
           repo: this.currentRepo,
           branchName: refName,
@@ -3914,19 +3934,6 @@ class GitGraphView {
     if (mode === "force-with-lease") return l10n.dialogPushBranchModeForceWithLease;
     if (mode === "force") return l10n.dialogPushBranchModeForce;
     return l10n.dialogPushBranchModeNormal;
-  }
-  private parseRemoteBranchName(refName: string) {
-    const remoteNames = this.getRemoteNames().sort((a, b) => b.length - a.length);
-    for (const remote of remoteNames) {
-      const prefix = `${remote}/`;
-      if (refName.startsWith(prefix) && refName.length > prefix.length) {
-        return { remote, branchName: refName.slice(prefix.length) };
-      }
-    }
-
-    const separator = refName.indexOf("/");
-    if (separator <= 0 || separator === refName.length - 1) return null;
-    return { remote: refName.slice(0, separator), branchName: refName.slice(separator + 1) };
   }
   private hasLocalBranch(branchName: string) {
     return this.gitBranches.includes(branchName);
@@ -4099,18 +4106,38 @@ class GitGraphView {
     return muted;
   }
   private renderCommitRefs(commit: GitCommitNode) {
-    let refs = "";
-    for (const ref of commit.refs) {
-      const refName = escapeHtml(ref.name);
-      const refActive = ref.type === "head" && ref.name === this.gitBranchHead;
-      const refHtml =
-        `<span class="gitRef ${ref.type}${refActive ? " active" : ""}" data-name="${refName}">` +
-        (ref.type === "tag" ? svgIcons.tag : svgIcons.branch) +
-        refName +
-        "</span>";
-      refs = refActive ? refHtml + refs : refs + refHtml;
-    }
-    return refs;
+    const items = groupCommitRefs(commit.refs, this.getRemoteNames());
+    const activeIndex = items.findIndex((item) => {
+      const ref = item.kind === "branch-group" ? item.local : item.ref;
+      return ref.type === "head" && ref.name === this.gitBranchHead;
+    });
+    if (activeIndex > 0) items.unshift(items.splice(activeIndex, 1)[0]);
+
+    return items
+      .map((item) => {
+        if (item.kind === "ref") return this.renderCommitRef(item.ref, item.ref.name, "");
+        const active = item.local.name === this.gitBranchHead;
+        const label = [item.local.name, ...item.remotes.map(({ ref }) => ref.name)].join(", ");
+        return (
+          `<span class="gitRefGroup${active ? " active" : ""}" role="group" aria-label="${escapeHtml(label)}">` +
+          this.renderCommitRef(item.local, item.local.name, " gitRefPrimary") +
+          item.remotes
+            .map(({ ref, remote }) => this.renderCommitRef(ref, remote, " gitRefAlias"))
+            .join("") +
+          "</span>"
+        );
+      })
+      .join("");
+  }
+  private renderCommitRef(ref: GitCommitNode["refs"][number], label: string, extraClass: string) {
+    const refName = escapeHtml(ref.name);
+    const refActive = ref.type === "head" && ref.name === this.gitBranchHead;
+    return (
+      `<span class="gitRef ${ref.type}${refActive ? " active" : ""}${extraClass}" data-name="${refName}" title="${refName}">` +
+      (ref.type === "tag" ? svgIcons.tag : svgIcons.branch) +
+      escapeHtml(label) +
+      "</span>"
+    );
   }
   private renderCommitAvatar(commit: GitCommitNode) {
     if (!this.config.fetchAvatars) return "";
@@ -4335,8 +4362,7 @@ class GitGraphView {
   }
   private findExpandedCommitElement(hash: string) {
     const elems = <HTMLCollectionOf<HTMLElement>>document.getElementsByClassName("commit");
-    for (let i = 0; i < elems.length; i++) {
-      const elem = elems[i];
+    for (const elem of elems) {
       if (hash === elem.dataset.hash) return elem;
     }
     return null;
@@ -4455,7 +4481,25 @@ class GitGraphView {
       title: `${commitOrdering === ordering ? "✓ " : ""}${orderingLabels[ordering]}`,
       onClick: () => this.setCommitOrdering(ordering)
     }));
-    return [...columnItems, null, ...orderingItems];
+    return [
+      ...columnItems,
+      null,
+      ...orderingItems,
+      null,
+      {
+        title: l10n.settingsIncludeUnreachableCommits,
+        checked: this.getIncludeUnreachableCommits(),
+        onClick: () => this.toggleIncludeUnreachableCommits()
+      }
+    ];
+  }
+  private toggleIncludeUnreachableCommits() {
+    const nextEnabled = !this.getIncludeUnreachableCommits();
+    let nextValue: GGL.RepoBooleanOverride = "default";
+    if (nextEnabled !== this.config.includeUnreachableCommits) {
+      nextValue = nextEnabled ? "enabled" : "disabled";
+    }
+    this.setRepoBooleanSetting("includeUnreachableCommits", nextValue);
   }
   private getCommitOrdering(): CommitOrdering {
     return this.gitRepos[this.currentRepo]?.commitOrdering ?? "date";
@@ -5234,6 +5278,7 @@ const gitGraph = new GitGraphView(
     revealHighlightColor: viewState.revealHighlightColor,
     grid: { x: 16, y: viewState.graphRowHeight, offsetX: 8, offsetY: 12, expandY: 250 },
     includeReflog: viewState.includeReflog,
+    includeUnreachableCommits: viewState.includeUnreachableCommits,
     initialLoadCommits: viewState.initialLoadCommits,
     loadMoreCommits: viewState.loadMoreCommits,
     muteCommitsNotAncestorsOfHead: viewState.muteCommitsNotAncestorsOfHead,
@@ -5293,9 +5338,9 @@ const actionErrorLabels = {
   squashCommitSelection: l10n.unableToSquashSelection,
   undoLastCommit: l10n.unableToUndoLastCommit,
   updateBranchFromUpstream: l10n.unableToUpdateBranch
-} satisfies Partial<Record<GG.ResponseMessage["command"], string>>;
+} satisfies Partial<Record<GGL.ResponseMessage["command"], string>>;
 
-function handleActionResponse(msg: GG.ResponseMessage) {
+function handleActionResponse(msg: GGL.ResponseMessage) {
   if (msg.command === "importRepoConfig") {
     if (msg.status === null && msg.state !== null) gitGraph.replaceRepoState(msg.repo, msg.state);
     refreshGraphOrDisplayError(msg.status, l10n.unableToImportRepoConfig);
@@ -5332,8 +5377,8 @@ function handleActionResponse(msg: GG.ResponseMessage) {
 
 /* Command Processing */
 type ResponseHandlerMap = {
-  [Command in GG.ResponseMessage["command"]]?: (
-    msg: Extract<GG.ResponseMessage, { command: Command }>
+  [Command in GGL.ResponseMessage["command"]]?: (
+    msg: Extract<GGL.ResponseMessage, { command: Command }>
   ) => void;
 };
 
@@ -5384,17 +5429,17 @@ window.addEventListener("message", handleMessageEvent);
 
 function handleMessageEvent(event: MessageEvent) {
   if (event.origin !== globalThis.location.origin) return;
-  handleResponseMessage(event.data as GG.ResponseMessage);
+  handleResponseMessage(event.data as GGL.ResponseMessage);
 }
 
-function handleResponseMessage(msg: GG.ResponseMessage) {
+function handleResponseMessage(msg: GGL.ResponseMessage) {
   if (handleActionResponse(msg)) return;
-  const handler = responseHandlers[msg.command] as ((msg: GG.ResponseMessage) => void) | undefined;
+  const handler = responseHandlers[msg.command] as ((msg: GGL.ResponseMessage) => void) | undefined;
   handler?.(msg);
 }
 
 function handleCommitDetailsResponse(
-  msg: Extract<GG.ResponseMessage, { command: "commitDetails" }>
+  msg: Extract<GGL.ResponseMessage, { command: "commitDetails" }>
 ) {
   if (msg.commitDetails === null) {
     gitGraph.hideCommitDetails();
@@ -5411,7 +5456,7 @@ function handleCommitDetailsResponse(
 }
 
 function handleCommitComparisonResponse(
-  msg: Extract<GG.ResponseMessage, { command: "commitComparison" }>
+  msg: Extract<GGL.ResponseMessage, { command: "commitComparison" }>
 ) {
   if (msg.commitDetails === null) {
     gitGraph.hideCommitDetails();
@@ -5427,7 +5472,7 @@ function handleCommitComparisonResponse(
   );
 }
 
-function handleTagDetailsResponse(msg: Extract<GG.ResponseMessage, { command: "tagDetails" }>) {
+function handleTagDetailsResponse(msg: Extract<GGL.ResponseMessage, { command: "tagDetails" }>) {
   if (msg.tagDetails === null) {
     showErrorDialog(l10n.unableToLoadTagDetails, formatQueryError(msg.error), null);
     setStatusStrip("error", l10n.unableToLoadTagDetails);
@@ -5438,7 +5483,7 @@ function handleTagDetailsResponse(msg: Extract<GG.ResponseMessage, { command: "t
 }
 
 function handleCopyToClipboardResponse(
-  msg: Extract<GG.ResponseMessage, { command: "copyToClipboard" }>
+  msg: Extract<GGL.ResponseMessage, { command: "copyToClipboard" }>
 ) {
   if (msg.success !== false) return;
   const typeLabel: Record<string, string> = {
@@ -5458,7 +5503,7 @@ function handleCopyToClipboardResponse(
 }
 
 function handleCreateArchiveResponse(
-  msg: Extract<GG.ResponseMessage, { command: "createArchive" }>
+  msg: Extract<GGL.ResponseMessage, { command: "createArchive" }>
 ) {
   if (msg.status === null) {
     hideDialog();
@@ -5533,10 +5578,21 @@ function showContextMenu(event: MouseEvent, items: ContextMenuElement[], sourceE
   let html = "";
   for (let i = 0; i < visibleItems.length; i++) {
     const item = visibleItems[i];
-    html +=
-      item === null
-        ? '<li class="contextMenuDivider"></li>'
-        : `<li class="contextMenuItem" data-index="${i}">${item.title}</li>`;
+    if (item === null) {
+      html += '<li class="contextMenuDivider" role="separator"></li>';
+      continue;
+    }
+
+    const isCheckbox = item.checked !== undefined;
+    const checkboxClass = isCheckbox ? " contextMenuItemCheckbox" : "";
+    const checkboxAttributes = isCheckbox
+      ? ` role="menuitemcheckbox" aria-checked="${item.checked === true}"`
+      : ' role="menuitem"';
+    const checkmark = item.checked === true ? "✓" : "";
+    const checkbox = isCheckbox
+      ? `<span class="contextMenuCheck" aria-hidden="true">${checkmark}</span>`
+      : "";
+    html += `<li class="contextMenuItem${checkboxClass}" data-index="${i}"${checkboxAttributes}>${checkbox}${item.title}</li>`;
   }
 
   hideContextMenuListener();
@@ -5559,8 +5615,13 @@ function showContextMenu(event: MouseEvent, items: ContextMenuElement[], sourceE
   addListenerToClass("contextMenuItem", "click", (ev) => {
     ev.stopPropagation();
     hideContextMenu();
-    if (!(ev.target instanceof HTMLElement) || ev.target.dataset.index === undefined) return;
-    visibleItems[Number.parseInt(ev.target.dataset.index, 10)]?.onClick();
+    if (
+      !(ev.currentTarget instanceof HTMLElement) ||
+      ev.currentTarget.dataset.index === undefined
+    ) {
+      return;
+    }
+    visibleItems[Number.parseInt(ev.currentTarget.dataset.index, 10)]?.onClick();
   });
 
   contextMenuSource = sourceElem;

@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitCommitDetails, GitCommitNode } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
-import type * as GG from "@/types";
+import type * as GGL from "@/types";
 
 import { createVscodeMock, receive, setupHtml } from "./setup";
 
 const REPO = "/workspace/list-mode-repo";
 
-type LoadBranchesRequest = Extract<GG.RequestMessage, { command: "loadBranches" }>;
-type LoadCommitsRequest = Extract<GG.RequestMessage, { command: "loadCommits" }>;
+type LoadBranchesRequest = Extract<GGL.RequestMessage, { command: "loadBranches" }>;
+type LoadCommitsRequest = Extract<GGL.RequestMessage, { command: "loadCommits" }>;
 
-const viewState: GG.GitGraphViewState = {
+const viewState: GGL.GitGraphViewState = {
   autoCenterCommitDetailsView: false,
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "list",
@@ -25,6 +25,7 @@ const viewState: GG.GitGraphViewState = {
   graphStyle: "rounded",
   revealHighlightColor: "oklch(90% 0.25 150 / 0.42)",
   includeReflog: false,
+  includeUnreachableCommits: false,
   initialLoadCommits: 300,
   lastActiveRepo: null,
   loadMoreCommits: 75,
@@ -71,7 +72,7 @@ const commitDetails: GitCommitDetails = {
   ]
 };
 
-function latestLoadBranchesRequest(messages: GG.RequestMessage[]): LoadBranchesRequest {
+function latestLoadBranchesRequest(messages: GGL.RequestMessage[]): LoadBranchesRequest {
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
     if (msg.command === "loadBranches") return msg;
@@ -79,7 +80,7 @@ function latestLoadBranchesRequest(messages: GG.RequestMessage[]): LoadBranchesR
   throw new Error("Missing loadBranches request");
 }
 
-function latestLoadCommitsRequest(messages: GG.RequestMessage[]): LoadCommitsRequest {
+function latestLoadCommitsRequest(messages: GGL.RequestMessage[]): LoadCommitsRequest {
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
     if (msg.command === "loadCommits") return msg;

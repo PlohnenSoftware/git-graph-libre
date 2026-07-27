@@ -1,9 +1,10 @@
-import * as GG from "@/types";
+import type * as GGL from "@/types";
 
 const vscode = acquireVsCodeApi();
+
 export { vscode };
 
-export function sendMessage(msg: GG.RequestMessage) {
+export function sendMessage(msg: GGL.RequestMessage) {
   vscode.postMessage(msg);
 }
 export function getVSCodeStyle(name: string) {

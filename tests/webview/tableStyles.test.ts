@@ -82,6 +82,21 @@ describe("commit table styles", () => {
     expect(muted).toContain("var(--vscode-descriptionForeground");
   });
 
+  it("renders grouped local and remote refs as one segmented badge", () => {
+    expect(css).toContain(".gitRefGroup {");
+    expect(css).toContain("display: inline-flex;");
+    expect(css).toContain(".gitRefGroup > .gitRefAlias {");
+    expect(css).toContain("var(--vscode-badge-background");
+    expect(css).toContain(".gitRefGroup > .gitRefAlias > svg");
+    expect(css).toContain("display: none;");
+  });
+
+  it("gives context-menu checkbox items a stable check slot", () => {
+    expect(css).toContain("#contextMenu li.contextMenuItemCheckbox");
+    expect(css).toContain(".contextMenuCheck {");
+    expect(css).toContain("justify-content: center;");
+  });
+
   it("keeps the graph visible above full-row states", () => {
     expect(css).toContain("z-index: 5;");
     expect(css).toContain("pointer-events: none;");

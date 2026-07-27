@@ -11,8 +11,8 @@ import type { GitRepoSet, GitRepoState } from "@/types";
 function sortRepos(repos: GitRepoSet) {
   const repoPaths = Object.keys(repos).toSorted((a, b) => a.localeCompare(b));
   const sorted: GitRepoSet = {};
-  for (let i = 0; i < repoPaths.length; i++) {
-    sorted[repoPaths[i]] = repos[repoPaths[i]];
+  for (const repoPath of repoPaths) {
+    sorted[repoPath] = repos[repoPath];
   }
   return sorted;
 }
@@ -51,8 +51,8 @@ export function createRepoManager(
 
   function isDirectoryWithinRepos(path: string) {
     const repoPaths = Object.keys(repos);
-    for (let i = 0; i < repoPaths.length; i++) {
-      if (path === repoPaths[i] || path.startsWith(`${repoPaths[i]}/`)) return true;
+    for (const repoPath of repoPaths) {
+      if (path === repoPath || path.startsWith(`${repoPath}/`)) return true;
     }
     return false;
   }
@@ -66,9 +66,9 @@ export function createRepoManager(
     const pathFolder = `${path}/`;
     const repoPaths = Object.keys(repos);
     let changes = false;
-    for (let i = 0; i < repoPaths.length; i++) {
-      if (repoPaths[i] === path || repoPaths[i].startsWith(pathFolder)) {
-        removeRepo(repoPaths[i]);
+    for (const repoPath of repoPaths) {
+      if (repoPath === path || repoPath.startsWith(pathFolder)) {
+        removeRepo(repoPath);
         changes = true;
       }
     }
@@ -85,19 +85,20 @@ export function createRepoManager(
     const rootsFolder: string[] = [];
     const workspaceFolders = vscode.workspace.workspaceFolders;
     const repoPaths = Object.keys(repos);
-    if (typeof workspaceFolders !== "undefined") {
-      for (let i = 0; i < workspaceFolders.length; i++) {
-        const path = getPathFromUri(workspaceFolders[i].uri);
+    if (workspaceFolders !== undefined) {
+      for (const folder of workspaceFolders) {
+        const path = getPathFromUri(folder.uri);
         rootsExact.push(path);
         rootsFolder.push(`${path}/`);
       }
     }
-    for (let i = 0; i < repoPaths.length; i++) {
+    for (const repoPath of repoPaths) {
       if (
-        rootsExact.indexOf(repoPaths[i]) === -1 &&
-        !rootsFolder.find((x) => repoPaths[i].startsWith(x))
-      )
-        removeRepo(repoPaths[i]);
+        !rootsExact.includes(repoPath) &&
+        !rootsFolder.some((root) => repoPath.startsWith(root))
+      ) {
+        removeRepo(repoPath);
+      }
     }
   }
 

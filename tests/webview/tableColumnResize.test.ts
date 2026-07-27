@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { GitCommitNode, GitRepoInfo } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
-import type * as GG from "@/types";
+import type * as GGL from "@/types";
 
 import { createVscodeMock, receive, setupHtml } from "./setup";
 
@@ -10,20 +10,20 @@ const REPO = "/workspace/my-repo";
 const OTHER_REPO = "/workspace/other-repo";
 const STORED_WIDTHS = [64, 120, 124, 72, 64];
 
-type LoadBranchesRequest = Extract<GG.RequestMessage, { command: "loadBranches" }>;
-type LoadCommitsRequest = Extract<GG.RequestMessage, { command: "loadCommits" }>;
-type LoadRepoInfoRequest = Extract<GG.RequestMessage, { command: "loadRepoInfo" }>;
-type SaveRepoStateRequest = Extract<GG.RequestMessage, { command: "saveRepoState" }>;
-type SelectRepoRequest = Extract<GG.RequestMessage, { command: "selectRepo" }>;
+type LoadBranchesRequest = Extract<GGL.RequestMessage, { command: "loadBranches" }>;
+type LoadCommitsRequest = Extract<GGL.RequestMessage, { command: "loadCommits" }>;
+type LoadRepoInfoRequest = Extract<GGL.RequestMessage, { command: "loadRepoInfo" }>;
+type SaveRepoStateRequest = Extract<GGL.RequestMessage, { command: "saveRepoState" }>;
+type SelectRepoRequest = Extract<GGL.RequestMessage, { command: "selectRepo" }>;
 
 function viewState(
   columnWidths: number[] | null,
   // The view mutates the stored widths in place while resizing, so each boot gets
   // its own copy rather than sharing one array across tests.
-  repos: Record<string, GG.GitRepoState> = {
+  repos: Record<string, GGL.GitRepoState> = {
     [REPO]: { columnWidths: columnWidths === null ? null : [...columnWidths] }
   }
-): GG.GitGraphViewState {
+): GGL.GitGraphViewState {
   return {
     autoCenterCommitDetailsView: true,
     dateFormat: "Date & Time",
@@ -39,6 +39,7 @@ function viewState(
     graphStyle: "rounded",
     revealHighlightColor: "oklch(90% 0.25 150 / 0.42)",
     includeReflog: false,
+    includeUnreachableCommits: false,
     initialLoadCommits: 300,
     lastActiveRepo: null,
     loadMoreCommits: 75,
@@ -91,15 +92,15 @@ const repoInfo: GitRepoInfo = {
 
 let vscodeMock: ReturnType<typeof createVscodeMock>;
 
-function latest<T extends GG.RequestMessage["command"]>(command: T) {
+function latest<T extends GGL.RequestMessage["command"]>(command: T) {
   for (let i = vscodeMock.sentMessages.length - 1; i >= 0; i--) {
     const msg = vscodeMock.sentMessages[i];
-    if (msg.command === command) return msg as Extract<GG.RequestMessage, { command: T }>;
+    if (msg.command === command) return msg as Extract<GGL.RequestMessage, { command: T }>;
   }
   throw new Error(`Missing ${command} request`);
 }
 
-async function boot(state: GG.GitGraphViewState) {
+async function boot(state: GGL.GitGraphViewState) {
   vi.resetModules();
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   vscodeMock = createVscodeMock();
@@ -128,7 +129,7 @@ async function boot(state: GG.GitGraphViewState) {
     moreCommitsAvailable: false,
     hard: true,
     error: null
-  } as unknown as GG.ResponseMessage);
+  } as unknown as GGL.ResponseMessage);
 }
 
 function headers() {

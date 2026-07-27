@@ -5,7 +5,11 @@
     "module": "node16",
     "moduleResolution": "node16",
     "rootDir": "../..",
-    "outDir": "../out/extension"
+    "outDir": "../out/extension",
+    "paths": {
+      "@/*": ["../../src/*"],
+      "@tests/*": ["../../tests/*"]
+    }
   },
   "include": ["./**/*.ts"]
 }
