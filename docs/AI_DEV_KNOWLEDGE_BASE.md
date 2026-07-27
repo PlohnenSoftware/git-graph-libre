@@ -257,6 +257,16 @@ The extension is already split into clean layers:
   lines — the whole 1.0.0 body of work, not the slice in front of you. Expect
   gate conditions to describe the release rather than your change until the
   version is deliberately advanced.
+- The project uses the maintainer's `ZAM` quality gate, and **not all of its
+  conditions are scoped to new code**. As of `2026-07-27` it requires
+  `new_coverage` at least `85`, `new_duplicated_lines_density` at most `1`,
+  `new_violations` `0`, `new_security_hotspots_reviewed` `100`, and — project-wide,
+  with no new-code qualifier — `software_quality_reliability_issues` `0` and
+  `software_quality_security_issues` `0`. Those last two mean a slice can fail the
+  gate on pre-existing issues it never touched, so read the gate off the server
+  (`/api/qualitygates/get_by_project` then `/api/qualitygates/show`) rather than
+  assuming the conditions above are still current, and expect to fix inherited
+  reliability or security findings as part of getting a slice green.
 - The setup recorded in the older slice notes below — a ZIP install under
   `~/.local/opt/sonarqube` backed by `postgresql.service`, run as a
   `sonarqube.service` systemd user unit for user `z`, with a token at
@@ -933,6 +943,18 @@ Slice progress:
     lightly-tested code will push `new_coverage` back under it. The largest
     remaining pools are `src/webview/main.ts` (`265` uncovered lines),
     `src/avatarManager.ts` (`24`), and `src/extension/messageHandler.ts` (`25`).
+  - `2026-07-27`, follow-up: the maintainer added project-wide conditions to the
+    gate, which then failed on `software_quality_reliability_issues` `5`. All five
+    were `typescript:S7781` (`String#split().join()` where `String#replaceAll()`
+    belongs) in `src/backend/actions/file.ts`, `src/backend/actions/commit.ts`,
+    and three places in `src/webview/main.ts` — none introduced by this slice;
+    they dated from `2026-07-01` and `2026-07-02`. Replaced with `replaceAll`,
+    which takes a literal string here and so keeps the deliberate
+    no-regex-backtracking property of the CRLF helpers. Gate on revision
+    `fb05e6a`: **`OK`** on all five conditions — `new_coverage` `85.0%`,
+    `new_duplicated_lines_density` `0.0`, `new_violations` `0`,
+    `software_quality_reliability_issues` `0`,
+    `software_quality_security_issues` `0`.
   - Correction for future agents: an earlier attempt in this slice reported the
     gate as unrunnable after a `401`. That was wrong — the command had been
     prefixed with an empty `SONAR_TOKEN=`, which overrode the valid

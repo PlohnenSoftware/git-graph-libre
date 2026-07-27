@@ -1,16 +1,16 @@
 # Graph Report - git-graph-libre  (2026-07-27)
 
 ## Corpus Check
-- 197 files · ~117,996 words
+- 197 files · ~118,187 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1997 nodes · 4690 edges · 114 communities (100 shown, 14 thin omitted)
+- 1997 nodes · 4690 edges · 111 communities (100 shown, 11 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 31 edges (avg confidence: 0.68)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a6410e01`
+- Built from commit: `fb05e6ab`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -109,15 +109,12 @@
 - git-graph-libre.loadMoreCommits
 - git-graph-libre.maxDepthOfRepoSearch
 - git-graph-libre.repository.includeReflog
-- git-graph-libre.repository.showRemoteBranches
 - git-graph-libre.repository.showTags
 - git-graph-libre.showCurrentBranchByDefault
-- git-graph-libre.showStatusBarItem
 - git-graph-libre.showUncommittedChanges
 - html.ts
 - dialogStyles.test.ts
 - categories
-- .applyStructuredExtensionSetting
 - utils/vscode.ts
 - manifest.test.ts
 - tableStyles.test.ts
@@ -153,7 +150,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (114 total, 14 thin omitted)
+## Communities (111 total, 11 thin omitted)
 
 ### Community 0 - "sendMessage"
 Cohesion: 0.07
@@ -168,12 +165,16 @@ Cohesion: 0.12
 Nodes (16): simple-git, simple-git, checkoutBranch(), createBranch(), DeleteBranchInput, renameBranch(), addTag(), deleteTag() (+8 more)
 
 ### Community 3 - "GitGraphView"
-Cohesion: 0.06
-Nodes (4): DropdownOption, GitGraphView, postWebviewDiagnostic(), requireElement()
+Cohesion: 0.07
+Nodes (4): DropdownOption, createEmptyGitConfig(), GitGraphView, postWebviewDiagnostic()
 
 ### Community 4 - "Graph"
 Cohesion: 0.06
 Nodes (6): Branch, Graph, UnavailablePoint, Vertex, VertexOrNull, config
+
+### Community 5 - ".constructor"
+Cohesion: 0.10
+Nodes (7): GitCommitSearchResult, handleActionResponse(), handleCreateArchiveResponse(), handleExtensionSettingsFileResponse(), hideDialog(), refreshGraphOrDisplayError(), setStatusStrip()
 
 ### Community 6 - "messageHandler.ts"
 Cohesion: 0.11
@@ -184,8 +185,8 @@ Cohesion: 0.05
 Nodes (36): JsonPrimitive, RequestCompareFileWithWorkingTree, RequestCopyToClipboard, RequestExportExtensionSettings, RequestFetchAvatar, RequestImportExtensionSettings, RequestImportRepoConfig, RequestLoadExtensionSettings (+28 more)
 
 ### Community 8 - "main.ts"
-Cohesion: 0.06
-Nodes (41): generateGitFileTree(), bindTextRefDialogInput(), COLUMN_HIDE_CLASSES, COMMIT_SIGNATURE_PRESENTATIONS, contextMenu, dialog, dialogBacking, errorToDiagnosticMessage() (+33 more)
+Cohesion: 0.05
+Nodes (46): CommitDetailsSection, generateGitFileTree(), bindTextRefDialogInput(), COLUMN_HIDE_CLASSES, COMMIT_SIGNATURE_PRESENTATIONS, contextMenu, dialog, dialogBacking (+38 more)
 
 ### Community 9 - "rendering.test.ts"
 Cohesion: 0.06
@@ -193,7 +194,7 @@ Nodes (22): clickContextMenuItem(), contextMenuItem(), defaultViewState, finishA
 
 ### Community 10 - "vscode"
 Cohesion: 0.07
-Nodes (23): vscode, webviewBridgeFactory(), normalizeRepoPath(), RelativePatternFactory, RepoFileWatcher, shouldRefreshGitPath(), shouldRefreshRepoPath(), trimTrailingSlashes() (+15 more)
+Nodes (24): vscode, getPathFromUri(), webviewBridgeFactory(), normalizeRepoPath(), RelativePatternFactory, RepoFileWatcher, shouldRefreshGitPath(), shouldRefreshRepoPath() (+16 more)
 
 ### Community 11 - "ExtensionState"
 Cohesion: 0.16
@@ -204,8 +205,8 @@ Cohesion: 0.12
 Nodes (4): Dropdown, DropdownDisplayOptions, truncateMiddle(), truncateRefName()
 
 ### Community 13 - ".renderTable"
-Cohesion: 0.09
-Nodes (8): CommitOrdering, closestHTMLElement(), hideContextMenu(), hideContextMenuListener(), hideDialogAndContextMenu(), normalizeContextMenuItems(), showContextMenu(), addListenerToClass()
+Cohesion: 0.08
+Nodes (9): CommitOrdering, closestHTMLElement(), hideContextMenu(), hideContextMenuListener(), hideDialogAndContextMenu(), normalizeContextMenuItems(), requireElement(), showContextMenu() (+1 more)
 
 ### Community 14 - "escapeHtml"
 Cohesion: 0.14
@@ -261,7 +262,7 @@ Nodes (19): addRemote(), AddRemoteInput, assertPruneTagsSupported(), cleanRemote
 
 ### Community 28 - "path.ts"
 Cohesion: 0.12
-Nodes (23): isGitRepository(), doesPathExist(), getPathFromUri(), isDirectory(), evalPromises(), toRejectionError(), isDirectory(), searchDirectoryForRepos() (+15 more)
+Nodes (22): isGitRepository(), doesPathExist(), isDirectory(), evalPromises(), toRejectionError(), isDirectory(), searchDirectoryForRepos(), RepoManager (+14 more)
 
 ### Community 29 - "repoConfigFile.ts"
 Cohesion: 0.18
@@ -290,10 +291,6 @@ Nodes (12): getWebviewLocalizedStrings(), LocalizedStrings, buildWebviewStatusSt
 ### Community 35 - "linkify.ts"
 Cohesion: 0.17
 Nodes (18): IssueLinkingConfig, buildIssueUrl(), collectHttpLinks(), collectIssueLinks(), collectLinks(), countCharacter(), createIssuePattern(), extractIssueLinks() (+10 more)
-
-### Community 36 - ".displayHash"
-Cohesion: 0.20
-Nodes (7): DialogInput, handleActionResponse(), handleCreateArchiveResponse(), handleExtensionSettingsFileResponse(), hideDialog(), refreshGraphOrDisplayError(), setStatusStrip()
 
 ### Community 37 - "package.json"
 Cohesion: 0.08
@@ -437,7 +434,7 @@ Nodes (6): assertHttpUrl(), buildPullRequestUrl(), parseRemoteUrl(), PullRequest
 
 ### Community 74 - "ActionPayload"
 Cohesion: 0.50
-Nodes (4): default, description, type, git-graph-libre.repository.muteCommitsNotAncestorsOfHead
+Nodes (4): default, description, type, git-graph-libre.repository.showRemoteBranches
 
 ### Community 75 - "octicons.ts"
 Cohesion: 0.48
@@ -465,7 +462,7 @@ Nodes (6): keywords, branch, git, git graph, git history, git log
 
 ### Community 81 - "contextMenuVisibility.ts"
 Cohesion: 0.50
-Nodes (4): default, description, type, git-graph-libre.showStatusBarItem
+Nodes (4): default, description, type, git-graph-libre.showUncommittedChanges
 
 ### Community 82 - "dom.ts"
 Cohesion: 0.53
@@ -542,7 +539,7 @@ Nodes (4): default, description, type, git-graph-libre.repository.showStashes
 ## Knowledge Gaps
 - **592 isolated node(s):** `path`, `esbuild`, `production`, `esbuildProblemMatcherPlugin`, `aliasPlugin` (+587 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **14 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **11 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
