@@ -10,6 +10,7 @@ type StubResponse = {
   contentType?: string | string[] | null;
   body?: string;
   error?: boolean;
+  headers?: Record<string, string>;
 };
 
 const net = vi.hoisted(() => ({
@@ -44,7 +45,7 @@ vi.mock("node:https", () => ({
         const contentType = stub.contentType === null ? undefined : (stub.contentType ?? "image/png");
         const res = {
           statusCode: stub.statusCode ?? 200,
-          headers: { "content-type": contentType },
+          headers: { "content-type": contentType, ...stub.headers },
           on(event: string, handler: (chunk?: Buffer) => void) {
             listeners.set(event, handler);
             return res;
@@ -410,6 +411,98 @@ describe("avatar manager", () => {
     manager.clearCache();
 
     expect(extensionState.clearedCount()).toBe(1);
+  });
+
+  it.each([
+    {
+      name: "downloads the avatar the github api points to",
+      responses: [
+        {
+          statusCode: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ author: { avatar_url: "https://avatars.example.test/u/1?v=4" } })
+        },
+        { statusCode: 200, contentType: "image/png", body: "png" }
+      ] as StubResponse[],
+      commits: ["abc123"],
+      followUp: "avatars.example.test",
+      saved: true
+    },
+    {
+      name: "falls back to gravatar when the commit has no github author",
+      responses: [
+        { statusCode: 200, contentType: "application/json", body: "{}" },
+        { statusCode: 404 },
+        { statusCode: 404 }
+      ] as StubResponse[],
+      commits: ["abc123"],
+      followUp: "secure.gravatar.com",
+      saved: false
+    },
+    {
+      name: "waits out a github rate limit instead of falling back",
+      responses: [{ statusCode: 403 }] as StubResponse[],
+      commits: ["abc123"],
+      followUp: null,
+      saved: false
+    },
+    {
+      name: "retries with the next commit when github does not know this one",
+      responses: [{ statusCode: 422 }] as StubResponse[],
+      commits: ["abc123", "def456"],
+      followUp: null,
+      saved: false
+    },
+    {
+      name: "backs off when the github api returns a server error",
+      responses: [{ statusCode: 500 }] as StubResponse[],
+      commits: ["abc123"],
+      followUp: null,
+      saved: false
+    },
+    {
+      name: "backs off when the github request cannot connect",
+      responses: [{ error: true }] as StubResponse[],
+      commits: ["abc123"],
+      followUp: null,
+      saved: false
+    }
+  ])("$name", async ({ responses, commits, followUp, saved }) => {
+    getRemoteUrl.mockResolvedValue("https://github.com/octocat/Hello-World.git");
+    net.responses.push(...responses);
+    const { manager, extensionState } = await createManager();
+
+    manager.fetchAvatarImage("ada@example.test", REPO, commits);
+    await flush();
+    await flush();
+
+    expect(net.requested[0]).toContain("api.github.com");
+    if (followUp === null) {
+      expect(net.requested).toHaveLength(1);
+    } else {
+      expect(net.requested[1]).toContain(followUp);
+    }
+    expect(extensionState.saved.length > 0).toBe(saved);
+  });
+
+  it("records the github rate limit reset so later requests are deferred", async () => {
+    getRemoteUrl.mockResolvedValue("https://github.com/octocat/Hello-World.git");
+    const resetAt = Math.floor(Date.now() / 1000) + 600;
+    net.responses.push(
+      {
+        statusCode: 403,
+        headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(resetAt) }
+      },
+      { statusCode: 200, contentType: "application/json", body: "{}" }
+    );
+    const { manager } = await createManager();
+
+    manager.fetchAvatarImage("ada@example.test", REPO, ["abc123"]);
+    await flush();
+    await flush();
+
+    // The deferred item is not retried before the reset time, so no second call.
+    expect(net.requested).toHaveLength(1);
   });
 
   it("merges later commits into a pending request for the same author", async () => {
