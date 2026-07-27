@@ -485,6 +485,95 @@ describe("avatar manager", () => {
     expect(extensionState.saved.length > 0).toBe(saved);
   });
 
+  it.each([
+    {
+      name: "downloads the avatar the gitlab api points to",
+      responses: [
+        {
+          statusCode: 200,
+          contentType: "application/json",
+          body: JSON.stringify([{ avatar_url: "https://gitlab.example.test/uploads/avatar.png" }])
+        },
+        { statusCode: 200, contentType: "image/png", body: "png" }
+      ] as StubResponse[],
+      followUp: "gitlab.example.test",
+      saved: true
+    },
+    {
+      name: "falls back to gravatar when gitlab knows no such user",
+      responses: [
+        { statusCode: 200, contentType: "application/json", body: "[]" },
+        { statusCode: 404 },
+        { statusCode: 404 }
+      ] as StubResponse[],
+      followUp: "secure.gravatar.com",
+      saved: false
+    },
+    {
+      name: "falls back to gravatar when the gitlab user has no avatar",
+      responses: [
+        { statusCode: 200, contentType: "application/json", body: JSON.stringify([{}]) },
+        { statusCode: 404 },
+        { statusCode: 404 }
+      ] as StubResponse[],
+      followUp: "secure.gravatar.com",
+      saved: false
+    },
+    {
+      name: "waits out a gitlab rate limit instead of falling back",
+      responses: [{ statusCode: 429 }] as StubResponse[],
+      followUp: null,
+      saved: false
+    },
+    {
+      name: "backs off when the gitlab api returns a server error",
+      responses: [{ statusCode: 503 }] as StubResponse[],
+      followUp: null,
+      saved: false
+    },
+    {
+      name: "backs off when the gitlab request cannot connect",
+      responses: [{ error: true }] as StubResponse[],
+      followUp: null,
+      saved: false
+    }
+  ])("$name", async ({ responses, followUp, saved }) => {
+    getRemoteUrl.mockResolvedValue("https://gitlab.com/group/project.git");
+    net.responses.push(...responses);
+    const { manager, extensionState } = await createManager();
+
+    manager.fetchAvatarImage("ada@example.test", REPO, ["abc123"]);
+    await flush();
+    await flush();
+
+    expect(net.requested[0]).toContain("gitlab.com/api/v4/users");
+    if (followUp === null) {
+      expect(net.requested).toHaveLength(1);
+    } else {
+      expect(net.requested[1]).toContain(followUp);
+    }
+    expect(extensionState.saved.length > 0).toBe(saved);
+  });
+
+  it("records the gitlab rate limit reset so later requests are deferred", async () => {
+    getRemoteUrl.mockResolvedValue("https://gitlab.com/group/project.git");
+    const resetAt = Math.floor(Date.now() / 1000) + 600;
+    net.responses.push(
+      {
+        statusCode: 429,
+        headers: { "ratelimit-remaining": "0", "ratelimit-reset": String(resetAt) }
+      },
+      { statusCode: 200, contentType: "application/json", body: "[]" }
+    );
+    const { manager } = await createManager();
+
+    manager.fetchAvatarImage("ada@example.test", REPO, ["abc123"]);
+    await flush();
+    await flush();
+
+    expect(net.requested).toHaveLength(1);
+  });
+
   it("records the github rate limit reset so later requests are deferred", async () => {
     getRemoteUrl.mockResolvedValue("https://github.com/octocat/Hello-World.git");
     const resetAt = Math.floor(Date.now() / 1000) + 600;
