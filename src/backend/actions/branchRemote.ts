@@ -1,7 +1,8 @@
 import type { SimpleGit } from "simple-git";
 
 import type { ActionPayload, GitPushBranchMode } from "@/backend/types";
-import { GitCommandError, type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
+import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
+import { isMissingRemoteRefError } from "@/backend/utils/remoteRefs";
 
 type ActionInput<T extends keyof ActionPayloadByCommand> = ActionPayloadByCommand[T] & {
   repo?: string | null;
@@ -23,12 +24,6 @@ function pushModeArg(mode: GitPushBranchMode): string | null {
   if (mode === "normal") return null;
   if (mode === "force-with-lease") return "--force-with-lease";
   return "--force";
-}
-
-function remoteBranchMissing(error: unknown) {
-  if (!(error instanceof GitCommandError)) return false;
-  const text = [error.record.error?.message, error.record.error?.stderr].filter(Boolean).join("\n");
-  return /remote ref does not exist/i.test(text);
 }
 
 function parseRemoteBranch(remoteBranchRef: string, remotes: string[]): TrackedBranch {
@@ -144,7 +139,7 @@ export async function deleteRemoteBranch(
       record
     });
   } catch (error: unknown) {
-    if (!remoteBranchMissing(error)) throw error;
+    if (!isMissingRemoteRefError(error)) throw error;
     await runGitRaw(git, {
       label: "branchRemote.deleteRemoteTrackingBranch",
       kind: "action",

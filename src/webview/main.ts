@@ -3661,12 +3661,45 @@ class GitGraphView {
     showActionRunningDialog(l10n.statusCreatingPullRequest);
   }
   private showDeleteTagDialog(refName: string) {
-    showConfirmationDialog(
-      l10n.dialogDeleteConfirm
-        .replace("{0}", l10n.labelTag)
-        .replace("{1}", `<b><i>${escapeHtml(refName)}</i></b>`),
-      () => {
-        sendMessage({ command: "deleteTag", repo: this.currentRepo, tagName: refName });
+    const remoteNames = this.getRemoteNames();
+    const message = l10n.dialogDeleteConfirm
+      .replace("{0}", l10n.labelTag)
+      .replace("{1}", `<b><i>${escapeHtml(refName)}</i></b>`);
+    if (remoteNames.length === 0) {
+      showConfirmationDialog(
+        message,
+        () => {
+          sendMessage({ command: "deleteTag", repo: this.currentRepo, tagName: refName });
+          showActionRunningDialog(l10n.statusDeletingTag);
+        },
+        null
+      );
+      return;
+    }
+
+    // `refs/tags` has no per-remote tracking refs, so the webview cannot know
+    // which remotes hold the tag. Offer every remote, default to none, and let
+    // the backend treat an already-absent remote tag as success.
+    const inputs: DialogInput[] = remoteNames.map((remote) => ({
+      type: "checkbox" as const,
+      name: l10n.dialogDeleteTagOnRemote.replace("{0}", remote),
+      value: false
+    }));
+
+    showFormDialog(
+      message,
+      inputs,
+      l10n.deleteTag,
+      (values) => {
+        const request: Extract<GGL.RequestMessage, { command: "deleteTag" }> = {
+          command: "deleteTag",
+          repo: this.currentRepo,
+          tagName: refName
+        };
+        const selectedRemotes = remoteNames.filter((_, index) => values[index] === "checked");
+        if (selectedRemotes.length > 0) request.deleteOnRemotes = selectedRemotes;
+        sendMessage(request);
+        showActionRunningDialog(l10n.statusDeletingTag);
       },
       null
     );
@@ -3697,24 +3730,56 @@ class GitGraphView {
       .filter((part) => part.trim() !== "")
       .join("\n\n");
     const signature = this.formatTagSignature(details);
+    const messageHtml = message === "" ? null : escapeHtml(message).replaceAll("\n", "<br>");
 
-    showDialog(
-      `<b>${l10n.tagDetailsTitle.replace("{0}", escapeHtml(details.tagName))}</b>` +
-        `<br><span class="messageContent">` +
-        `<b>${l10n.tagDetailsType}: </b>${escapeHtml(tagType)}<br>` +
-        `<b>${l10n.tagDetailsObject}: </b>${escapeHtml(abbrevCommit(details.objectHash, this.config.shortHashLength))}<br>` +
-        `<b>${l10n.tagDetailsTarget}: </b>${escapeHtml(target)}<br>` +
-        `<b>${l10n.tagDetailsTagger}: </b>${tagger}<br>` +
-        `<b>${l10n.tagDetailsDate}: </b>${escapeHtml(date)}<br>` +
-        `<b>${l10n.tagDetailsSignature}: </b>${escapeHtml(signature)}<br><br>` +
-        `<b>${l10n.tagDetailsMessage}: </b><br>${escapeHtml(message || l10n.tagDetailsNoMessage).replaceAll("\n", "<br>")}` +
-        `</span>`,
-      null,
-      l10n.dialogDismiss,
-      null,
-      null
-    );
+    const html =
+      `<div class="tagDetailsTitle"><b>${l10n.tagDetailsTitle.replace("{0}", escapeHtml(details.tagName))}</b></div>` +
+      `<dl class="tagDetailsFields">` +
+      this.tagDetailRow(l10n.tagDetailsType, escapeHtml(tagType)) +
+      this.tagDetailRow(
+        l10n.tagDetailsObject,
+        escapeHtml(abbrevCommit(details.objectHash, this.config.shortHashLength))
+      ) +
+      this.tagDetailRow(l10n.tagDetailsTarget, escapeHtml(target)) +
+      this.tagDetailRow(l10n.tagDetailsTagger, tagger) +
+      this.tagDetailRow(l10n.tagDetailsDate, escapeHtml(date)) +
+      this.tagDetailRow(l10n.tagDetailsSignature, signature) +
+      `<dt class="tagDetailsMessageLabel">${l10n.tagDetailsMessage}</dt>` +
+      `<dd class="tagDetailsMessage">${messageHtml ?? escapeHtml(l10n.tagDetailsNoMessage)}</dd>` +
+      `</dl>` +
+      `<div class="tagDetailsActions">` +
+      this.tagDetailsCopyButton("tagDetailsCopyName", svgIcons.copy, l10n.copyTagName) +
+      this.tagDetailsCopyButton("tagDetailsCopyHash", svgIcons.copy, l10n.copyTagHash) +
+      this.tagDetailsCopyButton("tagDetailsCopyMessage", svgIcons.copy, l10n.copyTagMessage) +
+      `</div>`;
+
+    showDialog(html, null, l10n.dialogDismiss, null, null);
+    dialog.classList.add("tagDetails");
+    this.bindTagDetailsActions(details.tagName, details.objectHash, message);
     setStatusStrip("ready", l10n.statusReady);
+  }
+
+  private tagDetailRow(label: string, valueHtml: string): string {
+    return `<dt>${escapeHtml(label)}</dt><dd>${valueHtml}</dd>`;
+  }
+
+  private tagDetailsCopyButton(id: string, icon: string, label: string): string {
+    return `<div id="${id}" class="dialogBtn tagDetailsAction" role="button" tabindex="0">${icon}${escapeHtml(label)}</div>`;
+  }
+
+  private bindTagDetailsActions(tagName: string, objectHash: string, message: string): void {
+    const bind = (id: string, type: string, data: string) => {
+      const btn = document.getElementById(id);
+      if (btn === null) return;
+      const handler = () => {
+        hideDialog();
+        sendMessage({ command: "copyToClipboard", type, data });
+      };
+      btn.addEventListener("click", handler);
+    };
+    bind("tagDetailsCopyName", "Tag Name", tagName);
+    bind("tagDetailsCopyHash", "Tag Hash", objectHash);
+    bind("tagDetailsCopyMessage", "Tag Message", message);
   }
   private formatTagger(details: GitTagDetails) {
     if (details.taggerName === null && details.taggerEmail === null) {
@@ -3725,17 +3790,23 @@ class GitGraphView {
     const email = escapeHtml(details.taggerEmail);
     return `${name} &lt;<a href="mailto:${email}" tabindex="-1">${email}</a>&gt;`;
   }
+  /** Returns escaped HTML: the status word carries the same color family as the signed-tag badge. */
   private formatTagSignature(details: GitTagDetails) {
-    if (details.signature === null) return l10n.tagDetailsSignatureUnsigned;
+    if (details.signature === null) {
+      return `<span class="tagSignature-unsigned">${escapeHtml(l10n.tagDetailsSignatureUnsigned)}</span>`;
+    }
     const statusLabels: Record<NonNullable<GitTagDetails["signature"]>["status"], string> = {
       valid: l10n.tagDetailsSignatureValid,
       bad: l10n.tagDetailsSignatureBad,
       failed: l10n.tagDetailsSignatureFailed,
       unknown: l10n.tagDetailsSignatureUnknown
     };
-    const parts = [statusLabels[details.signature.status]];
-    if (details.signature.signer !== null) parts.push(details.signature.signer);
-    if (details.signature.key !== null) parts.push(details.signature.key);
+    const { status, signer, key } = details.signature;
+    const parts = [
+      `<span class="tagSignature-${status}">${escapeHtml(statusLabels[status])}</span>`
+    ];
+    if (signer !== null) parts.push(escapeHtml(signer));
+    if (key !== null) parts.push(escapeHtml(key));
     return parts.join(" · ");
   }
   private showRenameBranchDialog(refName: string) {
@@ -4132,12 +4203,18 @@ class GitGraphView {
   private renderCommitRef(ref: GitCommitNode["refs"][number], label: string, extraClass: string) {
     const refName = escapeHtml(ref.name);
     const refActive = ref.type === "head" && ref.name === this.gitBranchHead;
+    const signed = ref.type === "tag" && ref.signed === true;
+    const title = escapeHtml(signed ? `${ref.name} — ${l10n.signedTagTooltip}` : ref.name);
     return (
-      `<span class="gitRef ${ref.type}${refActive ? " active" : ""}${extraClass}" data-name="${refName}" title="${refName}">` +
-      (ref.type === "tag" ? svgIcons.tag : svgIcons.branch) +
+      `<span class="gitRef ${ref.type}${refActive ? " active" : ""}${signed ? " signed" : ""}${extraClass}" data-name="${refName}" title="${title}">` +
+      this.refIcon(ref.type, signed) +
       escapeHtml(label) +
       "</span>"
     );
+  }
+  private refIcon(type: GitCommitNode["refs"][number]["type"], signed: boolean) {
+    if (type !== "tag") return svgIcons.branch;
+    return signed ? svgIcons.signedTag : svgIcons.tag;
   }
   private renderCommitAvatar(commit: GitCommitNode) {
     if (!this.config.fetchAvatars) return "";
@@ -5490,6 +5567,8 @@ function handleCopyToClipboardResponse(
     "Commit Hash": l10n.typeCommitHash,
     "Commit Subject": l10n.typeCommitSubject,
     "Tag Name": l10n.typeTagName,
+    "Tag Hash": l10n.typeTagHash,
+    "Tag Message": l10n.typeTagMessage,
     "Branch Name": l10n.typeBranchName,
     "Stash Name": l10n.typeStashName,
     "Stash Hash": l10n.typeStashHash,

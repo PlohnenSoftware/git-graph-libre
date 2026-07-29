@@ -400,6 +400,55 @@ describe("webview rendering", () => {
     expect(document.getElementById("tagSelect")?.classList.contains("dropdown")).toBe(true);
   });
 
+  it("marks signed tags with the signed class, verified icon, and tooltip", () => {
+    receiveLoadedCommits(
+      [
+        {
+          ...twoCommits[0],
+          refs: [
+            { hash: "abc123", name: "v1.0.0", type: "tag", signed: true },
+            { hash: "abc123", name: "v0.9.0", type: "tag", signed: false },
+            { hash: "abc123", name: "v0.8.0", type: "tag" }
+          ]
+        },
+        twoCommits[1]
+      ],
+      "abc123"
+    );
+
+    const signed = gitRef("v1.0.0", ".gitRef.tag");
+    expect(signed?.classList.contains("signed")).toBe(true);
+    expect(signed?.title).toBe("v1.0.0 — signed tag");
+    expect(signed?.querySelector("svg.signedTagIcon")).not.toBeNull();
+
+    for (const name of ["v0.9.0", "v0.8.0"]) {
+      const unsigned = gitRef(name, ".gitRef.tag");
+      expect(unsigned?.classList.contains("signed")).toBe(false);
+      expect(unsigned?.title).toBe(name);
+      expect(unsigned?.querySelector("svg.signedTagIcon")).toBeNull();
+    }
+
+    expect(document.querySelectorAll(".gitRef.tag.signed")).toHaveLength(1);
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("never marks branch refs as signed", () => {
+    receiveLoadedCommits(
+      [
+        {
+          ...twoCommits[0],
+          refs: [{ hash: "abc123", name: "main", type: "head" }]
+        },
+        twoCommits[1]
+      ],
+      "abc123"
+    );
+
+    expect(document.querySelectorAll(".gitRef.signed")).toHaveLength(0);
+    expect(gitRef("main", ".gitRef.head")?.querySelector("svg.signedTagIcon")).toBeNull();
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
   it("groups local and matching remote branch refs without losing ref actions", () => {
     receiveLoadedCommits(
       [
@@ -2556,6 +2605,7 @@ describe("webview rendering", () => {
     expect(document.querySelector("#dialog .dialogContent")?.textContent).toContain(
       "Release v1.0.0"
     );
+    expect(document.querySelector("#dialog .tagSignature-unsigned")?.textContent).toBe("Unsigned");
     dismissDialog();
 
     receive({
@@ -2581,6 +2631,34 @@ describe("webview rendering", () => {
       "Not available"
     );
     expect(document.querySelector("#dialog .dialogContent")?.textContent).toContain("Tag Signer");
+    expect(document.querySelector("#dialog .tagSignature-valid")?.textContent).toBe("Valid");
+    expect(document.querySelector("#dialog .dialogContent")?.textContent).toContain("ABCDEF");
+    dismissDialog();
+
+    receive({
+      command: "tagDetails",
+      tagName: "v-bad",
+      tagDetails: {
+        tagName: "v-bad",
+        type: "annotated",
+        objectHash: "bad123",
+        targetHash: "abc123",
+        targetType: "commit",
+        taggerName: "Mallory",
+        taggerEmail: "mallory@example.com",
+        taggerDate: 1700000000,
+        subject: "Tampered",
+        // A signer name containing markup must not reach the DOM as HTML.
+        body: "",
+        signature: { status: "bad", key: null, signer: "<img src=x onerror=alert(1)>" }
+      },
+      error: null
+    });
+    expect(document.querySelector("#dialog .tagSignature-bad")?.textContent).toBe("Bad");
+    expect(document.querySelector("#dialog .dialogContent img")).toBeNull();
+    expect(document.querySelector("#dialog .dialogContent")?.textContent).toContain(
+      "<img src=x onerror=alert(1)>"
+    );
     dismissDialog();
 
     receive({
@@ -2688,6 +2766,117 @@ describe("webview rendering", () => {
       compareRef: "HEAD"
     });
 
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("renders the tag details popup with copy actions", () => {
+    const tagRef = gitRef("v1.0.0", ".gitRef.tag");
+    expect(tagRef).not.toBeUndefined();
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("View Tag Details");
+    receive({
+      command: "tagDetails",
+      tagName: "v1.0.0",
+      tagDetails: {
+        tagName: "v1.0.0",
+        type: "annotated",
+        objectHash: "tagobject123",
+        targetHash: "abc123",
+        targetType: "commit",
+        taggerName: "Alice",
+        taggerEmail: "alice@example.com",
+        taggerDate: 1700000000,
+        subject: "Release v1.0.0",
+        body: "Stable release",
+        signature: null
+      },
+      error: null
+    });
+
+    // Structured layout: a grid of label/value rows and the title use dedicated
+    // classes instead of the old inline `<b>/<br>` flow.
+    expect(document.getElementById("dialog")?.classList.contains("tagDetails")).toBe(true);
+    expect(document.querySelector("#dialog dl.tagDetailsFields")).not.toBeNull();
+    expect(document.querySelector("#dialog .tagDetailsTitle")?.textContent).toContain("Tag v1.0.0");
+
+    // All three copy action buttons are present.
+    const copyName = document.getElementById("tagDetailsCopyName");
+    const copyHash = document.getElementById("tagDetailsCopyHash");
+    const copyMessage = document.getElementById("tagDetailsCopyMessage");
+    expect(copyName?.textContent).toContain("Copy Tag Name");
+    expect(copyHash?.textContent).toContain("Copy Object Hash");
+    expect(copyMessage?.textContent).toContain("Copy Tag Message");
+
+    // Copy Tag Name → reuse the existing Tag Name clipboard path.
+    copyName?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "Tag Name",
+      data: "v1.0.0"
+    });
+
+    // The popup is dismissed after a copy; reopen it for the next action.
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("View Tag Details");
+    receive({
+      command: "tagDetails",
+      tagName: "v1.0.0",
+      tagDetails: {
+        tagName: "v1.0.0",
+        type: "annotated",
+        objectHash: "tagobject123",
+        targetHash: "abc123",
+        targetType: "commit",
+        taggerName: "Alice",
+        taggerEmail: "alice@example.com",
+        taggerDate: 1700000000,
+        subject: "Release v1.0.0",
+        body: "Stable release",
+        signature: null
+      },
+      error: null
+    });
+    document
+      .getElementById("tagDetailsCopyHash")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "Tag Hash",
+      data: "tagobject123"
+    });
+
+    // Reopen and copy the message (subject + body joined).
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("View Tag Details");
+    receive({
+      command: "tagDetails",
+      tagName: "v1.0.0",
+      tagDetails: {
+        tagName: "v1.0.0",
+        type: "annotated",
+        objectHash: "tagobject123",
+        targetHash: "abc123",
+        targetType: "commit",
+        taggerName: "Alice",
+        taggerEmail: "alice@example.com",
+        taggerDate: 1700000000,
+        subject: "Release v1.0.0",
+        body: "Stable release",
+        signature: null
+      },
+      error: null
+    });
+    document
+      .getElementById("tagDetailsCopyMessage")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "Tag Message",
+      data: "Release v1.0.0\n\nStable release"
+    });
+
+    dismissDialog();
+    expect(document.getElementById("dialog")?.classList.contains("tagDetails")).toBe(false);
     receiveLoadedCommits(twoCommits, "abc123");
   });
 
@@ -2855,6 +3044,91 @@ describe("webview rendering", () => {
     });
 
     receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("deletes a tag on the remotes selected in the delete dialog", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithRemote,
+      error: null
+    });
+    receiveLoadedCommits(twoCommits, "abc123");
+
+    const tagRef = gitRef("v1.0.0", ".gitRef.tag");
+    expect(tagRef).not.toBeUndefined();
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Delete Tag");
+
+    const deleteOnOrigin = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    expect(deleteOnOrigin).not.toBeNull();
+    // Deleting on a remote is destructive, so it must be opt-in.
+    expect(deleteOnOrigin?.checked).toBe(false);
+    if (deleteOnOrigin !== null) deleteOnOrigin.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "deleteTag",
+      repo: REPO,
+      tagName: "v1.0.0",
+      deleteOnRemotes: ["origin"]
+    });
+    expect(document.getElementById("statusText")?.textContent).toBe("Deleting Tag...");
+  });
+
+  it("omits deleteOnRemotes when no remote is selected", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithRemote,
+      error: null
+    });
+    receiveLoadedCommits(twoCommits, "abc123");
+
+    const tagRef = gitRef("v1.0.0", ".gitRef.tag");
+    expect(tagRef).not.toBeUndefined();
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Delete Tag");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "deleteTag",
+      repo: REPO,
+      tagName: "v1.0.0"
+    });
+  });
+
+  it("falls back to a plain confirmation when the repository has no remotes", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithoutRemotes,
+      error: null
+    });
+    receiveLoadedCommits(twoCommits, "abc123");
+
+    const tagRef = gitRef("v1.0.0", ".gitRef.tag");
+    expect(tagRef).not.toBeUndefined();
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Delete Tag");
+
+    expect(document.getElementById("dialogInput0")).toBeNull();
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "deleteTag",
+      repo: REPO,
+      tagName: "v1.0.0"
+    });
   });
 
   it("sends remote branch action messages from context menus", () => {

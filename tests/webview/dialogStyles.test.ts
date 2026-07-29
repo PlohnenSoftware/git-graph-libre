@@ -163,4 +163,28 @@ describe("dialog styles", () => {
     expect(selectedRow).toContain("var(--git-graph-color");
     expect(selectedRow).toContain("var(--ngg-transparent)");
   });
+
+  it("lays out the tag details popup as a structured, non-squeezed grid", () => {
+    const variant = ruleFor(css, "#dialog.tagDetails");
+    const fields = ruleFor(css, "dl.tagDetailsFields");
+
+    // The variant replaces the generic shrink-to-fit width with a predictable
+    // budget so hashes and messages are not squeezed into a narrow column.
+    expect(variant).toContain("width: min(460px, 90vw);");
+    // The fields are a two-column label/value grid, not inline <b>/<br> flow.
+    expect(fields).toContain("display: grid;");
+    expect(fields).toContain("grid-template-columns: max-content 1fr;");
+    // Labels use the description-foreground token like other secondary text.
+    expect(ruleFor(css, "dl.tagDetailsFields dt")).toContain(
+      "var(--vscode-descriptionForeground, var(--ngg-neutral-icon))"
+    );
+    // Values wrap long hashes/emails instead of overflowing the panel.
+    expect(ruleFor(css, "dl.tagDetailsFields dd")).toContain("word-break: break-word;");
+    // The message row spans the full grid width and preserves line breaks.
+    expect(ruleFor(css, ".tagDetailsMessage")).toContain("grid-column: 1 / -1;");
+    expect(ruleFor(css, ".tagDetailsMessage")).toContain("white-space: pre-wrap;");
+    // Copy actions sit in a wrapping flex row.
+    expect(ruleFor(css, ".tagDetailsActions")).toContain("display: flex;");
+    expect(ruleFor(css, ".tagDetailsActions")).toContain("flex-wrap: wrap;");
+  });
 });

@@ -11,6 +11,10 @@
   --ngg-neutral-border-strong: oklch(60% 0 0 / 0.5);
   --ngg-neutral-border-heavy: oklch(60% 0 0 / 0.75);
   --ngg-success: oklch(74% 0.12 152);
+  --ngg-signed-ref: var(
+    --vscode-testing-iconPassed,
+    var(--vscode-charts-green, var(--ngg-success))
+  );
   --ngg-reveal-highlight: oklch(90% 0.25 150 / 0.42);
   --ngg-find-highlight: oklch(80% 0.2 150 / 0.28);
   --ngg-find-active: oklch(90% 0.25 150 / 0.42);
@@ -665,6 +669,31 @@ body.commitDetailsResizing * {
   margin-right: 5px;
   border-radius: 4px 0 0 4px;
   vertical-align: top;
+}
+/* Tag details popup signature line, sharing the signed-tag color family. */
+.tagSignature-valid {
+  color: var(--ngg-signed-ref);
+  font-weight: 600;
+}
+.tagSignature-bad,
+.tagSignature-failed {
+  color: var(--vscode-testing-iconFailed, var(--vscode-errorForeground, var(--ngg-error)));
+  font-weight: 600;
+}
+.tagSignature-unknown,
+.tagSignature-unsigned {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+
+/* Signed tags: verified badge on the signature-status green, plus a tinted
+   label so the distinction survives at a glance and without relying on the
+   icon shape alone. */
+.gitRef.tag.signed {
+  border-color: var(--ngg-signed-ref);
+  background-color: color-mix(in srgb, var(--ngg-signed-ref) 16%, var(--ngg-transparent));
+}
+.gitRef.tag.signed > svg {
+  background-color: var(--ngg-signed-ref);
 }
 
 /* Loader */
@@ -1431,6 +1460,58 @@ body.commitDetailsResizing * {
 }
 #dialog .dialogContent {
   line-height: 20px;
+}
+
+#dialog.tagDetails {
+  width: min(460px, 90vw);
+}
+#dialog.tagDetails .dialogContent {
+  min-width: 0;
+}
+.tagDetailsTitle {
+  margin-bottom: 12px;
+  line-height: 22px;
+  word-break: break-all;
+}
+dl.tagDetailsFields {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+dl.tagDetailsFields dt {
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  white-space: nowrap;
+}
+dl.tagDetailsFields dd {
+  margin: 0;
+  min-width: 0;
+  word-break: break-word;
+}
+.tagDetailsMessageLabel {
+  grid-column: 1;
+}
+.tagDetailsMessage {
+  grid-column: 1 / -1;
+  white-space: pre-wrap;
+  padding-top: 2px;
+}
+.tagDetailsActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.tagDetailsAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tagDetailsAction svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
 }
 
 #dialog table.dialogForm {

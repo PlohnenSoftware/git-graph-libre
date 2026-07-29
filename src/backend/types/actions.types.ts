@@ -28,7 +28,7 @@ type ActionPayloads = {
   deleteBranch: { branchName: string; forceDelete: boolean; deleteOnRemotes?: string[] };
   deleteRemote: { name: string };
   deleteRemoteBranch: { branchName: string; remote: string };
-  deleteTag: { tagName: string };
+  deleteTag: { tagName: string; deleteOnRemotes?: string[] };
   deleteUserDetails: {
     scope: GitConfigScope;
     unsetName: boolean;

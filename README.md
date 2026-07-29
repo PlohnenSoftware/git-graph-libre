@@ -17,7 +17,8 @@
 - **History recovery**: Keep detached HEAD visible and optionally discover unreachable commits
 - **Commit details**: Click a commit to see message, files, and diffs
 - **Branch actions**: Create, checkout, rename, delete, and merge
-- **Tag actions**: Create, delete, and push tags
+- **Tag actions**: Create, push, view details, and delete locally or on selected
+  remotes; signed tags are marked with a verified badge in the graph
 - **Commit actions**: Checkout, cherry-pick, revert, and reset
 - **Avatar support**: Optional avatars from GitHub, GitLab, or Gravatar
 - **Multi-repo**: Work with multiple repositories in one workspace

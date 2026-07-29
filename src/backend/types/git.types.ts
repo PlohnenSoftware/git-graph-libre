@@ -4,6 +4,13 @@ export type GitRef = {
   hash: string;
   name: string;
   type: "head" | "tag" | "remote";
+  /**
+   * Only set on `tag` refs. `true` when the tag is an annotated tag object that
+   * carries a signature block. Lightweight tags have no tag object and can never
+   * be signed, so they are always `false`. This flag reports only the presence of
+   * a signature; use the `tagDetails` query to verify it.
+   */
+  signed?: boolean;
 };
 
 export type GitRefData = {

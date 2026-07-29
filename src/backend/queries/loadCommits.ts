@@ -7,6 +7,7 @@ import type {
   GitCommitSignature,
   GitLogEntry,
   GitQueryError,
+  GitRef,
   GitRefData,
   QueryResult
 } from "@/backend/types";
@@ -22,7 +23,13 @@ const gitLogBaseFieldCount = 6;
 const gitLogSignatureFieldCount = 3;
 const gitRefFormatFieldSeparator = "%00";
 const gitRefOutputFieldSeparator = "\0";
-const gitRefFieldCount = 3;
+const gitRefFieldCount = 5;
+const gitRefSignedMarker = "1";
+/**
+ * Collapses the multi-line `%(contents:signature)` block into a single token so
+ * one ref still occupies exactly one output line.
+ */
+const gitRefSignatureAtom = `%(if)%(contents:signature)%(then)${gitRefSignedMarker}%(else)0%(end)`;
 const gitCommitSignatureStatuses: Readonly<Record<string, GitCommitSignature["status"]>> = {
   G: "valid",
   U: "valid-untrusted",
@@ -87,7 +94,9 @@ function parseRefRecord(line: string) {
   return {
     objectHash: fields[0],
     refName: fields[1],
-    peeledHash: fields[2] ?? ""
+    peeledHash: fields[2] ?? "",
+    objectType: fields[3] ?? "",
+    hasSignature: fields[4] === gitRefSignedMarker
   };
 }
 
@@ -105,6 +114,53 @@ export function parseCommitSignature(
   };
 }
 
+function buildRefFormat() {
+  return [
+    "%(objectname)",
+    "%(refname)",
+    "%(*objectname)",
+    "%(objecttype)",
+    gitRefSignatureAtom
+  ].join(gitRefFormatFieldSeparator);
+}
+
+type ParsedRefRecord = NonNullable<ReturnType<typeof parseRefRecord>>;
+
+export function toGitRef(
+  record: ParsedRefRecord,
+  hiddenRemotes: string[] | undefined
+): GitRef | null {
+  const { objectHash, refName, peeledHash, objectType, hasSignature } = record;
+  if (refName.startsWith("refs/heads/")) {
+    return { hash: objectHash, name: refName.substring(11), type: "head" };
+  }
+  if (refName.startsWith("refs/tags/")) {
+    return {
+      hash: peeledHash || objectHash,
+      name: refName.substring(10),
+      type: "tag",
+      // Only an annotated tag has a tag object that can carry a signature.
+      signed: objectType === "tag" && hasSignature
+    };
+  }
+  if (refName.startsWith("refs/remotes/") && !isHiddenRemoteRef(refName, hiddenRemotes)) {
+    return { hash: objectHash, name: refName.substring(13), type: "remote" };
+  }
+  return null;
+}
+
+function parseRefLines(stdout: string, hiddenRemotes: string[] | undefined): GitRef[] {
+  const refs: GitRef[] = [];
+  for (const line of stdout.split(eolRegex)) {
+    if (line === "") continue;
+    const record = parseRefRecord(line);
+    if (record === null) continue;
+    const ref = toGitRef(record, hiddenRemotes);
+    if (ref !== null) refs.push(ref);
+  }
+  return refs;
+}
+
 async function getRefs(
   git: SimpleGit,
   showRemoteBranches: boolean,
@@ -113,11 +169,7 @@ async function getRefs(
   context: GitQueryContext
 ): Promise<QueryValue<GitRefData>> {
   try {
-    const refsArgs = [
-      "for-each-ref",
-      `--format=%(objectname)${gitRefFormatFieldSeparator}%(refname)${gitRefFormatFieldSeparator}%(*objectname)`,
-      "refs/heads"
-    ];
+    const refsArgs = ["for-each-ref", `--format=${buildRefFormat()}`, "refs/heads"];
     if (showTags) refsArgs.push("refs/tags");
     if (showRemoteBranches) refsArgs.push("refs/remotes");
     const [headStdout, refsStdout] = await Promise.all([
@@ -134,28 +186,13 @@ async function getRefs(
         record: context.record
       })
     ]);
-    const refData: GitRefData = { head: null, refs: [] };
-    refData.head = headStdout.trim() || null;
-    const lines = refsStdout.split(eolRegex);
-    for (const line of lines) {
-      if (line === "") continue;
-      const refRecord = parseRefRecord(line);
-      if (refRecord === null) continue;
-      const { objectHash, refName, peeledHash } = refRecord;
-      if (refName.startsWith("refs/heads/")) {
-        refData.refs.push({ hash: objectHash, name: refName.substring(11), type: "head" });
-      } else if (refName.startsWith("refs/tags/")) {
-        refData.refs.push({
-          hash: peeledHash || objectHash,
-          name: refName.substring(10),
-          type: "tag"
-        });
-      } else if (refName.startsWith("refs/remotes/")) {
-        if (isHiddenRemoteRef(refName, hiddenRemotes)) continue;
-        refData.refs.push({ hash: objectHash, name: refName.substring(13), type: "remote" });
-      }
-    }
-    return { value: refData, error: null };
+    return {
+      value: {
+        head: headStdout.trim() || null,
+        refs: parseRefLines(refsStdout, hiddenRemotes)
+      },
+      error: null
+    };
   } catch (error: unknown) {
     return {
       value: { head: null, refs: [] },

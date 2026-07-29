@@ -91,6 +91,26 @@ describe("commit table styles", () => {
     expect(css).toContain("display: none;");
   });
 
+  it("distinguishes signed tags with the shared signature color", () => {
+    expect(css).toContain("--ngg-signed-ref:");
+    // Theme token first, OKLCH fallback last, per the styling guide.
+    expect(css).toContain("var(--vscode-testing-iconPassed");
+    expect(css).toContain("var(--ngg-success)");
+    expect(css).toContain(".gitRef.tag.signed {");
+    expect(css).toContain("border-color: var(--ngg-signed-ref);");
+    expect(css).toContain(".gitRef.tag.signed > svg {");
+    expect(css).toContain("background-color: var(--ngg-signed-ref);");
+  });
+
+  it("colors the tag details signature line by status", () => {
+    expect(css).toContain(".tagSignature-valid {");
+    expect(css).toContain(".tagSignature-bad,");
+    expect(css).toContain(".tagSignature-failed {");
+    expect(css).toContain(".tagSignature-unknown,");
+    expect(css).toContain(".tagSignature-unsigned {");
+    expect(css).toContain("var(--vscode-testing-iconFailed");
+  });
+
   it("gives context-menu checkbox items a stable check slot", () => {
     expect(css).toContain("#contextMenu li.contextMenuItemCheckbox");
     expect(css).toContain(".contextMenuCheck {");

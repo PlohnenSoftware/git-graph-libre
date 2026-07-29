@@ -9,6 +9,7 @@ export const svgIcons = {
   copy: octicon("copy", "fileActionIcon copyIcon"),
   info: octicon("info"),
   tag: octicon("tag"),
+  signedTag: octicon("verified", "signedTagIcon"),
   loading: octicon("sync"),
   openFolder: octicon("file-directory-open-fill", "openFolderIcon"),
   closedFolder: octicon("file-directory-fill", "closedFolderIcon"),

@@ -271,15 +271,26 @@ The extension is already split into clean layers:
   analysis epoch. The first 1.1.0 analysis follows the same pre-commit rule and
   must use fresh coverage from the completed working tree.
 - The project uses the maintainer's `ZAM` quality gate, and **not all of its
-  conditions are scoped to new code**. As of `2026-07-27` it requires
-  `new_coverage` at least `85`, `new_duplicated_lines_density` at most `1`, and
-  `new_violations` `0`. It also applies project-wide limits of at most `20`
-  maintainability issues, at most `180` minutes maintainability remediation
-  effort, `0` reliability issues, and `0` security issues. These project-wide
-  conditions mean a slice can fail on pre-existing issues it never touched, so
-  read the gate off the server (`/api/qualitygates/get_by_project` then
-  `/api/qualitygates/show`) rather than assuming the conditions above are still
-  current, and expect to fix inherited findings needed to get the slice green.
+  conditions are scoped to new code**. As of `2026-07-29` it has six conditions:
+  `new_duplicated_lines_density` at most `1` and `new_violations` at most `3` on
+  new code, plus project-wide limits of at most `20` maintainability issues, at
+  most `180` minutes maintainability remediation effort, `0` reliability issues,
+  and `0` security issues. These project-wide conditions mean a slice can fail on
+  pre-existing issues it never touched, so read the gate off the server
+  (`/api/qualitygates/get_by_project` then `/api/qualitygates/show`) rather than
+  assuming the conditions above are still current, and expect to fix inherited
+  findings needed to get the slice green.
+- The maintainer changed the gate between `2026-07-27` and `2026-07-29`: the
+  `new_coverage >= 85` condition was **removed** and `new_violations` was
+  loosened from `0` to `3`. Earlier slice notes quoting an `85%` coverage
+  threshold are historical. Coverage is still worth generating and watching
+  (`pnpm run test:coverage` before every scan) — it is simply no longer a gate
+  condition, so a green gate is not evidence that coverage held.
+- Polling the API from the CLI: `sonar.host.url` in the scanner config has
+  trailing whitespace, so `curl` fails with exit `3` (malformed URL) unless the
+  value is sanitized, e.g.
+  `HOST=$(grep -oP '^sonar\.host\.url=\K.*' /opt/sonar-scanner/conf/sonar-scanner.properties | tr -d ' \r\n' | sed 's:/*$::')`.
+  A silent empty curl response is this, not an outage.
 - The setup recorded in the older slice notes below — a ZIP install under
   `~/.local/opt/sonarqube` backed by `postgresql.service`, run as a
   `sonarqube.service` systemd user unit for user `z`, with a token at
@@ -362,12 +373,12 @@ may not define the token):
 
 ## Graphify Map
 
-Regenerated on `2026-07-27` from the current `AI-dev` working tree based on
-commit `5029961`; `graph.json` records that base in `built_at_commit` while its
-nodes and edges include the uncommitted history-recovery slice. Refresh after
-code changes with `graphify update .` then `graphify tree`, and if a query looks
-stale compare `built_at_commit` against `git rev-parse HEAD` and inspect the
-working tree.
+Regenerated on `2026-07-29` from the current `AI-dev` working tree based on
+commit `ff8b744` at `2,045` nodes / `4,819` edges / `126` communities;
+`graph.json` records that base in `built_at_commit` while its nodes and edges
+include the uncommitted Phase 15 tag slice. Refresh after code changes with
+`graphify update .` then `graphify tree`, and if a query looks stale compare
+`built_at_commit` against `git rev-parse HEAD` and inspect the working tree.
 
 Artifacts in this repository:
 
@@ -432,10 +443,11 @@ together):
 | 7 Stash management | Partial — actions done; graph stash rows remain |
 | 8 Comparison and multi-select | Partial — compare-with-HEAD and multi-select done; arbitrary two-commit/ref comparison and external directory diff remain |
 | 9 Repository and remote management | Mostly complete — repository dropdown ordering preference remains |
-| 10 Advanced history, text, integrations | Partial — issue links, config export, archive, commit signature status done; text rendering, tag signatures, mailmap, code review, encoding remain |
+| 10 Advanced history, text, integrations | Partial — issue links, config export, archive, commit and tag signature status done (tag signatures in Phase 15); text rendering, mailmap, code review, encoding remain |
 | 12 Toolbar dropdown name truncation and find row | Complete |
 | 13 Settings hub: tabbed widget, color editor, settings export | Complete |
 | 14 Reveal highlight: persistent blink and configurable color | Complete |
+| 15 Tag surfaces: signed-tag distinction and remote tag deletion | Complete |
 
 ### Phase 0: Guardrails and Baseline
 
@@ -918,7 +930,7 @@ Acceptance:
 
 ### Phase 10: Advanced History, Text, and Integrations
 
-**Status: partially complete** — issue linking, repo config export/import sharing (`7a18099`), ref archives (`b4d97fe`), and commit signature status are done. Remaining: markdown/emoji message rendering, inline commit body, tag signature status, `.mailmap` support, code-review state, file encoding setting, and an uncommitted-changes details view.
+**Status: partially complete** — issue linking, repo config export/import sharing (`7a18099`), ref archives (`b4d97fe`), commit signature status, and tag signature status (Phase 15, `2026-07-29`) are done. Remaining: markdown/emoji message rendering, inline commit body, `.mailmap` support, code-review state, file encoding setting, and an uncommitted-changes details view.
 
 Goal: close feature gaps after the core UX is strong.
 
@@ -1528,9 +1540,137 @@ Implementation record (`2026-07-03`):
     webview `29` files / `234` tests), `pnpm run l10n:check`, and
     `pnpm run package`.
 
+### Phase 15: Tag Surfaces — Signed-Tag Distinction and Remote Tag Deletion
+
+**Status: complete (`2026-07-29`).** Maintainer-priority slice released as
+`v1.1.1`. It closes the "tag signatures" item listed as remaining under Phase 10.
+
+Goal: make signed tags recognizable at a glance in the graph, let the delete-tag
+flow remove the tag from selected remotes, and confirm the tag details popup is
+reachable from the tag context menu.
+
+Findings before implementation (verified `2026-07-29`):
+
+- The tag details popup already existed and was already enabled. The backend
+  query `src/backend/queries/tagDetails.ts` returns type, object, target, tagger,
+  date, subject/body, and a verified signature, and `tag.viewDetails` is `true`
+  in `DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY`
+  (`src/contextMenuVisibility.ts`). Only the signature line needed work. Check
+  this file before treating a "missing" tag feature as unimplemented.
+- `GitRef` carried no signature information, so the graph could not distinguish
+  signed tags without a second query.
+- `deleteTag` had no remote surface at all, and `deleteRemoteBranch` held a
+  private `remoteBranchMissing()` helper that the tag path would have duplicated.
+
+Implementation record:
+
+- Signed-tag detection rides on the existing `getRefs()` `for-each-ref` call, so
+  it costs no extra git invocation. The format gained `%(objecttype)` and
+  `%(if)%(contents:signature)%(then)1%(else)0%(end)`. The `%(if)` conditional is
+  load-bearing: `%(contents:signature)` is a multi-line PGP block and would
+  otherwise break the one-ref-per-line parsing. A ref is `signed` only when
+  `objecttype` is `tag` **and** the signature atom is truthy — a lightweight tag
+  points straight at a commit and has no tag object that could be signed.
+  Verified against this repository, where `v0.1.0`–`v0.5.0` are signed and
+  `v1.0.0`/`v1.1.0` are not.
+- This reports only the *presence* of a signature; it deliberately does not run
+  `git verify-tag`, which stays in the on-demand `tagDetails` query. Marking a
+  tag "signed" is therefore not a claim that the signature is valid.
+- `getRefs()` was split into `buildRefFormat()`, `toGitRef()`, and
+  `parseRefLines()` after the added branch pushed it to cognitive complexity `16`
+  against the `15` allowed (`typescript:S3776`). `toGitRef()` is exported so the
+  ref mapping is unit-testable without a repository.
+- `remoteBranchMissing()` moved to `isMissingRemoteRefError()` in
+  `src/backend/utils/remoteRefs.ts` and is now shared by branch and tag deletion.
+  The old private copy was removed in the same slice per the obsolete-surfaces
+  rule.
+- New `src/backend/actions/tagRemote.ts` owns `deleteRemoteTag()`. It pushes
+  `--delete refs/tags/<name>` rather than the bare name so a same-named branch is
+  never deleted by mistake. Because `refs/tags` has no per-remote tracking refs,
+  the webview cannot know which remotes hold a tag; every remote is offered,
+  each unchecked by default, and an already-absent remote tag resolves as success.
+- `deleteTag` moved off `git.tag()` to `runGitRaw` so the deletion is recorded
+  like every other action, and `messageHandler` now passes `recordGitCommand`.
+- Webview: `renderCommitRef()` adds a `signed` class, the `verified` octicon
+  (added to `scripts/generate-octicons.js` and regenerated), and a "signed tag"
+  tooltip suffix. `--ngg-signed-ref` reuses the commit-signature token chain
+  (`--vscode-testing-iconPassed` → `--vscode-charts-green` → `--ngg-success`) so
+  the badge and the signature column agree. The tag details signature line is now
+  status-colored via `.tagSignature-*`; `formatTagSignature()` returns escaped
+  HTML and the signer/key are escaped individually, covered by an XSS test.
+- Release workflow rewritten: it packages the VSIX, creates (or updates) the
+  GitHub release for the pushed tag with the VSIX attached, and publishes to the
+  marketplace only when `VS_MARKETPLACE_TOKEN` is set. The `secrets` context is
+  not available to a step-level `if`, so the token presence is resolved into a
+  step output first — do not "simplify" that back to `if: secrets.…`.
+
+Verification (`2026-07-29`):
+
+- `git fetch --all --prune`; `AI-dev` level with `origin/AI-dev` at `ff8b744`
+- `pnpm run typecheck`
+- strict Biome format + lint over all touched files, warnings as errors
+- `pnpm run lint`, `pnpm run format`
+- `pnpm run test`: backend `44` files / `315` tests, webview `34` files /
+  `290` tests
+- `pnpm run l10n:check`: `100%` package and bundle coverage for `pl`, `zh-cn`,
+  `zh-tw`
+- `pnpm run package`
+- `pnpm run test:coverage`
+- `pnpm run sonar:scan` with fresh coverage from the completed working tree.
+  Task `4b2e18a3-89b9-4f70-a82a-4e5cdb3322a8`, analysis
+  `9918d4a9-59ba-4570-9fdb-7552bf31f7e2`: `ZAM` quality gate **`OK`** on all six
+  conditions — `new_duplicated_lines_density` `0.0`, `new_violations` `0`,
+  `software_quality_maintainability_issues` `0`,
+  `software_quality_maintainability_remediation_effort` `0`,
+  `software_quality_reliability_issues` `0`,
+  `software_quality_security_issues` `0`. `new_lines` `184`, overall project
+  coverage `84.6%`. The gate no longer carries a `new_coverage` condition; see
+  the SonarQube notes under Current Architecture.
+- `pnpm run format` still reports the same six pre-existing drifts in files this
+  slice did not touch (`.vscode/settings.json`,
+  `tests/backend/avatarManager.test.ts`, `tests/backend/diffDocProvider.test.ts`,
+  `tests/backend/manifest.test.ts`, `tests/backend/statusBarItem.test.ts`,
+  `tests/webview/utils/dom.test.ts`), unchanged since `2026-07-27` and left for a
+  dedicated cleanup slice per the scoped-cleanup rule. `pnpm run lint` reports
+  only the pre-existing Biome schema-version info (`2.5.2` config vs `2.5.5` CLI).
+- `sonar.projectVersion` advanced `1.1.0` → `1.1.1` so the `Previous Version`
+  new-code window covers exactly this slice rather than reaching back past the
+  1.1.0 release.
+
+Test notes for future slices:
+
+- A signature-bearing tag object can be created **without a GPG key** by writing
+  the object with `git mktag` and pointing the ref at it with `git update-ref`
+  (see `tests/backend/queries/loadCommits/signedTags.test.ts`). Use this instead
+  of generating throwaway GPG keys, which is slow and flaky in CI.
+- Webview tests that click `refreshBtn` must re-supply commits with
+  `receiveLoadedCommits(...)` after answering `loadRepoInfo`; the refresh clears
+  the table, so ref lookups silently find nothing otherwise.
+
+### Upstream review (`2026-07-29`)
+
+`upstream/main` (`asispts/neo-git-graph`) had three commits newer than
+`origin/main` at `ff8b744`: `437ee6c` (nix flake/direnv config), `867eddc`
+(split `tsconfig.base.json`, explicit `types` per project), and `9349069`
+(enforce the `node:` protocol via `.oxlintrc.json`). None were incorporated:
+
+- The nix config is dead weight here — this fork develops through the
+  devcontainer and has no nix users.
+- The `node:` protocol rule is a good idea but ships as oxlint config; this fork
+  uses Biome, and its sources already use `node:` prefixes throughout.
+- The tsconfig split is the only one with real merit and is worth revisiting as
+  its own slice; this fork's tsconfigs have already diverged (TypeScript 6,
+  local aliases for `tests-ext`), so it is a rewrite rather than a merge.
+
+Incorporating any upstream MIT commit also requires extending the boundary
+commit and the contributor roster in `NOTICE.md`/`LICENSE.mit` in the same
+change. That cost is not worth paying for chore commits; re-evaluate when
+upstream lands user-facing behavior this fork wants.
+
 ## Near-Term Work Order
 
 Maintainer-set priorities (`2026-07-03`): Phases 12, 13, and 14 are complete.
+Phase 15 (tag surfaces) completed `2026-07-29` and shipped as `v1.1.1`.
 
 1. Run baseline checks on `AI-dev` at the start of the session.
 2. Phase 12 is complete; see the Phase 12 implementation record for details.

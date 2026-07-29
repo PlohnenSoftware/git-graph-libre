@@ -1,7 +1,8 @@
-name: publish
+name: release
 
+# `contents: write` is required to create the GitHub release and upload the VSIX.
 permissions:
-  contents: read
+  contents: write
 
 on:
   push:
@@ -9,8 +10,8 @@ on:
       - "v*"
 
 jobs:
-  deploy:
-    name: Deploy to VS Marketplace
+  release:
+    name: Package, release, and publish
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -22,9 +23,51 @@ jobs:
 
       - run: corepack enable && pnpm install --frozen-lockfile
 
+      # `vsce package` runs `vscode:prepublish`, which typechecks, lints, and
+      # builds the production bundle before writing the VSIX.
+      - name: Package extension
+        id: package
+        run: |
+          pnpm exec vsce package --no-dependencies
+          vsix="$(ls -1 ./*.vsix | head -n 1)"
+          if [ -z "$vsix" ]; then
+            echo "::error::vsce package produced no .vsix file"
+            exit 1
+          fi
+          echo "vsix=$vsix" >> "$GITHUB_OUTPUT"
+          echo "Packaged $vsix"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VSIX: ${{ steps.package.outputs.vsix }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$VSIX" --clobber
+          else
+            gh release create "$TAG" "$VSIX" --title "$TAG" --generate-notes
+          fi
+
+      # The `secrets` context is not available to a step-level `if`, so resolve
+      # the token into an output first and gate the publish step on that.
+      - name: Check marketplace token
+        id: marketplace
+        env:
+          VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
+        run: |
+          if [ -n "$VS_MARKETPLACE_TOKEN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::VS_MARKETPLACE_TOKEN is not set; skipping marketplace publish."
+          fi
+
       - name: Publish to VS Marketplace
+        if: steps.marketplace.outputs.configured == 'true'
         uses: HaaLeo/publish-vscode-extension@v2
         with:
           pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
           registryUrl: https://marketplace.visualstudio.com
+          extensionFile: ${{ steps.package.outputs.vsix }}
           dependencies: false

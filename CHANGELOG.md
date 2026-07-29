@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-07-29
+
+### Added
+
+- **Signed tags are visually distinct**: an annotated tag whose object carries a
+  signature now renders with a verified badge, a tinted label, and a "signed tag"
+  tooltip in the graph, using the same color family as the commit signature
+  column. Lightweight tags have no tag object and are never marked. Detecting the
+  signature is free — it rides along on the existing `for-each-ref` call and does
+  not run signature verification, which stays in the tag details popup.
+- **Delete a tag on selected remotes**: the Delete Tag dialog now lists every
+  configured remote as its own opt-in checkbox and deletes the tag there after
+  removing it locally. `refs/tags` has no per-remote tracking refs, so a remote
+  that never had the tag is treated as success rather than an error, and the tag
+  is deleted by its full `refs/tags/` ref so a same-named branch is never hit.
+
+### Changed
+
+- The tag details popup now colors the signature line by status (valid, bad or
+  failed, unknown, unsigned), matching the new signed-tag badge.
+- The release workflow now builds the VSIX, attaches it to a GitHub release for
+  the pushed tag, and publishes to the VS Marketplace only when
+  `VS_MARKETPLACE_TOKEN` is configured. Without the token the release still
+  happens and the publish step is skipped with a notice.
+
 ## [1.1.0] - 2026-07-27
 
 ### Added

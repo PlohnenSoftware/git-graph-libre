@@ -1,3 +1,16 @@
+import { GitCommandError } from "@/backend/utils/gitRunner";
+
+/**
+ * `git push <remote> --delete <ref>` fails when the ref is already absent on the
+ * remote. Deleting something that is already gone is the requested end state, so
+ * callers treat this specific failure as success.
+ */
+export function isMissingRemoteRefError(error: unknown): boolean {
+  if (!(error instanceof GitCommandError)) return false;
+  const text = [error.record.error?.message, error.record.error?.stderr].filter(Boolean).join("\n");
+  return /remote ref does not exist/i.test(text);
+}
+
 export function normalizeHiddenRemotes(hiddenRemotes: readonly string[] | undefined): string[] {
   const normalized: string[] = [];
   for (const remote of hiddenRemotes ?? []) {
