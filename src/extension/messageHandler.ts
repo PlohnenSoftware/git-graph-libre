@@ -515,6 +515,7 @@ export function registerMessageHandlers(
         dateType: config.dateType(),
         showUncommittedChanges: config.showUncommittedChanges(),
         repo: msg.repo,
+        gitPath: config.gitPath(),
         recordGitCommand
       }))
     });

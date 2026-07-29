@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-29
+
+### Fixed
+
+- **SSH-signed commits are no longer shown as unsigned** in the Signature
+  column. `git log %G?` reports `N` for commits it cannot verify — which
+  includes SSH-signed commits when no `gpg.ssh.allowedSignersFile` is
+  configured — so they were indistinguishable from genuinely unsigned commits
+  and displayed as `—` Unsigned. The loader now probes the commit object's
+  `gpgsig` header (a single batched `git cat-file --batch` over only the
+  ambiguous commits) and reclassifies those that carry a signature as
+  signed-but-**Unverifiable** (`?`), regardless of signature type (SSH, GPG, or
+  x509). Verified and genuinely unsigned commits are unchanged. The probe adds
+  no extra git calls when the Signature column is hidden or every commit
+  verifies cleanly.
+
 ## [1.1.2] - 2026-07-29
 
 ### Changed
@@ -210,7 +226,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.0.0...v1.1.0

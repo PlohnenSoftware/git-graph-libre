@@ -55,6 +55,13 @@ export type GitLogEntry = {
   message: string;
   /** Undefined when the log query intentionally skipped signature verification. */
   signature?: GitCommitSignature | null;
+  /**
+   * The raw `git log %G?` letter (e.g. `G`, `N`, `B`), kept so the loader can
+   * reclassify `N` commits that actually carry a signature (SSH-signed commits
+   * report `N` when verification is unavailable). Omitted when signature
+   * verification was not requested.
+   */
+  signatureStatusRaw?: string;
 };
 
 export type GitCommitSearchResult = GitLogEntry & {

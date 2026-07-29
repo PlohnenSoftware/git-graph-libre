@@ -1725,6 +1725,60 @@ Verification (`2026-07-29`):
   quality gate **`OK`** — `new_violations` `0`, `new_duplicated_lines_density`
   `0.0`, and all four project-wide conditions `0`.
 
+Follow-up (`2026-07-29`): SSH-signed commits shown as unsigned, released as
+`v1.2.0`. `git log %G?` reports `N` for commits it cannot verify, and that
+conflates **truly unsigned** commits with **signed-but-unverifiable** ones —
+notably SSH-signed commits when no `gpg.ssh.allowedSignersFile` is configured
+(the verifier cannot even run, so it answers `N` instead of `U`). The result
+was that every SSH-signed commit in such a repo rendered as `—` Unsigned in the
+Signature column. `%GG` (raw signature) is also empty on unverified SSH
+signatures, so no `git log` format atom can disambiguate.
+
+The fix: after the log is parsed, the loader collects the hashes of every
+commit whose `%G?` was `N` and runs **one** batched `git cat-file --batch` over
+them (hashes on stdin). The new `parseGpgsigPresence(stdout)` splits the batch
+output on `<40-hex-sha> commit <size>` header lines and flags any block that
+contains a `gpgsig ` line. Those commits become
+`{ status: "unverifiable", signer: null, key: null }` (reusing the existing
+`E`-mapped status the webview already renders as `?` Unverifiable); genuinely
+unsigned commits stay `null`. The probe is skipped entirely when the Signature
+column is hidden or no commit reported `N`, so the common path adds zero git
+calls; failures are swallowed (worst case = pre-fix behavior).
+
+To feed stdin (which `git.raw()` cannot), a new
+`runGitWithInput(git, { args, input, binary, repo, record, ... })` spawns the
+git binary directly via `node:child_process.spawnSync`. The binary is the
+caller-resolved `config.gitPath()` — threaded into `LoadCommitsInput.gitPath`
+(mirroring `loadBranches`) rather than guessed from `process.env`, consistent
+with the Phase 0.5 direction of diverging from `simple-git`. `runGitWithInput`
+goes through the same `runGitCommand` wrapper for timing/recording/error
+normalization.
+
+Verification (`2026-07-29`):
+
+- Reproduced the bug against a real repo (`_TA/ALPACA`): `git log %G?` reported
+  `N` for all SSH-signed commits, while `git cat-file --batch` showed a
+  `gpgsig -----BEGIN SSH SIGNATURE-----` header on every one of them.
+- `pnpm run typecheck`; strict Biome over touched files (clean); `pnpm run lint`
+  (only the pre-existing schema-version info); `pnpm run format` (only the six
+  known pre-existing drifts in untouched files).
+- `pnpm run test`: backend `46` files / `322` tests, webview `34` files /
+  `294` tests. New tests: `parseGpgsigPresence` (5, pure-function unit cases)
+  and `unverifiedSignatures` (2, real-repo integration: a `gpgsig`-bearing
+  commit built via `git hash-object -t commit -w --stdin` reclassifies to
+  `unverifiable`; a genuinely unsigned commit stays `null`).
+- `pnpm run l10n:check` `100%` (no new keys — reused `signatureUnverifiable`);
+  `pnpm run package`.
+- `pnpm run test:coverage` (`80` files / `616` tests).
+- `sonar.projectVersion` advanced `1.1.2` → `1.2.0` so the `Previous Version`
+  new-code window covers exactly this slice.
+- `pnpm run sonar:scan`. First scan flagged one new-code violation
+  (`typescript:S6594`, `.match()` vs `RegExp.exec()` in `parseGpgsigPresence`);
+  fixed by switching to `commitHeaderRegex.exec(line)` and rescanned. Final
+  `ZAM` quality gate **`OK`** — `new_violations` `0`,
+  `new_duplicated_lines_density` `0.0`, `new_coverage` `88.3%`, and all four
+  project-wide conditions `0`.
+
 Test notes for future slices:
 
 - A signature-bearing tag object can be created **without a GPG key** by writing

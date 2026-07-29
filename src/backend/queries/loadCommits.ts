@@ -11,7 +11,12 @@ import type {
   GitRefData,
   QueryResult
 } from "@/backend/types";
-import { type GitCommandRecorder, runGitCommand, runGitRaw } from "@/backend/utils/gitRunner";
+import {
+  type GitCommandRecorder,
+  runGitCommand,
+  runGitRaw,
+  runGitWithInput
+} from "@/backend/utils/gitRunner";
 import { authorArgs, selectedLogRefs } from "@/backend/utils/logFilters";
 import { toGitQueryError } from "@/backend/utils/queryError";
 import { isHiddenRemoteRef, remoteExcludeArgs } from "@/backend/utils/remoteRefs";
@@ -59,6 +64,8 @@ type LoadCommitsInput = {
   showUncommittedChanges: boolean;
   repo?: string | null;
   recordGitCommand?: GitCommandRecorder;
+  /** Resolved git binary path, threaded from `config.gitPath()` (mirrors `loadBranches`). */
+  gitPath?: string;
 };
 
 type GitQueryContext = {
@@ -112,6 +119,37 @@ export function parseCommitSignature(
     signer: signer || null,
     key: key || null
   };
+}
+
+const commitHeaderRegex = /^([0-9a-f]{40}) commit \d+$/;
+const gpgsigPrefix = "gpgsig ";
+
+/**
+ * Parses `git cat-file --batch` output and returns the hashes whose commit
+ * object carries a `gpgsig` header.
+ *
+ * Git emits `%G?` = `N` for both truly unsigned commits AND signed commits that
+ * could not be verified (notably SSH-signed commits when no
+ * `gpg.ssh.allowedSignersFile` is configured). The `gpgsig` header is the only
+ * reliable, signature-type-agnostic signal that a commit *is* signed. This lets
+ * the caller reclassify those `N` commits as signed-but-unverifiable instead of
+ * unsigned. Non-commit objects (blobs/tags) are ignored.
+ */
+export function parseGpgsigPresence(stdout: string): Set<string> {
+  const signed = new Set<string>();
+  let currentHash: string | null = null;
+  for (const line of stdout.split(eolRegex)) {
+    const header = commitHeaderRegex.exec(line);
+    if (header !== null) {
+      currentHash = header[1];
+      continue;
+    }
+    if (currentHash !== null && line.startsWith(gpgsigPrefix)) {
+      signed.add(currentHash);
+      currentHash = null;
+    }
+  }
+  return signed;
 }
 
 function buildRefFormat() {
@@ -296,8 +334,10 @@ function parseLogEntries(stdout: string, showSignature: boolean): GitLogEntry[] 
       message: fields[i + 5]
     };
     if (showSignature) {
+      const rawStatus = fields[i + gitLogBaseFieldCount];
+      commit.signatureStatusRaw = rawStatus;
       commit.signature = parseCommitSignature(
-        fields[i + gitLogBaseFieldCount],
+        rawStatus,
         fields[i + gitLogBaseFieldCount + 1],
         fields[i + gitLogBaseFieldCount + 2]
       );
@@ -368,6 +408,63 @@ async function addUnsavedChangesCommit(
     date: Math.round(Date.now() / 1000),
     message: `Uncommitted Changes (${unsaved.changes})`
   });
+}
+
+/**
+ * Reclassifies commits that git reported as `%G?` = `N` (no signature) but that
+ * actually carry a `gpgsig` header. This happens for SSH-signed commits when no
+ * `gpg.ssh.allowedSignersFile` is configured: git cannot even attempt
+ * verification, so it reports `N` even though the commit is genuinely signed.
+ *
+ * Only the ambiguous `N` commits are probed (a single batched
+ * `git cat-file --batch` over their hashes). Any that carry a `gpgsig` header
+ * become `unverifiable` (signed but cannot be verified); truly unsigned commits
+ * stay `null`. Failures are swallowed so the worst case is the pre-fix behavior.
+ */
+async function reclassifyUnverifiedSignatures(
+  git: SimpleGit,
+  commits: GitLogEntry[],
+  binary: string | undefined,
+  context: GitQueryContext
+): Promise<void> {
+  if (binary === undefined || binary === "") return;
+  const ambiguousHashes = uniqueHashes(
+    commits.filter((commit) => commit.signatureStatusRaw === "N").map((commit) => commit.hash)
+  );
+  if (ambiguousHashes.length === 0) return;
+
+  let signedHashes: Set<string>;
+  try {
+    const stdout = await runGitWithInput(git, {
+      label: "loadCommits.signaturePresence",
+      args: ["cat-file", "--batch"],
+      input: `${ambiguousHashes.join("\n")}\n`,
+      binary,
+      repo: context.repo,
+      record: context.record
+    });
+    signedHashes = parseGpgsigPresence(stdout);
+  } catch {
+    return;
+  }
+
+  for (const commit of commits) {
+    if (commit.signatureStatusRaw === "N" && signedHashes.has(commit.hash)) {
+      commit.signature = { status: "unverifiable", signer: null, key: null };
+    }
+  }
+}
+
+function uniqueHashes(hashes: string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const hash of hashes) {
+    if (hash !== "" && !seen.has(hash)) {
+      seen.add(hash);
+      unique.push(hash);
+    }
+  }
+  return unique;
 }
 
 function createCommitNodes(commits: GitLogEntry[], refData: GitRefData) {
@@ -478,6 +575,7 @@ export async function loadCommits(
   if (moreCommitsAvailable) commits = commits.slice(0, maxCommits);
 
   await addUnsavedChangesCommit(git, commits, refData, showUncommittedChanges, context);
+  await reclassifyUnverifiedSignatures(git, commits, input.gitPath, context);
   const commitNodes = createCommitNodes(commits, refData);
 
   return { commits: commitNodes, head: refData.head, moreCommitsAvailable, hard, error };

@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import type { SimpleGit } from "simple-git";
 
 export type GitCommandKind = "query" | "action";
@@ -199,4 +200,44 @@ export async function runGitCommand<T>(
 
 export function runGitRaw(git: SimpleGit, options: GitCommandOptions): Promise<string> {
   return runGitCommand(() => git.raw(options.args), options);
+}
+
+export type GitInputOptions = GitCommandOptions & {
+  /** Bytes written to the child process's stdin (e.g. commit hashes for `cat-file --batch`). */
+  input: string;
+  /**
+   * Resolved git binary path. The extension resolves this once via
+   * `config.gitPath()` and threads it in (see `loadBranches`), so this spawn
+   * uses the same configured binary rather than guessing from `process.env`.
+   */
+  binary: string;
+};
+
+/**
+ * Runs a git command with bytes on stdin.
+ *
+ * `git.raw()` (used by {@link runGitRaw}) does not feed stdin, which is why a
+ * batched `git cat-file --batch <hashes>` needs this dedicated spawn. The binary
+ * is the caller-resolved git path (consistent with `loadBranches`' `gitPath`),
+ * and the command runs with `cwd` set to the repo so it resolves the correct
+ * repository. Like every other runner, the call is timed, recorded, and
+ * normalized through {@link runGitCommand} so the recording surface stays
+ * consistent.
+ */
+export function runGitWithInput(_git: SimpleGit, options: GitInputOptions): Promise<string> {
+  return runGitCommand(async () => {
+    const result = spawnSync(options.binary, options.args, {
+      cwd: options.repo ?? undefined,
+      input: options.input,
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024 * 64
+    });
+    if (result.error !== undefined) throw result.error;
+    if (result.status !== 0) {
+      throw new Error(
+        `git ${options.args.join(" ")} exited with ${result.status}: ${result.stderr ?? ""}`
+      );
+    }
+    return result.stdout;
+  }, options);
 }
