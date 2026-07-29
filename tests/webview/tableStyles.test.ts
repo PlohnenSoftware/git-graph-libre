@@ -36,6 +36,12 @@ describe("commit table styles", () => {
     expect(css).not.toContain("#scrollShadow");
   });
 
+  it("aligns the version to the right of the readiness status", () => {
+    const version = css.match(/^\.statusVersion \{[^}]+\}/m)?.[0] ?? "";
+    expect(version).toContain("margin-left: auto;");
+    expect(version).toContain("flex: 0 0 auto;");
+  });
+
   it("lets the toolbar wrap and shrink for narrow views", () => {
     const controls = css.match(/^#controls \{[^}]+\}/m)?.[0] ?? "";
     expect(controls).toContain("display: flex;");

@@ -8,9 +8,9 @@ import { DiffDocProvider } from "./diffDocProvider";
 import { createCommandManager } from "./extension/commandManager";
 import { registerMessageHandlers } from "./extension/messageHandler";
 import { createRepoManager } from "./extension/repoManager";
+import { createLogger } from "./extension/utils/logger";
 import { type WebviewBridge, webviewBridgeFactory } from "./extension/webviewBridge";
 import { createWebviewPanel, type WebviewPanel } from "./extension/webviewPanel";
-import { createLogger } from "./extension/utils/logger";
 import { createRepoSearch } from "./extension/workspaceSearch";
 import { createRepoWatcher } from "./extension/workspaceWatcher";
 import { ExtensionState } from "./extensionState";
@@ -77,6 +77,7 @@ export function activate(context: vscode.ExtensionContext) {
       extensionState,
       avatarManager,
       repoManager,
+      extensionVersion: String(context.extension.packageJSON.version ?? "unknown"),
       outputChannel: logger,
       onDispose: () => {
         currentPanel = undefined;

@@ -28,7 +28,7 @@ export function setupHtml(viewState: GGL.GitGraphViewState) {
   const l10nStrings = getWebviewLocalizedStrings();
   document.body.innerHTML = `
     <div id="topBar">
-    ${buildWebviewStatusStrip(l10nStrings)}
+    ${buildWebviewStatusStrip(l10nStrings, "1.2.0")}
     ${buildWebviewToolbar(l10nStrings)}
     </div>
     <div id="settingsWidgetBacking" hidden></div>

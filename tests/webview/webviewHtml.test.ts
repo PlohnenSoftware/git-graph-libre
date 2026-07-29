@@ -66,7 +66,8 @@ describe("webview HTML", () => {
       } as ExtensionState,
       repoManager: {
         getRepos: () => ({ "/repo": { columnWidths: null } })
-      } as unknown as RepoManager
+      } as unknown as RepoManager,
+      extensionVersion: "1.2.0"
     });
 
     const viewState = extractViewState(result.html);
@@ -105,7 +106,8 @@ describe("webview HTML", () => {
       } as ExtensionState,
       repoManager: {
         getRepos: () => ({ "/repo": { columnWidths: null } })
-      } as unknown as RepoManager
+      } as unknown as RepoManager,
+      extensionVersion: "1.2.0"
     });
 
     const topBarIndex = result.html.indexOf('<div id="topBar">');

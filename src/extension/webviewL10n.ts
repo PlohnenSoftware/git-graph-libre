@@ -19,6 +19,7 @@ export function getWebviewLocalizedStrings() {
     globPattern: l10n.t("ui.globPattern"),
     toolbar: l10n.t("ui.toolbar"),
     statusStrip: l10n.t("ui.statusStrip"),
+    version: l10n.t("ui.version"),
     showRemoteBranches: l10n.t("ui.showRemoteBranches"),
     refresh: l10n.t("ui.refresh"),
     fetch: l10n.t("ui.fetch"),

@@ -20,6 +20,7 @@ export function createWebviewPanel(opts: {
   extensionState: ExtensionState;
   avatarManager: AvatarManager;
   repoManager: RepoManager;
+  extensionVersion: string;
   outputChannel?: Pick<vscode.OutputChannel, "appendLine">;
   onDispose: () => void;
   onPanelShown: () => void;
@@ -33,6 +34,7 @@ export function createWebviewPanel(opts: {
     extensionState,
     avatarManager,
     repoManager,
+    extensionVersion,
     outputChannel,
     onDispose,
     onPanelShown
@@ -57,7 +59,8 @@ export function createWebviewPanel(opts: {
       config,
       extensionPath,
       extensionState,
-      repoManager
+      repoManager,
+      extensionVersion
     });
     outputChannel?.appendLine(
       `[panel] render repos=${Object.keys(repoManager.getRepos()).length} graph=${result.isGraphLoaded}`

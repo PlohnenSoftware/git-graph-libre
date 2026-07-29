@@ -943,6 +943,12 @@ body.commitDetailsResizing * {
 .statusStrip[data-state="error"] .statusIndicator {
   background-color: var(--vscode-errorForeground);
 }
+.statusVersion {
+  margin-left: auto;
+  flex: 0 0 auto;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
 @keyframes statusStripPulse {
   0%,
   100% {

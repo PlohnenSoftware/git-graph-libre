@@ -4,8 +4,8 @@ import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
 import { buildWebviewStatusStrip } from "@/extension/webviewStatusStrip";
 import { setStatusStrip } from "@/webview/statusStrip";
 
-function renderStatusStrip(strings = getWebviewLocalizedStrings()) {
-  document.body.innerHTML = buildWebviewStatusStrip(strings);
+function renderStatusStrip(strings = getWebviewLocalizedStrings(), version = "1.2.0") {
+  document.body.innerHTML = buildWebviewStatusStrip(strings, version);
 }
 
 describe("webview status strip", () => {
@@ -53,5 +53,19 @@ describe("webview status strip", () => {
       'Status <script>alert("x")</script>'
     );
     expect(document.getElementById("statusText")?.textContent).toBe("Ready <bad>");
+  });
+
+  it("renders the extension version on the right of the readiness status", () => {
+    renderStatusStrip(getWebviewLocalizedStrings(), "1.2.0");
+
+    const version = document.getElementById("statusVersion");
+    expect(version?.textContent).toBe("v1.2.0");
+    expect(version?.getAttribute("title")).toContain("1.2.0");
+    // A version containing markup must not reach the DOM as HTML.
+    renderStatusStrip(getWebviewLocalizedStrings(), "1.2.0<img src=x onerror=alert(1)>");
+    expect(document.querySelector("#statusVersion img")).toBeNull();
+    expect(document.getElementById("statusVersion")?.textContent).toBe(
+      "v1.2.0<img src=x onerror=alert(1)>"
+    );
   });
 });

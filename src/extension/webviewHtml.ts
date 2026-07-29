@@ -29,8 +29,9 @@ export function buildWebviewHtml(opts: {
   extensionPath: string;
   extensionState: ExtensionState;
   repoManager: RepoManager;
+  extensionVersion: string;
 }): { html: string; isGraphLoaded: boolean } {
-  const { webview, config, extensionPath, extensionState, repoManager } = opts;
+  const { webview, config, extensionPath, extensionState, repoManager, extensionVersion } = opts;
   const nonce = getNonce();
   const l10nStrings = getWebviewLocalizedStrings();
   const viewState: GitGraphViewState = {
@@ -79,7 +80,7 @@ export function buildWebviewHtml(opts: {
   if (numRepos > 0) {
     body = `<body style="${styleVars}">
 		<div id="topBar">
-		${buildWebviewStatusStrip(l10nStrings)}
+		${buildWebviewStatusStrip(l10nStrings, extensionVersion)}
 		${buildWebviewToolbar(l10nStrings)}
 		</div>
 		<div id="settingsWidgetBacking" hidden></div>

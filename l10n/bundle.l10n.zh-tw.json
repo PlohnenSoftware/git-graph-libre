@@ -5,6 +5,7 @@
   "outputChannel.text": "Git Graph Libre",
   "ui.toolbar": "Git 圖形控制項",
   "ui.statusStrip": "Git 圖形狀態",
+  "ui.version": "版本",
   "command.activeEditorRepo.noEditor": "請先開啟 Git 存放庫中的檔案。",
   "command.activeEditorRepo.noRepo": "作用中編輯器不在 Git 存放庫中。",
   "command.addRepo.title": "選取 Git 存放庫資料夾",

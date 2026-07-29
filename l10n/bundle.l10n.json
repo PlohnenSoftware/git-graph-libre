@@ -5,6 +5,7 @@
   "outputChannel.text": "Git Graph Libre",
   "ui.toolbar": "Git Graph controls",
   "ui.statusStrip": "Git Graph status",
+  "ui.version": "Version",
   "command.activeEditorRepo.noEditor": "Open a file inside a Git repository first.",
   "command.activeEditorRepo.noRepo": "The active editor is not inside a Git repository.",
   "command.addRepo.title": "Select a Git repository folder",

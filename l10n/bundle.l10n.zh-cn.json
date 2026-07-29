@@ -5,6 +5,7 @@
   "outputChannel.text": "Git Graph Libre",
   "ui.toolbar": "Git 图形控件",
   "ui.statusStrip": "Git 图形状态",
+  "ui.version": "版本",
   "command.activeEditorRepo.noEditor": "请先打开 Git 仓库中的文件。",
   "command.activeEditorRepo.noRepo": "活动编辑器不在 Git 仓库中。",
   "command.addRepo.title": "选择 Git 仓库文件夹",
