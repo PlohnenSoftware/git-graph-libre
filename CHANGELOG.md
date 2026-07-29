@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removing it locally. `refs/tags` has no per-remote tracking refs, so a remote
   that never had the tag is treated as success rather than an error, and the tag
   is deleted by its full `refs/tags/` ref so a same-named branch is never hit.
+- **Tag details popup redesigned**: the popup now lays out tag metadata
+  (type, object, target, tagger, date, signature, message) in a structured
+  two-column grid instead of a squeezed inline block, with a predictable width
+  so hashes and long messages are no longer cramped. It also offers one-click
+  **Copy Tag Name**, **Copy Object Hash**, and **Copy Tag Message** actions.
 
 ### Changed
 

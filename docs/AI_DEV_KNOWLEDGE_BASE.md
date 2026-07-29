@@ -1637,6 +1637,54 @@ Verification (`2026-07-29`):
   new-code window covers exactly this slice rather than reaching back past the
   1.1.0 release.
 
+Follow-up (`2026-07-29`): tag details popup redesign, same slice. The popup was
+read-only with a single Dismiss button and rendered its metadata as inline
+`<b>…</b><br>` markup inside the generic `#dialog` (`width: max-content;
+max-width: min(440px, 90vw)`), which squeezed hashes and long messages into a
+narrow, uneven column. Redesigned it with a dedicated `#dialog.tagDetails`
+variant: a structured `dl.tagDetailsFields` two-column grid (`max-content 1fr`)
+for label/value rows, a full-width `white-space: pre-wrap` message row, and a
+predictable `width: min(460px, 90vw)` so the panel no longer shrink-to-fits.
+Added three copy actions in a wrapping flex row — **Copy Tag Name**, **Copy
+Object Hash** (`type: "Tag Hash"`), and **Copy Tag Message** (`type:
+"Tag Message"`) — each reusing the existing `copyToClipboard` path; the
+message copy sends the joined subject+body. New l10n keys
+`action.copyTagHash`, `action.copyTagMessage`, `type.tagHash`, `type.tagMessage`
+across `en`/`pl`/`zh-cn`/`zh-tw`, and the copy-error `typeLabel` map gained
+`Tag Hash`/`Tag Message` for friendly failure labels. Dismiss remains the single
+primary action; the copy buttons are bound after `showDialog` returns (same
+pattern as `#dialogAction`/`#dialogDismiss`), and `hideDialog()`'s
+`dialog.className = ""` already drops the `tagDetails` class. Added a webview
+rendering test for the copy actions and a `dialogStyles` CSS regression test
+for the grid layout.
+
+Verification (`2026-07-29`):
+
+- `git fetch --all --prune`; `AI-dev` level with `origin/AI-dev` at `ff8b744`
+- `pnpm run typecheck`
+- strict Biome over the five touched files (`src/webview/main.ts`,
+  `src/extension/webviewL10n.ts`, `tests/webview/rendering.test.ts`,
+  `tests/webview/dialogStyles.test.ts`; CSS is not counted), warnings as errors,
+  clean
+- `pnpm run lint` (`189` files; only the pre-existing Biome schema-version info)
+- `pnpm run format`: only the same six pre-existing drifts in untouched files
+- `pnpm run test`: backend `44` files / `315` tests, webview `34` files /
+  `292` tests
+- `pnpm run l10n:check`: `100%` package and bundle coverage for `pl`, `zh-cn`,
+  `zh-tw`
+- `pnpm run package`
+- `pnpm run test:coverage` (`78` files / `607` tests, `coverage/lcov.info`)
+- `graphify update .` + `graphify tree`: rebuilt the map at `2,059` nodes /
+  `4,839` edges / `118` communities
+- `pnpm run sonar:scan` with fresh coverage from the completed working tree.
+  Task `58015533-498b-45fa-8406-c8fa005054e9`, analysis
+  `25fdced8-1fa5-4897-90a9-72f6d35f5423`: `ZAM` quality gate **`OK`** on all
+  seven conditions — `new_coverage` `95.8`, `new_duplicated_lines_density` `0.0`,
+  `new_violations` `0`, and project-wide maintainability issues/effort,
+  reliability issues, and security issues all `0`. Note the `new_coverage >= 85`
+  condition is back on the gate (it had been removed per the earlier
+  `2026-07-29` note); this slice cleared it at `95.8%`.
+
 Test notes for future slices:
 
 - A signature-bearing tag object can be created **without a GPG key** by writing
