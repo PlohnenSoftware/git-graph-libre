@@ -187,4 +187,34 @@ describe("dialog styles", () => {
     expect(ruleFor(css, ".tagDetailsActions")).toContain("display: flex;");
     expect(ruleFor(css, ".tagDetailsActions")).toContain("flex-wrap: wrap;");
   });
+
+  it("uses the default ref border for signed tags while the tag icon keeps commit color", () => {
+    const signedRef = ruleFor(css, ".gitRef.tag.signed");
+
+    // The signed tag shares the default neutral border with every other ref so
+    // all tags read consistently; only the green verified badge distinguishes it.
+    expect(signedRef).toContain("border-color: var(--ngg-neutral-border-heavy);");
+    expect(signedRef).not.toContain("border-color: var(--ngg-signed-ref);");
+    // The tag icon background must NOT be overridden for signed tags, so it
+    // keeps the commit color like every other ref icon. The only signed > svg
+    // rule zeroes the right margin so the verified badge sits flush.
+    const signedSvg = ruleFor(css, ".gitRef.tag.signed > svg");
+    expect(signedSvg).not.toContain("background-color");
+    expect(signedSvg).toContain("margin-right: 0;");
+    // The verified badge carries the signature distinction on the green fill.
+    // It is square (no border-radius) so there is no gap where it meets the
+    // tag icon's commit-color background and the badge reads consistently.
+    const badge = ruleFor(css, ".gitRefSignedBadge");
+    expect(badge).toContain("background-color: var(--ngg-signed-ref);");
+    expect(badge).toContain("border-radius: 0;");
+    expect(badge).toContain("border-radius: 0;");
+  });
+
+  it("renders the valid signature as a filled green circle with the glyph", () => {
+    const valid = ruleFor(css, ".commitSignature-valid");
+
+    // A filled signature-status green circle (not the old faint tint).
+    expect(valid).toContain("background: var(--ngg-signed-ref);");
+    expect(valid).not.toContain("color-mix");
+  });
 });

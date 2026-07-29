@@ -97,8 +97,16 @@ describe("commit table styles", () => {
     expect(css).toContain("var(--vscode-testing-iconPassed");
     expect(css).toContain("var(--ngg-success)");
     expect(css).toContain(".gitRef.tag.signed {");
-    expect(css).toContain("border-color: var(--ngg-signed-ref);");
+    // The signed tag shares the default neutral border with every other ref;
+    // the green verified badge (not the border) carries the distinction.
+    expect(css).toContain("border-color: var(--ngg-neutral-border-heavy);");
+    // The tag icon keeps its commit-color background: the only
+    // `.gitRef.tag.signed > svg` rule zeroes the right margin so the verified
+    // badge sits flush (it does not override the background). The verified
+    // badge carries the signature-status green fill instead.
     expect(css).toContain(".gitRef.tag.signed > svg {");
+    expect(css).toContain("margin-right: 0;");
+    expect(css).toContain(".gitRefSignedBadge {");
     expect(css).toContain("background-color: var(--ngg-signed-ref);");
   });
 

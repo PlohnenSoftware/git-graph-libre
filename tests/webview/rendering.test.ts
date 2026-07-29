@@ -419,13 +419,18 @@ describe("webview rendering", () => {
     const signed = gitRef("v1.0.0", ".gitRef.tag");
     expect(signed?.classList.contains("signed")).toBe(true);
     expect(signed?.title).toBe("v1.0.0 — signed tag");
-    expect(signed?.querySelector("svg.signedTagIcon")).not.toBeNull();
+    // The signed tag keeps the tag icon (on the commit-color background) AND
+    // adds a separate verified badge on the signature-status green.
+    expect(signed?.querySelector(".gitRefSignedBadge")).not.toBeNull();
+    expect(signed?.querySelector(".gitRefSignedBadge svg.signedTagIcon")).not.toBeNull();
+    expect(signed?.querySelector(":scope > svg.signedTagIcon")).toBeNull();
 
     for (const name of ["v0.9.0", "v0.8.0"]) {
       const unsigned = gitRef(name, ".gitRef.tag");
       expect(unsigned?.classList.contains("signed")).toBe(false);
       expect(unsigned?.title).toBe(name);
-      expect(unsigned?.querySelector("svg.signedTagIcon")).toBeNull();
+      // Normal/unsigned tags keep the tag icon and have no verified badge.
+      expect(unsigned?.querySelector(".gitRefSignedBadge")).toBeNull();
     }
 
     expect(document.querySelectorAll(".gitRef.tag.signed")).toHaveLength(1);
@@ -1944,7 +1949,9 @@ describe("webview rendering", () => {
     const validSignature = document.querySelector(
       'tr.commit[data-hash="abc123"] .commitSignature-valid'
     );
-    expect(validSignature?.textContent).toBe("✓");
+    // The valid signature renders the verified symbol (a filled green circle
+    // with the verified glyph), not a plain "✓" character.
+    expect(validSignature?.querySelector("svg.signedTagIcon")).not.toBeNull();
     expect(validSignature?.getAttribute("title")).toContain("Valid signature");
     expect(validSignature?.getAttribute("title")).toContain("Signer: Alice");
     expect(validSignature?.getAttribute("aria-label")).toContain("Key: ABC123");

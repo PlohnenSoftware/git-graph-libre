@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-07-29
+
+### Changed
+
+- **Signed-tag visual refined**: the tag icon now keeps its commit-color
+  background (restored), and a separate verified badge sits flush against it
+  on the signature-status green, sized as in 1.1.1. Signed tags share the
+  default neutral border with every other ref so all tags read consistently;
+  the green verified badge — not the border — carries the signature
+  distinction.
+- **Commit signature column**: a valid (signed) commit now shows the verified
+  symbol inside a filled signature-status green circle, unifying the look with
+  the signed-tag badge.
+
 ## [1.1.1] - 2026-07-29
 
 ### Added
@@ -196,7 +210,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.1...v1.1.2
+[1.1.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/PlohnenSoftware/git-graph-libre/releases/tag/v1.0.0
 [0.4.0]: https://github.com/asispts/neo-git-graph/compare/v0.3.0...v0.4.0

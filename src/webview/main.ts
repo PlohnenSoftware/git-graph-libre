@@ -75,7 +75,7 @@ const COMMIT_SIGNATURE_PRESENTATIONS: Record<
   NonNullable<GitCommitNode["signature"]>["status"],
   { glyph: string; tone: string; label: string }
 > = {
-  valid: { glyph: "✓", tone: "valid", label: l10n.signatureValid },
+  valid: { glyph: svgIcons.verified, tone: "valid", label: l10n.signatureValid },
   "valid-untrusted": {
     glyph: "!",
     tone: "warning",
@@ -4207,14 +4207,14 @@ class GitGraphView {
     const title = escapeHtml(signed ? `${ref.name} — ${l10n.signedTagTooltip}` : ref.name);
     return (
       `<span class="gitRef ${ref.type}${refActive ? " active" : ""}${signed ? " signed" : ""}${extraClass}" data-name="${refName}" title="${title}">` +
-      this.refIcon(ref.type, signed) +
+      this.refIcon(ref.type) +
+      (signed ? `<span class="gitRefSignedBadge">${svgIcons.verified}</span>` : "") +
       escapeHtml(label) +
       "</span>"
     );
   }
-  private refIcon(type: GitCommitNode["refs"][number]["type"], signed: boolean) {
-    if (type !== "tag") return svgIcons.branch;
-    return signed ? svgIcons.signedTag : svgIcons.tag;
+  private refIcon(type: GitCommitNode["refs"][number]["type"]) {
+    return type === "tag" ? svgIcons.tag : svgIcons.branch;
   }
   private renderCommitAvatar(commit: GitCommitNode) {
     if (!this.config.fetchAvatars) return "";

@@ -207,8 +207,13 @@ body.unableToLoad p {
   line-height: 1;
 }
 .commitSignature-valid {
-  color: var(--vscode-testing-iconPassed, var(--vscode-charts-green, var(--ngg-success)));
-  background: color-mix(in srgb, currentColor 14%, var(--ngg-transparent));
+  color: var(--vscode-editor-background);
+  background: var(--ngg-signed-ref);
+}
+.commitSignature-valid > svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
 }
 .commitSignature-warning {
   color: var(--vscode-editorWarning-foreground, var(--vscode-charts-yellow, oklch(78% 0.15 85)));
@@ -685,15 +690,37 @@ body.commitDetailsResizing * {
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
 }
 
-/* Signed tags: verified badge on the signature-status green, plus a tinted
-   label so the distinction survives at a glance and without relying on the
-   icon shape alone. */
+/* Signed tags: the tag icon keeps its commit-color background (restored);
+   a separate verified badge on the signature-status green carries the
+   signature distinction, and the border stays signed-green. */
 .gitRef.tag.signed {
-  border-color: var(--ngg-signed-ref);
-  background-color: color-mix(in srgb, var(--ngg-signed-ref) 16%, var(--ngg-transparent));
+  border-color: var(--ngg-neutral-border-heavy);
+  background-color: color-mix(in srgb, var(--ngg-signed-ref) 12%, var(--ngg-transparent));
 }
+/* On a signed tag the verified badge sits flush against the tag icon, so the
+   two backgrounds meet with no gap; the badge then keeps its own right margin
+   to separate it from the tag name. */
 .gitRef.tag.signed > svg {
+  margin-right: 0;
+}
+.gitRefSignedBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  margin-left: 0;
+  padding: 2px;
+  border-radius: 0;
+  vertical-align: top;
   background-color: var(--ngg-signed-ref);
+  color: var(--vscode-editor-background);
+}
+.gitRefSignedBadge > svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
 }
 
 /* Loader */

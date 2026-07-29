@@ -1685,6 +1685,46 @@ Verification (`2026-07-29`):
   condition is back on the gate (it had been removed per the earlier
   `2026-07-29` note); this slice cleared it at `95.8%`.
 
+Follow-up (`2026-07-29`): signed-tag visual polish, released as `v1.1.2`. The
+1.1.1 signed-tag look had regressed: the tag icon was replaced by the verified
+glyph and lost its commit-color background. Restored a unified design:
+
+- `refIcon()` always returns the **tag** octicon for tags (signed or not); the
+  `signedTag` glyph-as-icon path is gone. A signed tag renders the tag icon on
+  the commit-color background, then a `.gitRefSignedBadge` (the verified octicon
+  on the signature-status green) sits **flush** against it.
+- `.gitRef.tag.signed > svg { margin-right: 0 }` zeroes the default 5px right
+  margin only on signed tags so the badge meets the icon with no background gap;
+  it does **not** override the icon background, so the commit color is preserved.
+- The `.gitRefSignedBadge` is a square (`border-radius: 0`), sized 14px with the
+  glyph at 14px to match the 1.1.1 verified-icon weight.
+- Signed tags now share the **default neutral border** with every other ref
+  (`.gitRef.tag.signed { border-color: var(--ngg-neutral-border-heavy) }`); the
+  green verified badge — not the border — carries the signature distinction.
+- Commit signature column: `COMMIT_SIGNATURE_PRESENTATIONS.valid` glyph changed
+  from the `"✓"` character to `svgIcons.verified`, and `.commitSignature-valid`
+  is now a filled `background: var(--ngg-signed-ref)` circle (not the old 14%
+  tint) with the glyph in the editor-background color, unifying with the tag
+  badge. A new `svgIcons.verified` was added (the `signedTag` alias is kept so
+  existing `signedTagIcon` test selectors keep matching).
+
+Verification (`2026-07-29`):
+
+- `git fetch --all --prune`; `AI-dev` level with `origin/AI-dev`
+- `pnpm run typecheck`
+- strict Biome over the five touched files (clean), `pnpm run lint` (only the
+  pre-existing schema-version info), `pnpm run format` (only the six known
+  pre-existing drifts in untouched files)
+- `pnpm run test`: backend `44` files / `315` tests, webview `34` files /
+  `294` tests
+- `pnpm run l10n:check` `100%`; `pnpm run package`
+- `pnpm run test:coverage` (`78` files / `609` tests)
+- `sonar.projectVersion` advanced `1.1.1` → `1.1.2` so the `Previous Version`
+  new-code window covers exactly this slice.
+- `pnpm run sonar:scan`, task `1f5566fc-d85d-4a1e-a386-881b73a80f3b`: `ZAM`
+  quality gate **`OK`** — `new_violations` `0`, `new_duplicated_lines_density`
+  `0.0`, and all four project-wide conditions `0`.
+
 Test notes for future slices:
 
 - A signature-bearing tag object can be created **without a GPG key** by writing
