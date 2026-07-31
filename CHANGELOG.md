@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-07-31
+
+### Added
+
+- **The extension version is now shown in the status strip**, right-aligned as
+  e.g. `v1.2.1`, while the readiness indicator and status text stay on the
+  left. The version is read from the extension's `package.json`, threaded
+  through the webview panel build, and HTML-escaped before embedding. A new
+  localized `ui.version` label ships for `en`, `pl`, `zh-cn`, and `zh-tw`.
+
 ## [1.2.0] - 2026-07-29
 
 ### Fixed
@@ -226,7 +236,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.0...v1.1.1
