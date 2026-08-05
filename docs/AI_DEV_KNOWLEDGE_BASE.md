@@ -270,6 +270,10 @@ The extension is already split into clean layers:
   history-recovery and ref-label feature release, starting the next stricter
   analysis epoch. The first 1.1.0 analysis follows the same pre-commit rule and
   must use fresh coverage from the completed working tree.
+- On `2026-08-06` `sonar.projectVersion` was advanced to `1.3.0` with the
+  root-commit square rendering and root-line termination release, correcting the
+  drift where it had stayed at `1.2.0` through the `1.2.0`/`1.2.1` releases. The
+  first 1.3.0 analysis uses fresh coverage from the completed working tree.
 - The project uses the maintainer's `ZAM` quality gate, and **not all of its
   conditions are scoped to new code**. As of `2026-07-29` it has six conditions:
   `new_duplicated_lines_density` at most `1` and `new_violations` at most `3` on

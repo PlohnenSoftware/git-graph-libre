@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-06
+
+### Changed
+
+- **Root commits now render as squares** instead of circles. A commit with no
+  parents (the original, oldest commit of a history) is drawn as a small square
+  node, visually distinguishing a history's origin from the circular commit
+  nodes above it. Merge commits and all other commits keep their circle shape.
+- **A root commit no longer trails a line below it.** In repositories with more
+  than one root (parallel histories), a non-bottom root previously had a stray
+  vertical line continuing downward as if it had a parent. The graph layout now
+  terminates each branch at its root, so only the bottom-most root sits at the
+  base of a column.
+
 ## [1.2.1] - 2026-07-31
 
 ### Added
