@@ -65,11 +65,13 @@ body.unableToLoad p {
   z-index: 5;
   pointer-events: none;
 }
-#commitGraph circle.current {
+#commitGraph circle.current,
+#commitGraph rect.current {
   fill: var(--vscode-editor-background);
   stroke-width: 2;
 }
-#commitGraph circle:not(.current) {
+#commitGraph circle:not(.current),
+#commitGraph rect:not(.current) {
   stroke: var(--vscode-editor-background);
   stroke-width: 1;
   stroke-opacity: 0.75;

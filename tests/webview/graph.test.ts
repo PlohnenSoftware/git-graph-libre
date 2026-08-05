@@ -78,6 +78,45 @@ describe("graph rendering", () => {
     expect(currentCircle?.getAttribute("stroke")).toBe("oklch(60% 0 0)");
   });
 
+  it("renders root commits (no parents) as squares and other commits as circles", () => {
+    const graph = makeGraph();
+    const commits = [makeCommit("abc123", ["def456"]), makeCommit("def456")];
+
+    graph.loadCommits(commits, "abc123", { abc123: 0, def456: 1 });
+    graph.render(null);
+
+    const rects = document.querySelectorAll("#commitGraph g rect");
+    const circles = document.querySelectorAll("#commitGraph g circle");
+
+    expect(rects).toHaveLength(1);
+    expect(circles).toHaveLength(1);
+    expect(rects[0]?.getAttribute("width")).toBe("8");
+    expect(rects[0]?.getAttribute("height")).toBe("8");
+  });
+
+  it("does not trail a line below a root commit that has no parent", () => {
+    const graph = makeGraph();
+    // "Ra" is a root (no parents) that is NOT at the bottom of the graph; "B" is
+    // an older orphan root beneath it. A root has no parent, so no line should
+    // extend downward from "Ra" toward "B".
+    const commits = [makeCommit("A", ["Ra"]), makeCommit("Ra"), makeCommit("B")];
+
+    graph.loadCommits(commits, "A", { A: 0, Ra: 1, B: 2 });
+    graph.render(null);
+
+    const ys = Array.from(document.querySelectorAll("#commitGraph g path.line"))
+      .flatMap((path) => {
+        const d = path.getAttribute("d") ?? "";
+        return (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+      })
+      .filter((_, index) => index % 2 === 1);
+
+    // The line must reach the root "Ra" (row 1 -> y = 36) but never the orphan
+    // root "B" beneath it (row 2 -> y = 60).
+    expect(ys).toContain(36);
+    expect(ys).not.toContain(60);
+  });
+
   it("replaces rendered groups, applies width limits, and clears the graph", () => {
     const graph = makeGraph();
     const commits = [makeCommit("abc123", ["def456"]), makeCommit("def456")];

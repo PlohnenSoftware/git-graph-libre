@@ -3,6 +3,7 @@ import type { GitCommitNode } from "@/backend/types";
 const MUTED_GRAPH_COLOR = "oklch(60% 0 0)";
 const MASK_VISIBLE_COLOR = "oklch(100% 0 0)";
 const MASK_HIDDEN_COLOR = "oklch(0% 0 0)";
+const NODE_RADIUS = 4;
 
 interface UnavailablePoint {
   connectsTo: VertexOrNull;
@@ -285,28 +286,33 @@ class Vertex {
   public draw(svg: SVGElement, config: Config, expandOffset: boolean) {
     if (this.onBranch === null) return;
 
-    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     const color = this.isCommitted
       ? config.graphColors[this.onBranch.getColor() % config.graphColors.length]
       : MUTED_GRAPH_COLOR;
-    circle.setAttribute("cx", (this.x * config.grid.x + config.grid.offsetX).toString());
-    circle.setAttribute(
-      "cy",
-      (
-        this.y * config.grid.y +
-        config.grid.offsetY +
-        (expandOffset ? config.grid.expandY : 0)
-      ).toString()
-    );
-    circle.setAttribute("r", "4");
-    if (this.isCurrent) {
-      circle.setAttribute("class", "current");
-      circle.setAttribute("stroke", color);
+    const cx = this.x * config.grid.x + config.grid.offsetX;
+    const cy =
+      this.y * config.grid.y + config.grid.offsetY + (expandOffset ? config.grid.expandY : 0);
+
+    const isRoot = this.parents.length === 0;
+    const node = document.createElementNS("http://www.w3.org/2000/svg", isRoot ? "rect" : "circle");
+    if (isRoot) {
+      node.setAttribute("x", (cx - NODE_RADIUS).toString());
+      node.setAttribute("y", (cy - NODE_RADIUS).toString());
+      node.setAttribute("width", (NODE_RADIUS * 2).toString());
+      node.setAttribute("height", (NODE_RADIUS * 2).toString());
     } else {
-      circle.setAttribute("fill", color);
+      node.setAttribute("cx", cx.toString());
+      node.setAttribute("cy", cy.toString());
+      node.setAttribute("r", NODE_RADIUS.toString());
+    }
+    if (this.isCurrent) {
+      node.setAttribute("class", "current");
+      node.setAttribute("stroke", color);
+    } else {
+      node.setAttribute("fill", color);
     }
 
-    svg.appendChild(circle);
+    svg.appendChild(node);
   }
 }
 
@@ -547,7 +553,7 @@ export class Graph {
         parentVertex.addToBranch(branch, curPoint.x);
         vertex = parentVertex;
         parentVertex = vertex.getNextParent();
-        if (parentVertexOnBranch) break;
+        if (parentVertexOnBranch || parentVertex === null) break;
       }
     }
 
