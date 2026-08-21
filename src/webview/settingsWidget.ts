@@ -138,6 +138,38 @@ export function getRepoDisplayName(repo: string, repoState: GitRepoState) {
   return displayName === undefined || displayName === "" ? getRepoBasename(repo) : displayName;
 }
 
+export function getRepoIndentLevel(repo: string, repoPaths: string[]) {
+  const normalizedRepo = repo.replaceAll("\\", "/");
+  return repoPaths.filter((candidate) => {
+    const normalizedCandidate = candidate.replaceAll("\\", "/");
+    return (
+      normalizedCandidate !== normalizedRepo &&
+      normalizedRepo.startsWith(`${normalizedCandidate}/`)
+    );
+  }).length;
+}
+
+function getRepoParent(repo: string, repoPaths: string[]) {
+  const normalizedRepo = repo.replaceAll("\\", "/");
+  return repoPaths
+    .map((candidate) => candidate.replaceAll("\\", "/"))
+    .filter(
+      (candidate) => candidate !== normalizedRepo && normalizedRepo.startsWith(`${candidate}/`)
+    )
+    .toSorted((left, right) => right.length - left.length)[0];
+}
+
+export function getRepoTreeBranch(repo: string, repoPaths: string[]) {
+  const normalizedRepo = repo.replaceAll("\\", "/");
+  const parent = getRepoParent(repo, repoPaths);
+  if (parent === undefined) return undefined;
+
+  const siblings = repoPaths.filter(
+    (candidate) => getRepoParent(candidate, repoPaths) === parent
+  );
+  return siblings.at(-1)?.replaceAll("\\", "/") === normalizedRepo ? "last" : "middle";
+}
+
 function selectedAttr(value: string, selected: string) {
   return value === selected ? " selected" : "";
 }

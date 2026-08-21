@@ -37,6 +37,8 @@ import { groupCommitRefs, parseRemoteBranchName } from "./refLabels";
 import {
   getRepoBasename,
   getRepoDisplayName,
+  getRepoIndentLevel,
+  getRepoTreeBranch,
   normalizeRepoBooleanOverride,
   type RepoBooleanSettingKey,
   renderSettingsWidget,
@@ -524,9 +526,14 @@ class GitGraphView {
       changedRepo = true;
     }
 
-    const options: { name: string; value: string }[] = [];
+    const options: DropdownOption[] = [];
     for (const repoPath of repoPaths) {
-      options.push({ name: getRepoDisplayName(repoPath, repos[repoPath]), value: repoPath });
+      options.push({
+        name: getRepoDisplayName(repoPath, repos[repoPath]),
+        value: repoPath,
+        indentLevel: getRepoIndentLevel(repoPath, repoPaths),
+        treeBranch: getRepoTreeBranch(repoPath, repoPaths)
+      });
     }
     const repoControl = document.getElementById("repoControl");
     if (repoControl !== null) {

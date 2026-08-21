@@ -84,6 +84,36 @@ describe("searchDirectoryForRepos", () => {
     }
   });
 
+  it("includes git submodules declared in .gitmodules", async () => {
+    const parentRepo = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-submodule-parent-"));
+    const submoduleRepo = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-submodule-child-"));
+
+    try {
+      initRepo(parentRepo);
+      initRepo(submoduleRepo);
+      git(
+        [
+          "-c",
+          "protocol.file.allow=always",
+          "submodule",
+          "add",
+          submoduleRepo,
+          "modules/child"
+        ],
+        parentRepo
+      );
+
+      const result = await searchDirectoryForRepos(parentRepo, 0, "git", []);
+      expect(result).toEqual([parentRepo, path.join(parentRepo, "modules/child")]);
+
+      const knownRepoResult = await searchDirectoryForRepos(parentRepo, 0, "git", [parentRepo]);
+      expect(knownRepoResult).toEqual([path.join(parentRepo, "modules/child")]);
+    } finally {
+      fs.rmSync(parentRepo, { recursive: true, force: true });
+      fs.rmSync(submoduleRepo, { recursive: true, force: true });
+    }
+  });
+
   it("respects maxDepth=0: does not recurse into non-repo", async () => {
     const result = await searchDirectoryForRepos(tmpDir, 0, "git", []);
     expect(result).toEqual([]);

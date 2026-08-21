@@ -1,9 +1,9 @@
 import * as assert from "node:assert";
 import * as fs from "node:fs";
 
-import { Config } from "@/config";
-import { RepoManager } from "@/extension/repoManager";
-import { RepoSearch } from "@/extension/workspaceSearch";
+import type { Config } from "@/config";
+import type { RepoManager } from "@/extension/repoManager";
+import type { RepoSearch } from "@/extension/workspaceSearch";
 import { createRepoWatcher } from "@/extension/workspaceWatcher";
 
 type StubUri = { fsPath: string };
@@ -100,7 +100,7 @@ function makeStubs(initialFolders: string[] = []) {
     0 // debounceDelay=0 so timers fire after a single tick
   );
 
-  const fireFolderChange = (e: FolderChangeEvent) => folderChangeCallback!(e);
+  const fireFolderChange = (e: FolderChangeEvent) => folderChangeCallback?.(e);
 
   return {
     watcher,
@@ -218,7 +218,7 @@ suite("workspaceWatcher / onWatcherCreate (debounced)", () => {
     try {
       const { watcher, watcherHandles, searched } = makeStubs(["/ws/a"]);
       watcher.startWatching();
-      watcherHandles[0].fireCreate(makeUri(tmp + "/.git"));
+      watcherHandles[0].fireCreate(makeUri(`${tmp}/.git`));
       await new Promise<void>((r) => setTimeout(r, 10));
       assert.ok(searched.includes(tmp));
       watcher.dispose();
