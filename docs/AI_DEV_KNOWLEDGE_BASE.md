@@ -1814,6 +1814,48 @@ commit and the contributor roster in `NOTICE.md`/`LICENSE.mit` in the same
 change. That cost is not worth paying for chore commits; re-evaluate when
 upstream lands user-facing behavior this fork wants.
 
+### Upstream review, second pass (`2026-08-25`)
+
+After the bug backlog closed, `upstream/main` was re-reviewed from the merge
+base `28300bd` through `750f96f` (33 commits; the `2026-07-29` pass had covered
+only the first three past `origin/main`). Every commit was classified. The
+useful, missing behavior was implemented as **feature branches off `AI-dev`,
+one per feature, gated and pushed, for the maintainer to pick from**:
+
+| Branch | Ports | What it does | State |
+| --- | --- | --- | --- |
+| `upstream/root-commit-actions` | `4607cdf` | Root (zero-parent) commits take the plain cherry-pick/revert confirmation instead of a zero-option parent-select dialog; Drop exclusion documented (`rebase --onto <root>^` is invalid) | `159e55c`, pushed, ZAM `OK` (task `ec0745b0`, `new_violations` 0) |
+| `upstream/bold-current-branch` | `08318d3` | Checked-out branch label renders semibold (`.gitRef.active { font-weight: 600 }`); aliases/tags unaffected | `f7b190a`, pushed, ZAM `OK` (task `b1a0962b`, `new_violations` 0) |
+| `upstream/retain-panel` | `0bf8812` + `0c8f1da` | `retainContextWhenHidden` on the graph panel; re-show posts `loadRepos`+`refresh` over the bridge instead of reassigning `webview.html` (which would drop the retained document) | `ce1b143`, pushed, ZAM `OK` (task `cec3c2c3`, `new_violations` 0) |
+| `upstream/no-commits-view` | `e7d1f8a` | Dedicated zero-commit view (icon + heading + create-first-commit hint; signal `commits empty && commitHead null && branches empty` so filters cannot fake it) and hidden branch/tag/author/remote-branch controls while it shows | Gates 1–8 green; **commit blocked on the Sonar outage of `2026-08-25`** (host unreachable ~15 min, HTTP 000 on `/api/system/status`, general internet healthy). Tree stashed on the branch (`no-commits-view: gates 1-8 green, awaiting Sonar`); finish with fresh `test:coverage` + `sonar:scan` + gate poll, then commit. |
+
+Licensing pattern for these branches: each branch appends its upstream-commit
+bullet to `NOTICE.md`'s "incorporated in part" list and makes the **identical**
+two edits to `LICENSE.mit` (roster date range → `2026-08-24`; "all four" →
+"all"), so the shared `LICENSE.mit` hunks merge cleanly across branches; only
+the appended `NOTICE.md` bullets can textually collide, trivially.
+
+Skipped, with reasons (do not re-propose without new evidence):
+
+- Already implemented independently here: `48f494c` (context-menu
+  `preventDefault` — `showContextMenu` line 1), `8402626`
+  (`Intl.RelativeTimeFormat` in `src/webview/utils/date.ts`), `d6ebf81`
+  (watcher unmute in `finally` — Phase 0.5), `8a63e39` (long-name display —
+  Phase 12 is deeper), `e7d1f8a`'s relative-date neighbors, `b4c215f`,
+  `deba9af`/`4afcb69`/`951ab64` (already borrowed earlier).
+- Rejected earlier (`2026-07-29` pass): `437ee6c`/`8a62dd9` (nix), `9349069`
+  (oxlint vs our Biome), `867eddc` (tsconfig split — still a rewrite, our
+  tsconfigs diverged further since).
+- Not wanted: `e7efada` (preact migration — huge rewrite of a webview we keep
+  plain-TS by design), `b4a8e82` (l10n rearchitecture; our key-based bundles +
+  checker work), `2c8599c` (removing Locate HEAD conflicts with our Phase 14
+  reveal design), `705848d`/`c66c236` (superseded by our Phase 1 redesign),
+  dependency/CI/readme chores (`9ad07df`, `4f3f8de`, `2b23693`, `9cccf91`,
+  `750f96f`, `5b9f02b`, `9f9a2e9`, `3d34503`, `538fff1`, `4e29e94`, etc.).
+- Flagged for the maintainer as decisions, not code: `7b74415` (status bar on
+  the right side — ours is Left, cosmetic/design call), `0dd368f` (deprecating
+  `fetchAvatars` — product decision; our README still documents the setting).
+
 ## Immediate TODOs — High-Priority Bug Backlog (`2026-08-25`)
 
 **These bugs outrank every remaining phase item in the roadmap.** The maintainer
