@@ -58,6 +58,15 @@ describe("dialog styles", () => {
     expect(ruleFor(css, "#dialog .dialogActions")).toContain("justify-content: flex-end;");
   });
 
+  it("styles dialog form notes as wrapping secondary text", () => {
+    const noteCell = ruleFor(css, "#dialog table.dialogForm td.dialogFormNoteCell");
+    const note = ruleFor(css, "#dialog table.dialogForm .dialogFormNote");
+
+    // The surrounding dialogForm cells are nowrap; a note sentence must wrap.
+    expect(noteCell).toContain("white-space: normal;");
+    expect(note).toContain("var(--vscode-descriptionForeground, var(--ngg-neutral-icon))");
+  });
+
   it("marks dialog errors with error tokens and a readable reason block", () => {
     expect(css).toContain("--ngg-error: oklch(");
     expect(ruleFor(css, "#dialog .dialogErrorIcon svg")).toContain("var(--vscode-errorForeground");

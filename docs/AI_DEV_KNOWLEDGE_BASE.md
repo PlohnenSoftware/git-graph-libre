@@ -1937,7 +1937,7 @@ Fix (one slice, after BUG-1 lands):
 
 ### BUG-3 — "Lightweight" creates a signed annotated tag and opens an editor window
 
-**Status: open. Priority: high. Area: backend action + webview dialog.**
+**Status: fixed (`2026-08-25`). Priority: high. Area: backend action + webview dialog.**
 
 Fault: `src/backend/actions/tag.ts:9-18`.
 
@@ -2039,6 +2039,43 @@ Fix:
   and `tag` for annotated (proving the config was honored, not overridden),
   plus webview tests that the Message row hides for Lightweight and that the
   unsigned-lightweight explanation renders.
+
+Implementation record (`2026-08-25`):
+
+- Lightweight now runs `git tag --no-sign <name> <hash>` through `runGitRaw`
+  (label `tag.addTag`, repo-recorded), with the load-bearing comment explaining
+  why the flag exists and that it is deliberately absent from the annotated
+  path. Annotated is unchanged (`-a <name> -m <msg> <hash>`), so it keeps
+  following `tag.gpgSign`/`tag.forceSignAnnotated`. `messageHandler` passes
+  `recordGitCommand` for `addTag` (the addTag half of BUG-6; pushTag remains
+  for the BUG-1 slice).
+- Add Tag dialog: the Lightweight option label now reads "Lightweight
+  (unsigned)" and selecting it hides the Message row (new generic
+  `dependsOn`/`required` affordance on `DialogInput`, with a new `note` input
+  type rendering the explanation "Lightweight tags are a plain ref with no tag
+  object, so they carry no message and cannot be signed."). An empty annotated
+  message is rejected by the dialog instead of creating an empty-message tag
+  object. New l10n keys across `en`/`pl`/`zh-cn`/`zh-tw`; README gained a
+  "Tag types" note beside the tag feature bullet.
+- Verified: independent verifier reproduced both halves against a scratch repo
+  on this machine (`tag.gpgsign=true` global): old command → editor launched +
+  signed `tag` object; new lightweight command → `cat-file -t` = `commit`, no
+  editor; annotated → genuinely PGP-signed `tag` object (`git tag -v` Good
+  signature), proving the config is honored, not overridden. Unit suites:
+  `add.test.ts` uses a stub `gpg.program`/`core.editor` so the gpgsign cases
+  are environment-independent; webview tests cover row hiding, the note, and
+  empty-message rejection.
+- Full gate green before commit: strict Biome on touched files, typecheck,
+  lint, `test` (backend 46/324, webview 34/301), `l10n:check` 100%,
+  `package`, fresh `test:coverage` (80 files / 625 tests, 92.1% lines), then
+  `sonar:scan` task `8777f7a1-e3be-4684-a2f7-12b6ac16a9ac`, analysis
+  `e48e5498-ea18-4142-a357-1b250b9036e0`: `ZAM` gate **`OK`** —
+  `new_coverage` `94.1%`, `new_duplicated_lines_density` `0.0`,
+  `new_violations` `2` (of 3 allowed), reliability and security issues `0`.
+- Process note: an external formatter reformatted `media/main.css` mid-gate
+  (breaking CSS assertions); the tree was restored to HEAD plus the slice's
+  genuine 8-line `.dialogFormNote` addition and the whole gate was re-run
+  cleanly. Watch for concurrent editors touching this tree during gates.
 
 ### BUG-4 — Branch and tag labels turn gray on every merge commit
 

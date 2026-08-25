@@ -1618,6 +1618,14 @@ dl.tagDetailsFields dd {
   color: var(--vscode-dropdown-foreground, var(--vscode-input-foreground));
   border-color: var(--vscode-dropdown-border, var(--ngg-neutral-border));
 }
+#dialog table.dialogForm td.dialogFormNoteCell {
+  white-space: normal;
+}
+#dialog table.dialogForm .dialogFormNote {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-size: 12px;
+  line-height: 16px;
+}
 #dialog.inputInvalid table.dialogForm input[type="text"] {
   background-color: var(--vscode-inputValidation-errorBackground);
   border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));

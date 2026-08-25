@@ -1,12 +1,12 @@
 import * as cp from "node:child_process";
 import * as fs from "node:fs";
-
+import * as os from "node:os";
+import * as path from "node:path";
+import { git, makeRepo } from "@tests/backend/helpers";
 import { simpleGit } from "simple-git";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-
 import { addTag } from "@/backend/actions/tag";
-
-import { makeRepo } from "@tests/backend/helpers";
+import type { GitCommandRecord, GitCommandRecorder } from "@/backend/utils/gitRunner";
 
 let repo: string;
 let commitHash: string;
@@ -71,5 +71,116 @@ describe("addTag", () => {
         message: ""
       })
     ).rejects.toThrow();
+  });
+});
+
+describe("addTag under tag.gpgsign=true", () => {
+  let gpgRepo: string;
+  let gpgCommitHash: string;
+  let stubDir: string;
+  let gpgMarker: string;
+  let editorMarker: string;
+  const records: GitCommandRecord[] = [];
+  const recordCommand: GitCommandRecorder = (entry) => {
+    records.push(entry);
+  };
+
+  beforeAll(() => {
+    gpgRepo = makeRepo();
+    gpgCommitHash = cp
+      .execFileSync("git", ["rev-parse", "HEAD"], { cwd: gpgRepo })
+      .toString()
+      .trim();
+
+    // The stub "gpg" records that git invoked it, claims success through the
+    // `[GNUPG:] SIG_CREATED` status line git requires, and passes the payload
+    // through untouched. That lets a config-following annotated tag produce a
+    // real `tag` object without generating any GPG key.
+    stubDir = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-test-gpg-"));
+    gpgMarker = path.join(stubDir, "gpg-invoked");
+    editorMarker = path.join(stubDir, "editor-invoked");
+    const stubGpg = path.join(stubDir, "stub-gpg");
+    const stubEditor = path.join(stubDir, "stub-editor");
+    fs.writeFileSync(
+      stubGpg,
+      `#!/bin/sh\necho invoked >> "${gpgMarker}"\necho "[GNUPG:] SIG_CREATED " >&2\ncat\n`
+    );
+    fs.writeFileSync(stubEditor, `#!/bin/sh\necho invoked >> "${editorMarker}"\n`);
+    fs.chmodSync(stubGpg, 0o755);
+    fs.chmodSync(stubEditor, 0o755);
+
+    git(["config", "tag.gpgsign", "true"], gpgRepo);
+    git(["config", "gpg.program", stubGpg], gpgRepo);
+    git(["config", "core.editor", stubEditor], gpgRepo);
+  });
+
+  afterAll(() => {
+    fs.rmSync(gpgRepo, { recursive: true, force: true });
+    fs.rmSync(stubDir, { recursive: true, force: true });
+  });
+
+  it("keeps a lightweight tag a plain, unsigned ref", async () => {
+    await addTag(
+      simpleGit(gpgRepo),
+      {
+        repo: gpgRepo,
+        tagName: "lw-gpgsign",
+        commitHash: gpgCommitHash,
+        lightweight: true,
+        message: ""
+      },
+      recordCommand
+    );
+
+    const tagType = cp
+      .execFileSync("git", ["cat-file", "-t", "lw-gpgsign"], { cwd: gpgRepo })
+      .toString()
+      .trim();
+    expect(tagType).toBe("commit");
+    // `--no-sign` held: git never asked the configured gpg program to sign,
+    // and it never opened an editor to collect a tag message.
+    expect(fs.existsSync(gpgMarker)).toBe(false);
+    expect(fs.existsSync(editorMarker)).toBe(false);
+
+    const lastRecord = records[records.length - 1];
+    expect(lastRecord?.label).toBe("tag.addTag");
+    expect(lastRecord?.kind).toBe("action");
+    expect(lastRecord?.repo).toBe(gpgRepo);
+    expect(lastRecord?.args).toEqual(["tag", "--no-sign", "lw-gpgsign", gpgCommitHash]);
+  });
+
+  it("lets an annotated tag follow the signing configuration", async () => {
+    await addTag(
+      simpleGit(gpgRepo),
+      {
+        tagName: "ann-gpgsign",
+        commitHash: gpgCommitHash,
+        lightweight: false,
+        message: "Signed release"
+      },
+      recordCommand
+    );
+
+    const tagType = cp
+      .execFileSync("git", ["cat-file", "-t", "ann-gpgsign"], { cwd: gpgRepo })
+      .toString()
+      .trim();
+    expect(tagType).toBe("tag");
+    // The config was honored, not overridden: git itself invoked the
+    // configured gpg program. `-m` kept the editor closed.
+    expect(fs.existsSync(gpgMarker)).toBe(true);
+    expect(fs.existsSync(editorMarker)).toBe(false);
+
+    const lastRecord = records[records.length - 1];
+    expect(lastRecord?.args).toEqual([
+      "tag",
+      "-a",
+      "ann-gpgsign",
+      "-m",
+      "Signed release",
+      gpgCommitHash
+    ]);
+    expect(lastRecord?.args).not.toContain("--no-sign");
+    expect(lastRecord?.args).not.toContain("--sign");
   });
 });

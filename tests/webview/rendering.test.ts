@@ -2494,9 +2494,7 @@ describe("webview rendering", () => {
     const tagType = document.getElementById("dialogInput1") as HTMLSelectElement | null;
     if (tagType === null) throw new Error("Missing tag type input");
     tagType.value = "lightweight";
-    const tagMessage = document.getElementById("dialogInput2") as HTMLInputElement | null;
-    if (tagMessage === null) throw new Error("Missing tag message input");
-    tagMessage.value = "Release candidate";
+    tagType.dispatchEvent(new Event("change", { bubbles: true }));
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
 
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
@@ -2505,7 +2503,7 @@ describe("webview rendering", () => {
       tagName: "v2.0.0",
       commitHash: "abc123",
       lightweight: true,
-      message: "Release candidate"
+      message: ""
     });
 
     openHeadCommitContextMenu();
@@ -2516,6 +2514,59 @@ describe("webview rendering", () => {
       command: "checkoutCommit",
       repo: REPO,
       commitHash: "abc123"
+    });
+  });
+
+  it("hides the tag message row for lightweight tags and explains they are unsigned", () => {
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Add Tag");
+
+    // Annotated is the default: the message row shows, the note does not.
+    const messageRow = document.getElementById("dialogInputRow2");
+    const noteRow = document.getElementById("dialogInputRow3");
+    expect(messageRow?.hidden).toBe(false);
+    expect(noteRow?.hidden).toBe(true);
+    expect(noteRow?.textContent).toContain("cannot be signed");
+
+    const tagType = document.getElementById("dialogInput1") as HTMLSelectElement | null;
+    if (tagType === null) throw new Error("Missing tag type input");
+    tagType.value = "lightweight";
+    tagType.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(messageRow?.hidden).toBe(true);
+    expect(noteRow?.hidden).toBe(false);
+
+    // Flipping the Type select back and forth keeps both rows in sync.
+    tagType.value = "annotated";
+    tagType.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(messageRow?.hidden).toBe(false);
+    expect(noteRow?.hidden).toBe(true);
+
+    dismissDialog();
+  });
+
+  it("rejects an empty annotated tag message instead of creating an empty tag object", () => {
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Add Tag");
+    setDialogInput("v3.0.0");
+
+    const messagesBefore = vscodeMock.sentMessages.length;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages.length).toBe(messagesBefore);
+    expect(document.getElementById("dialog")?.className).toBe("active noInput");
+
+    const tagMessage = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    if (tagMessage === null) throw new Error("Missing tag message input");
+    tagMessage.value = "Release";
+    tagMessage.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "addTag",
+      repo: REPO,
+      tagName: "v3.0.0",
+      commitHash: "abc123",
+      lightweight: false,
+      message: "Release"
     });
   });
 

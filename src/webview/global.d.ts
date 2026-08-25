@@ -73,12 +73,29 @@ declare global {
     name: string;
     value: boolean;
   }
-  type DialogInput =
+  interface DialogNoteInput {
+    type: "note";
+    text: string;
+  }
+  interface DialogInputDependency {
+    /** Index of the `select` input that controls this input's visibility. */
+    input: number;
+    /** This input is visible only while the controlling select holds this value. */
+    value: string;
+  }
+  type DialogInput = (
     | DialogTextInput
     | DialogTextRefInput
     | DialogTextareaInput
     | DialogSelectInput
-    | DialogCheckboxInput;
+    | DialogCheckboxInput
+    | DialogNoteInput
+  ) & {
+    /** Hides this input's row while the controlling select holds another value. */
+    dependsOn?: DialogInputDependency;
+    /** Rejects submission while this text/textarea input is empty (and visible). */
+    required?: boolean;
+  };
   type DialogInputValue = string | boolean;
 
   interface ExpandedCommit {

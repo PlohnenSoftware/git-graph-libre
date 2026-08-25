@@ -290,6 +290,7 @@ export function getWebviewLocalizedStrings() {
     dialogAddTagMessage: l10n.t("dialog.addTag.message"),
     dialogAddTagTypeAnnotated: l10n.t("dialog.addTag.typeAnnotated"),
     dialogAddTagTypeLightweight: l10n.t("dialog.addTag.typeLightweight"),
+    dialogAddTagLightweightNote: l10n.t("dialog.addTag.lightweightNote"),
     dialogAddTagOptional: l10n.t("dialog.addTag.optional"),
     dialogAddTagSubmit: l10n.t("dialog.addTag.submit"),
     dialogCreateBranchTitle: l10n.t("dialog.createBranch.title"),

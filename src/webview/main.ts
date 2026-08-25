@@ -2986,18 +2986,26 @@ class GitGraphView {
           type: "text" as const,
           name: l10n.dialogAddTagMessage,
           default: "",
-          placeholder: l10n.dialogAddTagOptional
+          placeholder: null,
+          required: true,
+          dependsOn: { input: 1, value: "annotated" }
+        },
+        {
+          type: "note" as const,
+          text: l10n.dialogAddTagLightweightNote,
+          dependsOn: { input: 1, value: "lightweight" }
         }
       ],
       l10n.dialogAddTagSubmit,
       (values) => {
+        const lightweight = values[1] === "lightweight";
         sendMessage({
           command: "addTag",
           repo: this.currentRepo,
           tagName: values[0],
           commitHash: hash,
-          lightweight: values[1] === "lightweight",
-          message: values[2]
+          lightweight,
+          message: lightweight ? "" : values[2]
         });
       },
       sourceElem
@@ -5822,8 +5830,11 @@ function showFormDialog(
     sourceElem
   );
 
-  if (textRefInput > -1) {
-    bindTextRefDialogInput(textRefInput, actionName);
+  if (
+    textRefInput > -1 ||
+    inputs.some((input) => input.dependsOn !== undefined || isRequiredDialogInput(input))
+  ) {
+    bindFormDialogInputs(inputs, textRefInput, actionName);
   }
 }
 function renderDialogForm(message: string, inputs: DialogInput[]) {
@@ -5832,15 +5843,28 @@ function renderDialogForm(message: string, inputs: DialogInput[]) {
   let html = `${message}<br><table class="dialogForm ${multiElementForm ? "multi" : "single"}">`;
   for (let i = 0; i < inputs.length; i++) {
     if (inputs[i].type === "text-ref") textRefInput = i;
-    html += renderDialogInputRow(inputs[i], i, multiElementForm);
+    html += renderDialogInputRow(inputs[i], i, multiElementForm, inputs);
   }
   return { html: `${html}</table>`, textRefInput };
 }
-function renderDialogInputRow(input: DialogInput, index: number, multiElementForm: boolean) {
+function renderDialogInputRow(
+  input: DialogInput,
+  index: number,
+  multiElementForm: boolean,
+  inputs: DialogInput[]
+) {
+  const hidden = isDialogInputVisible(inputs, input) ? "" : " hidden";
+  if (input.type === "note") {
+    return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2" class="dialogFormNoteCell"><span class="dialogFormNote">${escapeHtml(input.text)}</span></td></tr>`;
+  }
   const labelCell = multiElementForm ? `<td>${input.name}</td>` : "";
-  return `<tr>${labelCell}<td>${renderDialogInput(input, index, multiElementForm)}</td></tr>`;
+  return `<tr id="dialogInputRow${index}"${hidden}>${labelCell}<td>${renderDialogInput(input, index, multiElementForm)}</td></tr>`;
 }
-function renderDialogInput(input: DialogInput, index: number, multiElementForm: boolean) {
+function renderDialogInput(
+  input: Exclude<DialogInput, { type: "note" }>,
+  index: number,
+  multiElementForm: boolean
+) {
   if (input.type === "select") return renderDialogSelectInput(input, index);
   if (input.type === "checkbox") return renderDialogCheckboxInput(input, index, multiElementForm);
   if (input.type === "textarea") return renderDialogTextareaInput(input, index);
@@ -5890,28 +5914,91 @@ function getDialogFormValues(inputs: DialogInput[]) {
 }
 function getDialogInputValue(input: DialogInput, index: number) {
   const elem = document.getElementById(`dialogInput${index}`);
+  if (elem === null) return getDialogInputFallbackValue(input);
   if (input.type === "select") return (<HTMLSelectElement>elem).value;
   if (input.type === "checkbox") return (<HTMLInputElement>elem).checked ? "checked" : "unchecked";
   if (input.type === "textarea") return (<HTMLTextAreaElement>elem).value;
   return (<HTMLInputElement>elem).value;
 }
-function bindTextRefDialogInput(textRefInput: number, actionName: string) {
-  const dialogInput = <HTMLInputElement | null>(
-    document.getElementById(`dialogInput${textRefInput}`)
-  );
-  const dialogAction = requireElement("dialogAction");
-  if (dialogInput === null) return;
-  if (dialogInput.value === "") dialog.className = "active noInput";
-  dialogInput.focus();
-  dialogInput.addEventListener("keyup", () => {
-    const noInput = dialogInput.value === "";
-    const invalidInput = refInvalid.exec(dialogInput.value) !== null;
-    const newClassName = getTextRefDialogClassName(noInput, invalidInput);
-    if (dialog.className !== newClassName) {
-      dialog.className = newClassName;
-      dialogAction.title = invalidInput ? l10n.invalidCharacters.replace("{0}", actionName) : "";
+function getDialogInputFallbackValue(input: DialogInput) {
+  // Inputs are addressable by id only once the dialog markup is in the DOM,
+  // so pre-render checks (e.g. initial dependent-row visibility) read the
+  // configured default instead of a live element.
+  if (input.type === "checkbox") return input.value ? "checked" : "unchecked";
+  if (input.type === "note") return "";
+  return input.default;
+}
+function isDialogInputVisible(inputs: DialogInput[], input: DialogInput) {
+  if (input.dependsOn === undefined) return true;
+  const controller = inputs[input.dependsOn.input];
+  if (controller === undefined || controller.type !== "select") return true;
+  return getDialogInputValue(controller, input.dependsOn.input) === input.dependsOn.value;
+}
+function isRequiredDialogInput(input: DialogInput) {
+  return (input.type === "text" || input.type === "textarea") && input.required === true;
+}
+function getFormDialogInputState(inputs: DialogInput[]) {
+  let noInput = false;
+  let invalidInput = false;
+  for (let i = 0; i < inputs.length; i++) {
+    const input = inputs[i];
+    if (!isDialogInputVisible(inputs, input)) continue;
+    const value = getDialogInputValue(input, i);
+    if (input.type === "text-ref") {
+      if (value === "") noInput = true;
+      else if (refInvalid.exec(value) !== null) invalidInput = true;
+    } else if (isRequiredDialogInput(input) && value.trim() === "") {
+      noInput = true;
     }
-  });
+  }
+  return { noInput, invalidInput };
+}
+function bindFormDialogInputs(inputs: DialogInput[], textRefInput: number, actionName: string) {
+  const dialogAction = requireElement("dialogAction");
+  const refreshActionState = () => {
+    const { noInput, invalidInput } = getFormDialogInputState(inputs);
+    const newClassName = getTextRefDialogClassName(noInput, invalidInput);
+    if (dialog.className === newClassName) return;
+    dialog.className = newClassName;
+    dialogAction.title = invalidInput ? l10n.invalidCharacters.replace("{0}", actionName) : "";
+  };
+
+  if (textRefInput > -1) {
+    const dialogInput = <HTMLInputElement | null>(
+      document.getElementById(`dialogInput${textRefInput}`)
+    );
+    if (dialogInput !== null) {
+      if (dialogInput.value === "") dialog.className = "active noInput";
+      dialogInput.focus();
+      dialogInput.addEventListener("keyup", refreshActionState);
+    }
+  }
+  bindDialogInputDependencies(inputs, refreshActionState);
+  for (let i = 0; i < inputs.length; i++) {
+    if (!isRequiredDialogInput(inputs[i])) continue;
+    document.getElementById(`dialogInput${i}`)?.addEventListener("keyup", refreshActionState);
+  }
+  refreshActionState();
+}
+function bindDialogInputDependencies(inputs: DialogInput[], refreshActionState: () => void) {
+  const controllerIndexes = new Set<number>();
+  for (const input of inputs) {
+    if (input.dependsOn !== undefined) controllerIndexes.add(input.dependsOn.input);
+  }
+  for (const index of controllerIndexes) {
+    document.getElementById(`dialogInput${index}`)?.addEventListener("change", () => {
+      updateDependentDialogInputRows(inputs);
+      refreshActionState();
+    });
+  }
+}
+function updateDependentDialogInputRows(inputs: DialogInput[]) {
+  for (let i = 0; i < inputs.length; i++) {
+    const input = inputs[i];
+    if (input.dependsOn === undefined) continue;
+    const row = document.getElementById(`dialogInputRow${i}`);
+    if (row !== null) row.hidden = !isDialogInputVisible(inputs, input);
+  }
 }
 function getTextRefDialogClassName(noInput: boolean, invalidInput: boolean) {
   if (noInput) return "active noInput";
