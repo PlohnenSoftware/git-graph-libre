@@ -39,6 +39,8 @@
   "ui.loading": "Loading ...",
   "ui.loadMore": "Load More Commits",
   "ui.emptyGraph": "No commits to show for this branch",
+  "ui.noCommits": "This repository has no commits",
+  "ui.createFirstCommit": "Create your first commit to see the graph here",
   "ui.showAll": "Show All",
   "ui.filterPlaceholder": "Filter {0}...",
   "ui.noResultsFound": "No results found.",

@@ -46,6 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
       column ?? vscode.ViewColumn.One,
       {
         enableScripts: true,
+        retainContextWhenHidden: true,
         localResourceRoots: [
           buildExtensionUri(context.extensionPath, "media"),
           buildExtensionUri(context.extensionPath, "out")

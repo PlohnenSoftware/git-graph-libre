@@ -59,4 +59,24 @@ suite("GitGraphPanel", () => {
     await openPanel();
     assert.ok(isPanelOpen(), "Panel should reopen after running view command again");
   });
+
+  test("panel is created with retainContextWhenHidden for instant tab restore", async () => {
+    const original = vscode.window.createWebviewPanel;
+    const createOptions: Array<vscode.WebviewPanelOptions & vscode.WebviewOptions> = [];
+    vscode.window.createWebviewPanel = ((viewType, title, showOptions, options) => {
+      createOptions.push(options ?? {});
+      return original.call(vscode.window, viewType, title, showOptions, options);
+    }) as typeof vscode.window.createWebviewPanel;
+    try {
+      await openPanel();
+    } finally {
+      vscode.window.createWebviewPanel = original;
+    }
+
+    assert.ok(createOptions.length > 0, "Panel creation should have been observed");
+    assert.ok(
+      createOptions.some((options) => options.retainContextWhenHidden === true),
+      "Panel should retain its webview context while hidden"
+    );
+  });
 });

@@ -39,6 +39,8 @@
   "ui.loading": "載入中 ...",
   "ui.loadMore": "載入更多提交",
   "ui.emptyGraph": "此分支沒有可顯示的提交",
+  "ui.noCommits": "此存放庫尚無提交",
+  "ui.createFirstCommit": "建立第一個提交以在此查看提交圖",
   "ui.showAll": "顯示全部",
   "ui.filterPlaceholder": "篩選{0}...",
   "ui.noResultsFound": "未找到結果。",

@@ -73,7 +73,13 @@ export class RepoFileWatcher {
 
   public start(repo: string) {
     this.stop();
-    this.repo = normalizeRepoPath(repo);
+    const normalized = normalizeRepoPath(repo);
+    if (normalized === "") {
+      // An empty repo path (no repositories left) has nothing to watch.
+      this.repo = null;
+      return;
+    }
+    this.repo = normalized;
     this.repoWatcher = this.createWatcher("**", "repo");
     this.gitWatcher = this.createWatcher(".git/**", "git");
   }
