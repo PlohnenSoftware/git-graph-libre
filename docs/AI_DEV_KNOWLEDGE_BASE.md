@@ -452,6 +452,7 @@ together):
 | 13 Settings hub: tabbed widget, color editor, settings export | Complete |
 | 14 Reveal highlight: persistent blink and configurable color | Complete |
 | 15 Tag surfaces: signed-tag distinction and remote tag deletion | Complete |
+| Immediate TODOs bug backlog (BUG-1 … BUG-6, `2026-08-25`) | **Open — highest priority** |
 
 ### Phase 0: Guardrails and Baseline
 
@@ -1813,14 +1814,490 @@ commit and the contributor roster in `NOTICE.md`/`LICENSE.mit` in the same
 change. That cost is not worth paying for chore commits; re-evaluate when
 upstream lands user-facing behavior this fork wants.
 
+## Immediate TODOs — High-Priority Bug Backlog (`2026-08-25`)
+
+**These bugs outrank every remaining phase item in the roadmap.** The maintainer
+reported them against `v1.3.0` (`04b0578`); each was root-caused in the same
+session against this working tree, and every "Reproduced" line below is a real
+command run against a real repository, not an inference. Do not re-derive the
+diagnosis — go straight to the fix, and update the `Status:` line of an entry
+when it closes instead of deleting the entry.
+
+Two of these (BUG-1 and BUG-3) make the affected feature fail outright for any
+user whose setup differs from the maintainer's earliest test repo, so they are
+the first two slices.
+
+**Maintainer decisions of `2026-08-25` are already folded into the entries
+below.** Where an entry carries a "Maintainer decision" paragraph, that
+paragraph is settled scope — implement it as written rather than re-opening the
+trade-off. In short: lightweight tags are unsigned by git's design and the UI
+must say so (BUG-3); merge dimming becomes an opt-in setting defaulting to off
+(BUG-4); and the status bar eye is restored by putting `onStartupFinished` back
+(BUG-5).
+
+### BUG-1 — `pushTag` hardcodes the `origin` remote
+
+**Status: open. Priority: high. Area: backend action + webview dialog.**
+
+Fault: `src/backend/actions/tag.ts:39-41`.
+
+```ts
+export async function pushTag(git: SimpleGit, input: ActionPayload<"pushTag">): Promise<void> {
+  await git.push("origin", input.tagName);
+}
+```
+
+The remote name is a string literal. Any repository whose remote is called
+something else — `upstream`, `gitlab`, a fork named after its owner, or a repo
+with several remotes and no `origin` — cannot push a tag at all.
+
+Reproduced (`git 2.55.0`, scratch repo with a single remote named `upstream`):
+
+```
+$ git push origin v1.0
+fatal: 'origin' does not appear to be a git repository
+fatal: Could not read from remote repository.
+```
+
+The user sees the generic `error.unableToPushTag` dialog carrying that text.
+
+Three further defects sit in the same two lines:
+
+1. **Bare refspec.** `git push <remote> <tagName>` is ambiguous when a branch
+   and a tag share a name. Reproduced: with both a branch and a tag named
+   `v2.0`, `git push upstream v2.0` fails with
+   `error: src refspec v2.0 matches more than one`, while
+   `git push upstream refs/tags/v2.0` succeeds. `deleteRemoteTag()` in
+   `src/backend/actions/tagRemote.ts:29` already learned this lesson and pushes
+   `refs/tags/<name>`; `pushTag` never did.
+2. **Not recorded.** It calls `git.push()` through `simple-git` instead of
+   `runGitRaw`, so the push never reaches the git-command log that every other
+   action feeds. `src/extension/messageHandler.ts:356` correspondingly omits
+   `recordGitCommand`, unlike the `deleteTag` route one line above it.
+3. **No options.** No force/lease mode, no `--no-verify`, no multi-remote fan-out
+   — see BUG-2.
+
+Fix:
+
+- Widen `ActionPayload<"pushTag">` in `src/backend/types/actions.types.ts:88`
+  from `{ tagName: string }` to carry `remotes: string[]` plus the same option
+  fields `pushBranch` already has, and reject an empty `remotes` array the way
+  `pushBranch` does (`src/backend/actions/branchRemote.ts:105-107`).
+- Reimplement `pushTag` on `runGitRaw` with
+  `["push", remote, `refs/tags/${input.tagName}`]`, looping over the selected
+  remotes, and thread `recordGitCommand` through `messageHandler`.
+- Replace the bare confirmation in `showPushTagDialog()`
+  (`src/webview/main.ts:3707-3717`) with the remote-checkbox form used by
+  `showPushBranchDialog()` (`src/webview/main.ts:3863-3880`), defaulting the
+  checked remote through the existing `defaultPushRemoteName()` helper
+  (`src/webview/main.ts:4001`). Keep the plain confirmation only for the
+  single-remote case.
+- Extend `tests/backend/actions/tag/push.test.ts`: a remote **not** named
+  `origin`, a repository with two remotes, and a branch/tag name collision that
+  must still push the tag and leave the branch untouched.
+
+### BUG-2 — The tag remote surface is a stub beside the branch remote surface
+
+**Status: open. Priority: high. Area: backend actions + webview. Depends on BUG-1.**
+
+This is the maintainer's "tag pushing/pulling system is quite crude" in concrete
+terms. Compare what exists today:
+
+| Capability | Branches | Tags |
+| --- | --- | --- |
+| Choose the remote | yes, multi-select checkboxes | no, hardcoded `origin` |
+| Push through `runGitRaw` (recorded) | yes | no |
+| Force / `--force-with-lease` | yes (`pushModeArg`) | no |
+| Bypass hooks (`--no-verify`) | yes | no |
+| Delete on selected remotes | yes | yes (Phase 15) |
+| Fetch/pull the ref from a remote | yes (`fetchIntoLocalBranch`, `pullBranch`) | **nothing** |
+
+There is no tag-fetch surface at all. `fetchRemotes()`
+(`src/backend/actions/remote.ts:213`) builds `fetch --all` / `fetch <remote>`
+with optional `--prune`/`--prune-tags`, so tags arrive only as a side effect of
+git's default tag-following, and there is no way to ask for
+`git fetch <remote> --tags` explicitly, no way to refresh a single tag, and no
+way to see which remotes carry a given tag. The Phase 15 note in
+`src/backend/actions/tagRemote.ts:12-19` already records why that last one is
+hard (`refs/tags` has no per-remote tracking refs) — that constraint is real and
+the fix must work with it, not against it.
+
+Fix (one slice, after BUG-1 lands):
+
+- Add a `fetchTags` action: `git fetch <remote> --tags`, optionally
+  `--prune-tags` (which already has a git-version guard in
+  `assertPruneTagsSupported`, `src/backend/actions/remote.ts:46`), exposed from
+  the tag context menu and from the existing fetch dialog.
+- Add "Push all tags" (`git push <remote> --tags`) as a repository-level action
+  next to fetch, not in the per-tag menu.
+- Give the tag push dialog the force/no-verify checkboxes the branch dialog has,
+  reusing `GitPushBranchMode` rather than inventing a second mode enum.
+- Localize every new label across `en`/`pl`/`zh-cn`/`zh-tw` and keep
+  `pnpm run l10n:check` at 100%.
+
+### BUG-3 — "Lightweight" creates a signed annotated tag and opens an editor window
+
+**Status: open. Priority: high. Area: backend action + webview dialog.**
+
+Fault: `src/backend/actions/tag.ts:9-18`.
+
+```ts
+if (input.lightweight) {
+  args.push(input.tagName);      // <- plain `git tag <name> <hash>`
+} else {
+  args.push("-a", input.tagName, "-m", input.message);
+}
+```
+
+`git tag <name> <hash>` is only a lightweight tag when nothing else is
+configured. With `tag.gpgsign = true` in the user's git config — which **is** set
+on the maintainer's machine, globally — git creates a *signed annotated tag
+object* instead and, because no `-m` was supplied, launches `core.editor` to
+collect a tag message. That editor is `code-insiders --wait` here, so VS Code
+opens a `TAG_EDITMSG` tab and the extension action blocks until the tab is
+closed. That is the maintainer's "nasty tag description window", and it is git
+opening it, not the webview.
+
+Reproduced (`git 2.55.0`, `tag.gpgsign=true` inherited from `~/.gitconfig`,
+`GIT_EDITOR` replaced with a stub that announces itself):
+
+```
+$ git tag lw1 $HASH
+EDITOR-WAS-OPENED
+$ git cat-file -t lw1
+tag                     # <- annotated tag object, not a lightweight ref
+
+$ git tag --no-sign lw2 $HASH
+$ git cat-file -t lw2
+commit                  # <- genuine lightweight tag, no editor
+```
+
+So the one-flag fix is `--no-sign` on the lightweight path. `--no-sign` exists
+precisely to override `tag.gpgSign`, and the empirical check above confirms it
+both suppresses the editor and restores the lightweight ref.
+
+One secondary defect in the same flow: **the Message field is always visible.**
+`renderDialogForm()` (`src/webview/main.ts:5829-5838`) emits a static table with
+no conditional rows, so `showAddTagDialog()` (`src/webview/main.ts:2971-3005`)
+shows the tag Message input even when Type is set to Lightweight, where it is
+meaningless and is silently discarded.
+
+**Maintainer decision (`2026-08-25`) — scope of `--no-sign`.** A lightweight tag
+is a plain ref pointing straight at a commit; there is no tag object to carry a
+signature, so a lightweight tag is *always* unsigned. That is git's design, not
+a limitation of this extension, and the extension must not pretend otherwise.
+Therefore:
+
+- `--no-sign` is used **only** on the lightweight path, where it exists purely
+  to stop `tag.gpgSign` from silently upgrading the tag into a signed tag
+  object. It is a correctness guard for "lightweight means lightweight".
+- The annotated path passes **no** sign-related flag at all and continues to
+  follow the user's git configuration (`tag.gpgSign`, `tag.forceSignAnnotated`,
+  `user.signingkey`, `gpg.format`). If the user has configured git to sign
+  tags, their annotated tags get signed; that is the behavior they asked git
+  for and the extension does not override it. Do **not** add `--no-sign` to the
+  annotated path, and do **not** replace the two-way Type select with a
+  three-way Lightweight/Annotated/Signed selector — the maintainer considered
+  and rejected that; signing stays a git-config concern.
+- Because the annotated path honors the config, a machine with signing
+  configured but no usable key or agent will see tag creation fail with git's
+  own error. That surfaces through the existing `error.unableToAddTag` dialog
+  and is correct behavior — do not swallow it.
+
+Fix:
+
+- Lightweight: `git tag --no-sign <name> <hash>`. Non-negotiable, and the reason
+  must be commented at the call site — a future reader will otherwise "clean up"
+  the flag. State in that comment that the flag is deliberately absent from the
+  annotated path.
+- Annotated: keep `git tag -a <name> -m <msg> <hash>` exactly as it is. The
+  `-m` is load-bearing: it is what guarantees git never opens `core.editor`.
+- **Tell the user that lightweight means unsigned.** This is a documentation and
+  UI duty, not an implementation detail:
+  - Add a short explanatory line to the Add Tag dialog, shown when Lightweight
+    is selected — e.g. "Lightweight tags are a plain ref with no tag object, so
+    they carry no message and cannot be signed." New l10n key across `en`,
+    `pl`, `zh-cn`, and `zh-tw`.
+  - Extend the Lightweight option's own label or its adjacent help text so the
+    difference is visible before the user commits to a choice.
+  - Add a short "Tag types" note to the README next to the tag feature bullet,
+    stating that lightweight tags are unsigned by definition and that annotated
+    tags follow the user's git signing configuration.
+- Hide the Message row when Lightweight is selected. This needs a small
+  conditional-visibility affordance in the dialog form (a `dependsOn` field on
+  `DialogInput`, or a change listener bound after `showDialog` returns, matching
+  how `#dialogAction`/`#dialogDismiss` are already bound). Reject an empty
+  message for annotated rather than creating an empty-message tag object — git
+  2.55 accepts `-m ""` without complaint, so the guard has to be ours.
+- Move `addTag` off `git.tag()` onto `runGitRaw` and pass `recordGitCommand`
+  from `src/extension/messageHandler.ts:354`, so tag creation is logged like
+  deletion is.
+- Tests: `tests/backend/actions/tag/add.test.ts` currently proves lightweight
+  creation only in a repo that inherits **no** `tag.gpgsign`, which is exactly
+  why this shipped. Add cases that run with `-c tag.gpgsign=true` and assert
+  `git cat-file -t` returns `commit` for lightweight (proving `--no-sign` held)
+  and `tag` for annotated (proving the config was honored, not overridden),
+  plus webview tests that the Message row hides for Lightweight and that the
+  unsigned-lightweight explanation renders.
+
+### BUG-4 — Branch and tag labels turn gray on every merge commit
+
+**Status: open. Priority: high. Area: webview rendering + CSS.**
+
+This is the maintainer's "sometimes it gets gray", and it has a precise trigger:
+**the commit is a merge commit.** The dimming *effect* is worth keeping and
+becomes an opt-in feature (see the decision below); what is a bug is that it is
+unconditional, unconfigurable, undocumented, and reaches past the commit message
+into the branch and tag labels.
+
+Fault, two halves that meet in the Description column:
+
+`src/webview/main.ts:4147-4148` —
+
+```ts
+if (commit.parentHashes.length > 1) rowClasses.push("mergeCommit");
+if (commit.parentHashes.length > 1 || mutedByHeadAncestry) rowClasses.push("mutedCommit");
+```
+
+`media/main.css:301-305` —
+
+```css
+#commitTable tr.commit.mergeCommit td:nth-child(2),
+#commitTable tr.commit.mutedCommit td:nth-child(2) {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+```
+
+`td:nth-child(2)` is the Description cell, and `renderCommitRow()`
+(`src/webview/main.ts:4085-4088`) emits `renderCommitRefs(commit)` **into that
+same cell** ahead of the message text. `.gitRef` and `.gitRefGroup`
+(`media/main.css:622-651`) set a background and a border but never a `color`, so
+the label text inherits the cell's — and the cell's is
+`--vscode-descriptionForeground`, a muted gray in every theme, on any merge
+commit.
+
+Two consequences, both wrong:
+
+1. **Merge-commit muting is unconditional and unconfigurable.** The
+   `repository.muteCommitsNotAncestorsOfHead` setting (`src/config.ts:140`,
+   default `false`) gates only the `mutedByHeadAncestry` half. The merge half
+   has no setting, no README entry, and no way to turn it off. There is no
+   `muteMergeCommits` key anywhere in the manifest.
+2. **The muting leaks out of the message and into the ref labels.** Muting a
+   merge commit's *message* is a defensible reading aid; graying the branch and
+   tag names attached to it is not — those labels are identity, and a branch tip
+   that happens to be a merge is exactly where the label matters most.
+
+**Maintainer decision (`2026-08-25`) — keep the behavior, make it opt-in.**
+Merge-commit dimming is a legitimate reading aid, so it stays — as a real,
+documented, switchable feature rather than a hardcoded surprise. The new setting
+defaults to **off**, which is a deliberate behavior change: after this slice
+merge commits render at full contrast unless the user turns dimming on.
+
+Fix:
+
+- Contribute `git-graph-libre.repository.muteMergeCommits` (boolean, **default
+  `false`**), wired through `src/config.ts`, `GitGraphViewState` in
+  `src/types.ts`, `src/extension/webviewHtml.ts`, the webview config-change
+  route at `src/webview/main.ts:1502`, the README configuration table, and
+  `package.nls*.json` in all four languages. Note the default flip in the
+  changelog — existing users will notice merge rows getting brighter.
+- Gate the `mergeCommit`-driven mute on that setting. While there, drop the
+  redundant double-classing: `mergeCommit` and `mutedCommit` currently both land
+  on every merge commit and the CSS lists both selectors for one rule. Keep the
+  `mergeCommit` class itself — the graph layout and tests rely on identifying
+  merges — and let only the mute styling become conditional.
+- Stop the mute from reaching ref labels, for **both** mute sources (the new
+  merge setting and the existing `muteCommitsNotAncestorsOfHead`). Dimming a
+  commit's *message* is the feature; dimming the branch and tag names attached
+  to it is not — those labels are identity, and a branch tip that happens to be
+  a merge is exactly where the label matters most. Wrap the message text in its
+  own `<span class="commitMessage">` inside the Description cell and move the
+  `color:` rule onto that span, so `.gitRef`/`.gitRefGroup` keep full-contrast
+  text. Do **not** fix this by hanging an explicit `color` override on
+  `.gitRef` — that would fight the cascade instead of scoping it.
+- Tests: `tests/webview/tableStyles.test.ts` for the scoped selector,
+  `tests/webview/rendering.test.ts` for the class gating (both settings on and
+  off), and `tests/backend/manifest.test.ts` + `tests/backend/config.test.ts`
+  for the new setting and its `false` default.
+
+#### Tag-specific graying — investigation result (`2026-08-25`)
+
+The maintainer additionally reported seeing tag labels specifically go gray.
+Every rendering path was enumerated; these are the **only** places a ref label's
+appearance changes, and there is no tag-specific text-graying path anywhere in
+the codebase:
+
+1. **Inherited from the muted Description cell** (the rule above). This is the
+   one and only path that grays ref label *text*, and it applies to branches and
+   tags identically. `renderCommitRef()` (`src/webview/main.ts:4203-4215`) is
+   the sole ref-rendering site in the whole webview — nothing else emits a
+   `.gitRef` — and it sets no `color` of its own.
+2. **`.gitRefGroup > .gitRefAlias`** (`media/main.css:661-665`) uses
+   `--vscode-badge-foreground`. This applies **only** to remote-branch segments
+   inside a grouped branch badge; `groupCommitRefs()` never puts a tag in a
+   group, so tags can never take this rule. Badge foreground is near-white in
+   Dark Modern (the maintainer's theme), so it is not a graying source there
+   either — but confirm it still reads at full contrast in a light theme once
+   the fix lands.
+3. **Signed vs unsigned tag pill background** — the likely explanation for the
+   tag-specific impression. A signed tag gets
+   `color-mix(in srgb, var(--ngg-signed-ref) 12%, transparent)`, a green tint
+   (`media/main.css:698-701`), while every other ref including an unsigned tag
+   gets the neutral `--ngg-neutral-overlay-muted`, which is literally
+   `oklch(60% 0 0 / 0.15)` — a gray overlay. In this repository `v0.1.0`–
+   `v0.5.0` are signed and `v1.0.0` onward are not, so the tag column shows
+   green-tinted pills above gray pills. That is the intended Phase 15 design,
+   not a defect.
+
+Note that in *this* repository the merge rule cannot be what was seen on tags:
+every tagged commit here (`v0.1.0` … `v1.3.0`) has exactly one parent, and
+`muteCommitsNotAncestorsOfHead` is absent from the maintainer's settings so it
+sits at its `false` default. In repositories that tag merge commits — the common
+GitHub merge-then-release flow — the merge rule explains it completely.
+
+**Action for the implementing agent:** fix path 1 as described above, then ask
+the maintainer to re-check. If tag labels still gray after that, the remaining
+candidate is path 3 being read as "gray", and the answer is a design question
+(should unsigned tags carry a tint of their own?) rather than a bug — do not
+guess at a fix for it.
+
+### BUG-5 — The "watching" eye status bar item can never appear
+
+**Status: open. Priority: high. Area: extension manifest. Decision made
+(`2026-08-25`): restore `onStartupFinished`.**
+
+The maintainer's report and the borrowed-icon verification are the same bug, so
+they are recorded together.
+
+`src/statusBarItem.ts:36-44` says, in a comment written for exactly this case:
+
+```ts
+// Stay visible with no repository, so the extension does not simply vanish
+// in a non-Git folder. The eye says it is still watching for one.
+if (this.numRepos === 0) {
+  this.statusBarItem.text = `$(eye) ${name}`;
+```
+
+`package.json` says the opposite:
+
+```json
+"activationEvents": ["workspaceContains:.git", "workspaceContains:**/.git"]
+```
+
+In a folder with no `.git`, the extension never activates, `activate()` never
+runs, `new StatusBarItem(...)` never happens, and there is nothing to show an
+eye. The `numRepos === 0` branch is reachable only in the few hundred
+milliseconds between activation and repo discovery inside a folder that already
+*is* a repository — which is why the maintainer only ever sees the
+`$(type-hierarchy)` state.
+
+**Borrowed-icon verification (the maintainer's explicit question).** The
+behavior came in on `5d9da6d`, adapted from upstream `neo-git-graph` `4afcb69`
+and `deba9af`. The adaptation of the *icons and wording* is faithful — upstream
+uses the same `$(eye)` / `$(type-hierarchy)` split and the same "watching"
+tooltip, and this fork correctly swapped upstream's inline `vscode.l10n.t`
+strings for key-based lookups and dropped upstream's earlier
+`statusBarItem.warningBackground` treatment. What was **not** carried across is
+the precondition that makes it work: upstream activates on `onStartupFinished`
+(verified against `upstream/main`'s manifest), so upstream's status bar item
+always exists. This fork replaced `onStartupFinished` with the
+`workspaceContains` pair in `039aa6c` ("Scope extension activation events") and
+then removed the explicit `onCommand:` entries in `55f4d7f`. The borrow landed
+on a manifest that cannot support it. The status bar code itself is correct and
+needs no change.
+
+The rest of the watching machinery is intact and needs no work:
+`createRepoWatcher()` (`src/extension/workspaceWatcher.ts`) already watches every
+workspace folder from zero repos, and its create path runs `sendRepos()` →
+`statusBarItem.setNumRepos()`, so `git init` in an open folder will flip the eye
+to the graph icon the moment activation is fixed.
+
+**Maintainer decision (`2026-08-25`): make the eye work again.** Restore
+`onStartupFinished` to `activationEvents`. The watching promise stays; the
+manifest is what changes.
+
+Fix:
+
+- Add `onStartupFinished` back to `activationEvents` in `package.json`.
+  `activate()` is cheap — repo discovery is already an async IIFE
+  (`src/extension.ts:100-105`) — and this is exactly what upstream does, which
+  is why the borrowed behavior works there.
+- Edit `tests/backend/manifest.test.ts:39`, which currently asserts
+  `expect(manifest.activationEvents).not.toContain("onStartupFinished")`. That
+  assertion encodes the very decision being reversed by `039aa6c`; replace it
+  with a positive assertion and a comment recording that the extension
+  deliberately activates at startup so the status bar item can exist in a
+  non-Git workspace. Keep the existing assertion that no `onCommand:` entries
+  are listed — VS Code still generates those implicitly.
+- Leave `src/statusBarItem.ts` alone. The eye branch, the icons, the tooltips
+  and the l10n keys are all correct; they were simply unreachable.
+- Add an extension-host test that the status bar item is created and shown with
+  `numRepos === 0`, so a future activation-scoping change cannot silently break
+  this again. `tests/backend/statusBarItem.test.ts` is the existing home for
+  status bar coverage.
+- Verify by hand: open a folder with no `.git` and confirm the `$(eye)` item
+  appears with the watching tooltip, then `git init` in that folder and confirm
+  the watcher flips it to `$(type-hierarchy)` without a reload.
+
+**Secondary finding, verify before relying on it:** `workspaceContains:**/.git`
+is very likely dead. VS Code resolves a glob-bearing `workspaceContains` through
+its file-search service, which honors `files.exclude`, and the default
+`files.exclude` contains `**/.git`. If so, only the non-glob
+`workspaceContains:.git` fires — meaning a workspace whose **root** is not a
+repository but which contains one in a subfolder never activates the extension
+either. Confirm this against a real VS Code instance (open a folder containing
+only `sub/repo/.git` and watch the extension host log) before either deleting
+the entry or replacing it with a working equivalent.
+
+### BUG-6 — Cross-cutting: tag actions bypass the command log
+
+**Status: open. Priority: medium. Area: backend actions + messageHandler.**
+
+Rolled up from BUG-1 and BUG-3 because it is one mechanical change and should
+land with whichever of them goes first: `addTag` and `pushTag`
+(`src/backend/actions/tag.ts:9`, `:39`) still call `simple-git`'s `git.tag()`
+and `git.push()`, and `src/extension/messageHandler.ts:354` and `:356` do not
+pass `recordGitCommand`. `deleteTag` was migrated to `runGitRaw` in Phase 15;
+these two were left behind. Until they move, the git-command log silently omits
+every tag creation and every tag push, which is also why this class of bug was
+invisible in earlier debugging. Phase 0.5 already sets the direction: new work
+uses explicit raw git commands through `gitRunner` and reduces high-level
+`simple-git` parser usage in code it touches.
+
+### Suggested slice order
+
+1. **BUG-3** — one flag (`--no-sign`) removes a blocking, editor-popping
+   failure; do it first and ship it.
+2. **BUG-1 + BUG-6** — same file, same types, same tests; one slice.
+3. **BUG-5** — manifest one-liner plus a test reversal; the maintainer has
+   decided (restore `onStartupFinished`), so this is unblocked.
+4. **BUG-4** — new setting, so manifest + config + l10n + README + CSS + tests;
+   largest of the four.
+5. **BUG-2** — the feature work that BUG-1 unblocks.
+
+Each slice follows the standing gate order in this document: strict Biome on
+touched files, full typecheck/lint, full tests, `pnpm run l10n:check`, fresh
+`pnpm run test:coverage`, then `pnpm run sonar:scan` polled to an `OK` `ZAM`
+gate **before** committing. Advance `sonar.projectVersion` when the maintainer
+opens a new analysis epoch for this backlog.
+
 ## Near-Term Work Order
 
-Maintainer-set priorities (`2026-07-03`): Phases 12, 13, and 14 are complete.
+Maintainer-set priority (`2026-08-25`): **the Immediate TODOs bug backlog above
+comes before every phase item below.** BUG-1 through BUG-6 were reported against
+`v1.3.0` and root-caused the same day; work them in the slice order recorded at
+the end of that section. Nothing in the phase list starts until that backlog is
+closed or the maintainer explicitly redirects.
+
+Earlier priorities (`2026-07-03`): Phases 12, 13, and 14 are complete.
 Phase 15 (tag surfaces) completed `2026-07-29` and shipped as `v1.1.1`.
 
 1. Run baseline checks on `AI-dev` at the start of the session.
-2. Phase 12 is complete; see the Phase 12 implementation record for details.
-3. Phase 13 is complete; see the Phase 13 implementation record for details.
+2. Work the Immediate TODOs backlog: BUG-3, then BUG-1 + BUG-6, then BUG-5,
+   then BUG-4, then BUG-2. All maintainer decisions are recorded in the entries
+   (`2026-08-25`); nothing in the backlog is blocked on an answer.
+3. Phases 12, 13, and 14 are complete; see their implementation records.
 4. Then continue the remaining partial phases:
    docked-bottom commit details (Phase 2), graph stash rows (Phase 7),
    arbitrary two-commit/ref comparison and external directory diff
