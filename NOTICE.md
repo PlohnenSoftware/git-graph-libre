@@ -42,6 +42,9 @@ This project descends from the MIT-licensed lineage of Git Graph:
     repository, with icons and a watching state. Reimplemented here against a
     different localization layer; the behavior, the icon choices, and the
     tooltip wording come from upstream.
+  - `4607cdf` — handling commit context-menu actions on root (zero-parent)
+    commits. Reimplemented here in a different webview architecture; the
+    diagnosis and the `< 2` dispatch rule come from upstream.
 
 The MIT license grants permission to sublicense, which allows this material to
 be incorporated into the AGPL-licensed whole. As the MIT license requires, its

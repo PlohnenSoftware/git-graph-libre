@@ -2803,6 +2803,10 @@ class GitGraphView {
     const commitIndex = this.commitLookup[hash];
     const commit = typeof commitIndex === "number" ? this.commits[commitIndex] : null;
     const isHeadCommit = hash === this.commitHead;
+    // Drop runs `git rebase --onto <hash>^ <hash>`, so the commit must have a
+    // parent: `<root>^` is not a valid revision. Root commits are therefore
+    // excluded from Drop, and merges are excluded because rebase replays both
+    // merged sides linearized.
     const canDropCommit = commit !== null && commit.parentHashes.length === 1;
     const menu = this.buildCommitCreateMenuItems(hash, sourceElem);
     const compareWithHeadItem = this.buildCompareWithHeadMenuItem(hash, sourceElem);
@@ -3109,7 +3113,11 @@ class GitGraphView {
   ) {
     const title = titleTemplate.replace("{0}", `<b><i>${this.displayHash(hash)}</i></b>`);
     const parentHashes = this.commits[this.commitLookup[hash]].parentHashes;
-    if (parentHashes.length === 1) {
+    // Root commits (zero parents) take the same plain path as single-parent
+    // commits: parentIndex 0 sends no `-m` mainline flag, and git handles a
+    // root natively in plain `git cherry-pick <hash>` / `git revert <hash>`.
+    // Only merges (2+ parents) need the parent-selection dialog.
+    if (parentHashes.length < 2) {
       showConfirmationDialog(
         title,
         () => this.sendParentCommitAction(command, hash, 0),
