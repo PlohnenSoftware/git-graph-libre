@@ -204,6 +204,7 @@ describe("configuration", () => {
     { accessor: "loadMoreCommits", expected: 75 },
     { accessor: "maxDepthOfRepoSearch", expected: 0 },
     { accessor: "muteCommitsNotAncestorsOfHead", expected: false },
+    { accessor: "muteMergeCommits", expected: false },
     { accessor: "onlyFollowFirstParent", expected: false },
     { accessor: "showCurrentBranchByDefault", expected: false },
     { accessor: "showRemoteBranches", expected: true },

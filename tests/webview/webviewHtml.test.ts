@@ -33,6 +33,7 @@ function makeConfig(): Config {
     loadMoreCommits: () => 100,
     maxDepthOfRepoSearch: () => 0,
     muteCommitsNotAncestorsOfHead: () => true,
+    muteMergeCommits: () => false,
     onlyFollowFirstParent: () => false,
     showCurrentBranchByDefault: () => false,
     showRemoteBranches: () => true,
@@ -87,6 +88,7 @@ describe("webview HTML", () => {
       { name: "Features", glob: "--glob=heads/feature/*" }
     ]);
     expect(viewState.muteCommitsNotAncestorsOfHead).toBe(true);
+    expect(viewState.muteMergeCommits).toBe(false);
     expect(viewState.shortHashLength).toBe(12);
     expect(result.html).toContain('id="settingsWidgetBacking" hidden');
     expect(result.html).toContain('id="settingsWidget" role="dialog" aria-modal="true"');

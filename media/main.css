@@ -298,9 +298,9 @@ body.unableToLoad p {
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
   white-space: normal;
 }
-/* Muted commits let the active first-parent ancestry stand out */
-#commitTable tr.commit.mergeCommit td:nth-child(2),
-#commitTable tr.commit.mutedCommit td:nth-child(2) {
+/* Muted rows dim only the commit message, so the active first-parent ancestry
+   stands out while branch and tag labels keep their full-contrast identity. */
+#commitTable tr.commit.mutedCommit td:nth-child(2) .commitMessage {
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
 }
 #commitTable tr.commit.findMatch td {

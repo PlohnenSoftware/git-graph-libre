@@ -2115,7 +2115,7 @@ Implementation record (`2026-08-25`):
 
 ### BUG-4 — Branch and tag labels turn gray on every merge commit
 
-**Status: open. Priority: high. Area: webview rendering + CSS.**
+**Status: fixed (`2026-08-25`). Priority: high. Area: webview rendering + CSS.**
 
 This is the maintainer's "sometimes it gets gray", and it has a precise trigger:
 **the commit is a merge commit.** The dimming *effect* is worth keeping and
@@ -2193,6 +2193,46 @@ Fix:
   `tests/webview/rendering.test.ts` for the class gating (both settings on and
   off), and `tests/backend/manifest.test.ts` + `tests/backend/config.test.ts`
   for the new setting and its `false` default.
+
+Implementation record (`2026-08-25`):
+
+- `git-graph-libre.repository.muteMergeCommits` (boolean, default `false`) is
+  wired end-to-end exactly like `muteCommitsNotAncestorsOfHead`: manifest,
+  `src/config.ts` accessor, `GitGraphViewState` + webview `Config`,
+  `webviewHtml.ts` pass-through, a `repository.muteMergeCommits` case in the
+  webview config-change route, README configuration table, `package.nls*.json`
+  ×4, and a `CHANGELOG.md` `[Unreleased]` entry calling out the default flip
+  (merge rows render brighter unless the user opts in).
+- `renderCommitRowAttributes()` now pushes `mergeCommit` for every merge and
+  `mutedCommit` only when a mute source is active
+  (`isMergeCommit && config.muteMergeCommits || mutedByHeadAncestry`); the
+  double-classing is gone. The message text is wrapped in
+  `<span class="commitMessage">` inside the Description cell (refs render
+  before it, outside the span), and the mute rule became
+  `#commitTable tr.commit.mutedCommit td:nth-child(2) .commitMessage` — same
+  token chain, span-scoped. `.gitRef`/`.gitRefGroup` keep no `color` of their
+  own and inherit the full-contrast page foreground.
+- Verified: independent verifier drove a fresh esbuild bundle of the webview in
+  jsdom (repo untouched) with a merge commit carrying branch + remote-alias +
+  tag labels: default → no `mutedCommit` on the merge; setting on → muted with
+  zero refs inside the span; ancestry-mute rows muted in both scenarios and
+  their labels outside the span. Cascade enumeration found no remaining rule
+  that can gray ref text. The BUG-4 secondary check passed: `.gitRefAlias`
+  badge-foreground contrast in the harness VS Code's light themes is
+  Light Modern `#3B3B3B`/`#CCCCCC` = 6.98:1, 2026 Light `#FFFFFF`/`#0069CC` =
+  5.39:1, Light+ default `#333`/`#C4C4C4` = 7.24:1 — all ≥ AA. Signed-tag pill
+  tint (path 3) intentionally untouched.
+- **Maintainer re-check pending:** per the action item above, the maintainer
+  should re-check the tag-graying impression now that path 1 is scoped. If
+  tags still read as gray, the remaining candidate is the intended Phase 15
+  signed-vs-unsigned pill tint — a design question to bring back, not a bug.
+- Full gate green before commit: strict Biome, typecheck, lint, `test`
+  (backend 46/332, webview 34/307), `l10n:check` 100% (53 nls keys),
+  `package`, fresh coverage (80 files / 639 tests, 92.1% lines),
+  `sonar:scan` task `6cb91cbc-9caa-46a3-81b3-33cdbe52748a`, analysis
+  `6ebfe56c-5412-4a91-b158-149478d56e90`: `ZAM` gate **`OK`** —
+  `new_coverage` `94.3%`, `new_duplicated_lines_density` `0.0`,
+  `new_violations` `2` (slice added 0), reliability and security `0`.
 
 #### Tag-specific graying — investigation result (`2026-08-25`)
 

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **New setting `git-graph-libre.repository.muteMergeCommits`** (default
+  `false`): opt-in dimming of merge commit messages as a reading aid.
+  Localized in English, Polish, Simplified Chinese, and Traditional Chinese,
+  and available in the settings hub's Extension tab.
+
+### Changed
+
+- **Merge commits now render at full contrast by default.** Merge-commit
+  dimming was previously hardcoded and unconditional; it is now gated on the
+  new `repository.muteMergeCommits` setting, so existing users will notice
+  merge rows getting brighter unless they enable the setting.
+
+### Fixed
+
+- **Branch and tag labels no longer turn gray on muted rows.** Muting — from
+  either the new merge-commit dimming or the existing
+  `repository.muteCommitsNotAncestorsOfHead` — now applies only to the commit
+  message text inside the Description cell; branch and tag labels keep
+  full-contrast text in every theme.
+
 ## [1.3.0] - 2026-08-06
 
 ### Changed

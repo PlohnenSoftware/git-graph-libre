@@ -34,6 +34,7 @@
   "config.repository.includeUnreachableCommits": "显示所有分支时，发现并包含不可达的提交对象。此操作会扫描 Git 对象数据库，在大型仓库中可能较慢。仓库设置可按仓库覆盖此值。",
   "config.repository.onlyFollowFirstParent": "默认仅跟随提交的第一个父提交。仓库设置可按仓库覆盖此值。",
   "config.repository.muteCommitsNotAncestorsOfHead": "淡化不是已加载 HEAD 祖先的提交。仅当 HEAD 提交已加载到图中时生效。",
+  "config.repository.muteMergeCommits": "淡化合并提交的提交信息以辅助阅读。分支和标签名称始终保持完全对比度。默认关闭。",
   "config.graphColors": "指定图形上使用的颜色。",
   "config.revealHighlightColor": "指定定位到提交行时使用的高亮颜色。",
   "config.graphStyle": "指定图形的样式。",

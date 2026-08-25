@@ -23,6 +23,7 @@ const config: Config = {
   initialLoadCommits: 300,
   loadMoreCommits: 100,
   muteCommitsNotAncestorsOfHead: false,
+  muteMergeCommits: false,
   onlyFollowFirstParent: false,
   showCurrentBranchByDefault: false,
   showRemoteBranches: true,

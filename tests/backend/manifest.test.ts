@@ -116,6 +116,20 @@ describe("extension manifest", () => {
     });
   });
 
+  it("contributes a default-off merge commit mute setting", () => {
+    const manifest = readManifest();
+    const setting =
+      manifest.contributes.configuration.properties["git-graph-libre.repository.muteMergeCommits"];
+
+    // The default is a deliberate behavior flip: merge-commit dimming used to
+    // be hardcoded, and is now opt-in.
+    expect(setting).toMatchObject({
+      type: "boolean",
+      default: false,
+      description: "%config.repository.muteMergeCommits%"
+    });
+  });
+
   it("contributes custom branch glob preset settings", () => {
     const manifest = readManifest();
     const setting =

@@ -331,6 +331,11 @@
           "default": false,
           "description": "%config.repository.muteCommitsNotAncestorsOfHead%"
         },
+        "git-graph-libre.repository.muteMergeCommits": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.repository.muteMergeCommits%"
+        },
         "git-graph-libre.graphColors": {
           "type": "array",
           "items": {

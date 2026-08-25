@@ -1502,6 +1502,9 @@ class GitGraphView {
       case "repository.muteCommitsNotAncestorsOfHead":
         this.config.muteCommitsNotAncestorsOfHead = value;
         return true;
+      case "repository.muteMergeCommits":
+        this.config.muteMergeCommits = value;
+        return true;
       case "repository.onlyFollowFirstParent":
         this.config.onlyFollowFirstParent = value;
         return true;
@@ -4135,7 +4138,9 @@ class GitGraphView {
       activeFindCommitIndex,
       mutedHeadNonAncestors.has(commit.hash)
     );
-    const commitMessage = commit.hash === currentHash ? `<b>${message}</b>` : message;
+    const commitMessage = `<span class="commitMessage">${
+      commit.hash === currentHash ? `<b>${message}</b>` : message
+    }</span>`;
     const authorTitle = escapeHtml(`${commit.author} <${commit.email}>`);
 
     return (
@@ -4202,8 +4207,11 @@ class GitGraphView {
     const currentAttribute = isHeadCommit ? ' aria-current="true"' : "";
     const selectedAttribute = this.selectedCommitHashes.has(commit.hash) ? "true" : "false";
     const rowClasses = ["commit"];
-    if (commit.parentHashes.length > 1) rowClasses.push("mergeCommit");
-    if (commit.parentHashes.length > 1 || mutedByHeadAncestry) rowClasses.push("mutedCommit");
+    const isMergeCommit = commit.parentHashes.length > 1;
+    if (isMergeCommit) rowClasses.push("mergeCommit");
+    if ((isMergeCommit && this.config.muteMergeCommits) || mutedByHeadAncestry) {
+      rowClasses.push("mutedCommit");
+    }
     if (this.selectedCommitHashes.has(commit.hash)) rowClasses.push("commitSelected");
     if (findMatchIndexes.has(index)) rowClasses.push("findMatch");
     if (activeFindCommitIndex === index) rowClasses.push("findMatchActive");
@@ -5417,6 +5425,7 @@ const gitGraph = new GitGraphView(
     initialLoadCommits: viewState.initialLoadCommits,
     loadMoreCommits: viewState.loadMoreCommits,
     muteCommitsNotAncestorsOfHead: viewState.muteCommitsNotAncestorsOfHead,
+    muteMergeCommits: viewState.muteMergeCommits,
     onlyFollowFirstParent: viewState.onlyFollowFirstParent,
     showCurrentBranchByDefault: viewState.showCurrentBranchByDefault,
     showRemoteBranches: viewState.showRemoteBranches,

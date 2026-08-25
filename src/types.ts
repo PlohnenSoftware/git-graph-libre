@@ -154,6 +154,7 @@ export type GitGraphViewState = {
   lastActiveRepo: string | null;
   loadMoreCommits: number;
   muteCommitsNotAncestorsOfHead: boolean;
+  muteMergeCommits: boolean;
   onlyFollowFirstParent: boolean;
   repos: GitRepoSet;
   showCurrentBranchByDefault: boolean;

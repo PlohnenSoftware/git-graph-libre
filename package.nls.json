@@ -34,6 +34,7 @@
   "config.repository.includeUnreachableCommits": "Discover and include unreachable commit objects when showing all branches. This scans the Git object database and can be slower on large repositories. Repository settings can override this per repository.",
   "config.repository.onlyFollowFirstParent": "Follow only the first parent of commits by default. Repository settings can override this per repository.",
   "config.repository.muteCommitsNotAncestorsOfHead": "Mute commits that are not loaded ancestors of HEAD. This only applies when the HEAD commit is loaded in the graph.",
+  "config.repository.muteMergeCommits": "Mute the commit message of merge commits as a reading aid. Branch and tag labels always keep full contrast. Disabled by default.",
   "config.graphColors": "Specifies the colors used on the graph.",
   "config.revealHighlightColor": "Specifies the color used to highlight a revealed commit row.",
   "config.graphStyle": "Specifies the style of the graph.",

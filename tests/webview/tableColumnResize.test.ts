@@ -44,6 +44,7 @@ function viewState(
     lastActiveRepo: null,
     loadMoreCommits: 75,
     muteCommitsNotAncestorsOfHead: true,
+    muteMergeCommits: false,
     onlyFollowFirstParent: false,
     repos,
     showCurrentBranchByDefault: false,

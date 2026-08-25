@@ -79,13 +79,18 @@ describe("commit table styles", () => {
     expect(css).toContain("var(--vscode-list-activeSelectionBackground");
   });
 
-  it("mutes merge commit rows with the description foreground", () => {
+  it("mutes only the commit message of muted rows", () => {
     const muted = css.match(
-      /#commitTable tr\.commit\.mergeCommit td:nth-child\(2\),\s*#commitTable tr\.commit\.mutedCommit td:nth-child\(2\) \{[^}]+\}/
+      /#commitTable tr\.commit\.mutedCommit td:nth-child\(2\) \.commitMessage \{[^}]+\}/
     )?.[0];
 
     expect(muted).toBeDefined();
     expect(muted).toContain("var(--vscode-descriptionForeground");
+    // The mute color must stay scoped to the message span: `.gitRef` and
+    // `.gitRefGroup` set no color of their own, so a cell-level or
+    // merge-row-level rule would gray branch and tag labels too.
+    expect(css).not.toContain("#commitTable tr.commit.mergeCommit td:nth-child(2)");
+    expect(css).not.toMatch(/#commitTable tr\.commit\.mutedCommit td:nth-child\(2\)\s*\{/);
   });
 
   it("renders grouped local and remote refs as one segmented badge", () => {

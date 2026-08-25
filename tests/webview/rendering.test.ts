@@ -52,6 +52,7 @@ const defaultViewState: GGL.GitGraphViewState = {
   lastActiveRepo: null,
   loadMoreCommits: 75,
   muteCommitsNotAncestorsOfHead: true,
+  muteMergeCommits: false,
   onlyFollowFirstParent: false,
   repos: { [REPO]: { columnWidths: null } },
   showCurrentBranchByDefault: false,
@@ -338,6 +339,26 @@ describe("webview rendering", () => {
       hard: true,
       error: null
     } as unknown as GGL.ResponseMessage);
+  }
+
+  function receiveExtensionSetting(configKey: string, value: GGL.JsonValue) {
+    receive({
+      command: "updateExtensionSetting",
+      key: `git-graph-libre.${configKey}`,
+      status: null,
+      settings: [
+        {
+          key: `git-graph-libre.${configKey}`,
+          configKey,
+          title: configKey,
+          description: "",
+          type: "boolean",
+          value,
+          defaultValue: false,
+          scope: "global"
+        }
+      ]
+    });
   }
 
   beforeAll(async () => {
@@ -3802,7 +3823,82 @@ describe("webview rendering", () => {
     });
 
     expect(findRow("merge99")?.classList.contains("mergeCommit")).toBe(true);
+    expect(findRow("merge99")?.classList.contains("mutedCommit")).toBe(false);
     expect(findRow("abc123")?.classList.contains("mergeCommit")).toBe(false);
+    expect(findRow("abc123")?.classList.contains("mutedCommit")).toBe(false);
+  });
+
+  it("mutes merge commit messages only while the setting is enabled", () => {
+    receiveLoadedCommits(
+      [
+        {
+          hash: "merge99",
+          parentHashes: ["abc123", "def456"],
+          author: "Alice",
+          email: "alice@example.com",
+          date: 1700000100,
+          message: "Merge branch",
+          refs: [{ hash: "merge99", name: "release", type: "head" }]
+        },
+        ...twoCommits
+      ],
+      "merge99"
+    );
+
+    expect(findRow("merge99")?.classList.contains("mutedCommit")).toBe(false);
+
+    receiveExtensionSetting("repository.muteMergeCommits", true);
+    expect(findRow("merge99")?.classList.contains("mergeCommit")).toBe(true);
+    expect(findRow("merge99")?.classList.contains("mutedCommit")).toBe(true);
+    expect(findRow("abc123")?.classList.contains("mutedCommit")).toBe(false);
+    expect(findRow("def456")?.classList.contains("mutedCommit")).toBe(false);
+
+    receiveExtensionSetting("repository.muteMergeCommits", false);
+    expect(findRow("merge99")?.classList.contains("mergeCommit")).toBe(true);
+    expect(findRow("merge99")?.classList.contains("mutedCommit")).toBe(false);
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("keeps ancestry muting gated by its own setting", () => {
+    receiveLoadedCommits(
+      [
+        twoCommits[0],
+        twoCommits[1],
+        {
+          hash: "side999",
+          parentHashes: [],
+          author: "Drew",
+          email: "drew@example.com",
+          date: 1_697_000_000,
+          message: "Side branch",
+          refs: []
+        }
+      ],
+      "abc123"
+    );
+
+    expect(findRow("side999")?.classList.contains("mutedCommit")).toBe(true);
+
+    receiveExtensionSetting("repository.muteCommitsNotAncestorsOfHead", false);
+    expect(findRow("side999")?.classList.contains("mutedCommit")).toBe(false);
+
+    receiveExtensionSetting("repository.muteCommitsNotAncestorsOfHead", true);
+    expect(findRow("side999")?.classList.contains("mutedCommit")).toBe(true);
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("wraps the commit message in its own span, outside the ref labels", () => {
+    receiveLoadedCommits(twoCommits, "abc123");
+
+    const row = findRow("abc123");
+    const message = row?.querySelector(".commitMessage");
+    expect(message?.textContent).toBe("Add feature");
+    // Ref labels are identity: they share the Description cell but never the
+    // message span, so a muted row cannot gray their text.
+    expect(message?.querySelector(".gitRef")).toBeNull();
+    expect(row?.querySelectorAll("td:nth-child(2) > .gitRef")).toHaveLength(2);
   });
 
   it("configures issue linking and pull request creation from settings", () => {

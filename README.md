@@ -73,6 +73,7 @@ All settings use the `git-graph-libre` prefix.
 | `maxDepthOfRepoSearch`                         | `0`             | Folder depth for repo search                     |
 | `repository.includeReflog`                     | `false`         | Include commits referenced only by reflogs       |
 | `repository.includeUnreachableCommits`         | `false`         | Scan for unreachable commits in Show All         |
+| `repository.muteMergeCommits`                  | `false`         | Mute merge commit messages (opt-in)              |
 | `showCurrentBranchByDefault`                   | `false`         | Show only current branch on open                 |
 | `showStatusBarItem`                            | `true`          | Show status bar button                           |
 | `showUncommittedChanges`                       | `true`          | Show uncommitted changes node                    |

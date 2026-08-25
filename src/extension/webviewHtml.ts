@@ -54,6 +54,7 @@ export function buildWebviewHtml(opts: {
     lastActiveRepo: extensionState.getLastActiveRepo(),
     loadMoreCommits: config.loadMoreCommits(),
     muteCommitsNotAncestorsOfHead: config.muteCommitsNotAncestorsOfHead(),
+    muteMergeCommits: config.muteMergeCommits(),
     onlyFollowFirstParent: config.onlyFollowFirstParent(),
     repos: repoManager.getRepos(),
     showCurrentBranchByDefault: config.showCurrentBranchByDefault(),
