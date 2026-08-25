@@ -42,6 +42,9 @@ This project descends from the MIT-licensed lineage of Git Graph:
     repository, with icons and a watching state. Reimplemented here against a
     different localization layer; the behavior, the icon choices, and the
     tooltip wording come from upstream.
+  - `08318d3` — rendering the checked-out branch label in bold. Reimplemented
+    here as a CSS rule on the existing `.active` ref class; the behavior comes
+    from upstream.
 
 The MIT license grants permission to sublicense, which allows this material to
 be incorporated into the AGPL-licensed whole. As the MIT license requires, its

@@ -102,6 +102,24 @@ describe("commit table styles", () => {
     expect(css).toContain("display: none;");
   });
 
+  it("bolds only the checked-out branch label", () => {
+    const active = css.match(/^\.gitRef\.active \{[^}]+\}/m)?.[0] ?? "";
+    expect(active).toContain("border-color: var(--git-graph-color);");
+    expect(active).toContain("font-weight: 600;");
+
+    // The weight rides the ref-level `active` class, which renderCommitRef
+    // puts only on the checked-out local branch label — standalone or as a
+    // group primary. Remote alias segments and tags never carry it, so the
+    // bold cannot reach them; the group container must not set a weight its
+    // alias children would inherit, and no broader group-child override may
+    // reintroduce one.
+    const group = css.match(/^\.gitRefGroup\.active \{[^}]+\}/m)?.[0] ?? "";
+    expect(group).toContain("border-color: var(--git-graph-color);");
+    expect(group).not.toContain("font-weight");
+    expect(css).not.toContain(".gitRefGroup.active > .gitRef");
+    expect(css).not.toMatch(/\.gitRefAlias[^{]*\{[^}]*font-weight/);
+  });
+
   it("distinguishes signed tags with the shared signature color", () => {
     expect(css).toContain("--ngg-signed-ref:");
     // Theme token first, OKLCH fallback last, per the styling guide.
