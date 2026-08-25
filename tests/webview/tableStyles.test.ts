@@ -122,17 +122,17 @@ describe("commit table styles", () => {
     expect(css).toContain("display: none;");
   });
 
-  it("bolds only the checked-out branch label", () => {
+  it("marks the checked-out branch label with a colored border and no bold weight", () => {
+    // Bolding is scoped to the commit description (the opt-in
+    // `repository.boldCheckedOutCommit` setting wraps the message in <b>), never
+    // to ref labels. The checked-out branch is distinguished by its graph-color
+    // border alone, so no ref surface may carry a font weight: not the active
+    // label, not the group container its alias children would inherit from, and
+    // not any broader group-child or alias override.
     const active = css.match(/^\.gitRef\.active \{[^}]+\}/m)?.[0] ?? "";
     expect(active).toContain("border-color: var(--git-graph-color);");
-    expect(active).toContain("font-weight: 600;");
+    expect(active).not.toContain("font-weight");
 
-    // The weight rides the ref-level `active` class, which renderCommitRef
-    // puts only on the checked-out local branch label — standalone or as a
-    // group primary. Remote alias segments and tags never carry it, so the
-    // bold cannot reach them; the group container must not set a weight its
-    // alias children would inherit, and no broader group-child override may
-    // reintroduce one.
     const group = css.match(/^\.gitRefGroup\.active \{[^}]+\}/m)?.[0] ?? "";
     expect(group).toContain("border-color: var(--git-graph-color);");
     expect(group).not.toContain("font-weight");

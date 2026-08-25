@@ -35,6 +35,8 @@
   "config.repository.onlyFollowFirstParent": "Domyślnie podążaj tylko za pierwszym rodzicem commitów. Ustawienia repozytorium mogą nadpisać to dla konkretnego repozytorium.",
   "config.repository.muteCommitsNotAncestorsOfHead": "Wyciszaj commity, które nie są załadowanymi przodkami HEAD. Działa tylko wtedy, gdy commit HEAD jest załadowany w grafie.",
   "config.repository.muteMergeCommits": "Wyciszaj wiadomości commitów scalających jako pomoc w czytaniu historii. Etykiety gałęzi i tagów zawsze zachowują pełny kontrast. Domyślnie wyłączone.",
+  "config.repository.boldCheckedOutCommit": "Wyświetlaj wiadomość aktualnie wybranego commita pogrubioną czcionką. Etykiety gałęzi i tagów zawsze zachowują normalną grubość. Domyślnie wyłączone.",
+  "config.repository.fetchTagsByDefault": "Zaznaczaj wstępnie opcję „Pobierz wszystkie tagi” w oknie pobierania. Domyślnie włączone.",
   "config.graphColors": "Określa kolory używane na grafie.",
   "config.revealHighlightColor": "Określa kolor podświetlenia ujawnionego wiersza commita.",
   "config.graphStyle": "Określa styl grafu.",

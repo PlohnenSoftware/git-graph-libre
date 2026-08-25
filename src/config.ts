@@ -140,6 +140,8 @@ export const config = {
   muteCommitsNotAncestorsOfHead: (): boolean =>
     getConfig("repository.muteCommitsNotAncestorsOfHead", false),
   muteMergeCommits: (): boolean => getConfig("repository.muteMergeCommits", false),
+  boldCheckedOutCommit: (): boolean => getConfig("repository.boldCheckedOutCommit", false),
+  fetchTagsByDefault: (): boolean => getConfig("repository.fetchTagsByDefault", true),
   onlyFollowFirstParent: (): boolean => getConfig("repository.onlyFollowFirstParent", false),
   showCurrentBranchByDefault: (): boolean => getConfig("showCurrentBranchByDefault", false),
   showRemoteBranches: (): boolean => getConfig("repository.showRemoteBranches", true),

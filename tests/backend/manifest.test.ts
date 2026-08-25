@@ -104,29 +104,26 @@ describe("extension manifest", () => {
     });
   });
 
-  it("contributes a default-off signature column setting", () => {
+  // Boolean settings whose default is load-bearing. Two of them encode a
+  // deliberate behavior flip and one a deliberate opt-out, so a silent default
+  // change here would be a user-visible regression:
+  //  - muteMergeCommits: merge-commit dimming used to be hardcoded on.
+  //  - boldCheckedOutCommit: the checked-out commit message used to be bolded
+  //    unconditionally.
+  //  - fetchTagsByDefault: on, so the Fetch dialog's tags option is pre-checked.
+  it.each([
+    ["git-graph-libre.columns.signature", false],
+    ["git-graph-libre.repository.muteMergeCommits", false],
+    ["git-graph-libre.repository.boldCheckedOutCommit", false],
+    ["git-graph-libre.repository.fetchTagsByDefault", true]
+  ])("contributes %s as a boolean defaulting to %s", (key, expectedDefault) => {
     const manifest = readManifest();
-    const setting =
-      manifest.contributes.configuration.properties["git-graph-libre.columns.signature"];
+    const setting = manifest.contributes.configuration.properties[key];
 
     expect(setting).toMatchObject({
       type: "boolean",
-      default: false,
-      description: "%config.columns.signature%"
-    });
-  });
-
-  it("contributes a default-off merge commit mute setting", () => {
-    const manifest = readManifest();
-    const setting =
-      manifest.contributes.configuration.properties["git-graph-libre.repository.muteMergeCommits"];
-
-    // The default is a deliberate behavior flip: merge-commit dimming used to
-    // be hardcoded, and is now opt-in.
-    expect(setting).toMatchObject({
-      type: "boolean",
-      default: false,
-      description: "%config.repository.muteMergeCommits%"
+      default: expectedDefault,
+      description: `%${key.replace("git-graph-libre.", "config.")}%`
     });
   });
 

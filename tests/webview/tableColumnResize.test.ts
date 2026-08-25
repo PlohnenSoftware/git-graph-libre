@@ -45,6 +45,8 @@ function viewState(
     loadMoreCommits: 75,
     muteCommitsNotAncestorsOfHead: true,
     muteMergeCommits: false,
+    boldCheckedOutCommit: false,
+    fetchTagsByDefault: true,
     onlyFollowFirstParent: false,
     repos,
     showCurrentBranchByDefault: false,

@@ -47,6 +47,8 @@ const viewState: GGL.GitGraphViewState = {
   loadMoreCommits: 75,
   muteCommitsNotAncestorsOfHead: true,
   muteMergeCommits: false,
+  boldCheckedOutCommit: false,
+  fetchTagsByDefault: true,
   onlyFollowFirstParent: false,
   repos: { [REPO]: repoState },
   showCurrentBranchByDefault: false,

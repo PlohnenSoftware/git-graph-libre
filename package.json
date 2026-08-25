@@ -336,6 +336,16 @@
           "default": false,
           "description": "%config.repository.muteMergeCommits%"
         },
+        "git-graph-libre.repository.boldCheckedOutCommit": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.repository.boldCheckedOutCommit%"
+        },
+        "git-graph-libre.repository.fetchTagsByDefault": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.repository.fetchTagsByDefault%"
+        },
         "git-graph-libre.graphColors": {
           "type": "array",
           "items": {

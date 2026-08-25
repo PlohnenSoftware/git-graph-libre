@@ -35,6 +35,8 @@
   "config.repository.onlyFollowFirstParent": "默认仅跟随提交的第一个父提交。仓库设置可按仓库覆盖此值。",
   "config.repository.muteCommitsNotAncestorsOfHead": "淡化不是已加载 HEAD 祖先的提交。仅当 HEAD 提交已加载到图中时生效。",
   "config.repository.muteMergeCommits": "淡化合并提交的提交信息以辅助阅读。分支和标签名称始终保持完全对比度。默认关闭。",
+  "config.repository.boldCheckedOutCommit": "以粗体显示当前检出提交的提交信息。分支和标签名称始终保持常规字重。默认关闭。",
+  "config.repository.fetchTagsByDefault": "在“抓取”对话框中预先勾选“抓取所有标签”。默认开启。",
   "config.graphColors": "指定图形上使用的颜色。",
   "config.revealHighlightColor": "指定定位到提交行时使用的高亮颜色。",
   "config.graphStyle": "指定图形的样式。",

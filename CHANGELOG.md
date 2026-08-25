@@ -9,10 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Fetch tags from selected remotes.** Tags previously only reached your
+  repository as a side effect of git's default tag-following during a fetch,
+  so a tag pushed to a remote after you already had its commits stayed
+  invisible until something else dragged it in. A new **Fetch Tags** action on
+  the tag context menu runs `git fetch --tags` against the remotes you tick,
+  with an optional prune that deletes local tags the remote no longer has. The
+  toolbar Fetch dialog also gained a **Fetch all tags** checkbox that does the
+  same across every remote.
+- **Push All Tags**, a new toolbar action next to Fetch, pushes every local tag
+  (`git push --tags`) to the remotes you tick, with the same bypass-hooks and
+  force/force-with-lease options as the branch push dialog. Like Fetch, the
+  button only appears once the repository has a remote.
+- **Push Tag now asks where to push.** The dialog lists every configured remote
+  as its own checkbox — your default push remote pre-ticked — and offers the
+  bypass-hooks and push-mode options, instead of silently pushing to `origin`.
+- **A dedicated view for repositories with no commits.** A freshly initialized
+  repository used to show the same "No commits to show for this branch" row as
+  a filter that matched nothing, which gave no hint about which situation you
+  were in. It now gets a centered view with a graph icon, a heading, and a
+  prompt to create your first commit, and the branch, tag, author, and remote
+  branch filters are hidden while it shows, since none of them can do anything
+  yet. The view only appears for a genuinely empty repository, so no
+  combination of filters can trigger it.
+- **New setting `git-graph-libre.repository.fetchTagsByDefault`** (default
+  `true`): controls whether the **Fetch all tags** checkbox in the toolbar
+  Fetch dialog starts ticked.
+- **New setting `git-graph-libre.repository.boldCheckedOutCommit`** (default
+  `false`): opt-in bold rendering of the checked-out commit's message, so the
+  commit you are sitting on stands out in the Description column.
 - **New setting `git-graph-libre.repository.muteMergeCommits`** (default
   `false`): opt-in dimming of merge commit messages as a reading aid.
-  Localized in English, Polish, Simplified Chinese, and Traditional Chinese,
-  and available in the settings hub's Extension tab.
+- All three new settings are localized in English, Polish, Simplified Chinese,
+  and Traditional Chinese, and are available in the settings hub's Extension
+  tab.
 
 ### Changed
 
@@ -20,6 +50,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dimming was previously hardcoded and unconditional; it is now gated on the
   new `repository.muteMergeCommits` setting, so existing users will notice
   merge rows getting brighter unless they enable the setting.
+- **No commit message is bold by default any more.** The checked-out commit's
+  message was previously bolded unconditionally; that emphasis is now gated on
+  the new `repository.boldCheckedOutCommit` setting, which is off, so by
+  default every row's message reads at the same weight. Bold is also scoped to
+  the commit message alone — branch and tag labels are never bolded, and the
+  checked-out branch continues to be marked by its graph-colored border rather
+  than by weight.
+- **Fetch now brings tags along by default.** The toolbar Fetch dialog's new
+  **Fetch all tags** checkbox starts ticked, so a plain Fetch also runs
+  `git fetch --tags` against every remote — tags pushed after you already had
+  their commits now arrive without a separate step, at the cost of a little
+  extra work per fetch. Set `repository.fetchTagsByDefault` to `false` to go
+  back to ticking the box per fetch.
+- **Switching away from the graph tab and back is now instant.** The graph
+  panel keeps its state while hidden instead of being torn down and rebuilt, so
+  returning to the tab no longer reloads the webview — no reload flash, no
+  re-fetch, and your scroll position is kept. (Filter selections and the
+  expanded commit already survived the reload; they are now kept without one.)
+  A re-shown panel refreshes its repository list and graph data in place.
+- **The Add Tag dialog is clearer about tag types.** The type option now reads
+  **Lightweight (unsigned)**, choosing it hides the Message row and explains
+  that a lightweight tag is a plain ref with no tag object — so it carries no
+  message and cannot be signed — and an annotated tag with an empty message is
+  rejected instead of being created.
 
 ### Fixed
 
@@ -28,6 +82,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `repository.muteCommitsNotAncestorsOfHead` — now applies only to the commit
   message text inside the Description cell; branch and tag labels keep
   full-contrast text in every theme.
+- **A lightweight tag stays lightweight when `tag.gpgSign` is set.** With that
+  git config enabled, creating a lightweight tag quietly produced a signed,
+  annotated tag object and popped open your editor to ask for a tag message —
+  neither of which you asked for. Lightweight tag creation now passes
+  `--no-sign`, so it always produces a plain ref and never opens an editor.
+  Annotated tags are unchanged and keep following your git signing
+  configuration (`tag.gpgSign`, `tag.forceSignAnnotated`, `user.signingkey`,
+  `gpg.format`).
+- **Pushing a tag no longer assumes a remote named `origin`.** The push was
+  hardcoded to `origin`, so a repository whose remote is named anything else
+  could not push tags at all, and a repository where a branch and a tag share a
+  name failed with an ambiguous-refspec error. Tags are now pushed as
+  `refs/tags/<name>` to each remote you select, which is unambiguous by
+  construction.
+- **Cherry-pick and Revert now work on a root commit.** On a commit with no
+  parents both actions opened the merge parent-selection dialog with nothing to
+  select, leaving no way to proceed. A root commit now takes the same plain
+  confirmation as any single-parent commit; only real merges still ask which
+  parent to use. Drop remains unavailable on a root commit, because the rebase
+  it performs needs a parent to rebase onto.
+- **The status bar item appears again in a folder with no Git repository.** The
+  extension only activated when it found a repository at the workspace root, so
+  the "No Git repository found — watching for one" eye added in 1.1.0 could
+  never actually be shown, and one of the two activation triggers never matched
+  anything. The extension now activates once VS Code has finished starting up.
+- **Tag creation and tag pushes are recorded in the extension's output
+  channel.** Both ran outside the git command log, so they were missing from the
+  log you would reach for when reporting a problem with them.
 
 ## [1.3.0] - 2026-08-06
 
@@ -272,7 +354,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.1.1...v1.1.2

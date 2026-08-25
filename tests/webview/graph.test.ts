@@ -24,6 +24,8 @@ const config: Config = {
   loadMoreCommits: 100,
   muteCommitsNotAncestorsOfHead: false,
   muteMergeCommits: false,
+  boldCheckedOutCommit: false,
+  fetchTagsByDefault: true,
   onlyFollowFirstParent: false,
   showCurrentBranchByDefault: false,
   showRemoteBranches: true,

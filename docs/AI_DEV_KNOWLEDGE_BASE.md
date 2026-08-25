@@ -1829,6 +1829,34 @@ one per feature, gated and pushed, for the maintainer to pick from**:
 | `upstream/retain-panel` | `0bf8812` + `0c8f1da` | `retainContextWhenHidden` on the graph panel; re-show posts `loadRepos`+`refresh` over the bridge instead of reassigning `webview.html` (which would drop the retained document) | `ce1b143`, pushed, ZAM `OK` (task `cec3c2c3`, `new_violations` 0) |
 | `upstream/no-commits-view` | `e7d1f8a` | Dedicated zero-commit view (icon + heading + create-first-commit hint; signal `commits empty && commitHead null && branches empty` so filters cannot fake it) and hidden branch/tag/author/remote-branch controls while it shows | `105a6ec`, pushed, ZAM `OK` (task `986e261d`, analysis `92deacb2`, `new_violations` 0). Landed after a ~35 min Sonar outage on `2026-08-25`; per the no-server rule the commit waited for a healthy gate — fresh coverage was regenerated and the scan re-run after recovery. |
 
+**Maintainer reversal of `2026-08-25`: `upstream/bold-current-branch` is
+rejected.** Bolding must apply to the commit **description** only, never to
+branch or tag labels, so the `font-weight: 600` that `f7b190a` added to
+`.gitRef.active` was removed; the rule keeps `border-color:
+var(--git-graph-color)`, and the checked-out branch is distinguished by that
+colored border alone. The ref-level `active` class and the tests asserting
+which ref carries it are unaffected — only the CSS weight went away. Nothing of
+`08318d3` remains in the tree as a result; its `NOTICE.md` bullet was **kept**
+(attributions are never stripped as a side effect of a behavior change) and its
+wording amended to record the removal. `LICENSE.mit` was not touched: the roster
+is a historical record of what was incorporated, not of what still ships.
+
+In the same change the maintainer made checked-out-commit emphasis opt-in and
+added a fetch default, both wired through the standard eight-hop setting
+plumbing (manifest, four `package.nls*.json`, `src/config.ts`, `src/types.ts`,
+`webviewHtml.ts`, `global.d.ts`, the webview config switch plus constructor
+literal, README):
+
+- `git-graph-libre.repository.boldCheckedOutCommit` (boolean, default `false`).
+  `renderCommitRow()` used to bold the current row's message unconditionally; it
+  is now gated on this flag. The `<span class="commitMessage">` wrapper is
+  emitted in **all** cases — the mute styling keys off it.
+- `git-graph-libre.repository.fetchTagsByDefault` (boolean, default `true`)
+  pre-checks "Fetch all tags" in the **toolbar** Fetch popup (`showFetchDialog()`).
+  Deliberately scoped there only: the per-remote fetch dialog and the dedicated
+  Fetch Tags dialog keep their own unchecked defaults, because those are
+  explicit per-invocation choices rather than the blanket toolbar fetch.
+
 Licensing pattern for these branches: each branch appends its upstream-commit
 bullet to `NOTICE.md`'s "incorporated in part" list and makes the **identical**
 two edits to `LICENSE.mit` (roster date range → `2026-08-24`; "all four" →

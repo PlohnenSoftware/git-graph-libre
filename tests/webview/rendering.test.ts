@@ -53,6 +53,12 @@ const defaultViewState: GGL.GitGraphViewState = {
   loadMoreCommits: 75,
   muteCommitsNotAncestorsOfHead: true,
   muteMergeCommits: false,
+  boldCheckedOutCommit: false,
+  // Deliberately off, unlike the manifest default: the fetch-dialog tests in
+  // this file drive the tags checkbox explicitly and assert the "tags not
+  // requested" path. The shipped default-on behavior is covered by
+  // tests/webview/fetchDialogDefaults.test.ts.
+  fetchTagsByDefault: false,
   onlyFollowFirstParent: false,
   repos: { [REPO]: { columnWidths: null } },
   showCurrentBranchByDefault: false,
@@ -513,8 +519,8 @@ describe("webview rendering", () => {
     const aliases = Array.from(group?.querySelectorAll<HTMLElement>(".gitRefAlias.remote") ?? []);
     expect(aliases.map((alias) => alias.textContent?.trim())).toEqual(["origin", "upstream"]);
     expect(aliases.map((alias) => alias.title)).toEqual(["origin/main", "upstream/main"]);
-    // Only the checked-out local segment carries the active (bold) class;
-    // the remote alias segments sharing its group never do.
+    // Only the checked-out local segment carries the active (colored-border)
+    // class; the remote alias segments sharing its group never do.
     expect(group?.querySelector(".gitRef.gitRefPrimary")?.classList.contains("active")).toBe(true);
     for (const alias of aliases) {
       expect(alias.classList.contains("active")).toBe(false);
@@ -4119,6 +4125,40 @@ describe("webview rendering", () => {
     receiveExtensionSetting("repository.muteMergeCommits", false);
     expect(findRow("merge99")?.classList.contains("mergeCommit")).toBe(true);
     expect(findRow("merge99")?.classList.contains("mutedCommit")).toBe(false);
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("bolds the checked-out commit message only while its setting is enabled", () => {
+    receiveLoadedCommits(twoCommits, "abc123");
+
+    const headMessage = () => findRow("abc123")?.querySelector<HTMLElement>(".commitMessage");
+    const olderMessage = () => findRow("def456")?.querySelector<HTMLElement>(".commitMessage");
+    // Bolding is scoped to the commit description. No ref label may pick up a
+    // weight from the renderer, in either setting state — the checked-out
+    // branch is distinguished by its colored border alone.
+    const boldRefs = () =>
+      Array.from(document.querySelectorAll<HTMLElement>(".gitRef")).filter(
+        (ref) => ref.querySelector("b") !== null || ref.style.fontWeight !== ""
+      );
+
+    // Off by default: the wrapper span still renders (the mute styling keys off
+    // it), it just carries no <b>.
+    expect(headMessage()).not.toBeNull();
+    expect(headMessage()?.textContent).toBe("Add feature");
+    expect(headMessage()?.querySelector("b")).toBeNull();
+    expect(boldRefs()).toHaveLength(0);
+
+    receiveExtensionSetting("repository.boldCheckedOutCommit", true);
+    expect(headMessage()?.querySelector("b")?.textContent).toBe("Add feature");
+    expect(olderMessage()).not.toBeNull();
+    expect(olderMessage()?.querySelector("b")).toBeNull();
+    expect(boldRefs()).toHaveLength(0);
+
+    receiveExtensionSetting("repository.boldCheckedOutCommit", false);
+    expect(headMessage()?.querySelector("b")).toBeNull();
+    expect(headMessage()?.textContent).toBe("Add feature");
+    expect(boldRefs()).toHaveLength(0);
 
     receiveLoadedCommits(twoCommits, "abc123");
   });

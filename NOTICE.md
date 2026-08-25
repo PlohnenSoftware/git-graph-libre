@@ -43,8 +43,11 @@ This project descends from the MIT-licensed lineage of Git Graph:
     different localization layer; the behavior, the icon choices, and the
     tooltip wording come from upstream.
   - `08318d3` — rendering the checked-out branch label in bold. Reimplemented
-    here as a CSS rule on the existing `.active` ref class; the behavior comes
-    from upstream.
+    here as a CSS rule on the existing `.active` ref class; the behavior came
+    from upstream. The bold weight was removed again by maintainer decision on
+    2026-08-25 — bolding is scoped to the commit description, never to branch
+    or tag labels — so nothing of this commit remains in the tree. The entry is
+    kept as the record of what was incorporated while it was.
   - `4607cdf` — handling commit context-menu actions on root (zero-parent)
     commits. Reimplemented here in a different webview architecture; the
     diagnosis and the `< 2` dispatch rule come from upstream.

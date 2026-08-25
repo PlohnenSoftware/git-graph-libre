@@ -71,6 +71,8 @@ All settings use the `git-graph-libre` prefix.
 | `initialLoadCommits`                           | `300`           | Commits to load on open                          |
 | `loadMoreCommits`                              | `100`           | Commits to load on demand                        |
 | `maxDepthOfRepoSearch`                         | `0`             | Folder depth for repo search                     |
+| `repository.boldCheckedOutCommit`              | `false`         | Bold the checked-out commit's message            |
+| `repository.fetchTagsByDefault`                | `true`          | Pre-check "Fetch all tags" in the Fetch dialog   |
 | `repository.includeReflog`                     | `false`         | Include commits referenced only by reflogs       |
 | `repository.includeUnreachableCommits`         | `false`         | Scan for unreachable commits in Show All         |
 | `repository.muteMergeCommits`                  | `false`         | Mute merge commit messages (opt-in)              |

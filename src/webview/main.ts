@@ -1319,7 +1319,11 @@ class GitGraphView {
       [
         { type: "checkbox" as const, name: l10n.dialogFetchPrune, value: false },
         { type: "checkbox" as const, name: l10n.dialogFetchPruneTags, value: false },
-        { type: "checkbox" as const, name: l10n.dialogFetchTags, value: false }
+        {
+          type: "checkbox" as const,
+          name: l10n.dialogFetchTags,
+          value: this.config.fetchTagsByDefault
+        }
       ],
       l10n.dialogFetchSubmit,
       (values) => {
@@ -1538,6 +1542,12 @@ class GitGraphView {
         return true;
       case "repository.muteMergeCommits":
         this.config.muteMergeCommits = value;
+        return true;
+      case "repository.boldCheckedOutCommit":
+        this.config.boldCheckedOutCommit = value;
+        return true;
+      case "repository.fetchTagsByDefault":
+        this.config.fetchTagsByDefault = value;
         return true;
       case "repository.onlyFollowFirstParent":
         this.config.onlyFollowFirstParent = value;
@@ -4277,8 +4287,12 @@ class GitGraphView {
       activeFindCommitIndex,
       mutedHeadNonAncestors.has(commit.hash)
     );
+    // The wrapper span is unconditional — the mute styling keys off it. Only the
+    // bold weight is opt-in, and it is scoped to the commit message: ref labels
+    // keep regular weight whatever this setting says.
+    const boldMessage = this.config.boldCheckedOutCommit && commit.hash === currentHash;
     const commitMessage = `<span class="commitMessage">${
-      commit.hash === currentHash ? `<b>${message}</b>` : message
+      boldMessage ? `<b>${message}</b>` : message
     }</span>`;
     const authorTitle = escapeHtml(`${commit.author} <${commit.email}>`);
 
@@ -5565,6 +5579,8 @@ const gitGraph = new GitGraphView(
     loadMoreCommits: viewState.loadMoreCommits,
     muteCommitsNotAncestorsOfHead: viewState.muteCommitsNotAncestorsOfHead,
     muteMergeCommits: viewState.muteMergeCommits,
+    boldCheckedOutCommit: viewState.boldCheckedOutCommit,
+    fetchTagsByDefault: viewState.fetchTagsByDefault,
     onlyFollowFirstParent: viewState.onlyFollowFirstParent,
     showCurrentBranchByDefault: viewState.showCurrentBranchByDefault,
     showRemoteBranches: viewState.showRemoteBranches,

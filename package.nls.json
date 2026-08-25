@@ -35,6 +35,8 @@
   "config.repository.onlyFollowFirstParent": "Follow only the first parent of commits by default. Repository settings can override this per repository.",
   "config.repository.muteCommitsNotAncestorsOfHead": "Mute commits that are not loaded ancestors of HEAD. This only applies when the HEAD commit is loaded in the graph.",
   "config.repository.muteMergeCommits": "Mute the commit message of merge commits as a reading aid. Branch and tag labels always keep full contrast. Disabled by default.",
+  "config.repository.boldCheckedOutCommit": "Render the checked-out commit's message in bold. Branch and tag labels always keep regular weight. Disabled by default.",
+  "config.repository.fetchTagsByDefault": "Pre-check \"Fetch all tags\" in the Fetch dialog. Enabled by default.",
   "config.graphColors": "Specifies the colors used on the graph.",
   "config.revealHighlightColor": "Specifies the color used to highlight a revealed commit row.",
   "config.graphStyle": "Specifies the style of the graph.",

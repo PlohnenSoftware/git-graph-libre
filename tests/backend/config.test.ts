@@ -44,6 +44,22 @@ describe("configuration", () => {
     expect(config.graphRowHeight()).toBe(18);
   });
 
+  it("keeps checked-out commit bolding off until it is turned on", async () => {
+    const { config } = await import("@/config");
+    expect(config.boldCheckedOutCommit()).toBe(false);
+
+    settings.set("git-graph-libre.repository.boldCheckedOutCommit", true);
+    expect(config.boldCheckedOutCommit()).toBe(true);
+  });
+
+  it("pre-checks fetch tags by default and honors an opt-out", async () => {
+    const { config } = await import("@/config");
+    expect(config.fetchTagsByDefault()).toBe(true);
+
+    settings.set("git-graph-libre.repository.fetchTagsByDefault", false);
+    expect(config.fetchTagsByDefault()).toBe(false);
+  });
+
   it("keeps the signature column off by default and reads its permanent setting", async () => {
     const { config } = await import("@/config");
     expect(config.showSignatureColumn()).toBe(false);
@@ -205,6 +221,8 @@ describe("configuration", () => {
     { accessor: "maxDepthOfRepoSearch", expected: 0 },
     { accessor: "muteCommitsNotAncestorsOfHead", expected: false },
     { accessor: "muteMergeCommits", expected: false },
+    { accessor: "boldCheckedOutCommit", expected: false },
+    { accessor: "fetchTagsByDefault", expected: true },
     { accessor: "onlyFollowFirstParent", expected: false },
     { accessor: "showCurrentBranchByDefault", expected: false },
     { accessor: "showRemoteBranches", expected: true },

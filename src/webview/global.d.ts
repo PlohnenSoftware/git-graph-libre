@@ -30,6 +30,8 @@ declare global {
     loadMoreCommits: number;
     muteCommitsNotAncestorsOfHead: boolean;
     muteMergeCommits: boolean;
+    boldCheckedOutCommit: boolean;
+    fetchTagsByDefault: boolean;
     onlyFollowFirstParent: boolean;
     showCurrentBranchByDefault: boolean;
     showRemoteBranches: boolean;

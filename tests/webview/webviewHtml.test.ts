@@ -34,6 +34,8 @@ function makeConfig(): Config {
     maxDepthOfRepoSearch: () => 0,
     muteCommitsNotAncestorsOfHead: () => true,
     muteMergeCommits: () => false,
+    boldCheckedOutCommit: () => true,
+    fetchTagsByDefault: () => false,
     onlyFollowFirstParent: () => false,
     showCurrentBranchByDefault: () => false,
     showRemoteBranches: () => true,
@@ -89,6 +91,10 @@ describe("webview HTML", () => {
     ]);
     expect(viewState.muteCommitsNotAncestorsOfHead).toBe(true);
     expect(viewState.muteMergeCommits).toBe(false);
+    // Both carry non-default values here, so the assertion proves the config
+    // accessor reaches the view state rather than matching a coincidental default.
+    expect(viewState.boldCheckedOutCommit).toBe(true);
+    expect(viewState.fetchTagsByDefault).toBe(false);
     expect(viewState.shortHashLength).toBe(12);
     expect(result.html).toContain('id="settingsWidgetBacking" hidden');
     expect(result.html).toContain('id="settingsWidget" role="dialog" aria-modal="true"');

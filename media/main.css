@@ -662,7 +662,6 @@ body.commitDetailsResizing * {
 }
 .gitRef.active {
   border-color: var(--git-graph-color);
-  font-weight: 600;
 }
 .gitRefGroup {
   display: inline-flex;
