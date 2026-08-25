@@ -16,11 +16,12 @@ describe("context menu action visibility", () => {
   it("accepts boolean overrides for known groups and actions", () => {
     const normalized = normalizeContextMenuActionsVisibility({
       commit: { copyHash: false },
-      tag: { push: false }
+      tag: { push: false, fetchTags: false }
     });
 
     expect(normalized.commit.copyHash).toBe(false);
     expect(normalized.tag.push).toBe(false);
+    expect(normalized.tag.fetchTags).toBe(false);
     expect(normalized.tag.delete).toBe(true);
   });
 

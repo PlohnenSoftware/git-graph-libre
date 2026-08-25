@@ -86,6 +86,7 @@ export type ContextMenuActionsVisibility = {
     viewDetails: boolean;
     delete: boolean;
     push: boolean;
+    fetchTags: boolean;
     createArchive: boolean;
     compareWithHead: boolean;
     copyName: boolean;

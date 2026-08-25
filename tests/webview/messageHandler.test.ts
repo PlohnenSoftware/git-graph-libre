@@ -196,6 +196,80 @@ describe("registerMessageHandlers", () => {
     }
   });
 
+  it("pushes all tags to the selected remotes and records the git command", async () => {
+    const bare = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-pushall-bare-"));
+    try {
+      cp.execFileSync("git", ["init", "--bare", "-b", "main", bare]);
+      git(["remote", "add", "alltags", bare], repo);
+      git(["tag", "v-all1"], repo);
+      git(["tag", "v-all2"], repo);
+      const { handlers, posts, outputLines } = registerHandlersForTest();
+
+      const handler = handlers.get("pushAllTags");
+      expect(handler).toBeDefined();
+      await handler?.({
+        command: "pushAllTags",
+        repo,
+        remotes: ["alltags"],
+        mode: "normal",
+        noVerify: false
+      });
+
+      expect(posts[posts.length - 1]).toEqual({ command: "pushAllTags", status: null });
+      // `--tags` carries every local tag, including those created by earlier
+      // tests; the assertion only pins this test's tags.
+      const bareTags = cp.execFileSync("git", ["tag", "-l"], { cwd: bare }).toString();
+      expect(bareTags).toContain("v-all1");
+      expect(bareTags).toContain("v-all2");
+      expect(
+        outputLines.some((line) => line.includes("tag.pushAllTags") && line.includes("--tags"))
+      ).toBe(true);
+    } finally {
+      fs.rmSync(bare, { recursive: true, force: true });
+    }
+  });
+
+  it("fetches tags from the selected remote and records the git command", async () => {
+    const source = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-fetchtags-src-"));
+    const bare = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-fetchtags-bare-"));
+    try {
+      cp.execFileSync("git", ["init", "-b", "main", source]);
+      git(["config", "user.email", "t@t.com"], source);
+      git(["config", "user.name", "T"], source);
+      git(["config", "tag.gpgsign", "false"], source);
+      fs.writeFileSync(path.join(source, "f"), "x");
+      git(["add", "."], source);
+      git(["commit", "-m", "init"], source);
+      git(["tag", "v-fetched"], source);
+      cp.execFileSync("git", ["init", "--bare", "-b", "main", bare]);
+      git(["remote", "add", "origin", bare], source);
+      git(["push", "origin", "main", "--tags"], source);
+
+      git(["remote", "add", "tagsource", bare], repo);
+      const { handlers, posts, outputLines } = registerHandlersForTest();
+
+      const handler = handlers.get("fetchTags");
+      expect(handler).toBeDefined();
+      await handler?.({
+        command: "fetchTags",
+        repo,
+        remotes: ["tagsource"],
+        pruneTags: false
+      });
+
+      expect(posts[posts.length - 1]).toEqual({ command: "fetchTags", status: null });
+      expect(cp.execFileSync("git", ["tag", "-l"], { cwd: repo }).toString()).toContain(
+        "v-fetched"
+      );
+      expect(
+        outputLines.some((line) => line.includes("remote.fetchTags") && line.includes("--tags"))
+      ).toBe(true);
+    } finally {
+      fs.rmSync(source, { recursive: true, force: true });
+      fs.rmSync(bare, { recursive: true, force: true });
+    }
+  });
+
   it("writes webview diagnostics to the output channel", async () => {
     const { handlers, outputLines } = registerHandlersForTest();
     const handler = handlers.get("webviewDiagnostic");

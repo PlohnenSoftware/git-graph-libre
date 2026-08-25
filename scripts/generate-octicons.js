@@ -23,6 +23,7 @@ const ICON_NAMES = [
   "search",
   "sync",
   "tag",
+  "upload",
   "verified",
   "x"
 ];

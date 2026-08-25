@@ -7,6 +7,7 @@ type AddRemoteInput = ActionPayload<"addRemote"> & { repo: string };
 type DeleteRemoteInput = ActionPayload<"deleteRemote"> & { repo: string };
 type EditRemoteInput = ActionPayload<"editRemote"> & { repo: string };
 type FetchRemotesInput = ActionPayload<"fetchRemotes"> & { repo: string };
+type FetchTagsInput = ActionPayload<"fetchTags"> & { repo: string };
 type PruneRemoteInput = ActionPayload<"pruneRemote"> & { repo: string };
 type GitVersion = {
   major: number;
@@ -224,4 +225,31 @@ export async function fetchRemotes(
     input.pruneTags,
     record
   );
+}
+
+export async function fetchTags(
+  git: SimpleGit,
+  input: FetchTagsInput,
+  record?: GitCommandRecorder
+): Promise<void> {
+  const remotes = input.remotes.map(cleanRemoteName).filter((remote) => remote !== "");
+  if (remotes.length === 0) {
+    throw new Error("No remotes were selected for fetching tags.");
+  }
+  if (input.pruneTags) await assertPruneTagsSupported(git, input.repo, record);
+
+  for (const remote of remotes) {
+    const args = ["fetch", remote];
+    // `--prune-tags` only removes local tags when `--prune` is also present,
+    // so prune is implied for the tag refspec this fetch installs.
+    if (input.pruneTags) args.push("--prune", "--prune-tags");
+    args.push("--tags");
+    await runGitRaw(git, {
+      label: "remote.fetchTags",
+      kind: "action",
+      args,
+      repo: input.repo,
+      record
+    });
+  }
 }

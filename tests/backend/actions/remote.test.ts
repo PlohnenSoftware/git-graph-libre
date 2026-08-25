@@ -1,11 +1,18 @@
+import * as cp from "node:child_process";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { git, makeRepo } from "@tests/backend/helpers";
 import type { SimpleGit } from "simple-git";
-import { describe, expect, it, vi } from "vitest";
+import { simpleGit } from "simple-git";
+import { afterAll, describe, expect, it, vi } from "vitest";
 
 import {
   addRemote,
   deleteRemote,
   editRemote,
   fetchRemotes,
+  fetchTags,
   pruneRemote
 } from "@/backend/actions/remote";
 import type { GitCommandRecord } from "@/backend/utils/gitRunner";
@@ -112,6 +119,134 @@ describe("fetchRemotes", () => {
 
     expect(git.raw).toHaveBeenCalledTimes(1);
     expect(git.raw).toHaveBeenCalledWith(["--version"]);
+  });
+});
+
+describe("fetchTags", () => {
+  it("fetches tags from each selected remote and records the action", async () => {
+    const records: GitCommandRecord[] = [];
+    const git = gitWithRaw(async () => "");
+
+    await fetchTags(
+      git,
+      { repo: "/repo", remotes: ["origin", "upstream"], pruneTags: false },
+      (record) => records.push(record)
+    );
+
+    expect(git.raw).toHaveBeenNthCalledWith(1, ["fetch", "origin", "--tags"]);
+    expect(git.raw).toHaveBeenNthCalledWith(2, ["fetch", "upstream", "--tags"]);
+    expect(records.map((record) => record.label)).toEqual(["remote.fetchTags", "remote.fetchTags"]);
+    expect(records[0]).toMatchObject({
+      kind: "action",
+      repo: "/repo",
+      args: ["fetch", "origin", "--tags"],
+      success: true
+    });
+  });
+
+  it("adds prune and prune-tags flags behind the git version guard", async () => {
+    const records: GitCommandRecord[] = [];
+    const git = gitWithRaw(async (args) => (args[0] === "--version" ? "git version 2.43.0" : ""));
+
+    await fetchTags(git, { repo: "/repo", remotes: ["origin"], pruneTags: true }, (record) =>
+      records.push(record)
+    );
+
+    expect(git.raw).toHaveBeenNthCalledWith(1, ["--version"]);
+    expect(git.raw).toHaveBeenNthCalledWith(2, [
+      "fetch",
+      "origin",
+      "--prune",
+      "--prune-tags",
+      "--tags"
+    ]);
+    expect(records[1]).toMatchObject({
+      label: "remote.fetchTags",
+      args: ["fetch", "origin", "--prune", "--prune-tags", "--tags"],
+      success: true
+    });
+  });
+
+  it("rejects prune-tags on unsupported Git versions before fetching", async () => {
+    const git = gitWithRaw(async () => "git version 2.16.6");
+
+    await expect(
+      fetchTags(git, { repo: "/repo", remotes: ["origin"], pruneTags: true })
+    ).rejects.toThrow("Git 2.17 or newer");
+
+    expect(git.raw).toHaveBeenCalledTimes(1);
+    expect(git.raw).toHaveBeenCalledWith(["--version"]);
+  });
+
+  it("rejects an empty remotes selection", async () => {
+    const git = gitWithRaw(async () => "");
+
+    await expect(fetchTags(git, { repo: "/repo", remotes: [], pruneTags: false })).rejects.toThrow(
+      "No remotes were selected"
+    );
+
+    expect(git.raw).not.toHaveBeenCalled();
+  });
+});
+
+describe("fetchTags against a real repository", () => {
+  const createdDirs: string[] = [];
+
+  function makeBareRemote(): string {
+    const bare = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-test-bare-"));
+    createdDirs.push(bare);
+    cp.execFileSync("git", ["init", "--bare", "-b", "main", bare]);
+    return bare;
+  }
+
+  afterAll(() => {
+    for (const dir of createdDirs) fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("restores remote tags that are missing locally without touching local-only tags", async () => {
+    const source = makeRepo();
+    createdDirs.push(source);
+    git(["tag", "v1.0"], source);
+    git(["tag", "v2.0"], source);
+    const bare = makeBareRemote();
+    git(["remote", "add", "origin", bare], source);
+    git(["push", "origin", "main", "--tags"], source);
+
+    const repo = makeRepo();
+    createdDirs.push(repo);
+    git(["remote", "add", "origin", bare], repo);
+    git(["tag", "local-only"], repo);
+
+    await fetchTags(simpleGit(repo), { repo, remotes: ["origin"], pruneTags: false });
+
+    const tags = cp.execFileSync("git", ["tag", "-l"], { cwd: repo }).toString().trim().split("\n");
+    expect(tags).toContain("v1.0");
+    expect(tags).toContain("v2.0");
+    // A plain `--tags` fetch never prunes tags the remote does not carry.
+    expect(tags).toContain("local-only");
+  });
+
+  it("prunes local tags deleted on the remote when prune-tags is enabled", async () => {
+    const source = makeRepo();
+    createdDirs.push(source);
+    git(["tag", "v1.0"], source);
+    git(["tag", "v2.0"], source);
+    const bare = makeBareRemote();
+    git(["remote", "add", "origin", bare], source);
+    git(["push", "origin", "main", "--tags"], source);
+
+    const repo = makeRepo();
+    createdDirs.push(repo);
+    git(["remote", "add", "origin", bare], repo);
+
+    await fetchTags(simpleGit(repo), { repo, remotes: ["origin"], pruneTags: false });
+    expect(cp.execFileSync("git", ["tag", "-l"], { cwd: repo }).toString()).toContain("v2.0");
+
+    git(["push", "origin", "--delete", "refs/tags/v2.0"], source);
+    await fetchTags(simpleGit(repo), { repo, remotes: ["origin"], pruneTags: true });
+    const tags = cp.execFileSync("git", ["tag", "-l"], { cwd: repo }).toString();
+    expect(tags).toContain("v1.0");
+    expect(tags).not.toContain("v2.0");
   });
 });
 

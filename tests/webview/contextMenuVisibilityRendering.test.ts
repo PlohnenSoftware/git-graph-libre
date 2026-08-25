@@ -185,6 +185,7 @@ describe("context menu visibility rendering", () => {
           viewDetails: false,
           delete: false,
           push: false,
+          fetchTags: false,
           compareWithHead: false,
           copyName: false
         }

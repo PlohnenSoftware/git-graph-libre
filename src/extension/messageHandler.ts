@@ -31,6 +31,7 @@ import {
   deleteRemote,
   editRemote,
   fetchRemotes,
+  fetchTags,
   pruneRemote
 } from "@/backend/actions/remote";
 import {
@@ -42,7 +43,7 @@ import {
   pushStash,
   resetUncommittedChanges
 } from "@/backend/actions/stash";
-import { addTag, deleteTag, pushTag } from "@/backend/actions/tag";
+import { addTag, deleteTag, pushAllTags, pushTag } from "@/backend/actions/tag";
 import { deleteUserDetails, editUserDetails } from "@/backend/actions/userConfig";
 import type { GitClient } from "@/backend/gitClient";
 import { commitComparison } from "@/backend/queries/commitComparison";
@@ -354,9 +355,13 @@ export function registerMessageHandlers(
   registerAction("addTag", (msg) => addTag(gitClient.getInstance(), msg, recordGitCommand));
   registerAction("deleteTag", (msg) => deleteTag(gitClient.getInstance(), msg, recordGitCommand));
   registerAction("pushTag", (msg) => pushTag(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("pushAllTags", (msg) =>
+    pushAllTags(gitClient.getInstance(), msg, recordGitCommand)
+  );
   registerAction("fetchRemotes", (msg) =>
     fetchRemotes(gitClient.getInstance(), msg, recordGitCommand)
   );
+  registerAction("fetchTags", (msg) => fetchTags(gitClient.getInstance(), msg, recordGitCommand));
   registerAction("createBranch", (msg) => createBranch(gitClient.getInstance(), msg));
   registerAction("createPullRequest", async (msg) => {
     if (msg.pushBeforeCreate) {

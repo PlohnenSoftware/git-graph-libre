@@ -7,6 +7,7 @@ import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
 type AddTagInput = ActionPayload<"addTag"> & { repo?: string | null };
 type DeleteTagInput = ActionPayload<"deleteTag"> & { repo?: string | null };
 type PushTagInput = ActionPayload<"pushTag"> & { repo?: string | null };
+type PushAllTagsInput = ActionPayload<"pushAllTags"> & { repo?: string | null };
 
 export async function addTag(
   git: SimpleGit,
@@ -77,6 +78,31 @@ export async function pushTag(
     args.push(remote, `refs/tags/${input.tagName}`);
     await runGitRaw(git, {
       label: "tag.pushTag",
+      kind: "action",
+      args,
+      repo: input.repo ?? null,
+      record
+    });
+  }
+}
+
+export async function pushAllTags(
+  git: SimpleGit,
+  input: PushAllTagsInput,
+  record?: GitCommandRecorder
+): Promise<void> {
+  if (input.remotes.length === 0) {
+    throw new Error("No remotes were selected for pushing all tags.");
+  }
+
+  for (const remote of input.remotes) {
+    const args = ["push"];
+    const modeArg = pushModeArg(input.mode);
+    if (modeArg !== null) args.push(modeArg);
+    if (input.noVerify) args.push("--no-verify");
+    args.push(remote, "--tags");
+    await runGitRaw(git, {
+      label: "tag.pushAllTags",
       kind: "action",
       args,
       repo: input.repo ?? null,

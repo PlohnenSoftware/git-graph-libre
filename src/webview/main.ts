@@ -264,6 +264,7 @@ class GitGraphView {
   private readonly findClearBtn: HTMLButtonElement;
   private readonly findSearchHistoryBtn: HTMLButtonElement;
   private readonly fetchBtn: HTMLButtonElement;
+  private readonly pushTagsBtn: HTMLButtonElement;
   private readonly settingsBtn: HTMLButtonElement;
   private readonly settingsWidgetBackingElem: HTMLElement;
   private readonly settingsWidgetElem: HTMLElement;
@@ -313,7 +314,7 @@ class GitGraphView {
       this.gitConfig = createEmptyGitConfig();
       this.closeSettingsWidget();
       this.syncRepoSettingsControls();
-      this.updateFetchButtonVisibility();
+      this.updateRemoteActionsVisibility();
       this.saveState();
       sendMessage({ command: "selectRepo", repo: value });
       this.refresh(true);
@@ -380,6 +381,7 @@ class GitGraphView {
     this.findClearBtn = requireElement<HTMLButtonElement>("findClearBtn");
     this.findSearchHistoryBtn = requireElement<HTMLButtonElement>("findSearchHistoryBtn");
     this.fetchBtn = requireElement<HTMLButtonElement>("fetchBtn");
+    this.pushTagsBtn = requireElement<HTMLButtonElement>("pushTagsBtn");
     this.settingsBtn = requireElement<HTMLButtonElement>("settingsBtn");
     this.settingsWidgetBackingElem = requireElement("settingsWidgetBacking");
     this.settingsWidgetElem = requireElement("settingsWidget");
@@ -406,6 +408,9 @@ class GitGraphView {
     });
     this.fetchBtn.addEventListener("click", () => {
       this.showFetchDialog();
+    });
+    this.pushTagsBtn.addEventListener("click", () => {
+      this.showPushAllTagsDialog();
     });
     this.settingsBtn.addEventListener("click", () => {
       this.toggleSettingsWidget();
@@ -546,7 +551,7 @@ class GitGraphView {
       this.gitRemotes = [];
       this.gitStashes = [];
       this.gitConfig = createEmptyGitConfig();
-      this.updateFetchButtonVisibility();
+      this.updateRemoteActionsVisibility();
       this.refresh(true);
     }
   }
@@ -570,15 +575,17 @@ class GitGraphView {
     this.currentTags = this.keepAvailableSelections(this.currentTags, this.gitTags);
     this.saveState();
     this.updateFilterDropdowns();
-    this.updateFetchButtonVisibility();
+    this.updateRemoteActionsVisibility();
     this.renderSettingsWidget();
     this.renderLoadMoreFooter();
   }
 
-  private updateFetchButtonVisibility() {
+  private updateRemoteActionsVisibility() {
     const hasRemotes = this.currentRepo !== "" && this.gitRemotes.length > 0;
     this.fetchBtn.hidden = !hasRemotes;
     this.fetchBtn.disabled = !hasRemotes;
+    this.pushTagsBtn.hidden = !hasRemotes;
+    this.pushTagsBtn.disabled = !hasRemotes;
   }
 
   private acceptLoadRepoInfoResponse(requestId: number) {
@@ -867,7 +874,7 @@ class GitGraphView {
       this.gitRemotes = [];
       this.gitStashes = [];
       this.gitConfig = createEmptyGitConfig();
-      this.updateFetchButtonVisibility();
+      this.updateRemoteActionsVisibility();
       this.renderSettingsWidget();
       this.renderLoadMoreFooter();
       this.activeLoadRepoInfoRequestId = null;
@@ -1294,12 +1301,14 @@ class GitGraphView {
       l10n.dialogFetchConfirm,
       [
         { type: "checkbox" as const, name: l10n.dialogFetchPrune, value: false },
-        { type: "checkbox" as const, name: l10n.dialogFetchPruneTags, value: false }
+        { type: "checkbox" as const, name: l10n.dialogFetchPruneTags, value: false },
+        { type: "checkbox" as const, name: l10n.dialogFetchTags, value: false }
       ],
       l10n.dialogFetchSubmit,
       (values) => {
         const prune = values[0] === "checked";
         const pruneTags = values[1] === "checked";
+        const fetchTags = values[2] === "checked";
         if (pruneTags && !prune) {
           showErrorDialog(l10n.dialogFetchPruneTagsRequiresPrune, null, this.fetchBtn);
           return;
@@ -1310,6 +1319,14 @@ class GitGraphView {
           prune,
           pruneTags
         });
+        if (fetchTags) {
+          sendMessage({
+            command: "fetchTags",
+            repo: this.currentRepo,
+            remotes: this.getRemoteNames(),
+            pruneTags
+          });
+        }
         showActionRunningDialog(l10n.statusFetchingRemotes);
       },
       this.fetchBtn
@@ -2327,6 +2344,46 @@ class GitGraphView {
         showActionRunningDialog(l10n.statusFetchingRemotes);
       },
       sourceElem
+    );
+  }
+
+  private showFetchTagsDialog() {
+    const remoteNames = this.getRemoteNames();
+    if (remoteNames.length === 0) return;
+
+    // Fetching is read-only, so every remote is offered preselected: unlike
+    // branches, `refs/tags` has no per-remote tracking refs, so the webview
+    // cannot know which remotes carry which tags.
+    const remoteInputs: DialogInput[] = remoteNames.map((remote) => ({
+      type: "checkbox" as const,
+      name: l10n.dialogFetchTagsRemote.replace("{0}", remote),
+      value: true
+    }));
+    const inputs: DialogInput[] = [
+      ...remoteInputs,
+      { type: "checkbox", name: l10n.dialogFetchPruneTags, value: false }
+    ];
+
+    showFormDialog(
+      l10n.dialogFetchTagsConfirm,
+      inputs,
+      l10n.dialogFetchTagsSubmit,
+      (values) => {
+        const selectedRemotes = remoteNames.filter((_, index) => values[index] === "checked");
+        if (selectedRemotes.length === 0) {
+          showErrorDialog(l10n.dialogPushBranchNoRemoteSelected, null, null);
+          return;
+        }
+
+        sendMessage({
+          command: "fetchTags",
+          repo: this.currentRepo,
+          remotes: selectedRemotes,
+          pruneTags: values[remoteNames.length] === "checked"
+        });
+        showActionRunningDialog(l10n.statusFetchingTags);
+      },
+      null
     );
   }
 
@@ -3407,6 +3464,12 @@ class GitGraphView {
             onClick: () => this.showPushTagDialog(refName)
           }
         : null,
+      this.isContextMenuActionVisible("tag", "fetchTags")
+        ? {
+            title: l10n.fetchTags + ELLIPSIS,
+            onClick: () => this.showFetchTagsDialog()
+          }
+        : null,
       this.isContextMenuActionVisible("tag", "createArchive")
         ? {
             title: l10n.createArchive,
@@ -3719,45 +3782,17 @@ class GitGraphView {
     const remoteNames = this.getRemoteNames();
     if (remoteNames.length === 0) return;
 
-    const message = l10n.dialogPushTagConfirm.replace(
-      "{0}",
-      `<b><i>${escapeHtml(refName)}</i></b>`
-    );
-    // With exactly one remote there is nothing to choose, so keep the plain
-    // confirmation; only the multi-remote case needs the checkbox form.
-    if (remoteNames.length === 1) {
-      showConfirmationDialog(
-        message,
-        () => {
-          sendMessage({
-            command: "pushTag",
-            repo: this.currentRepo,
-            tagName: refName,
-            remotes: [remoteNames[0]],
-            mode: "normal",
-            noVerify: false
-          });
-          showActionRunningDialog(l10n.pushingTag);
-        },
-        null
-      );
-      return;
-    }
-
-    const defaultRemote = this.defaultPushRemoteName(remoteNames);
-    const inputs: DialogInput[] = remoteNames.map((remote) => ({
-      type: "checkbox" as const,
-      name: l10n.dialogPushBranchRemote.replace("{0}", remote),
-      value: remote === defaultRemote
-    }));
-
     showFormDialog(
-      message,
-      inputs,
+      l10n.dialogPushTagConfirm.replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`),
+      [...this.remoteCheckboxInputs(remoteNames), ...this.pushOptionInputs()],
       l10n.pushTag,
       (values) => {
-        const selectedRemotes = remoteNames.filter((_, index) => values[index] === "checked");
-        if (selectedRemotes.length === 0) {
+        const { remotes, noVerify, mode } = this.parsePushDialogValues(
+          remoteNames,
+          values,
+          remoteNames.length
+        );
+        if (remotes.length === 0) {
           showErrorDialog(l10n.dialogPushBranchNoRemoteSelected, null, null);
           return;
         }
@@ -3766,14 +3801,80 @@ class GitGraphView {
           command: "pushTag",
           repo: this.currentRepo,
           tagName: refName,
-          remotes: selectedRemotes,
-          mode: "normal",
-          noVerify: false
+          remotes,
+          noVerify,
+          mode
         });
         showActionRunningDialog(l10n.pushingTag);
       },
       null
     );
+  }
+  private showPushAllTagsDialog() {
+    const remoteNames = this.getRemoteNames();
+    if (remoteNames.length === 0) return;
+
+    showFormDialog(
+      l10n.dialogPushAllTagsConfirm,
+      [...this.remoteCheckboxInputs(remoteNames), ...this.pushOptionInputs()],
+      l10n.dialogPushAllTagsSubmit,
+      (values) => {
+        const { remotes, noVerify, mode } = this.parsePushDialogValues(
+          remoteNames,
+          values,
+          remoteNames.length
+        );
+        if (remotes.length === 0) {
+          showErrorDialog(l10n.dialogPushBranchNoRemoteSelected, null, null);
+          return;
+        }
+
+        sendMessage({
+          command: "pushAllTags",
+          repo: this.currentRepo,
+          remotes,
+          noVerify,
+          mode
+        });
+        showActionRunningDialog(l10n.statusPushingAllTags);
+      },
+      this.pushTagsBtn
+    );
+  }
+  /**
+   * One remote checkbox per remote, followed by the shared bypass-hooks and
+   * push-mode options — the same construction for branch, tag, and all-tags
+   * pushes.
+   */
+  private remoteCheckboxInputs(remoteNames: string[]): DialogInput[] {
+    const defaultRemote = this.defaultPushRemoteName(remoteNames);
+    return remoteNames.map((remote) => ({
+      type: "checkbox" as const,
+      name: l10n.dialogPushBranchRemote.replace("{0}", remote),
+      value: remote === defaultRemote
+    }));
+  }
+  private pushOptionInputs(): DialogInput[] {
+    return [
+      { type: "checkbox", name: l10n.dialogBypassGitHooks, value: false },
+      {
+        type: "select",
+        name: l10n.dialogPushBranchMode,
+        default: "normal",
+        options: GIT_PUSH_BRANCH_MODES.map((mode) => ({
+          name: this.pushBranchModeLabel(mode),
+          value: mode
+        }))
+      }
+    ];
+  }
+  /** `optionsOffset` is the bypass-hooks input index within `values`. */
+  private parsePushDialogValues(remoteNames: string[], values: string[], optionsOffset: number) {
+    return {
+      remotes: remoteNames.filter((_, index) => values[index] === "checked"),
+      noVerify: values[optionsOffset] === "checked",
+      mode: values[optionsOffset + 1] as GitPushBranchMode
+    };
   }
   public showTagDetails(details: GitTagDetails) {
     const tagType =
@@ -3925,25 +4026,10 @@ class GitGraphView {
     const remoteNames = this.getRemoteNames();
     if (remoteNames.length === 0) return;
 
-    const defaultRemote = this.defaultPushRemoteName(remoteNames);
-    const remoteInputs: DialogInput[] = remoteNames.map((remote) => ({
-      type: "checkbox" as const,
-      name: l10n.dialogPushBranchRemote.replace("{0}", remote),
-      value: remote === defaultRemote
-    }));
     const inputs: DialogInput[] = [
-      ...remoteInputs,
+      ...this.remoteCheckboxInputs(remoteNames),
       { type: "checkbox", name: l10n.dialogPushBranchSetUpstream, value: true },
-      { type: "checkbox", name: l10n.dialogBypassGitHooks, value: false },
-      {
-        type: "select",
-        name: l10n.dialogPushBranchMode,
-        default: "normal",
-        options: GIT_PUSH_BRANCH_MODES.map((mode) => ({
-          name: this.pushBranchModeLabel(mode),
-          value: mode
-        }))
-      }
+      ...this.pushOptionInputs()
     ];
 
     showFormDialog(
@@ -3951,8 +4037,12 @@ class GitGraphView {
       inputs,
       l10n.dialogPushBranchSubmit,
       (values) => {
-        const selectedRemotes = remoteNames.filter((_, index) => values[index] === "checked");
-        if (selectedRemotes.length === 0) {
+        const { remotes, noVerify, mode } = this.parsePushDialogValues(
+          remoteNames,
+          values,
+          remoteNames.length + 1
+        );
+        if (remotes.length === 0) {
           showErrorDialog(l10n.dialogPushBranchNoRemoteSelected, null, null);
           return;
         }
@@ -3961,10 +4051,10 @@ class GitGraphView {
           command: "pushBranch",
           repo: this.currentRepo,
           branchName: refName,
-          remotes: selectedRemotes,
+          remotes,
           setUpstream: values[remoteNames.length] === "checked",
-          noVerify: values[remoteNames.length + 1] === "checked",
-          mode: values[remoteNames.length + 2] as GitPushBranchMode
+          noVerify,
+          mode
         });
         showActionRunningDialog(l10n.statusPushingBranch);
       },
@@ -5465,6 +5555,7 @@ const actionErrorLabels = {
   exportRepoConfig: l10n.unableToExportRepoConfig,
   fetchIntoLocalBranch: l10n.unableToFetchBranch,
   fetchRemotes: l10n.unableToFetch,
+  fetchTags: l10n.unableToFetchTags,
   mergeBranch: l10n.unableToMergeBranch,
   mergeCommit: l10n.unableToMergeCommit,
   popStash: l10n.unableToPopStash,
@@ -5473,6 +5564,7 @@ const actionErrorLabels = {
   pushBranch: l10n.unableToPushBranch,
   pushStash: l10n.unableToPushStash,
   pushTag: l10n.unableToPushTag,
+  pushAllTags: l10n.unableToPushAllTags,
   renameBranch: l10n.unableToRenameBranch,
   resetFileToRevision: l10n.unableToResetFileToRevision,
   resetUncommittedChanges: l10n.unableToResetUncommitted,
@@ -5990,7 +6082,7 @@ function getDialogInputFallbackValue(input: DialogInput) {
 function isDialogInputVisible(inputs: DialogInput[], input: DialogInput) {
   if (input.dependsOn === undefined) return true;
   const controller = inputs[input.dependsOn.input];
-  if (controller === undefined || controller.type !== "select") return true;
+  if (controller?.type !== "select") return true;
   return getDialogInputValue(controller, input.dependsOn.input) === input.dependsOn.value;
 }
 function isRequiredDialogInput(input: DialogInput) {

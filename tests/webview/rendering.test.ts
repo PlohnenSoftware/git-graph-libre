@@ -2588,7 +2588,9 @@ describe("webview rendering", () => {
 
     const messagesBefore = vscodeMock.sentMessages.length;
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
-    expect(vscodeMock.sentMessages.length).toBe(messagesBefore);
+    const messagesAfter = vscodeMock.sentMessages.slice(messagesBefore);
+    expect(messagesAfter.filter((message) => message.command === "addTag")).toHaveLength(0);
+    expect(messagesAfter).toHaveLength(0);
     expect(document.getElementById("dialog")?.className).toBe("active noInput");
 
     const tagMessage = document.getElementById("dialogInput2") as HTMLInputElement | null;
@@ -3625,11 +3627,19 @@ describe("webview rendering", () => {
     expect(pushTagItem).not.toBeUndefined();
     pushTagItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
-    // A single remote needs no selection, so the dialog stays a plain
-    // confirmation with no form inputs.
+    // Even a single remote shows the push options form: the remote checkbox,
+    // the bypass-hooks checkbox, and the mode select.
     expect(document.querySelector("#dialog .dialogContent")).not.toBeNull();
     expect(document.querySelector("#dialog .dialogActions")).not.toBeNull();
-    expect(document.getElementById("dialogInput0")).toBeNull();
+    const pushToOrigin = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    const bypassHooks = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    const pushMode = document.getElementById("dialogInput2") as HTMLSelectElement | null;
+    expect(pushToOrigin).not.toBeNull();
+    expect(bypassHooks).not.toBeNull();
+    expect(pushMode).not.toBeNull();
+    expect(pushToOrigin?.checked).toBe(true);
+    expect(bypassHooks?.checked).toBe(false);
+    expect(pushMode?.value).toBe("normal");
     expect(document.getElementById("dialogAction")?.classList.contains("dialogBtnPrimary")).toBe(
       true
     );
@@ -3637,6 +3647,8 @@ describe("webview rendering", () => {
     expect(dismissBtn?.classList.contains("dialogBtn")).toBe(true);
     expect(dismissBtn?.classList.contains("dialogBtnPrimary")).toBe(false);
 
+    if (bypassHooks !== null) bypassHooks.checked = true;
+    if (pushMode !== null) pushMode.value = "force";
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
 
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
@@ -3644,8 +3656,8 @@ describe("webview rendering", () => {
       repo: REPO,
       tagName: "v1.0.0",
       remotes: ["origin"],
-      mode: "normal",
-      noVerify: false
+      mode: "force",
+      noVerify: true
     });
     expect(document.getElementById("statusStrip")?.dataset.state).toBe("action");
     expect(document.getElementById("statusStrip")?.getAttribute("aria-busy")).toBe("true");
@@ -3699,12 +3711,17 @@ describe("webview rendering", () => {
 
     const pushToOrigin = document.getElementById("dialogInput0") as HTMLInputElement | null;
     const pushToUpstream = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    const bypassHooks = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    const pushMode = document.getElementById("dialogInput3") as HTMLSelectElement | null;
     expect(pushToOrigin).not.toBeNull();
     expect(pushToUpstream).not.toBeNull();
+    expect(bypassHooks).not.toBeNull();
+    expect(pushMode).not.toBeNull();
     // The default remote (origin) is preselected; others are opt-in.
     expect(pushToOrigin?.checked).toBe(true);
     expect(pushToUpstream?.checked).toBe(false);
     if (pushToUpstream !== null) pushToUpstream.checked = true;
+    if (pushMode !== null) pushMode.value = "force-with-lease";
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
 
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
@@ -3712,9 +3729,176 @@ describe("webview rendering", () => {
       repo: REPO,
       tagName: "v1.0.0",
       remotes: ["origin", "upstream"],
-      mode: "normal",
+      mode: "force-with-lease",
       noVerify: false
     });
+
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithoutRemotes,
+      error: null
+    });
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("fetches tags from the remotes checked in the tag context menu dialog", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithTwoRemotes,
+      error: null
+    });
+    receiveLoadedCommits(twoCommits, "abc123");
+
+    const tagRef = gitRef("v1.0.0", ".gitRef.tag");
+    expect(tagRef).not.toBeUndefined();
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Fetch Tags");
+
+    // Fetching is read-only, so every remote is preselected; the prune-tags
+    // option sits after the remote checkboxes.
+    const fetchFromOrigin = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    const fetchFromUpstream = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    const pruneTags = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    expect(fetchFromOrigin).not.toBeNull();
+    expect(fetchFromUpstream).not.toBeNull();
+    expect(pruneTags).not.toBeNull();
+    expect(fetchFromOrigin?.checked).toBe(true);
+    expect(fetchFromUpstream?.checked).toBe(true);
+    expect(pruneTags?.checked).toBe(false);
+    if (fetchFromUpstream !== null) fetchFromUpstream.checked = false;
+    if (pruneTags !== null) pruneTags.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "fetchTags",
+      repo: REPO,
+      remotes: ["origin"],
+      pruneTags: true
+    });
+    expect(document.getElementById("statusText")?.textContent).toBe("Fetching Tags...");
+    receive({ command: "fetchTags", status: null });
+
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithoutRemotes,
+      error: null
+    });
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("sends fetchTags only when the fetch dialog tags option is checked", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithTwoRemotes,
+      error: null
+    });
+
+    vscodeMock.clearMessages();
+    document.getElementById("fetchBtn")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const fetchTagsCheckbox = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    expect(fetchTagsCheckbox).not.toBeNull();
+    expect(document.getElementById("dialog")?.textContent).toContain("Fetch all tags");
+
+    // Without the tags option the plain remotes fetch runs alone.
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages.filter((msg) => msg.command === "fetchTags")).toHaveLength(0);
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "fetchRemotes",
+      repo: REPO,
+      prune: false,
+      pruneTags: false
+    });
+    receive({ command: "fetchRemotes", status: null });
+
+    // With the tags option both commands are sent in sequence.
+    document.getElementById("fetchBtn")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const tagsCheckbox = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    if (tagsCheckbox !== null) tagsCheckbox.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    const commands = vscodeMock.sentMessages.map((msg) => msg.command);
+    expect(commands).toContain("fetchRemotes");
+    expect(commands).toContain("fetchTags");
+    const fetchTagsMessage = vscodeMock.sentMessages.find((msg) => msg.command === "fetchTags");
+    expect(fetchTagsMessage).toEqual({
+      command: "fetchTags",
+      repo: REPO,
+      remotes: ["origin", "upstream"],
+      pruneTags: false
+    });
+    receive({ command: "fetchRemotes", status: null });
+    receive({ command: "fetchTags", status: null });
+
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithoutRemotes,
+      error: null
+    });
+  });
+
+  it("pushes all tags from the repository-level toolbar action", () => {
+    const pushTagsBtn = document.getElementById("pushTagsBtn") as HTMLButtonElement | null;
+    expect(pushTagsBtn).not.toBeNull();
+    expect(pushTagsBtn?.hidden).toBe(true);
+
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithTwoRemotes,
+      error: null
+    });
+
+    expect(pushTagsBtn?.hidden).toBe(false);
+    expect(pushTagsBtn?.disabled).toBe(false);
+    pushTagsBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const pushToOrigin = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    const pushToUpstream = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    const bypassHooks = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    const pushMode = document.getElementById("dialogInput3") as HTMLSelectElement | null;
+    expect(pushToOrigin).not.toBeNull();
+    expect(pushToUpstream).not.toBeNull();
+    expect(bypassHooks).not.toBeNull();
+    expect(pushMode).not.toBeNull();
+    expect(pushToOrigin?.checked).toBe(true);
+    expect(pushToUpstream?.checked).toBe(false);
+    if (pushToUpstream !== null) pushToUpstream.checked = true;
+    if (bypassHooks !== null) bypassHooks.checked = true;
+    if (pushMode !== null) pushMode.value = "force";
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "pushAllTags",
+      repo: REPO,
+      remotes: ["origin", "upstream"],
+      mode: "force",
+      noVerify: true
+    });
+    expect(document.getElementById("statusText")?.textContent).toBe("Pushing All Tags...");
+    receive({ command: "pushAllTags", status: null });
 
     document
       .getElementById("refreshBtn")

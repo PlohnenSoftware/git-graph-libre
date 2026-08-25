@@ -65,6 +65,7 @@ export const DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY = {
     viewDetails: true,
     delete: true,
     push: true,
+    fetchTags: true,
     createArchive: true,
     compareWithHead: true,
     copyName: true

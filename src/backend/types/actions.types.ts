@@ -42,6 +42,7 @@ type ActionPayloads = {
     force: boolean;
   };
   fetchRemotes: { remote?: string | null; prune: boolean; pruneTags: boolean };
+  fetchTags: { remotes: string[]; pruneTags: boolean };
   dropCommit: { commitHash: string };
   dropCommitSelection: { commitHashes: string[] };
   editHeadCommitMessage: { commitHash: string; message: string };
@@ -75,6 +76,11 @@ type ActionPayloads = {
     remote: string;
     createNewCommit: boolean;
     squash: boolean;
+    noVerify: boolean;
+  };
+  pushAllTags: {
+    remotes: string[];
+    mode: GitPushBranchMode;
     noVerify: boolean;
   };
   pushBranch: {

@@ -452,7 +452,7 @@ together):
 | 13 Settings hub: tabbed widget, color editor, settings export | Complete |
 | 14 Reveal highlight: persistent blink and configurable color | Complete |
 | 15 Tag surfaces: signed-tag distinction and remote tag deletion | Complete |
-| Immediate TODOs bug backlog (BUG-1 … BUG-6, `2026-08-25`) | **Open — highest priority** |
+| Immediate TODOs bug backlog (BUG-1 … BUG-6, `2026-08-25`) | Complete (`2026-08-25`; see the per-entry implementation records) |
 
 ### Phase 0: Guardrails and Baseline
 
@@ -1934,7 +1934,7 @@ Implementation record (`2026-08-25`):
 
 ### BUG-2 — The tag remote surface is a stub beside the branch remote surface
 
-**Status: open. Priority: high. Area: backend actions + webview. Depends on BUG-1.**
+**Status: fixed (`2026-08-25`). Priority: high. Area: backend actions + webview. Depends on BUG-1.**
 
 This is the maintainer's "tag pushing/pulling system is quite crude" in concrete
 terms. Compare what exists today:
@@ -1970,6 +1970,55 @@ Fix (one slice, after BUG-1 lands):
   reusing `GitPushBranchMode` rather than inventing a second mode enum.
 - Localize every new label across `en`/`pl`/`zh-cn`/`zh-tw` and keep
   `pnpm run l10n:check` at 100%.
+
+Implementation record (`2026-08-25`):
+
+- `fetchTags` (src/backend/actions/remote.ts): per selected remote runs a
+  recorded `git fetch <remote> [--prune --prune-tags] --tags` (label
+  `remote.fetchTags`) on `runGitRaw`, with `assertPruneTagsSupported` guarding
+  the prune flags. `--prune` is deliberately implied with `--prune-tags` —
+  empirically, `--prune-tags` without `--prune` silently does not prune.
+  Surfaces: a "Fetch Tags…" tag-context-menu item (visibility key
+  `tag.fetchTags`, defaulted true; `normalizeContextMenuActionsVisibility`
+  seeds persisted settings so no migration is needed) opening a dialog with
+  all remotes preselected (fetch is read-only and `refs/tags` has no
+  per-remote tracking refs — the Phase 15 constraint) plus a "Prune deleted
+  tags" checkbox; and a "Fetch all tags" checkbox in the toolbar fetch dialog
+  that sends `fetchTags` for all remotes after `fetchRemotes`.
+- `pushAllTags` (src/backend/actions/tag.ts): per selected remote runs a
+  recorded `git push <mode-arg] [--no-verify] <remote> --tags` (label
+  `tag.pushAllTags`), sharing `pushModeArg` and `GitPushBranchMode`. It is a
+  repository-level toolbar button (upload octicon, beside fetch, hidden
+  without remotes), not a per-tag menu item.
+- The push-tag dialog now always shows the options form (remote checkboxes +
+  force-mode select + bypass-hooks checkbox, branch dialog's markup and
+  branch-neutral keys reused). Judgment call recorded: BUG-1's interim
+  single-remote plain confirmation was removed in this slice — the
+  force/no-verify options must be choosable with one remote too, and the
+  branch dialog always shows the form. Shared helpers
+  (`remoteCheckboxInputs`/`pushOptionInputs`/`parsePushDialogValues`) keep the
+  three push dialogs duplication-free.
+- Verified: independent verifier demonstrated the tag-following gap (a tag on
+  an unreachable commit does not arrive with plain `git fetch` but does with
+  `--tags`), both prune directions (with and without `--prune`), two-remote
+  `--tags` fan-out with `--no-verify --force-with-lease` args, and
+  branch/tag-name collision safety under `git push --tags`. Command-log
+  record lines asserted against real bare remotes. l10n: 12 new keys × 4
+  languages, `l10n:check` 100% (525 bundle keys).
+- Full gate green before commit: strict Biome on 22 touched files, typecheck,
+  lint, `test` (backend 47/343, webview 34/312), `l10n:check` 100%,
+  `package`, fresh coverage (81 files / 655 tests, 92.1% lines). The first
+  scan (task `ccbaaac5-6ad7-4602-afc0-7c5684cec76d`) was `OK` at
+  `new_violations` `2` — both findings turned out to date from the BUG-3
+  slice's code (`typescript:S6582` optional-chain in
+  `isDialogInputVisible`, `typescript:S5906` generic assertion in the
+  empty-message test), so per the touched-files rule they were fixed in this
+  slice's files and the full gate re-ran: `sonar:scan` task
+  `bb2f67ae-66db-4098-a8a5-93c84182cb01`, analysis
+  `d2325221-3a85-4799-888c-64a992a563ef`: `ZAM` gate **`OK`** —
+  `new_coverage` `92.1%`, `new_duplicated_lines_density` `0.0`,
+  `new_violations` `0`, reliability and security `0`. The graphify map was
+  refreshed from the final tree (`graphify update .` + `graphify tree`).
 
 ### BUG-3 — "Lightweight" creates a signed annotated tag and opens an editor window
 
@@ -2449,6 +2498,12 @@ comes before every phase item below.** BUG-1 through BUG-6 were reported against
 `v1.3.0` and root-caused the same day; work them in the slice order recorded at
 the end of that section. Nothing in the phase list starts until that backlog is
 closed or the maintainer explicitly redirects.
+
+**Backlog closed `2026-08-25`** — all six entries fixed and gated; per-entry
+implementation records with Sonar task ids are in the backlog section above.
+Deferred to the maintainer: the BUG-4 tag-graying re-check (path 3, the
+signed-vs-unsigned pill tint, is a design question if it still reads as gray),
+and the untrusted-workspace observation recorded under BUG-5.
 
 Earlier priorities (`2026-07-03`): Phases 12, 13, and 14 are complete.
 Phase 15 (tag surfaces) completed `2026-07-29` and shipped as `v1.1.1`.

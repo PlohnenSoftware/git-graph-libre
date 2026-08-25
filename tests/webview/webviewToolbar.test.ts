@@ -78,6 +78,17 @@ describe("buildWebviewToolbar", () => {
     expect(fetch?.getAttribute("aria-label")).toBe("Fetch");
     expect(fetch?.querySelector("svg.octicon-download")).not.toBeNull();
 
+    // "Push all tags" is the repository-level tag action beside fetch.
+    const pushTags = document.getElementById("pushTagsBtn") as HTMLButtonElement | null;
+    expect(pushTags?.tagName).toBe("BUTTON");
+    expect(pushTags?.type).toBe("button");
+    expect(pushTags?.hidden).toBe(true);
+    expect(pushTags?.nextElementSibling?.id).not.toBe("fetchBtn");
+    expect(pushTags?.getAttribute("aria-label")).toBe("Push All Tags");
+    expect(pushTags?.getAttribute("title")).toBe("Push All Tags");
+    expect(pushTags?.querySelector("svg.octicon-upload")).not.toBeNull();
+    expect(fetch?.nextElementSibling?.id).toBe("pushTagsBtn");
+
     expect(document.getElementById("terminalBtn")).toBeNull();
 
     const settings = document.getElementById("settingsBtn") as HTMLButtonElement | null;
@@ -121,6 +132,7 @@ describe("buildWebviewToolbar", () => {
       findClear: "Clear <find>",
       searchHistory: "Search <history>",
       fetch: 'Fetch "remote"',
+      pushAllTags: "Push All <tags>",
       locateHead: "Locate <HEAD>",
       refresh: 'Refresh "now"'
     });
@@ -146,6 +158,7 @@ describe("buildWebviewToolbar", () => {
       "Search <history>"
     );
     expect(document.getElementById("fetchBtn")?.getAttribute("title")).toBe('Fetch "remote"');
+    expect(document.getElementById("pushTagsBtn")?.getAttribute("title")).toBe("Push All <tags>");
     expect(document.getElementById("blinkHeadBtn")?.getAttribute("aria-label")).toBe(
       "Locate <HEAD>"
     );
