@@ -79,6 +79,26 @@ describe("commit table styles", () => {
     expect(css).toContain("var(--vscode-list-activeSelectionBackground");
   });
 
+  it("renders a dedicated centered view for repositories with no commits", () => {
+    const row = css.match(/^\.noCommitsRow td \{[^}]+\}/m)?.[0] ?? "";
+    expect(row).toContain("text-align: center;");
+    expect(row).toContain("white-space: normal;");
+
+    const view = css.match(/^\.noCommitsView \{[^}]+\}/m)?.[0] ?? "";
+    expect(view).toContain("display: inline-flex;");
+    expect(view).toContain("flex-direction: column;");
+    expect(view).toContain("align-items: center;");
+
+    const icon = css.match(/^\.noCommitsView \.noCommitsIcon \{[^}]+\}/m)?.[0] ?? "";
+    expect(icon).toContain("var(--vscode-descriptionForeground, var(--ngg-neutral-icon))");
+
+    const hint = css.match(/^\.noCommitsView \.noCommitsHint \{[^}]+\}/m)?.[0] ?? "";
+    expect(hint).toContain("var(--vscode-descriptionForeground, var(--ngg-neutral-icon))");
+
+    // The generic filtered-to-nothing row must stay a separate surface.
+    expect(css).toMatch(/^\.emptyGraphRow td \{/m);
+  });
+
   it("mutes only the commit message of muted rows", () => {
     const muted = css.match(
       /#commitTable tr\.commit\.mutedCommit td:nth-child\(2\) \.commitMessage \{[^}]+\}/
@@ -100,6 +120,24 @@ describe("commit table styles", () => {
     expect(css).toContain("var(--vscode-badge-background");
     expect(css).toContain(".gitRefGroup > .gitRefAlias > svg");
     expect(css).toContain("display: none;");
+  });
+
+  it("bolds only the checked-out branch label", () => {
+    const active = css.match(/^\.gitRef\.active \{[^}]+\}/m)?.[0] ?? "";
+    expect(active).toContain("border-color: var(--git-graph-color);");
+    expect(active).toContain("font-weight: 600;");
+
+    // The weight rides the ref-level `active` class, which renderCommitRef
+    // puts only on the checked-out local branch label — standalone or as a
+    // group primary. Remote alias segments and tags never carry it, so the
+    // bold cannot reach them; the group container must not set a weight its
+    // alias children would inherit, and no broader group-child override may
+    // reintroduce one.
+    const group = css.match(/^\.gitRefGroup\.active \{[^}]+\}/m)?.[0] ?? "";
+    expect(group).toContain("border-color: var(--git-graph-color);");
+    expect(group).not.toContain("font-weight");
+    expect(css).not.toContain(".gitRefGroup.active > .gitRef");
+    expect(css).not.toMatch(/\.gitRefAlias[^{]*\{[^}]*font-weight/);
   });
 
   it("distinguishes signed tags with the shared signature color", () => {

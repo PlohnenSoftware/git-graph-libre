@@ -42,6 +42,21 @@ This project descends from the MIT-licensed lineage of Git Graph:
     repository, with icons and a watching state. Reimplemented here against a
     different localization layer; the behavior, the icon choices, and the
     tooltip wording come from upstream.
+  - `08318d3` — rendering the checked-out branch label in bold. Reimplemented
+    here as a CSS rule on the existing `.active` ref class; the behavior comes
+    from upstream.
+  - `4607cdf` — handling commit context-menu actions on root (zero-parent)
+    commits. Reimplemented here in a different webview architecture; the
+    diagnosis and the `< 2` dispatch rule come from upstream.
+  - `0bf8812`, `0c8f1da` — retaining the webview panel when hidden
+    (`retainContextWhenHidden`) for instant tab restore, without
+    re-initializing the retained panel on re-show. Reimplemented here against
+    our panel lifecycle; the behavior and the retained-restore diagnosis come
+    from upstream.
+  - `e7d1f8a` — a dedicated view for repositories with no commits, including
+    hiding meaningless branch-selection controls. Reimplemented here in our
+    table/toolbar architecture; the behavior, the view's content, and the l10n
+    copy meaning come from upstream.
 
 The MIT license grants permission to sublicense, which allows this material to
 be incorporated into the AGPL-licensed whole. As the MIT license requires, its

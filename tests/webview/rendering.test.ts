@@ -513,6 +513,12 @@ describe("webview rendering", () => {
     const aliases = Array.from(group?.querySelectorAll<HTMLElement>(".gitRefAlias.remote") ?? []);
     expect(aliases.map((alias) => alias.textContent?.trim())).toEqual(["origin", "upstream"]);
     expect(aliases.map((alias) => alias.title)).toEqual(["origin/main", "upstream/main"]);
+    // Only the checked-out local segment carries the active (bold) class;
+    // the remote alias segments sharing its group never do.
+    expect(group?.querySelector(".gitRef.gitRefPrimary")?.classList.contains("active")).toBe(true);
+    for (const alias of aliases) {
+      expect(alias.classList.contains("active")).toBe(false);
+    }
     expect(document.querySelectorAll(".gitRefGroup")).toHaveLength(1);
     expect(document.querySelectorAll(".gitRef.tag")).toHaveLength(1);
 
@@ -523,6 +529,33 @@ describe("webview rendering", () => {
       type: "Branch Name",
       data: "origin/main"
     });
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("marks only the checked-out branch label as active beside other branches and tags", () => {
+    receiveLoadedCommits(
+      [
+        {
+          ...twoCommits[0],
+          refs: [
+            { hash: "abc123", name: "feature/topic", type: "head" },
+            { hash: "abc123", name: "main", type: "head" },
+            { hash: "abc123", name: "v1.0.0", type: "tag" }
+          ]
+        },
+        twoCommits[1]
+      ],
+      "abc123"
+    );
+
+    const activeRefs = document.querySelectorAll<HTMLElement>(".gitRef.active");
+    expect(activeRefs).toHaveLength(1);
+    expect(activeRefs[0]?.classList.contains("head")).toBe(true);
+    expect(activeRefs[0]?.textContent).toContain("main");
+    expect(gitRef("feature/topic", ".gitRef.head")?.classList.contains("active")).toBe(false);
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.classList.contains("active")).toBe(false);
+    expect(document.querySelectorAll(".gitRefGroup")).toHaveLength(0);
 
     receiveLoadedCommits(twoCommits, "abc123");
   });
@@ -2658,6 +2691,52 @@ describe("webview rendering", () => {
     });
 
     receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("cherry-picks and reverts a root commit through the plain confirmation dialog", () => {
+    const rootRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="def456"]');
+    expect(rootRow).not.toBeNull();
+    rootRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(contextMenuItem("Drop Commit")).toBeUndefined();
+    clickContextMenuItem("Cherry Pick");
+    expect(document.getElementById("dialogInput0")).toBeNull();
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "cherrypickCommit",
+      repo: REPO,
+      commitHash: "def456",
+      parentIndex: 0
+    });
+    dismissDialog();
+
+    rootRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Revert");
+    expect(document.getElementById("dialogInput0")).toBeNull();
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "revertCommit",
+      repo: REPO,
+      commitHash: "def456",
+      parentIndex: 0
+    });
+    dismissDialog();
+  });
+
+  it("keeps the single-parent cherry-pick on the plain confirmation path", () => {
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Cherry Pick");
+    expect(document.getElementById("dialogInput0")).toBeNull();
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "cherrypickCommit",
+      repo: REPO,
+      commitHash: "abc123",
+      parentIndex: 0
+    });
+    dismissDialog();
   });
 
   it("handles tag and non-current branch ref menu actions", () => {
