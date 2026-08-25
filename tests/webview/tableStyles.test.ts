@@ -79,6 +79,26 @@ describe("commit table styles", () => {
     expect(css).toContain("var(--vscode-list-activeSelectionBackground");
   });
 
+  it("renders a dedicated centered view for repositories with no commits", () => {
+    const row = css.match(/^\.noCommitsRow td \{[^}]+\}/m)?.[0] ?? "";
+    expect(row).toContain("text-align: center;");
+    expect(row).toContain("white-space: normal;");
+
+    const view = css.match(/^\.noCommitsView \{[^}]+\}/m)?.[0] ?? "";
+    expect(view).toContain("display: inline-flex;");
+    expect(view).toContain("flex-direction: column;");
+    expect(view).toContain("align-items: center;");
+
+    const icon = css.match(/^\.noCommitsView \.noCommitsIcon \{[^}]+\}/m)?.[0] ?? "";
+    expect(icon).toContain("var(--vscode-descriptionForeground, var(--ngg-neutral-icon))");
+
+    const hint = css.match(/^\.noCommitsView \.noCommitsHint \{[^}]+\}/m)?.[0] ?? "";
+    expect(hint).toContain("var(--vscode-descriptionForeground, var(--ngg-neutral-icon))");
+
+    // The generic filtered-to-nothing row must stay a separate surface.
+    expect(css).toMatch(/^\.emptyGraphRow td \{/m);
+  });
+
   it("mutes only the commit message of muted rows", () => {
     const muted = css.match(
       /#commitTable tr\.commit\.mutedCommit td:nth-child\(2\) \.commitMessage \{[^}]+\}/

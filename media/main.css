@@ -298,6 +298,33 @@ body.unableToLoad p {
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
   white-space: normal;
 }
+/* Dedicated empty state for a repository with zero commits, as opposed to the
+   generic emptyGraphRow a filter produces. */
+.noCommitsRow td {
+  text-align: center;
+  padding: 56px 8px;
+  white-space: normal;
+}
+.noCommitsView {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: min(480px, 90vw);
+}
+.noCommitsView .noCommitsIcon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 6px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+.noCommitsView .noCommitsHeading {
+  font-size: calc(var(--git-graph-font-size, 13px) + 2px);
+  font-weight: 600;
+}
+.noCommitsView .noCommitsHint {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
 /* Muted rows dim only the commit message, so the active first-parent ancestry
    stands out while branch and tag labels keep their full-contrast identity. */
 #commitTable tr.commit.mutedCommit td:nth-child(2) .commitMessage {

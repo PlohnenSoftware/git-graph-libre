@@ -8,6 +8,7 @@ export const svgIcons = {
   branch: octicon("git-branch"),
   copy: octicon("copy", "fileActionIcon copyIcon"),
   info: octicon("info"),
+  noCommits: octicon("git-commit", "noCommitsIcon"),
   tag: octicon("tag"),
   verified: octicon("verified", "signedTagIcon"),
   signedTag: octicon("verified", "signedTagIcon"),

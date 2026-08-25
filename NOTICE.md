@@ -42,6 +42,10 @@ This project descends from the MIT-licensed lineage of Git Graph:
     repository, with icons and a watching state. Reimplemented here against a
     different localization layer; the behavior, the icon choices, and the
     tooltip wording come from upstream.
+  - `e7d1f8a` — a dedicated view for repositories with no commits, including
+    hiding meaningless branch-selection controls. Reimplemented here in our
+    table/toolbar architecture; the behavior, the view's content, and the l10n
+    copy meaning come from upstream.
 
 The MIT license grants permission to sublicense, which allows this material to
 be incorporated into the AGPL-licensed whole. As the MIT license requires, its

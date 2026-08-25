@@ -39,6 +39,8 @@
   "ui.loading": "Ładowanie ...",
   "ui.loadMore": "Załaduj więcej commitów",
   "ui.emptyGraph": "Brak commitów do wyświetlenia dla tej gałęzi",
+  "ui.noCommits": "To repozytorium nie ma jeszcze żadnych commitów",
+  "ui.createFirstCommit": "Utwórz pierwszy commit, aby zobaczyć graf w tym miejscu",
   "ui.showAll": "Pokaż wszystko",
   "ui.filterPlaceholder": "Filtruj {0}...",
   "ui.noResultsFound": "Nie znaleziono wyników.",
