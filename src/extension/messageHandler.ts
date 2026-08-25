@@ -353,7 +353,7 @@ export function registerMessageHandlers(
   registerAction("addRemote", (msg) => addRemote(gitClient.getInstance(), msg, recordGitCommand));
   registerAction("addTag", (msg) => addTag(gitClient.getInstance(), msg, recordGitCommand));
   registerAction("deleteTag", (msg) => deleteTag(gitClient.getInstance(), msg, recordGitCommand));
-  registerAction("pushTag", (msg) => pushTag(gitClient.getInstance(), msg));
+  registerAction("pushTag", (msg) => pushTag(gitClient.getInstance(), msg, recordGitCommand));
   registerAction("fetchRemotes", (msg) =>
     fetchRemotes(gitClient.getInstance(), msg, recordGitCommand)
   );

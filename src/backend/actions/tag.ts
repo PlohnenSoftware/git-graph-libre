@@ -1,10 +1,12 @@
 import type { SimpleGit } from "simple-git";
+import { pushModeArg } from "@/backend/actions/branchRemote";
 import { deleteRemoteTag } from "@/backend/actions/tagRemote";
 import type { ActionPayload } from "@/backend/types";
 import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
 
 type AddTagInput = ActionPayload<"addTag"> & { repo?: string | null };
 type DeleteTagInput = ActionPayload<"deleteTag"> & { repo?: string | null };
+type PushTagInput = ActionPayload<"pushTag"> & { repo?: string | null };
 
 export async function addTag(
   git: SimpleGit,
@@ -56,6 +58,29 @@ export async function deleteTag(
   }
 }
 
-export async function pushTag(git: SimpleGit, input: ActionPayload<"pushTag">): Promise<void> {
-  await git.push("origin", input.tagName);
+export async function pushTag(
+  git: SimpleGit,
+  input: PushTagInput,
+  record?: GitCommandRecorder
+): Promise<void> {
+  if (input.remotes.length === 0) {
+    throw new Error(`No remotes were selected for pushing tag ${input.tagName}.`);
+  }
+
+  for (const remote of input.remotes) {
+    const args = ["push"];
+    const modeArg = pushModeArg(input.mode);
+    if (modeArg !== null) args.push(modeArg);
+    if (input.noVerify) args.push("--no-verify");
+    // Push the fully qualified refspec: a bare name is ambiguous when a branch
+    // and a tag share it (`src refspec <name> matches more than one`).
+    args.push(remote, `refs/tags/${input.tagName}`);
+    await runGitRaw(git, {
+      label: "tag.pushTag",
+      kind: "action",
+      args,
+      repo: input.repo ?? null,
+      record
+    });
+  }
 }

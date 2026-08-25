@@ -20,7 +20,7 @@ type TrackedBranch = {
   remoteBranch: string;
 };
 
-function pushModeArg(mode: GitPushBranchMode): string | null {
+export function pushModeArg(mode: GitPushBranchMode): string | null {
   if (mode === "normal") return null;
   if (mode === "force-with-lease") return "--force-with-lease";
   return "--force";

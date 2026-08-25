@@ -85,7 +85,12 @@ type ActionPayloads = {
     noVerify: boolean;
   };
   pushStash: { message: string; includeUntracked: boolean };
-  pushTag: { tagName: string };
+  pushTag: {
+    tagName: string;
+    remotes: string[];
+    mode: GitPushBranchMode;
+    noVerify: boolean;
+  };
   renameBranch: { oldName: string; newName: string };
   resetUncommittedChanges: { resetMode: Exclude<GitResetMode, "soft"> };
   resetFileToRevision: { commitHash: string; filePath: string };

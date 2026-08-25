@@ -1896,6 +1896,42 @@ Fix:
   `origin`, a repository with two remotes, and a branch/tag name collision that
   must still push the tag and leave the branch untouched.
 
+Implementation record (`2026-08-25`):
+
+- `ActionPayload<"pushTag">` now carries `{ tagName, remotes: string[],
+  mode: GitPushBranchMode, noVerify: boolean }` — the pushBranch shape minus
+  branch fields, reusing `GitPushBranchMode` (no second enum). `pushTag` was
+  reimplemented on `runGitRaw` (label `tag.pushTag`): rejects an empty
+  `remotes` array like `pushBranch`, loops over the selected remotes, and
+  pushes the fully-qualified `refs/tags/<name>` refspec. `pushModeArg` moved to
+  an export in `branchRemote.ts` so branch and tag pushes share one
+  mode→arg mapping; `--force-with-lease`/`--force`/`--no-verify` thread through
+  exactly as for branches. `messageHandler` passes `recordGitCommand` (closes
+  the pushTag half of BUG-6; the addTag half landed with BUG-3).
+- `showPushTagDialog()` now mirrors `showPushBranchDialog()`: no remotes →
+  silent return; single remote → plain confirmation sending
+  `remotes: [name]`; multiple remotes → checkbox form with the default checked
+  remote from `defaultPushRemoteName()` and an empty-selection error. Zero new
+  l10n keys — the branch dialog's remote labels carry no branch wording and
+  were reused.
+- Verified: independent verifier reproduced all three failure modes against
+  scratch repos (non-`origin` remote fatal under the old command; branch/tag
+  name collision "matches more than one" under the bare refspec; both succeed
+  with `refs/tags/` refspec, branch ref untouched; two-remote fan-out works)
+  and confirmed the recorded log line embeds `refs/tags/` args. Tests:
+  `push.test.ts` rewritten (7 cases incl. collision and two-remote subset),
+  webview rendering + messageHandler coverage for the dialog and the record
+  line (backend 46/329, webview 34/304).
+- Full gate green before commit: strict Biome, typecheck, lint, `test`,
+  `l10n:check` 100%, `package`, fresh coverage (80 files / 633 tests, 92.1%
+  lines), `sonar:scan` task `9e9165bf-e3be-4814-affa-ba11a5684594`, analysis
+  `ef1eaebc-ba59-4d2a-a411-0c5ce58bdf3e`: `ZAM` gate **`OK`** —
+  `new_coverage` `93.8%`, `new_duplicated_lines_density` `0.0`,
+  `new_violations` `2` (unchanged; this slice added 0), reliability and
+  security issues `0`. Note: a concurrent editor staged a `biome.jsonc`
+  `$schema` bump (2.5.2→2.5.5) mid-campaign; it was unstaged and left as a
+  working-tree change, and lint passes under either schema value.
+
 ### BUG-2 — The tag remote surface is a stub beside the branch remote surface
 
 **Status: open. Priority: high. Area: backend actions + webview. Depends on BUG-1.**
@@ -2289,7 +2325,7 @@ the entry or replacing it with a working equivalent.
 
 ### BUG-6 — Cross-cutting: tag actions bypass the command log
 
-**Status: open. Priority: medium. Area: backend actions + messageHandler.**
+**Status: fixed (`2026-08-25`). Priority: medium. Area: backend actions + messageHandler.**
 
 Rolled up from BUG-1 and BUG-3 because it is one mechanical change and should
 land with whichever of them goes first: `addTag` and `pushTag`
@@ -2301,6 +2337,13 @@ every tag creation and every tag push, which is also why this class of bug was
 invisible in earlier debugging. Phase 0.5 already sets the direction: new work
 uses explicit raw git commands through `gitRunner` and reduces high-level
 `simple-git` parser usage in code it touches.
+
+Resolution record (`2026-08-25`): `addTag` moved to `runGitRaw` with
+`recordGitCommand` in the BUG-3 slice; `pushTag` followed in the BUG-1 slice.
+All three tag actions (`addTag`, `pushTag`, `deleteTag`) now run through
+`runGitRaw` and reach the git-command log; the messageHandler routes pass
+`recordGitCommand` for each. Verified by the `tag.addTag`/`tag.pushTag`
+record-line assertions in the backend action and webview messageHandler tests.
 
 ### Suggested slice order
 

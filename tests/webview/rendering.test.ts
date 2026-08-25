@@ -149,6 +149,22 @@ const repoInfoWithRemote: GitRepoInfo = {
   ]
 };
 
+const repoInfoWithTwoRemotes: GitRepoInfo = {
+  ...repoInfoWithoutRemotes,
+  remotes: [
+    {
+      name: "origin",
+      fetchUrls: ["https://example.test/repo.git"],
+      pushUrls: ["https://example.test/repo.git"]
+    },
+    {
+      name: "upstream",
+      fetchUrls: ["https://example.test/upstream.git"],
+      pushUrls: ["https://example.test/upstream.git"]
+    }
+  ]
+};
+
 const repoInfoWithStash: GitRepoInfo = {
   ...repoInfoWithoutRemotes,
   stashes: [
@@ -3567,8 +3583,19 @@ describe("webview rendering", () => {
   });
 
   it("shows action status when a tag push starts", () => {
-    const tagRef = document.querySelector(".gitRef.tag");
-    expect(tagRef).not.toBeNull();
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithRemote,
+      error: null
+    });
+    receiveLoadedCommits(twoCommits, "abc123");
+
+    const tagRef = gitRef("v1.0.0", ".gitRef.tag");
+    expect(tagRef).not.toBeUndefined();
     tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
 
     const pushTagItem = Array.from(document.querySelectorAll("#contextMenu .contextMenuItem")).find(
@@ -3577,8 +3604,11 @@ describe("webview rendering", () => {
     expect(pushTagItem).not.toBeUndefined();
     pushTagItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
+    // A single remote needs no selection, so the dialog stays a plain
+    // confirmation with no form inputs.
     expect(document.querySelector("#dialog .dialogContent")).not.toBeNull();
     expect(document.querySelector("#dialog .dialogActions")).not.toBeNull();
+    expect(document.getElementById("dialogInput0")).toBeNull();
     expect(document.getElementById("dialogAction")?.classList.contains("dialogBtnPrimary")).toBe(
       true
     );
@@ -3591,7 +3621,10 @@ describe("webview rendering", () => {
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
       command: "pushTag",
       repo: REPO,
-      tagName: "v1.0.0"
+      tagName: "v1.0.0",
+      remotes: ["origin"],
+      mode: "normal",
+      noVerify: false
     });
     expect(document.getElementById("statusStrip")?.dataset.state).toBe("action");
     expect(document.getElementById("statusStrip")?.getAttribute("aria-busy")).toBe("true");
@@ -3602,6 +3635,76 @@ describe("webview rendering", () => {
     expect(document.getElementById("dialogDismiss")?.classList.contains("dialogBtnPrimary")).toBe(
       true
     );
+  });
+
+  it("opens no push tag dialog when the repository has no remotes", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithoutRemotes,
+      error: null
+    });
+    receiveLoadedCommits(twoCommits, "abc123");
+
+    const tagRef = gitRef("v1.0.0", ".gitRef.tag");
+    expect(tagRef).not.toBeUndefined();
+    vscodeMock.clearMessages();
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Push Tag");
+
+    expect(document.querySelector("#dialog .dialogContent")).toBeNull();
+    expect(vscodeMock.sentMessages.some((msg) => msg.command === "pushTag")).toBe(false);
+  });
+
+  it("sends the remotes checked in the push tag dialog", () => {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithTwoRemotes,
+      error: null
+    });
+    receiveLoadedCommits(twoCommits, "abc123");
+
+    const tagRef = gitRef("v1.0.0", ".gitRef.tag");
+    expect(tagRef).not.toBeUndefined();
+    tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Push Tag");
+
+    const pushToOrigin = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    const pushToUpstream = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    expect(pushToOrigin).not.toBeNull();
+    expect(pushToUpstream).not.toBeNull();
+    // The default remote (origin) is preselected; others are opt-in.
+    expect(pushToOrigin?.checked).toBe(true);
+    expect(pushToUpstream?.checked).toBe(false);
+    if (pushToUpstream !== null) pushToUpstream.checked = true;
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "pushTag",
+      repo: REPO,
+      tagName: "v1.0.0",
+      remotes: ["origin", "upstream"],
+      mode: "normal",
+      noVerify: false
+    });
+
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithoutRemotes,
+      error: null
+    });
+    receiveLoadedCommits(twoCommits, "abc123");
   });
 
   it("auto-loads more commits when scrolled to the bottom", () => {

@@ -1,5 +1,6 @@
 import * as cp from "node:child_process";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { git, makeRepo } from "@tests/backend/helpers";
 import {
@@ -162,6 +163,37 @@ describe("registerMessageHandlers", () => {
       error: null
     });
     expect(outputLines.some((line) => line.includes("tagDetails.info"))).toBe(true);
+  });
+
+  it("pushes a tag to the selected remote and records the git command", async () => {
+    const bare = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-push-bare-"));
+    try {
+      cp.execFileSync("git", ["init", "--bare", "-b", "main", bare]);
+      git(["remote", "add", "origin", bare], repo);
+      git(["tag", "v-push"], repo);
+      const { handlers, posts, outputLines } = registerHandlersForTest();
+
+      const handler = handlers.get("pushTag");
+      expect(handler).toBeDefined();
+      await handler?.({
+        command: "pushTag",
+        repo,
+        tagName: "v-push",
+        remotes: ["origin"],
+        mode: "normal",
+        noVerify: false
+      });
+
+      expect(posts[posts.length - 1]).toEqual({ command: "pushTag", status: null });
+      expect(cp.execFileSync("git", ["tag", "-l"], { cwd: bare }).toString().trim()).toBe("v-push");
+      expect(
+        outputLines.some(
+          (line) => line.includes("tag.pushTag") && line.includes("refs/tags/v-push")
+        )
+      ).toBe(true);
+    } finally {
+      fs.rmSync(bare, { recursive: true, force: true });
+    }
   });
 
   it("writes webview diagnostics to the output channel", async () => {

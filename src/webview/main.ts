@@ -3713,10 +3713,60 @@ class GitGraphView {
     );
   }
   private showPushTagDialog(refName: string) {
-    showConfirmationDialog(
-      l10n.dialogPushTagConfirm.replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`),
-      () => {
-        sendMessage({ command: "pushTag", repo: this.currentRepo, tagName: refName });
+    const remoteNames = this.getRemoteNames();
+    if (remoteNames.length === 0) return;
+
+    const message = l10n.dialogPushTagConfirm.replace(
+      "{0}",
+      `<b><i>${escapeHtml(refName)}</i></b>`
+    );
+    // With exactly one remote there is nothing to choose, so keep the plain
+    // confirmation; only the multi-remote case needs the checkbox form.
+    if (remoteNames.length === 1) {
+      showConfirmationDialog(
+        message,
+        () => {
+          sendMessage({
+            command: "pushTag",
+            repo: this.currentRepo,
+            tagName: refName,
+            remotes: [remoteNames[0]],
+            mode: "normal",
+            noVerify: false
+          });
+          showActionRunningDialog(l10n.pushingTag);
+        },
+        null
+      );
+      return;
+    }
+
+    const defaultRemote = this.defaultPushRemoteName(remoteNames);
+    const inputs: DialogInput[] = remoteNames.map((remote) => ({
+      type: "checkbox" as const,
+      name: l10n.dialogPushBranchRemote.replace("{0}", remote),
+      value: remote === defaultRemote
+    }));
+
+    showFormDialog(
+      message,
+      inputs,
+      l10n.pushTag,
+      (values) => {
+        const selectedRemotes = remoteNames.filter((_, index) => values[index] === "checked");
+        if (selectedRemotes.length === 0) {
+          showErrorDialog(l10n.dialogPushBranchNoRemoteSelected, null, null);
+          return;
+        }
+
+        sendMessage({
+          command: "pushTag",
+          repo: this.currentRepo,
+          tagName: refName,
+          remotes: selectedRemotes,
+          mode: "normal",
+          noVerify: false
+        });
         showActionRunningDialog(l10n.pushingTag);
       },
       null
