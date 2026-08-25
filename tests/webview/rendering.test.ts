@@ -2693,6 +2693,52 @@ describe("webview rendering", () => {
     receiveLoadedCommits(twoCommits, "abc123");
   });
 
+  it("cherry-picks and reverts a root commit through the plain confirmation dialog", () => {
+    const rootRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="def456"]');
+    expect(rootRow).not.toBeNull();
+    rootRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(contextMenuItem("Drop Commit")).toBeUndefined();
+    clickContextMenuItem("Cherry Pick");
+    expect(document.getElementById("dialogInput0")).toBeNull();
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "cherrypickCommit",
+      repo: REPO,
+      commitHash: "def456",
+      parentIndex: 0
+    });
+    dismissDialog();
+
+    rootRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Revert");
+    expect(document.getElementById("dialogInput0")).toBeNull();
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "revertCommit",
+      repo: REPO,
+      commitHash: "def456",
+      parentIndex: 0
+    });
+    dismissDialog();
+  });
+
+  it("keeps the single-parent cherry-pick on the plain confirmation path", () => {
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Cherry Pick");
+    expect(document.getElementById("dialogInput0")).toBeNull();
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "cherrypickCommit",
+      repo: REPO,
+      commitHash: "abc123",
+      parentIndex: 0
+    });
+    dismissDialog();
+  });
+
   it("handles tag and non-current branch ref menu actions", () => {
     const tagRef = gitRef("v1.0.0", ".gitRef.tag");
     expect(tagRef).not.toBeUndefined();

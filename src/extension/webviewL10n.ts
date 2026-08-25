@@ -37,6 +37,8 @@ export function getWebviewLocalizedStrings() {
     loading: l10n.t("ui.loading"),
     loadMore: l10n.t("ui.loadMore"),
     emptyGraph: l10n.t("ui.emptyGraph"),
+    noCommits: l10n.t("ui.noCommits"),
+    createFirstCommit: l10n.t("ui.createFirstCommit"),
     showAll: l10n.t("ui.showAll"),
     filterPlaceholder: l10n.t("ui.filterPlaceholder"),
     noResultsFound: l10n.t("ui.noResultsFound"),

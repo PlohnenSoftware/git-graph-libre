@@ -17,6 +17,7 @@ const ICON_NAMES = [
   "file-directory-open-fill",
   "gear",
   "git-branch",
+  "git-commit",
   "history",
   "info",
   "link-external",

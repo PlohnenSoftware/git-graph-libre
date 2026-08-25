@@ -41,6 +41,13 @@ export function createWebviewPanel(opts: {
   } = opts;
 
   const disposables: vscode.Disposable[] = [];
+  // The panel is created with `retainContextWhenHidden: true`, so the graph
+  // document — and every state the webview keeps inside it — stays alive while
+  // the panel is hidden, and re-showing it is instant. Re-assigning
+  // `panel.webview.html` destroys that document, so it is reserved for genuine
+  // document transitions: the initial build and leaving the static
+  // "no repositories" placeholder, which carries no script and can therefore
+  // neither hold state nor receive bridge messages.
   let isGraphViewLoaded = false;
   let isPanelVisible = true;
 
@@ -69,6 +76,24 @@ export function createWebviewPanel(opts: {
     isGraphViewLoaded = result.isGraphLoaded;
   }
 
+  // Bring a re-shown panel up to date without disturbing the retained
+  // document: push fresh repo and graph data over the bridge instead of
+  // rebuilding the HTML, which would reload the webview and drop its live
+  // state. Only the placeholder document is rebuilt, because it cannot
+  // receive messages.
+  function syncRetainedView() {
+    if (!isGraphViewLoaded) {
+      update();
+      return;
+    }
+    bridge.post({
+      command: "loadRepos",
+      repos: repoManager.getRepos(),
+      lastActiveRepo: extensionState.getLastActiveRepo()
+    });
+    bridge.post({ command: "refresh" });
+  }
+
   function dispose() {
     onDispose();
     panel.dispose();
@@ -88,7 +113,7 @@ export function createWebviewPanel(opts: {
       if (panel.visible !== isPanelVisible) {
         if (panel.visible) {
           onPanelShown();
-          update();
+          syncRetainedView();
         } else {
           repoFileWatcher.stop();
         }
@@ -102,15 +127,17 @@ export function createWebviewPanel(opts: {
   repoManager.registerViewCallback((repos: GitRepoSet, numRepos: number) => {
     if (!panel.visible) return;
     outputChannel?.appendLine(`[panel] repos update repos=${numRepos} graph=${isGraphViewLoaded}`);
-    if ((numRepos === 0 && isGraphViewLoaded) || (numRepos > 0 && !isGraphViewLoaded)) {
+    if (!isGraphViewLoaded && numRepos > 0) {
+      // The placeholder document cannot receive loadRepos, so the first
+      // discovered repository requires a document swap to mount the graph.
       update();
-    } else {
-      bridge.post({
-        command: "loadRepos",
-        repos,
-        lastActiveRepo: extensionState.getLastActiveRepo()
-      });
+      return;
     }
+    bridge.post({
+      command: "loadRepos",
+      repos,
+      lastActiveRepo: extensionState.getLastActiveRepo()
+    });
   });
 
   return {

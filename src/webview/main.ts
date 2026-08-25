@@ -265,6 +265,10 @@ class GitGraphView {
   private readonly findSearchHistoryBtn: HTMLButtonElement;
   private readonly fetchBtn: HTMLButtonElement;
   private readonly pushTagsBtn: HTMLButtonElement;
+  private readonly branchControlElem: HTMLElement;
+  private readonly authorControlElem: HTMLElement;
+  private readonly tagControlElem: HTMLElement;
+  private readonly showRemoteBranchesControlElem: HTMLElement;
   private readonly settingsBtn: HTMLButtonElement;
   private readonly settingsWidgetBackingElem: HTMLElement;
   private readonly settingsWidgetElem: HTMLElement;
@@ -382,6 +386,10 @@ class GitGraphView {
     this.findSearchHistoryBtn = requireElement<HTMLButtonElement>("findSearchHistoryBtn");
     this.fetchBtn = requireElement<HTMLButtonElement>("fetchBtn");
     this.pushTagsBtn = requireElement<HTMLButtonElement>("pushTagsBtn");
+    this.branchControlElem = requireElement("branchControl");
+    this.authorControlElem = requireElement("authorControl");
+    this.tagControlElem = requireElement("tagControl");
+    this.showRemoteBranchesControlElem = requireElement("showRemoteBranchesControl");
     this.settingsBtn = requireElement<HTMLButtonElement>("settingsBtn");
     this.settingsWidgetBackingElem = requireElement("settingsWidgetBacking");
     this.settingsWidgetElem = requireElement("settingsWidget");
@@ -588,6 +596,14 @@ class GitGraphView {
     this.pushTagsBtn.disabled = !hasRemotes;
   }
 
+  private updateNoCommitsControls() {
+    const hide = this.isNoCommitsRepository();
+    this.branchControlElem.hidden = hide;
+    this.authorControlElem.hidden = hide;
+    this.tagControlElem.hidden = hide;
+    this.showRemoteBranchesControlElem.hidden = hide;
+  }
+
   private acceptLoadRepoInfoResponse(requestId: number) {
     if (this.activeLoadRepoInfoRequestId !== requestId) return false;
     this.activeLoadRepoInfoRequestId = null;
@@ -648,6 +664,7 @@ class GitGraphView {
     this.saveState();
 
     this.updateFilterDropdowns();
+    this.updateNoCommitsControls();
 
     this.triggerLoadBranchesCallback(true, isRepo);
   }
@@ -2606,6 +2623,7 @@ class GitGraphView {
     setStatusStrip("ready", l10n.statusReady);
     this.recomputeFindMatches(preferredFindHash);
     this.updateFindUi();
+    this.updateNoCommitsControls();
     this.renderTable();
     this.renderGraph();
   }
@@ -2642,6 +2660,24 @@ class GitGraphView {
     // avoid regex backtracking hotspots over unbounded text.
     return this.trimTrailingLineFeeds(message.replaceAll("\r\n", "\n"));
   }
+  private isNoCommitsRepository() {
+    // A repository genuinely has no commits only when nothing is loaded, HEAD
+    // resolved to no commit, and no branch refs exist. Filters can empty the
+    // commit list but never the HEAD hash or the branch list, so a
+    // filtered-to-nothing view keeps the generic emptyGraph row; the one other
+    // null-HEAD case (an unborn orphan branch in a repo with other branches)
+    // is excluded by the branch list being non-empty.
+    return this.commits.length === 0 && this.commitHead === null && this.gitBranches.length === 0;
+  }
+  private renderNoCommitsRow() {
+    return (
+      `<tr class="noCommitsRow"><td colspan="6"><div class="noCommitsView">` +
+      svgIcons.noCommits +
+      `<div class="noCommitsHeading">${l10n.noCommits}</div>` +
+      `<div class="noCommitsHint">${l10n.createFirstCommit}</div>` +
+      `</div></td></tr>`
+    );
+  }
   private renderTable() {
     let html = this.renderTableHeader();
     const currentHash = this.getCurrentDisplayHash();
@@ -2658,7 +2694,12 @@ class GitGraphView {
       );
     }
     if (this.commits.length === 0) {
-      html += `<tr class="emptyGraphRow"><td colspan="6">${l10n.emptyGraph}</td></tr>`;
+      // The uncommitted-changes row is part of the commit list, so whenever it
+      // exists the loop above renders it and this empty-table branch is
+      // skipped; the dedicated view never replaces a rendered row.
+      html += this.isNoCommitsRepository()
+        ? this.renderNoCommitsRow()
+        : `<tr class="emptyGraphRow"><td colspan="6">${l10n.emptyGraph}</td></tr>`;
     }
     this.tableElem.innerHTML = `<table>${html}</table>`;
     this.renderLoadMoreFooter();
@@ -2803,6 +2844,10 @@ class GitGraphView {
     const commitIndex = this.commitLookup[hash];
     const commit = typeof commitIndex === "number" ? this.commits[commitIndex] : null;
     const isHeadCommit = hash === this.commitHead;
+    // Drop runs `git rebase --onto <hash>^ <hash>`, so the commit must have a
+    // parent: `<root>^` is not a valid revision. Root commits are therefore
+    // excluded from Drop, and merges are excluded because rebase replays both
+    // merged sides linearized.
     const canDropCommit = commit !== null && commit.parentHashes.length === 1;
     const menu = this.buildCommitCreateMenuItems(hash, sourceElem);
     const compareWithHeadItem = this.buildCompareWithHeadMenuItem(hash, sourceElem);
@@ -3109,7 +3154,11 @@ class GitGraphView {
   ) {
     const title = titleTemplate.replace("{0}", `<b><i>${this.displayHash(hash)}</i></b>`);
     const parentHashes = this.commits[this.commitLookup[hash]].parentHashes;
-    if (parentHashes.length === 1) {
+    // Root commits (zero parents) take the same plain path as single-parent
+    // commits: parentIndex 0 sends no `-m` mainline flag, and git handles a
+    // root natively in plain `git cherry-pick <hash>` / `git revert <hash>`.
+    // Only merges (2+ parents) need the parent-selection dialog.
+    if (parentHashes.length < 2) {
       showConfirmationDialog(
         title,
         () => this.sendParentCommitAction(command, hash, 0),
