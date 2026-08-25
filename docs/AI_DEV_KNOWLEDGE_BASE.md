@@ -2237,7 +2237,7 @@ guess at a fix for it.
 
 ### BUG-5 — The "watching" eye status bar item can never appear
 
-**Status: open. Priority: high. Area: extension manifest. Decision made
+**Status: fixed (`2026-08-25`). Priority: high. Area: extension manifest. Decision made
 (`2026-08-25`): restore `onStartupFinished`.**
 
 The maintainer's report and the borrowed-icon verification are the same bug, so
@@ -2322,6 +2322,46 @@ repository but which contains one in a subfolder never activates the extension
 either. Confirm this against a real VS Code instance (open a folder containing
 only `sub/repo/.git` and watch the extension host log) before either deleting
 the entry or replacing it with a working equivalent.
+
+Implementation record (`2026-08-25`):
+
+- `onStartupFinished` is back as the first `activationEvents` entry; the
+  negative manifest assertion was replaced with a positive one carrying the
+  rationale comment, and the no-`onCommand:` assertion stayed.
+- **The secondary finding was confirmed and the dead glob removed in the same
+  slice.** Against real VS Code `1.134.0` (variant extension copy without
+  `onStartupFinished`, isolated profiles): a workspace whose root is not a repo
+  but which holds `sub/repo/.git` never activated under default settings — and
+  still never activated with `files.exclude`'s `**/.git` un-excluded, so the
+  mechanism is deeper than `files.exclude`: VS Code's file search hard-excludes
+  `.git` directories. The control (`.git` at workspace root) activated via the
+  non-glob `workspaceContains:.git`, proving the variant was functional.
+  `workspaceContains:**/.git` is therefore removed; the manifest test now
+  asserts its absence with this evidence recorded in a comment.
+- `src/statusBarItem.ts` untouched. Coverage added on two levels: the unit test
+  locks construction → `show()` → `$(eye)` at zero repos and the
+  `setNumRepos(1)` → `$(type-hierarchy)` flip; a new extension-host launch in
+  `.vscode-test.mjs` (`non-git-workspace`, fixture without `.git`) asserts the
+  extension activates at startup, which future activation-scoping changes
+  cannot silently break. Real-VS-Code hand verification: exthost log shows
+  `activationEvent: 'onStartupFinished'` in a no-git folder, and `git init`
+  plus a first commit flipped the watcher path (`addRepo → saveRepos →
+  sendRepos → setNumRepos(1)` evidenced by the persisted repo state) without a
+  window reload.
+- Observation for the maintainer (not fixed here): the manifest declares no
+  `capabilities.untrustedWorkspaces`, so in an untrusted workspace VS Code
+  disables the extension entirely — the eye cannot appear there regardless of
+  activation events. Also noted: `tests/extension/workspaceWatcher` host test
+  waits only 10ms for a watcher callback and flaked once under VS Code cold
+  start (clean on re-run); a future slice should raise that wait like its
+  sibling test's 500ms.
+- Full gate green before commit: strict Biome, typecheck, lint, `test`
+  (backend 46/330, webview 34/304), `test:ext` both launches (49/49 + 1/1),
+  `l10n:check` 100%, `package`, fresh coverage (80 files / 634 tests, 92.1%
+  lines), `sonar:scan` task `8b6e8aee-fa38-42c9-8105-8670f72e18e2`, analysis
+  `1419ad8f-c7d5-4b78-875b-28f930c23f1b`: `ZAM` gate **`OK`** —
+  `new_coverage` `93.8%`, `new_duplicated_lines_density` `0.0`,
+  `new_violations` `2` (slice added 0), reliability and security `0`.
 
 ### BUG-6 — Cross-cutting: tag actions bypass the command log
 

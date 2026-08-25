@@ -14,17 +14,15 @@ type FakeStatusBarItem = {
 };
 
 const state = vi.hoisted(() => ({
-  item: null as
-    | null
-    | {
-        name?: string;
-        command?: string;
-        text?: string;
-        tooltip?: string;
-        show: ReturnType<typeof vi.fn>;
-        hide: ReturnType<typeof vi.fn>;
-        dispose: ReturnType<typeof vi.fn>;
-      },
+  item: null as null | {
+    name?: string;
+    command?: string;
+    text?: string;
+    tooltip?: string;
+    show: ReturnType<typeof vi.fn>;
+    hide: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+  },
   alignment: undefined as unknown,
   priority: undefined as unknown
 }));
@@ -107,6 +105,20 @@ describe("status bar item", () => {
     const { item, fake } = await createItem(true);
 
     item.setNumRepos(3);
+
+    expect(fake.text).toBe("$(type-hierarchy) statusBar.text");
+    expect(fake.tooltip).toBe("statusBar.tooltip");
+    expect(fake.show).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the eye from construction with zero repos and flips on the first repo", async () => {
+    const { item, fake } = await createItem(true);
+
+    expect(fake.text).toBe("$(eye) statusBar.text");
+    expect(fake.show).toHaveBeenCalledTimes(1);
+    expect(fake.hide).not.toHaveBeenCalled();
+
+    item.setNumRepos(1);
 
     expect(fake.text).toBe("$(type-hierarchy) statusBar.text");
     expect(fake.tooltip).toBe("statusBar.tooltip");

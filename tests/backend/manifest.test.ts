@@ -32,19 +32,28 @@ function readManifest(): PackageManifest {
 }
 
 describe("extension manifest", () => {
-  it("uses scoped activation events instead of startup activation", () => {
+  it("activates at startup as well as in Git workspaces", () => {
     const manifest = readManifest();
     const commands = manifest.contributes.commands.map((command) => command.command);
 
-    expect(manifest.activationEvents).not.toContain("onStartupFinished");
+    // The extension deliberately activates at startup (as upstream Git Graph does)
+    // so that activate() runs in a non-Git workspace too: the StatusBarItem is
+    // created with numRepos === 0 and shows the watching eye while the repo
+    // watcher waits for a repository to appear. Without onStartupFinished the
+    // workspaceContains events can never fire in a folder with no .git, and the
+    // status bar item cannot exist.
+    expect(manifest.activationEvents).toContain("onStartupFinished");
     expect(manifest.activationEvents).toContain("workspaceContains:.git");
-    expect(manifest.activationEvents).toContain("workspaceContains:**/.git");
+    // workspaceContains:**/.git was removed (verified 2026-08-25 against real
+    // VS Code 1.134.0): a glob-bearing workspaceContains resolves through VS
+    // Code's file search, which hard-excludes .git directories (even with
+    // files.exclude's **/.git un-excluded), so the event never fires. Only the
+    // non-glob root check contributes, and onStartupFinished covers the rest.
+    expect(manifest.activationEvents).not.toContain("workspaceContains:**/.git");
     // VS Code generates onCommand activation for contributed commands since 1.74,
     // so listing them in activationEvents would only duplicate the manifest.
     expect(commands.length).toBeGreaterThan(0);
-    expect(manifest.activationEvents.filter((event) => event.startsWith("onCommand:"))).toEqual(
-      []
-    );
+    expect(manifest.activationEvents.filter((event) => event.startsWith("onCommand:"))).toEqual([]);
   });
 
   it("contributes bounded graph density settings", () => {
