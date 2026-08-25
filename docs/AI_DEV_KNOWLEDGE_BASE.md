@@ -1828,6 +1828,16 @@ one per feature, gated and pushed, for the maintainer to pick from**:
 | `upstream/bold-current-branch` | `08318d3` | Checked-out branch label renders semibold (`.gitRef.active { font-weight: 600 }`); aliases/tags unaffected | `f7b190a`, pushed, ZAM `OK` (task `b1a0962b`, `new_violations` 0) |
 | `upstream/retain-panel` | `0bf8812` + `0c8f1da` | `retainContextWhenHidden` on the graph panel; re-show posts `loadRepos`+`refresh` over the bridge instead of reassigning `webview.html` (which would drop the retained document) | `ce1b143`, pushed, ZAM `OK` (task `cec3c2c3`, `new_violations` 0) |
 | `upstream/no-commits-view` | `e7d1f8a` | Dedicated zero-commit view (icon + heading + create-first-commit hint; signal `commits empty && commitHead null && branches empty` so filters cannot fake it) and hidden branch/tag/author/remote-branch controls while it shows | `105a6ec`, pushed, ZAM `OK` (task `986e261d`, analysis `92deacb2`, `new_violations` 0). Landed after a ~35 min Sonar outage on `2026-08-25`; per the no-server rule the commit waited for a healthy gate — fresh coverage was regenerated and the scan re-run after recovery. |
+| _(no branch — applied directly)_ | `750f96f` | Release workflow publishes with the official `vsce` CLI (`vsce publish --packagePath --skip-duplicate`, `VSCE_PAT`) instead of the third-party `HaaLeo/publish-vscode-extension` action; sub-actions pinned to exact releases | Applied on `2026-08-25` at maintainer request. **Open VSX deliberately not taken** — upstream's companion `ovsx publish` step and its `ovsx` dependency are excluded; this project publishes to the VS Marketplace only. `pnpm-workspace.yaml` was left alone: upstream's `allowBuilds` rewrite is a pnpm-config change, and our `onlyBuiltDependencies` list already covers the live `@vscode/vsce-sign`/`keytar`/`esbuild` builds. |
+
+**CI note (`2026-08-25`).** The publish step no longer uses a third-party
+action. Two properties of the surrounding workflow are load-bearing and must
+survive future edits: the `Check marketplace token` step exists because the
+`secrets` context is not available to a step-level `if`, and the VSIX is
+discovered by glob and carried through `steps.package.outputs.vsix` so the
+GitHub release asset keeps its versioned filename rather than upstream's flat
+`extension.vsix`. `--skip-duplicate` makes a re-run for an already-published
+version a no-op instead of a failure.
 
 **Maintainer reversal of `2026-08-25`: `upstream/bold-current-branch` is
 rejected.** Bolding must apply to the commit **description** only, never to

@@ -60,6 +60,14 @@ This project descends from the MIT-licensed lineage of Git Graph:
     hiding meaningless branch-selection controls. Reimplemented here in our
     table/toolbar architecture; the behavior, the view's content, and the l10n
     copy meaning come from upstream.
+  - `750f96f` — publishing the extension with the official `vsce` CLI instead
+    of the third-party `HaaLeo/publish-vscode-extension` action. Reimplemented
+    here inside our own release workflow, which packages, creates the GitHub
+    release, and gates the publish on token presence; the decision to drop the
+    third-party action, the `vsce publish --packagePath --skip-duplicate`
+    invocation, and the `VSCE_PAT` wiring come from upstream. Upstream's
+    companion Open VSX publish step was deliberately **not** taken — this
+    project publishes to the VS Marketplace only.
 
 The MIT license grants permission to sublicense, which allows this material to
 be incorporated into the AGPL-licensed whole. As the MIT license requires, its

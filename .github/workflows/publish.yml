@@ -14,10 +14,10 @@ jobs:
     name: Package, release, and publish
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: 24
 
@@ -63,11 +63,18 @@ jobs:
             echo "::notice::VS_MARKETPLACE_TOKEN is not set; skipping marketplace publish."
           fi
 
+      # Published with the official `vsce` CLI (a devDependency) rather than a
+      # third-party action, so the publish path is the one Microsoft supports
+      # and the version is pinned by our lockfile. `--packagePath` republishes
+      # the exact VSIX attached to the release above instead of repackaging,
+      # and `--skip-duplicate` makes re-running the workflow for an existing
+      # version a no-op instead of a failure.
+      #
+      # Deliberately Marketplace-only: this project does not publish to
+      # Open VSX, so there is no `ovsx` step and no `ovsx` dependency.
       - name: Publish to VS Marketplace
         if: steps.marketplace.outputs.configured == 'true'
-        uses: HaaLeo/publish-vscode-extension@v2
-        with:
-          pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
-          registryUrl: https://marketplace.visualstudio.com
-          extensionFile: ${{ steps.package.outputs.vsix }}
-          dependencies: false
+        env:
+          VSCE_PAT: ${{ secrets.VS_MARKETPLACE_TOKEN }}
+          VSIX: ${{ steps.package.outputs.vsix }}
+        run: pnpm exec vsce publish --packagePath "$VSIX" --skip-duplicate
