@@ -122,6 +122,15 @@ describe("RepoFileWatcher", () => {
     expect(callback).toHaveBeenCalledTimes(1);
   });
 
+  it("creates no watchers for an empty repo path", () => {
+    const { watcher, watcherHandles } = createHarness();
+
+    watcher.start("");
+
+    expect(watcherHandles).toEqual([]);
+    watcher.stop();
+  });
+
   it("clears pending refreshes when stopped", async () => {
     const { watcher, watcherHandles, callback } = createHarness();
     watcher.start("/repo");
