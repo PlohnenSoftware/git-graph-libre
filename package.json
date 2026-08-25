@@ -8,11 +8,28 @@
     "Visualization"
   ],
   "keywords": [
+    "action",
     "branch",
+    "cherry-pick",
+    "commit",
+    "devcontainer",
+    "diff",
     "git",
     "git graph",
+    "git graph libre",
     "git history",
-    "git log"
+    "git log",
+    "github",
+    "graph",
+    "merge",
+    "push",
+    "repository",
+    "revert",
+    "scm",
+    "stash",
+    "tag",
+    "version control",
+    "visualize"
   ],
   "homepage": "https://github.com/PlohnenSoftware/git-graph-libre",
   "bugs": {

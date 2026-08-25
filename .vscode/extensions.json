@@ -4,6 +4,7 @@
   "recommendations": [
     "biomejs.biome",
     "connor4312.esbuild-problem-matchers",
-    "ms-vscode.extension-test-runner"
+    "ms-vscode.extension-test-runner",
+    "plohnensoftware.git-graph-libre"
   ]
 }
