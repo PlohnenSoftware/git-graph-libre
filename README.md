@@ -117,7 +117,10 @@ third-party analytics provider.
 File names, file paths, workspace or folder names, repository names, git remote
 URLs, branch names, tag names, commit hashes, commit messages, author names,
 email addresses, environment variables, credentials, or your list of installed
-extensions. The receiving service stores no IP addresses.
+extensions. The receiving service stores no information which would be used to track deanonymize user. Only saved data is mentioned in section above.
+
+**Important**
+Even though I believe this data could help me to allocate my time better and I find it useful,I prioritize users so please only accept telemetry if you feel comfortable with it. This is also a reason why extention requests your action to take a educated decision about it.
 
 **Nothing is sent until you say so**
 
