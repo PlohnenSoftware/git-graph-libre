@@ -28,7 +28,22 @@
     }
   },
   "common": {
-    "comment": "Visual Studio Code injects a fixed set of common properties into every event above (extension name and version, VS Code version and product, operating system, architecture, UI kind, remote name, machine and session identifiers). These are documented by VS Code itself and are not collected by this extension directly.",
+    "comment": "Visual Studio Code injects a fixed set of common properties into every event above: extension name and version, VS Code version, commit hash and release date, product and UI kind, remote name, whether this is a new installation, and anonymized machine, session, SQM and device identifiers. Those are generated and documented by VS Code itself and are not collected by this extension directly. VS Code does not inject anything describing the operating system, so this extension supplies the three properties below through createTelemetryLogger's additionalCommonProperties; they will be dropped again if VS Code starts injecting them.",
+    "common.os": {
+      "classification": "SystemMetaData",
+      "purpose": "FeatureInsight",
+      "comment": "The operating system family, as Node reports it: 'linux', 'darwin', 'win32', and so on. A fixed identifier from a short list, used to tell which platforms the features people use are actually used on."
+    },
+    "common.nodearch": {
+      "classification": "SystemMetaData",
+      "purpose": "FeatureInsight",
+      "comment": "The processor architecture, as Node reports it, for example 'x64' or 'arm64'. A fixed identifier from a short list."
+    },
+    "common.platformversion": {
+      "classification": "SystemMetaData",
+      "purpose": "FeatureInsight",
+      "comment": "The numeric part of the operating system version only, for example '7.2.2' or '10.0.22631'. Any build or distribution suffix is stripped before sending, because that suffix is the identifying part and is of no use for ranking features."
+    },
     "notCollected": "This extension never sends file names, file paths, workspace or folder names, repository names, git remote URLs, branch names, tag names, commit hashes, commit messages, author names, email addresses, environment variables, credentials, or the list of other installed extensions. No IP address is stored by the receiving service."
   }
 }

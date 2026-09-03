@@ -19,6 +19,7 @@ import * as vscode from "vscode";
 import type { Config } from "@/config";
 import type { Logger } from "@/extension/utils/logger";
 
+import { buildAdditionalCommonProperties } from "./commonProperties";
 import { TELEMETRY_ENDPOINT } from "./endpoint";
 import { createTelemetrySender } from "./sender";
 
@@ -66,7 +67,13 @@ export function createTelemetryReporter(options: TelemetryReporterOptions): Tele
   // without it VS Code routes every unhandled extension-host error into the
   // sender, and the ingest accepts only `activate` and `feature`. The two
   // settings have to change together.
-  const logger = vscode.env.createTelemetryLogger(sender, { ignoreUnhandledErrors: true });
+  //
+  // additionalCommonProperties fills the three environment properties VS Code
+  // does not inject; see commonProperties.ts for the removal condition.
+  const logger = vscode.env.createTelemetryLogger(sender, {
+    ignoreUnhandledErrors: true,
+    additionalCommonProperties: buildAdditionalCommonProperties()
+  });
 
   function enabled(): boolean {
     return options.config.telemetryEnabled();
