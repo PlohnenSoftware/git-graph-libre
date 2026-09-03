@@ -25,8 +25,7 @@ describe("addTag", () => {
     await addTag(simpleGit(repo), {
       tagName: "v1.0-lw",
       commitHash,
-      lightweight: true,
-      message: ""
+      lightweight: true
     });
 
     const tagName = cp
@@ -51,13 +50,48 @@ describe("addTag", () => {
     expect(tagType).toBe("tag");
   });
 
+  it("creates an annotated tag without a message", async () => {
+    const records: GitCommandRecord[] = [];
+    await addTag(
+      simpleGit(repo),
+      {
+        tagName: "v1.0-empty",
+        commitHash,
+        lightweight: false
+      },
+      (entry) => records.push(entry)
+    );
+
+    const tagType = cp
+      .execFileSync("git", ["cat-file", "-t", "v1.0-empty"], { cwd: repo })
+      .toString()
+      .trim();
+    expect(tagType).toBe("tag");
+    expect(records.at(-1)?.args).toEqual(["tag", "-a", "v1.0-empty", "-m", "", commitHash]);
+  });
+
+  it("rejects a message for a lightweight tag", async () => {
+    await expect(
+      addTag(simpleGit(repo), {
+        tagName: "v1.0-invalid-lightweight",
+        commitHash,
+        lightweight: true,
+        message: "Not allowed"
+      })
+    ).rejects.toThrow("Lightweight tags cannot have a message.");
+
+    const tagName = cp
+      .execFileSync("git", ["tag", "-l", "v1.0-invalid-lightweight"], { cwd: repo })
+      .toString();
+    expect(tagName).toBe("");
+  });
+
   it("throws when the tag already exists", async () => {
     await expect(
       addTag(simpleGit(repo), {
         tagName: "v1.0-lw",
         commitHash,
-        lightweight: true,
-        message: ""
+        lightweight: true
       })
     ).rejects.toThrow();
   });
@@ -67,8 +101,7 @@ describe("addTag", () => {
       addTag(simpleGit(repo), {
         tagName: "v2.0",
         commitHash: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-        lightweight: true,
-        message: ""
+        lightweight: true
       })
     ).rejects.toThrow();
   });
@@ -126,8 +159,7 @@ describe("addTag under tag.gpgsign=true", () => {
         repo: gpgRepo,
         tagName: "lw-gpgsign",
         commitHash: gpgCommitHash,
-        lightweight: true,
-        message: ""
+        lightweight: true
       },
       recordCommand
     );

@@ -2580,8 +2580,7 @@ describe("webview rendering", () => {
       repo: REPO,
       tagName: "v2.0.0",
       commitHash: "abc123",
-      lightweight: true,
-      message: ""
+      lightweight: true
     });
 
     openHeadCommitContextMenu();
@@ -2622,22 +2621,13 @@ describe("webview rendering", () => {
     dismissDialog();
   });
 
-  it("rejects an empty annotated tag message instead of creating an empty tag object", () => {
+  it("allows an annotated tag without a message", () => {
     openHeadCommitContextMenu();
     clickContextMenuItem("Add Tag");
     setDialogInput("v3.0.0");
 
-    const messagesBefore = vscodeMock.sentMessages.length;
-    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
-    const messagesAfter = vscodeMock.sentMessages.slice(messagesBefore);
-    expect(messagesAfter.filter((message) => message.command === "addTag")).toHaveLength(0);
-    expect(messagesAfter).toHaveLength(0);
-    expect(document.getElementById("dialog")?.className).toBe("active noInput");
-
-    const tagMessage = document.getElementById("dialogInput2") as HTMLInputElement | null;
-    if (tagMessage === null) throw new Error("Missing tag message input");
-    tagMessage.value = "Release";
-    tagMessage.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+    const messageLabel = document.querySelector("#dialogInputRow2 td")?.textContent;
+    expect(messageLabel).toBe("Message (Optional)");
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
 
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
@@ -2646,7 +2636,7 @@ describe("webview rendering", () => {
       tagName: "v3.0.0",
       commitHash: "abc123",
       lightweight: false,
-      message: "Release"
+      message: ""
     });
   });
 

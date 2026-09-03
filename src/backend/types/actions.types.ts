@@ -8,7 +8,10 @@ export type GitConfigScope = (typeof GIT_CONFIG_SCOPES)[number];
 
 type ActionPayloads = {
   addRemote: { name: string; fetchUrl: string; pushUrl: string | null; fetch: boolean };
-  addTag: { tagName: string; commitHash: string; lightweight: boolean; message: string };
+  addTag: { tagName: string; commitHash: string } & (
+    | { lightweight: true; message?: never }
+    | { lightweight: false; message?: string }
+  );
   applyStash: { selector: string; reinstateIndex: boolean };
   branchFromStash: { selector: string; branchName: string };
   checkoutBranch: { branchName: string; remoteBranch: string | null };

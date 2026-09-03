@@ -4,7 +4,11 @@ import { deleteRemoteTag } from "@/backend/actions/tagRemote";
 import type { ActionPayload } from "@/backend/types";
 import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
 
-type AddTagInput = ActionPayload<"addTag"> & { repo?: string | null };
+type AddTagInput = Pick<ActionPayload<"addTag">, "tagName" | "commitHash"> & {
+  lightweight: boolean;
+  message?: string;
+  repo?: string | null;
+};
 type DeleteTagInput = ActionPayload<"deleteTag"> & { repo?: string | null };
 type PushTagInput = ActionPayload<"pushTag"> & { repo?: string | null };
 type PushAllTagsInput = ActionPayload<"pushAllTags"> & { repo?: string | null };
@@ -16,6 +20,9 @@ export async function addTag(
 ): Promise<void> {
   const args: string[] = [];
   if (input.lightweight) {
+    if ("message" in input) {
+      throw new Error("Lightweight tags cannot have a message.");
+    }
     // `--no-sign` is a correctness guard for "lightweight means lightweight":
     // a lightweight tag is a plain ref with no tag object, so it can never be
     // signed. Without the flag, a `tag.gpgsign = true` git config silently
@@ -27,8 +34,10 @@ export async function addTag(
     args.push("--no-sign", input.tagName);
   } else {
     // `-m` is load-bearing: it is what guarantees git never opens
-    // `core.editor` to collect a tag message.
-    args.push("-a", input.tagName, "-m", input.message);
+    // `core.editor` to collect a tag message. Git accepts an empty `-m`, so
+    // annotated tags can omit their optional message without becoming
+    // interactive.
+    args.push("-a", input.tagName, "-m", input.message ?? "");
   }
   args.push(input.commitHash);
   await runGitRaw(git, {

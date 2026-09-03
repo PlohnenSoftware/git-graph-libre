@@ -308,6 +308,9 @@ The extension is already split into clean layers:
   the 1.4.0 line. The first 1.4.0 analysis uses fresh coverage from the completed
   working tree, and the gate window will report `1.3.0` until the following
   advance — that is the definition working as intended, not drift.
+- On `2026-09-03` both versions advanced to `1.4.1` for the annotated-tag
+  empty-message bug fix. This opens a patch-release analysis epoch for the
+  changed tag request, backend action, and dialog behavior.
 - The project uses the maintainer's `ZAM` quality gate, and **not all of its
   conditions are scoped to new code**. As of `2026-07-29` it has six conditions:
   `new_duplicated_lines_density` at most `1` and `new_violations` at most `3` on
@@ -2354,6 +2357,24 @@ Implementation record (`2026-08-25`):
   (breaking CSS assertions); the tree was restored to HEAD plus the slice's
   genuine 8-line `.dialogFormNote` addition and the whole gate was re-run
   cleanly. Watch for concurrent editors touching this tree during gates.
+
+Follow-up (`2026-09-03`): the maintainer reversed the empty-message part of the
+decision after a user reported that annotated tags could not be created without
+a message. An annotated tag's message is optional: the dialog labels it as such
+and the backend deliberately passes `-m ""` when it is omitted, keeping tag
+creation non-interactive. A lightweight tag still cannot carry a message; its
+typed request omits the field and the backend rejects a message-bearing payload.
+This fix is the `1.4.1` patch release.
+
+Verification (`2026-09-03`): strict Biome passed on the six touched TypeScript
+files; `pnpm run package` passed (typecheck, full lint, production builds);
+`pnpm run test` passed (`54` backend files / `413` tests and `42` webview files /
+`411` tests); `pnpm run l10n:check` remained at `100%` for all five languages;
+and fresh `pnpm run test:coverage` passed (`96` files / `824` tests). SonarQube
+task `72db4409-bd97-4858-a48f-bd40c31c614b`, analysis
+`56894c64-9e4c-473e-b6f6-79c670b8e9ff`, passed the `ZAM` gate: new coverage
+`100.0%`, duplication `0.0%`, new violations `0`, maintainability rating `1`,
+and reliability/security issues `0`.
 
 ### BUG-4 — Branch and tag labels turn gray on every merge commit
 

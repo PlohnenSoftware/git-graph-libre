@@ -21,7 +21,8 @@
   remotes; signed tags are marked with a verified badge in the graph
   - Tag types: lightweight tags are a plain ref with no tag object, so they are
     unsigned by definition and carry no message; annotated tags follow your git
-    signing configuration (`tag.gpgSign`, `user.signingkey`, `gpg.format`)
+    signing configuration (`tag.gpgSign`, `user.signingkey`, `gpg.format`) and
+    may have an optional message
 - **Commit actions**: Checkout, cherry-pick, revert, and reset
 - **Avatar support**: Optional avatars from GitHub, GitLab, or Gravatar
 - **Multi-repo**: Work with multiple repositories in one workspace

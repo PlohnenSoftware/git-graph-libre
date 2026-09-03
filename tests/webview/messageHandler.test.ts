@@ -162,8 +162,7 @@ describe("registerMessageHandlers", () => {
       repo,
       tagName: "v9.9.9-telemetry",
       commitHash: "HEAD",
-      lightweight: true,
-      message: ""
+      lightweight: true
     } as RequestMessage);
 
     expect(telemetryEvents).toEqual([{ feature: "addTag", ok: true }]);

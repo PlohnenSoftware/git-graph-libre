@@ -3149,10 +3149,9 @@ class GitGraphView {
         },
         {
           type: "text" as const,
-          name: l10n.dialogAddTagMessage,
+          name: `${l10n.dialogAddTagMessage} (${l10n.dialogAddTagOptional})`,
           default: "",
           placeholder: null,
-          required: true,
           dependsOn: { input: 1, value: "annotated" }
         },
         {
@@ -3164,14 +3163,14 @@ class GitGraphView {
       l10n.dialogAddTagSubmit,
       (values) => {
         const lightweight = values[1] === "lightweight";
-        sendMessage({
+        const tag = {
           command: "addTag",
           repo: this.currentRepo,
           tagName: values[0],
-          commitHash: hash,
-          lightweight,
-          message: lightweight ? "" : values[2]
-        });
+          commitHash: hash
+        } as const;
+        if (lightweight) sendMessage({ ...tag, lightweight: true });
+        else sendMessage({ ...tag, lightweight: false, message: values[2] });
       },
       sourceElem
     );
