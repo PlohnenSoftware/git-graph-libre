@@ -2679,6 +2679,13 @@ Client rules that must survive any refactor:
   `ignoreUnhandledErrors: true`. The two must change together: without the
   flag, VS Code routes every unhandled extension-host error into the sender,
   and the ingest accepts only `activate` and `feature`.
+- **Every user-facing telemetry string is localized in all five languages**
+  (`en`, `nl`, `pl`, `zh-cn`, `zh-tw`). Dutch was added on `2026-09-02` as
+  `package.nls.nl.json` plus `l10n/bundle.l10n.nl.json`, mirroring the existing
+  sets; `pnpm run l10n:check` discovers new locales by filename, so a language
+  is complete or it is visibly not. Note `time.needFormatMonth` and
+  `time.dateformat` are behavior values rather than prose — Dutch follows the
+  Polish pair (`true`, `DD MM YYYY`), not the Chinese one.
 - **`telemetry.json` at the repository root** declares every collected
   property for `code --telemetry` and is shipped in the VSIX. Update it in the
   same slice as any event or property change, and keep the README's Telemetry

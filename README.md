@@ -26,7 +26,7 @@
 - **Avatar support**: Optional avatars from GitHub, GitLab, or Gravatar
 - **Multi-repo**: Work with multiple repositories in one workspace
 - **Devcontainer ready**: Works in remote and container environments
-- **Internationalization**: English, zh-CN, and zh-TW
+- **Internationalization**: English, Dutch, Polish, zh-CN, and zh-TW
 
 ## Why this fork
 

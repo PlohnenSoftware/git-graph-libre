@@ -60,9 +60,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commit you are sitting on stands out in the Description column.
 - **New setting `git-graph-libre.repository.muteMergeCommits`** (default
   `false`): opt-in dimming of merge commit messages as a reading aid.
-- All three new settings are localized in English, Polish, Simplified Chinese,
-  and Traditional Chinese, and are available in the settings hub's Extension
-  tab.
+- All three new settings are localized in English, Dutch, Polish, Simplified
+  Chinese, and Traditional Chinese, and are available in the settings hub's
+  Extension tab.
+- **Dutch (`nl`) localization**, covering the full interface and every setting
+  description — the same coverage the other languages have.
 
 ### Changed
 
