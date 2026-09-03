@@ -30,6 +30,10 @@ export const VIEW_FEATURE_REFLOG = "view.includeReflog";
 export const VIEW_FEATURE_UNREACHABLE = "view.includeUnreachableCommits";
 /** A signed tag was present to badge in the graph. */
 export const VIEW_FEATURE_SIGNED_TAG = "view.signedTagBadge";
+/** A discovered submodule was offered in the repository dropdown. */
+export const VIEW_FEATURE_SUBMODULE_REPO = "view.submoduleRepo";
+/** The graph was actually loaded on a submodule, not merely offered one. */
+export const VIEW_FEATURE_SUBMODULE_ACTIVE = "view.submoduleRepoActive";
 
 /** Exactly the pattern the ingest applies. Kept here so a test can assert it. */
 export const INGEST_FEATURE_NAME_PATTERN = /^[a-z][a-zA-Z0-9._-]{0,63}$/;
@@ -50,6 +54,15 @@ export type CommitLoadFacts = {
   showsAllRefs: boolean;
   /** The commits the load produced, scanned once for a signed tag. */
   commits: readonly Pick<GitCommitNode, "refs">[];
+  /**
+   * Every repository currently in the dropdown, and the one this load is for.
+   *
+   * Both are needed because a nested repository is only recognizable against
+   * the rest of the set. Paths are compared, never sent — the signals below
+   * carry nothing but their own fixed feature id.
+   */
+  repoPaths: readonly string[];
+  repo: string;
 };
 
 export type ViewFeatureReporter = {
@@ -61,6 +74,29 @@ function hasSignedTag(commits: readonly Pick<GitCommitNode, "refs">[]): boolean 
   return commits.some((commit) =>
     commit.refs.some((ref) => ref.type === "tag" && ref.signed === true)
   );
+}
+
+/**
+ * Whether `repo` sits inside another repository in the same set.
+ *
+ * That containment is the observable effect of submodule discovery: the only
+ * route to a nested repository in the dropdown is `.gitmodules`, because the
+ * workspace scan stops at a known repository's boundary. A repository the user
+ * added by hand with Add Repository can also land inside another one, so read
+ * these two signals as "submodule discovery had something to show", not as a
+ * count of `.gitmodules` files.
+ *
+ * Trailing-slash comparison on `/`, matching `isDirectoryWithinRepos()` and
+ * `searchDirectoryForRepos()`; every repository path reaching the extension
+ * host is normalized to forward slashes.
+ */
+function isNestedRepo(repo: string, repoPaths: readonly string[]): boolean {
+  return repoPaths.some((candidate) => candidate !== repo && repo.startsWith(`${candidate}/`));
+}
+
+/** Whether any repository in the set sits inside another one. */
+function hasNestedRepo(repoPaths: readonly string[]): boolean {
+  return repoPaths.some((repo) => isNestedRepo(repo, repoPaths));
 }
 
 export function createViewFeatureReporter(
@@ -87,6 +123,23 @@ export function createViewFeatureReporter(
       // the answer is known for this session.
       if (!reported.has(VIEW_FEATURE_SIGNED_TAG) && hasSignedTag(facts.commits)) {
         reportOnce(VIEW_FEATURE_SIGNED_TAG);
+      }
+      // Submodules are a shown feature as well: discovery puts them in the
+      // repository dropdown as indented entries and there is no command
+      // behind them, so neither action chokepoint can see them. Two signals
+      // rather than one, because being offered a submodule and choosing to
+      // work in one are different facts — the first says discovery found
+      // something, the second says it was worth having. The active signal is
+      // reported from the commit load precisely so it means "the graph was
+      // drawn for this submodule", not "the entry existed".
+      if (!reported.has(VIEW_FEATURE_SUBMODULE_REPO) && hasNestedRepo(facts.repoPaths)) {
+        reportOnce(VIEW_FEATURE_SUBMODULE_REPO);
+      }
+      if (
+        !reported.has(VIEW_FEATURE_SUBMODULE_ACTIVE) &&
+        isNestedRepo(facts.repo, facts.repoPaths)
+      ) {
+        reportOnce(VIEW_FEATURE_SUBMODULE_ACTIVE);
       }
     }
   };

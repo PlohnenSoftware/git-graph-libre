@@ -55,8 +55,8 @@ import { searchCommits } from "@/backend/queries/searchCommits";
 import { tagDetails } from "@/backend/queries/tagDetails";
 import type { GitFileChangeType } from "@/backend/types";
 import { formatGitCommandRecord } from "@/backend/utils/gitCommandLog";
-import { selectedLogRefs } from "@/backend/utils/logFilters";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
+import { selectedLogRefs } from "@/backend/utils/logFilters";
 import { abbrevCommit } from "@/backend/utils/string";
 import type { Config } from "@/config";
 import { encodeDiffDocUri } from "@/diffDocProvider";
@@ -542,9 +542,10 @@ export function registerMessageHandlers(
       recordGitCommand
     });
 
-    // History recovery and the signed-tag badge are features nobody invokes —
-    // they change what the graph contains — so the action chokepoint above
-    // cannot see them. Reported from here, once per session each.
+    // History recovery, the signed-tag badge and submodule repositories are
+    // features nobody invokes — they change what the graph contains or which
+    // repositories it offers — so the action chokepoint above cannot see them.
+    // Reported from here, once per session each.
     viewFeatures.recordCommitLoad({
       includeReflog: msg.includeReflog === true,
       includeUnreachableCommits: msg.includeUnreachableCommits === true,
@@ -556,7 +557,13 @@ export function registerMessageHandlers(
           legacyBranchName: msg.branchName,
           tags: msg.tags
         }) === null,
-      commits: result.commits
+      commits: result.commits,
+      // The whole repository set, because a submodule is only recognizable as
+      // one against its parent. Read here rather than remembered from the
+      // last `loadRepos` so a submodule discovered by a watcher tick mid-
+      // session is not missed.
+      repoPaths: Object.keys(repoManager.getRepos()),
+      repo: msg.repo
     });
 
     bridge.post({

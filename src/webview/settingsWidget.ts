@@ -143,8 +143,7 @@ export function getRepoIndentLevel(repo: string, repoPaths: string[]) {
   return repoPaths.filter((candidate) => {
     const normalizedCandidate = candidate.replaceAll("\\", "/");
     return (
-      normalizedCandidate !== normalizedRepo &&
-      normalizedRepo.startsWith(`${normalizedCandidate}/`)
+      normalizedCandidate !== normalizedRepo && normalizedRepo.startsWith(`${normalizedCandidate}/`)
     );
   }).length;
 }
@@ -164,9 +163,7 @@ export function getRepoTreeBranch(repo: string, repoPaths: string[]) {
   const parent = getRepoParent(repo, repoPaths);
   if (parent === undefined) return undefined;
 
-  const siblings = repoPaths.filter(
-    (candidate) => getRepoParent(candidate, repoPaths) === parent
-  );
+  const siblings = repoPaths.filter((candidate) => getRepoParent(candidate, repoPaths) === parent);
   return siblings.at(-1)?.replaceAll("\\", "/") === normalizedRepo ? "last" : "middle";
 }
 

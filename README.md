@@ -97,8 +97,12 @@ third-party analytics provider.
 - Which command or action ran (for example `pushTag`), and whether it succeeded.
 - Once per session: whether a feature that works by *showing* something was
   actually in effect — recovered history (reflog-only or unreachable commits)
-  appearing in the graph, or a signed tag being there to badge. These are
-  recorded once, not once per refresh.
+  appearing in the graph, a signed tag being there to badge, a discovered Git
+  submodule appearing in the repository dropdown, or the graph actually being
+  opened on one. These are recorded once, not once per refresh, and each is a
+  yes/no about the feature: the repository paths behind the submodule answers
+  are compared inside the extension and never leave it, so nothing is sent
+  about which repositories or submodules you have.
 - Once per session: the language Visual Studio Code is running in and which of
   this extension's translations served you — so missing translations can be
   spotted, since a mismatch between the two is a request nobody has answered.
@@ -121,6 +125,7 @@ email addresses, environment variables, credentials, or your list of installed
 extensions. The receiving service stores no information which would be used to track deanonymize user. Only saved data is mentioned in section above.
 
 **Important**
+
 Even though I believe this data could help me to allocate my time better and I find it useful,I prioritize users so please only accept telemetry if you feel comfortable with it. This is also a reason why extention requests your action to take a educated decision about it.
 
 **Nothing is sent until you say so**

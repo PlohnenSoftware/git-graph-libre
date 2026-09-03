@@ -1,12 +1,9 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-
-import { searchDirectoryForRepos } from "@/backend/utils/repoSearch";
-
 import { git } from "@tests/backend/helpers";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { searchDirectoryForRepos } from "@/backend/utils/repoSearch";
 
 // Directory layout created in beforeAll:
 //   tmpDir/
@@ -92,14 +89,7 @@ describe("searchDirectoryForRepos", () => {
       initRepo(parentRepo);
       initRepo(submoduleRepo);
       git(
-        [
-          "-c",
-          "protocol.file.allow=always",
-          "submodule",
-          "add",
-          submoduleRepo,
-          "modules/child"
-        ],
+        ["-c", "protocol.file.allow=always", "submodule", "add", submoduleRepo, "modules/child"],
         parentRepo
       );
 
@@ -111,6 +101,45 @@ describe("searchDirectoryForRepos", () => {
     } finally {
       fs.rmSync(parentRepo, { recursive: true, force: true });
       fs.rmSync(submoduleRepo, { recursive: true, force: true });
+    }
+  });
+
+  // The `.gitmodules` reader is hand-written rather than a regex (S8786), so
+  // the lines it must and must not accept are pinned here: git config keys are
+  // case-insensitive, a commented-out entry is not an entry, and a long run of
+  // whitespace must not be pathological to parse.
+  it("reads path entries the way git config does", async () => {
+    const parentRepo = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-submodule-parse-"));
+
+    try {
+      initRepo(parentRepo);
+      const realChild = path.join(parentRepo, "kept");
+      initRepo(realChild);
+
+      fs.writeFileSync(
+        path.join(parentRepo, ".gitmodules"),
+        [
+          '[submodule "kept"]',
+          // Capitalized key: git accepts it, so this must be found.
+          "  Path = kept",
+          '  url = "https://example.invalid/kept.git"',
+          '[submodule "commented"]',
+          // Not an entry: the key does not trim to `path`.
+          "  # path = commented",
+          "  ; path = commented",
+          '[submodule "blank"]',
+          // Empty value, and a long whitespace run that would make the old
+          // lazy-quantifier regex backtrack.
+          `  path =${" ".repeat(5000)}`,
+          ""
+        ].join("\n")
+      );
+
+      const result = await searchDirectoryForRepos(parentRepo, 0, "git", [parentRepo]);
+
+      expect(result).toEqual([realChild]);
+    } finally {
+      fs.rmSync(parentRepo, { recursive: true, force: true });
     }
   });
 

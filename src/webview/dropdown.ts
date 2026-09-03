@@ -328,7 +328,8 @@ export class Dropdown {
     const className = isSelected ? "dropdownOption selected" : "dropdownOption";
     const indentLevel = Math.max(0, Math.floor(option.indentLevel ?? 0));
     const indent = ` style="--dropdown-option-indent: ${indentLevel * 16}px"`;
-    const treeBranch = option.treeBranch === undefined ? "" : ` data-tree-branch="${option.treeBranch}"`;
+    const treeBranch =
+      option.treeBranch === undefined ? "" : ` data-tree-branch="${option.treeBranch}"`;
     const displayName = this.formatDisplayName(option.name);
     const titleValue = this.optionTitle(option, displayName);
     const title = titleValue === null ? "" : ` title="${escapeHtml(titleValue)}"`;

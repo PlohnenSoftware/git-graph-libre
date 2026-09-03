@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
+import { Dropdown } from "@/webview/dropdown";
 import {
   getRepoDisplayName,
   getRepoIndentLevel,
   getRepoTreeBranch
 } from "@/webview/settingsWidget";
-import { Dropdown } from "@/webview/dropdown";
 
 describe("Dropdown", () => {
   beforeEach(() => {

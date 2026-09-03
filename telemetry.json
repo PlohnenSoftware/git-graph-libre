@@ -29,7 +29,7 @@
     "feature": {
       "classification": "SystemMetaData",
       "purpose": "FeatureInsight",
-      "comment": "The identifier of the action that ran, for example 'pushTag' or 'git-graph-libre.view'. This is a fixed identifier from the extension's own command list; no user content, path, or repository detail is included. Identifiers beginning with 'view.' are features that consist of something being shown rather than something being invoked - 'view.includeReflog' and 'view.includeUnreachableCommits' when recovered history was actually included in the graph, and 'view.signedTagBadge' when a signed tag was there to badge. Those are recorded at most once per session, not once per refresh."
+      "comment": "The identifier of the action that ran, for example 'pushTag' or 'git-graph-libre.view'. This is a fixed identifier from the extension's own command list; no user content, path, or repository detail is included. Identifiers beginning with 'view.' are features that consist of something being shown rather than something being invoked - 'view.includeReflog' and 'view.includeUnreachableCommits' when recovered history was actually included in the graph, 'view.signedTagBadge' when a signed tag was there to badge, 'view.submoduleRepo' when a discovered Git submodule was listed in the repository dropdown, and 'view.submoduleRepoActive' when the graph was actually drawn for one. The two submodule identifiers are the presence of the feature only: the repository paths that decide them are compared inside the extension and are never sent, so neither identifier says anything about which repositories or submodules exist. Those are recorded at most once per session, not once per refresh."
     },
     "ok": {
       "classification": "SystemMetaData",
@@ -54,6 +54,6 @@
       "purpose": "FeatureInsight",
       "comment": "The numeric part of the operating system version only, for example '7.2.2' or '10.0.22631'. Any build or distribution suffix is stripped before sending, because that suffix is the identifying part and is of no use for ranking features."
     },
-    "notCollected": "This extension never sends file names, file paths, workspace or folder names, repository names, git remote URLs, branch names, tag names, commit hashes, commit messages, author names, email addresses, environment variables, credentials, or the list of other installed extensions. No IP address is stored by the receiving service."
+    "notCollected": "This extension never sends file names, file paths, workspace or folder names, repository names, git remote URLs, branch names, tag names, commit hashes, commit messages, author names, email addresses, environment variables, credentials, or the list of other installed extensions. The receiving service stores no information which would be used to track deanonymize user."
   }
 }

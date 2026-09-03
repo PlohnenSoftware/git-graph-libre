@@ -217,7 +217,11 @@ describe("registerMessageHandlers", () => {
   // The action chokepoint above cannot see features that consist of something
   // being shown, so the commit-load route reports those separately.
   describe("read-side features", () => {
-    const loadCommitsRequest = {
+    // A function, not a shared object literal: `repo` is assigned in
+    // `beforeAll`, which runs after this block is collected, so a `const`
+    // captured it while it was still undefined and quietly sent
+    // `repo: undefined` into the route.
+    const makeLoadCommitsRequest = () => ({
       command: "loadCommits" as const,
       requestId: 1,
       branchName: "",
@@ -235,13 +239,13 @@ describe("registerMessageHandlers", () => {
       showSignature: false,
       hard: true,
       repo
-    };
+    });
 
     it("reports history recovery when the log actually included it", async () => {
       const { handlers, telemetryEvents } = registerHandlersForTest();
 
       await handlers.get("loadCommits")?.({
-        ...loadCommitsRequest,
+        ...makeLoadCommitsRequest(),
         includeReflog: true,
         includeUnreachableCommits: true
       } as RequestMessage);
@@ -259,7 +263,7 @@ describe("registerMessageHandlers", () => {
       const { handlers, telemetryEvents } = registerHandlersForTest();
 
       await handlers.get("loadCommits")?.({
-        ...loadCommitsRequest,
+        ...makeLoadCommitsRequest(),
         branches: ["main"],
         includeUnreachableCommits: true
       } as RequestMessage);
@@ -271,10 +275,26 @@ describe("registerMessageHandlers", () => {
       createSignatureBearingTag(repo, "v9.9.9-signed", "HEAD");
       const { handlers, telemetryEvents } = registerHandlersForTest();
 
-      await handlers.get("loadCommits")?.(loadCommitsRequest as RequestMessage);
+      await handlers.get("loadCommits")?.(makeLoadCommitsRequest() as RequestMessage);
 
       expect(telemetryEvents).toEqual([{ feature: "view.signedTagBadge", ok: true }]);
       git(["tag", "-d", "v9.9.9-signed"], repo);
+    });
+
+    // Covers the wiring, not the predicate: the facts must come from the live
+    // repository set, so a submodule discovered by a watcher tick mid-session
+    // still registers.
+    it("reports a submodule from the repository set the load ran against", async () => {
+      const { handlers, telemetryEvents, repoStates } = registerHandlersForTest();
+      repoStates.set(`${repo}/modules/vendor-lib`, { columnWidths: null });
+
+      await handlers.get("loadCommits")?.(makeLoadCommitsRequest() as RequestMessage);
+
+      expect(telemetryEvents).toEqual([{ feature: "view.submoduleRepo", ok: true }]);
+      // The paths that decided it stay inside the extension.
+      const serialized = JSON.stringify(telemetryEvents);
+      expect(serialized).not.toContain(repo);
+      expect(serialized).not.toContain("vendor-lib");
     });
 
     // The load path runs on every refresh and every watcher tick.
@@ -282,11 +302,11 @@ describe("registerMessageHandlers", () => {
       const { handlers, telemetryEvents } = registerHandlersForTest();
 
       await handlers.get("loadCommits")?.({
-        ...loadCommitsRequest,
+        ...makeLoadCommitsRequest(),
         includeReflog: true
       } as RequestMessage);
       await handlers.get("loadCommits")?.({
-        ...loadCommitsRequest,
+        ...makeLoadCommitsRequest(),
         includeReflog: true
       } as RequestMessage);
 
@@ -297,7 +317,7 @@ describe("registerMessageHandlers", () => {
       const { handlers, posts } = registerHandlersForTest();
 
       await handlers.get("loadCommits")?.({
-        ...loadCommitsRequest,
+        ...makeLoadCommitsRequest(),
         includeReflog: true
       } as RequestMessage);
 
