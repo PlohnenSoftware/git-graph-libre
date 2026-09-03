@@ -19,6 +19,32 @@ You should have received a copy of the GNU Affero General Public License along
 with this program (see [LICENSE](LICENSE)). If not, see
 <https://www.gnu.org/licenses/>.
 
+## Contributors to the AGPL-licensed work
+
+Everyone below wrote code directly for this project on or after the
+relicensing of 2026-07-01, first released as version 1.0.0. Each holds
+copyright in their own contributions, which are licensed as part of the
+AGPL-3.0-or-later whole, and together they are the "Git Graph Libre
+contributors" named in the copyright line above. Compiled from the author
+records in this repository's git history (automated dependency-bot commits
+omitted; a contributor's earlier work in the MIT lineage is recorded in the
+rosters in [LICENSE.mit](LICENSE.mit) instead):
+
+  Krzysztof Zabłocki (Zamkorus, PlohnenSoftware)   2026-07-01 to present
+  Kristjan ESPERANTO                               2026-08-22
+
+Deliberately **not** recorded in [LICENSE.mit](LICENSE.mit): that file
+preserves the MIT notices and the rosters of the MIT-licensed material this
+project incorporated, and listing an AGPL contribution there would
+misrepresent it as MIT-licensed and available for reuse under those terms. The
+licence flows one way — MIT material may come in, AGPL work does not go out
+without the copyleft. A contributor's name belongs in that roster only if
+their code arrived from the MIT lineage.
+
+Contributions arriving by pull request are credited by name in
+[CHANGELOG.md](CHANGELOG.md) for the release that carries them, so that credit
+travels with the published extension and not only with the git history.
+
 ## Incorporated MIT-licensed material
 
 This project descends from the MIT-licensed lineage of Git Graph:

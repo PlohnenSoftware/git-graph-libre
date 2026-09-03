@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-09-03
+
+### Added
+
+- **Git submodules show up as repositories of their own.** Repository
+  discovery now reads the `path` entries declared in a repository's
+  `.gitmodules`, checks that each one stays inside its parent and really is a
+  Git repository, and adds it alongside the parent — nested submodules
+  included. The repository dropdown keeps the plain names and draws each
+  submodule indented under its parent with a connector, so the structure is
+  visible without the paths being spelled out. `.gitmodules` is not watched
+  live: a submodule added or removed while the window is open appears on the
+  next repository scan, such as after reloading the extension. Thanks to
+  [Kristjan ESPERANTO](https://github.com/KristjanESPERANTO), who contributed
+  this feature in [#1](https://github.com/PlohnenSoftware/git-graph-libre/pull/1).
+- **Submodule use is now covered by the optional usage telemetry**, alongside
+  the other features that work by *showing* something rather than being
+  invoked. Two yes/no signals are recorded at most once per session: that a
+  discovered submodule was listed in the repository dropdown, and that the
+  graph was actually opened on one. The repository paths those answers are
+  derived from are compared inside the extension and never sent — nothing is
+  recorded about which repositories or submodules you have — and, as always,
+  nothing at all is sent unless you have accepted telemetry.
+
+### Fixed
+
+- **Submodule paths are normalized like every other repository path.** A
+  discovered submodule's path is now stored with forward slashes, matching the
+  rest of the extension; on Windows it would otherwise have been recorded with
+  backslashes, which the parent/child comparisons do not match.
+
 ## [1.4.1] - 2026-09-03
 
 ### Fixed
@@ -408,7 +439,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.1...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.2...HEAD
+[1.4.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.2.1...v1.3.0

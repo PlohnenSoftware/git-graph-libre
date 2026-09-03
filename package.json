@@ -1,7 +1,7 @@
 {
   "name": "git-graph-libre",
   "displayName": "%displayName%",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "%description%",
   "categories": [
     "SCM Providers",
@@ -47,6 +47,10 @@
     {
       "name": "Asis Pattisahusiwa",
       "url": "https://github.com/asispts"
+    },
+    {
+      "name": "Kristjan ESPERANTO",
+      "url": "https://github.com/KristjanESPERANTO"
     }
   ],
   "repository": {
