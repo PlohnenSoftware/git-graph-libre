@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
+import {
+  getRepoDisplayName,
+  getRepoIndentLevel,
+  getRepoTreeBranch
+} from "@/webview/settingsWidget";
 import { Dropdown } from "@/webview/dropdown";
 
 describe("Dropdown", () => {
@@ -8,6 +13,45 @@ describe("Dropdown", () => {
       '<div id="repoSelect" class="dropdown"></div><div id="outside"></div>';
     (global as unknown as { l10n: ReturnType<typeof getWebviewLocalizedStrings> }).l10n =
       getWebviewLocalizedStrings();
+  });
+
+  it("renders submodules as child entries under their parent repo", () => {
+    const repoPaths = [
+      "/workspace/main",
+      "/workspace/main/modules/child",
+      "/workspace/main/modules/tools",
+      "/workspace/other-repo"
+    ];
+    const parentName = getRepoDisplayName("/workspace/main", { columnWidths: null });
+    const childName = getRepoDisplayName("/workspace/main/modules/child", { columnWidths: null });
+    const toolsName = getRepoDisplayName("/workspace/main/modules/tools", { columnWidths: null });
+
+    expect(parentName).toBe("main");
+    expect(childName).toBe("child");
+    expect(getRepoIndentLevel(repoPaths[0], repoPaths)).toBe(0);
+    expect(getRepoIndentLevel(repoPaths[1], repoPaths)).toBe(1);
+    expect(getRepoTreeBranch(repoPaths[1], repoPaths)).toBe("middle");
+    expect(getRepoTreeBranch(repoPaths[2], repoPaths)).toBe("last");
+    expect(getRepoTreeBranch(repoPaths[3], repoPaths)).toBeUndefined();
+
+    const dropdown = new Dropdown("repoSelect", false, "repo", () => {});
+    dropdown.setOptions(
+      [
+        { name: parentName, value: repoPaths[0], indentLevel: 0 },
+        { name: childName, value: repoPaths[1], indentLevel: 1, treeBranch: "middle" },
+        { name: toolsName, value: repoPaths[2], indentLevel: 1, treeBranch: "last" },
+        { name: "other-repo", value: repoPaths[3], indentLevel: 0 }
+      ],
+      repoPaths[0]
+    );
+    const childOption = document.querySelectorAll<HTMLElement>(".dropdownOption")[1];
+    const toolsOption = document.querySelectorAll<HTMLElement>(".dropdownOption")[2];
+    expect(childOption.dataset.indentLevel).toBe("1");
+    expect(childOption.dataset.treeBranch).toBe("middle");
+    expect(childOption.style.getPropertyValue("--dropdown-option-indent")).toBe("16px");
+    expect(childOption.querySelector(".dropdownOptionTree")).not.toBeNull();
+    expect(childOption.querySelector(".dropdownOptionLabel")?.textContent).toBe("child");
+    expect(toolsOption.dataset.treeBranch).toBe("last");
   });
 
   it("shows full-value tooltips on info dropdowns", () => {

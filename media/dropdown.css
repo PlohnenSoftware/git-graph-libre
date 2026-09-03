@@ -70,8 +70,34 @@
 .dropdownOption {
   position: relative;
   cursor: pointer;
-  padding: 4px 10px;
+  padding: 4px 10px 4px calc(10px + var(--dropdown-option-indent, 0px));
   user-select: none;
+}
+.dropdownOptionTree {
+  position: absolute;
+  left: calc(10px + var(--dropdown-option-indent, 0px) - 16px);
+  top: -4px;
+  width: 10px;
+  height: calc(100% + 8px);
+  border-left: 1px solid var(--vscode-descriptionForeground, var(--vscode-foreground));
+  pointer-events: none;
+}
+.dropdownOption[data-tree-branch="last"] .dropdownOptionTree {
+  height: calc(50% + 4px);
+}
+.dropdownOption[data-tree-branch="last"] .dropdownOptionTree::after {
+  top: calc(100% - 1px);
+}
+.dropdownOptionTree::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 10px;
+  border-top: 1px solid var(--vscode-descriptionForeground, var(--vscode-foreground));
+}
+.dropdownOptionLabel {
+  display: inline-block;
 }
 .dropdownOptionCheck {
   display: inline-block;

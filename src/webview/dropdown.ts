@@ -5,6 +5,8 @@ import { truncateMiddle, truncateRefName } from "./utils/truncate";
 export interface DropdownOption {
   name: string;
   value: string;
+  indentLevel?: number;
+  treeBranch?: "middle" | "last";
 }
 
 export interface DropdownDisplayOptions {
@@ -324,12 +326,22 @@ export class Dropdown {
   private renderOption(option: DropdownOption, index: number) {
     const isSelected = this.isOptionIndexSelected(index);
     const className = isSelected ? "dropdownOption selected" : "dropdownOption";
+    const indentLevel = Math.max(0, Math.floor(option.indentLevel ?? 0));
+    const indent = ` style="--dropdown-option-indent: ${indentLevel * 16}px"`;
+    const treeBranch = option.treeBranch === undefined ? "" : ` data-tree-branch="${option.treeBranch}"`;
     const displayName = this.formatDisplayName(option.name);
     const titleValue = this.optionTitle(option, displayName);
     const title = titleValue === null ? "" : ` title="${escapeHtml(titleValue)}"`;
-    return `<div class="${className}" data-id="${index}"${title}>${this.renderOptionCheck(
-      isSelected
-    )}${escapeHtml(displayName)}${this.renderOptionInfo(option.value)}</div>`;
+    return `<div class="${className}" data-id="${index}" data-indent-level="${indentLevel}"${treeBranch}${indent}${title}>${this.renderOptionTree(
+      option.treeBranch
+    )}${this.renderOptionCheck(isSelected)}<span class="dropdownOptionLabel">${escapeHtml(
+      displayName
+    )}</span>${this.renderOptionInfo(option.value)}</div>`;
+  }
+
+  private renderOptionTree(treeBranch: DropdownOption["treeBranch"]) {
+    if (treeBranch === undefined) return "";
+    return `<span class="dropdownOptionTree" aria-hidden="true"></span>`;
   }
 
   private optionTitle(option: DropdownOption, displayName: string) {

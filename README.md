@@ -25,7 +25,8 @@
     may have an optional message
 - **Commit actions**: Checkout, cherry-pick, revert, and reset
 - **Avatar support**: Optional avatars from GitHub, GitLab, or Gravatar
-- **Multi-repo**: Work with multiple repositories in one workspace
+- **Multi-repo**: Work with multiple repositories and declared Git submodules in
+  one workspace; reload the extension after changing `.gitmodules`
 - **Devcontainer ready**: Works in remote and container environments
 - **Internationalization**: English, Dutch, Polish, zh-CN, and zh-TW
 
