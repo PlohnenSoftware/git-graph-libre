@@ -83,7 +83,7 @@ suite("Telemetry in the extension host", () => {
     // telemetry. Nothing below this call can catch that, which is why it is
     // asserted against the genuine API rather than a fake.
     const reporter = createTelemetryReporter({
-      config: { telemetryEnabled: () => true },
+      config: { telemetryConsent: () => "enabled" },
       endpoint
     });
 
@@ -127,7 +127,7 @@ suite("Telemetry in the extension host", () => {
 
   test("an empty endpoint makes the reporter inert", async () => {
     const reporter = createTelemetryReporter({
-      config: { telemetryEnabled: () => true },
+      config: { telemetryConsent: () => "enabled" },
       endpoint: ""
     });
 

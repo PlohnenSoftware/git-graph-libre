@@ -38,6 +38,7 @@ export function getWebviewLocalizedStrings() {
     loadMore: l10n.t("ui.loadMore"),
     emptyGraph: l10n.t("ui.emptyGraph"),
     noCommits: l10n.t("ui.noCommits"),
+    telemetryUndecided: l10n.t("ui.telemetryUndecided"),
     createFirstCommit: l10n.t("ui.createFirstCommit"),
     showAll: l10n.t("ui.showAll"),
     filterPlaceholder: l10n.t("ui.filterPlaceholder"),

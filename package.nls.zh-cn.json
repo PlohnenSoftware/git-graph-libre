@@ -54,5 +54,8 @@
   "config.tabIconColorTheme": "指定 Git 图形选项卡上显示的图标的颜色主题。",
   "config.tabIconColorTheme.color": "显示适合大多数 Visual Studio Code 颜色主题的彩色图标",
   "config.tabIconColorTheme.grey": "显示适合以灰度为主的 Visual Studio Code 颜色主题的灰色图标",
-  "config.telemetry.enabled": "发送关于哪些功能被使用的匿名使用数据，以便确定开发优先级。需要启用 Visual Studio Code 自身的遥测设置，该设置始终优先。绝不会发送文件名、路径、仓库名称、分支名称、标签名称或提交内容。"
+  "config.telemetry.enabled": "是否发送关于哪些功能被使用的匿名使用数据，以便确定开发优先级。在你做出选择之前不会发送任何内容。需要启用 Visual Studio Code 自身的遥测设置，该设置始终优先。绝不会发送文件名、路径、仓库名称、分支名称、标签名称或提交内容。",
+  "config.telemetry.enabled.unset": "尚未决定。不发送任何内容，扩展会询问你。",
+  "config.telemetry.enabled.enabled": "发送匿名的功能使用数据。",
+  "config.telemetry.enabled.disabled": "不发送任何内容，并且不再询问。"
 }

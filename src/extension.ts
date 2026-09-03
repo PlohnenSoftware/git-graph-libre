@@ -21,6 +21,7 @@ import { RepoFileWatcher } from "./repoFileWatcher";
 import { StatusBarItem } from "./statusBarItem";
 import { createTelemetryReporter } from "./telemetry";
 import { buildActivationPayload } from "./telemetry/activationSnapshot";
+import { createConsentPrompt } from "./telemetry/consentPrompt";
 
 export function activate(context: vscode.ExtensionContext) {
   initL10n(context.extensionPath);
@@ -32,6 +33,10 @@ export function activate(context: vscode.ExtensionContext) {
   // which always wins, and by git-graph-libre.telemetry.enabled. With no
   // endpoint compiled in it is a total no-op.
   const telemetry = createTelemetryReporter({ config, logger });
+  // Nothing is sent while the consent setting is `unset`, so the question has
+  // to be put to the user. Asked once here and again on every graph open until
+  // it is answered; dismissing the notification leaves it open.
+  const consentPrompt = createConsentPrompt({ config, logger });
   const gitClient = gitClientFactory(extensionState.getLastActiveRepo() ?? "", config.gitPath());
   const repoManager = createRepoManager(extensionState, statusBarItem, config);
   const repoSearch = createRepoSearch(repoManager, config);
@@ -40,6 +45,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   function openGraphView(targetRepo?: string) {
     logger.log(`[panel] open target=${JSON.stringify(targetRepo ?? null)}`);
+    void consentPrompt.promptIfUnset();
     if (targetRepo) extensionState.setLastActiveRepo(targetRepo);
     const column = vscode.window.activeTextEditor?.viewColumn;
     if (currentPanel) {
@@ -117,6 +123,8 @@ export function activate(context: vscode.ExtensionContext) {
     logger.log(`[telemetry] activation snapshot skipped: ${String(error)}`);
   }
 
+  void consentPrompt.promptIfUnset();
+
   void (async () => {
     repoManager.removeReposNotInWorkspace();
     if (!(await repoManager.checkReposExist())) repoManager.sendRepos();
@@ -137,6 +145,10 @@ export function activate(context: vscode.ExtensionContext) {
         statusBarItem.refresh();
       } else if (e.affectsConfiguration("git-graph-libre.maxDepthOfRepoSearch")) {
         repoSearch.maxDepthChanged();
+      } else if (e.affectsConfiguration("git-graph-libre.telemetry.enabled")) {
+        // Answering the prompt writes this setting, so this is also how the
+        // "not decided yet" notice disappears the moment the user chooses.
+        currentPanel?.setTelemetryConsent(config.telemetryConsent());
       } else if (e.affectsConfiguration("git.path")) {
         gitClient.setGitPath(config.gitPath());
       }

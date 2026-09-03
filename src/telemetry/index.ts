@@ -11,7 +11,10 @@
  *  1. VS Code's global telemetry setting, enforced by the logger itself. It
  *     always wins — if it is off, nothing is sent even when ours is on.
  *  2. `git-graph-libre.telemetry.enabled`, ours, checked per call so toggling
- *     it takes effect immediately without rebuilding anything.
+ *     it takes effect immediately without rebuilding anything. It is a
+ *     three-state consent and only `enabled` sends: while it is `unset` the
+ *     user has not answered the question yet, and an unanswered question is
+ *     not permission.
  */
 
 import * as vscode from "vscode";
@@ -46,7 +49,7 @@ function createNoopReporter(): TelemetryReporter {
 }
 
 export type TelemetryReporterOptions = {
-  config: Pick<Config, "telemetryEnabled">;
+  config: Pick<Config, "telemetryConsent">;
   /** Overridden in tests; defaults to the compiled-in endpoint. */
   endpoint?: string;
   logger?: Logger;
@@ -76,7 +79,7 @@ export function createTelemetryReporter(options: TelemetryReporterOptions): Tele
   });
 
   function enabled(): boolean {
-    return options.config.telemetryEnabled();
+    return options.config.telemetryConsent() === "enabled";
   }
 
   return {

@@ -39,7 +39,8 @@ const viewState: GGL.GitGraphViewState = {
   showRemoteBranches: true,
   showStashes: true,
   showTags: true,
-  shortHashLength: 8
+  shortHashLength: 8,
+  telemetryConsent: "enabled"
 };
 
 const commits: GitCommitNode[] = [

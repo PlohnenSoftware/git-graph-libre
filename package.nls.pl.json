@@ -54,5 +54,8 @@
   "config.tabIconColorTheme": "Określa motyw kolorystyczny ikony wyświetlanej na karcie Git Graph.",
   "config.tabIconColorTheme.color": "Pokaż kolorową ikonę pasującą do większości motywów kolorów Visual Studio Code",
   "config.tabIconColorTheme.grey": "Pokaż szarą ikonę pasującą do motywów Visual Studio Code opartych głównie na skali szarości",
-  "config.telemetry.enabled": "Wysyłaj anonimowe dane o tym, które funkcje są używane, aby ustalać priorytety rozwoju. Wymaga włączonego ustawienia telemetrii samego Visual Studio Code, które zawsze ma pierwszeństwo. Nazwy plików, ścieżki, nazwy repozytoriów, nazwy gałęzi, nazwy tagów ani zawartość commitów nigdy nie są wysyłane."
+  "config.telemetry.enabled": "Czy wysyłać anonimowe dane o tym, które funkcje są używane, aby ustalać priorytety rozwoju. Nic nie jest wysyłane, dopóki nie dokonasz wyboru. Wymaga włączonego ustawienia telemetrii samego Visual Studio Code, które zawsze ma pierwszeństwo. Nazwy plików, ścieżki, nazwy repozytoriów, nazwy gałęzi, nazwy tagów ani zawartość commitów nigdy nie są wysyłane.",
+  "config.telemetry.enabled.unset": "Jeszcze nie zdecydowano. Nic nie jest wysyłane, a rozszerzenie zapyta.",
+  "config.telemetry.enabled.enabled": "Wysyłaj anonimowe dane o używaniu funkcji.",
+  "config.telemetry.enabled.disabled": "Nie wysyłaj nic i przestań pytać."
 }

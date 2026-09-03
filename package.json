@@ -440,8 +440,18 @@
           "description": "%config.showUncommittedChanges%"
         },
         "git-graph-libre.telemetry.enabled": {
-          "type": "boolean",
-          "default": true,
+          "type": "string",
+          "enum": [
+            "unset",
+            "enabled",
+            "disabled"
+          ],
+          "enumDescriptions": [
+            "%config.telemetry.enabled.unset%",
+            "%config.telemetry.enabled.enabled%",
+            "%config.telemetry.enabled.disabled%"
+          ],
+          "default": "unset",
           "description": "%config.telemetry.enabled%",
           "tags": [
             "telemetry",

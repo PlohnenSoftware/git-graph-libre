@@ -230,7 +230,7 @@ describe("configuration", () => {
     { accessor: "showStashes", expected: true },
     { accessor: "showTags", expected: true },
     { accessor: "showUncommittedChanges", expected: true },
-    { accessor: "telemetryEnabled", expected: true },
+    { accessor: "telemetryConsent", expected: "unset" },
     { accessor: "showSignatureColumn", expected: false },
     { accessor: "commitDetailsCompactFolders", expected: false },
     { accessor: "commitDetailsFileViewMode", expected: "tree" },

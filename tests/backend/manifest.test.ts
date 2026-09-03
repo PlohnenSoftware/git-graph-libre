@@ -116,8 +116,7 @@ describe("extension manifest", () => {
     ["git-graph-libre.columns.signature", false],
     ["git-graph-libre.repository.muteMergeCommits", false],
     ["git-graph-libre.repository.boldCheckedOutCommit", false],
-    ["git-graph-libre.repository.fetchTagsByDefault", true],
-    ["git-graph-libre.telemetry.enabled", true]
+    ["git-graph-libre.repository.fetchTagsByDefault", true]
   ])("contributes %s as a boolean defaulting to %s", (key, expectedDefault) => {
     const manifest = readManifest();
     const setting = manifest.contributes.configuration.properties[key];
@@ -126,6 +125,28 @@ describe("extension manifest", () => {
       type: "boolean",
       default: expectedDefault,
       description: `%${key.replace("git-graph-libre.", "config.")}%`
+    });
+  });
+
+  // The default is the consent model: nothing is sent until the user answers,
+  // so a default of "enabled" — or a slip back to a boolean, where VS Code
+  // would treat an absent value as false-ish rather than as "not asked" —
+  // would collect data nobody agreed to.
+  it("contributes telemetry consent as three states defaulting to unset", () => {
+    const manifest = readManifest();
+    const setting =
+      manifest.contributes.configuration.properties["git-graph-libre.telemetry.enabled"];
+
+    expect(setting).toMatchObject({
+      type: "string",
+      default: "unset",
+      enum: ["unset", "enabled", "disabled"],
+      enumDescriptions: [
+        "%config.telemetry.enabled.unset%",
+        "%config.telemetry.enabled.enabled%",
+        "%config.telemetry.enabled.disabled%"
+      ],
+      description: "%config.telemetry.enabled%"
     });
   });
 

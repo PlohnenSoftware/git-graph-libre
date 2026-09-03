@@ -40,6 +40,7 @@
   "ui.loadMore": "Załaduj więcej commitów",
   "ui.emptyGraph": "Brak commitów do wyświetlenia dla tej gałęzi",
   "ui.noCommits": "To repozytorium nie ma jeszcze żadnych commitów",
+  "ui.telemetryUndecided": "Telemetria nie została jeszcze ani zaakceptowana, ani odrzucona, więc nic nie jest wysyłane.",
   "ui.createFirstCommit": "Utwórz pierwszy commit, aby zobaczyć graf w tym miejscu",
   "ui.showAll": "Pokaż wszystko",
   "ui.filterPlaceholder": "Filtruj {0}...",
@@ -525,5 +526,10 @@
   "tooltip.addition": " dodanie",
   "tooltip.additions": " dodania",
   "tooltip.deletion": " usunięcie",
-  "tooltip.deletions": " usunięcia"
+  "tooltip.deletions": " usunięcia",
+  "telemetry.consent.question": "Git Graph Libre może wysyłać anonimowe dane o tym, których jego funkcji używasz, aby rozwój szedł tam, gdzie faktycznie są używane. Nazwy plików, ścieżki, nazwy repozytoriów, gałęzi ani tagów, zawartość commitów ani tożsamości nigdy nie są wysyłane.",
+  "telemetry.consent.accept": "Akceptuj",
+  "telemetry.consent.reject": "Odrzuć",
+  "telemetry.consent.globalOff": "Dzięki. Ustawienie telemetrii samego Visual Studio Code jest obecnie wyłączone i zawsze ma pierwszeństwo, więc nic nie zostanie wysłane, dopóki go nie włączysz.",
+  "telemetry.consent.openGlobalSetting": "Otwórz ustawienie"
 }

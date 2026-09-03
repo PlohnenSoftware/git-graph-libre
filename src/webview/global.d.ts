@@ -38,6 +38,7 @@ declare global {
     showStashes: boolean;
     showTags: boolean;
     shortHashLength: number;
+    telemetryConsent: GGL.TelemetryConsent;
   }
 
   interface ContextMenuItem {

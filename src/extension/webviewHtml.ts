@@ -10,6 +10,7 @@ import type { GitGraphViewState } from "@/types";
 import type { RepoManager } from "./repoManager";
 import { getWebviewLocalizedStrings } from "./webviewL10n";
 import { buildWebviewStatusStrip } from "./webviewStatusStrip";
+import { buildTelemetryNotice } from "./webviewTelemetryNotice";
 import { buildWebviewToolbar } from "./webviewToolbar";
 
 /**
@@ -63,7 +64,8 @@ export function buildWebviewHtml(opts: {
     showRemoteBranches: config.showRemoteBranches(),
     showStashes: config.showStashes(),
     showTags: config.showTags(),
-    shortHashLength: config.shortHashLength()
+    shortHashLength: config.shortHashLength(),
+    telemetryConsent: config.telemetryConsent()
   };
 
   const numRepos = Object.keys(viewState.repos).length;
@@ -85,6 +87,7 @@ export function buildWebviewHtml(opts: {
 		<div id="topBar">
 		${buildWebviewStatusStrip(l10nStrings, extensionVersion)}
 		${buildWebviewToolbar(l10nStrings)}
+		${buildTelemetryNotice(l10nStrings, viewState.telemetryConsent)}
 		</div>
 		<div id="settingsWidgetBacking" hidden></div>
 		<aside id="settingsWidget" role="dialog" aria-modal="true" tabindex="-1" aria-label="${l10nStrings.repositorySettings}" hidden></aside>

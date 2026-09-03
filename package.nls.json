@@ -54,5 +54,8 @@
   "config.tabIconColorTheme": "Specifies the color theme of the icon displayed on the Git Graph tab.",
   "config.tabIconColorTheme.color": "Show a color icon which suits most Visual Studio Code color themes",
   "config.tabIconColorTheme.grey": "Show a grey icon which suits Visual Studio Code color themes that are predominantly grayscale",
-  "config.telemetry.enabled": "Send anonymous usage data about which features are used, so development can be prioritized. Requires Visual Studio Code's own telemetry setting to be enabled; that setting always takes precedence. File names, paths, repository names, branch names, tag names, and commit contents are never sent."
+  "config.telemetry.enabled": "Whether to send anonymous usage data about which features are used, so development can be prioritized. Nothing is sent until you choose. Requires Visual Studio Code's own telemetry setting to be enabled; that setting always takes precedence. File names, paths, repository names, branch names, tag names, and commit contents are never sent.",
+  "config.telemetry.enabled.unset": "Not decided yet. Nothing is sent, and the extension will ask.",
+  "config.telemetry.enabled.enabled": "Send anonymous feature-usage data.",
+  "config.telemetry.enabled.disabled": "Send nothing, and stop asking."
 }

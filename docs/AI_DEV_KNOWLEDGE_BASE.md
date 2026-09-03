@@ -2643,9 +2643,17 @@ Client rules that must survive any refactor:
   batching: 25 events / 30 seconds), `activationSnapshot.ts` (once-per-session
   settings-divergence snapshot — only *that* a setting changed, never the
   value), `commonProperties.ts` (the OS properties VS Code does not inject;
-  carries its own removal condition).
+  carries its own removal condition), `consentPrompt.ts` (the consent
+  question — see its own section below).
 - **Two settings gate sending**, and both must be on: VS Code's global flag,
-  which always wins, and `git-graph-libre.telemetry.enabled` (default `true`).
+  which always wins, and `git-graph-libre.telemetry.enabled`. Ours is a
+  three-state consent (`unset` / `enabled` / `disabled`) defaulting to `unset`
+  since `2026-09-02`, and only `enabled` sends — an unanswered question is not
+  permission, so `unset` is silent *and* keeps prompting. `config.ts`
+  normalizes anything unrecognized to `unset` rather than to `enabled`, and
+  maps a leftover boolean from the pre-consent branch build onto the state the
+  user actually chose (`false` → `disabled`), because reading a refusal as
+  "not asked yet" would resume sending.
 - **`TELEMETRY_ENDPOINT` in `src/telemetry/endpoint.ts` is the on/off switch.**
   An empty string makes the reporter a total no-op, which is how the client
   shipped while no ingest existed; on `2026-09-02` it was pointed at the
@@ -2669,6 +2677,63 @@ Deployment (`2026-09-02`): the ingest answers at
 POSTed to `/v1/events` returned `204`, so routing, validation, and the database
 write path are all live. That probe inserted one synthetic row; clear it with
 `delete from events where machine_id = 'probe-machine';`.
+
+### Consent prompt (`2026-09-02`)
+
+`src/telemetry/consentPrompt.ts` asks the question the `unset` default leaves
+open: once from `activate()`, and again from `openGraphView()` on every graph
+open while the answer is still missing. Rules worth keeping:
+
+- **Dismissal is not an answer.** Closing the notification leaves the state
+  `unset`, so nothing is sent and the next graph open asks again. Recording a
+  dismissal either way would collect data nobody agreed to, or bury the
+  question forever.
+- **One question at a time.** Activation and the first graph open can land in
+  the same tick and the graph can be reopened while the notification is up, so
+  the module holds a `pending` flag. Without it the user answers a stack of
+  identical prompts.
+- **Accepting while VS Code's global switch is off** gets a follow-up saying
+  that switch wins, with a button running `workbench.action.openSettings` on
+  `telemetry.telemetryLevel`. The consent is still stored as `enabled` — it is
+  a valid preference that cannot take effect yet, and silently storing it
+  without a word would leave the user believing data is flowing.
+- **A failed settings write is swallowed and logged**, never allowed to take
+  activation or a graph open down with it. The state stays `unset`, so the
+  question comes back rather than being lost.
+- **No endpoint compiled in, no question.** Asking permission for something
+  that cannot happen is noise.
+
+The prompt has an ambient counterpart: while the setting is `unset` the graph
+carries a standing notice (`src/extension/webviewTelemetryNotice.ts`,
+`#telemetryNotice`) saying telemetry is neither accepted nor rejected. A
+notification is easy to dismiss by reflex, so the state must not live only in
+a dialog the user already closed. Three properties of it are deliberate:
+
+- **It renders inside `#topBar`.** The sticky table-header offset is published
+  from a ResizeObserver on that element, so appearing and disappearing keeps
+  the header attached with no extra plumbing — `renderTelemetryNotice()` still
+  calls `publishTopBarHeight()` in the same frame, the way the find row does.
+- **It is always emitted and toggled with `hidden`**, never added or removed by
+  rebuilding the HTML. `panel.webview.html = …` reloads the webview and drops
+  the retained document, so the change arrives as a
+  `telemetryConsentChanged` push instead, from the
+  `git-graph-libre.telemetry.enabled` branch of the configuration listener in
+  `extension.ts` and from the settings hub's own string-setting route.
+- **It carries no buttons.** The choice belongs to the prompt, which returns on
+  the next graph open. A second Accept/Reject pair wired to the same setting
+  would be two surfaces to keep in agreement for no gain.
+
+**Notification button styling — settled, do not re-open.** An earlier session
+left this unresolved: modal dialogs clearly style their first button as
+primary, and it was unclear whether plain notifications do. They do.
+`renderButtons()` in `workbench.desktop.main.js` constructs each button with
+`{ title: true, secondary: index > 0, ...defaultButtonStyles }`, so the
+accenting comes from **argument order alone** — the first item passed to
+`showInformationMessage` is the primary action and every later one is
+secondary. Accept is therefore passed first, and `PROMPT_MODAL` in that module
+stays `false`: modality would add nothing to the styling and would seize the
+window. The flag exists as one line only because the modality choice is a
+judgment call, not because the styling is in doubt.
 
 ### End-to-end verification of the sender seam (`2026-09-02`)
 

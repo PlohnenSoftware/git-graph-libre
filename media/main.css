@@ -954,6 +954,27 @@ body.commitDetailsResizing * {
   opacity: 0;
   border-bottom-width: 0;
 }
+
+/* Telemetry consent notice: shown only while the question is unanswered. It
+   sits in the top bar, so the sticky table header offset tracks it through the
+   existing #topBar ResizeObserver. */
+.telemetryNotice {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-overlay-strong));
+  background-color: var(
+    --vscode-notifications-background,
+    var(--vscode-editorWidget-background, var(--ngg-neutral-overlay-subtle))
+  );
+  color: var(--vscode-notificationsInfoIcon-foreground, var(--ngg-accent));
+  font-size: 12px;
+}
+.telemetryNoticeText {
+  color: var(--vscode-foreground);
+}
 .statusIndicator {
   width: 8px;
   height: 8px;

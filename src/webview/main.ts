@@ -256,6 +256,7 @@ class GitGraphView {
   private readonly tagDropdown: Dropdown;
   private readonly showRemoteBranchesElem: HTMLInputElement;
   private readonly topBarElem: HTMLElement;
+  private readonly telemetryNoticeElem: HTMLElement;
   private readonly findControlElem: HTMLElement;
   private readonly findInputElem: HTMLInputElement;
   private readonly findMatchCountElem: HTMLElement;
@@ -377,6 +378,7 @@ class GitGraphView {
       );
     });
     this.topBarElem = requireElement("topBar");
+    this.telemetryNoticeElem = requireElement("telemetryNotice");
     this.findControlElem = requireElement("findControl");
     this.findInputElem = requireElement<HTMLInputElement>("findInput");
     this.findMatchCountElem = requireElement("findMatchCount");
@@ -1038,6 +1040,21 @@ class GitGraphView {
     this.showFindWidget();
     if (this.findQuery.trim() !== "") this.requestSearchCommits();
   }
+
+  /* Telemetry consent */
+  public setTelemetryConsent(consent: GGL.TelemetryConsent) {
+    if (this.config.telemetryConsent === consent) return;
+    this.config.telemetryConsent = consent;
+    viewState.telemetryConsent = consent;
+    this.renderTelemetryNotice();
+  }
+  private renderTelemetryNotice() {
+    // The notice lives in the top bar, so showing or hiding it changes the
+    // sticky offset the table header hangs from; publish the height in the
+    // same frame the way the find row does.
+    this.telemetryNoticeElem.hidden = this.config.telemetryConsent !== "unset";
+    this.publishTopBarHeight();
+  }
   private clearFind() {
     this.findInputElem.value = "";
     this.findQuery = "";
@@ -1593,6 +1610,11 @@ class GitGraphView {
   private applyStringExtensionSetting(configKey: string, value: GGL.JsonValue) {
     if (typeof value !== "string") return false;
     switch (configKey) {
+      case "telemetry.enabled":
+        if (value === "unset" || value === "enabled" || value === "disabled") {
+          this.setTelemetryConsent(value);
+        }
+        return true;
       case "commitDetails.fileViewMode":
         if (value === "tree" || value === "list") this.config.commitDetailsFileViewMode = value;
         return true;
@@ -5586,7 +5608,8 @@ const gitGraph = new GitGraphView(
     showRemoteBranches: viewState.showRemoteBranches,
     showStashes: viewState.showStashes,
     showTags: viewState.showTags,
-    shortHashLength: viewState.shortHashLength
+    shortHashLength: viewState.shortHashLength,
+    telemetryConsent: viewState.telemetryConsent
   },
   vscode.getState() ?? null
 );
@@ -5721,6 +5744,7 @@ const responseHandlers: ResponseHandlerMap = {
   searchCommits: (msg) =>
     gitGraph.loadSearchCommitResults(msg.requestId, msg.results, formatQueryError(msg.error)),
   startHistorySearch: () => gitGraph.startHistorySearch(),
+  telemetryConsentChanged: (msg) => gitGraph.setTelemetryConsent(msg.consent),
   tagDetails: handleTagDetailsResponse,
   viewDiff: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewDiff),
   viewFileAtRevision: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewFileAtRevision)

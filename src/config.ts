@@ -12,7 +12,8 @@ import type {
   ContextMenuActionsVisibility,
   CustomBranchGlobPattern,
   DateFormat,
-  GraphStyle
+  GraphStyle,
+  TelemetryConsent
 } from "./types";
 
 type TabIconColorTheme = "color" | "grey";
@@ -36,6 +37,25 @@ const DEFAULT_GRAPH_COLORS = [
   "oklch(59% 0.21 95)"
 ];
 const DEFAULT_REVEAL_HIGHLIGHT_COLOR = "oklch(90% 0.25 150 / 0.42)";
+
+/**
+ * Maps whatever is stored for `telemetry.enabled` onto the three states.
+ *
+ * Anything unrecognized becomes `unset`, never `enabled`: an unreadable
+ * setting must leave the question open rather than answer it for the user.
+ *
+ * The boolean cases read a settings file written against the pre-consent
+ * build of this branch, where the key was a plain `true`/`false`. They are
+ * honored rather than ignored because someone who wrote `false` has already
+ * refused, and treating that as "not asked yet" would resume sending.
+ * Removable at any time: the boolean shape never reached a release.
+ */
+function normalizeTelemetryConsent(raw: unknown): TelemetryConsent {
+  if (raw === true) return "enabled";
+  if (raw === false) return "disabled";
+  if (raw === "enabled" || raw === "disabled" || raw === "unset") return raw;
+  return "unset";
+}
 
 function getConfig<T>(key: string, defaultValue: T): T {
   return vscode.workspace.getConfiguration("git-graph-libre").get(key, defaultValue);
@@ -149,7 +169,8 @@ export const config = {
   showStashes: (): boolean => getConfig("repository.showStashes", true),
   showTags: (): boolean => getConfig("repository.showTags", true),
   showUncommittedChanges: (): boolean => getConfig("showUncommittedChanges", true),
-  telemetryEnabled: (): boolean => getConfig("telemetry.enabled", true),
+  telemetryConsent: (): TelemetryConsent =>
+    normalizeTelemetryConsent(getConfig<unknown>("telemetry.enabled", "unset")),
   tabIconColorTheme: (): TabIconColorTheme => {
     const value = getConfigWithLegacy<string>("tabIconColorTheme", "tabIconColourTheme", "color");
     return value === "grey" ? "grey" : "color";

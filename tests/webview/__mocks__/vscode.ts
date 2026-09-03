@@ -95,11 +95,61 @@ export const commands = {
   }
 };
 
+/**
+ * Stand-in for `vscode.env.createTelemetryLogger`.
+ *
+ * Mirrors the one behavior the extension's design leans on: the logger, not
+ * the extension, is what enforces VS Code's global telemetry setting. It does
+ * NOT mirror logging-only mode — the real extension host suppresses sender
+ * calls inside a test launch, which is exactly why the seam is verified
+ * against a packaged build instead (see tests/extension/telemetry.test.ts).
+ */
+export type MockTelemetrySender = {
+  sendEventData: (eventName: string, data?: Record<string, unknown>) => void;
+  sendErrorData: (error: Error, data?: Record<string, unknown>) => void;
+  flush?: () => void | Promise<void>;
+};
+export type MockTelemetryLogger = {
+  sender: MockTelemetrySender;
+  options: Record<string, unknown> | undefined;
+  events: Array<{ name: string; data: Record<string, unknown> | undefined }>;
+  disposed: boolean;
+};
+
+export const telemetryLoggers: MockTelemetryLogger[] = [];
+
 export const env = {
   language: "en",
+  isTelemetryEnabled: true,
   openExternal: async (uri: { toString: () => string; value?: string }) => {
     openedExternalUris.push(uri);
     return true;
+  },
+  createTelemetryLogger: (sender: MockTelemetrySender, options?: Record<string, unknown>) => {
+    const record: MockTelemetryLogger = {
+      sender,
+      options,
+      events: [],
+      disposed: false
+    };
+    telemetryLoggers.push(record);
+    return {
+      get isUsageEnabled() {
+        return env.isTelemetryEnabled;
+      },
+      get isErrorsEnabled() {
+        return env.isTelemetryEnabled;
+      },
+      logUsage: (name: string, data?: Record<string, unknown>) => {
+        if (!env.isTelemetryEnabled) return;
+        record.events.push({ name, data });
+        sender.sendEventData(name, data);
+      },
+      logError: () => {},
+      dispose: () => {
+        record.disposed = true;
+      }
+    };
   }
 };
 
@@ -200,6 +250,8 @@ export function setConfigurationValue(
 
 export function resetVscodeMock() {
   executedCommands.splice(0);
+  telemetryLoggers.splice(0);
+  env.isTelemetryEnabled = true;
   openedTextDocuments.splice(0);
   openedExternalUris.splice(0);
   shownTextDocuments.splice(0);

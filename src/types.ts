@@ -8,6 +8,14 @@ import type {
 } from "@/backend/types";
 
 export type GitRepoSet = { [repo: string]: GitRepoState };
+/**
+ * Whether the user has answered the telemetry question, and how.
+ *
+ * `unset` is not a synonym for `disabled`: it means the question is still
+ * open, so the extension both stays silent and keeps asking. Any state other
+ * than `enabled` sends nothing.
+ */
+export type TelemetryConsent = "unset" | "enabled" | "disabled";
 export type RepoBooleanOverride = "default" | "enabled" | "disabled";
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -168,6 +176,7 @@ export type GitGraphViewState = {
   includeUnreachableCommits: boolean;
   settingsWidgetTab?: SettingsWidgetTab;
   shortHashLength: number;
+  telemetryConsent: TelemetryConsent;
 };
 
 export type Avatar = {
@@ -368,6 +377,16 @@ export type ResponseStartHistorySearch = {
   command: "startHistorySearch";
 };
 
+/**
+ * Pushed when `telemetry.enabled` changes outside the webview, so the standing
+ * "not decided yet" notice can appear or disappear without rebuilding the
+ * document and dropping the retained graph state.
+ */
+export type ResponseTelemetryConsentChanged = {
+  command: "telemetryConsentChanged";
+  consent: TelemetryConsent;
+};
+
 export type RequestMessage =
   | ActionRequest
   | QueryRequest
@@ -408,4 +427,5 @@ export type ResponseMessage =
   | ResponseExportExtensionSettings
   | ResponseImportExtensionSettings
   | ResponseRefresh
-  | ResponseStartHistorySearch;
+  | ResponseStartHistorySearch
+  | ResponseTelemetryConsentChanged;

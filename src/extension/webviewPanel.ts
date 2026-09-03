@@ -5,7 +5,7 @@ import { buildExtensionUri } from "@/backend/utils/path";
 import type { Config } from "@/config";
 import type { ExtensionState } from "@/extensionState";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
-import type { GitRepoSet } from "@/types";
+import type { GitRepoSet, TelemetryConsent } from "@/types";
 
 import type { RepoManager } from "./repoManager";
 import type { WebviewBridge } from "./webviewBridge";
@@ -146,6 +146,15 @@ export function createWebviewPanel(opts: {
     },
     startHistorySearch() {
       bridge.post({ command: "startHistorySearch" });
+    },
+    /**
+     * Pushed rather than re-rendered: rebuilding the HTML would reload the
+     * webview and drop the retained graph state, and the notice is a single
+     * `hidden` toggle.
+     */
+    setTelemetryConsent(consent: TelemetryConsent) {
+      if (!isGraphViewLoaded) return;
+      bridge.post({ command: "telemetryConsentChanged", consent });
     },
     dispose
   };

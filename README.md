@@ -79,15 +79,16 @@ All settings use the `git-graph-libre` prefix.
 | `showCurrentBranchByDefault`                   | `false`         | Show only current branch on open                 |
 | `showStatusBarItem`                            | `true`          | Show status bar button                           |
 | `showUncommittedChanges`                       | `true`          | Show uncommitted changes node                    |
-| `telemetry.enabled`                            | `true`          | Send anonymous feature-usage data (see below)    |
+| `telemetry.enabled`                            | `"unset"`       | `unset` / `enabled` / `disabled` — see below     |
 | `tabIconColorTheme`                            | `"color"`       | `"color"` or `"grey"`                            |
 
 ## Telemetry
 
-This extension sends anonymous usage data so development can be aimed at the
-features people actually use. It is a hobby project with no company behind it,
-and the data goes to a small self-hosted service at
-`t.plohnensoftware.download` — never to a third-party analytics provider.
+This extension can send anonymous usage data so development can be aimed at
+the features people actually use. It asks first and sends nothing until you
+answer. It is a hobby project with no company behind it, and the data goes to a
+small self-hosted service at `t.plohnensoftware.download` — never to a
+third-party analytics provider.
 
 **What is sent**
 
@@ -110,13 +111,27 @@ URLs, branch names, tag names, commit hashes, commit messages, author names,
 email addresses, environment variables, credentials, or your list of installed
 extensions. The receiving service stores no IP addresses.
 
-**Turning it off**
+**Nothing is sent until you say so**
 
-Either switch is enough:
+`git-graph-libre.telemetry.enabled` has three states and starts at `unset`:
 
-- Visual Studio Code's own `telemetry.telemetryLevel` setting — this always
-  wins, and nothing is sent when it is off, regardless of the setting below.
-- `git-graph-libre.telemetry.enabled`, set to `false`.
+| State      | What happens                                            |
+| ---------- | ------------------------------------------------------- |
+| `unset`    | Nothing is sent. The default — no answer is not a yes.  |
+| `enabled`  | Feature-usage data is sent, subject to the switch below |
+| `disabled` | Nothing is sent.                                        |
+
+The extension asks once when it activates, and again whenever you open the
+graph, until you answer. Closing the notification without choosing is not an
+answer: the state stays `unset`, nothing is sent, and you get asked again next
+time. While the question is open, the graph itself carries a small notice
+saying telemetry is neither accepted nor rejected.
+
+Visual Studio Code's own `telemetry.telemetryLevel` setting always wins on top
+of that: while it is off, nothing is sent no matter which state the setting
+above is in. If you accept while that switch is off, the extension says so and
+offers to open the setting rather than storing a preference that cannot take
+effect.
 
 Run `code --telemetry` to see the full declaration of what this extension
 collects, alongside every other extension you have installed.

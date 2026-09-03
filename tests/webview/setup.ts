@@ -1,5 +1,6 @@
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
 import { buildWebviewStatusStrip } from "@/extension/webviewStatusStrip";
+import { buildTelemetryNotice } from "@/extension/webviewTelemetryNotice";
 import { buildWebviewToolbar } from "@/extension/webviewToolbar";
 import type * as GGL from "@/types";
 
@@ -30,6 +31,7 @@ export function setupHtml(viewState: GGL.GitGraphViewState) {
     <div id="topBar">
     ${buildWebviewStatusStrip(l10nStrings, "1.2.0")}
     ${buildWebviewToolbar(l10nStrings)}
+    ${buildTelemetryNotice(l10nStrings, viewState.telemetryConsent)}
     </div>
     <div id="settingsWidgetBacking" hidden></div>
     <aside id="settingsWidget" role="dialog" aria-modal="true" tabindex="-1" aria-label="${l10nStrings.repositorySettings}" hidden></aside>

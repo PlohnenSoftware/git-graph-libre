@@ -40,10 +40,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   names, commit hashes and messages, author identities, and your installed
   extension list are never sent, and the receiving service stores no IP
   addresses. Data goes to a small self-hosted service, not a third-party
-  analytics provider. Turn it off with either Visual Studio Code's own
-  `telemetry.telemetryLevel` — which always wins — or the new
-  `git-graph-libre.telemetry.enabled` setting. `code --telemetry` shows the
-  full declaration. See the README for details.
+  analytics provider. **Nothing is sent until you choose**: the new
+  `git-graph-libre.telemetry.enabled` setting starts at `unset`, which sends
+  nothing, and only `enabled` turns collection on. The extension asks on
+  activation and again on each graph open until you answer — dismissing the
+  notification is not an answer — and accepting while Visual Studio Code's own
+  `telemetry.telemetryLevel` is off tells you that switch wins and offers to
+  open it. While the question is open the graph carries a small notice saying
+  telemetry is neither accepted nor rejected. `code --telemetry` shows the full
+  declaration. See the README for details.
 - **New setting `git-graph-libre.repository.fetchTagsByDefault`** (default
   `true`): controls whether the **Fetch all tags** checkbox in the toolbar
   Fetch dialog starts ticked.
