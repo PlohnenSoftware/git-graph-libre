@@ -38,6 +38,35 @@ beforeAll(() => {
   repo = makeRepo();
 });
 
+/**
+ * Writes a tag object carrying a PGP signature block without needing a GPG key,
+ * the same trick the loadCommits signed-tag suite uses: `%(contents:signature)`
+ * keys off the block, not off a valid signature.
+ */
+function createSignatureBearingTag(dir: string, tagName: string, target: string) {
+  const tagHash = cp
+    .execFileSync("git", ["mktag"], {
+      cwd: dir,
+      input: [
+        `object ${cp.execFileSync("git", ["rev-parse", target], { cwd: dir }).toString().trim()}`,
+        "type commit",
+        `tag ${tagName}`,
+        "tagger T <t@t.com> 1700000000 +0000",
+        "",
+        "signed release",
+        "-----BEGIN PGP SIGNATURE-----",
+        "",
+        "aGVsbG8gd29ybGQK",
+        "=abcd",
+        "-----END PGP SIGNATURE-----",
+        ""
+      ].join("\n")
+    })
+    .toString()
+    .trim();
+  git(["update-ref", `refs/tags/${tagName}`, tagHash], dir);
+}
+
 afterAll(() => {
   fs.rmSync(repo, { recursive: true, force: true });
 });
@@ -152,6 +181,99 @@ describe("registerMessageHandlers", () => {
     expect(serialized).not.toContain("acme-corp-release");
     expect(serialized).not.toContain(repo);
     expect(Object.keys(telemetryEvents[0])).toEqual(["feature", "ok"]);
+  });
+
+  // The action chokepoint above cannot see features that consist of something
+  // being shown, so the commit-load route reports those separately.
+  describe("read-side features", () => {
+    const loadCommitsRequest = {
+      command: "loadCommits" as const,
+      requestId: 1,
+      branchName: "",
+      branches: null,
+      authors: null,
+      tags: null,
+      maxCommits: 50,
+      showRemoteBranches: false,
+      hiddenRemotes: [],
+      showTags: true,
+      includeReflog: false,
+      includeUnreachableCommits: false,
+      onlyFollowFirstParent: false,
+      commitOrdering: "date" as const,
+      showSignature: false,
+      hard: true,
+      repo
+    };
+
+    it("reports history recovery when the log actually included it", async () => {
+      const { handlers, telemetryEvents } = registerHandlersForTest();
+
+      await handlers.get("loadCommits")?.({
+        ...loadCommitsRequest,
+        includeReflog: true,
+        includeUnreachableCommits: true
+      } as RequestMessage);
+
+      expect(telemetryEvents).toEqual([
+        { feature: "view.includeReflog", ok: true },
+        { feature: "view.includeUnreachableCommits", ok: true }
+      ]);
+    });
+
+    // The unreachable scan is skipped by the query itself unless the log
+    // covers all refs, so an enabled setting under a branch filter is intent,
+    // not use.
+    it("does not report the unreachable scan under a branch filter", async () => {
+      const { handlers, telemetryEvents } = registerHandlersForTest();
+
+      await handlers.get("loadCommits")?.({
+        ...loadCommitsRequest,
+        branches: ["main"],
+        includeUnreachableCommits: true
+      } as RequestMessage);
+
+      expect(telemetryEvents).toEqual([]);
+    });
+
+    it("reports the signed-tag badge from the commits the load returned", async () => {
+      createSignatureBearingTag(repo, "v9.9.9-signed", "HEAD");
+      const { handlers, telemetryEvents } = registerHandlersForTest();
+
+      await handlers.get("loadCommits")?.(loadCommitsRequest as RequestMessage);
+
+      expect(telemetryEvents).toEqual([{ feature: "view.signedTagBadge", ok: true }]);
+      git(["tag", "-d", "v9.9.9-signed"], repo);
+    });
+
+    // The load path runs on every refresh and every watcher tick.
+    it("reports each read-side feature once per session", async () => {
+      const { handlers, telemetryEvents } = registerHandlersForTest();
+
+      await handlers.get("loadCommits")?.({
+        ...loadCommitsRequest,
+        includeReflog: true
+      } as RequestMessage);
+      await handlers.get("loadCommits")?.({
+        ...loadCommitsRequest,
+        includeReflog: true
+      } as RequestMessage);
+
+      expect(telemetryEvents).toEqual([{ feature: "view.includeReflog", ok: true }]);
+    });
+
+    it("still answers the request with the commits", async () => {
+      const { handlers, posts } = registerHandlersForTest();
+
+      await handlers.get("loadCommits")?.({
+        ...loadCommitsRequest,
+        includeReflog: true
+      } as RequestMessage);
+
+      expect(posts).toHaveLength(1);
+      expect(posts[0]).toMatchObject({ command: "loadCommits", requestId: 1 });
+      expect((posts[0] as { commits: unknown[] }).commits.length).toBeGreaterThan(0);
+    });
   });
 
   it("echoes request ids when loading repository info", async () => {

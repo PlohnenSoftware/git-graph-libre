@@ -93,6 +93,10 @@ third-party analytics provider.
 **What is sent**
 
 - Which command or action ran (for example `pushTag`), and whether it succeeded.
+- Once per session: whether a feature that works by *showing* something was
+  actually in effect — recovered history (reflog-only or unreachable commits)
+  appearing in the graph, or a signed tag being there to badge. These are
+  recorded once, not once per refresh.
 - Once per session: which settings you have changed from their defaults — only
   *that* they were changed, never what you changed them to.
 - The properties Visual Studio Code attaches to every extension telemetry

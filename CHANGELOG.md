@@ -47,7 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   notification is not an answer — and accepting while Visual Studio Code's own
   `telemetry.telemetryLevel` is off tells you that switch wins and offers to
   open it. While the question is open the graph carries a small notice saying
-  telemetry is neither accepted nor rejected. `code --telemetry` shows the full
+  telemetry is neither accepted nor rejected. Alongside commands and actions,
+  two features that work by *showing* something are recorded once per session
+  when they actually take effect: recovered history appearing in the graph, and
+  a signed tag being there to badge. `code --telemetry` shows the full
   declaration. See the README for details.
 - **New setting `git-graph-libre.repository.fetchTagsByDefault`** (default
   `true`): controls whether the **Fetch all tags** checkbox in the toolbar

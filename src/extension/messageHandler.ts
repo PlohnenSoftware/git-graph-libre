@@ -55,6 +55,7 @@ import { searchCommits } from "@/backend/queries/searchCommits";
 import { tagDetails } from "@/backend/queries/tagDetails";
 import type { GitFileChangeType } from "@/backend/types";
 import { formatGitCommandRecord } from "@/backend/utils/gitCommandLog";
+import { selectedLogRefs } from "@/backend/utils/logFilters";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { abbrevCommit } from "@/backend/utils/string";
 import type { Config } from "@/config";
@@ -64,6 +65,7 @@ import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
 import type { TelemetryReporter } from "@/telemetry";
+import { createViewFeatureReporter } from "@/telemetry/viewFeatures";
 import type { ExtensionSetting, GitRepoState, RequestMessage, ResponseMessage } from "@/types";
 
 import { loadExtensionSettings, updateExtensionSetting } from "./extensionSettings";
@@ -316,6 +318,7 @@ export function registerMessageHandlers(
   } = deps;
 
   let currentRepo: string | null = null;
+  const viewFeatures = createViewFeatureReporter(telemetry);
   const recordGitCommand: GitCommandRecorder | undefined = outputChannel
     ? (record) => {
         outputChannel.appendLine(formatGitCommandRecord(record));
@@ -507,30 +510,49 @@ export function registerMessageHandlers(
   // --- Query handlers ---
 
   bridge.onMessage("loadCommits", async (msg) => {
+    const result = await loadCommits(gitClient.getInstance(), {
+      branchName: msg.branchName,
+      branches: msg.branches,
+      authors: msg.authors,
+      tags: msg.tags,
+      maxCommits: msg.maxCommits,
+      showRemoteBranches: msg.showRemoteBranches,
+      hiddenRemotes: msg.hiddenRemotes,
+      showTags: msg.showTags,
+      includeReflog: msg.includeReflog,
+      includeUnreachableCommits: msg.includeUnreachableCommits,
+      onlyFollowFirstParent: msg.onlyFollowFirstParent,
+      commitOrdering: msg.commitOrdering,
+      showSignature: msg.showSignature,
+      hard: msg.hard,
+      dateType: config.dateType(),
+      showUncommittedChanges: config.showUncommittedChanges(),
+      repo: msg.repo,
+      gitPath: config.gitPath(),
+      recordGitCommand
+    });
+
+    // History recovery and the signed-tag badge are features nobody invokes —
+    // they change what the graph contains — so the action chokepoint above
+    // cannot see them. Reported from here, once per session each.
+    viewFeatures.recordCommitLoad({
+      includeReflog: msg.includeReflog === true,
+      includeUnreachableCommits: msg.includeUnreachableCommits === true,
+      // The same predicate the query uses to decide whether the scan runs at
+      // all, so an enabled setting under an active filter is not counted.
+      showsAllRefs:
+        selectedLogRefs({
+          branches: msg.branches,
+          legacyBranchName: msg.branchName,
+          tags: msg.tags
+        }) === null,
+      commits: result.commits
+    });
+
     bridge.post({
       command: "loadCommits",
       requestId: msg.requestId,
-      ...(await loadCommits(gitClient.getInstance(), {
-        branchName: msg.branchName,
-        branches: msg.branches,
-        authors: msg.authors,
-        tags: msg.tags,
-        maxCommits: msg.maxCommits,
-        showRemoteBranches: msg.showRemoteBranches,
-        hiddenRemotes: msg.hiddenRemotes,
-        showTags: msg.showTags,
-        includeReflog: msg.includeReflog,
-        includeUnreachableCommits: msg.includeUnreachableCommits,
-        onlyFollowFirstParent: msg.onlyFollowFirstParent,
-        commitOrdering: msg.commitOrdering,
-        showSignature: msg.showSignature,
-        hard: msg.hard,
-        dateType: config.dateType(),
-        showUncommittedChanges: config.showUncommittedChanges(),
-        repo: msg.repo,
-        gitPath: config.gitPath(),
-        recordGitCommand
-      }))
+      ...result
     });
   });
 

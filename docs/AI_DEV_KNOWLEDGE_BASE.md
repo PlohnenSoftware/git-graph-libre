@@ -2631,12 +2631,25 @@ Client rules that must survive any refactor:
   the user's global telemetry setting and scrubs paths, URIs, and usernames
   before our sender is called. Never bypass it with a direct `fetch` from
   feature code.
-- **Two chokepoints** cover the feature surface, and telemetry calls must not
-  be scattered beyond them: `registerAction()` in
-  `src/extension/messageHandler.ts` (all webview actions, outcome included)
-  and `register()` in `src/extension/commandManager.ts` (palette commands).
-  The action payload is in scope at the first one and carries repository
-  paths, branch names, and commit hashes — send `command` only.
+- **Three chokepoints** cover the feature surface, and telemetry calls must
+  not be scattered beyond them: `registerAction()` in
+  `src/extension/messageHandler.ts` (all webview actions, outcome included),
+  `register()` in `src/extension/commandManager.ts` (palette commands), and
+  `createViewFeatureReporter()` in `src/telemetry/viewFeatures.ts`, called from
+  the `loadCommits` route, for features that consist of something being
+  *shown*. The action payload is in scope at the first one and carries
+  repository paths, branch names, and commit hashes — send `command` only.
+- **View-side features are reported once per session, never per load.** The
+  commit-load path runs on activation, every refresh, every filter change and
+  every watcher tick, so per-load reporting would rank one user's refresh
+  habits instead of installations; read those numbers as "installations that
+  saw it". Two further rules live in that module: a signal fires only when the
+  feature *took effect* (the unreachable scan is skipped by the query unless
+  the log covers all refs, so an enabled setting under a filter is intent, not
+  use), and feature ids must match the ingest's
+  `^[a-z][a-zA-Z0-9._-]{0,63}$` — a malformed id makes the ingest reject the
+  **whole batch**, silently losing up to 25 unrelated events, which is why the
+  pattern is mirrored in the client and asserted in tests.
 - **Client modules** in `src/telemetry/`: `index.ts`
   (`createTelemetryReporter()`), `endpoint.ts` (the compiled-in ingest URL),
   `sender.ts` (TelemetrySender → fetch transport), `eventQueue.ts` (pure

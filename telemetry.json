@@ -19,7 +19,7 @@
     "feature": {
       "classification": "SystemMetaData",
       "purpose": "FeatureInsight",
-      "comment": "The identifier of the action that ran, for example 'pushTag' or 'git-graph-libre.view'. This is a fixed identifier from the extension's own command list; no user content, path, or repository detail is included."
+      "comment": "The identifier of the action that ran, for example 'pushTag' or 'git-graph-libre.view'. This is a fixed identifier from the extension's own command list; no user content, path, or repository detail is included. Identifiers beginning with 'view.' are features that consist of something being shown rather than something being invoked - 'view.includeReflog' and 'view.includeUnreachableCommits' when recovered history was actually included in the graph, and 'view.signedTagBadge' when a signed tag was there to badge. Those are recorded at most once per session, not once per refresh."
     },
     "ok": {
       "classification": "SystemMetaData",
