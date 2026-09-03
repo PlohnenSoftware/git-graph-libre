@@ -290,6 +290,18 @@ The extension is already split into clean layers:
   threshold are historical. Coverage is still worth generating and watching
   (`pnpm run test:coverage` before every scan) — it is simply no longer a gate
   condition, so a green gate is not evidence that coverage held.
+- The gate changed again by `2026-09-02`, which is why it must be read off the
+  server rather than from this list. `new_coverage >= 85` is **back**,
+  `new_violations` is now at most `5`, and the project-wide issue-count and
+  remediation-effort conditions have been replaced by
+  `new_software_quality_high_issues = 0`,
+  `software_quality_maintainability_rating = 1`,
+  `software_quality_reliability_issues = 0`, and
+  `software_quality_security_issues = 0`. The gate reports its `Previous
+  Version` window as `1.2.0` while `sonar-project.properties` says `1.3.0` —
+  that is the definition working as intended, not drift: new code is everything
+  since the last analysis of the *previous* version, so the whole `1.3.0` line
+  of work stays inside the window until the version is advanced again.
 - Polling the API from the CLI: `sonar.host.url` in the scanner config has
   trailing whitespace, so `curl` fails with exit `3` (malformed URL) unless the
   value is sanitized, e.g.
@@ -2598,6 +2610,71 @@ Phase 15 (tag surfaces) completed `2026-07-29` and shipped as `v1.1.1`.
    arbitrary two-commit/ref comparison and external directory diff
    (Phase 8), repository dropdown ordering (Phase 9), text
    rendering/tag signatures/mailmap/encoding (Phase 10).
+
+## Telemetry (`telemetry` branch, `2026-08-26`)
+
+Usage telemetry for feature ranking, **client side only in this repository**.
+The Go ingest service was extracted on `2026-08-26` into its own private
+repository, `PlohnenSoftware/git-graph-libre-telemetry`, checked out beside
+this one as `../git-graph-libre-telemetry`. Its self-contained README carries
+the design decisions, event model, API contract, schema, deployment, and the
+no-IP-address rule; do not move backend detail back into this knowledge base
+or the extension README. A merge to that repository's `main` builds the image
+in GitHub Actions and calls the Coolify deploy webhook, so a push there is a
+deployment.
+
+Client rules that must survive any refactor:
+
+- **Goal**: rank features by how many installations use them, so effort goes
+  where it is used. Not crash reporting, not performance, not user counts.
+- **Compliance boundary** is `vscode.env.createTelemetryLogger()`. It gates on
+  the user's global telemetry setting and scrubs paths, URIs, and usernames
+  before our sender is called. Never bypass it with a direct `fetch` from
+  feature code.
+- **Two chokepoints** cover the feature surface, and telemetry calls must not
+  be scattered beyond them: `registerAction()` in
+  `src/extension/messageHandler.ts` (all webview actions, outcome included)
+  and `register()` in `src/extension/commandManager.ts` (palette commands).
+  The action payload is in scope at the first one and carries repository
+  paths, branch names, and commit hashes — send `command` only.
+- **Client modules** in `src/telemetry/`: `index.ts`
+  (`createTelemetryReporter()`), `endpoint.ts` (the compiled-in ingest URL),
+  `sender.ts` (TelemetrySender → fetch transport), `eventQueue.ts` (pure
+  batching: 25 events / 30 seconds), `activationSnapshot.ts` (once-per-session
+  settings-divergence snapshot — only *that* a setting changed, never the
+  value).
+- **Two settings gate sending**, and both must be on: VS Code's global flag,
+  which always wins, and `git-graph-libre.telemetry.enabled` (default `true`).
+- **`TELEMETRY_ENDPOINT` in `src/telemetry/endpoint.ts` is the on/off switch.**
+  An empty string makes the reporter a total no-op, which is how the client
+  shipped while no ingest existed; on `2026-09-02` it was pointed at the
+  deployed service, so telemetry is live from the next release. The constant
+  sits in its own module precisely because that module imports nothing from
+  `vscode`: `index.ts` does, so the backend test project cannot load it, and
+  the shipped value would otherwise be untestable
+  (`tests/backend/telemetry/endpoint.test.ts`).
+- **`sendErrorData` is deliberately a no-op** and the logger sets
+  `ignoreUnhandledErrors: true`. The two must change together: without the
+  flag, VS Code routes every unhandled extension-host error into the sender,
+  and the ingest accepts only `activate` and `feature`.
+- **`telemetry.json` at the repository root** declares every collected
+  property for `code --telemetry` and is shipped in the VSIX. Update it in the
+  same slice as any event or property change, and keep the README's Telemetry
+  section (the user-facing disclosure) in sync with it.
+
+Deployment (`2026-09-02`): the ingest answers at
+`https://t.plohnensoftware.download`, behind Cloudflare and Caddy. `GET
+/healthz` returned `{"database":true,"ok":true}` and a correctly shaped batch
+POSTed to `/v1/events` returned `204`, so routing, validation, and the database
+write path are all live. That probe inserted one synthetic row; clear it with
+`delete from events where machine_id = 'probe-machine';`.
+
+The branch was built as many small resumable commits at the maintainer's
+request, with the full gate run once at the end of the slice instead of per
+commit; that gate passed and the branch is cleared for merge. The former
+`docs/TELEMETRY_PLAN.md` was dissolved when the backend was split out:
+backend design and deployment now live in `server/telemetry/README.md`, and
+the durable client rules live in this section.
 
 ## Documentation and Verification Rules
 

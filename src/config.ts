@@ -149,6 +149,7 @@ export const config = {
   showStashes: (): boolean => getConfig("repository.showStashes", true),
   showTags: (): boolean => getConfig("repository.showTags", true),
   showUncommittedChanges: (): boolean => getConfig("showUncommittedChanges", true),
+  telemetryEnabled: (): boolean => getConfig("telemetry.enabled", true),
   tabIconColorTheme: (): TabIconColorTheme => {
     const value = getConfigWithLegacy<string>("tabIconColorTheme", "tabIconColourTheme", "color");
     return value === "grey" ? "grey" : "color";

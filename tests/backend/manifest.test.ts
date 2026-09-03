@@ -19,6 +19,7 @@ type PackageManifest = {
           items?: { pattern?: string; properties?: Record<string, { type: string }> };
           minimum?: number;
           maximum?: number;
+          tags?: string[];
           description: string;
         }
       >;
@@ -115,7 +116,8 @@ describe("extension manifest", () => {
     ["git-graph-libre.columns.signature", false],
     ["git-graph-libre.repository.muteMergeCommits", false],
     ["git-graph-libre.repository.boldCheckedOutCommit", false],
-    ["git-graph-libre.repository.fetchTagsByDefault", true]
+    ["git-graph-libre.repository.fetchTagsByDefault", true],
+    ["git-graph-libre.telemetry.enabled", true]
   ])("contributes %s as a boolean defaulting to %s", (key, expectedDefault) => {
     const manifest = readManifest();
     const setting = manifest.contributes.configuration.properties[key];
@@ -125,6 +127,16 @@ describe("extension manifest", () => {
       default: expectedDefault,
       description: `%${key.replace("git-graph-libre.", "config.")}%`
     });
+  });
+
+  // The tags are what put this setting in front of a user looking for a
+  // telemetry switch, so they are asserted rather than assumed.
+  it("tags the telemetry setting so it surfaces in the telemetry settings view", () => {
+    const manifest = readManifest();
+    const setting =
+      manifest.contributes.configuration.properties["git-graph-libre.telemetry.enabled"];
+
+    expect(setting.tags).toEqual(expect.arrayContaining(["telemetry", "usesOnlineServices"]));
   });
 
   it("contributes custom branch glob preset settings", () => {

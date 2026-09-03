@@ -43,6 +43,7 @@ function makeConfig(): Config {
     showTags: () => true,
     showStatusBarItem: () => true,
     showUncommittedChanges: () => true,
+    telemetryEnabled: () => true,
     tabIconColorTheme: () => "color",
     gitPath: () => "git"
   };

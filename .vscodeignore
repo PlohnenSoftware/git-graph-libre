@@ -8,6 +8,7 @@
 !NOTICE.md
 !CHANGELOG.md
 !package.nls*.json
+!telemetry.json
 !out/
 !media/
 !l10n/

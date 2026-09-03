@@ -44,6 +44,7 @@ afterAll(() => {
 
 describe("registerMessageHandlers", () => {
   function registerHandlersForTest(activeRepo = repo, options: { extensionPath?: string } = {}) {
+    const telemetryEvents: Array<{ feature: string; ok: boolean }> = [];
     const handlers = new Map<
       RequestMessage["command"],
       (msg: RequestMessage) => void | Promise<void>
@@ -95,11 +96,63 @@ describe("registerMessageHandlers", () => {
       extensionPath: options.extensionPath,
       outputChannel: {
         appendLine: (line: string) => outputLines.push(line)
+      },
+      telemetry: {
+        logFeature: (feature: string, ok: boolean) => {
+          telemetryEvents.push({ feature, ok });
+        }
       }
     });
 
-    return { handlers, posts, outputLines, repoStates, repoFileWatcher };
+    return { handlers, posts, outputLines, repoStates, repoFileWatcher, telemetryEvents };
   }
+
+  // registerAction is the chokepoint the whole action surface funnels through,
+  // so one call there instruments every context-menu item, dialog, and toolbar
+  // action at once.
+  it("records a feature event with the outcome for a successful action", async () => {
+    const { handlers, telemetryEvents } = registerHandlersForTest();
+
+    await handlers.get("addTag")?.({
+      command: "addTag",
+      repo,
+      tagName: "v9.9.9-telemetry",
+      commitHash: "HEAD",
+      lightweight: true,
+      message: ""
+    } as RequestMessage);
+
+    expect(telemetryEvents).toEqual([{ feature: "addTag", ok: true }]);
+  });
+
+  it("records ok:false when an action throws", async () => {
+    const { handlers, telemetryEvents } = registerHandlersForTest();
+
+    await handlers.get("deleteTag")?.({
+      command: "deleteTag",
+      repo,
+      tagName: "definitely-not-a-real-tag"
+    } as RequestMessage);
+
+    expect(telemetryEvents).toEqual([{ feature: "deleteTag", ok: false }]);
+  });
+
+  // The payload is in scope at the chokepoint and carries repository paths,
+  // branch names, and commit hashes. Only the command name may be sent.
+  it("never sends the action payload", async () => {
+    const { handlers, telemetryEvents } = registerHandlersForTest();
+
+    await handlers.get("deleteTag")?.({
+      command: "deleteTag",
+      repo,
+      tagName: "acme-corp-release"
+    } as RequestMessage);
+
+    const serialized = JSON.stringify(telemetryEvents);
+    expect(serialized).not.toContain("acme-corp-release");
+    expect(serialized).not.toContain(repo);
+    expect(Object.keys(telemetryEvents[0])).toEqual(["feature", "ok"]);
+  });
 
   it("echoes request ids when loading repository info", async () => {
     const { handlers, posts } = registerHandlersForTest();

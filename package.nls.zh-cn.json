@@ -53,5 +53,6 @@
   "config.showUncommittedChanges": "显示未提交的更改（在大型仓库上设置为 false 以减少加载时间）。",
   "config.tabIconColorTheme": "指定 Git 图形选项卡上显示的图标的颜色主题。",
   "config.tabIconColorTheme.color": "显示适合大多数 Visual Studio Code 颜色主题的彩色图标",
-  "config.tabIconColorTheme.grey": "显示适合以灰度为主的 Visual Studio Code 颜色主题的灰色图标"
+  "config.tabIconColorTheme.grey": "显示适合以灰度为主的 Visual Studio Code 颜色主题的灰色图标",
+  "config.telemetry.enabled": "发送关于哪些功能被使用的匿名使用数据，以便确定开发优先级。需要启用 Visual Studio Code 自身的遥测设置，该设置始终优先。绝不会发送文件名、路径、仓库名称、分支名称、标签名称或提交内容。"
 }

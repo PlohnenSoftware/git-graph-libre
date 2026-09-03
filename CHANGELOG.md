@@ -32,6 +32,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   branch filters are hidden while it shows, since none of them can do anything
   yet. The view only appears for a genuinely empty repository, so no
   combination of filters can trigger it.
+- **Anonymous usage telemetry**, so development can be aimed at the features
+  people actually use. It records which command or action ran and whether it
+  succeeded, plus a once-per-session note of which settings you have changed
+  from their defaults — only *that* they were changed, never what to. File
+  names, paths, workspace and repository names, remote URLs, branch and tag
+  names, commit hashes and messages, author identities, and your installed
+  extension list are never sent, and the receiving service stores no IP
+  addresses. Data goes to a small self-hosted service, not a third-party
+  analytics provider. Turn it off with either Visual Studio Code's own
+  `telemetry.telemetryLevel` — which always wins — or the new
+  `git-graph-libre.telemetry.enabled` setting. `code --telemetry` shows the
+  full declaration. See the README for details.
 - **New setting `git-graph-libre.repository.fetchTagsByDefault`** (default
   `true`): controls whether the **Fetch all tags** checkbox in the toolbar
   Fetch dialog starts ticked.

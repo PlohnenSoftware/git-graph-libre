@@ -10,6 +10,7 @@ import { getPathFromStr } from "@/backend/utils/path";
 import type { Config } from "@/config";
 import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
+import type { TelemetryReporter } from "@/telemetry";
 
 import type { RepoManager } from "./repoManager";
 import type { WebviewPanel } from "./webviewPanel";
@@ -51,6 +52,7 @@ export type CommandManagerDeps = {
   };
   openGraphView(targetRepo?: string): void;
   getCurrentPanel(): WebviewPanel | undefined;
+  telemetry?: Pick<TelemetryReporter, "logFeature">;
 };
 
 function findKnownRepoForPath(repos: Record<string, unknown>, filePath: string): string | null {
@@ -133,9 +135,22 @@ export function createCommandManager(deps: CommandManagerDeps) {
     deps.outputChannel.appendLine(formatGitCommandRecord(record));
   };
 
+  // Every palette command funnels through here, so this wrapper instruments
+  // all of them at once. Only the command id and the outcome are sent — never
+  // the arguments, which can carry file paths from editor-context invocations.
   function register(id: string, handler: (...args: unknown[]) => unknown) {
-    registeredCommands.push({ id, handler });
-    const disposable = commandApi.registerCommand(id, handler);
+    const instrumented = async (...args: unknown[]) => {
+      try {
+        const result = await handler(...args);
+        deps.telemetry?.logFeature(id, true);
+        return result;
+      } catch (error: unknown) {
+        deps.telemetry?.logFeature(id, false);
+        throw error;
+      }
+    };
+    registeredCommands.push({ id, handler: instrumented });
+    const disposable = commandApi.registerCommand(id, instrumented);
     disposables.push(disposable);
     return disposable;
   }

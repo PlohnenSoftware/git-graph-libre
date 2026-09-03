@@ -63,6 +63,7 @@ import { copyToClipboard } from "@/extension/utils/clipboard";
 import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
+import type { TelemetryReporter } from "@/telemetry";
 import type { ExtensionSetting, GitRepoState, RequestMessage, ResponseMessage } from "@/types";
 
 import { loadExtensionSettings, updateExtensionSetting } from "./extensionSettings";
@@ -299,6 +300,7 @@ export function registerMessageHandlers(
     repoFileWatcher: RepoFileWatcher;
     extensionPath?: string;
     outputChannel?: Pick<vscode.OutputChannel, "appendLine">;
+    telemetry?: Pick<TelemetryReporter, "logFeature">;
   }
 ) {
   const {
@@ -309,7 +311,8 @@ export function registerMessageHandlers(
     avatarManager,
     repoFileWatcher,
     extensionPath = process.cwd(),
-    outputChannel
+    outputChannel,
+    telemetry
   } = deps;
 
   let currentRepo: string | null = null;
@@ -331,6 +334,11 @@ export function registerMessageHandlers(
       } catch (e: unknown) {
         status = e instanceof Error ? e.message : String(e);
       }
+      // Every mutating action funnels through here, so this one call
+      // instruments the whole context-menu, dialog, and toolbar surface. Only
+      // the command name and the outcome are sent — never `msg`, which carries
+      // repository paths, branch names, and commit hashes.
+      telemetry?.logFeature(command, status === null);
       bridge.post({ command, status } as ResponseMessage);
     });
   }

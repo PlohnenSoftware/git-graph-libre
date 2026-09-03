@@ -6,6 +6,7 @@ import { buildExtensionUri } from "./backend/utils/path";
 import { config } from "./config";
 import { DiffDocProvider } from "./diffDocProvider";
 import { createCommandManager } from "./extension/commandManager";
+import { explicitExtensionSettings } from "./extension/extensionSettings";
 import { registerMessageHandlers } from "./extension/messageHandler";
 import { createRepoManager } from "./extension/repoManager";
 import { createLogger } from "./extension/utils/logger";
@@ -18,6 +19,8 @@ import * as l10n from "./l10n";
 import { initL10n } from "./l10n";
 import { RepoFileWatcher } from "./repoFileWatcher";
 import { StatusBarItem } from "./statusBarItem";
+import { createTelemetryReporter } from "./telemetry";
+import { buildActivationPayload } from "./telemetry/activationSnapshot";
 
 export function activate(context: vscode.ExtensionContext) {
   initL10n(context.extensionPath);
@@ -25,6 +28,10 @@ export function activate(context: vscode.ExtensionContext) {
   const extensionState = new ExtensionState(context);
   const avatarManager = new AvatarManager(config.gitPath, extensionState);
   const statusBarItem = new StatusBarItem(context, config, logger);
+  // Usage telemetry. Gated twice: by VS Code's global telemetry setting,
+  // which always wins, and by git-graph-libre.telemetry.enabled. With no
+  // endpoint compiled in it is a total no-op.
+  const telemetry = createTelemetryReporter({ config, logger });
   const gitClient = gitClientFactory(extensionState.getLastActiveRepo() ?? "", config.gitPath());
   const repoManager = createRepoManager(extensionState, statusBarItem, config);
   const repoSearch = createRepoSearch(repoManager, config);
@@ -67,7 +74,8 @@ export function activate(context: vscode.ExtensionContext) {
       avatarManager,
       repoFileWatcher,
       extensionPath: context.extensionPath,
-      outputChannel: logger
+      outputChannel: logger,
+      telemetry
     });
     currentPanel = createWebviewPanel({
       panel,
@@ -95,8 +103,19 @@ export function activate(context: vscode.ExtensionContext) {
     repoManager,
     avatarManager,
     openGraphView,
-    getCurrentPanel: () => currentPanel
+    getCurrentPanel: () => currentPanel,
+    telemetry
   });
+
+  // One activation event per session. It is the denominator every feature
+  // ratio is measured against, and its settings flags are how dead settings
+  // get identified. Reading the manifest can throw on a damaged install, and
+  // telemetry must never be the reason activation fails.
+  try {
+    telemetry.logActivate(buildActivationPayload(explicitExtensionSettings(context.extensionPath)));
+  } catch (error: unknown) {
+    logger.log(`[telemetry] activation snapshot skipped: ${String(error)}`);
+  }
 
   void (async () => {
     repoManager.removeReposNotInWorkspace();
@@ -107,6 +126,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     logger.channel,
+    telemetry,
     ...commandManager.registerAll(),
     vscode.workspace.registerTextDocumentContentProvider(
       DiffDocProvider.scheme,

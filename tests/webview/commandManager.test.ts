@@ -81,6 +81,7 @@ function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | nu
     startHistorySearch: vi.fn()
   };
   const clearCache = vi.fn();
+  const telemetryEvents: Array<{ feature: string; ok: boolean }> = [];
   const manager = createCommandManager({
     commandApi,
     windowApi,
@@ -91,7 +92,12 @@ function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | nu
     repoManager,
     avatarManager: { clearCache },
     openGraphView,
-    getCurrentPanel: () => currentPanel as unknown as WebviewPanel
+    getCurrentPanel: () => currentPanel as unknown as WebviewPanel,
+    telemetry: {
+      logFeature: (feature: string, ok: boolean) => {
+        telemetryEvents.push({ feature, ok });
+      }
+    }
   });
   manager.registerAll();
 
@@ -114,6 +120,7 @@ function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | nu
     outputChannel,
     outputLines,
     run,
+    telemetryEvents,
     setActiveTextEditorPath: (filePath: string) => {
       activeTextEditorUri = makeUri(filePath);
     },
@@ -292,6 +299,34 @@ describe("command manager", () => {
     expect(openGraphView).toHaveBeenCalledTimes(1);
     expect(openGraphView.mock.calls[0]).toEqual([]);
     expect(currentPanel.startHistorySearch).toHaveBeenCalled();
+  });
+
+  // register() is the palette-side chokepoint, mirroring registerAction for
+  // webview actions.
+  it("records a feature event for a command that succeeds", async () => {
+    const harness = makeHarness();
+
+    await harness.run("git-graph-libre.view");
+
+    expect(harness.telemetryEvents).toContainEqual({
+      feature: "git-graph-libre.view",
+      ok: true
+    });
+  });
+
+  // Telemetry observes the outcome; it must not swallow it.
+  it("records ok:false and rethrows when a command throws", async () => {
+    const harness = makeHarness();
+    harness.openGraphView.mockImplementationOnce(() => {
+      throw new Error("panel unavailable");
+    });
+
+    await expect(harness.run("git-graph-libre.view")).rejects.toThrow("panel unavailable");
+
+    expect(harness.telemetryEvents).toContainEqual({
+      feature: "git-graph-libre.view",
+      ok: false
+    });
   });
 
   it("disposes all command registrations", () => {

@@ -1,0 +1,34 @@
+{
+  "activate": {
+    "owner": "PlohnenSoftware",
+    "comment": "Sent once per session when the extension activates. Establishes the denominator that feature events are measured against, and records which settings diverge from their defaults so unused settings can be identified and removed.",
+    "settingsChanged": {
+      "classification": "SystemMetaData",
+      "purpose": "FeatureInsight",
+      "comment": "How many git-graph-libre settings the user has explicitly set. A count only."
+    },
+    "setting.<name>": {
+      "classification": "SystemMetaData",
+      "purpose": "FeatureInsight",
+      "comment": "One boolean per setting the user has explicitly set, keyed by the setting's own name (for example 'setting.repository.showRemotes'). Records only THAT a setting was changed, never what it was changed to - several settings hold user-supplied strings (customBranchGlobPatterns can contain branch-name fragments, graphColors is free-form), so values are deliberately never sent. Used to find settings nobody uses."
+    }
+  },
+  "feature": {
+    "owner": "PlohnenSoftware",
+    "comment": "Sent when a command or context-menu action runs. Used to rank features by how many installations use them, so development effort goes where it is used, and to spot actions that fail often.",
+    "feature": {
+      "classification": "SystemMetaData",
+      "purpose": "FeatureInsight",
+      "comment": "The identifier of the action that ran, for example 'pushTag' or 'git-graph-libre.view'. This is a fixed identifier from the extension's own command list; no user content, path, or repository detail is included."
+    },
+    "ok": {
+      "classification": "SystemMetaData",
+      "purpose": "FeatureInsight",
+      "comment": "Whether the action completed without throwing. The error message itself is not sent."
+    }
+  },
+  "common": {
+    "comment": "Visual Studio Code injects a fixed set of common properties into every event above (extension name and version, VS Code version and product, operating system, architecture, UI kind, remote name, machine and session identifiers). These are documented by VS Code itself and are not collected by this extension directly.",
+    "notCollected": "This extension never sends file names, file paths, workspace or folder names, repository names, git remote URLs, branch names, tag names, commit hashes, commit messages, author names, email addresses, environment variables, credentials, or the list of other installed extensions. No IP address is stored by the receiving service."
+  }
+}

@@ -439,6 +439,15 @@
           "default": true,
           "description": "%config.showUncommittedChanges%"
         },
+        "git-graph-libre.telemetry.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.telemetry.enabled%",
+          "tags": [
+            "telemetry",
+            "usesOnlineServices"
+          ]
+        },
         "git-graph-libre.tabIconColorTheme": {
           "type": "string",
           "enum": [

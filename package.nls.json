@@ -53,5 +53,6 @@
   "config.showUncommittedChanges": "Show uncommitted changes (set to false to decrease load time on large repositories).",
   "config.tabIconColorTheme": "Specifies the color theme of the icon displayed on the Git Graph tab.",
   "config.tabIconColorTheme.color": "Show a color icon which suits most Visual Studio Code color themes",
-  "config.tabIconColorTheme.grey": "Show a grey icon which suits Visual Studio Code color themes that are predominantly grayscale"
+  "config.tabIconColorTheme.grey": "Show a grey icon which suits Visual Studio Code color themes that are predominantly grayscale",
+  "config.telemetry.enabled": "Send anonymous usage data about which features are used, so development can be prioritized. Requires Visual Studio Code's own telemetry setting to be enabled; that setting always takes precedence. File names, paths, repository names, branch names, tag names, and commit contents are never sent."
 }
