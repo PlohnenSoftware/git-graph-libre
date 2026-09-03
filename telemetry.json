@@ -7,6 +7,16 @@
       "purpose": "FeatureInsight",
       "comment": "How many git-graph-libre settings the user has explicitly set. A count only."
     },
+    "language": {
+      "classification": "SystemMetaData",
+      "purpose": "FeatureInsight",
+      "comment": "The display language Visual Studio Code is running in, for example 'en', 'pl' or 'de'. A language identifier only - it says which language the interface is in, not who is using it."
+    },
+    "translation": {
+      "classification": "SystemMetaData",
+      "purpose": "FeatureInsight",
+      "comment": "Which of this extension's translations actually served that session, for example 'en' when the display language is 'de' and no German translation exists. The pair of properties is what makes them useful: a difference between them is a request for a language this extension does not ship yet."
+    },
     "setting.<name>": {
       "classification": "SystemMetaData",
       "purpose": "FeatureInsight",

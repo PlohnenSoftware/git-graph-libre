@@ -22,6 +22,7 @@ import { StatusBarItem } from "./statusBarItem";
 import { createTelemetryReporter } from "./telemetry";
 import { buildActivationPayload } from "./telemetry/activationSnapshot";
 import { createConsentPrompt } from "./telemetry/consentPrompt";
+import { buildLanguagePayload, listBundleLanguages } from "./telemetry/language";
 
 export function activate(context: vscode.ExtensionContext) {
   initL10n(context.extensionPath);
@@ -95,6 +96,7 @@ export function activate(context: vscode.ExtensionContext) {
       repoManager,
       extensionVersion: String(context.extension.packageJSON.version ?? "unknown"),
       outputChannel: logger,
+      telemetry,
       onDispose: () => {
         currentPanel = undefined;
       },
@@ -119,7 +121,16 @@ export function activate(context: vscode.ExtensionContext) {
   // get identified. Reading the manifest can throw on a damaged install, and
   // telemetry must never be the reason activation fails.
   try {
-    telemetry.logActivate(buildActivationPayload(explicitExtensionSettings(context.extensionPath)));
+    telemetry.logActivate({
+      ...buildActivationPayload(explicitExtensionSettings(context.extensionPath)),
+      // Which translation the user is reading, and which one they asked for.
+      // The pair is the point: a mismatch is an unanswered request for a
+      // language this build does not ship.
+      ...buildLanguagePayload({
+        displayLanguage: vscode.env.language,
+        available: listBundleLanguages(context.extensionPath)
+      })
+    });
   } catch (error: unknown) {
     logger.log(`[telemetry] activation snapshot skipped: ${String(error)}`);
   }

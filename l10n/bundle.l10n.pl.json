@@ -44,6 +44,7 @@
   "ui.telemetryConsentTitle": "Oczekiwanie na Twój wybór dotyczący telemetrii",
   "ui.telemetryConsentHint": "Odpowiedz na powiadomienie, aby otworzyć graf. Jeśli je zamknięto, przywróć je przyciskiem Ustaw teraz.",
   "ui.telemetrySetNow": "Ustaw teraz",
+  "ui.telemetryWhatIsSent": "Co jest wysyłane?",
   "ui.createFirstCommit": "Utwórz pierwszy commit, aby zobaczyć graf w tym miejscu",
   "ui.showAll": "Pokaż wszystko",
   "ui.filterPlaceholder": "Filtruj {0}...",
@@ -534,5 +535,6 @@
   "telemetry.consent.accept": "Akceptuj",
   "telemetry.consent.reject": "Odrzuć i nie pytaj ponownie",
   "telemetry.consent.globalOff": "Dzięki. Ustawienie telemetrii samego Visual Studio Code jest obecnie wyłączone i zawsze ma pierwszeństwo, więc nic nie zostanie wysłane, dopóki go nie włączysz.",
-  "telemetry.consent.openGlobalSetting": "Otwórz ustawienie"
+  "telemetry.consent.openGlobalSetting": "Otwórz ustawienie",
+  "telemetry.consent.details": "Co jest wysyłane?"
 }

@@ -5,10 +5,23 @@ All notable changes to this extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.0] - 2026-09-03
 
 ### Added
 
+- **A language switcher behind a double right-click on the version** in the
+  status strip above the graph. Picking a language re-renders the graph in it
+  for that tab only — nothing is saved, and closing the tab restores the
+  language Visual Studio Code is set to. The menu itself is always in English,
+  so it stays usable when the interface is in a language you cannot read.
+- **Every place that asks about telemetry now links to what is actually sent.**
+  The consent notification has a **What Is Sent?** button, the screen shown
+  while the question is open carries the same link, and the setting in the
+  settings UI links there too.
+- **Telemetry now records which translation you are reading**, alongside the
+  language Visual Studio Code is set to. Only the two language identifiers are
+  sent; the pair is what matters, since a display language with no matching
+  translation is a request for one that does not exist yet.
 - **Fetch tags from selected remotes.** Tags previously only reached your
   repository as a side effect of git's default tag-following during a fetch,
   so a tag pushed to a remote after you already had its commits stayed
@@ -70,6 +83,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   description — the same coverage the other languages have.
 
 ### Changed
+
+- The status bar above the graph — the readiness text and the version — is no
+  longer selectable text, and shows a normal pointer instead of a text cursor.
+  It is chrome, like the graph's column headers, and an I-beam there only
+  invited selections that meant nothing.
 
 - **Merge commits now render at full contrast by default.** Merge-commit
   dimming was previously hardcoded and unconditional; it is now gated on the

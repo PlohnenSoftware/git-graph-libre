@@ -1,3 +1,5 @@
+import { TELEMETRY_DISCLOSURE_URL } from "@/telemetry/consentPrompt";
+
 import type { LocalizedStrings } from "./webviewL10n";
 
 function escapeHtml(value: string): string {
@@ -36,6 +38,7 @@ export function buildTelemetryConsentScreen(
   const undecided = escapeHtml(l10n.telemetryUndecided);
   const hint = escapeHtml(l10n.telemetryConsentHint);
   const setNow = escapeHtml(l10n.telemetrySetNow);
+  const details = escapeHtml(l10n.telemetryWhatIsSent);
 
   return `<body class="unableToLoad telemetryConsent" style="${styleVars}">
 		<h2>${title}</h2>
@@ -44,6 +47,11 @@ export function buildTelemetryConsentScreen(
 		<div class="telemetryConsentActions">
 			<button id="telemetryConsentBtn" class="telemetryConsentBtn" type="button">${setNow}</button>
 		</div>
+		<p class="telemetryConsentDetails">
+			<!-- A plain anchor on purpose: VS Code opens http(s) links from a
+			     webview in the browser, so this needs no script and no message. -->
+			<a href="${TELEMETRY_DISCLOSURE_URL}">${details}</a>
+		</p>
 		<script nonce="${nonce}">
 			const telemetryConsentApi = acquireVsCodeApi();
 			document.getElementById("telemetryConsentBtn").addEventListener("click", () => {

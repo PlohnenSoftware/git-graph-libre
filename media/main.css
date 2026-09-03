@@ -60,6 +60,16 @@ body.unableToLoad p {
 .telemetryConsentBtn:hover {
   background-color: var(--vscode-button-hoverBackground, var(--ngg-accent));
 }
+.telemetryConsentDetails {
+  text-align: center;
+  font-size: 12px;
+}
+.telemetryConsentDetails a {
+  color: var(--vscode-textLink-foreground, var(--ngg-accent));
+}
+.telemetryConsentDetails a:hover {
+  color: var(--vscode-textLink-activeForeground, var(--ngg-accent));
+}
 .telemetryConsentBtn:focus-visible {
   outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
   outline-offset: 2px;
@@ -972,6 +982,9 @@ body.commitDetailsResizing * {
   background-color: var(--vscode-sideBar-background);
   color: var(--vscode-descriptionForeground);
   font-size: 12px;
+  /* Chrome, not content: an I-beam over the status and version invites a
+     selection that means nothing. Matches the graph's column headers. */
+  cursor: default;
 }
 #topBar.scrolled .statusStrip[data-state="ready"] {
   height: 0;
@@ -1817,6 +1830,7 @@ dl.tagDetailsFields dd {
 
 /* General */
 #commitGraph,
+.statusStrip,
 #commitTable th,
 #commitTable td,
 .gitRef,
@@ -1829,4 +1843,24 @@ dl.tagDetailsFields dd {
 #contextMenu li,
 #controls label {
   user-select: none;
+}
+
+/* Context menu header: presentational, never hoverable or clickable. */
+.contextMenuHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 9px 6px;
+  margin-bottom: 3px;
+  border-bottom: 1px solid var(--vscode-menu-separatorBackground, var(--ngg-neutral-border-subtle));
+  cursor: default;
+}
+.contextMenuHeaderTitle {
+  font-weight: 600;
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+}
+.contextMenuHeaderCaption {
+  font-size: 11px;
+  opacity: 0.75;
+  color: var(--vscode-descriptionForeground);
 }

@@ -44,6 +44,7 @@
   "ui.telemetryConsentTitle": "正在等待你的遥测选择",
   "ui.telemetryConsentHint": "回答该通知即可打开图形视图。如果你已关闭通知，可以使用“立即设置”重新打开它。",
   "ui.telemetrySetNow": "立即设置",
+  "ui.telemetryWhatIsSent": "发送了哪些内容？",
   "ui.createFirstCommit": "创建第一个提交以在此查看提交图",
   "ui.showAll": "显示全部",
   "ui.filterPlaceholder": "筛选{0}...",
@@ -534,5 +535,6 @@
   "telemetry.consent.accept": "接受",
   "telemetry.consent.reject": "拒绝并且不再询问",
   "telemetry.consent.globalOff": "谢谢。Visual Studio Code 自身的遥测设置当前已关闭，并且始终优先，因此在你启用它之前不会发送任何内容。",
-  "telemetry.consent.openGlobalSetting": "打开设置"
+  "telemetry.consent.openGlobalSetting": "打开设置",
+  "telemetry.consent.details": "发送了哪些内容？"
 }

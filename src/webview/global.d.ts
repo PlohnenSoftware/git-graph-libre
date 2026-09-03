@@ -40,6 +40,12 @@ declare global {
     shortHashLength: number;
   }
 
+  /** Presentational heading for a context menu; carries no action. */
+  interface ContextMenuHeader {
+    title: string;
+    caption?: string;
+  }
+
   interface ContextMenuItem {
     title: string;
     checked?: boolean;

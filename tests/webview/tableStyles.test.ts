@@ -220,6 +220,17 @@ describe("commit table styles", () => {
     expect(css).not.toContain("#commitDetailsClose");
   });
 
+  // The status strip is chrome, like the column headers it sits above: an
+  // I-beam there invites a selection that means nothing.
+  it("treats the status strip as unselectable chrome", () => {
+    const unselectable = css.match(/^#commitGraph,[^{]+\{[^}]+\}/m)?.[0] ?? "";
+    expect(unselectable).toContain(".statusStrip,");
+    expect(unselectable).toContain("#commitTable th,");
+    expect(unselectable).toContain("user-select: none;");
+
+    expect(css.match(/^\.statusStrip \{[^}]+\}/m)?.[0] ?? "").toContain("cursor: default;");
+  });
+
   it("uses OKLCH for owned CSS fallback colors", () => {
     expect(webviewCss).toContain("oklch(");
     expect(webviewCss).not.toMatch(/rgba?\(/);

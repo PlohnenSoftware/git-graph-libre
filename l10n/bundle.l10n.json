@@ -44,6 +44,7 @@
   "ui.telemetryConsentTitle": "Waiting for your telemetry choice",
   "ui.telemetryConsentHint": "Answer the notification to open the graph. If you dismissed it, bring it back with Set now.",
   "ui.telemetrySetNow": "Set now",
+  "ui.telemetryWhatIsSent": "What is sent?",
   "ui.createFirstCommit": "Create your first commit to see the graph here",
   "ui.showAll": "Show All",
   "ui.filterPlaceholder": "Filter {0}...",
@@ -534,5 +535,6 @@
   "telemetry.consent.accept": "Accept",
   "telemetry.consent.reject": "Reject and Don't Show Again",
   "telemetry.consent.globalOff": "Thanks. Visual Studio Code's own telemetry setting is currently off, and it always wins, so nothing will be sent until you turn that on.",
-  "telemetry.consent.openGlobalSetting": "Open Setting"
+  "telemetry.consent.openGlobalSetting": "Open Setting",
+  "telemetry.consent.details": "What Is Sent?"
 }

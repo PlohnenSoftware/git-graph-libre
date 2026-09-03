@@ -163,6 +163,21 @@ function isRepoBooleanSettingKey(value: string | undefined): value is RepoBoolea
   return value !== undefined && (REPO_BOOLEAN_SETTING_KEYS as readonly string[]).includes(value);
 }
 
+/**
+ * How close two right-clicks on the version must be to open the hidden menu.
+ * Matches the platform's usual double-click window closely enough that an
+ * accidental pair is unlikely and a deliberate one never misses.
+ */
+const HIDDEN_MENU_CLICK_WINDOW_MS = 500;
+
+/**
+ * English by design, like the menu it heads — see `buildHiddenMenu()`.
+ */
+const HIDDEN_MENU_HEADER: ContextMenuHeader = {
+  title: "Hidden menu",
+  caption: "Temporary language · this tab only"
+};
+
 function requireElement<T extends HTMLElement = HTMLElement>(id: string): T {
   const elem = document.getElementById(id);
   if (elem === null) throw new Error(`Missing webview element #${id}`);
@@ -256,6 +271,9 @@ class GitGraphView {
   private readonly tagDropdown: Dropdown;
   private readonly showRemoteBranchesElem: HTMLInputElement;
   private readonly topBarElem: HTMLElement;
+  private readonly statusVersionElem: HTMLElement;
+  /** Timestamp of the last right-click on the version, for the double-click. */
+  private lastVersionContextMenu = 0;
   private readonly findControlElem: HTMLElement;
   private readonly findInputElem: HTMLInputElement;
   private readonly findMatchCountElem: HTMLElement;
@@ -377,6 +395,20 @@ class GitGraphView {
       );
     });
     this.topBarElem = requireElement("topBar");
+    this.statusVersionElem = requireElement("statusVersion");
+    this.statusVersionElem.addEventListener("contextmenu", (e) => {
+      // Always swallowed: the version is chrome, and the platform menu offers
+      // nothing useful over it.
+      e.preventDefault();
+      const now = Date.now();
+      const isSecondClick = now - this.lastVersionContextMenu < HIDDEN_MENU_CLICK_WINDOW_MS;
+      this.lastVersionContextMenu = isSecondClick ? 0 : now;
+      if (!isSecondClick) return;
+      // Every other context menu does this too: the document-level dismisser
+      // listens for contextmenu, and would close what this just opened.
+      e.stopPropagation();
+      showContextMenu(e, this.buildHiddenMenu(), this.statusVersionElem, HIDDEN_MENU_HEADER);
+    });
     this.findControlElem = requireElement("findControl");
     this.findInputElem = requireElement<HTMLInputElement>("findInput");
     this.findMatchCountElem = requireElement("findMatchCount");
@@ -2846,6 +2878,23 @@ class GitGraphView {
       },
       sourceElem
     );
+  }
+  /**
+   * The language switcher behind a double right-click on the version.
+   *
+   * English regardless of the active language, by design: its whole purpose is
+   * to be usable when the interface is in a language the reader cannot
+   * navigate — translating it would put the escape hatch behind the same door
+   * it exists to open.
+   */
+  private buildHiddenMenu(): ContextMenuElement[] {
+    return viewState.languages.map((language) => ({
+      title: language.label,
+      checked: language.id === viewState.language,
+      onClick: () => {
+        sendMessage({ command: "setTemporaryLanguage", language: language.id });
+      }
+    }));
   }
   private buildCommitContextMenu(hash: string, sourceElem: HTMLElement): ContextMenuElement[] {
     if (this.shouldShowSelectedCommitContextMenu(hash)) {
@@ -5871,7 +5920,52 @@ function getCommitDate(dateVal: number) {
 }
 
 /* Context Menu */
-function showContextMenu(event: MouseEvent, items: ContextMenuElement[], sourceElem: HTMLElement) {
+
+/**
+ * Presentational only: the header carries no `data-index`, so the click
+ * handler in `showContextMenu()` can never match it.
+ */
+function renderContextMenuHeader(header: ContextMenuHeader | undefined): string {
+  if (header === undefined) return "";
+  const caption =
+    header.caption === undefined
+      ? ""
+      : `<span class="contextMenuHeaderCaption">${escapeHtml(header.caption)}</span>`;
+  return (
+    `<li class="contextMenuHeader" role="presentation">` +
+    `<span class="contextMenuHeaderTitle">${escapeHtml(header.title)}</span>${caption}</li>`
+  );
+}
+
+function renderContextMenuItem(item: ContextMenuItem, index: number): string {
+  const isCheckbox = item.checked !== undefined;
+  const checkboxClass = isCheckbox ? " contextMenuItemCheckbox" : "";
+  const checkboxAttributes = isCheckbox
+    ? ` role="menuitemcheckbox" aria-checked="${item.checked === true}"`
+    : ' role="menuitem"';
+  const checkmark = item.checked === true ? "✓" : "";
+  const checkbox = isCheckbox
+    ? `<span class="contextMenuCheck" aria-hidden="true">${checkmark}</span>`
+    : "";
+  return `<li class="contextMenuItem${checkboxClass}" data-index="${index}"${checkboxAttributes}>${checkbox}${item.title}</li>`;
+}
+
+function renderContextMenuItems(visibleItems: ContextMenuElement[]): string {
+  return visibleItems
+    .map((item, index) =>
+      item === null
+        ? '<li class="contextMenuDivider" role="separator"></li>'
+        : renderContextMenuItem(item, index)
+    )
+    .join("");
+}
+
+function showContextMenu(
+  event: MouseEvent,
+  items: ContextMenuElement[],
+  sourceElem: HTMLElement,
+  header?: ContextMenuHeader
+) {
   event.preventDefault();
   const visibleItems = normalizeContextMenuItems(items);
   if (visibleItems.length === 0) {
@@ -5879,25 +5973,7 @@ function showContextMenu(event: MouseEvent, items: ContextMenuElement[], sourceE
     return;
   }
 
-  let html = "";
-  for (let i = 0; i < visibleItems.length; i++) {
-    const item = visibleItems[i];
-    if (item === null) {
-      html += '<li class="contextMenuDivider" role="separator"></li>';
-      continue;
-    }
-
-    const isCheckbox = item.checked !== undefined;
-    const checkboxClass = isCheckbox ? " contextMenuItemCheckbox" : "";
-    const checkboxAttributes = isCheckbox
-      ? ` role="menuitemcheckbox" aria-checked="${item.checked === true}"`
-      : ' role="menuitem"';
-    const checkmark = item.checked === true ? "✓" : "";
-    const checkbox = isCheckbox
-      ? `<span class="contextMenuCheck" aria-hidden="true">${checkmark}</span>`
-      : "";
-    html += `<li class="contextMenuItem${checkboxClass}" data-index="${i}"${checkboxAttributes}>${checkbox}${item.title}</li>`;
-  }
+  const html = renderContextMenuHeader(header) + renderContextMenuItems(visibleItems);
 
   hideContextMenuListener();
   contextMenu.style.opacity = "0";

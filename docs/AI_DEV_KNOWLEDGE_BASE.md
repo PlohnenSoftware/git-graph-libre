@@ -32,6 +32,31 @@ material into the AGPL whole, so those notices must stay intact. If upstream
 MIT commits are ever merged in, extend the boundary commit and the roster in
 the same change.
 
+**The licence flows one way, and every upstream review must confirm it still
+does.** MIT code may come into this AGPL project; AGPL code may not go out into
+an MIT one without the copyleft coming with it. Upstream is a sibling MIT fork
+of the same ancestor, which makes accidental — or deliberate — reuse of this
+project's post-fork work plausible and easy to miss, and redistributing it
+under MIT would strip the copyleft that is the whole point of the relicensing.
+So on every upstream review, before reading their commits for ideas, check
+their tree for code that exists only here. Grep for identifiers introduced
+after the fork rather than for shared ancestry, since everything inherited
+from the MIT lineage is expected to match:
+
+```bash
+git fetch upstream --prune
+for marker in truncateRefName startRevealHighlight parseGpgsigPresence \
+  isMissingRemoteRefError hexToOklch createBundleTranslator \
+  createViewFeatureReporter ngg-reveal-highlight git-graph-libre; do
+  printf '%-32s %s\n' "$marker" "$(git grep -l "$marker" upstream/main | wc -l)"
+done
+```
+
+Every count must be `0`. A non-zero one is not proof of wrongdoing on its own —
+check whether the name was theirs first — but it is the point at which to stop
+and tell the maintainer rather than carry on reviewing. Extend the marker list
+as this project grows distinctive surfaces; the ones above are all post-fork.
+
 The rule for this branch is:
 
 - Use this repository's own code and public API behavior as the implementation
@@ -274,6 +299,15 @@ The extension is already split into clean layers:
   root-commit square rendering and root-line termination release, correcting the
   drift where it had stayed at `1.2.0` through the `1.2.0`/`1.2.1` releases. The
   first 1.3.0 analysis uses fresh coverage from the completed working tree.
+- On `2026-09-03` the package version and `sonar.projectVersion` were advanced
+  together to `1.4.0`. Reason: the whole telemetry and consent epoch — the
+  client, the three-state consent, the gate screen, the read-side instrumentation
+  and Dutch — had accumulated inside a `Previous Version` window still anchored
+  at `1.2.0`, so a slice adding a handful of lines was being measured against
+  thousands. Advancing closes that window and starts the next analysis epoch at
+  the 1.4.0 line. The first 1.4.0 analysis uses fresh coverage from the completed
+  working tree, and the gate window will report `1.3.0` until the following
+  advance — that is the definition working as intended, not drift.
 - The project uses the maintainer's `ZAM` quality gate, and **not all of its
   conditions are scoped to new code**. As of `2026-07-29` it has six conditions:
   `new_duplicated_lines_density` at most `1` and `new_violations` at most `3` on
@@ -1906,6 +1940,73 @@ Skipped, with reasons (do not re-propose without new evidence):
   the right side — ours is Left, cosmetic/design call), `0dd368f` (deprecating
   `fetchAvatars` — product decision; our README still documents the setting).
 
+### Upstream review, third pass (`2026-09-03`)
+
+**Last reviewed upstream commit: `86be522`.** Start the next pass at
+`git log 86be522..upstream/main`. The previous pass ended at `750f96f`; the
+eight commits between them are classified below.
+
+**Licence check first, and it came back clean.** None of the post-fork markers
+listed under Mission appear anywhere in `upstream/main`, and their tree never
+mentions this project, its publisher, or the AGPL. Their `LICENSE` reads
+`Copyright (c) 2019 mhutchie. Fork (c) 2026-present asispts` with no claim over
+material from here. Nothing to raise.
+
+The eight commits are dominated by one architectural push — a webview RPC
+protocol replacing their signal-based sync — plus bootstrap and config
+cleanups. Nothing was taken; these are candidates for the maintainer to pick
+from, listed newest first:
+
+| Commit | What it does | Worth taking? |
+| --- | --- | --- |
+| `34835ec` | Returns from `activate()` immediately when the window has no workspace folder at all | **The most interesting of the eight**, but read it against BUG-5 before acting: this fork deliberately activates on `onStartupFinished` so the watching-eye status bar item can exist in a *non-git* folder. "No folder open at all" is a genuinely different case from "folder without a `.git`", and skipping activation there costs nothing — but the two are one line apart, and getting it wrong silently reverts a decision the maintainer already made. |
+| `49c8025` | Richer no-repository page with an initialize-repository button | Idea only. This fork has its own no-repository and no-commits screens; the button that runs `git init` from the empty state is the part worth considering, and it is a few lines of our own code, not theirs. |
+| `86be522` | Regenerates and hardens the tsconfig set | Third time the tsconfig split has come up (`867eddc` in the first pass, still "a rewrite rather than a merge"). Our configs have diverged further since — TypeScript 6, local aliases for `tests-ext` — so this stays a rewrite. Only worth doing as its own deliberate slice. |
+| `ee90612`, `fbe641d`, `662d51e` | A typed RPC protocol for webview↔extension, then migrating initialization onto it and deleting the signal-based sync | **Rejected by the maintainer (`2026-09-03`).** Do not re-propose. Our `webviewBridge` already carries typed request/response messages with the union in `src/types.ts`, and theirs is bound to a preact webview this project keeps as plain TypeScript on purpose. |
+| `c939ff7` | Simplifies their extension bootstrap | **Rejected (`2026-09-03`).** |
+| `a5fc838` | Readme roadmap | **Rejected (`2026-09-03`).** Chore. |
+
+**Maintainer decision (`2026-09-03`): everything in this pass except `34835ec`
+and `49c8025` is rejected outright, `86be522` included — the tsconfig question
+is closed, not deferred.** The two survivors are under consideration; the
+findings below are what the maintainer asked for before giving upstream
+feedback.
+
+**`34835ec` in detail.** The guard is four lines at the top of their
+`activate()`, and their manifest lists `onStartupFinished` as the only
+activation event. Because the early return happens before *any* setup, it skips
+their logger, their status bar item **and their
+`vscode.commands.registerCommand("neo-git-graph.view", …)`** — so in a window
+with no folder the extension counts as activated while its palette command does
+not exist. Whether that matters rests entirely on the host being restarted when
+a folder appears, and the API contract only promises that softly: `vscode.d.ts`
+on `updateWorkspaceFolders` says "**in some cases** calling this method **may**
+result in the currently executing extensions … to be terminated and restarted.
+For example when the first workspace folder is added, removed or changed". A
+`may`, not a guarantee — and nothing at all is promised for a folder arriving
+by other routes. The conservative shape is to register commands unconditionally
+and skip only the expensive setup.
+
+**This fork cannot take it as written**, for a reason that does not apply to
+upstream: they contribute two commands (`view`, `clearAvatarCache`), we
+contribute seven, and `git-graph-libre.addRepo` is *designed* to work with no
+folder open — it prompts for a directory with `showOpenDialog` and adds it by
+path. Guarding activation the same way would unregister it in exactly the
+window where someone would reach for it. Read this against BUG-5 too: that
+decision restored `onStartupFinished` so the watching-eye status bar item can
+exist in a **non-git folder**, which is a different case from **no folder at
+all** — one line apart, and confusing them silently reverts a settled decision.
+
+**`49c8025` in detail.** Their no-repository page gained a primary
+**Initialize Repository** button, an inline error line (`role="alert"`), a
+disabled state while the call is in flight, and an illustrative inline SVG. The
+extension side is three lines: the handler simply runs VS Code's built-in
+`git.init` command rather than shelling out to git itself, which is the part
+worth copying as an idea — it inherits the folder picker, multi-root handling
+and the SCM view refresh for free. Three new l10n keys. This fork already has
+both a no-repository screen (`body.unableToLoad`) and a no-commits view, so the
+question is only whether an action belongs on them; the code would be ours.
+
 ## Immediate TODOs — High-Priority Bug Backlog (`2026-08-25`)
 
 **These bugs outrank every remaining phase item in the roadmap.** The maintainer
@@ -2657,7 +2758,8 @@ Client rules that must survive any refactor:
   settings-divergence snapshot — only *that* a setting changed, never the
   value), `commonProperties.ts` (the OS properties VS Code does not inject;
   carries its own removal condition), `consentPrompt.ts` (the consent
-  question — see its own section below).
+  question — see its own section below), `language.ts` (which translation the
+  session actually used).
 - **Two settings gate sending**, and both must be on: VS Code's global flag,
   which always wins, and `git-graph-libre.telemetry.enabled`. Ours is a
   three-state consent (`unset` / `enabled` / `disabled`) defaulting to `unset`
@@ -2686,6 +2788,17 @@ Client rules that must survive any refactor:
   is complete or it is visibly not. Note `time.needFormatMonth` and
   `time.dateformat` are behavior values rather than prose — Dutch follows the
   Polish pair (`true`, `DD MM YYYY`), not the Chinese one.
+- **The `activate` event reports `language` and `translation` together**, and
+  the pair is the point: `language` is VS Code's display language, the one the
+  user asked for, and `translation` is the bundle that actually served them. A
+  difference between the two is a request for a language this build does not
+  ship — the single most actionable thing this telemetry can surface, and
+  invisible if either property is dropped. `listBundleLanguages()` reads the
+  shipped locales off the `l10n` directory rather than a constant, so adding a
+  language cannot leave the reported list behind, and `resolveBundleLanguage()`
+  deliberately mirrors VS Code's own fallback order (exact, then base language,
+  then English) — a resolver that disagreed with the runtime would report a
+  translation the user is not seeing.
 - **`telemetry.json` at the repository root** declares every collected
   property for `code --telemetry` and is shipped in the VSIX. Update it in the
   same slice as any event or property change, and keep the README's Telemetry
@@ -2910,12 +3023,24 @@ blindness is still the behavior, and that an empty endpoint is inert. Its
 header comment carries the mechanism above; the throwaway `zzProbe.test.ts`
 that discovered it was deleted.
 
-The branch was built as many small resumable commits at the maintainer's
-request, with the full gate run once at the end of the slice instead of per
-commit; that gate passed and the branch is cleared for merge. The former
-`docs/TELEMETRY_PLAN.md` was dissolved when the backend was split out:
-backend design and deployment now live in `server/telemetry/README.md`, and
-the durable client rules live in this section.
+**History note (`2026-09-03`).** This work was originally built as sixty-four
+small resumable commits, and was squashed onto `AI-dev` as eight logical ones
+at the maintainer's request. Two consequences for anyone reading back:
+
+- **The per-slice records in this document cite Sonar task ids, not commit
+  hashes**, which is why nothing here dangles after the rewrite. Keep it that
+  way — a task id survives a rebase, a short SHA does not.
+- **The ingest service is not in this history at all.** It was developed here
+  for about twenty commits before moving to
+  `PlohnenSoftware/git-graph-libre-telemetry`, and since it never shipped from
+  this repository the add-and-remove churn was squashed out rather than
+  preserved. Its design, deployment and schema live in that repository's own
+  README; there is no `server/` directory here and the former
+  `docs/TELEMETRY_PLAN.md` is gone with it. The durable client rules are the
+  section above.
+
+Every slice was gated to an `OK` `ZAM` result before its original commit, and
+the squashed branch was gated again as a whole after the rewrite.
 
 ### Consent epoch — session record (`2026-09-02`)
 
@@ -2958,6 +3083,93 @@ from the `2026-09-02` route probe is still in the production database
 (`delete from events where machine_id = 'probe-machine';`). The probes above
 never touched production — the endpoint was pointed at `127.0.0.1` for each
 one, and restored afterwards.
+
+## Temporary language switcher (`2026-09-03`)
+
+A double right-click on the version in the status strip opens a small menu
+headed **Hidden menu**, listing every shipped locale; picking one re-renders
+the graph in that language. Four properties are deliberate and should survive
+any refactor:
+
+- **It is English, always.** `HIDDEN_MENU_HEADER` and the language labels in
+  `webviewLanguages.ts` are hardcoded English rather than localized. The menu
+  exists to be usable when the interface is in a language the reader cannot
+  navigate; translating it would put the escape hatch behind the very door it
+  opens. Do not "fix" this by running the labels through `l10n.t()`.
+- **The override lives in the panel closure and nowhere else.**
+  `temporaryLanguage` in `webviewPanel.ts` is not persisted to settings or
+  workspace state, so closing the graph tab ends it. Anyone can switch the
+  language on someone else's editor without leaving it changed.
+- **Switching is a document rebuild, not a message.** Every string is baked in
+  at build time — toolbar, status strip, table headers — so `update()` is the
+  only honest way to apply a new language. That is also why the switcher is
+  worth having as a rebuild rather than a live re-render: correctness over
+  keeping graph state across a deliberate, momentary switch.
+- **The requested locale is validated against the shipped list** before it
+  reaches `createBundleTranslator()`. Anything arriving over the bridge is
+  webview input, and an unchecked locale would become a filename to read.
+
+`getWebviewLocalizedStrings()` takes a `translate` function for this, defaulting
+to `l10n.t`; `createBundleTranslator()` reads the requested bundle and falls
+back to English, then to the key, which is the same order `l10n.t()` degrades
+in — a switched webview never looks more broken than an unswitched one.
+
+## Future direction: integrate with VS Code's native source control (`2026-09-03`)
+
+**Nothing here is implemented, and nothing should be implemented from it
+without the maintainer saying so.** These are findings from a survey of what
+VS Code 1.136 actually exposes, recorded so the next attempt starts from facts
+rather than from a fresh survey. Maintainer's intent: stop treating the graph
+as an island and cooperate with the editor's own SCM surfaces for **choosing
+which repository is active**, **initialising new repositories**, and **showing
+which repository the graph is on**. Repository selection in a graph navbar is
+something the non-free Git Graph forks have and this project has only inside
+its own toolbar; the maintainer would rather hook the editor's selector than
+grow another one.
+
+**The target is the built-in `vscode.git` extension's API** (confirmed by the
+maintainer). It is reached with
+`vscode.extensions.getExtension("vscode.git")?.exports.getAPI(1)`, and its
+package version in 1.136 is `10.0.0`. Read it from
+`resources/app/extensions/git/dist/main.js` when the shape matters; the useful
+surfaces are:
+
+- `api.repositories`, `api.onDidOpenRepository`, `api.onDidCloseRepository`,
+  `api.getRepository(uri)`, `api.getRepositoryRoot(...)`, `api.openRepository`.
+- **`repository.ui.selected` plus `repository.ui.onDidChange`** — this is the
+  "which repository is active in the SCM UI" signal, and it is the piece worth
+  building on. In the bundle it is a small class whose `onDidChange` wraps the
+  repository's `onDidChangeSelection`, and `selected` reads straight through.
+  Following it would let the graph track the editor's active repository instead
+  of keeping an independent notion of one.
+- **`api.init(uri)`** for creating a repository, rather than the
+  `executeCommand("git.init")` route upstream took in `49c8025`. Both inherit
+  the built-in behavior; the API version returns the repository.
+- The workbench keeps `scm.activeRepositoryName` and
+  `scm.activeRepositoryBranchName` context keys, usable in `when` clauses.
+
+**On sitting "next to the branch selector":** that indicator is not a status
+bar item an extension can neighbour reliably. The Git extension publishes it
+through `SourceControl.statusBarCommands`, which the workbench renders itself —
+the only `window.createStatusBarItem` in the whole Git extension is
+`git.blame` (Right, priority 200). So the options are a status bar item of our
+own with a tuned priority (fragile, ordering is a popularity contest), or the
+sanctioned route: contribute to the SCM menus. The contribution points that
+exist in 1.136 are `scm/title`, `scm/sourceControl`, `scm/repository`,
+`scm/repositories/title`, `scm/resourceState/context`,
+`scm/resourceGroup/context`, `scm/resourceFolder/context`, `scm/change/title`,
+`scm/history/title`, `scm/historyItem/context`, `scm/historyItemRef/context`,
+`scm/artifact/context`, `scm/artifactGroup/context` and `scm/inputBox`. An
+"Open in Git Graph" on `scm/sourceControl` or `scm/repository` is the obvious
+first step and costs almost nothing.
+
+Open questions for whoever picks this up: whether the graph's own repository
+dropdown should follow `ui.selected` or keep an independent selection (they
+will disagree the moment someone changes one of them); whether selecting a
+repository in the graph should write back through the Git extension at all,
+given the API exposes selection as read-only state; and what happens in
+multi-root workspaces where the graph currently tracks its own last-active
+repository in `ExtensionState`.
 
 ## Documentation and Verification Rules
 

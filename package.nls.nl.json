@@ -54,7 +54,7 @@
   "config.tabIconColorTheme": "Bepaalt het kleurthema van het pictogram op het tabblad van Git Graph.",
   "config.tabIconColorTheme.color": "Een pictogram in kleur weergeven dat bij de meeste kleurthema's van Visual Studio Code past",
   "config.tabIconColorTheme.grey": "Een grijs pictogram weergeven dat past bij kleurthema's van Visual Studio Code die overwegend grijstinten gebruiken",
-  "config.telemetry.enabled": "Of er anonieme gebruiksgegevens worden verzonden over welke functies worden gebruikt, zodat de ontwikkeling kan worden geprioriteerd. Er wordt niets verzonden totdat je kiest. Hiervoor moet de telemetrie-instelling van Visual Studio Code zelf zijn ingeschakeld; die instelling heeft altijd voorrang. Bestandsnamen, paden, namen van repository's, branches en tags en de inhoud van commits worden nooit verzonden.",
+  "config.telemetry.enabled": "Of er anonieme gebruiksgegevens worden verzonden over welke functies worden gebruikt, zodat de ontwikkeling kan worden geprioriteerd. Er wordt niets verzonden totdat je kiest. Hiervoor moet de telemetrie-instelling van Visual Studio Code zelf zijn ingeschakeld; die instelling heeft altijd voorrang. Bestandsnamen, paden, namen van repository's, branches en tags en de inhoud van commits worden nooit verzonden. [Wat wordt er verzonden](https://github.com/PlohnenSoftware/git-graph-libre#telemetry)",
   "config.telemetry.enabled.unset": "Nog niet besloten. Er wordt niets verzonden en de extensie zal het vragen.",
   "config.telemetry.enabled.enabled": "Anonieme gegevens over functiegebruik verzenden.",
   "config.telemetry.enabled.disabled": "Niets verzenden en niet meer vragen."

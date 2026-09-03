@@ -33,6 +33,12 @@ describe("telemetry consent screen markup", () => {
     expect(html.indexOf("telemetryConsentActions")).toBeGreaterThan(html.indexOf("<p>"));
   });
 
+  // A question about data is not answerable without "which data".
+  it("links to the disclosure", () => {
+    expect(html).toContain('href="https://github.com/PlohnenSoftware/git-graph-libre#telemetry"');
+    expect(html).toContain("What is sent?");
+  });
+
   it("posts showTelemetryConsent from a nonced script", () => {
     expect(html).toContain('<script nonce="test-nonce">');
     expect(html).toContain('command: "showTelemetryConsent"');

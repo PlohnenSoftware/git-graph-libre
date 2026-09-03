@@ -146,7 +146,9 @@ describe("extension manifest", () => {
         "%config.telemetry.enabled.enabled%",
         "%config.telemetry.enabled.disabled%"
       ],
-      description: "%config.telemetry.enabled%"
+      // markdownDescription, not description: the disclosure link in the text
+      // is only clickable in the settings UI when it is rendered as markdown.
+      markdownDescription: "%config.telemetry.enabled%"
     });
   });
 

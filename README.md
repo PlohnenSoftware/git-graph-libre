@@ -97,6 +97,9 @@ third-party analytics provider.
   actually in effect — recovered history (reflog-only or unreachable commits)
   appearing in the graph, or a signed tag being there to badge. These are
   recorded once, not once per refresh.
+- Once per session: the language Visual Studio Code is running in and which of
+  this extension's translations served you — so missing translations can be
+  spotted, since a mismatch between the two is a request nobody has answered.
 - Once per session: which settings you have changed from their defaults — only
   *that* they were changed, never what you changed them to.
 - The properties Visual Studio Code attaches to every extension telemetry

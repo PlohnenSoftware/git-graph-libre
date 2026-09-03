@@ -1,4 +1,4 @@
-import type * as vscode from "vscode";
+import * as vscode from "vscode";
 
 import { getNonce } from "@/backend/utils/nonce";
 import { buildExtensionUri } from "@/backend/utils/path";
@@ -6,11 +6,13 @@ import type { Config } from "@/config";
 import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
 import { isConsentPending } from "@/telemetry/consentPrompt";
+import { resolveBundleLanguage } from "@/telemetry/language";
 import type { GitGraphViewState } from "@/types";
 
 import type { RepoManager } from "./repoManager";
 import { getWebviewLocalizedStrings } from "./webviewL10n";
 import { buildTelemetryConsentScreen } from "./webviewConsentScreen";
+import { createBundleTranslator, listWebviewLanguages } from "./webviewLanguages";
 import { buildWebviewStatusStrip } from "./webviewStatusStrip";
 import { buildWebviewToolbar } from "./webviewToolbar";
 
@@ -32,10 +34,17 @@ export function buildWebviewHtml(opts: {
   extensionState: ExtensionState;
   repoManager: RepoManager;
   extensionVersion: string;
+  /** Temporary override; absent means the editor's display language. */
+  language?: string;
 }): { html: string; isGraphLoaded: boolean } {
   const { webview, config, extensionPath, extensionState, repoManager, extensionVersion } = opts;
   const nonce = getNonce();
-  const l10nStrings = getWebviewLocalizedStrings();
+  const languages = listWebviewLanguages(extensionPath);
+  const language = opts.language ?? resolveBundleLanguage(vscode.env.language, languages.map((entry) => entry.id));
+  const l10nStrings =
+    opts.language === undefined
+      ? getWebviewLocalizedStrings()
+      : getWebviewLocalizedStrings(createBundleTranslator(extensionPath, opts.language));
   const viewState: GitGraphViewState = {
     autoCenterCommitDetailsView: config.autoCenterCommitDetailsView(),
     commitDetailsCompactFolders: config.commitDetailsCompactFolders(),
@@ -65,7 +74,9 @@ export function buildWebviewHtml(opts: {
     showRemoteBranches: config.showRemoteBranches(),
     showStashes: config.showStashes(),
     showTags: config.showTags(),
-    shortHashLength: config.shortHashLength()
+    shortHashLength: config.shortHashLength(),
+    language,
+    languages
   };
 
   const numRepos = Object.keys(viewState.repos).length;

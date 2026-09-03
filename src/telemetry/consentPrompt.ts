@@ -47,6 +47,16 @@ const PROMPT_MODAL = false;
 
 /** The setting the answer is written to. */
 export const CONSENT_SETTING_KEY = "telemetry.enabled";
+/**
+ * Where "what is actually sent" is written out in full.
+ *
+ * Every surface that asks for consent links here — the notification, the gate
+ * screen, and the setting description — because a question about data is not
+ * answerable without the answer to "which data". Defined once so the three
+ * cannot drift apart.
+ */
+export const TELEMETRY_DISCLOSURE_URL =
+  "https://github.com/PlohnenSoftware/git-graph-libre#telemetry";
 /** VS Code's own switch, which always wins over ours. */
 export const VSCODE_TELEMETRY_SETTING = "telemetry.telemetryLevel";
 
@@ -84,6 +94,8 @@ export type ConsentPromptDeps = {
   isGlobalTelemetryEnabled?: () => boolean;
   window?: ConsentWindowApi;
   openSettings?: (query: string) => Thenable<unknown>;
+  /** Opens the disclosure in a browser. Defaults to `vscode.env.openExternal`. */
+  openDisclosure?: (url: string) => Thenable<unknown>;
   /** Empty means telemetry is compiled off, so the question is moot. */
   endpoint?: string;
   logger?: { log: (message: string) => void };
@@ -114,6 +126,8 @@ export function createConsentPrompt(deps: ConsentPromptDeps): ConsentPrompt {
   const openSettings =
     deps.openSettings ??
     ((query: string) => vscode.commands.executeCommand("workbench.action.openSettings", query));
+  const openDisclosure =
+    deps.openDisclosure ?? ((url: string) => vscode.env.openExternal(vscode.Uri.parse(url)));
 
   async function confirmGlobalSwitchWins(): Promise<void> {
     if (isGlobalTelemetryEnabled()) return;
@@ -133,15 +147,25 @@ export function createConsentPrompt(deps: ConsentPromptDeps): ConsentPrompt {
   async function ask(): Promise<void> {
     const accept = l10n.t("telemetry.consent.accept");
     const reject = l10n.t("telemetry.consent.reject");
+    const details = l10n.t("telemetry.consent.details");
 
     // Accept is passed first because a notification's first button is its
     // accented one; the order is the styling.
-    const choice = await windowApi.showInformationMessage(
-      l10n.t("telemetry.consent.question"),
-      { modal: PROMPT_MODAL },
-      accept,
-      reject
-    );
+    //
+    // The loop exists because clicking the details button closes the
+    // notification: the user has gone to read what is collected and has still
+    // not answered, so the question has to come back when they return.
+    let choice: string | undefined;
+    do {
+      choice = await windowApi.showInformationMessage(
+        l10n.t("telemetry.consent.question"),
+        { modal: PROMPT_MODAL },
+        accept,
+        reject,
+        details
+      );
+      if (choice === details) await openDisclosure(TELEMETRY_DISCLOSURE_URL);
+    } while (choice === details);
 
     if (choice === accept) {
       await updateConsent("enabled");

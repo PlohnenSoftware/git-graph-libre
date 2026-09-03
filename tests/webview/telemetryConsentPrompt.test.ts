@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   CONSENT_SETTING_KEY,
   createConsentPrompt,
+  TELEMETRY_DISCLOSURE_URL,
   VSCODE_TELEMETRY_SETTING
 } from "@/telemetry/consentPrompt";
 import type { TelemetryConsent } from "@/types";
@@ -90,7 +91,11 @@ describe("telemetry consent prompt", () => {
 
     await prompt.promptIfUnset();
 
-    expect(window.shown[0].items).toEqual(["Accept", "Reject and Don't Show Again"]);
+    expect(window.shown[0].items).toEqual([
+      "Accept",
+      "Reject and Don't Show Again",
+      "What Is Sent?"
+    ]);
   });
 
   it("stays a notification rather than seizing the window", async () => {
@@ -112,6 +117,33 @@ describe("telemetry consent prompt", () => {
   // The label promises the asking stops, so the state written has to be the
   // one that stops it: `disabled` is silent AND no longer pending, so neither
   // the notification nor the gate screen comes back.
+  // Reading what is collected closes the notification without answering, so
+  // the question has to come back rather than being lost to curiosity.
+  it("opens the disclosure and asks again", async () => {
+    const opened: string[] = [];
+    const { prompt, window, written } = promptFor(
+      "unset",
+      ["What Is Sent?", "What Is Sent?", "Accept"],
+      { openDisclosure: (url) => {
+          opened.push(url);
+          return Promise.resolve(undefined);
+        }
+      }
+    );
+
+    await prompt.promptIfUnset();
+
+    expect(opened).toEqual([TELEMETRY_DISCLOSURE_URL, TELEMETRY_DISCLOSURE_URL]);
+    expect(window.shown).toHaveLength(3);
+    expect(written).toEqual(["enabled"]);
+  });
+
+  it("links the disclosure at a stable anchor in the README", () => {
+    expect(TELEMETRY_DISCLOSURE_URL).toBe(
+      "https://github.com/PlohnenSoftware/git-graph-libre#telemetry"
+    );
+  });
+
   it("writes disabled when the user rejects", async () => {
     const { prompt, written } = promptFor("unset", ["Reject and Don't Show Again"]);
 

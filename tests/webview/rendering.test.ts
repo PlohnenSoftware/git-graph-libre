@@ -65,7 +65,9 @@ const defaultViewState: GGL.GitGraphViewState = {
   showRemoteBranches: true,
   showStashes: true,
   showTags: true,
-  shortHashLength: 4
+  shortHashLength: 4,
+  language: "en",
+  languages: [{ id: "en", label: "English" }]
 };
 
 const twoCommits: GitCommitNode[] = [

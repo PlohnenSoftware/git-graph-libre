@@ -1,7 +1,7 @@
 {
   "name": "git-graph-libre",
   "displayName": "%displayName%",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "%description%",
   "categories": [
     "SCM Providers",
@@ -452,7 +452,7 @@
             "%config.telemetry.enabled.disabled%"
           ],
           "default": "unset",
-          "description": "%config.telemetry.enabled%",
+          "markdownDescription": "%config.telemetry.enabled%",
           "tags": [
             "telemetry",
             "usesOnlineServices"

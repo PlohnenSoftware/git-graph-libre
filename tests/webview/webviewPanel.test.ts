@@ -11,7 +11,10 @@ import type { RepoFileWatcher } from "@/repoFileWatcher";
 import type { GitRepoSet, TelemetryConsent } from "@/types";
 
 const mocks = vi.hoisted(() => ({
-  buildWebviewHtml: vi.fn((): { html: string; isGraphLoaded: boolean } => ({
+  buildWebviewHtml: vi.fn((_opts: { language?: string }): {
+    html: string;
+    isGraphLoaded: boolean;
+  } => ({
     html: "<html>graph</html>",
     isGraphLoaded: true
   }))
@@ -49,7 +52,13 @@ function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: Teleme
     reveal: vi.fn(),
     dispose: vi.fn()
   };
-  const bridge = { post: vi.fn() };
+  const bridgeHandlers = new Map<string, (msg: unknown) => void>();
+  const bridge = {
+    post: vi.fn(),
+    onMessage: vi.fn((command: string, handler: (msg: unknown) => void) => {
+      bridgeHandlers.set(command, handler);
+    })
+  };
   const repoFileWatcher = { stop: vi.fn() };
   const repos: GitRepoSet = { "/repo": { columnWidths: null } };
   let repoCallback: RepoCallback | undefined;
@@ -64,6 +73,7 @@ function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: Teleme
   const extensionState = { getLastActiveRepo: vi.fn(() => "/repo") };
   const onDispose = vi.fn();
   const onPanelShown = vi.fn();
+  const telemetryEvents: Array<{ feature: string; ok: boolean }> = [];
 
   const webviewPanel = createWebviewPanel({
     panel: panel as unknown as vscode.WebviewPanel,
@@ -73,12 +83,17 @@ function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: Teleme
       telemetryConsent: () => consent
     } as unknown as Config,
     repoFileWatcher: repoFileWatcher as unknown as RepoFileWatcher,
-    extensionPath: "/extension",
+    extensionPath: process.cwd(),
     extensionState: extensionState as unknown as ExtensionState,
     avatarManager: avatarManager as unknown as AvatarManager,
     repoManager: repoManager as unknown as RepoManager,
     extensionVersion: "1.2.3",
     outputChannel: { appendLine: vi.fn() },
+    telemetry: {
+      logFeature: (feature: string, ok: boolean) => {
+        telemetryEvents.push({ feature, ok });
+      }
+    },
     onDispose,
     onPanelShown
   });
@@ -86,6 +101,8 @@ function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: Teleme
   return {
     avatarManager,
     bridge,
+    send: (command: string, msg: unknown) => bridgeHandlers.get(command)?.(msg),
+    telemetryEvents,
     setConsent: (next: TelemetryConsent) => {
       consent = next;
     },
@@ -254,6 +271,47 @@ describe("createWebviewPanel", () => {
     harness.webviewPanel.applyTelemetryConsentChange();
 
     expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(1);
+  });
+
+  // The switch is a document rebuild, not a message: every string in the
+  // document — toolbar, status strip, table headers — was baked in at build
+  // time.
+  it("rebuilds the document in the requested language", () => {
+    const harness = createHarness();
+
+    harness.send("setTemporaryLanguage", { command: "setTemporaryLanguage", language: "pl" });
+
+    expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(2);
+    expect(mocks.buildWebviewHtml.mock.calls[1][0]).toMatchObject({ language: "pl" });
+  });
+
+  it("keeps serving the chosen language on later rebuilds", () => {
+    const harness = createHarness();
+    harness.send("setTemporaryLanguage", { command: "setTemporaryLanguage", language: "nl" });
+
+    harness.repoCallback()?.(harness.repos, 1);
+
+    for (const call of mocks.buildWebviewHtml.mock.calls.slice(1)) {
+      expect(call[0]).toMatchObject({ language: "nl" });
+    }
+  });
+
+  // Anything reaching the bridge is webview input; an unknown locale must not
+  // become a filename to read.
+  it("ignores a language it does not ship", () => {
+    const harness = createHarness();
+
+    harness.send("setTemporaryLanguage", { command: "setTemporaryLanguage", language: "../etc" });
+
+    expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports the switch as a feature", () => {
+    const harness = createHarness();
+
+    harness.send("setTemporaryLanguage", { command: "setTemporaryLanguage", language: "pl" });
+
+    expect(harness.telemetryEvents).toEqual([{ feature: "setTemporaryLanguage", ok: true }]);
   });
 
   it("forwards reveal to the panel", () => {

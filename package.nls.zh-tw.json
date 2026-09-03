@@ -54,7 +54,7 @@
   "config.tabIconColorTheme": "指定 Git 圖形分頁上顯示的圖示的顏色主題。",
   "config.tabIconColorTheme.color": "顯示適合大多數 Visual Studio Code 顏色主題的彩色圖示",
   "config.tabIconColorTheme.grey": "顯示適合以灰階為主的 Visual Studio Code 顏色主題的灰色圖示",
-  "config.telemetry.enabled": "是否傳送關於哪些功能被使用的匿名使用資料，以便決定開發優先順序。在你做出選擇之前不會傳送任何內容。需要啟用 Visual Studio Code 本身的遙測設定，該設定一律優先。絕不會傳送檔案名稱、路徑、儲存庫名稱、分支名稱、標籤名稱或提交內容。",
+  "config.telemetry.enabled": "是否傳送關於哪些功能被使用的匿名使用資料，以便決定開發優先順序。在你做出選擇之前不會傳送任何內容。需要啟用 Visual Studio Code 本身的遙測設定，該設定一律優先。絕不會傳送檔案名稱、路徑、儲存庫名稱、分支名稱、標籤名稱或提交內容。 [傳送了哪些內容](https://github.com/PlohnenSoftware/git-graph-libre#telemetry)",
   "config.telemetry.enabled.unset": "尚未決定。不會傳送任何內容，擴充功能會詢問你。",
   "config.telemetry.enabled.enabled": "傳送匿名的功能使用資料。",
   "config.telemetry.enabled.disabled": "不傳送任何內容，並且不再詢問。"

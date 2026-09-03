@@ -6,11 +6,13 @@ import type { Config } from "@/config";
 import type { ExtensionState } from "@/extensionState";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
 import { isConsentPending } from "@/telemetry/consentPrompt";
+import type { TelemetryReporter } from "@/telemetry";
 import type { GitRepoSet } from "@/types";
 
 import type { RepoManager } from "./repoManager";
 import type { WebviewBridge } from "./webviewBridge";
 import { buildWebviewHtml } from "./webviewHtml";
+import { listWebviewLanguages } from "./webviewLanguages";
 
 export function createWebviewPanel(opts: {
   panel: vscode.WebviewPanel;
@@ -23,6 +25,7 @@ export function createWebviewPanel(opts: {
   repoManager: RepoManager;
   extensionVersion: string;
   outputChannel?: Pick<vscode.OutputChannel, "appendLine">;
+  telemetry?: Pick<TelemetryReporter, "logFeature">;
   onDispose: () => void;
   onPanelShown: () => void;
 }) {
@@ -37,6 +40,7 @@ export function createWebviewPanel(opts: {
     repoManager,
     extensionVersion,
     outputChannel,
+    telemetry,
     onDispose,
     onPanelShown
   } = opts;
@@ -50,6 +54,14 @@ export function createWebviewPanel(opts: {
   // "no repositories" placeholder, which carries no script and can therefore
   // neither hold state nor receive bridge messages.
   let isGraphViewLoaded = false;
+  /**
+   * Language override for this panel only, set from the webview's language
+   * switcher. Held in this closure on purpose: nothing persists it, so
+   * closing the graph tab ends it and the next open is back in the editor's
+   * own language. Someone helping at another person's keyboard cannot leave
+   * their editor changed.
+   */
+  let temporaryLanguage: string | undefined;
   let isPanelVisible = true;
 
   // Both tab icon variants ship a light/dark pair: the grey one has to invert to
@@ -68,7 +80,8 @@ export function createWebviewPanel(opts: {
       extensionPath,
       extensionState,
       repoManager,
-      extensionVersion
+      extensionVersion,
+      language: temporaryLanguage
     });
     outputChannel?.appendLine(
       `[panel] render repos=${Object.keys(repoManager.getRepos()).length} graph=${result.isGraphLoaded}`
@@ -106,6 +119,16 @@ export function createWebviewPanel(opts: {
       if (x) x.dispose();
     }
   }
+
+  bridge.onMessage("setTemporaryLanguage", (msg) => {
+    if (!listWebviewLanguages(extensionPath).some((entry) => entry.id === msg.language)) return;
+    temporaryLanguage = msg.language;
+    outputChannel?.appendLine(`[panel] temporary language ${msg.language}`);
+    telemetry?.logFeature("setTemporaryLanguage", true);
+    // A rebuild rather than a message: every string in the document was
+    // baked in at build time, including the toolbar and the status strip.
+    update();
+  });
 
   update();
   panel.onDidDispose(() => dispose(), null, disposables);

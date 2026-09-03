@@ -8,6 +8,8 @@ import type {
 } from "@/backend/types";
 
 export type GitRepoSet = { [repo: string]: GitRepoState };
+/** A language the webview can be switched to; label is English by design. */
+export type WebviewLanguage = { id: string; label: string };
 /**
  * Whether the user has answered the telemetry question, and how.
  *
@@ -176,6 +178,10 @@ export type GitGraphViewState = {
   includeUnreachableCommits: boolean;
   settingsWidgetTab?: SettingsWidgetTab;
   shortHashLength: number;
+  /** Locale the webview's strings were built in. */
+  language: string;
+  /** Locales the language switcher offers. */
+  languages: WebviewLanguage[];
 };
 
 export type Avatar = {
@@ -386,6 +392,18 @@ export type RequestShowTelemetryConsent = {
   command: "showTelemetryConsent";
 };
 
+/**
+ * Rebuilds the graph document in another language for this panel only.
+ *
+ * Deliberately not persisted anywhere: the override lives in the panel object,
+ * so closing the graph tab is what ends it. Someone helping at another
+ * person's keyboard should not be able to leave their editor changed.
+ */
+export type RequestSetTemporaryLanguage = {
+  command: "setTemporaryLanguage";
+  language: string;
+};
+
 export type RequestMessage =
   | ActionRequest
   | QueryRequest
@@ -405,6 +423,7 @@ export type RequestMessage =
   | RequestUpdateExtensionSetting
   | RequestExportExtensionSettings
   | RequestImportExtensionSettings
+  | RequestSetTemporaryLanguage
   | RequestShowTelemetryConsent
   | RequestWebviewDiagnostic;
 
