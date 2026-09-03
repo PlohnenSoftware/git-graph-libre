@@ -122,7 +122,43 @@ third-party analytics provider.
 File names, file paths, workspace or folder names, repository names, git remote
 URLs, branch names, tag names, commit hashes, commit messages, author names,
 email addresses, environment variables, credentials, or your list of installed
-extensions. The receiving service stores no information which would be used to track deanonymize user. Only saved data is mentioned in section above.
+extensions.
+
+**What the receiving service stores**
+
+The list above is also the complete list of what is *kept*. The service at
+`t.plohnensoftware.download` is a small self-hosted ingest — two containers, one
+table, no dashboard, no third party — and it writes that payload plus a
+timestamp of its own. It adds nothing else about you:
+
+- **No IP address.** It is never read, never logged, and never hashed, and
+  there is no column it could be stored in. Avoiding the automatic IP
+  geolocation that hosted analytics products apply was the main reason to
+  self-host at all, so no country, region, city, or network operator is attached
+  to anything you send.
+- **No request headers, user agent, cookies, or referrer.** Nothing outside the
+  JSON body is read. The endpoint has no login and no session, so there is not
+  even a token that could tie two of your requests together.
+- **No access log.** The server logs startup, shutdown, and database failures.
+  It never logs a request body, an address, or a property value.
+- **No names, email addresses, or accounts.** Nothing in the system has a user
+  account for one to belong to.
+- **Nothing joinable to another dataset.** No install token, no license key, no
+  cross-service identifier. A copy of the database, on its own, joins to
+  nothing.
+
+The closest thing to an identifier is the anonymized machine id Visual Studio
+Code generates. It is what makes *how many* installations use a feature
+answerable rather than just how many clicks happened, and actions are grouped by
+it when reading the data. It is not derived from your hardware, your hostname,
+or your user name; it is shared across all your extensions rather than specific
+to this one; and it resets if you reinstall your operating system. With no IP
+address and no log stored beside it, there is no second field to work back
+through to a person.
+
+The server is open source, and its schema is the full list of what it is even
+able to store:
+[git-graph-libre-telemetry-server](https://github.com/PlohnenSoftware/git-graph-libre-telemetry-server).
 
 **Important**
 
