@@ -176,7 +176,6 @@ export type GitGraphViewState = {
   includeUnreachableCommits: boolean;
   settingsWidgetTab?: SettingsWidgetTab;
   shortHashLength: number;
-  telemetryConsent: TelemetryConsent;
 };
 
 export type Avatar = {
@@ -378,13 +377,13 @@ export type ResponseStartHistorySearch = {
 };
 
 /**
- * Pushed when `telemetry.enabled` changes outside the webview, so the standing
- * "not decided yet" notice can appear or disappear without rebuilding the
- * document and dropping the retained graph state.
+ * Posted by the consent screen's **Set now** button. The screen replaces the
+ * graph while the telemetry question is open, and this is what re-opens the
+ * notification after it has been dismissed — without it, dismissing would
+ * leave the user stuck on a screen with no way forward.
  */
-export type ResponseTelemetryConsentChanged = {
-  command: "telemetryConsentChanged";
-  consent: TelemetryConsent;
+export type RequestShowTelemetryConsent = {
+  command: "showTelemetryConsent";
 };
 
 export type RequestMessage =
@@ -406,6 +405,7 @@ export type RequestMessage =
   | RequestUpdateExtensionSetting
   | RequestExportExtensionSettings
   | RequestImportExtensionSettings
+  | RequestShowTelemetryConsent
   | RequestWebviewDiagnostic;
 
 export type ResponseMessage =
@@ -427,5 +427,4 @@ export type ResponseMessage =
   | ResponseExportExtensionSettings
   | ResponseImportExtensionSettings
   | ResponseRefresh
-  | ResponseStartHistorySearch
-  | ResponseTelemetryConsentChanged;
+  | ResponseStartHistorySearch;

@@ -90,7 +90,7 @@ describe("telemetry consent prompt", () => {
 
     await prompt.promptIfUnset();
 
-    expect(window.shown[0].items).toEqual(["Accept", "Reject"]);
+    expect(window.shown[0].items).toEqual(["Accept", "Reject and Don't Show Again"]);
   });
 
   it("stays a notification rather than seizing the window", async () => {
@@ -109,8 +109,11 @@ describe("telemetry consent prompt", () => {
     expect(written).toEqual(["enabled"]);
   });
 
+  // The label promises the asking stops, so the state written has to be the
+  // one that stops it: `disabled` is silent AND no longer pending, so neither
+  // the notification nor the gate screen comes back.
   it("writes disabled when the user rejects", async () => {
-    const { prompt, written } = promptFor("unset", ["Reject"]);
+    const { prompt, written } = promptFor("unset", ["Reject and Don't Show Again"]);
 
     await prompt.promptIfUnset();
 
@@ -171,20 +174,55 @@ describe("telemetry consent prompt", () => {
     expect(window.shown).toHaveLength(1);
   });
 
-  // Activation and the first graph open can land in the same tick.
-  it("asks one question at a time", async () => {
-    const { prompt, window } = promptFor("unset", ["Accept", "Accept"]);
-
-    await Promise.all([prompt.promptIfUnset(), prompt.promptIfUnset()]);
-
-    expect(window.shown).toHaveLength(1);
-  });
-
-  it("asks again after a dismissal, once the first has closed", async () => {
+  it("asks again after a dismissal", async () => {
     const { prompt, window } = promptFor("unset", [undefined, undefined]);
 
     await prompt.promptIfUnset();
     await prompt.promptIfUnset();
+
+    expect(window.shown).toHaveLength(2);
+  });
+
+  /*
+   * The reported bug, and the reason there is no "one prompt at a time" flag.
+   *
+   * An Info notification carrying buttons is not sticky in the workbench
+   * (`get sticky()` wants actions AND Severity.Error), so PURGE_TIMEOUT[Info]
+   * removes the toast after 10 seconds. `removeToast()` drops the toast only:
+   * the notification stays in the model, `onDidClose` never fires, and this
+   * promise never resolves. A flag cleared in its `finally` therefore latches
+   * for the rest of the session — which is exactly what stopped Set now from
+   * reopening the prompt once the toast had aged out.
+   */
+  it("still asks while an earlier prompt's promise is still unresolved", async () => {
+    const shown: string[] = [];
+    const prompt = createConsentPrompt({
+      config: { telemetryConsent: () => "unset" },
+      window: {
+        showInformationMessage(message: string) {
+          shown.push(message);
+          // The purged-toast case: never answered, never closed.
+          return new Promise<string | undefined>(() => {});
+        }
+      },
+      endpoint: ENDPOINT
+    });
+
+    void prompt.promptIfUnset();
+    void prompt.promptIfUnset();
+    void prompt.promptIfUnset();
+    await Promise.resolve();
+
+    expect(shown).toHaveLength(3);
+  });
+
+  // Two prompts in the same tick are safe rather than guarded against:
+  // NotificationsModel.addNotification() closes an identical notification
+  // before adding the new one, so the user only ever sees one.
+  it("lets activation and the first graph open both ask", async () => {
+    const { prompt, window } = promptFor("unset", ["Accept", "Accept"]);
+
+    await Promise.all([prompt.promptIfUnset(), prompt.promptIfUnset()]);
 
     expect(window.shown).toHaveLength(2);
   });
@@ -213,7 +251,7 @@ describe("telemetry consent prompt", () => {
   });
 
   it("writes the answer globally through the real configuration API", async () => {
-    const window = createWindowStub(["Reject"]);
+    const window = createWindowStub(["Reject and Don't Show Again"]);
     const prompt = createConsentPrompt({
       config: { telemetryConsent: () => "unset" },
       window: window.api,

@@ -41,6 +41,9 @@
   "ui.emptyGraph": "No commits to show for this branch",
   "ui.noCommits": "This repository has no commits",
   "ui.telemetryUndecided": "Telemetry is neither accepted nor rejected yet, so nothing is being sent.",
+  "ui.telemetryConsentTitle": "Waiting for your telemetry choice",
+  "ui.telemetryConsentHint": "Answer the notification to open the graph. If you dismissed it, bring it back with Set now.",
+  "ui.telemetrySetNow": "Set now",
   "ui.createFirstCommit": "Create your first commit to see the graph here",
   "ui.showAll": "Show All",
   "ui.filterPlaceholder": "Filter {0}...",
@@ -529,7 +532,7 @@
   "tooltip.deletions": " deletions",
   "telemetry.consent.question": "Git Graph Libre can send anonymous data about which of its features you use, so development goes where it is actually used. No file names, paths, repository, branch or tag names, commit contents, or identities are ever sent.",
   "telemetry.consent.accept": "Accept",
-  "telemetry.consent.reject": "Reject",
+  "telemetry.consent.reject": "Reject and Don't Show Again",
   "telemetry.consent.globalOff": "Thanks. Visual Studio Code's own telemetry setting is currently off, and it always wins, so nothing will be sent until you turn that on.",
   "telemetry.consent.openGlobalSetting": "Open Setting"
 }

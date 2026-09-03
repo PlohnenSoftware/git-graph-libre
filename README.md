@@ -127,9 +127,12 @@ extensions. The receiving service stores no IP addresses.
 
 The extension asks once when it activates, and again whenever you open the
 graph, until you answer. Closing the notification without choosing is not an
-answer: the state stays `unset`, nothing is sent, and you get asked again next
-time. While the question is open, the graph itself carries a small notice
-saying telemetry is neither accepted nor rejected.
+answer: the state stays `unset` and nothing is sent.
+
+While the question is open the graph is not shown — you get a screen saying
+what is being waited for, with a **Set now** button that brings the
+notification back if you dismissed it. Answer it either way and the graph
+opens; `disabled` is a complete answer and costs you nothing.
 
 Visual Studio Code's own `telemetry.telemetryLevel` setting always wins on top
 of that: while it is off, nothing is sent no matter which state the setting

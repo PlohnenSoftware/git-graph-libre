@@ -37,8 +37,7 @@ const defaultViewState: GGL.GitGraphViewState = {
   showRemoteBranches: true,
   showStashes: true,
   showTags: true,
-  shortHashLength: 8,
-  telemetryConsent: "enabled"
+  shortHashLength: 8
 };
 
 const repoInfo: GitRepoInfo = {

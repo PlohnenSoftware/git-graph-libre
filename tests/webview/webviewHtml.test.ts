@@ -97,10 +97,6 @@ describe("webview HTML", () => {
     expect(viewState.boldCheckedOutCommit).toBe(true);
     expect(viewState.fetchTagsByDefault).toBe(false);
     expect(viewState.shortHashLength).toBe(12);
-    // The webview needs the consent state to decide whether to show the
-    // standing "not decided yet" notice.
-    expect(viewState.telemetryConsent).toBe("enabled");
-    expect(result.html).toContain('id="telemetryNotice"');
     expect(result.html).toContain('id="settingsWidgetBacking" hidden');
     expect(result.html).toContain('id="settingsWidget" role="dialog" aria-modal="true"');
   });

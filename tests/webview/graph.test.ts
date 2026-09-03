@@ -31,8 +31,7 @@ const config: Config = {
   showRemoteBranches: true,
   showStashes: true,
   showTags: true,
-  shortHashLength: 8,
-  telemetryConsent: "enabled"
+  shortHashLength: 8
 };
 
 function makeCommit(hash: string, parentHashes: string[] = []): GitCommitNode {

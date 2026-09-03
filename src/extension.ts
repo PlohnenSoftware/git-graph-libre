@@ -81,7 +81,8 @@ export function activate(context: vscode.ExtensionContext) {
       repoFileWatcher,
       extensionPath: context.extensionPath,
       outputChannel: logger,
-      telemetry
+      telemetry,
+      telemetryConsentPrompt: consentPrompt
     });
     currentPanel = createWebviewPanel({
       panel,
@@ -146,9 +147,9 @@ export function activate(context: vscode.ExtensionContext) {
       } else if (e.affectsConfiguration("git-graph-libre.maxDepthOfRepoSearch")) {
         repoSearch.maxDepthChanged();
       } else if (e.affectsConfiguration("git-graph-libre.telemetry.enabled")) {
-        // Answering the prompt writes this setting, so this is also how the
-        // "not decided yet" notice disappears the moment the user chooses.
-        currentPanel?.setTelemetryConsent(config.telemetryConsent());
+        // Answering the prompt writes this setting, so this is what swaps the
+        // consent screen for the graph the moment the user chooses.
+        currentPanel?.applyTelemetryConsentChange();
       } else if (e.affectsConfiguration("git.path")) {
         gitClient.setGitPath(config.gitPath());
       }

@@ -5,7 +5,8 @@ import { buildExtensionUri } from "@/backend/utils/path";
 import type { Config } from "@/config";
 import type { ExtensionState } from "@/extensionState";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
-import type { GitRepoSet, TelemetryConsent } from "@/types";
+import { isConsentPending } from "@/telemetry/consentPrompt";
+import type { GitRepoSet } from "@/types";
 
 import type { RepoManager } from "./repoManager";
 import type { WebviewBridge } from "./webviewBridge";
@@ -148,13 +149,18 @@ export function createWebviewPanel(opts: {
       bridge.post({ command: "startHistorySearch" });
     },
     /**
-     * Pushed rather than re-rendered: rebuilding the HTML would reload the
-     * webview and drop the retained graph state, and the notice is a single
-     * `hidden` toggle.
+     * Swaps between the consent screen and the graph when the answer changes.
+     *
+     * They are different documents, so this is a rebuild rather than a
+     * message — and a rebuild only when what is mounted contradicts the
+     * answer: the graph is up while the question has been reopened, or a
+     * placeholder is up when it no longer is. An enabled ↔ disabled change
+     * shows nothing new, and rebuilding then would reload the webview and
+     * drop the graph's live state.
      */
-    setTelemetryConsent(consent: TelemetryConsent) {
-      if (!isGraphViewLoaded) return;
-      bridge.post({ command: "telemetryConsentChanged", consent });
+    applyTelemetryConsentChange() {
+      if (isGraphViewLoaded !== isConsentPending(config.telemetryConsent())) return;
+      update();
     },
     dispose
   };

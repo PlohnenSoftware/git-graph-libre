@@ -40,6 +40,30 @@ body.unableToLoad h2,
 body.unableToLoad p {
   text-align: center;
 }
+
+/* Telemetry consent screen: replaces the graph while the question is open. */
+.telemetryConsentActions {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}
+.telemetryConsentBtn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 2px;
+  background-color: var(--vscode-button-background, var(--ngg-accent));
+  color: var(--vscode-button-foreground, var(--ngg-accent-foreground));
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+.telemetryConsentBtn:hover {
+  background-color: var(--vscode-button-hoverBackground, var(--ngg-accent));
+}
+.telemetryConsentBtn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 2px;
+}
 /* Top bar: readiness strip + toolbar float above the scrolling graph. The
    sticky table header offsets itself by --ngg-sticky-top (published from the
    top bar height in the same frame as any state change), so both move as one
@@ -955,26 +979,6 @@ body.commitDetailsResizing * {
   border-bottom-width: 0;
 }
 
-/* Telemetry consent notice: shown only while the question is unanswered. It
-   sits in the top bar, so the sticky table header offset tracks it through the
-   existing #topBar ResizeObserver. */
-.telemetryNotice {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 9px;
-  box-sizing: border-box;
-  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-overlay-strong));
-  background-color: var(
-    --vscode-notifications-background,
-    var(--vscode-editorWidget-background, var(--ngg-neutral-overlay-subtle))
-  );
-  color: var(--vscode-notificationsInfoIcon-foreground, var(--ngg-accent));
-  font-size: 12px;
-}
-.telemetryNoticeText {
-  color: var(--vscode-foreground);
-}
 .statusIndicator {
   width: 8px;
   height: 8px;

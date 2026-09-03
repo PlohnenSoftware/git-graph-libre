@@ -41,6 +41,9 @@
   "ui.emptyGraph": "Geen commits om weer te geven voor deze branch",
   "ui.noCommits": "Deze repository heeft geen commits",
   "ui.telemetryUndecided": "Telemetrie is nog niet geaccepteerd of geweigerd, dus er wordt niets verzonden.",
+  "ui.telemetryConsentTitle": "Wachten op je telemetriekeuze",
+  "ui.telemetryConsentHint": "Antwoord op de melding om de graaf te openen. Als je die hebt gesloten, haal je hem terug met Nu instellen.",
+  "ui.telemetrySetNow": "Nu instellen",
   "ui.createFirstCommit": "Maak je eerste commit om de graaf hier te zien",
   "ui.showAll": "Alles weergeven",
   "ui.filterPlaceholder": "{0} filteren...",
@@ -529,7 +532,7 @@
   "tooltip.deletions": " verwijderingen",
   "telemetry.consent.question": "Git Graph Libre kan anonieme gegevens verzenden over welke van zijn functies je gebruikt, zodat de ontwikkeling gaat waar de functies echt gebruikt worden. Bestandsnamen, paden, namen van repository's, branches of tags, de inhoud van commits en identiteiten worden nooit verzonden.",
   "telemetry.consent.accept": "Accepteren",
-  "telemetry.consent.reject": "Weigeren",
+  "telemetry.consent.reject": "Weigeren en niet meer vragen",
   "telemetry.consent.globalOff": "Bedankt. De telemetrie-instelling van Visual Studio Code zelf staat momenteel uit en die heeft altijd voorrang, dus er wordt niets verzonden totdat je die aanzet.",
   "telemetry.consent.openGlobalSetting": "Instelling openen"
 }

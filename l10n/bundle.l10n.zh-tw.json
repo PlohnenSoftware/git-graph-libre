@@ -41,6 +41,9 @@
   "ui.emptyGraph": "此分支沒有可顯示的提交",
   "ui.noCommits": "此存放庫尚無提交",
   "ui.telemetryUndecided": "遙測尚未被接受也未被拒絕，因此不會傳送任何內容。",
+  "ui.telemetryConsentTitle": "正在等待你的遙測選擇",
+  "ui.telemetryConsentHint": "回答該通知即可開啟圖形檢視。如果你已關閉通知，可以使用「立即設定」重新開啟它。",
+  "ui.telemetrySetNow": "立即設定",
   "ui.createFirstCommit": "建立第一個提交以在此查看提交圖",
   "ui.showAll": "顯示全部",
   "ui.filterPlaceholder": "篩選{0}...",
@@ -529,7 +532,7 @@
   "tooltip.deletions": " 處刪除",
   "telemetry.consent.question": "Git Graph Libre 可以傳送關於你使用了哪些功能的匿名資料，以便開發投入到真正被使用的地方。絕不會傳送檔案名稱、路徑、儲存庫名稱、分支或標籤名稱、提交內容或身分資訊。",
   "telemetry.consent.accept": "接受",
-  "telemetry.consent.reject": "拒絕",
+  "telemetry.consent.reject": "拒絕並且不再詢問",
   "telemetry.consent.globalOff": "謝謝。Visual Studio Code 本身的遙測設定目前已關閉，並且一律優先，因此在你啟用它之前不會傳送任何內容。",
   "telemetry.consent.openGlobalSetting": "開啟設定"
 }

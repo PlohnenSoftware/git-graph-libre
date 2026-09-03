@@ -38,8 +38,7 @@ const defaultViewState: GGL.GitGraphViewState = {
   showRemoteBranches: true,
   showStashes: true,
   showTags: true,
-  shortHashLength: 8,
-  telemetryConsent: "enabled"
+  shortHashLength: 8
 };
 
 // `git branch --show-current` still names the unborn branch, while

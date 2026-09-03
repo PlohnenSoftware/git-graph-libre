@@ -5,12 +5,13 @@ import { buildExtensionUri } from "@/backend/utils/path";
 import type { Config } from "@/config";
 import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
+import { isConsentPending } from "@/telemetry/consentPrompt";
 import type { GitGraphViewState } from "@/types";
 
 import type { RepoManager } from "./repoManager";
 import { getWebviewLocalizedStrings } from "./webviewL10n";
+import { buildTelemetryConsentScreen } from "./webviewConsentScreen";
 import { buildWebviewStatusStrip } from "./webviewStatusStrip";
-import { buildTelemetryNotice } from "./webviewTelemetryNotice";
 import { buildWebviewToolbar } from "./webviewToolbar";
 
 /**
@@ -64,8 +65,7 @@ export function buildWebviewHtml(opts: {
     showRemoteBranches: config.showRemoteBranches(),
     showStashes: config.showStashes(),
     showTags: config.showTags(),
-    shortHashLength: config.shortHashLength(),
-    telemetryConsent: config.telemetryConsent()
+    shortHashLength: config.shortHashLength()
   };
 
   const numRepos = Object.keys(viewState.repos).length;
@@ -81,13 +81,18 @@ export function buildWebviewHtml(opts: {
   const compiledOutputUri = (file: string) =>
     webview.asWebviewUri(buildExtensionUri(extensionPath, "out", file));
 
+  // Order matters: a workspace with no repository cannot show a graph at all,
+  // so that screen states the more fundamental blocker and comes first.
+  const consentGate = numRepos > 0 && isConsentPending(config.telemetryConsent());
+
   let body: string;
-  if (numRepos > 0) {
+  if (consentGate) {
+    body = buildTelemetryConsentScreen(l10nStrings, nonce, styleVars);
+  } else if (numRepos > 0) {
     body = `<body style="${styleVars}">
 		<div id="topBar">
 		${buildWebviewStatusStrip(l10nStrings, extensionVersion)}
 		${buildWebviewToolbar(l10nStrings)}
-		${buildTelemetryNotice(l10nStrings, viewState.telemetryConsent)}
 		</div>
 		<div id="settingsWidgetBacking" hidden></div>
 		<aside id="settingsWidget" role="dialog" aria-modal="true" tabindex="-1" aria-label="${l10nStrings.repositorySettings}" hidden></aside>
@@ -125,5 +130,5 @@ export function buildWebviewHtml(opts: {
 		${body}
 	</html>`;
 
-  return { html, isGraphLoaded: numRepos > 0 };
+  return { html, isGraphLoaded: numRepos > 0 && !consentGate };
 }

@@ -303,6 +303,8 @@ export function registerMessageHandlers(
     extensionPath?: string;
     outputChannel?: Pick<vscode.OutputChannel, "appendLine">;
     telemetry?: Pick<TelemetryReporter, "logFeature">;
+    /** Re-opens the consent notification for the screen's Set now button. */
+    telemetryConsentPrompt?: { promptIfUnset: () => Promise<void> };
   }
 ) {
   const {
@@ -314,7 +316,8 @@ export function registerMessageHandlers(
     repoFileWatcher,
     extensionPath = process.cwd(),
     outputChannel,
-    telemetry
+    telemetry,
+    telemetryConsentPrompt
   } = deps;
 
   let currentRepo: string | null = null;
@@ -505,6 +508,13 @@ export function registerMessageHandlers(
     } finally {
       repoFileWatcher.unmute();
     }
+  });
+
+  // Not routed through registerAction: it is not a git action, it has no
+  // outcome to report, and telemetry is by definition off while the question
+  // it re-opens is unanswered.
+  bridge.onMessage("showTelemetryConsent", async () => {
+    await telemetryConsentPrompt?.promptIfUnset();
   });
 
   // --- Query handlers ---

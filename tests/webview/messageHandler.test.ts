@@ -74,6 +74,7 @@ afterAll(() => {
 describe("registerMessageHandlers", () => {
   function registerHandlersForTest(activeRepo = repo, options: { extensionPath?: string } = {}) {
     const telemetryEvents: Array<{ feature: string; ok: boolean }> = [];
+    const consentPrompts: number[] = [];
     const handlers = new Map<
       RequestMessage["command"],
       (msg: RequestMessage) => void | Promise<void>
@@ -130,10 +131,24 @@ describe("registerMessageHandlers", () => {
         logFeature: (feature: string, ok: boolean) => {
           telemetryEvents.push({ feature, ok });
         }
+      },
+      telemetryConsentPrompt: {
+        promptIfUnset: () => {
+          consentPrompts.push(Date.now());
+          return Promise.resolve();
+        }
       }
     });
 
-    return { handlers, posts, outputLines, repoStates, repoFileWatcher, telemetryEvents };
+    return {
+      handlers,
+      posts,
+      outputLines,
+      repoStates,
+      repoFileWatcher,
+      telemetryEvents,
+      consentPrompts
+    };
   }
 
   // registerAction is the chokepoint the whole action surface funnels through,
@@ -181,6 +196,23 @@ describe("registerMessageHandlers", () => {
     expect(serialized).not.toContain("acme-corp-release");
     expect(serialized).not.toContain(repo);
     expect(Object.keys(telemetryEvents[0])).toEqual(["feature", "ok"]);
+  });
+
+  // Set now on the consent screen. That screen replaces the graph while the
+  // question is open, so without this route a dismissed notification would
+  // leave the user with nothing to click.
+  it("re-opens the consent notification for the consent screen's button", async () => {
+    const { handlers, consentPrompts, posts, telemetryEvents } = registerHandlersForTest();
+
+    await handlers.get("showTelemetryConsent")?.({
+      command: "showTelemetryConsent"
+    } as RequestMessage);
+
+    expect(consentPrompts).toHaveLength(1);
+    // Not an action: nothing to answer, and nothing to report about a request
+    // made while telemetry is by definition off.
+    expect(posts).toEqual([]);
+    expect(telemetryEvents).toEqual([]);
   });
 
   // The action chokepoint above cannot see features that consist of something

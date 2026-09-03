@@ -8,7 +8,7 @@ import type { WebviewBridge } from "@/extension/webviewBridge";
 import { createWebviewPanel } from "@/extension/webviewPanel";
 import type { ExtensionState } from "@/extensionState";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
-import type { GitRepoSet } from "@/types";
+import type { GitRepoSet, TelemetryConsent } from "@/types";
 
 const mocks = vi.hoisted(() => ({
   buildWebviewHtml: vi.fn((): { html: string; isGraphLoaded: boolean } => ({
@@ -23,8 +23,9 @@ type ViewStateHandler = () => void;
 type RepoCallback = (repos: GitRepoSet, numRepos: number) => void;
 type DisposeHandler = () => void;
 
-function createHarness(opts?: { initialIsGraphLoaded: boolean }) {
+function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: TelemetryConsent }) {
   const initialIsGraphLoaded = opts?.initialIsGraphLoaded ?? true;
+  let consent: TelemetryConsent = opts?.consent ?? "enabled";
   mocks.buildWebviewHtml.mockImplementationOnce(() => ({
     html: initialIsGraphLoaded ? "<html>graph</html>" : "<html>placeholder</html>",
     isGraphLoaded: initialIsGraphLoaded
@@ -67,7 +68,10 @@ function createHarness(opts?: { initialIsGraphLoaded: boolean }) {
   const webviewPanel = createWebviewPanel({
     panel: panel as unknown as vscode.WebviewPanel,
     bridge: bridge as unknown as WebviewBridge,
-    config: { tabIconColorTheme: () => "color" } as unknown as Config,
+    config: {
+      tabIconColorTheme: () => "color",
+      telemetryConsent: () => consent
+    } as unknown as Config,
     repoFileWatcher: repoFileWatcher as unknown as RepoFileWatcher,
     extensionPath: "/extension",
     extensionState: extensionState as unknown as ExtensionState,
@@ -82,6 +86,9 @@ function createHarness(opts?: { initialIsGraphLoaded: boolean }) {
   return {
     avatarManager,
     bridge,
+    setConsent: (next: TelemetryConsent) => {
+      consent = next;
+    },
     disposeHandler: () => disposeHandler,
     hide: () => {
       panel.visible = false;
@@ -204,6 +211,49 @@ describe("createWebviewPanel", () => {
     expect(harness.avatarManager.deregisterBridge).toHaveBeenCalledTimes(1);
     expect(harness.repoFileWatcher.stop).toHaveBeenCalledTimes(1);
     expect(harness.repoManager.deregisterViewCallback).toHaveBeenCalledTimes(1);
+  });
+
+  // The consent screen and the graph are separate documents, so crossing the
+  // pending boundary is the only reason to rebuild — and rebuilding a mounted
+  // graph would reload the webview and drop its live state.
+  it("swaps the consent screen for the graph once the question is answered", () => {
+    const harness = createHarness({ initialIsGraphLoaded: false, consent: "unset" });
+    expect(harness.webview.html).toBe("<html>placeholder</html>");
+
+    harness.setConsent("enabled");
+    harness.webviewPanel.applyTelemetryConsentChange();
+
+    expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(2);
+    expect(harness.webview.html).toBe("<html>graph</html>");
+  });
+
+  it("puts the consent screen back if the answer is cleared", () => {
+    const harness = createHarness({ consent: "enabled" });
+
+    harness.setConsent("unset");
+    harness.webviewPanel.applyTelemetryConsentChange();
+
+    expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(2);
+  });
+
+  it.each<TelemetryConsent>(["enabled", "disabled"])(
+    "does not rebuild a mounted graph when the answer changes to %s",
+    (next) => {
+      const harness = createHarness({ consent: "enabled" });
+
+      harness.setConsent(next);
+      harness.webviewPanel.applyTelemetryConsentChange();
+
+      expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it("does not rebuild while the consent screen is already showing", () => {
+    const harness = createHarness({ initialIsGraphLoaded: false, consent: "unset" });
+
+    harness.webviewPanel.applyTelemetryConsentChange();
+
+    expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(1);
   });
 
   it("forwards reveal to the panel", () => {

@@ -2708,10 +2708,32 @@ open while the answer is still missing. Rules worth keeping:
   `unset`, so nothing is sent and the next graph open asks again. Recording a
   dismissal either way would collect data nobody agreed to, or bury the
   question forever.
-- **One question at a time.** Activation and the first graph open can land in
-  the same tick and the graph can be reopened while the notification is up, so
-  the module holds a `pending` flag. Without it the user answers a stack of
-  identical prompts.
+- **No "one question at a time" latch — this was a real bug (`2026-09-02`).**
+  The first version held a `pending` flag cleared in the `finally` of the
+  `showInformationMessage` promise. That promise often never resolves: the
+  workbench's `get sticky()` treats a notification with buttons as sticky only
+  at `Severity.Error`, so an Info prompt is non-sticky and
+  `PURGE_TIMEOUT[Info]` (10 seconds) calls `removeToast()`, which removes the
+  *toast* and leaves the notification in the model — `onDidClose` never fires.
+  The flag therefore latched for the rest of the session and silently blocked
+  every later prompt, which is what the maintainer hit as "reopening a
+  notification some time after it was closed doesn't work": **Set now** and the
+  per-graph-open prompt were both dead once the toast had aged out. The guard
+  was also unnecessary — `NotificationsModel.addNotification()` closes an
+  identical notification before adding the new one, so at most one of these
+  prompts exists no matter how many times it is requested. Do not reintroduce
+  a latch here; a regression test pins the unresolved-promise case.
+- **Expect the toast to vanish by itself after ~10 seconds.** That is why the
+  gate screen persists behind it and why its hint text points at **Set now**:
+  the notification is recoverable, not permanent.
+- **The refusal button is labelled "Reject and Don't Show Again"** (`2026-09-03`)
+  because that is what it does — `disabled` is both silent and no longer
+  pending, so neither the notification nor the gate screen returns. VS Code's
+  notification guidelines ask for a **Do not show again** option on every
+  notification; rather than adding a third button that silences without
+  answering, the refusal *is* that option and the label says so. Keep the label
+  and the written state in agreement: a rename that no longer promises silence,
+  or a state that leaves the question pending, would each make the other a lie.
 - **Accepting while VS Code's global switch is off** gets a follow-up saying
   that switch wins, with a button running `workbench.action.openSettings` on
   `telemetry.telemetryLevel`. The consent is still stored as `enabled` — it is
@@ -2723,25 +2745,77 @@ open while the answer is still missing. Rules worth keeping:
 - **No endpoint compiled in, no question.** Asking permission for something
   that cannot happen is noise.
 
-The prompt has an ambient counterpart: while the setting is `unset` the graph
-carries a standing notice (`src/extension/webviewTelemetryNotice.ts`,
-`#telemetryNotice`) saying telemetry is neither accepted nor rejected. A
-notification is easy to dismiss by reflex, so the state must not live only in
-a dialog the user already closed. Three properties of it are deliberate:
+**Maintainer reversal of `2026-09-02`: the banner became a gate.** The first
+implementation put a standing notice in `#topBar` above the graph
+(`webviewTelemetryNotice.ts`, `#telemetryNotice`, a `telemetryConsentChanged`
+push, `renderTelemetryNotice()` in `main.ts`, and `telemetryConsent` on
+`GitGraphViewState`). The maintainer rejected it as too easy to read past: an
+unanswered question must **replace the whole graph**, not decorate it. All of
+those surfaces were removed in the same slice rather than left in place — do
+not reintroduce a banner.
 
-- **It renders inside `#topBar`.** The sticky table-header offset is published
-  from a ResizeObserver on that element, so appearing and disappearing keeps
-  the header attached with no extra plumbing — `renderTelemetryNotice()` still
-  calls `publishTopBarHeight()` in the same frame, the way the find row does.
-- **It is always emitted and toggled with `hidden`**, never added or removed by
-  rebuilding the HTML. `panel.webview.html = …` reloads the webview and drops
-  the retained document, so the change arrives as a
-  `telemetryConsentChanged` push instead, from the
-  `git-graph-libre.telemetry.enabled` branch of the configuration listener in
-  `extension.ts` and from the settings hub's own string-setting route.
-- **It carries no buttons.** The choice belongs to the prompt, which returns on
-  the next graph open. A second Accept/Reject pair wired to the same setting
-  would be two surfaces to keep in agreement for no gain.
+What replaces it is `src/extension/webviewConsentScreen.ts`, a third body
+variant in `buildWebviewHtml()` alongside the graph and the no-repository
+placeholder:
+
+- **It is a document, not an overlay.** No toolbar, no `web.min.js`, no
+  `viewState`; nothing is mounted, so nothing has to be torn down when the
+  answer arrives. `isGraphLoaded` is therefore `false` for it, which is what
+  keeps `syncRetainedView()` and the repo callback from posting messages into
+  a document with no listener.
+- **Screen order: no-repository first, consent second.** A workspace with no
+  repository cannot show a graph at all, so that screen states the more
+  fundamental blocker.
+- **Switching screens is a rebuild**, driven by
+  `applyTelemetryConsentChange()` from the `telemetry.enabled` branch of the
+  configuration listener. It rebuilds *only* when what is mounted contradicts
+  the answer (`isGraphViewLoaded === isConsentPending(...)`); an
+  `enabled` ↔ `disabled` change shows nothing new, and rebuilding then would
+  reload the webview and drop the graph's live state.
+- **`Set now` is load-bearing, not decoration.** Blocking the graph is only
+  acceptable because there is a way back: dismissing the notification leaves
+  the answer `unset`, and without the button the user would be stuck on a
+  screen with nothing to click. It posts `showTelemetryConsent`, handled in
+  `messageHandler.ts` outside `registerAction()` — it is not a git action, has
+  no outcome to report, and telemetry is by definition off while the question
+  it re-opens is unanswered.
+- **`isConsentPending()` in `consentPrompt.ts` is the single predicate** behind
+  both the notification and the screen, so they cannot disagree about whether
+  the question is open. It also carries the empty-endpoint check: with
+  telemetry compiled off there is no gate and no prompt.
+
+**Research on the gate, `2026-09-03`** (done because an earlier note in this
+file guessed that marketplace review might read the gate as coercive — that
+guess was unfounded and is retracted):
+
+- **No Marketplace rule prohibits it.** Nothing in the Visual Studio
+  Marketplace Terms of Use or the Publisher Agreement addresses withholding
+  functionality pending a consent answer, and no precedent of an extension
+  being pulled for it was found.
+- **GDPR Art. 7(4)'s bundling prohibition is not engaged.** EDPB Guidelines
+  05/2020 invalidate consent when access is conditional on *consenting* to
+  non-necessary processing. This gate conditions access on *answering*:
+  refusing costs nothing and opens the graph, so there is no detriment to
+  refusal.
+- **What the guidance does bite on is prominence.** EDPB Guidelines 03/2022 on
+  deceptive design name "unequal prominence" — accept visually dominant,
+  refusal minimised — as non-compliant, and refusal must be as easy and
+  conspicuous as acceptance. Our Accept is the accented primary because VS Code
+  hard-codes `secondary: index > 0`; modal dialogs style their first button the
+  same way, so **equal weighting is not achievable inside a notification at
+  all** — only in our own webview. The maintainer accepted that trade-off
+  knowingly; if it is ever revisited, the fix is Accept/Reject on the gate
+  screen with identical styling, not a change to the notification.
+- **`Don't: Send repeated notifications` does not apply**, and an earlier
+  reading of this file's that said it did was wrong. The same guidelines ask for
+  a **Do not show again** option on every notification; a clean refusal here
+  stops the asking permanently, each prompt follows a user action (opening the
+  graph) in a state where nothing else can proceed, and VS Code's own
+  `addNotification()` dedupe satisfies "show one notification at a time".
+- **Closest precedent**: the Julia extension defaults `julia.enableTelemetry`
+  to `null`, prompts, and sends nothing until opted in — the same tri-state
+  shape — but does *not* restrict functionality. The gate is this project's own
+  choice, not common practice.
 
 **Notification button styling — settled, do not re-open.** An earlier session
 left this unresolved: modal dialogs clearly style their first button as
@@ -2842,6 +2916,48 @@ commit; that gate passed and the branch is cleared for merge. The former
 `docs/TELEMETRY_PLAN.md` was dissolved when the backend was split out:
 backend design and deployment now live in `server/telemetry/README.md`, and
 the durable client rules live in this section.
+
+### Consent epoch — session record (`2026-09-02`)
+
+Seven slices, each gated in full before its commit (strict Biome on staged
+files, `package`, `test`, `l10n:check`, fresh `test:coverage`, `sonar:scan`
+polled to an `OK` `ZAM` gate). In order: the sender-seam verification, the OS
+common properties, the three-state consent setting, the consent prompt, the
+graph notice, the two read-side features, and Dutch. Gate results ran
+`new_coverage` `89.3`–`93.7`, `new_violations` `0`, duplication `0.0`, and all
+four project-wide conditions `0`. One scan came back with `new_violations` `2`
+— both `typescript:S1135` for the word `TODO` in a prose comment of this
+slice's own new module — and was fixed and re-gated rather than accepted under
+the threshold of `5`.
+
+Verified against a packaged build, in an isolated `--extensions-dir` /
+`--user-data-dir` under real code-insiders `1.136.0-insider`, three times:
+
+1. **Before consent existed**: the `activate` event arrived, proving the seam
+   (recorded in the section above).
+2. **Consent at its `unset` default**: the notification appeared, and the local
+   listener received **nothing at all** across a full run and the disposal
+   flush that follows window close. The default really is silent, not merely
+   unsent-by-accident.
+3. **Consent set to `enabled`**: the `activate` event arrived carrying
+   `common.os` `linux`, `common.nodearch` `x64` and `common.platformversion`
+   `7.2.2` — the `-1-cachyos` suffix stripped as designed — alongside
+   `settingsChanged` `1` and `setting.telemetry.enabled` `true`, i.e. the
+   snapshot recording *that* the setting was set without its value.
+
+The notification's rendering was also confirmed by eye at (2): **Accept
+accented, the refusal secondary**, matching the `secondary: index > 0` reading
+of `renderButtons()` with no modality needed. (The refusal was labelled
+`Reject` at the time; it became `Reject and Don't Show Again` on `2026-09-03`.)
+
+`pnpm run test:ext` passes with the prompt wired in — a test launch shows the
+notification and moves on, so the suite is unaffected.
+
+Left for the maintainer, unchanged from the previous session: the synthetic row
+from the `2026-09-02` route probe is still in the production database
+(`delete from events where machine_id = 'probe-machine';`). The probes above
+never touched production — the endpoint was pointed at `127.0.0.1` for each
+one, and restored afterwards.
 
 ## Documentation and Verification Rules
 

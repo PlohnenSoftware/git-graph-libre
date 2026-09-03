@@ -3,9 +3,22 @@
  *
  * `git-graph-libre.telemetry.enabled` starts at `unset`, which sends nothing
  * and means the question is still open. This module is what asks it: once on
- * activation, and again each time the graph is opened while the answer is
- * still missing. Dismissing the notification is not an answer — the state
- * stays `unset`, nothing is sent, and the next graph open asks again.
+ * activation, again each time the graph is opened while the answer is still
+ * missing, and on demand from the consent screen's **Set now** button.
+ * Dismissing the notification is not an answer — the state stays `unset`,
+ * nothing is sent, and the question comes back.
+ *
+ * **Never guard this behind a "one prompt at a time" latch.** An earlier
+ * version did, and it broke Set now outright. The workbench makes an Info
+ * notification with buttons non-sticky (`get sticky()` requires actions *and*
+ * `Severity.Error`), so `PURGE_TIMEOUT[Info]` — 10 seconds — removes the toast
+ * on its own. `removeToast()` drops only the toast: the notification stays in
+ * the model, `onDidClose` never fires, and the promise from
+ * `showInformationMessage` therefore never resolves. Any flag cleared in that
+ * promise's `finally` latches on for the rest of the session and silently
+ * blocks every later prompt. No latch is needed anyway:
+ * `NotificationsModel.addNotification()` closes an identical notification
+ * before adding the new one, so at most one of these is ever present.
  *
  * **Button styling is settled, do not re-litigate it.** A plain notification
  * already accents its first button: `renderButtons()` in the workbench builds
@@ -38,6 +51,21 @@ export const CONSENT_SETTING_KEY = "telemetry.enabled";
 export const VSCODE_TELEMETRY_SETTING = "telemetry.telemetryLevel";
 
 type MessageOptions = { modal: boolean };
+
+/**
+ * Whether the telemetry question is still open and worth putting to the user.
+ *
+ * Shared by the two surfaces that answer to it — the notification here and the
+ * graph-replacing consent screen — so they can never disagree about whether
+ * the question is pending. An empty endpoint means telemetry is compiled off,
+ * and asking permission for something that cannot happen is noise.
+ */
+export function isConsentPending(
+  consent: TelemetryConsent,
+  endpoint: string = TELEMETRY_ENDPOINT
+): boolean {
+  return endpoint !== "" && consent === "unset";
+}
 
 /** The slice of `vscode.window` this needs, so tests need no editor. */
 export type ConsentWindowApi = {
@@ -87,11 +115,6 @@ export function createConsentPrompt(deps: ConsentPromptDeps): ConsentPrompt {
     deps.openSettings ??
     ((query: string) => vscode.commands.executeCommand("workbench.action.openSettings", query));
 
-  // Activation and the first graph open can land within the same tick, and the
-  // graph can be opened again while the notification is still up. One question
-  // at a time, or the user answers a stack of identical prompts.
-  let pending = false;
-
   async function confirmGlobalSwitchWins(): Promise<void> {
     if (isGlobalTelemetryEnabled()) return;
 
@@ -139,11 +162,8 @@ export function createConsentPrompt(deps: ConsentPromptDeps): ConsentPrompt {
 
   return {
     async promptIfUnset() {
-      if (endpoint === "") return;
-      if (deps.config.telemetryConsent() !== "unset") return;
-      if (pending) return;
+      if (!isConsentPending(deps.config.telemetryConsent(), endpoint)) return;
 
-      pending = true;
       try {
         await ask();
       } catch (error: unknown) {
@@ -151,8 +171,6 @@ export function createConsentPrompt(deps: ConsentPromptDeps): ConsentPrompt {
         // down with it. The state stays `unset`, so the question is asked
         // again rather than lost.
         deps.logger?.log(`[telemetry] consent prompt failed: ${String(error)}`);
-      } finally {
-        pending = false;
       }
     }
   };
