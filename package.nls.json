@@ -37,6 +37,8 @@
   "config.repository.muteMergeCommits": "Mute the commit message of merge commits as a reading aid. Branch and tag labels always keep full contrast. Disabled by default.",
   "config.repository.boldCheckedOutCommit": "Render the checked-out commit's message in bold. Branch and tag labels always keep regular weight. Disabled by default.",
   "config.repository.fetchTagsByDefault": "Pre-check \"Fetch all tags\" in the Fetch dialog. Enabled by default.",
+  "config.dialog.merge.noFastForward": "Pre-check \"Create a new commit even if fast-forward is possible\" in merge dialogs. Enabled by default.",
+  "config.dialog.pullBranch.noFastForward": "Pre-check \"Create a new commit even if fast-forward is possible\" in the pull-branch dialog. Disabled by default.",
   "config.graphColors": "Specifies the colors used on the graph.",
   "config.revealHighlightColor": "Specifies the color used to highlight a revealed commit row.",
   "config.graphStyle": "Specifies the style of the graph.",

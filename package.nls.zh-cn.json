@@ -37,6 +37,8 @@
   "config.repository.muteMergeCommits": "淡化合并提交的提交信息以辅助阅读。分支和标签名称始终保持完全对比度。默认关闭。",
   "config.repository.boldCheckedOutCommit": "以粗体显示当前检出提交的提交信息。分支和标签名称始终保持常规字重。默认关闭。",
   "config.repository.fetchTagsByDefault": "在“抓取”对话框中预先勾选“抓取所有标签”。默认开启。",
+  "config.dialog.merge.noFastForward": "在合并对话框中默认勾选“即使可以快进合并，也要创建新提交”。默认开启。",
+  "config.dialog.pullBranch.noFastForward": "在拉取分支对话框中默认勾选“即使可以快进合并，也要创建新提交”。默认关闭。",
   "config.graphColors": "指定图形上使用的颜色。",
   "config.revealHighlightColor": "指定定位到提交行时使用的高亮颜色。",
   "config.graphStyle": "指定图形的样式。",

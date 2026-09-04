@@ -37,6 +37,8 @@
   "config.repository.muteMergeCommits": "Wyciszaj wiadomości commitów scalających jako pomoc w czytaniu historii. Etykiety gałęzi i tagów zawsze zachowują pełny kontrast. Domyślnie wyłączone.",
   "config.repository.boldCheckedOutCommit": "Wyświetlaj wiadomość aktualnie wybranego commita pogrubioną czcionką. Etykiety gałęzi i tagów zawsze zachowują normalną grubość. Domyślnie wyłączone.",
   "config.repository.fetchTagsByDefault": "Zaznaczaj wstępnie opcję „Pobierz wszystkie tagi” w oknie pobierania. Domyślnie włączone.",
+  "config.dialog.merge.noFastForward": "Domyślnie zaznaczaj opcję „Utwórz nowy commit nawet wtedy, gdy możliwy jest fast-forward” w oknach scalania. Domyślnie włączone.",
+  "config.dialog.pullBranch.noFastForward": "Domyślnie zaznaczaj opcję „Utwórz nowy commit nawet wtedy, gdy możliwy jest fast-forward” w oknie pobierania gałęzi. Domyślnie wyłączone.",
   "config.graphColors": "Określa kolory używane na grafie.",
   "config.revealHighlightColor": "Określa kolor podświetlenia ujawnionego wiersza commita.",
   "config.graphStyle": "Określa styl grafu.",

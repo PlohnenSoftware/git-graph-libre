@@ -37,6 +37,8 @@
   "config.repository.muteMergeCommits": "Het commitbericht van merge-commits dimmen als leeshulp. Labels van branches en tags houden altijd volledig contrast. Standaard uitgeschakeld.",
   "config.repository.boldCheckedOutCommit": "Het bericht van de uitgecheckte commit vet weergeven. Labels van branches en tags houden altijd normale dikte. Standaard uitgeschakeld.",
   "config.repository.fetchTagsByDefault": "\"Alle tags fetchen\" vooraf aanvinken in het Fetch-dialoogvenster. Standaard ingeschakeld.",
+  "config.dialog.merge.noFastForward": "In merge-dialoogvensters standaard \"Maak een nieuwe commit, zelfs als fast-forward mogelijk is\" aanvinken. Standaard ingeschakeld.",
+  "config.dialog.pullBranch.noFastForward": "In het pull-branch-dialoogvenster standaard \"Maak een nieuwe commit, zelfs als fast-forward mogelijk is\" aanvinken. Standaard uitgeschakeld.",
   "config.graphColors": "Bepaalt de kleuren die in de graaf worden gebruikt.",
   "config.revealHighlightColor": "Bepaalt de kleur waarmee een getoonde commitrij wordt gemarkeerd.",
   "config.graphStyle": "Bepaalt de stijl van de graaf.",
