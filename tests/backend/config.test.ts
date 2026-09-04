@@ -60,6 +60,22 @@ describe("configuration", () => {
     expect(config.fetchTagsByDefault()).toBe(false);
   });
 
+  it("pre-checks the merge dialog's no-fast-forward option and honors an opt-out", async () => {
+    const { config } = await import("@/config");
+    expect(config.mergeNoFastForward()).toBe(true);
+
+    settings.set("git-graph-libre.dialog.merge.noFastForward", false);
+    expect(config.mergeNoFastForward()).toBe(false);
+  });
+
+  it("leaves the pull dialog's no-fast-forward option unchecked and honors an opt-in", async () => {
+    const { config } = await import("@/config");
+    expect(config.pullBranchNoFastForward()).toBe(false);
+
+    settings.set("git-graph-libre.dialog.pullBranch.noFastForward", true);
+    expect(config.pullBranchNoFastForward()).toBe(true);
+  });
+
   it("keeps the signature column off by default and reads its permanent setting", async () => {
     const { config } = await import("@/config");
     expect(config.showSignatureColumn()).toBe(false);
@@ -223,6 +239,8 @@ describe("configuration", () => {
     { accessor: "muteMergeCommits", expected: false },
     { accessor: "boldCheckedOutCommit", expected: false },
     { accessor: "fetchTagsByDefault", expected: true },
+    { accessor: "mergeNoFastForward", expected: true },
+    { accessor: "pullBranchNoFastForward", expected: false },
     { accessor: "onlyFollowFirstParent", expected: false },
     { accessor: "showCurrentBranchByDefault", expected: false },
     { accessor: "showRemoteBranches", expected: true },

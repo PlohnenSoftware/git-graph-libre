@@ -37,6 +37,8 @@ function makeViewState(fetchTagsByDefault: boolean): GGL.GitGraphViewState {
     muteMergeCommits: false,
     boldCheckedOutCommit: false,
     fetchTagsByDefault,
+    mergeNoFastForward: true,
+    pullBranchNoFastForward: false,
     onlyFollowFirstParent: false,
     repos: { [REPO]: { columnWidths: null } },
     showCurrentBranchByDefault: false,

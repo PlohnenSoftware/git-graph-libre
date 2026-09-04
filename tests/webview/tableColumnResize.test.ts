@@ -47,6 +47,8 @@ function viewState(
     muteMergeCommits: false,
     boldCheckedOutCommit: false,
     fetchTagsByDefault: true,
+    mergeNoFastForward: true,
+    pullBranchNoFastForward: false,
     onlyFollowFirstParent: false,
     repos,
     showCurrentBranchByDefault: false,
