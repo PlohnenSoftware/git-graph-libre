@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Merge is now offered on remote branch labels.** Right-clicking a remote
+  branch such as `origin/main` shows **Merge into current branch…** beside the
+  actions that were already there, using the same dialog and the same options
+  as merging a local branch — so a remote branch no longer has to be fetched
+  into a local one first just to merge it. Like every other context-menu
+  action it can be switched off through
+  `git-graph-libre.contextMenuActionsVisibility` (as `remoteBranch.merge`),
+  and it is enabled by default. Requested in
+  [#2](https://github.com/PlohnenSoftware/git-graph-libre/issues/2).
+
 ### Fixed
 
 - **Changing any setting in the settings hub no longer breaks every context
