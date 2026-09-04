@@ -113,6 +113,16 @@ Workflow rules:
   do core behavior first, then tests, UI, reports, docs, and cleanup.
 - Before starting work and before every commit, run `git fetch --all --prune`,
   check whether the branch is behind, and update safely if needed.
+- **Never merge `main` into a pull request branch to bring it up to date.**
+  Rebase the branch onto `main` instead. A branch that is going to be merged
+  back into `main` gains nothing from having `main` merged into it, and the
+  merge commit is not free: GitHub disables **Rebase and merge** on any pull
+  request whose branch contains one, so the merge obfuscates the history *and*
+  takes away the maintainer's chosen merge button. This is the one place a
+  force-push is expected — rebasing a pull request branch and pushing it with
+  `--force-with-lease` is normal here and does not need a separate request; the
+  no-force rule above is about `main`, release tags, and shared long-lived
+  branches.
 - Never use destructive remote operations. Never force-push or rewrite shared
   history unless the maintainer explicitly requests that exact operation.
 - Prefer small, atomic, reviewable commits and push normally after each coherent
