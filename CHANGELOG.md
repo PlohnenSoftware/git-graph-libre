@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Changing any setting in the settings hub no longer breaks every context
+  menu in the graph.** Saving a setting made the extension send its whole
+  settings list back to the graph, and the graph took the stored value of
+  `contextMenuActionsVisibility` — which is an empty object until you
+  customize it — as the complete list of which actions are visible. Every
+  right-click after that did nothing: on a commit, on a branch, on a tag, on
+  the table header. Reloading the graph fixed it until the next setting change.
+  The stored value is now filled in with the defaults on arrival, the same way
+  it already was when the graph first opened.
+
 ## [1.4.2] - 2026-09-03
 
 ### Added

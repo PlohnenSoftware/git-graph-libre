@@ -16,6 +16,7 @@ import type {
 } from "@/backend/types";
 import { COMMIT_ORDERINGS, GIT_PUSH_BRANCH_MODES } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
+import { normalizeContextMenuActionsVisibility } from "@/contextMenuVisibility";
 
 import {
   alterGitFileTree,
@@ -1653,7 +1654,15 @@ class GitGraphView {
 
   private applyStructuredExtensionSetting(configKey: string, value: GGL.JsonValue) {
     if (configKey === "contextMenuActionsVisibility" && isJsonObject(value)) {
-      this.config.contextMenuActionsVisibility = value as GGL.ContextMenuActionsVisibility;
+      // Normalize, exactly as `config.contextMenuActionsVisibility()` does for
+      // the value baked into the boot view state. The host echoes back what is
+      // *stored*, which is the manifest default `{}` until the user sets
+      // something and can be partial after that; assigning it straight through
+      // left `this.config.contextMenuActionsVisibility[group]` undefined, and
+      // `isContextMenuActionVisible()` then threw for every group — one
+      // settings-hub change killed every context menu in the graph until the
+      // view was reloaded.
+      this.config.contextMenuActionsVisibility = normalizeContextMenuActionsVisibility(value);
     } else if (configKey === "customBranchGlobPatterns" && Array.isArray(value)) {
       this.config.customBranchGlobPatterns = value
         .map(normalizeCustomBranchGlobPattern)
