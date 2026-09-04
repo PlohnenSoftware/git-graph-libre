@@ -67,6 +67,8 @@ All settings use the `git-graph-libre` prefix.
 | `autoCenterCommitDetailsView`                  | `true`          | Center commit details when opened                |
 | `dateFormat`                                   | `"Date & Time"` | `"Date & Time"`, `"Date Only"`, or `"Relative"`  |
 | `dateType`                                     | `"Author Date"` | `"Author Date"` or `"Commit Date"`               |
+| `dialog.merge.noFastForward`                   | `true`          | Pre-check "no fast-forward" in merge dialogs     |
+| `dialog.pullBranch.noFastForward`              | `false`         | Pre-check "no fast-forward" in the pull dialog   |
 | `fetchAvatars`                                 | `false`         | Fetch avatars (sends email to external services) |
 | `graphColors`                                  | 12 defaults     | Colors for graph lines                           |
 | `graphStyle`                                   | `"rounded"`     | `"rounded"` or `"angular"`                       |

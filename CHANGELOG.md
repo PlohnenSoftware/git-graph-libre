@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `git-graph-libre.contextMenuActionsVisibility` (as `remoteBranch.merge`),
   and it is enabled by default. Requested in
   [#2](https://github.com/PlohnenSoftware/git-graph-libre/issues/2).
+- **New settings `git-graph-libre.dialog.merge.noFastForward` (default `true`)
+  and `git-graph-libre.dialog.pullBranch.noFastForward` (default `false`)**:
+  they control whether **Create a new commit even if fast-forward is possible**
+  starts ticked. The merge setting covers both merge dialogs — merging a branch
+  and merging a commit — and the pull setting covers the pull-branch dialog.
+  Both defaults reproduce the values those dialogs used to hardcode, so nothing
+  changes until you set one. Localized in all five languages and available in
+  the settings hub's Extension tab. Requested in
+  [#3](https://github.com/PlohnenSoftware/git-graph-libre/issues/3).
 
 ### Fixed
 
