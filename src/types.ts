@@ -76,6 +76,7 @@ export type ContextMenuActionsVisibility = {
   remoteBranch: {
     checkout: boolean;
     delete: boolean;
+    merge: boolean;
     fetchIntoLocalBranch: boolean;
     pull: boolean;
     viewIssue: boolean;

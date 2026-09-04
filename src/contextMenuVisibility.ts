@@ -45,6 +45,7 @@ export const DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY = {
   remoteBranch: {
     checkout: true,
     delete: true,
+    merge: true,
     fetchIntoLocalBranch: true,
     pull: true,
     viewIssue: true,

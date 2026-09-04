@@ -3367,6 +3367,19 @@ describe("webview rendering", () => {
     });
 
     remoteRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Merge");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "mergeBranch",
+      repo: REPO,
+      branchName: "origin/feature/menu",
+      createNewCommit: true,
+      squash: false,
+      noCommit: false,
+      noVerify: false
+    });
+
+    remoteRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
     clickContextMenuItem("Delete Remote Branch");
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({

@@ -3733,6 +3733,12 @@ class GitGraphView {
             onClick: () => this.showDeleteRemoteBranchDialog(remote, branchName, refName)
           }
         : null,
+      this.isContextMenuActionVisible("remoteBranch", "merge")
+        ? {
+            title: l10n.merge + ELLIPSIS,
+            onClick: () => this.showMergeBranchDialog(refName)
+          }
+        : null,
       ...(this.hasLocalBranch(branchName) &&
       this.gitBranchHead !== branchName &&
       this.isContextMenuActionVisible("remoteBranch", "fetchIntoLocalBranch")
