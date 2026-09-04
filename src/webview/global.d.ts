@@ -32,6 +32,8 @@ declare global {
     muteMergeCommits: boolean;
     boldCheckedOutCommit: boolean;
     fetchTagsByDefault: boolean;
+    mergeNoFastForward: boolean;
+    pullBranchNoFastForward: boolean;
     onlyFollowFirstParent: boolean;
     showCurrentBranchByDefault: boolean;
     showRemoteBranches: boolean;

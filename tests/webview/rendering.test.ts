@@ -59,6 +59,8 @@ const defaultViewState: GGL.GitGraphViewState = {
   // requested" path. The shipped default-on behavior is covered by
   // tests/webview/fetchDialogDefaults.test.ts.
   fetchTagsByDefault: false,
+  mergeNoFastForward: true,
+  pullBranchNoFastForward: false,
   onlyFollowFirstParent: false,
   repos: { [REPO]: { columnWidths: null } },
   showCurrentBranchByDefault: false,

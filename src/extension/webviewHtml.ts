@@ -10,8 +10,8 @@ import { resolveBundleLanguage } from "@/telemetry/language";
 import type { GitGraphViewState } from "@/types";
 
 import type { RepoManager } from "./repoManager";
-import { getWebviewLocalizedStrings } from "./webviewL10n";
 import { buildTelemetryConsentScreen } from "./webviewConsentScreen";
+import { getWebviewLocalizedStrings } from "./webviewL10n";
 import { createBundleTranslator, listWebviewLanguages } from "./webviewLanguages";
 import { buildWebviewStatusStrip } from "./webviewStatusStrip";
 import { buildWebviewToolbar } from "./webviewToolbar";
@@ -40,7 +40,12 @@ export function buildWebviewHtml(opts: {
   const { webview, config, extensionPath, extensionState, repoManager, extensionVersion } = opts;
   const nonce = getNonce();
   const languages = listWebviewLanguages(extensionPath);
-  const language = opts.language ?? resolveBundleLanguage(vscode.env.language, languages.map((entry) => entry.id));
+  const language =
+    opts.language ??
+    resolveBundleLanguage(
+      vscode.env.language,
+      languages.map((entry) => entry.id)
+    );
   const l10nStrings =
     opts.language === undefined
       ? getWebviewLocalizedStrings()
@@ -68,6 +73,8 @@ export function buildWebviewHtml(opts: {
     muteMergeCommits: config.muteMergeCommits(),
     boldCheckedOutCommit: config.boldCheckedOutCommit(),
     fetchTagsByDefault: config.fetchTagsByDefault(),
+    mergeNoFastForward: config.mergeNoFastForward(),
+    pullBranchNoFastForward: config.pullBranchNoFastForward(),
     onlyFollowFirstParent: config.onlyFollowFirstParent(),
     repos: repoManager.getRepos(),
     showCurrentBranchByDefault: config.showCurrentBranchByDefault(),

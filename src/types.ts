@@ -168,6 +168,8 @@ export type GitGraphViewState = {
   muteMergeCommits: boolean;
   boldCheckedOutCommit: boolean;
   fetchTagsByDefault: boolean;
+  mergeNoFastForward: boolean;
+  pullBranchNoFastForward: boolean;
   onlyFollowFirstParent: boolean;
   repos: GitRepoSet;
   showCurrentBranchByDefault: boolean;

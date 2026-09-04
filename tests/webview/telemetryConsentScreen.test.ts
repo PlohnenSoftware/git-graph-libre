@@ -4,11 +4,11 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { Config } from "@/config";
-import type { ExtensionState } from "@/extensionState";
 import type { RepoManager } from "@/extension/repoManager";
 import { buildTelemetryConsentScreen } from "@/extension/webviewConsentScreen";
 import { buildWebviewHtml } from "@/extension/webviewHtml";
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
+import type { ExtensionState } from "@/extensionState";
 import type { TelemetryConsent } from "@/types";
 
 const l10nStrings = getWebviewLocalizedStrings();
@@ -159,6 +159,8 @@ function makeConfig(consent: TelemetryConsent): Config {
     muteMergeCommits: () => false,
     boldCheckedOutCommit: () => false,
     fetchTagsByDefault: () => false,
+    mergeNoFastForward: () => true,
+    pullBranchNoFastForward: () => false,
     onlyFollowFirstParent: () => false,
     showCurrentBranchByDefault: () => false,
     showRemoteBranches: () => true,

@@ -1590,6 +1590,12 @@ class GitGraphView {
       case "repository.fetchTagsByDefault":
         this.config.fetchTagsByDefault = value;
         return true;
+      case "dialog.merge.noFastForward":
+        this.config.mergeNoFastForward = value;
+        return true;
+      case "dialog.pullBranch.noFastForward":
+        this.config.pullBranchNoFastForward = value;
+        return true;
       case "repository.onlyFollowFirstParent":
         this.config.onlyFollowFirstParent = value;
         return true;
@@ -3279,7 +3285,11 @@ class GitGraphView {
         .replace("{0}", `<b><i>${this.displayHash(hash)}</i></b>`)
         .replace("{1}", `<b>${l10n.labelCurrentBranch}</b>`),
       [
-        { type: "checkbox", name: l10n.dialogMergeNoFastForward, value: true },
+        {
+          type: "checkbox",
+          name: l10n.dialogMergeNoFastForward,
+          value: this.config.mergeNoFastForward
+        },
         { type: "checkbox", name: l10n.dialogMergeSquash, value: false },
         { type: "checkbox", name: l10n.dialogMergeNoCommit, value: false },
         { type: "checkbox", name: l10n.dialogBypassGitHooks, value: false }
@@ -4250,7 +4260,11 @@ class GitGraphView {
     showFormDialog(
       l10n.dialogPullBranchConfirm.replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`),
       [
-        { type: "checkbox", name: l10n.dialogPullBranchNoFastForward, value: false },
+        {
+          type: "checkbox",
+          name: l10n.dialogPullBranchNoFastForward,
+          value: this.config.pullBranchNoFastForward
+        },
         { type: "checkbox", name: l10n.dialogPullBranchSquash, value: false },
         { type: "checkbox", name: l10n.dialogBypassGitHooks, value: false }
       ],
@@ -4295,7 +4309,11 @@ class GitGraphView {
         .replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`)
         .replace("{1}", l10n.labelCurrentBranch),
       [
-        { type: "checkbox", name: l10n.dialogMergeNoFastForward, value: true },
+        {
+          type: "checkbox",
+          name: l10n.dialogMergeNoFastForward,
+          value: this.config.mergeNoFastForward
+        },
         { type: "checkbox", name: l10n.dialogMergeSquash, value: false },
         { type: "checkbox", name: l10n.dialogMergeNoCommit, value: false },
         { type: "checkbox", name: l10n.dialogBypassGitHooks, value: false }
@@ -5646,6 +5664,8 @@ const gitGraph = new GitGraphView(
     muteMergeCommits: viewState.muteMergeCommits,
     boldCheckedOutCommit: viewState.boldCheckedOutCommit,
     fetchTagsByDefault: viewState.fetchTagsByDefault,
+    mergeNoFastForward: viewState.mergeNoFastForward,
+    pullBranchNoFastForward: viewState.pullBranchNoFastForward,
     onlyFollowFirstParent: viewState.onlyFollowFirstParent,
     showCurrentBranchByDefault: viewState.showCurrentBranchByDefault,
     showRemoteBranches: viewState.showRemoteBranches,
