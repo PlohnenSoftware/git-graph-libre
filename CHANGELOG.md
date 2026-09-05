@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Every setting in the settings hub now has a real name, in your language.**
+  The Extension tab used to label each setting with its raw configuration key —
+  `commitDetails.fileViewMode` — and show its description in Visual Studio
+  Code's language rather than the graph's. Each of the 35 settings now carries
+  a proper title translated into all five languages, and the full key is still
+  there on hover for when you need to paste it into `settings.json`.
 - **Merge is now offered on remote branch labels.** Right-clicking a remote
   branch such as `origin/main` shows **Merge into current branch…** beside the
   actions that were already there, using the same dialog and the same options
@@ -30,6 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The settings hub follows the graph's language.** Switching the graph's
+  language left the Extension tab in Visual Studio Code's language, because
+  the setting descriptions are resolved on the extension side and nothing told
+  that side which language the graph was showing.
+- **A regional display language now finds its translation.** The settings hub
+  matched Visual Studio Code's display language against a filename directly,
+  so an editor reporting something like `pl-PL` found no `package.nls.pl-PL`
+  file and dropped straight to English instead of falling back to Polish. It
+  now uses the same exact → base → English order Visual Studio Code itself
+  uses.
 - **Changing any setting in the settings hub no longer breaks every context
   menu in the graph.** Saving a setting made the extension send its whole
   settings list back to the graph, and the graph took the stored value of
