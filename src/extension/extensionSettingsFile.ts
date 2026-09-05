@@ -41,7 +41,7 @@ export async function exportExtensionSettingsFile(extensionPath: string) {
   return uri.fsPath;
 }
 
-export async function importExtensionSettingsFile(extensionPath: string) {
+export async function importExtensionSettingsFile(extensionPath: string, language?: string) {
   const uris = await vscode.window.showOpenDialog({
     canSelectFiles: true,
     canSelectFolders: false,
@@ -53,7 +53,11 @@ export async function importExtensionSettingsFile(extensionPath: string) {
   });
   const uri = uris?.[0];
   if (uri === undefined) {
-    return { settings: loadExtensionSettings(extensionPath), importedKeys: [], skippedKeys: [] };
+    return {
+      settings: loadExtensionSettings(extensionPath, language),
+      importedKeys: [],
+      skippedKeys: []
+    };
   }
 
   const raw = await fs.readFile(uri.fsPath, "utf8");
@@ -64,7 +68,7 @@ export async function importExtensionSettingsFile(extensionPath: string) {
   );
   const importedKeys = Object.keys(accepted);
   if (importedKeys.length === 0) {
-    return { settings: loadExtensionSettings(extensionPath), importedKeys, skippedKeys };
+    return { settings: loadExtensionSettings(extensionPath, language), importedKeys, skippedKeys };
   }
 
   const applyLabel = l10n.t("settings.applyExtensionSettingsImport");
@@ -78,11 +82,15 @@ export async function importExtensionSettingsFile(extensionPath: string) {
     applyLabel
   );
   if (confirmed !== applyLabel) {
-    return { settings: loadExtensionSettings(extensionPath), importedKeys: [], skippedKeys };
+    return {
+      settings: loadExtensionSettings(extensionPath, language),
+      importedKeys: [],
+      skippedKeys
+    };
   }
 
   await applyExtensionSettings(accepted);
-  return { settings: loadExtensionSettings(extensionPath), importedKeys, skippedKeys };
+  return { settings: loadExtensionSettings(extensionPath, language), importedKeys, skippedKeys };
 }
 
 export function parseExportedExtensionSettings(value: unknown): ExportedExtensionSettings {

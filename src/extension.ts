@@ -81,6 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
       avatarManager,
       repoFileWatcher,
       extensionPath: context.extensionPath,
+      getLanguage: () => currentPanel?.getLanguage(),
       outputChannel: logger,
       telemetry,
       telemetryConsentPrompt: consentPrompt

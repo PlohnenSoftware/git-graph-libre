@@ -105,6 +105,26 @@ describe("extension manifest", () => {
     });
   });
 
+  // The settings hub renders `config.<key>.title` as a setting's label, and
+  // falls back to printing the raw configuration key when there is none —
+  // which is what it did for every setting until these were added. Requiring
+  // the English title here is what makes `pnpm run l10n:check` then require
+  // the other four languages.
+  it("contributes a localized title for every setting", () => {
+    const manifest = readManifest();
+    const nls = JSON.parse(
+      fs.readFileSync(path.join(__dirname, "../../package.nls.json"), "utf8")
+    ) as Record<string, string>;
+
+    const withoutTitle = Object.keys(manifest.contributes.configuration.properties)
+      .filter((key) => key.startsWith("git-graph-libre."))
+      .filter(
+        (key) => typeof nls[`config.${key.slice("git-graph-libre.".length)}.title`] !== "string"
+      );
+
+    expect(withoutTitle).toEqual([]);
+  });
+
   // Boolean settings whose default is load-bearing. Two of them encode a
   // deliberate behavior flip and one a deliberate opt-out, so a silent default
   // change here would be a user-visible regression:

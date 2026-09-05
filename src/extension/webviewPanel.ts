@@ -5,8 +5,8 @@ import { buildExtensionUri } from "@/backend/utils/path";
 import type { Config } from "@/config";
 import type { ExtensionState } from "@/extensionState";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
-import { isConsentPending } from "@/telemetry/consentPrompt";
 import type { TelemetryReporter } from "@/telemetry";
+import { isConsentPending } from "@/telemetry/consentPrompt";
 import type { GitRepoSet } from "@/types";
 
 import type { RepoManager } from "./repoManager";
@@ -165,6 +165,10 @@ export function createWebviewPanel(opts: {
   });
 
   return {
+    /** The temporary language override, if the switcher has set one. */
+    getLanguage() {
+      return temporaryLanguage;
+    },
     reveal(column?: vscode.ViewColumn) {
       panel.reveal(column);
     },

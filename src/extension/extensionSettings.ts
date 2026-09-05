@@ -3,6 +3,7 @@ import * as path from "node:path";
 
 import * as vscode from "vscode";
 
+import { DEFAULT_LANGUAGE, resolveBundleLanguage } from "@/telemetry/language";
 import type {
   ExtensionSetting,
   ExtensionSettingScope,
@@ -41,9 +42,21 @@ type ConfigInspection = {
 
 const configurationPrefix = "git-graph-libre";
 
-export function loadExtensionSettings(extensionPath: string): ExtensionSetting[] {
+/**
+ * The settings the hub lists, localized.
+ *
+ * `language` is the graph's *effective* language, which is not always VS
+ * Code's: the temporary language switcher changes the webview without touching
+ * the editor, and a list built from `vscode.env.language` would then be the
+ * one part of the panel still in the old language. Omitted, it falls back to
+ * the editor's own display language.
+ */
+export function loadExtensionSettings(
+  extensionPath: string,
+  language?: string
+): ExtensionSetting[] {
   const settings = readManifestSettings(extensionPath);
-  const packageNls = readPackageNls(extensionPath);
+  const packageNls = readPackageNls(extensionPath, language);
   const config = vscode.workspace.getConfiguration(configurationPrefix);
 
   return Object.entries(settings)
@@ -55,7 +68,7 @@ export function loadExtensionSettings(extensionPath: string): ExtensionSetting[]
       return {
         key,
         configKey,
-        title: configKey,
+        title: packageNls[`config.${configKey}.title`] ?? configKey,
         description: resolvePackageText(
           setting.markdownDescription ?? setting.description ?? "",
           packageNls
@@ -81,7 +94,8 @@ export function loadExtensionSettings(extensionPath: string): ExtensionSetting[]
 export async function updateExtensionSetting(
   extensionPath: string,
   key: string,
-  value: JsonValue
+  value: JsonValue,
+  language?: string
 ): Promise<ExtensionSetting[]> {
   const settings = readManifestSettings(extensionPath);
   const setting = settings[key];
@@ -94,7 +108,7 @@ export async function updateExtensionSetting(
   await vscode.workspace
     .getConfiguration(configurationPrefix)
     .update(configKey, sanitized, vscode.ConfigurationTarget.Global);
-  return loadExtensionSettings(extensionPath);
+  return loadExtensionSettings(extensionPath, language);
 }
 
 export function explicitExtensionSettings(extensionPath: string): Record<string, JsonValue> {
@@ -153,14 +167,47 @@ function readManifestSettings(extensionPath: string) {
   return manifest.contributes?.configuration?.properties ?? {};
 }
 
-function readPackageNls(extensionPath: string) {
-  const language = normalizeLanguage((vscode.env as { language?: string }).language);
-  const localizedPath =
-    language === null ? null : path.join(extensionPath, `package.nls.${language}.json`);
-  const basePath = path.join(extensionPath, "package.nls.json");
+const NLS_PREFIX = "package.nls.";
+const NLS_SUFFIX = ".json";
+
+/**
+ * The locales this build actually ships a `package.nls` file for, read off
+ * disk for the same reason `listBundleLanguages()` is: a hand-maintained list
+ * silently goes stale the first time a language is added.
+ */
+function listPackageNlsLanguages(extensionPath: string): string[] {
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(extensionPath);
+  } catch {
+    return [DEFAULT_LANGUAGE];
+  }
+
+  const languages = new Set<string>([DEFAULT_LANGUAGE]);
+  for (const entry of entries) {
+    if (!entry.startsWith(NLS_PREFIX) || !entry.endsWith(NLS_SUFFIX)) continue;
+    const locale = entry.slice(NLS_PREFIX.length, -NLS_SUFFIX.length);
+    if (locale !== "") languages.add(locale.toLowerCase());
+  }
+  return [...languages];
+}
+
+/**
+ * English is always loaded underneath the localized file, so a bundle missing
+ * a key degrades to English rather than to the raw placeholder. Resolution
+ * goes through `resolveBundleLanguage()` rather than matching the display
+ * language against a filename directly: that gives the exact-then-base-then-
+ * English order VS Code itself uses, so a display language of `pt-br` finds a
+ * `pt` file instead of silently falling all the way back to English.
+ */
+function readPackageNls(extensionPath: string, displayLanguage?: string) {
+  const requested = displayLanguage ?? (vscode.env as { language?: string }).language ?? "";
+  const language = resolveBundleLanguage(requested, listPackageNlsLanguages(extensionPath));
+  const base = readJsonRecord(path.join(extensionPath, "package.nls.json"));
+  if (language === DEFAULT_LANGUAGE) return base;
   return {
-    ...readJsonRecord(basePath),
-    ...(localizedPath === null ? {} : readJsonRecord(localizedPath))
+    ...base,
+    ...readJsonRecord(path.join(extensionPath, `${NLS_PREFIX}${language}${NLS_SUFFIX}`))
   };
 }
 
@@ -170,11 +217,6 @@ function readJsonRecord(filePath: string): Record<string, string> {
   } catch {
     return {};
   }
-}
-
-function normalizeLanguage(language: string | undefined) {
-  if (language === undefined || language === "" || language === "en") return null;
-  return language.toLowerCase();
 }
 
 function resolvePackageText(text: string, packageNls: Record<string, string>) {

@@ -3,10 +3,10 @@ import * as path from "node:path";
 
 import {
   configurationGlobalValues,
-  env as vscodeEnv,
   openDialogResults,
   resetVscodeMock,
   setConfigurationValue,
+  env as vscodeEnv,
   warningMessageResults
 } from "@tests/webview/__mocks__/vscode";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -65,6 +65,62 @@ describe("extension settings helpers", () => {
     ).toMatchObject({
       description: "Specifies the date type to be displayed throughout Git Graph."
     });
+  });
+
+  it("localizes both the title and the description for a shipped locale", () => {
+    vscodeEnv.language = "pl";
+
+    expect(
+      loadExtensionSettings(extensionPath).find(
+        (setting) => setting.key === "git-graph-libre.dateType"
+      )
+    ).toMatchObject({
+      title: "Typ daty",
+      description: "Określa typ daty wyświetlanej w Git Graph."
+    });
+  });
+
+  // The previous resolver matched the display language against a filename
+  // directly, so a regional id found nothing and fell all the way back to
+  // English instead of to its own base language.
+  it("falls back from a regional display language to its base locale", () => {
+    vscodeEnv.language = "pl-PL";
+
+    expect(
+      loadExtensionSettings(extensionPath).find(
+        (setting) => setting.key === "git-graph-libre.dateType"
+      )
+    ).toMatchObject({ title: "Typ daty" });
+  });
+
+  // The temporary language switcher changes the webview without touching the
+  // editor, so the hub has to be buildable in a language VS Code knows nothing
+  // about — otherwise it is the one panel still in the old language.
+  it("prefers an explicitly requested language over the editor's", () => {
+    vscodeEnv.language = "en";
+
+    expect(
+      loadExtensionSettings(extensionPath, "zh-cn").find(
+        (setting) => setting.key === "git-graph-libre.dateType"
+      )
+    ).toMatchObject({ title: "日期类型" });
+  });
+
+  // A settings-hub write echoes the whole list back; it has to come back in
+  // the language the list was rendered in, not the editor's.
+  it("echoes an updated setting back in the requested language", async () => {
+    vscodeEnv.language = "en";
+
+    const settings = await updateExtensionSetting(
+      extensionPath,
+      "git-graph-libre.repository.showTags",
+      false,
+      "nl"
+    );
+
+    expect(
+      settings.find((setting) => setting.key === "git-graph-libre.repository.showTags")
+    ).toMatchObject({ title: "Tags weergeven", value: false });
   });
 
   it("sanitizes imports and clamps bounded numeric settings", async () => {

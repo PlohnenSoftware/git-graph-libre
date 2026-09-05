@@ -301,6 +301,13 @@ export function registerMessageHandlers(
     avatarManager: AvatarManager;
     repoFileWatcher: RepoFileWatcher;
     extensionPath?: string;
+    /**
+     * The graph's effective language, so the settings hub is built in the
+     * language the panel is actually showing rather than the editor's. The
+     * panel owns it (the temporary switcher writes it there); this reads it
+     * lazily so a switch applies to the next list without re-registering.
+     */
+    getLanguage?: () => string | undefined;
     outputChannel?: Pick<vscode.OutputChannel, "appendLine">;
     telemetry?: Pick<TelemetryReporter, "logFeature">;
     /** Re-opens the consent notification for the screen's Set now button. */
@@ -315,6 +322,7 @@ export function registerMessageHandlers(
     avatarManager,
     repoFileWatcher,
     extensionPath = process.cwd(),
+    getLanguage,
     outputChannel,
     telemetry,
     telemetryConsentPrompt
@@ -357,7 +365,7 @@ export function registerMessageHandlers(
 
   function safeLoadExtensionSettings(): ExtensionSetting[] {
     try {
-      return loadExtensionSettings(extensionPath);
+      return loadExtensionSettings(extensionPath, getLanguage?.());
     } catch {
       return [];
     }
@@ -604,7 +612,7 @@ export function registerMessageHandlers(
     let status: string | null = null;
     let settings: ExtensionSetting[] = [];
     try {
-      settings = loadExtensionSettings(extensionPath);
+      settings = loadExtensionSettings(extensionPath, getLanguage?.());
     } catch (error: unknown) {
       status = error instanceof Error ? error.message : String(error);
     }
@@ -708,7 +716,7 @@ export function registerMessageHandlers(
     let status: string | null = null;
     let settings: ExtensionSetting[] = [];
     try {
-      settings = await updateExtensionSetting(extensionPath, msg.key, msg.value);
+      settings = await updateExtensionSetting(extensionPath, msg.key, msg.value, getLanguage?.());
     } catch (error: unknown) {
       status = error instanceof Error ? error.message : String(error);
       settings = safeLoadExtensionSettings();
@@ -733,7 +741,7 @@ export function registerMessageHandlers(
     let importedKeys: string[] = [];
     let skippedKeys: string[] = [];
     try {
-      const result = await importExtensionSettingsFile(extensionPath);
+      const result = await importExtensionSettingsFile(extensionPath, getLanguage?.());
       settings = result.settings;
       importedKeys = result.importedKeys;
       skippedKeys = result.skippedKeys;
