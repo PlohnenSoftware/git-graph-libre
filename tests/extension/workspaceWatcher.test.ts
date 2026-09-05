@@ -22,6 +22,22 @@ function makeFolder(fsPath: string): StubFolder {
 
 const tick = () => new Promise<void>((r) => setTimeout(r, 10));
 
+/**
+ * Waits for a condition instead of for a fixed delay.
+ *
+ * The create/change paths are debounced and then suspend on real `fs.stat`
+ * I/O, so any fixed wait is a bet: 10ms is dead time when the machine is warm
+ * and a flake when it is cold (this suite has failed that way twice). Polling
+ * to a deadline returns as soon as the work lands and only spends the full
+ * budget when something is genuinely wrong.
+ */
+async function waitFor(condition: () => boolean, timeoutMs = 2000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!condition() && Date.now() < deadline) {
+    await tick();
+  }
+}
+
 function makeStubs(initialFolders: string[] = []) {
   const searched: string[] = [];
   const removed: string[] = [];
@@ -174,7 +190,7 @@ suite("workspaceWatcher / onWatcherCreate (debounced)", () => {
       const { watcher, watcherHandles, searched } = makeStubs(["/ws/a"]);
       watcher.startWatching();
       watcherHandles[0].fireCreate(makeUri(tmp));
-      await new Promise<void>((r) => setTimeout(r, 10));
+      await waitFor(() => searched.includes(tmp));
       assert.ok(searched.includes(tmp));
       watcher.dispose();
     } finally {
@@ -219,7 +235,7 @@ suite("workspaceWatcher / onWatcherCreate (debounced)", () => {
       const { watcher, watcherHandles, searched } = makeStubs(["/ws/a"]);
       watcher.startWatching();
       watcherHandles[0].fireCreate(makeUri(`${tmp}/.git`));
-      await new Promise<void>((r) => setTimeout(r, 10));
+      await waitFor(() => searched.includes(tmp));
       assert.ok(searched.includes(tmp));
       watcher.dispose();
     } finally {
@@ -244,7 +260,7 @@ suite("workspaceWatcher / onWatcherChange (debounced)", () => {
     watcher.startWatching();
     watcherHandles[0].fireChange(makeUri("/tmp/ngg-does-not-exist-xyz"));
     watcherHandles[0].fireChange(makeUri("/tmp/ngg-does-not-exist-xyz"));
-    await new Promise<void>((r) => setTimeout(r, 10));
+    await waitFor(() => removed.filter((p) => p === "/tmp/ngg-does-not-exist-xyz").length === 1);
     assert.strictEqual(
       removed.filter((p) => p === "/tmp/ngg-does-not-exist-xyz").length,
       1,
@@ -259,7 +275,7 @@ suite("workspaceWatcher / workspace folder changes", () => {
     const { watcher, watcherHandles, fireFolderChange, searched } = makeStubs([]);
     watcher.startWatching();
     fireFolderChange({ added: [makeFolder("/ws/new")], removed: [] });
-    await new Promise<void>((r) => setTimeout(r, 10));
+    await waitFor(() => searched.includes("/ws/new"));
     assert.ok(searched.includes("/ws/new"));
     assert.ok(watcherHandles.some((h) => h.pattern === "/ws/new/**"));
     watcher.dispose();
@@ -269,7 +285,7 @@ suite("workspaceWatcher / workspace folder changes", () => {
     const { watcher, fireFolderChange, getSendCount } = makeStubs([]);
     watcher.startWatching();
     fireFolderChange({ added: [makeFolder("/ws/new")], removed: [] });
-    await new Promise<void>((r) => setTimeout(r, 10));
+    await waitFor(() => getSendCount() === 1);
     assert.strictEqual(getSendCount(), 1);
     watcher.dispose();
   });
@@ -278,7 +294,7 @@ suite("workspaceWatcher / workspace folder changes", () => {
     const { watcher, watcherHandles, fireFolderChange, removed } = makeStubs(["/ws/a"]);
     watcher.startWatching();
     fireFolderChange({ added: [], removed: [makeFolder("/ws/a")] });
-    await new Promise<void>((r) => setTimeout(r, 10));
+    await waitFor(() => removed.includes("/ws/a"));
     assert.ok(removed.includes("/ws/a"));
     assert.ok(watcherHandles[0].disposed);
     watcher.dispose();
@@ -288,7 +304,7 @@ suite("workspaceWatcher / workspace folder changes", () => {
     const { watcher, fireFolderChange, getSendCount } = makeStubs(["/ws/a"]);
     watcher.startWatching();
     fireFolderChange({ added: [], removed: [makeFolder("/ws/a")] });
-    await new Promise<void>((r) => setTimeout(r, 10));
+    await waitFor(() => getSendCount() === 1);
     assert.strictEqual(getSendCount(), 1);
     watcher.dispose();
   });
