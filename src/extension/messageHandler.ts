@@ -43,11 +43,13 @@ import {
   pushStash,
   resetUncommittedChanges
 } from "@/backend/actions/stash";
+import { stageFiles, unstageFiles } from "@/backend/actions/stage";
 import { addTag, deleteTag, pushAllTags, pushTag } from "@/backend/actions/tag";
 import { deleteUserDetails, editUserDetails } from "@/backend/actions/userConfig";
 import type { GitClient } from "@/backend/gitClient";
 import { commitComparison } from "@/backend/queries/commitComparison";
 import { commitDetails } from "@/backend/queries/commitDetails";
+import { uncommittedDetails } from "@/backend/queries/uncommittedDetails";
 import { loadBranches } from "@/backend/queries/loadBranches";
 import { loadCommits } from "@/backend/queries/loadCommits";
 import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
@@ -486,6 +488,10 @@ export function registerMessageHandlers(
   registerAction("cleanUntrackedFiles", (msg) =>
     cleanUntrackedFiles(gitClient.getInstance(), msg, recordGitCommand)
   );
+  registerAction("stageFiles", (msg) => stageFiles(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("unstageFiles", (msg) =>
+    unstageFiles(gitClient.getInstance(), msg, recordGitCommand)
+  );
   registerAction("createArchive", async (msg) => {
     const output = await chooseArchiveOutputPath(msg.repo);
     if (output.canceled) return;
@@ -645,6 +651,16 @@ export function registerMessageHandlers(
       ...(await commitDetails(gitClient.getInstance(), {
         commitHash: msg.commitHash,
         dateType: config.dateType(),
+        repo: msg.repo,
+        recordGitCommand
+      }))
+    });
+  });
+
+  bridge.onMessage("uncommittedDetails", async (msg) => {
+    bridge.post({
+      command: "uncommittedDetails",
+      ...(await uncommittedDetails(gitClient.getInstance(), {
         repo: msg.repo,
         recordGitCommand
       }))

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The uncommitted-changes row now opens a staging view.** Clicking it (or
+  pressing Enter on it) shows **Staged** and **Unstaged** panes instead of the
+  commit summary and files. Drag a file from one pane to the other to stage
+  (`git add`) or unstage (`git reset`) it; each row also has a stage/unstage
+  button for keyboard and pointer use without dragging. Staging refreshes the
+  graph and the panes together, and failures are reported like every other
+  action.
+
 ## [1.4.3] - 2026-09-06
 
 ### Added

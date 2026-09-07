@@ -24,6 +24,8 @@
     signing configuration (`tag.gpgSign`, `user.signingkey`, `gpg.format`) and
     may have an optional message
 - **Commit actions**: Checkout, cherry-pick, revert, and reset
+- **Staging**: Click the uncommitted-changes row to stage and unstage files by
+  dragging them between the staged and unstaged panes
 - **Avatar support**: Optional avatars from GitHub, GitLab, or Gravatar
 - **Multi-repo**: Work with multiple repositories and declared Git submodules in
   one workspace; reload the extension after changing `.gitmodules`

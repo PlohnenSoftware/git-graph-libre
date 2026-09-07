@@ -12,7 +12,8 @@ import type {
   GitRepoInfo,
   GitResetMode,
   GitStash,
-  GitTagDetails
+  GitTagDetails,
+  GitUncommittedChanges
 } from "@/backend/types";
 import { COMMIT_ORDERINGS, GIT_PUSH_BRANCH_MODES } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
@@ -46,6 +47,12 @@ import {
   resolveRepoBooleanOverride
 } from "./settingsWidget";
 import { setStatusStrip } from "./statusStrip";
+import {
+  getStagingDropAction,
+  isUncommittedSection,
+  renderUncommittedDetailsRowHtml,
+  type UncommittedSection
+} from "./uncommittedDetailsView";
 import { formatRelativeDate, getMonth, pad2 } from "./utils/date";
 import { addListenerToClass, insertAfter, startRevealHighlight } from "./utils/dom";
 import { arraysEqual, ELLIPSIS, refInvalid } from "./utils/git";
@@ -263,6 +270,11 @@ class GitGraphView {
   private moreCommitsAvailable: boolean = false;
   private showRemoteBranches: boolean = true;
   private expandedCommit: ExpandedCommit | null = null;
+  private uncommittedView: {
+    srcElem: HTMLElement | null;
+    stagedOpen: boolean;
+    unstagedOpen: boolean;
+  } | null = null;
   private maxCommits: number;
   private readonly hiddenColumns: Set<HideableColumn> = new Set();
 
@@ -2770,10 +2782,12 @@ class GitGraphView {
     this.renderLoadMoreFooter();
     this.makeTableResizable();
     this.restoreExpandedCommit();
+    this.restoreUncommittedDetails();
 
     this.registerCommitContextMenuListener();
     this.registerUncommittedChangesContextMenuListener();
     this.registerCommitActivationListeners();
+    this.registerUncommittedActivationListeners();
     this.registerGitRefContextMenuListener();
     this.registerGitRefActivationListeners();
     this.registerColumnHeaderMenuListener();
@@ -5109,6 +5123,7 @@ class GitGraphView {
     if (id === undefined || hash === undefined) return;
 
     this.hideCommitDetails();
+    this.hideUncommittedDetails();
     this.expandedCommit = {
       id: Number.parseInt(id, 10),
       hash: hash,
@@ -5134,6 +5149,7 @@ class GitGraphView {
     if (row === null || id === undefined || this.commitHead === null) return;
 
     this.hideCommitDetails();
+    this.hideUncommittedDetails();
     this.expandedCommit = {
       id: Number.parseInt(id, 10),
       hash,
@@ -5166,6 +5182,185 @@ class GitGraphView {
       this.saveState();
       this.renderGraph();
     }
+  }
+  /* Uncommitted Details */
+  private registerUncommittedActivationListeners() {
+    addListenerToClass("unsavedChanges", "click", (e: Event) => {
+      const sourceElem = closestHTMLElement(e.target, ".unsavedChanges");
+      if (sourceElem === null) return;
+      this.toggleUncommittedDetails(sourceElem);
+    });
+    addListenerToClass("unsavedChanges", "keydown", (e: Event) => {
+      const keyboardEvent = <KeyboardEvent>e;
+      if (keyboardEvent.key !== "Enter" && keyboardEvent.key !== " ") return;
+      const sourceElem = closestHTMLElement(e.target, ".unsavedChanges");
+      if (sourceElem === null) return;
+      keyboardEvent.preventDefault();
+      this.toggleUncommittedDetails(sourceElem);
+    });
+  }
+  private toggleUncommittedDetails(sourceElem: HTMLElement) {
+    if (this.uncommittedView !== null) {
+      this.hideUncommittedDetails();
+    } else {
+      this.loadUncommittedDetails(sourceElem);
+    }
+  }
+  private loadUncommittedDetails(sourceElem: HTMLElement) {
+    this.hideCommitDetails();
+    this.hideUncommittedDetails();
+    this.uncommittedView = { srcElem: sourceElem, stagedOpen: true, unstagedOpen: true };
+    sendMessage({ command: "uncommittedDetails", repo: this.currentRepo });
+  }
+  public hideUncommittedDetails() {
+    if (this.uncommittedView === null) return;
+    const elem = document.getElementById("commitDetails");
+    if (typeof elem === "object" && elem !== null) elem.remove();
+    if (typeof this.uncommittedView.srcElem === "object" && this.uncommittedView.srcElem !== null) {
+      this.uncommittedView.srcElem.classList.remove("commitDetailsOpen");
+      this.uncommittedView.srcElem.setAttribute("aria-selected", "false");
+    }
+    this.uncommittedView = null;
+    this.renderGraph();
+  }
+  public showUncommittedDetails(changes: GitUncommittedChanges) {
+    const view = this.uncommittedView;
+    if (view === null) return;
+    const row = <HTMLElement | null>document.querySelector("tr.unsavedChanges");
+    if (row === null) {
+      view.srcElem = null;
+      return;
+    }
+    view.srcElem = row;
+    const elem = document.getElementById("commitDetails");
+    if (typeof elem === "object" && elem !== null) elem.remove();
+
+    row.classList.add("commitDetailsOpen");
+    row.setAttribute("aria-selected", "true");
+
+    const newElem = document.createElement("tr");
+    newElem.id = "commitDetails";
+    newElem.classList.toggle("summaryCollapsed", !view.stagedOpen);
+    newElem.classList.toggle("filesCollapsed", !view.unstagedOpen);
+    newElem.innerHTML = renderUncommittedDetailsRowHtml({ changes, l10n, sections: view });
+    insertAfter(newElem, row);
+    this.registerUncommittedPanelListeners(newElem);
+    this.renderGraph();
+  }
+  private restoreUncommittedDetails() {
+    if (this.uncommittedView === null) return;
+    if (document.querySelector("tr.unsavedChanges") === null) {
+      this.uncommittedView = null;
+      return;
+    }
+    sendMessage({ command: "uncommittedDetails", repo: this.currentRepo });
+  }
+  private registerUncommittedPanelListeners(panel: HTMLElement) {
+    panel.querySelectorAll(".uncommittedToggle").forEach((toggle) => {
+      toggle.addEventListener("click", (e) => {
+        const section = (<HTMLElement>e.currentTarget).dataset.section;
+        if (!isUncommittedSection(section) || this.uncommittedView === null) return;
+        const open =
+          section === "staged"
+            ? this.uncommittedView.stagedOpen
+            : this.uncommittedView.unstagedOpen;
+        this.setUncommittedSectionOpen(section, !open);
+      });
+    });
+    panel.querySelectorAll(".uncommittedFile").forEach((item) => {
+      item.addEventListener("dragstart", (e) => this.startUncommittedFileDrag(e));
+    });
+    panel.querySelectorAll(".uncommittedMoveFile").forEach((button) => {
+      button.addEventListener("click", (e) => {
+        const target = <HTMLElement>e.currentTarget;
+        const section = target.dataset.section;
+        const filePath = target.dataset.filepath;
+        if (!isUncommittedSection(section) || filePath === undefined) return;
+        this.moveUncommittedFile(section, section === "staged" ? "unstaged" : "staged", filePath);
+      });
+    });
+    panel.querySelectorAll(".uncommittedPaneBody, .uncommittedToggle").forEach((zone) => {
+      zone.addEventListener("dragover", (e) => this.allowUncommittedFileDrop(e));
+      zone.addEventListener("dragleave", (e) => {
+        (<HTMLElement>e.currentTarget).classList.remove("dropTarget");
+      });
+      zone.addEventListener("drop", (e) => this.dropUncommittedFile(e));
+    });
+  }
+  private setUncommittedSectionOpen(section: UncommittedSection, open: boolean) {
+    if (this.uncommittedView === null) return;
+    if (section === "staged") {
+      this.uncommittedView.stagedOpen = open;
+    } else {
+      this.uncommittedView.unstagedOpen = open;
+    }
+    const elem = document.getElementById("commitDetails");
+    if (elem === null) return;
+    elem.classList.toggle("summaryCollapsed", !this.uncommittedView.stagedOpen);
+    elem.classList.toggle("filesCollapsed", !this.uncommittedView.unstagedOpen);
+    this.updateUncommittedToggle("staged", this.uncommittedView.stagedOpen);
+    this.updateUncommittedToggle("unstaged", this.uncommittedView.unstagedOpen);
+    this.renderGraph();
+  }
+  private updateUncommittedToggle(section: UncommittedSection, open: boolean) {
+    const toggle = document.getElementById(
+      section === "staged" ? "uncommittedStagedToggle" : "uncommittedUnstagedToggle"
+    ) as HTMLButtonElement | null;
+    const body = document.getElementById(
+      section === "staged" ? "commitDetailsSummaryBody" : "commitDetailsFilesBody"
+    );
+    if (toggle === null || body === null) return;
+    const label = getSectionToggleLabel(
+      open,
+      section === "staged" ? l10n.detailCollapseStaged : l10n.detailCollapseUnstaged,
+      section === "staged" ? l10n.detailExpandStaged : l10n.detailExpandUnstaged
+    );
+    toggle.setAttribute("aria-expanded", open.toString());
+    toggle.setAttribute("aria-label", label);
+    toggle.querySelector(".commitDetailsToggleGlyph")?.replaceChildren(open ? "-" : "+");
+    body.classList.toggle("hidden", !open);
+  }
+  private startUncommittedFileDrag(e: Event) {
+    const item = <HTMLElement>e.currentTarget;
+    const transfer = (<DragEvent>e).dataTransfer;
+    if (transfer === null || item.dataset.filepath === undefined) return;
+    transfer.effectAllowed = "move";
+    transfer.setData("text/plain", `${item.dataset.section ?? ""} ${item.dataset.filepath}`);
+    item.classList.add("dragging");
+    item.addEventListener("dragend", () => item.classList.remove("dragging"), { once: true });
+  }
+  private allowUncommittedFileDrop(e: Event) {
+    e.preventDefault();
+    const transfer = (<DragEvent>e).dataTransfer;
+    if (transfer !== null) transfer.dropEffect = "move";
+    (<HTMLElement>e.currentTarget).classList.add("dropTarget");
+  }
+  private dropUncommittedFile(e: Event) {
+    e.preventDefault();
+    const zone = <HTMLElement>e.currentTarget;
+    zone.classList.remove("dropTarget");
+    const transfer = (<DragEvent>e).dataTransfer;
+    const target = zone.dataset.section;
+    if (transfer === null || !isUncommittedSection(target)) return;
+    const payload = transfer.getData("text/plain").split(" ");
+    if (payload.length !== 2 || !isUncommittedSection(payload[0])) return;
+    this.moveUncommittedFile(payload[0], target, payload[1]);
+  }
+  private moveUncommittedFile(
+    source: UncommittedSection,
+    target: UncommittedSection,
+    encodedPath: string
+  ) {
+    const action = getStagingDropAction(source, target);
+    if (action === null) return;
+    sendMessage({
+      command: action,
+      repo: this.currentRepo,
+      filePaths: [decodeURIComponent(encodedPath)]
+    });
+    showActionRunningDialog(
+      action === "stageFiles" ? l10n.statusStagingFiles : l10n.statusUnstagingFiles
+    );
   }
   public showCommitDetails(commitDetails: GitCommitDetails, fileTree: GitFolder) {
     const expandedCommit = this.expandedCommit;
@@ -5724,11 +5919,13 @@ const actionErrorLabels = {
   renameBranch: l10n.unableToRenameBranch,
   resetFileToRevision: l10n.unableToResetFileToRevision,
   resetUncommittedChanges: l10n.unableToResetUncommitted,
+  stageFiles: l10n.unableToStageFiles,
   resetToCommit: l10n.unableToReset,
   rebaseCurrentBranch: l10n.unableToRebase,
   revertCommit: l10n.unableToRevert,
   squashCommitSelection: l10n.unableToSquashSelection,
   undoLastCommit: l10n.unableToUndoLastCommit,
+  unstageFiles: l10n.unableToUnstageFiles,
   updateBranchFromUpstream: l10n.unableToUpdateBranch
 } satisfies Partial<Record<GGL.ResponseMessage["command"], string>>;
 
@@ -5813,6 +6010,7 @@ const responseHandlers: ResponseHandlerMap = {
     gitGraph.loadSearchCommitResults(msg.requestId, msg.results, formatQueryError(msg.error)),
   startHistorySearch: () => gitGraph.startHistorySearch(),
   tagDetails: handleTagDetailsResponse,
+  uncommittedDetails: handleUncommittedDetailsResponse,
   viewDiff: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewDiff),
   viewFileAtRevision: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewFileAtRevision)
 };
@@ -5845,6 +6043,18 @@ function handleCommitDetailsResponse(
       compactFolders: viewState.commitDetailsCompactFolders
     })
   );
+}
+
+function handleUncommittedDetailsResponse(
+  msg: Extract<GGL.ResponseMessage, { command: "uncommittedDetails" }>
+) {
+  if (msg.changes === null) {
+    gitGraph.hideUncommittedDetails();
+    showErrorDialog(l10n.unableToLoadUncommittedDetails, formatQueryError(msg.error), null);
+    return;
+  }
+
+  gitGraph.showUncommittedDetails(msg.changes);
 }
 
 function handleCommitComparisonResponse(
