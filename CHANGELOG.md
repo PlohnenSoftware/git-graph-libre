@@ -7,44 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- **The staging panes accept drops across their whole halves.** The Staged and
-  Unstaged panes themselves are the drop targets now, so empty space below the
-  last file row and collapsed panes accept dragged files too. The drop
-  highlight no longer flickers when crossing child elements and clears if a
-  drag is aborted outside the panel.
-- **The expanded uncommitted-changes row shows selection identity.** It tints
-  gray with the left accent bar while its panel is open, reusing the commit
-  selection pattern with a dedicated `--ngg-uncommitted` token that matches
-  the graph's muted dot color.
-- **The staging panel is resizable.** It shares the commit details panel's
-  resize handle, height, mouse drag, and keyboard resizing instead of staying
-  locked at the default height.
-- **Tints now interpolate in `oklab` instead of `srgb`.** All seven
-  `color-mix()` tints (selection, drop highlight, signature badges, ref and
-  reveal accents) keep their hue exact when mixing toward transparency.
+## [1.5.0] - 2026-09-07
 
 ### Added
 
 - **The uncommitted-changes row now opens a staging view.** Clicking it (or
-  pressing Enter on it) shows **Staged** and **Unstaged** panes instead of the
-  commit summary and files. Drag a file from one pane to the other to stage
-  (`git add`) or unstage (`git reset`) it; each row also has a stage/unstage
-  button for keyboard and pointer use without dragging. Staging refreshes the
-  graph and the panes together, and failures are reported like every other
+  pressing Enter or Space on it) replaces the commit summary and file list
+  with **Staged** and **Unstaged** panes. Drag a file from one pane to the
+  other to stage (`git add`) or unstage (`git reset`) it — a whole pane is the
+  drop target, so the empty space under the last row and a collapsed pane both
+  accept a drop — and every row also carries a stage or unstage button for
+  working without dragging. The panes share the commit details panel's resize
+  handle, so mouse and keyboard resizing behave exactly as they do there, and
+  the row itself takes the selection tint and accent bar while its panel is
+  open. A folder that is untracked as a whole appears as a single row and
+  stages as a whole, the way `git status` reports it. Staging refreshes the
+  graph and both panes together, and a failure is reported like every other
   action.
-- **Opening the staging view is now covered by the optional usage telemetry**,
-  alongside the other features that work by *showing* something rather than
-  being invoked. One yes/no signal is recorded at most once per session: that
-  the staging panel was opened. Only the fixed event identifier is sent —
-  nothing about which files or repositories were staged — and, as always,
-  nothing at all is sent unless you have accepted telemetry.
-
-## [1.4.3] - 2026-09-06
-
-### Added
-
 - **Every setting in the settings hub now has a real name, in your language.**
   The Extension tab used to label each setting with its raw configuration key —
   `commitDetails.fileViewMode` — and show its description in Visual Studio
@@ -69,6 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   changes until you set one. Localized in all five languages and available in
   the settings hub's Extension tab. Requested in
   [#3](https://github.com/PlohnenSoftware/git-graph-libre/issues/3).
+- **Opening the staging view is now covered by the optional usage telemetry**,
+  alongside the other features that work by *showing* something rather than
+  being invoked. One yes/no signal is recorded at most once per session: that
+  the staging panel was opened. Only the fixed event identifier is sent —
+  nothing about which files or repositories were staged — and, as always,
+  nothing at all is sent unless you have accepted telemetry.
 
 ### Changed
 
@@ -78,9 +63,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   settings hub, and dialogs — loaded in the same order, so the rendered graph
   is unchanged. Only the file layout changed, to make future style work easier
   to review.
+- **The repository now builds with pnpm 12.** `packageManager` pins
+  `pnpm@12.3.4` and the workspace file uses pnpm 12's `allowBuilds` key in
+  place of `onlyBuiltDependencies`. This concerns contributors only; the
+  packaged extension is unaffected.
 
 ### Fixed
 
+- **Color tints now mix in `oklab` instead of `sRGB`.** All seven
+  `color-mix()` tints in the graph — row selection, the staging drop
+  highlight, the signature badges, and the ref and reveal accents — mix a
+  color toward transparency, and only a rectangular color space holds the hue
+  exact while doing so. Tinted surfaces now stay the color they are derived
+  from instead of drifting as they fade.
 - **The settings hub follows the graph's language.** Switching the graph's
   language left the Extension tab in Visual Studio Code's language, because
   the setting descriptions are resolved on the extension side and nothing told
@@ -533,8 +528,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.3...HEAD
-[1.4.3]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.2...v1.4.3
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.3.0...v1.4.0

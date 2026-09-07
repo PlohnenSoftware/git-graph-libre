@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import type { GitUncommittedChanges } from "@/backend/types";
 import type { LocalizedStrings } from "@/extension/webviewL10n";
 import {
@@ -5,7 +6,6 @@ import {
   isUncommittedSection,
   renderUncommittedDetailsRowHtml
 } from "@/webview/uncommittedDetailsView";
-import { describe, expect, it } from "vitest";
 
 const l10n = {
   detailStaged: "Staged",

@@ -5185,6 +5185,16 @@ class GitGraphView {
     }
   }
   /* Uncommitted Details */
+  /*
+   * The staging panel is the commit details row wearing a different face: it
+   * is inserted as the same `#commitDetails` element with an extra
+   * `uncommittedDetails` class, and its two panes take the summary and files
+   * pane ids. That reuse is deliberate — collapse styling, the resize handle,
+   * the height clamp and the graph's row-height math all key off those ids,
+   * so the panel inherits them instead of duplicating them. The consequence
+   * to respect: only one of the two panels can be open at a time, which is
+   * why every entry point hides the other one first.
+   */
   private registerUncommittedActivationListeners() {
     addListenerToClass("unsavedChanges", "click", (e: Event) => {
       const sourceElem = closestHTMLElement(e.target, ".unsavedChanges");
@@ -5266,6 +5276,14 @@ class GitGraphView {
       .getElementById("commitDetailsResizeHandle")
       ?.addEventListener("keydown", (e) => this.resizeCommitDetailsFromKeyboard(e));
   }
+  /**
+   * Re-open the panel after the table was rebuilt, keeping its pane and height
+   * state. Every render replaces the rows, and a staging action is followed by
+   * a refresh, so this is also what makes the panes show the result of the
+   * `git add`/`git reset` that was just run: the data is re-queried rather
+   * than patched in place. The row can be gone entirely (the working tree came
+   * out clean), and then the panel is simply closed.
+   */
   private restoreUncommittedDetails() {
     if (this.uncommittedView === null) return;
     if (document.querySelector("tr.unsavedChanges") === null) {
@@ -5342,6 +5360,13 @@ class GitGraphView {
     toggle.querySelector(".commitDetailsToggleGlyph")?.replaceChildren(open ? "-" : "+");
     body.classList.toggle("hidden", !open);
   }
+  /**
+   * Start a file drag, carrying `"<section> <uri-encoded path>"` as the drag
+   * payload. The space separator is safe only because the path is
+   * percent-encoded by the renderer — a real worktree path may contain spaces
+   * (or a newline), and `dropUncommittedFile()` splits on a space. Encode both
+   * ends together if this payload ever changes shape.
+   */
   private startUncommittedFileDrag(e: Event) {
     const item = <HTMLElement>e.currentTarget;
     const transfer = (<DragEvent>e).dataTransfer;
@@ -5369,6 +5394,12 @@ class GitGraphView {
     if (transfer !== null) transfer.dropEffect = "move";
     (<HTMLElement>e.currentTarget).classList.add("dropTarget");
   }
+  /**
+   * Handle a drop on a pane. The dragged payload decides the source section,
+   * so a drag that started outside the panel (or any text dropped in from
+   * elsewhere) fails the two-field check and is ignored rather than turned
+   * into a git command.
+   */
   private dropUncommittedFile(e: Event) {
     e.preventDefault();
     const zone = <HTMLElement>e.currentTarget;
@@ -5742,6 +5773,12 @@ class GitGraphView {
     elem.classList.toggle("filesCollapsed", !this.expandedCommit.filesOpen);
   }
 
+  /**
+   * Whichever details panel is open owns the shared height, so the resize
+   * handle drives one of them without caring which. At most one is ever open
+   * (see the uncommitted-details note above), so the `??` is a selection, not
+   * a precedence rule.
+   */
   private detailsHeightOwner(): { detailsHeight: number } | null {
     return this.expandedCommit ?? this.uncommittedView;
   }

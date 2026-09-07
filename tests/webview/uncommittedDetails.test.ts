@@ -327,9 +327,7 @@ describe("uncommitted details", () => {
     const details = document.getElementById("commitDetails");
     const handle = document.getElementById("commitDetailsResizeHandle");
     expect(details?.style.height).toBe(`${COMMIT_DETAILS_DEFAULT_HEIGHT}px`);
-    expect(handle?.getAttribute("aria-valuenow")).toBe(
-      COMMIT_DETAILS_DEFAULT_HEIGHT.toString()
-    );
+    expect(handle?.getAttribute("aria-valuenow")).toBe(COMMIT_DETAILS_DEFAULT_HEIGHT.toString());
 
     handle?.dispatchEvent(new MouseEvent("mousedown", { button: 0, clientY: 200, bubbles: true }));
     document.dispatchEvent(new MouseEvent("mousemove", { clientY: 320, bubbles: true }));
@@ -345,9 +343,7 @@ describe("uncommitted details", () => {
 
     handle?.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
     expect(details?.style.height).toBe(`${COMMIT_DETAILS_MIN_HEIGHT}px`);
-    expect(handle?.getAttribute("aria-valuenow")).toBe(
-      COMMIT_DETAILS_MIN_HEIGHT.toString()
-    );
+    expect(handle?.getAttribute("aria-valuenow")).toBe(COMMIT_DETAILS_MIN_HEIGHT.toString());
   });
 
   it("keeps the resize handle in the DOM when both panes collapse", () => {
