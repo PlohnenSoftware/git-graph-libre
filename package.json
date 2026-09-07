@@ -1,7 +1,7 @@
 {
   "name": "git-graph-libre",
   "displayName": "%displayName%",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "%description%",
   "categories": [
     "SCM Providers",
@@ -496,5 +496,5 @@
   "engines": {
     "vscode": "^1.98.0"
   },
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@12.3.4"
 }

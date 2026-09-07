@@ -1,0 +1,378 @@
+/* Context menu, modal dialogs, reveal highlight animation, and shared chrome rules. */
+
+/* Context Menu */
+#contextMenu {
+  display: none;
+  position: absolute;
+  background-color: var(--vscode-menu-background);
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+  color: var(--vscode-menu-foreground);
+  border: 1px solid var(--vscode-menu-border, var(--ngg-neutral-border-strong));
+  border-radius: 5px;
+  list-style-type: none;
+  margin: 0;
+  padding: 4px;
+  min-width: 160px;
+  z-index: 250;
+}
+#contextMenu.active {
+  display: block;
+}
+#contextMenu li {
+  cursor: default;
+}
+#contextMenu li.contextMenuItem {
+  padding: 4px 16px;
+  border-radius: 3px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+#contextMenu li.contextMenuItemCheckbox {
+  padding-left: 6px;
+}
+.contextMenuCheck {
+  display: inline-flex;
+  width: 16px;
+  margin-right: 4px;
+  justify-content: center;
+}
+#contextMenu li.contextMenuItem:hover {
+  background-color: var(--vscode-menu-selectionBackground);
+  color: var(--vscode-menu-selectionForeground);
+}
+#contextMenu li.contextMenuDivider {
+  margin: 4px 6px;
+  border-top: 1px solid var(--vscode-menu-separatorBackground, var(--ngg-neutral-border));
+}
+
+/* Dialogs */
+#dialog,
+#dialogBacking {
+  display: none;
+}
+#dialog.active {
+  display: block;
+  position: fixed;
+  box-sizing: border-box;
+  background-color: var(--vscode-editorWidget-background, var(--vscode-menu-background));
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
+  padding: 14px 16px;
+  left: 50%;
+  top: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  border: 1px solid var(--vscode-editorWidget-border, var(--ngg-neutral-border-strong));
+  border-radius: 6px;
+  text-align: left;
+  width: max-content;
+  max-width: min(440px, 90vw);
+  max-height: 80%;
+  z-index: 401;
+  box-shadow: 0 4px 16px var(--vscode-widget-shadow);
+  overflow-y: auto;
+}
+#dialog .dialogContent {
+  line-height: 20px;
+}
+
+#dialog.tagDetails {
+  width: min(460px, 90vw);
+}
+#dialog.tagDetails .dialogContent {
+  min-width: 0;
+}
+.tagDetailsTitle {
+  margin-bottom: 12px;
+  line-height: 22px;
+  word-break: break-all;
+}
+dl.tagDetailsFields {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+dl.tagDetailsFields dt {
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  white-space: nowrap;
+}
+dl.tagDetailsFields dd {
+  margin: 0;
+  min-width: 0;
+  word-break: break-word;
+}
+.tagDetailsMessageLabel {
+  grid-column: 1;
+}
+.tagDetailsMessage {
+  grid-column: 1 / -1;
+  white-space: pre-wrap;
+  padding-top: 2px;
+}
+.tagDetailsActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.tagDetailsAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tagDetailsAction svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+#dialog table.dialogForm {
+  width: 360px;
+  max-width: 100%;
+  border-collapse: collapse;
+}
+#dialog table.dialogForm td {
+  padding-top: 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+#dialog table.dialogForm td:last-child {
+  width: 100%;
+}
+#dialog table.dialogForm.multi td:nth-child(1) {
+  padding-right: 8px;
+}
+#dialog table.dialogForm.single select {
+  width: 100%;
+}
+#dialog table.dialogForm.single .dialogFormCheckbox {
+  display: inline-block;
+  width: 100%;
+}
+#dialog table.dialogForm input[type="text"] {
+  width: 100%;
+}
+#dialog table.dialogForm textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+}
+#dialog table.dialogForm input[type="checkbox"] {
+  vertical-align: text-top;
+  outline-style: none;
+  margin: 0 6px 0 0;
+  accent-color: var(--vscode-button-background, var(--ngg-accent));
+}
+#dialog table.dialogForm input[type="text"],
+#dialog table.dialogForm textarea,
+#dialog table.dialogForm select {
+  box-sizing: border-box;
+  height: 28px;
+  padding: 4px 8px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--ngg-neutral-border));
+  border-radius: 4px;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+}
+#dialog table.dialogForm textarea {
+  height: auto;
+  line-height: 18px;
+}
+#dialog table.dialogForm input[type="text"]::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+#dialog table.dialogForm input[type="text"]:focus,
+#dialog table.dialogForm textarea:focus,
+#dialog table.dialogForm select:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 0;
+}
+#dialog table.dialogForm select {
+  background-color: var(--vscode-dropdown-background, var(--vscode-input-background));
+  color: var(--vscode-dropdown-foreground, var(--vscode-input-foreground));
+  border-color: var(--vscode-dropdown-border, var(--ngg-neutral-border));
+}
+#dialog table.dialogForm td.dialogFormNoteCell {
+  white-space: normal;
+}
+#dialog table.dialogForm .dialogFormNote {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-size: 12px;
+  line-height: 16px;
+}
+#dialog.inputInvalid table.dialogForm input[type="text"] {
+  background-color: var(--vscode-inputValidation-errorBackground);
+  border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+}
+#dialog .dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+.dialogBtn {
+  display: inline-block;
+  box-sizing: border-box;
+  padding: 3px 14px;
+  border: 1px solid var(--vscode-button-border, var(--ngg-transparent));
+  border-radius: 2px;
+  background-color: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-medium));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-editor-foreground));
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+  cursor: pointer;
+}
+.dialogBtn:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground, var(--ngg-neutral-overlay-strong));
+}
+.dialogBtn.dialogBtnPrimary {
+  background-color: var(--vscode-button-background, var(--ngg-accent));
+  color: var(--vscode-button-foreground, var(--ngg-accent-foreground));
+}
+.dialogBtn.dialogBtnPrimary:hover {
+  background-color: var(--vscode-button-hoverBackground, var(--ngg-accent));
+}
+#dialog .errorReason {
+  display: block;
+  margin-top: 10px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background-color: var(--vscode-textCodeBlock-background, var(--ngg-neutral-overlay-subtle));
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  text-align: left;
+  white-space: normal;
+  word-break: break-word;
+}
+#dialogBacking.active {
+  display: block;
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 400;
+  background-color: var(--ngg-backdrop);
+}
+#dialog.noInput #dialogAction,
+#dialog.inputInvalid #dialogAction {
+  opacity: 0.5;
+}
+#dialog.noInput #dialogAction:hover,
+#dialog.inputInvalid #dialogAction:hover {
+  background-color: var(--vscode-button-background, var(--ngg-accent));
+}
+#dialog.noInput #dialogAction {
+  cursor: default;
+}
+#dialog.inputInvalid #dialogAction {
+  cursor: help;
+}
+#dialog svg {
+  display: inline;
+  fill: var(--ngg-neutral-icon);
+  margin-right: 3px;
+  line-height: 20px;
+  vertical-align: sub;
+}
+#dialog .dialogErrorIcon svg {
+  fill: var(--vscode-errorForeground, var(--ngg-error));
+}
+#actionRunning {
+  display: block;
+  margin: 0 8px;
+  line-height: 24px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Blink animation for highlighting the current HEAD commit row */
+#commitTable tr.commit.blinking td {
+  animation: headPulse 900ms ease-in-out infinite;
+}
+
+@keyframes headPulse {
+  0% {
+    background-color: color-mix(
+      in srgb,
+      var(--ngg-reveal-highlight) 20%,
+      var(--ngg-transparent)
+    );
+  }
+  50% {
+    background-color: var(--ngg-reveal-highlight);
+  }
+  100% {
+    background-color: var(--ngg-transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #commitTable tr.commit.blinking td {
+    animation: none;
+    background-color: var(--ngg-reveal-highlight);
+  }
+}
+#actionRunning svg {
+  display: inline-block;
+  fill: var(--ngg-neutral-icon);
+  margin-right: 10px;
+  vertical-align: top;
+  animation: loadingIconAnimation 2s linear infinite;
+  width: 16px;
+  height: 24px;
+}
+
+/* Buttons */
+.roundedBtn {
+  display: block;
+  background-color: var(--ngg-neutral-overlay-subtle);
+  border: 1px solid var(--ngg-neutral-border-strong);
+  font-size: 13px;
+  text-align: center;
+  cursor: pointer;
+}
+.roundedBtn:hover {
+  background-color: var(--ngg-neutral-overlay-medium);
+}
+
+/* General */
+#commitGraph,
+.statusStrip,
+#commitTable th,
+#commitTable td,
+.gitRef,
+.gitRefGroup,
+#loadingHeader,
+.unselectable,
+.roundedBtn,
+.stashRow,
+.dialogBtn,
+#contextMenu li,
+#controls label {
+  user-select: none;
+}
+
+/* Context menu header: presentational, never hoverable or clickable. */
+.contextMenuHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 9px 6px;
+  margin-bottom: 3px;
+  border-bottom: 1px solid var(--vscode-menu-separatorBackground, var(--ngg-neutral-border-subtle));
+  cursor: default;
+}
+.contextMenuHeaderTitle {
+  font-weight: 600;
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+}
+.contextMenuHeaderCaption {
+  font-size: 11px;
+  opacity: 0.75;
+  color: var(--vscode-descriptionForeground);
+}

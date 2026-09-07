@@ -1,0 +1,108 @@
+/* Branch and tag ref labels, grouped remote aliases, and signed-tag badges. */
+
+/* Ref labels */
+.gitRef {
+  display: inline-block;
+  height: 18px;
+  line-height: 18px;
+  margin-top: 2px;
+  margin-right: 5px;
+  padding-right: 5px;
+  background-color: var(--ngg-neutral-overlay-muted);
+  border-radius: 5px;
+  border: 1px solid var(--ngg-neutral-border-heavy);
+  vertical-align: top;
+  font-size: 12px;
+  cursor: default;
+}
+.gitRef.active {
+  border-color: var(--git-graph-color);
+}
+.gitRefGroup {
+  display: inline-flex;
+  height: 18px;
+  margin-top: 2px;
+  margin-right: 5px;
+  overflow: hidden;
+  background-color: var(--ngg-neutral-overlay-muted);
+  border: 1px solid var(--ngg-neutral-border-heavy);
+  border-radius: 5px;
+  vertical-align: top;
+  font-size: 12px;
+  cursor: default;
+}
+.gitRefGroup.active {
+  border-color: var(--git-graph-color);
+}
+.gitRefGroup > .gitRef {
+  height: 18px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+.gitRefGroup > .gitRefAlias {
+  padding-left: 6px;
+  background-color: var(--vscode-badge-background, var(--ngg-neutral-overlay-medium));
+  color: var(--vscode-badge-foreground, var(--vscode-descriptionForeground));
+  border-left: 1px solid var(--ngg-neutral-border-heavy);
+}
+.gitRefGroup > .gitRefAlias > svg {
+  display: none;
+}
+.gitRef > svg {
+  background-color: var(--git-graph-color);
+  fill: var(--vscode-editor-background);
+  width: 14px;
+  height: 14px;
+  padding: 2px;
+  margin-right: 5px;
+  border-radius: 4px 0 0 4px;
+  vertical-align: top;
+}
+/* Tag details popup signature line, sharing the signed-tag color family. */
+.tagSignature-valid {
+  color: var(--ngg-signed-ref);
+  font-weight: 600;
+}
+.tagSignature-bad,
+.tagSignature-failed {
+  color: var(--vscode-testing-iconFailed, var(--vscode-errorForeground, var(--ngg-error)));
+  font-weight: 600;
+}
+.tagSignature-unknown,
+.tagSignature-unsigned {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+
+/* Signed tags: the tag icon keeps its commit-color background (restored);
+   a separate verified badge on the signature-status green carries the
+   signature distinction, and the border stays signed-green. */
+.gitRef.tag.signed {
+  border-color: var(--ngg-neutral-border-heavy);
+  background-color: color-mix(in srgb, var(--ngg-signed-ref) 12%, var(--ngg-transparent));
+}
+/* On a signed tag the verified badge sits flush against the tag icon, so the
+   two backgrounds meet with no gap; the badge then keeps its own right margin
+   to separate it from the tag name. */
+.gitRef.tag.signed > svg {
+  margin-right: 0;
+}
+.gitRefSignedBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  margin-left: 0;
+  padding: 2px;
+  border-radius: 0;
+  vertical-align: top;
+  background-color: var(--ngg-signed-ref);
+  color: var(--vscode-editor-background);
+}
+.gitRefSignedBadge > svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}

@@ -140,7 +140,14 @@ export function buildWebviewHtml(opts: {
 			<meta charset="UTF-8">
 			<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} 'nonce-${nonce}'; img-src data:;">
 			<meta name="viewport" content="width=device-width, initial-scale=1.0">
-			<link rel="stylesheet" type="text/css" href="${mediaUri("main.css")}">
+			<link rel="stylesheet" type="text/css" href="${mediaUri("tokens.css")}">
+			<link rel="stylesheet" type="text/css" href="${mediaUri("base.css")}">
+			<link rel="stylesheet" type="text/css" href="${mediaUri("table.css")}">
+			<link rel="stylesheet" type="text/css" href="${mediaUri("commit-details.css")}">
+			<link rel="stylesheet" type="text/css" href="${mediaUri("refs.css")}">
+			<link rel="stylesheet" type="text/css" href="${mediaUri("toolbar.css")}">
+			<link rel="stylesheet" type="text/css" href="${mediaUri("settings.css")}">
+			<link rel="stylesheet" type="text/css" href="${mediaUri("dialogs.css")}">
 			<link rel="stylesheet" type="text/css" href="${mediaUri("dropdown.css")}">
 			<title>${l10n.t("outputChannel.text")}</title>
 			<style>${colorParams}"</style>

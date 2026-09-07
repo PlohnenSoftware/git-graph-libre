@@ -1,0 +1,326 @@
+/* Toolbar controls, loading indicator, readiness strip, stash list, and narrow layouts. */
+
+/* Loader */
+#loadingHeader {
+  text-align: center;
+  line-height: 32px;
+}
+#loadingHeader svg {
+  display: inline;
+  width: 20px;
+  height: 20px;
+  margin-top: 6px;
+  fill: var(--ngg-neutral-icon);
+  margin-right: 10px;
+  vertical-align: top;
+  animation: loadingIconAnimation 2s linear infinite;
+}
+@keyframes loadingIconAnimation {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Controls */
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-height: 40px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-strong));
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-size: 13px;
+}
+.toolbarGroup,
+#showRemoteBranchesControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  margin: 0;
+}
+.toolbarGroup {
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+.toolbarGroup .dropdown {
+  min-width: 130px;
+  max-width: 100%;
+  flex: 0 1 160px;
+}
+#repoControl .dropdown {
+  flex-basis: 220px;
+}
+#branchControl .dropdown {
+  flex-basis: 200px;
+}
+#authorControl .dropdown {
+  flex-basis: 160px;
+}
+#tagControl .dropdown {
+  flex-basis: 140px;
+}
+#showRemoteBranchesControl {
+  flex: 0 0 auto;
+}
+.toolbarLabel {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  font-weight: 600;
+}
+.toolbarCheckbox {
+  color: var(--vscode-editor-foreground);
+  font-weight: 400;
+}
+#showRemoteBranchesCheckbox {
+  width: 14px;
+  vertical-align: text-top;
+  accent-color: var(--vscode-button-background, var(--ngg-accent));
+}
+.toolbarFind {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  order: 10;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 0 100%;
+}
+.toolbarFind[hidden] {
+  display: none;
+}
+.toolbarFindInput {
+  width: min(360px, 100%);
+  max-width: 100%;
+  flex: 0 1 360px;
+  min-width: 120px;
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid var(--vscode-input-border, var(--ngg-neutral-border));
+  border-radius: 4px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+}
+.toolbarFindInput::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+.toolbarFindInput:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 0;
+}
+.toolbarFindCount {
+  min-width: 58px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.toolbarFind.findNoResults .toolbarFindCount {
+  color: var(--vscode-errorForeground);
+}
+.toolbarFind .toolbarIconButton {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+.toolbarActions {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+.toolbarIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--vscode-button-border, var(--ngg-transparent));
+  border-radius: 4px;
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  cursor: pointer;
+}
+.toolbarIconButton:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+.toolbarIconButton.active {
+  background-color: var(--vscode-list-activeSelectionBackground, var(--ngg-accent));
+  color: var(--vscode-list-activeSelectionForeground, var(--ngg-accent-foreground));
+}
+.toolbarIconButton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.toolbarIconButton:disabled:hover {
+  background-color: var(--vscode-button-secondaryBackground);
+}
+.toolbarIconButton:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+.toolbarIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.toolbarIcon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+/* Readiness strip: collapses while scrolled unless it is busy or in error.
+   The collapse is intentionally not animated: the sticky table header offset
+   must match the top bar height in every frame, so height changes snap. */
+.statusStrip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-overlay-strong));
+  background-color: var(--vscode-sideBar-background);
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  /* Chrome, not content: an I-beam over the status and version invites a
+     selection that means nothing. Matches the graph's column headers. */
+  cursor: default;
+}
+#topBar.scrolled .statusStrip[data-state="ready"] {
+  height: 0;
+  opacity: 0;
+  border-bottom-width: 0;
+}
+
+.statusIndicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--vscode-testing-iconPassed, var(--ngg-success));
+  flex: 0 0 auto;
+}
+.statusStrip[data-state="loading"] .statusIndicator,
+.statusStrip[data-state="action"] .statusIndicator {
+  background-color: var(--vscode-progressBar-background);
+  animation: statusStripPulse 1.2s ease-in-out infinite;
+}
+.statusStrip[data-state="error"] {
+  color: var(--vscode-errorForeground);
+}
+.statusStrip[data-state="error"] .statusIndicator {
+  background-color: var(--vscode-errorForeground);
+}
+.statusVersion {
+  margin-left: auto;
+  flex: 0 0 auto;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+@keyframes statusStripPulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+#loadMoreCommitsBtn {
+  width: 180px;
+  height: 28px;
+  margin: 10px auto;
+  border-radius: 14px;
+  line-height: 28px;
+}
+#stashList {
+  box-sizing: border-box;
+  max-width: min(920px, calc(100vw - 24px));
+  margin: 10px auto 4px;
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  border-radius: 5px;
+  background-color: var(--vscode-sideBar-background, var(--ngg-neutral-overlay-subtle));
+  color: var(--vscode-foreground);
+  font-size: var(--git-graph-font-size, 13px);
+}
+.stashListHeader {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-size: 12px;
+}
+.stashRow {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+  padding: 0 8px;
+}
+.stashRow:hover,
+.stashRow:focus-visible,
+.stashRow.contextMenuActive,
+.stashRow.dialogActive {
+  background-color: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-muted));
+}
+.stashRow:hover {
+  cursor: pointer;
+}
+.stashRow:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+.stashRef {
+  color: var(--vscode-gitDecoration-modifiedResourceForeground, var(--ngg-accent));
+}
+.stashMessage,
+.stashDate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stashDate {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+
+#controls select:focus,
+#controls input:focus {
+  outline: none;
+}
+#controls label {
+  cursor: pointer;
+}
+
+/* Narrow view: drop dropdown labels (groups keep title tooltips) and let the
+   filter groups share rows instead of overflowing */
+@media (max-width: 640px) {
+  #controls {
+    gap: 4px 8px;
+  }
+  .toolbarLabel {
+    display: none;
+  }
+  .toolbarGroup {
+    flex: 1 1 calc(50% - 8px);
+  }
+  .toolbarGroup .dropdown {
+    flex: 1 1 auto;
+    max-width: 100%;
+  }
+  .toolbarFind {
+    flex-basis: 100%;
+  }
+}

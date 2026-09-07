@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import type { Config } from "@/config";
@@ -10,6 +7,8 @@ import { buildWebviewHtml } from "@/extension/webviewHtml";
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
 import type { ExtensionState } from "@/extensionState";
 import type { TelemetryConsent } from "@/types";
+
+import { readWebviewCss } from "./utils/webviewCss";
 
 const l10nStrings = getWebviewLocalizedStrings();
 
@@ -65,7 +64,7 @@ describe("telemetry consent screen markup", () => {
 });
 
 describe("telemetry consent screen styles", () => {
-  const css = readFileSync(join(process.cwd(), "media/main.css"), "utf8");
+  const css = readWebviewCss();
 
   it("centers the action row and styles the button from theme tokens", () => {
     const actions = css.match(/^\.telemetryConsentActions \{[^}]+\}/m)?.[0] ?? "";

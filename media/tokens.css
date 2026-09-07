@@ -1,0 +1,27 @@
+/* Shared design tokens: graph palette variables and neutral overlays. */
+
+:root {
+  --ngg-transparent: oklch(0% 0 0 / 0);
+  --ngg-neutral-icon: oklch(60% 0 0);
+  --ngg-neutral-overlay-subtle: oklch(60% 0 0 / 0.1);
+  --ngg-neutral-overlay-muted: oklch(60% 0 0 / 0.15);
+  --ngg-neutral-overlay-medium: oklch(60% 0 0 / 0.2);
+  --ngg-neutral-overlay-strong: oklch(60% 0 0 / 0.35);
+  --ngg-neutral-border-subtle: oklch(60% 0 0 / 0.2);
+  --ngg-neutral-border-medium: oklch(60% 0 0 / 0.25);
+  --ngg-neutral-border: oklch(60% 0 0 / 0.3);
+  --ngg-neutral-border-strong: oklch(60% 0 0 / 0.5);
+  --ngg-neutral-border-heavy: oklch(60% 0 0 / 0.75);
+  --ngg-success: oklch(74% 0.12 152);
+  --ngg-signed-ref: var(
+    --vscode-testing-iconPassed,
+    var(--vscode-charts-green, var(--ngg-success))
+  );
+  --ngg-reveal-highlight: oklch(90% 0.25 150 / 0.42);
+  --ngg-find-highlight: oklch(80% 0.2 150 / 0.28);
+  --ngg-find-active: oklch(90% 0.25 150 / 0.42);
+  --ngg-accent: oklch(55% 0.16 250);
+  --ngg-accent-foreground: oklch(98% 0 0);
+  --ngg-backdrop: oklch(0% 0 0 / 0.25);
+  --ngg-error: oklch(62% 0.19 25);
+}
