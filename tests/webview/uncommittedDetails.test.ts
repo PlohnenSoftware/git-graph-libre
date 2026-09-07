@@ -3,6 +3,11 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { GitCommitNode, GitRepoInfo, GitUncommittedChanges } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import type * as GGL from "@/types";
+import {
+  COMMIT_DETAILS_DEFAULT_HEIGHT,
+  COMMIT_DETAILS_KEYBOARD_RESIZE_STEP,
+  COMMIT_DETAILS_MIN_HEIGHT
+} from "@/webview/commitDetailsView";
 
 import { createVscodeMock, receive, setupHtml } from "./setup";
 
@@ -142,6 +147,54 @@ describe("uncommitted details", () => {
     document.getElementById("dialogDismiss")?.dispatchEvent(new MouseEvent("click"));
   }
 
+  function reloadGraphWithCommits(commits: GitCommitNode[]) {
+    receive({ command: "stageFiles", status: null });
+    const repoInfoRequest = latestSent("loadRepoInfo");
+    receive({
+      command: "loadRepoInfo",
+      requestId: repoInfoRequest.requestId,
+      repoInfo,
+      error: null
+    });
+    const branchesRequest = latestSent("loadBranches");
+    receive({
+      command: "loadBranches",
+      requestId: branchesRequest.requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    const request = latestSent("loadCommits");
+    receive({
+      command: "loadCommits",
+      requestId: request.requestId,
+      commits,
+      head: "abc123",
+      moreCommitsAvailable: false,
+      hard: true,
+      error: null
+    });
+  }
+
+  function reloadGraphWithRow() {
+    reloadGraphWithCommits([uncommittedNode, headCommit]);
+  }
+
+  function setPanes(stagedOpen: boolean, unstagedOpen: boolean) {
+    const wants = new Map([
+      ["uncommittedStagedToggle", stagedOpen],
+      ["uncommittedUnstagedToggle", unstagedOpen]
+    ]);
+    for (const [id, want] of wants) {
+      const toggle = document.getElementById(id);
+      if (toggle?.getAttribute("aria-expanded") !== want.toString()) {
+        toggle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      }
+    }
+  }
+
   beforeAll(async () => {
     vi.resetModules();
     vi.spyOn(window, "scrollTo").mockImplementation(() => {});
@@ -249,10 +302,154 @@ describe("uncommitted details", () => {
     expect(document.getElementById("commitDetails")).not.toBeNull();
   });
 
+  it("accepts drops on a collapsed pane container", () => {
+    openPanel();
+    setPanes(true, false);
+    expect(document.getElementById("commitDetailsFilesBody")?.className).toContain("hidden");
+
+    const unstagedPane = document.getElementById("commitDetailsFiles");
+    expect(unstagedPane?.getAttribute("data-section")).toBe("unstaged");
+    dropOnto(unstagedPane as Element, "staged added.txt", "unstaged");
+
+    expect(latestSent("unstageFiles")).toEqual({
+      command: "unstageFiles",
+      repo: REPO,
+      filePaths: ["added.txt"]
+    });
+    dismissActionDialog();
+    setPanes(true, true);
+  });
+
+  it("resizes with pointer and keyboard input", () => {
+    openPanel();
+    setPanes(true, true);
+
+    const details = document.getElementById("commitDetails");
+    const handle = document.getElementById("commitDetailsResizeHandle");
+    expect(details?.style.height).toBe(`${COMMIT_DETAILS_DEFAULT_HEIGHT}px`);
+    expect(handle?.getAttribute("aria-valuenow")).toBe(
+      COMMIT_DETAILS_DEFAULT_HEIGHT.toString()
+    );
+
+    handle?.dispatchEvent(new MouseEvent("mousedown", { button: 0, clientY: 200, bubbles: true }));
+    document.dispatchEvent(new MouseEvent("mousemove", { clientY: 320, bubbles: true }));
+    document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+
+    const draggedHeight = COMMIT_DETAILS_DEFAULT_HEIGHT + 120;
+    expect(details?.style.height).toBe(`${draggedHeight}px`);
+    expect(handle?.getAttribute("aria-valuenow")).toBe(draggedHeight.toString());
+
+    handle?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    const keyboardHeight = draggedHeight - COMMIT_DETAILS_KEYBOARD_RESIZE_STEP;
+    expect(details?.style.height).toBe(`${keyboardHeight}px`);
+
+    handle?.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    expect(details?.style.height).toBe(`${COMMIT_DETAILS_MIN_HEIGHT}px`);
+    expect(handle?.getAttribute("aria-valuenow")).toBe(
+      COMMIT_DETAILS_MIN_HEIGHT.toString()
+    );
+  });
+
+  it("keeps the resize handle in the DOM when both panes collapse", () => {
+    openPanel();
+    setPanes(false, false);
+
+    const details = document.getElementById("commitDetails");
+    expect(details?.classList.contains("summaryCollapsed")).toBe(true);
+    expect(details?.classList.contains("filesCollapsed")).toBe(true);
+    // The existing collapsed rule hides the handle by CSS; the markup stays.
+    expect(document.getElementById("commitDetailsResizeHandle")).not.toBeNull();
+    setPanes(true, true);
+  });
+
+  it("renders the collapsed height when both panes are closed", () => {
+    openPanel();
+    setPanes(false, false);
+
+    document
+      .getElementById("commitDetailsResizeHandle")
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+
+    expect(document.getElementById("commitDetails")?.style.height).toBe("44px");
+    setPanes(true, true);
+  });
+
+  it("drops a late details response when its row is gone", () => {
+    openPanel();
+    document.querySelector("tr.unsavedChanges")?.remove();
+    document.getElementById("commitDetails")?.remove();
+
+    receiveUncommittedDetails();
+
+    expect(document.getElementById("commitDetails")).toBeNull();
+    reloadGraphWithRow();
+    receiveUncommittedDetails();
+    expect(document.getElementById("commitDetails")).not.toBeNull();
+  });
+
+  it("closes the panel without resending when a refresh drops the row", () => {
+    openPanel();
+    const detailsBefore = vscodeMock.sentMessages.filter(
+      (msg) => msg.command === "uncommittedDetails"
+    );
+
+    reloadGraphWithCommits([headCommit]);
+
+    expect(document.getElementById("commitDetails")).toBeNull();
+    expect(
+      vscodeMock.sentMessages.filter((msg) => msg.command === "uncommittedDetails")
+    ).toHaveLength(detailsBefore.length);
+    reloadGraphWithRow();
+  });
+
+  it("keeps the highlight while crossing pane children and clears it outside", () => {
+    openPanel();
+    setPanes(true, true);
+    const pane = document.getElementById("commitDetailsSummary") as Element;
+    const child = pane.querySelector(".uncommittedFile") as Element;
+
+    pane.dispatchEvent(
+      Object.assign(new Event("dragover", { bubbles: true }), { dataTransfer: {} })
+    );
+    expect(pane.classList.contains("dropTarget")).toBe(true);
+
+    pane.dispatchEvent(
+      Object.assign(new Event("dragleave", { bubbles: true }), { relatedTarget: child })
+    );
+    expect(pane.classList.contains("dropTarget")).toBe(true);
+
+    pane.dispatchEvent(
+      Object.assign(new Event("dragleave", { bubbles: true }), {
+        relatedTarget: document.body
+      })
+    );
+    expect(pane.classList.contains("dropTarget")).toBe(false);
+  });
+
+  it("clears dragging and highlight state when a drag aborts", () => {
+    openPanel();
+    setPanes(true, true);
+    const item = document.querySelector(
+      '.uncommittedFile[data-filepath="work.txt"]'
+    ) as HTMLElement;
+    const pane = document.getElementById("commitDetailsSummary") as Element;
+
+    item.dispatchEvent(
+      Object.assign(new Event("dragstart", { bubbles: true }), {
+        dataTransfer: { effectAllowed: "", setData: () => {} }
+      })
+    );
+    pane.classList.add("dropTarget");
+    item.dispatchEvent(new Event("dragend", { bubbles: true }));
+
+    expect(item.classList.contains("dragging")).toBe(false);
+    expect(pane.classList.contains("dropTarget")).toBe(false);
+  });
+
   it("refreshes the graph and the panel after a successful stage", () => {
     const detailsBefore = vscodeMock.sentMessages.filter(
       (msg) => msg.command === "uncommittedDetails"
-    ).length;
+    );
     receive({ command: "stageFiles", status: null });
 
     const repoInfoRequest = latestSent("loadRepoInfo");
@@ -274,8 +471,8 @@ describe("uncommitted details", () => {
     });
     receiveLoadedCommits();
     expect(
-      vscodeMock.sentMessages.filter((msg) => msg.command === "uncommittedDetails").length
-    ).toBeGreaterThan(detailsBefore);
+      vscodeMock.sentMessages.filter((msg) => msg.command === "uncommittedDetails")
+    ).toHaveLength(detailsBefore.length + 1);
     receiveUncommittedDetails();
     expect(document.getElementById("commitDetails")).not.toBeNull();
   });

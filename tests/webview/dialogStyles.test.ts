@@ -164,12 +164,14 @@ describe("dialog styles", () => {
 
   it("tints selected commit rows with their own graph dot color", () => {
     const selectedRow = css.match(
-      /#commitTable tr\.commit\.commitDetailsOpen td,\s*#commitTable tr\.commit\.commitSelected td \{[^}]+color-mix\([^}]+\}/
+      /#commitTable tr\.commit\.commitDetailsOpen td,[^{]+\{[^}]+color-mix\([^}]+\}/
     )?.[0];
 
     expect(selectedRow).toBeDefined();
     expect(selectedRow).toContain("var(--git-graph-color");
     expect(selectedRow).toContain("var(--ngg-transparent)");
+    // The open uncommitted row shares the rule so it tints gray, not blue.
+    expect(selectedRow).toContain("#commitTable tr.unsavedChanges.commitDetailsOpen td");
   });
 
   it("lays out the tag details popup as a structured, non-squeezed grid", () => {

@@ -436,10 +436,14 @@ may not define the token):
 - Selection identity: commit rows expose their graph color through
   `--git-graph-color` (published per `data-color` index by
   `src/extension/webviewHtml.ts`). The selected row background is
-  `color-mix(in srgb, var(--git-graph-color) 18%, var(--ngg-transparent))`
+  `color-mix(in oklab, var(--git-graph-color) 18%, var(--ngg-transparent))`
   (26% on hover) plus a 3px inset left accent bar, so selection matches the
   commit dot hue instead of a flat list color. Reuse this pattern for future
   per-commit emphasis instead of introducing new solid selection colors.
+  Interpolate `color-mix()` in `oklab`, never `srgb`: every mix here runs
+  toward the transparent token, and only the rectangular space keeps the tint
+  hue-stable unconditionally (no reliance on the polar powerless-component
+  rule). `oklch` is out for the same reason — obvious beats subtle.
 - Graph palette: defaults are OKLCH with uniform lightness and chroma and
   hue-only variation (`oklch(59% 0.21 <hue>)`, 12 hues). Keep any palette
   change uniform in L/C unless the maintainer asks otherwise; users may still

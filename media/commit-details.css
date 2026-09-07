@@ -15,26 +15,37 @@
   line-height: 18px;
   white-space: normal;
 }
-/* Selected rows are tinted with the hue of their own graph dot color */
+/* Selected rows are tinted with the hue of their own graph dot color.
+   The uncommitted row publishes --ngg-uncommitted as its graph color so the
+   same rules paint it gray while its panel is open. */
+#commitTable tr.unsavedChanges {
+  --git-graph-color: var(--ngg-uncommitted);
+}
 #commitTable tr.commit.commitDetailsOpen td,
-#commitTable tr.commit.commitSelected td {
+#commitTable tr.commit.commitSelected td,
+#commitTable tr.unsavedChanges.commitDetailsOpen td {
   background-color: color-mix(
-    in srgb,
+    in oklab,
     var(--git-graph-color, var(--vscode-list-activeSelectionBackground)) 18%,
     var(--ngg-transparent)
   );
 }
 #commitTable tr.commit.commitDetailsOpen td:first-child,
-#commitTable tr.commit.commitSelected td:first-child {
+#commitTable tr.commit.commitSelected td:first-child,
+#commitTable tr.unsavedChanges.commitDetailsOpen td:first-child {
   box-shadow: inset 3px 0 0 var(--git-graph-color, var(--vscode-focusBorder));
 }
 #commitTable tr.commit.commitDetailsOpen:hover td,
-#commitTable tr.commit.commitSelected:hover td {
+#commitTable tr.commit.commitSelected:hover td,
+#commitTable tr.unsavedChanges.commitDetailsOpen:hover td {
   background-color: color-mix(
-    in srgb,
+    in oklab,
     var(--git-graph-color, var(--vscode-list-activeSelectionBackground)) 26%,
     var(--ngg-transparent)
   );
+}
+#commitDetails.uncommittedDetails {
+  --git-graph-color: var(--ngg-uncommitted);
 }
 .emptyGraphRow td {
   text-align: center;
@@ -411,12 +422,11 @@ body.commitDetailsResizing * {
   font-style: italic;
   white-space: normal;
 }
-.uncommittedPaneBody.dropTarget,
-.uncommittedToggle.dropTarget {
+.uncommittedPane.dropTarget {
   outline: 1px dashed var(--vscode-focusBorder);
   outline-offset: -1px;
   background-color: color-mix(
-    in srgb,
+    in oklab,
     var(--vscode-focusBorder) 12%,
     var(--ngg-transparent)
   );

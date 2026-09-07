@@ -18,6 +18,7 @@ const l10n = {
   detailNoUnstagedFiles: "No unstaged changes",
   actionStageFile: "Stage File",
   actionUnstageFile: "Unstage File",
+  detailResize: "Resize details",
   tooltipRenamedTo: " renamed to "
 } as LocalizedStrings;
 
@@ -30,7 +31,7 @@ const changes: GitUncommittedChanges = {
 };
 
 function render(sections = { stagedOpen: true, unstagedOpen: true }): string {
-  return renderUncommittedDetailsRowHtml({ changes, l10n, sections });
+  return renderUncommittedDetailsRowHtml({ changes, l10n, sections, detailsHeight: 250 });
 }
 
 describe("getStagingDropAction", () => {
@@ -63,6 +64,15 @@ describe("renderUncommittedDetailsRowHtml", () => {
       expect(item.querySelector(".gitFileName")).not.toBeNull();
       expect(item.querySelector(".uncommittedMoveFile")).not.toBeNull();
     }
+  });
+
+  it("emits the shared resize handle with its ARIA contract", () => {
+    document.body.innerHTML = `<table><tr>${render()}</tr></table>`;
+
+    const handle = document.getElementById("commitDetailsResizeHandle");
+    expect(handle?.getAttribute("role")).toBe("separator");
+    expect(handle?.getAttribute("aria-valuenow")).toBe("250");
+    expect(handle?.getAttribute("aria-label")).toBeDefined();
   });
 
   it("marks each row with its section and path for drag payloads", () => {
@@ -101,7 +111,8 @@ describe("renderUncommittedDetailsRowHtml", () => {
     const html = renderUncommittedDetailsRowHtml({
       changes: hostile,
       l10n,
-      sections: { stagedOpen: true, unstagedOpen: true }
+      sections: { stagedOpen: true, unstagedOpen: true },
+      detailsHeight: 250
     });
 
     expect(html).not.toContain('"><img src=x>');
@@ -112,7 +123,8 @@ describe("renderUncommittedDetailsRowHtml", () => {
     const html = renderUncommittedDetailsRowHtml({
       changes: { staged: [], unstaged: [] },
       l10n,
-      sections: { stagedOpen: true, unstagedOpen: true }
+      sections: { stagedOpen: true, unstagedOpen: true },
+      detailsHeight: 250
     });
     document.body.innerHTML = `<table><tr>${html}</tr></table>`;
 

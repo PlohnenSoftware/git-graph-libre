@@ -298,7 +298,7 @@ dl.tagDetailsFields dd {
 @keyframes headPulse {
   0% {
     background-color: color-mix(
-      in srgb,
+      in oklab,
       var(--ngg-reveal-highlight) 20%,
       var(--ngg-transparent)
     );

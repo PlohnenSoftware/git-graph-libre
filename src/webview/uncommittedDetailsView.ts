@@ -2,6 +2,7 @@ import type { GitUncommittedChanges, GitUncommittedFile } from "@/backend/types/
 import type { LocalizedStrings } from "@/extension/webviewL10n";
 import { octicon } from "@/octicons";
 
+import { renderCommitDetailsResizeHandle } from "./commitDetailsView";
 import { escapeHtml } from "./utils/html";
 
 export type UncommittedSection = "staged" | "unstaged";
@@ -16,6 +17,7 @@ type RenderUncommittedDetailsOptions = {
   changes: GitUncommittedChanges;
   l10n: LocalizedStrings;
   sections: UncommittedDetailsSectionState;
+  detailsHeight: number;
 };
 
 /**
@@ -43,12 +45,14 @@ export function isUncommittedSection(value: string | undefined): value is Uncomm
 export function renderUncommittedDetailsRowHtml({
   changes,
   l10n,
-  sections
+  sections,
+  detailsHeight
 }: RenderUncommittedDetailsOptions): string {
   return [
     '<td></td><td colspan="5">',
     renderUncommittedPane("staged", changes.staged, l10n, sections.stagedOpen),
     renderUncommittedPane("unstaged", changes.unstaged, l10n, sections.unstagedOpen),
+    renderCommitDetailsResizeHandle(l10n, detailsHeight),
     "</td>"
   ].join("");
 }
@@ -80,7 +84,7 @@ function renderUncommittedPane(
   const collapsedLabel = section === "staged" ? l10n.detailExpandStaged : l10n.detailExpandUnstaged;
   const bodyClass = `commitDetailsPaneBody uncommittedPaneBody${open ? "" : " hidden"}`;
   return [
-    `<div id="${ids.pane}">`,
+    `<div id="${ids.pane}" class="uncommittedPane" data-section="${section}">`,
     `<button id="${ids.toggle}" class="commitDetailsToggle uncommittedToggle" type="button"`,
     ` data-section="${section}" aria-controls="${ids.body}"`,
     ` aria-expanded="${open}" aria-label="${open ? expandedLabel : collapsedLabel}">`,

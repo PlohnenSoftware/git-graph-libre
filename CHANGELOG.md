@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The staging panes accept drops across their whole halves.** The Staged and
+  Unstaged panes themselves are the drop targets now, so empty space below the
+  last file row and collapsed panes accept dragged files too. The drop
+  highlight no longer flickers when crossing child elements and clears if a
+  drag is aborted outside the panel.
+- **The expanded uncommitted-changes row shows selection identity.** It tints
+  gray with the left accent bar while its panel is open, reusing the commit
+  selection pattern with a dedicated `--ngg-uncommitted` token that matches
+  the graph's muted dot color.
+- **The staging panel is resizable.** It shares the commit details panel's
+  resize handle, height, mouse drag, and keyboard resizing instead of staying
+  locked at the default height.
+- **Tints now interpolate in `oklab` instead of `srgb`.** All seven
+  `color-mix()` tints (selection, drop highlight, signature badges, ref and
+  reveal accents) keep their hue exact when mixing toward transparency.
+
 ### Added
 
 - **The uncommitted-changes row now opens a staging view.** Clicking it (or

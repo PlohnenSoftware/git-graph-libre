@@ -163,11 +163,11 @@
 }
 .commitSignature-warning {
   color: var(--vscode-editorWarning-foreground, var(--vscode-charts-yellow, oklch(78% 0.15 85)));
-  background: color-mix(in srgb, currentColor 14%, var(--ngg-transparent));
+  background: color-mix(in oklab, currentColor 14%, var(--ngg-transparent));
 }
 .commitSignature-invalid {
   color: var(--vscode-testing-iconFailed, var(--vscode-errorForeground, var(--ngg-error)));
-  background: color-mix(in srgb, currentColor 14%, var(--ngg-transparent));
+  background: color-mix(in oklab, currentColor 14%, var(--ngg-transparent));
 }
 .commitSignature-unknown {
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
