@@ -10,9 +10,11 @@
  *
  * Every signal here is therefore evaluated on the commit-load path, which runs
  * on activation, on every refresh, on every filter change and on every file
- * watcher tick. Reporting per load would drown the ranking in one user's
- * refresh habits, so each feature is reported at most **once per session** and
- * the ratio to read is "installations that saw it", never "times it happened".
+ * watcher tick — except the staging panel, which is not a load and reports
+ * from its own query route instead. Reporting per load would drown the
+ * ranking in one user's refresh habits, so each feature is reported at most
+ * **once per session** and the ratio to read is "installations that saw it",
+ * never "times it happened".
  *
  * Feature ids must match the ingest's `^[a-z][a-zA-Z0-9._-]{0,63}$`, and the
  * ingest rejects the **whole batch** when one id fails it — up to 25 unrelated
@@ -34,6 +36,8 @@ export const VIEW_FEATURE_SIGNED_TAG = "view.signedTagBadge";
 export const VIEW_FEATURE_SUBMODULE_REPO = "view.submoduleRepo";
 /** The graph was actually loaded on a submodule, not merely offered one. */
 export const VIEW_FEATURE_SUBMODULE_ACTIVE = "view.submoduleRepoActive";
+/** The uncommitted-changes staging panel was opened. */
+export const VIEW_FEATURE_UNCOMMITTED_PANEL = "view.uncommittedDetails";
 
 /** Exactly the pattern the ingest applies. Kept here so a test can assert it. */
 export const INGEST_FEATURE_NAME_PATTERN = /^[a-z][a-zA-Z0-9._-]{0,63}$/;
@@ -68,6 +72,12 @@ export type CommitLoadFacts = {
 export type ViewFeatureReporter = {
   /** Call after every completed commit load. Cheap once each signal has fired. */
   recordCommitLoad: (facts: CommitLoadFacts) => void;
+  /**
+   * Call after the staging panel's data was produced. Opening the panel is
+   * not a commit load, so it needs its own entry point; like every signal
+   * here it reports at most once per session.
+   */
+  recordUncommittedDetailsOpened: () => void;
 };
 
 function hasSignedTag(commits: readonly Pick<GitCommitNode, "refs">[]): boolean {
@@ -141,6 +151,9 @@ export function createViewFeatureReporter(
       ) {
         reportOnce(VIEW_FEATURE_SUBMODULE_ACTIVE);
       }
+    },
+    recordUncommittedDetailsOpened() {
+      reportOnce(VIEW_FEATURE_UNCOMMITTED_PANEL);
     }
   };
 }

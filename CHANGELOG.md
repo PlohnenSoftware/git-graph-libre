@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   button for keyboard and pointer use without dragging. Staging refreshes the
   graph and the panes together, and failures are reported like every other
   action.
+- **Opening the staging view is now covered by the optional usage telemetry**,
+  alongside the other features that work by *showing* something rather than
+  being invoked. One yes/no signal is recorded at most once per session: that
+  the staging panel was opened. Only the fixed event identifier is sent —
+  nothing about which files or repositories were staged — and, as always,
+  nothing at all is sent unless you have accepted telemetry.
 
 ## [1.4.3] - 2026-09-06
 

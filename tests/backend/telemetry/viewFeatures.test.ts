@@ -8,6 +8,7 @@ import {
   VIEW_FEATURE_SIGNED_TAG,
   VIEW_FEATURE_SUBMODULE_ACTIVE,
   VIEW_FEATURE_SUBMODULE_REPO,
+  VIEW_FEATURE_UNCOMMITTED_PANEL,
   VIEW_FEATURE_UNREACHABLE
 } from "@/telemetry/viewFeatures";
 
@@ -218,9 +219,38 @@ describe("view feature reporting", () => {
     ]);
   });
 
+  // Opening the staging panel is not a commit load, so it has its own entry
+  // point — but the same once-per-session rule applies: the panel posts on
+  // every open and the count must stay "installations that opened it".
+  it("reports the staging panel exactly once across repeated opens", () => {
+    const spy = createTelemetrySpy();
+    const reporter = createViewFeatureReporter(spy.telemetry);
+
+    reporter.recordUncommittedDetailsOpened();
+    reporter.recordUncommittedDetailsOpened();
+    reporter.recordUncommittedDetailsOpened();
+
+    expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_UNCOMMITTED_PANEL, ok: true }]);
+  });
+
+  it("shares one session budget between loads and panel opens", () => {
+    const spy = createTelemetrySpy();
+    const reporter = createViewFeatureReporter(spy.telemetry);
+
+    reporter.recordUncommittedDetailsOpened();
+    reporter.recordCommitLoad({ ...quietLoad, includeReflog: true });
+    reporter.recordUncommittedDetailsOpened();
+
+    expect(spy.sent).toEqual([
+      { feature: VIEW_FEATURE_UNCOMMITTED_PANEL, ok: true },
+      { feature: VIEW_FEATURE_REFLOG, ok: true }
+    ]);
+  });
+
   it("is inert without a reporter", () => {
+    const reporter = createViewFeatureReporter();
     expect(() =>
-      createViewFeatureReporter().recordCommitLoad({
+      reporter.recordCommitLoad({
         includeReflog: true,
         includeUnreachableCommits: true,
         showsAllRefs: true,
@@ -229,6 +259,7 @@ describe("view feature reporting", () => {
         repo: SUBMODULE_REPO
       })
     ).not.toThrow();
+    expect(() => reporter.recordUncommittedDetailsOpened()).not.toThrow();
   });
 
   // The ingest rejects the WHOLE batch when one feature id fails its pattern,
@@ -238,7 +269,8 @@ describe("view feature reporting", () => {
     VIEW_FEATURE_UNREACHABLE,
     VIEW_FEATURE_SIGNED_TAG,
     VIEW_FEATURE_SUBMODULE_REPO,
-    VIEW_FEATURE_SUBMODULE_ACTIVE
+    VIEW_FEATURE_SUBMODULE_ACTIVE,
+    VIEW_FEATURE_UNCOMMITTED_PANEL
   ])("%s matches the id pattern the ingest enforces", (feature) => {
     expect(INGEST_FEATURE_NAME_PATTERN.test(feature)).toBe(true);
   });
