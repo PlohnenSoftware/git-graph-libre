@@ -11,6 +11,8 @@ import * as vscode from "vscode";
 export type Logger = Pick<vscode.OutputChannel, "appendLine" | "show"> & {
   readonly channel: vscode.OutputChannel;
   log(message: string): void;
+  warn(message: string): void;
+  error(message: string): void;
 };
 
 function timestamp(now: Date): string {
@@ -19,13 +21,22 @@ function timestamp(now: Date): string {
 
 export function createLogger(name: string): Logger {
   const channel = vscode.window.createOutputChannel(name);
+  const write = (level: string, message: string): void => {
+    channel.appendLine(`[${timestamp(new Date())}]${level} ${message}`);
+  };
   const log = (message: string): void => {
-    channel.appendLine(`[${timestamp(new Date())}] ${message}`);
+    write("", message);
   };
 
   return {
     channel,
     log,
+    warn: (message: string): void => {
+      write(" [WARN]", message);
+    },
+    error: (message: string): void => {
+      write(" [ERROR]", message);
+    },
     appendLine: log,
     // Cast because OutputChannel.show is overloaded and bind() collapses it to
     // the last signature; the delegation itself is faithful.

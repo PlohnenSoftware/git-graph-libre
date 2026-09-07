@@ -94,6 +94,11 @@ This project descends from the MIT-licensed lineage of Git Graph:
     invocation, and the `VSCE_PAT` wiring come from upstream. Upstream's
     companion Open VSX publish step was deliberately **not** taken — this
     project publishes to the VS Marketplace only.
+  - `ef9114f`, `37671b6` — re-running the repository scan when the Git
+    binary setting changes, naming the binary in scan log lines, and
+    leveled output-channel logging. Reimplemented here on our own logger,
+    bridge, and repository search; the behaviors come from upstream, no
+    upstream code is included.
 
 The MIT license grants permission to sublicense, which allows this material to
 be incorporated into the AGPL-licensed whole. As the MIT license requires, its

@@ -64,6 +64,26 @@ describe("logger", () => {
     expect(Number.isNaN(Date.parse(`${stamp.replace(" ", "T")}Z`))).toBe(false);
   });
 
+  it("tags warning lines without changing the timestamp shape", async () => {
+    const { createLogger } = await import("@/extension/utils/logger");
+
+    createLogger("test").warn("binary missing");
+
+    expect(channel.lines).toHaveLength(1);
+    expect(channel.lines[0]).toMatch(timestampedLine);
+    expect(channel.lines[0].endsWith("] [WARN] binary missing")).toBe(true);
+  });
+
+  it("tags error lines without changing the timestamp shape", async () => {
+    const { createLogger } = await import("@/extension/utils/logger");
+
+    createLogger("test").error("scan failed");
+
+    expect(channel.lines).toHaveLength(1);
+    expect(channel.lines[0]).toMatch(timestampedLine);
+    expect(channel.lines[0].endsWith("] [ERROR] scan failed")).toBe(true);
+  });
+
   it("delegates show to the underlying channel", async () => {
     const { createLogger } = await import("@/extension/utils/logger");
 

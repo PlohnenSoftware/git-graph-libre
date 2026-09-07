@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-09-07
+
+### Fixed
+
+- **Changing the `git.path` setting now re-scans workspace repositories.**
+  Previously the new binary was adopted for future Git calls but repositories
+  found with the old one were never revalidated, so a corrected path left a
+  stale or empty repository list until reload. The extension now re-runs the
+  workspace scan with the new binary and pushes the updated list to the graph.
+
+### Changed
+
+- **The output channel now has warning and error levels.** Repository scans
+  log a one-line summary naming the Git binary and search depth, so a scan
+  that comes back empty because `git.path` points at something unusable says
+  so directly instead of failing silently.
+
 ## [1.5.0] - 2026-09-07
 
 ### Added
@@ -528,7 +545,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.0...v1.4.1

@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 
 import { Config } from "@/config";
 import { RepoManager } from "@/extension/repoManager";
-import { createRepoSearch } from "@/extension/workspaceSearch";
+import { createRepoSearch, scanLogLevel } from "@/extension/workspaceSearch";
 
 import { makeRepo } from "@tests/backend/helpers";
 
@@ -31,14 +31,24 @@ function makeStubs(initialRepoPaths: string[] = [], maxDepth = 2, gitPath = "git
     gitPath: () => gitPath
   };
 
+  const logged: { level: string; message: string }[] = [];
   const repoSearch = createRepoSearch(
     repoManager as unknown as RepoManager,
-    config as unknown as Config
+    config as unknown as Config,
+    {
+      log: (message: string) => {
+        logged.push({ level: "log", message });
+      },
+      warn: (message: string) => {
+        logged.push({ level: "warn", message });
+      }
+    }
   );
 
   return {
     repoSearch,
     added,
+    logged,
     getSendCount: () => sendCount,
     setMaxDepth: (d: number) => {
       currentMaxDepth = d;
@@ -136,6 +146,21 @@ suite("workspaceSearch / maxDepthChanged", () => {
     setMaxDepth(1);
     repoSearch.maxDepthChanged();
     assert.strictEqual(getSendCount(), 0);
+  });
+
+  test("scanLogLevel warns only on an empty scan", () => {
+    assert.strictEqual(scanLogLevel(0), "warn");
+    assert.strictEqual(scanLogLevel(1), "log");
+    assert.strictEqual(scanLogLevel(12), "log");
+  });
+
+  test("workspace scan logs one summary naming the git binary", async () => {
+    const { repoSearch, logged } = makeStubs([], 2, "git");
+    await repoSearch.searchWorkspaceForRepos();
+
+    assert.strictEqual(logged.length, 1);
+    assert.ok(logged[0].message.startsWith("[repos] workspace scan "));
+    assert.ok(logged[0].message.includes('(git: "git"'));
   });
 
   test("after depth increase, same depth again does not re-trigger search", async () => {

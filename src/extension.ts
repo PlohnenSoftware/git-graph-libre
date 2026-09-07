@@ -40,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
   const consentPrompt = createConsentPrompt({ config, logger });
   const gitClient = gitClientFactory(extensionState.getLastActiveRepo() ?? "", config.gitPath());
   const repoManager = createRepoManager(extensionState, statusBarItem, config);
-  const repoSearch = createRepoSearch(repoManager, config);
+  const repoSearch = createRepoSearch(repoManager, config, logger);
   const repoWatcher = createRepoWatcher(repoManager, config, repoSearch);
   let currentPanel: WebviewPanel | undefined;
 
@@ -163,7 +163,12 @@ export function activate(context: vscode.ExtensionContext) {
         // consent screen for the graph the moment the user chooses.
         currentPanel?.applyTelemetryConsentChange();
       } else if (e.affectsConfiguration("git.path")) {
+        // The binary changed under us: known repositories were validated
+        // with the old one, so point the client at the new binary and
+        // re-scan, pushing the updated list to the graph.
         gitClient.setGitPath(config.gitPath());
+        logger.log("[config] git.path changed; rescanning workspace repositories");
+        void repoSearch.searchWorkspaceForRepos();
       }
     }),
     repoWatcher
