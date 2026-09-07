@@ -274,6 +274,7 @@ class GitGraphView {
     srcElem: HTMLElement | null;
     stagedOpen: boolean;
     unstagedOpen: boolean;
+    detailsHeight: number;
   } | null = null;
   private maxCommits: number;
   private readonly hiddenColumns: Set<HideableColumn> = new Set();
@@ -5209,7 +5210,12 @@ class GitGraphView {
   private loadUncommittedDetails(sourceElem: HTMLElement) {
     this.hideCommitDetails();
     this.hideUncommittedDetails();
-    this.uncommittedView = { srcElem: sourceElem, stagedOpen: true, unstagedOpen: true };
+    this.uncommittedView = {
+      srcElem: sourceElem,
+      stagedOpen: true,
+      unstagedOpen: true,
+      detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT
+    };
     sendMessage({ command: "uncommittedDetails", repo: this.currentRepo });
   }
   public hideUncommittedDetails() {
@@ -5240,12 +5246,25 @@ class GitGraphView {
 
     const newElem = document.createElement("tr");
     newElem.id = "commitDetails";
+    newElem.classList.add("uncommittedDetails");
     newElem.classList.toggle("summaryCollapsed", !view.stagedOpen);
     newElem.classList.toggle("filesCollapsed", !view.unstagedOpen);
-    newElem.innerHTML = renderUncommittedDetailsRowHtml({ changes, l10n, sections: view });
+    newElem.innerHTML = renderUncommittedDetailsRowHtml({
+      changes,
+      l10n,
+      sections: view,
+      detailsHeight: view.detailsHeight
+    });
     insertAfter(newElem, row);
+    this.applyCommitDetailsHeight(newElem);
     this.registerUncommittedPanelListeners(newElem);
     this.renderGraph();
+    document
+      .getElementById("commitDetailsResizeHandle")
+      ?.addEventListener("mousedown", (e) => this.startCommitDetailsResize(e));
+    document
+      .getElementById("commitDetailsResizeHandle")
+      ?.addEventListener("keydown", (e) => this.resizeCommitDetailsFromKeyboard(e));
   }
   private restoreUncommittedDetails() {
     if (this.uncommittedView === null) return;
@@ -5279,10 +5298,13 @@ class GitGraphView {
         this.moveUncommittedFile(section, section === "staged" ? "unstaged" : "staged", filePath);
       });
     });
-    panel.querySelectorAll(".uncommittedPaneBody, .uncommittedToggle").forEach((zone) => {
+    panel.querySelectorAll(".uncommittedPane").forEach((zone) => {
       zone.addEventListener("dragover", (e) => this.allowUncommittedFileDrop(e));
       zone.addEventListener("dragleave", (e) => {
-        (<HTMLElement>e.currentTarget).classList.remove("dropTarget");
+        const zoneElem = <HTMLElement>e.currentTarget;
+        const next = (<DragEvent>e).relatedTarget;
+        if (next instanceof Node && zoneElem.contains(next)) return;
+        zoneElem.classList.remove("dropTarget");
       });
       zone.addEventListener("drop", (e) => this.dropUncommittedFile(e));
     });
@@ -5327,7 +5349,19 @@ class GitGraphView {
     transfer.effectAllowed = "move";
     transfer.setData("text/plain", `${item.dataset.section ?? ""} ${item.dataset.filepath}`);
     item.classList.add("dragging");
-    item.addEventListener("dragend", () => item.classList.remove("dragging"), { once: true });
+    item.addEventListener(
+      "dragend",
+      () => {
+        item.classList.remove("dragging");
+        item
+          .closest("#commitDetails")
+          ?.querySelectorAll(".dropTarget")
+          .forEach((zone) => {
+            zone.classList.remove("dropTarget");
+          });
+      },
+      { once: true }
+    );
   }
   private allowUncommittedFileDrop(e: Event) {
     e.preventDefault();
@@ -5708,12 +5742,25 @@ class GitGraphView {
     elem.classList.toggle("filesCollapsed", !this.expandedCommit.filesOpen);
   }
 
+  private detailsHeightOwner(): { detailsHeight: number } | null {
+    return this.expandedCommit ?? this.uncommittedView;
+  }
+
   private getCommitDetailsRenderedHeight() {
-    if (this.expandedCommit === null) return COMMIT_DETAILS_DEFAULT_HEIGHT;
-    if (!this.expandedCommit.summaryOpen && !this.expandedCommit.filesOpen) {
+    const owner = this.detailsHeightOwner();
+    if (owner === null) return COMMIT_DETAILS_DEFAULT_HEIGHT;
+    if (this.expandedCommit !== null) {
+      if (!this.expandedCommit.summaryOpen && !this.expandedCommit.filesOpen) {
+        return COMMIT_DETAILS_COLLAPSED_HEIGHT;
+      }
+    } else if (
+      this.uncommittedView !== null &&
+      !this.uncommittedView.stagedOpen &&
+      !this.uncommittedView.unstagedOpen
+    ) {
       return COMMIT_DETAILS_COLLAPSED_HEIGHT;
     }
-    return clampCommitDetailsHeight(this.expandedCommit.detailsHeight);
+    return clampCommitDetailsHeight(owner.detailsHeight);
   }
 
   private applyCommitDetailsHeight(elem: HTMLElement) {
@@ -5722,18 +5769,17 @@ class GitGraphView {
   }
 
   private updateCommitDetailsResizeHandle() {
-    if (this.expandedCommit === null) return;
+    const owner = this.detailsHeightOwner();
+    if (owner === null) return;
     document
       .getElementById("commitDetailsResizeHandle")
-      ?.setAttribute(
-        "aria-valuenow",
-        clampCommitDetailsHeight(this.expandedCommit.detailsHeight).toString()
-      );
+      ?.setAttribute("aria-valuenow", clampCommitDetailsHeight(owner.detailsHeight).toString());
   }
 
   private setCommitDetailsHeight(height: number, save = true) {
-    if (this.expandedCommit === null) return;
-    this.expandedCommit.detailsHeight = clampCommitDetailsHeight(height);
+    const owner = this.detailsHeightOwner();
+    if (owner === null) return;
+    owner.detailsHeight = clampCommitDetailsHeight(height);
     const elem = document.getElementById("commitDetails");
     if (elem !== null) this.applyCommitDetailsHeight(elem);
     if (save) this.saveState();
@@ -5741,9 +5787,10 @@ class GitGraphView {
   }
 
   private startCommitDetailsResize(event: MouseEvent) {
-    if (event.button !== 0 || this.expandedCommit === null) return;
+    const owner = this.detailsHeightOwner();
+    if (event.button !== 0 || owner === null) return;
     const startY = event.clientY;
-    const startHeight = clampCommitDetailsHeight(this.expandedCommit.detailsHeight);
+    const startHeight = clampCommitDetailsHeight(owner.detailsHeight);
     const resize = (moveEvent: MouseEvent) => {
       moveEvent.preventDefault();
       this.setCommitDetailsHeight(startHeight + moveEvent.clientY - startY, false);
@@ -5751,7 +5798,7 @@ class GitGraphView {
     const stop = () => {
       document.body.classList.remove("commitDetailsResizing");
       document.removeEventListener("mousemove", resize);
-      if (this.expandedCommit !== null) this.saveState();
+      if (this.detailsHeightOwner() !== null) this.saveState();
     };
 
     event.preventDefault();
@@ -5761,8 +5808,9 @@ class GitGraphView {
   }
 
   private resizeCommitDetailsFromKeyboard(event: KeyboardEvent) {
-    if (this.expandedCommit === null) return;
-    const currentHeight = clampCommitDetailsHeight(this.expandedCommit.detailsHeight);
+    const owner = this.detailsHeightOwner();
+    if (owner === null) return;
+    const currentHeight = clampCommitDetailsHeight(owner.detailsHeight);
     let nextHeight: number;
     switch (event.key) {
       case "ArrowDown":

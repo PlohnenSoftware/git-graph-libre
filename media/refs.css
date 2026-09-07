@@ -79,7 +79,7 @@
    signature distinction, and the border stays signed-green. */
 .gitRef.tag.signed {
   border-color: var(--ngg-neutral-border-heavy);
-  background-color: color-mix(in srgb, var(--ngg-signed-ref) 12%, var(--ngg-transparent));
+  background-color: color-mix(in oklab, var(--ngg-signed-ref) 12%, var(--ngg-transparent));
 }
 /* On a signed tag the verified badge sits flush against the tag icon, so the
    two backgrounds meet with no gap; the badge then keeps its own right margin

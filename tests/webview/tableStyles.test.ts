@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { readDropdownCss, readWebviewCss } from "./utils/webviewCss";
 
@@ -235,8 +237,9 @@ describe("commit table styles", () => {
     expect(css.match(/^\.uncommittedFile \{[^}]+\}/m)?.[0] ?? "").toContain("cursor: grab;");
     expect(css).toContain(".uncommittedStatus {");
     expect(css).toContain(".uncommittedEmpty {");
-    // The drop highlight reuses the focus ring token, not a new solid color.
-    const dropTarget = css.match(/^\.uncommittedPaneBody\.dropTarget,[^{]+\{[^}]+\}/m)?.[0] ?? "";
+    // The drop highlight reuses the focus ring token, not a new solid color,
+    // and paints the whole pane container, not just the file list.
+    const dropTarget = css.match(/^\.uncommittedPane\.dropTarget \{[^}]+\}/m)?.[0] ?? "";
     expect(dropTarget).toContain("var(--vscode-focusBorder)");
     expect(dropTarget).toContain("outline: 1px dashed");
     // Pane rows stay draggable list items with per-file stage buttons.
@@ -249,5 +252,16 @@ describe("commit table styles", () => {
     expect(webviewCss).not.toMatch(/hsla?\(/);
     expect(webviewCss).not.toMatch(/#[0-9a-fA-F]{3,8}/);
     expect(webviewCss).not.toMatch(/(?<!-)\btransparent\b/);
+    // Tints interpolate in a perceptual space so saturated hues stay exact.
+    expect(webviewCss).not.toMatch(/color-mix\(\s*in srgb/);
+  });
+
+  it("keeps the uncommitted identity token equal to the graph's muted color", () => {
+    const token = css.match(/--ngg-uncommitted:\s*([^;]+);/)?.[1]?.trim();
+    const graph = readFileSync(join(process.cwd(), "src/webview/graph.ts"), "utf8");
+    const muted = graph.match(/MUTED_GRAPH_COLOR\s*=\s*"([^"]+)"/)?.[1];
+    expect(token).toBeDefined();
+    expect(muted).toBeDefined();
+    expect(token).toBe(muted);
   });
 });

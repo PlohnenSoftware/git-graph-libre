@@ -3,6 +3,10 @@
 :root {
   --ngg-transparent: oklch(0% 0 0 / 0);
   --ngg-neutral-icon: oklch(60% 0 0);
+  /* Uncommitted-changes identity. Mirrors MUTED_GRAPH_COLOR in
+     src/webview/graph.ts; kept as its own token because the two meanings
+     will drift even though the values match today. */
+  --ngg-uncommitted: oklch(60% 0 0);
   --ngg-neutral-overlay-subtle: oklch(60% 0 0 / 0.1);
   --ngg-neutral-overlay-muted: oklch(60% 0 0 / 0.15);
   --ngg-neutral-overlay-medium: oklch(60% 0 0 / 0.2);

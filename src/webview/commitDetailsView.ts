@@ -254,7 +254,10 @@ function renderGitFolderHeader(folder: GitFolder): string {
   ].join("");
 }
 
-function renderCommitDetailsResizeHandle(l10n: LocalizedStrings, detailsHeight: number): string {
+export function renderCommitDetailsResizeHandle(
+  l10n: LocalizedStrings,
+  detailsHeight: number
+): string {
   return [
     '<div id="commitDetailsResizeHandle" role="separator" tabindex="0"',
     ' aria-orientation="horizontal"',
