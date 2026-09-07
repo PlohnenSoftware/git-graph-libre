@@ -658,13 +658,16 @@ export function registerMessageHandlers(
   });
 
   bridge.onMessage("uncommittedDetails", async (msg) => {
-    bridge.post({
-      command: "uncommittedDetails",
-      ...(await uncommittedDetails(gitClient.getInstance(), {
-        repo: msg.repo,
-        recordGitCommand
-      }))
+    const details = await uncommittedDetails(gitClient.getInstance(), {
+      repo: msg.repo,
+      recordGitCommand
     });
+    // The staging panel is a shown feature with no command behind it, so the
+    // action chokepoint above cannot see it. Recorded here, after the query
+    // produced the panel's data — and the fixed id only, never `msg`, which
+    // carries the repository path.
+    viewFeatures.recordUncommittedDetailsOpened();
+    bridge.post({ command: "uncommittedDetails", ...details });
   });
 
   bridge.onMessage("commitComparison", async (msg) => {

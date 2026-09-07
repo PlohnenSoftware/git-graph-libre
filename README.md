@@ -102,9 +102,10 @@ third-party analytics provider.
 - Once per session: whether a feature that works by *showing* something was
   actually in effect — recovered history (reflog-only or unreachable commits)
   appearing in the graph, a signed tag being there to badge, a discovered Git
-  submodule appearing in the repository dropdown, or the graph actually being
-  opened on one. These are recorded once, not once per refresh, and each is a
-  yes/no about the feature: the repository paths behind the submodule answers
+  submodule appearing in the repository dropdown, the graph actually being
+  opened on one, or the uncommitted-changes staging panel being opened. These
+  are recorded once, not once per refresh, and each is a yes/no about the
+  feature: the repository paths behind the submodule answers
   are compared inside the extension and never leave it, so nothing is sent
   about which repositories or submodules you have.
 - Once per session: the language Visual Studio Code is running in and which of
