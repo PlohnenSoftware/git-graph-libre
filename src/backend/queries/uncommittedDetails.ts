@@ -11,6 +11,13 @@ type UncommittedDetailsInput = {
 };
 
 /**
+ * The `XY` pairs that mean a conflict rather than a staged change. Git uses
+ * `U` on either side for most of them, but `AA` and `DD` carry no `U` at all,
+ * so the pair has to be matched as a whole.
+ */
+const UNMERGED_PAIRS = new Set(["UU", "AA", "DD", "AU", "UA", "DU", "UD"]);
+
+/**
  * Split `git status --porcelain=v1 -z` output into staged and unstaged files.
  *
  * Each entry is `XY PATH` NUL-terminated, except renames and copies which
@@ -18,8 +25,11 @@ type UncommittedDetailsInput = {
  * (`R  new\0old\0`). A file with both a staged and an unstaged change (e.g.
  * `MM`) appears in both lists. Unmerged entries (`UU`, `AA`, `DD`, `AU`,
  * `UA`, `DU`, `UD`) are listed as unstaged only.
+ *
+ * `-z` is what makes this parseable at all: paths arrive verbatim, so a name
+ * containing a space, a quote, or a newline needs no unquoting and cannot
+ * split one entry into two.
  */
-const UNMERGED_PAIRS = new Set(["UU", "AA", "DD", "AU", "UA", "DU", "UD"]);
 export function parseStatusEntries(stdout: string): GitUncommittedChanges {
   const staged: GitUncommittedFile[] = [];
   const unstaged: GitUncommittedFile[] = [];
@@ -58,6 +68,14 @@ export function parseStatusEntries(stdout: string): GitUncommittedChanges {
   return { staged, unstaged };
 }
 
+/**
+ * Read the staged and unstaged file lists behind the uncommitted-changes row.
+ *
+ * `--untracked-files=normal` deliberately keeps git's directory collapsing: a
+ * wholly untracked folder arrives as one `sub/` entry instead of one row per
+ * file, and staging that row stages the folder. `all` would flatten a fresh
+ * source tree into hundreds of rows for no extra choice.
+ */
 export async function uncommittedDetails(
   git: SimpleGit,
   input: UncommittedDetailsInput
