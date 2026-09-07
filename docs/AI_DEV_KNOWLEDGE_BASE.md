@@ -1077,7 +1077,7 @@ Acceptance:
 
 ### Phase 10: Advanced History, Text, and Integrations
 
-**Status: partially complete** — issue linking, repo config export/import sharing (`7a18099`), ref archives (`b4d97fe`), commit signature status, and tag signature status (Phase 15, `2026-07-29`) are done. Remaining: markdown/emoji message rendering, inline commit body, `.mailmap` support, code-review state, file encoding setting, and an uncommitted-changes details view.
+**Status: partially complete** — issue linking, repo config export/import sharing (`7a18099`), ref archives (`b4d97fe`), commit signature status, and tag signature status (Phase 15, `2026-07-29`) are done. Remaining: markdown/emoji message rendering, inline commit body, `.mailmap` support, code-review state, and file encoding setting. The uncommitted-changes details view landed as the staged/unstaged drag-drop staging panel (`2026-09-07`, unreleased).
 
 Goal: close feature gaps after the core UX is strong.
 

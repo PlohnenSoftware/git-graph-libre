@@ -76,6 +76,22 @@ export type GitFileChange = {
   deletions: number | null;
 };
 
+export type GitUncommittedFile = {
+  /** Repository-relative worktree path shown in the staged/unstaged lists. */
+  path: string;
+  /** Pre-rename path when the index entry is a rename or copy, otherwise null. */
+  oldPath: string | null;
+  /** Index (staged) status letter, or null when the file has no staged change. */
+  stagedKind: string | null;
+  /** Worktree (unstaged) status letter, or null when the file has no unstaged change. */
+  unstagedKind: string | null;
+};
+
+export type GitUncommittedChanges = {
+  staged: GitUncommittedFile[];
+  unstaged: GitUncommittedFile[];
+};
+
 export type GitCommitDetails = {
   hash: string;
   parents: string[];

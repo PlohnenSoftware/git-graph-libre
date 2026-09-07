@@ -3,7 +3,8 @@ import type {
   GitCommitNode,
   GitCommitSearchResult,
   GitRepoInfo,
-  GitTagDetails
+  GitTagDetails,
+  GitUncommittedChanges
 } from "./git.types";
 
 export const COMMIT_ORDERINGS = ["date", "author-date", "topo"] as const;
@@ -50,6 +51,11 @@ type SearchCommitsResult = {
 type TagDetailsResult = {
   tagName: string;
   tagDetails: GitTagDetails | null;
+  error: GitQueryError | null;
+};
+
+type UncommittedDetailsResult = {
+  changes: GitUncommittedChanges | null;
   error: GitQueryError | null;
 };
 
@@ -121,6 +127,11 @@ type QueryPayloads = {
     request: { repo: string; tagName: string };
     result: TagDetailsResult;
     response: TagDetailsResult;
+  };
+  uncommittedDetails: {
+    request: { repo: string };
+    result: UncommittedDetailsResult;
+    response: UncommittedDetailsResult;
   };
 };
 

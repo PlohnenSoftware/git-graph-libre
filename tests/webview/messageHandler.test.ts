@@ -391,6 +391,59 @@ describe("registerMessageHandlers", () => {
     expect(outputLines.some((line) => line.includes("tagDetails.info"))).toBe(true);
   });
 
+  it("routes uncommitted detail queries", async () => {
+    fs.writeFileSync(path.join(repo, "route-staged.txt"), "staged");
+    fs.writeFileSync(path.join(repo, "f"), "route unstaged change");
+    git(["add", "route-staged.txt"], repo);
+    const { handlers, posts, outputLines } = registerHandlersForTest();
+
+    const handler = handlers.get("uncommittedDetails");
+    expect(handler).toBeDefined();
+    await handler?.({ command: "uncommittedDetails", repo });
+
+    const posted = posts[posts.length - 1];
+    expect(posted).toMatchObject({ command: "uncommittedDetails", error: null });
+    if (!("changes" in posted) || posted.changes === null) {
+      throw new Error("Expected uncommitted changes");
+    }
+    expect(posted.changes.staged).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: "route-staged.txt" })])
+    );
+    expect(posted.changes.unstaged).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: "f" })])
+    );
+    expect(outputLines.some((line) => line.includes("uncommittedDetails.status"))).toBe(true);
+    git(["reset", "HEAD", "--", "route-staged.txt"], repo);
+    git(["checkout", "--", "f"], repo);
+    fs.rmSync(path.join(repo, "route-staged.txt"));
+  });
+
+  it("stages and unstages files through registered actions", async () => {
+    fs.writeFileSync(path.join(repo, "route-move.txt"), "move me");
+    const { handlers, posts } = registerHandlersForTest();
+
+    await handlers.get("stageFiles")?.({
+      command: "stageFiles",
+      repo,
+      filePaths: ["route-move.txt"]
+    });
+    expect(posts[posts.length - 1]).toMatchObject({ command: "stageFiles", status: null });
+    expect(
+      cp.execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: repo }).toString()
+    ).toContain("route-move.txt");
+
+    await handlers.get("unstageFiles")?.({
+      command: "unstageFiles",
+      repo,
+      filePaths: ["route-move.txt"]
+    });
+    expect(posts[posts.length - 1]).toMatchObject({ command: "unstageFiles", status: null });
+    expect(
+      cp.execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: repo }).toString()
+    ).not.toContain("route-move.txt");
+    fs.rmSync(path.join(repo, "route-move.txt"));
+  });
+
   it("pushes a tag to the selected remote and records the git command", async () => {
     const bare = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-push-bare-"));
     try {

@@ -113,6 +113,8 @@ type ActionPayloads = {
   updateBranchFromUpstream: { branchName: string; force: boolean };
   revertCommit: { commitHash: string; parentIndex: number };
   squashCommitSelection: { commitHashes: string[]; message: string; noVerify: boolean };
+  stageFiles: { filePaths: string[] };
+  unstageFiles: { filePaths: string[] };
   undoLastCommit: unknown;
 };
 

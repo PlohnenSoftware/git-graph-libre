@@ -388,3 +388,36 @@ body.commitDetailsResizing * {
   vertical-align: top;
   margin-top: 7px;
 }
+
+/* Uncommitted-changes panes: staged and unstaged file lists with drag-drop
+   staging. Items reuse the commit file-list layout; only the status badge,
+   the drag affordances, and the drop highlight are new. */
+.uncommittedFile {
+  cursor: grab;
+}
+.uncommittedFile.dragging {
+  opacity: 0.5;
+}
+.uncommittedStatus {
+  flex: 0 0 auto;
+  width: 2ch;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-weight: 600;
+  text-align: center;
+}
+.uncommittedEmpty {
+  padding: 6px 2px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-style: italic;
+  white-space: normal;
+}
+.uncommittedPaneBody.dropTarget,
+.uncommittedToggle.dropTarget {
+  outline: 1px dashed var(--vscode-focusBorder);
+  outline-offset: -1px;
+  background-color: color-mix(
+    in srgb,
+    var(--vscode-focusBorder) 12%,
+    var(--ngg-transparent)
+  );
+}

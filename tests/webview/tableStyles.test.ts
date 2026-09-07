@@ -230,6 +230,19 @@ describe("commit table styles", () => {
     expect(css.match(/^\.statusStrip \{[^}]+\}/m)?.[0] ?? "").toContain("cursor: default;");
   });
 
+  it("styles the staged and unstaged panes with drag affordances", () => {
+    expect(css).toContain(".uncommittedFile {");
+    expect(css.match(/^\.uncommittedFile \{[^}]+\}/m)?.[0] ?? "").toContain("cursor: grab;");
+    expect(css).toContain(".uncommittedStatus {");
+    expect(css).toContain(".uncommittedEmpty {");
+    // The drop highlight reuses the focus ring token, not a new solid color.
+    const dropTarget = css.match(/^\.uncommittedPaneBody\.dropTarget,[^{]+\{[^}]+\}/m)?.[0] ?? "";
+    expect(dropTarget).toContain("var(--vscode-focusBorder)");
+    expect(dropTarget).toContain("outline: 1px dashed");
+    // Pane rows stay draggable list items with per-file stage buttons.
+    expect(css).toContain(".uncommittedFile.dragging {");
+  });
+
   it("uses OKLCH for owned CSS fallback colors", () => {
     expect(webviewCss).toContain("oklch(");
     expect(webviewCss).not.toMatch(/rgba?\(/);
