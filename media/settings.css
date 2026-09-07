@@ -1,0 +1,378 @@
+/* Repository and extension settings hub widget. */
+
+/* Repository Settings */
+#settingsWidgetBacking {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background-color: var(--ngg-backdrop);
+}
+#settingsWidgetBacking[hidden] {
+  display: none;
+}
+#settingsWidget {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  z-index: 301;
+  box-sizing: border-box;
+  width: min(1280px, calc(100vw - 32px));
+  height: min(760px, calc(100vh - 32px));
+  max-height: none;
+  overflow: auto;
+  padding: 14px 16px 16px;
+  transform: translateX(-50%);
+  border: 1px solid var(--vscode-editorWidget-border, var(--ngg-neutral-border-strong));
+  border-radius: 8px;
+  background-color: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
+  color: var(--vscode-editor-foreground);
+  box-shadow: 0 8px 24px var(--vscode-widget-shadow);
+  font-size: 13px;
+}
+#settingsWidget[hidden] {
+  display: none;
+}
+#settingsWidget:focus {
+  outline: none;
+}
+.settingsWidgetHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 24px;
+  margin-bottom: 8px;
+}
+.settingsCloseButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--ngg-transparent);
+  border-radius: 4px;
+  background-color: var(--ngg-transparent);
+  color: var(--vscode-foreground);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.settingsCloseButton svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+.settingsCloseButton:hover {
+  background-color: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-medium));
+}
+.settingsCloseButton:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+.settingsWidgetHeader h2 {
+  margin: 0;
+  color: var(--vscode-foreground);
+  font-size: 14px;
+  font-weight: 600;
+}
+.settingsTabs {
+  display: flex;
+  gap: 2px;
+  margin: 0 -4px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+}
+.settingsTab {
+  min-width: 96px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-bottom: 2px solid var(--ngg-transparent);
+  background-color: var(--vscode-tab-inactiveBackground, var(--ngg-transparent));
+  color: var(--vscode-tab-inactiveForeground, var(--vscode-descriptionForeground));
+  cursor: pointer;
+  font: inherit;
+}
+.settingsTab[aria-selected="true"] {
+  border-bottom-color: var(--vscode-panelTitle-activeBorder, var(--vscode-focusBorder));
+  background-color: var(--vscode-tab-activeBackground, var(--ngg-neutral-overlay-subtle));
+  color: var(--vscode-tab-activeForeground, var(--vscode-foreground));
+}
+.settingsTab:hover {
+  background-color: var(--vscode-tab-hoverBackground, var(--ngg-neutral-overlay-muted));
+}
+.settingsTab:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -2px;
+}
+.settingsTabPanel[hidden] {
+  display: none;
+}
+.settingsSection {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+  gap: 0 12px;
+  border-top: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+}
+.settingsSection + .settingsSection {
+  margin-top: 10px;
+}
+.settingsSection h3 {
+  grid-row: 1 / span 12;
+  margin: 0;
+  padding: 8px 0;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-size: 12px;
+  font-weight: 600;
+}
+.settingsRow {
+  display: grid;
+  grid-template-columns: minmax(160px, 240px) minmax(0, 1fr);
+  align-items: center;
+  min-height: 32px;
+  gap: 10px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.settingsRow > span:first-child {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+.settingsNameCell,
+.settingsActions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.settingsValue {
+  display: inline-block;
+  max-width: min(460px, 48vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.settingsScope {
+  margin-left: 6px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-size: 12px;
+}
+.settingsOverrideSelect {
+  width: min(220px, 100%);
+  height: 26px;
+  border: 1px solid var(--vscode-dropdown-border, var(--ngg-neutral-border));
+  border-radius: 4px;
+  background-color: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+}
+.settingsOverrideSelect:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 0;
+}
+.settingsExtensionList {
+  align-items: start;
+}
+.settingsExtensionRow {
+  display: grid;
+  grid-column: 2;
+  grid-template-columns: minmax(220px, 360px) minmax(0, 1fr);
+  gap: 10px;
+  min-height: 36px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.settingsExtensionMeta,
+.settingsExtensionEditor {
+  min-width: 0;
+}
+.settingsDescription {
+  margin-top: 3px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-size: 12px;
+  line-height: 16px;
+}
+.settingsExtensionInput {
+  height: 26px;
+  box-sizing: border-box;
+  border: 1px solid var(--vscode-input-border, var(--ngg-neutral-border));
+  border-radius: 4px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font: inherit;
+}
+.settingsExtensionInput[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--vscode-button-background, var(--ngg-accent));
+}
+.settingsNumberInput {
+  width: 96px;
+  padding: 0 6px;
+}
+.settingsStringInput,
+.settingsEnumInput {
+  width: min(360px, 100%);
+  padding: 0 6px;
+}
+.settingsEnumInput {
+  background-color: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+}
+.settingsExtensionInput:focus,
+.settingsPaletteSlider:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 0;
+}
+.settingsJsonValue {
+  max-width: min(360px, 42vw);
+  font-family: var(--vscode-editor-font-family);
+}
+.settingsGraphColorsEditor {
+  display: grid;
+  gap: 8px;
+}
+.settingsColorStringEditor {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 6px;
+}
+.settingsColorGrid,
+.settingsColorPreview {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.settingsColorSwatch {
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  border-radius: 4px;
+  background-color: var(--settings-swatch);
+}
+.settingsColorPreview {
+  width: min(260px, 100%);
+  height: 32px;
+}
+.settingsColorPreview span {
+  position: relative;
+  width: 24px;
+  height: 20px;
+}
+.settingsColorPreview span:before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 0;
+  width: 2px;
+  height: 20px;
+  background-color: var(--settings-swatch);
+}
+.settingsColorPreview span:after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 7px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--settings-swatch);
+  box-shadow: 0 0 0 1px var(--vscode-editor-background);
+}
+.settingsPaletteSliderRow {
+  display: grid;
+  grid-template-columns: minmax(80px, 120px) minmax(140px, 260px);
+  align-items: center;
+  gap: 8px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+.settingsPaletteSlider {
+  width: 100%;
+}
+.settingsActions {
+  grid-column: 2;
+  min-height: 34px;
+}
+.settingsRowFull {
+  grid-column: 2;
+  min-height: 32px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+.settingsRemoteRow {
+  display: grid;
+  grid-column: 2;
+  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+  gap: 6px 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.settingsRemoteSummary,
+.settingsRemoteUrls {
+  min-width: 0;
+}
+.settingsRemoteSummary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.settingsRemoteUrls {
+  display: grid;
+  grid-template-columns: minmax(70px, 110px) minmax(0, 1fr);
+  gap: 4px 10px;
+}
+.settingsRemoteUrls > span:nth-child(2n + 1) {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+.settingsRemoteRow .settingsActions {
+  grid-column: 2;
+  min-height: 0;
+}
+.settingsTextButton {
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--vscode-button-border, var(--ngg-neutral-border));
+  border-radius: 4px;
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  cursor: pointer;
+  font: inherit;
+}
+.settingsTextButton:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+.settingsTextButton:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+.settingsTextButton.danger {
+  color: var(--vscode-errorForeground, var(--ngg-error));
+}
+
+@media (max-width: 720px) {
+  .settingsSection,
+  .settingsRow,
+  .settingsExtensionRow,
+  .settingsRemoteRow,
+  .settingsRemoteUrls {
+    grid-template-columns: 1fr;
+  }
+  .settingsSection h3,
+  .settingsActions,
+  .settingsExtensionRow,
+  .settingsRemoteRow,
+  .settingsRemoteRow .settingsActions,
+  .settingsRowFull {
+    grid-column: 1;
+  }
+  .settingsRow {
+    align-items: start;
+    gap: 4px;
+    padding: 6px 0;
+  }
+  .settingsValue {
+    max-width: 100%;
+  }
+}

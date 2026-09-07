@@ -1,12 +1,10 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import type * as GGL from "@/types";
 
 import { createVscodeMock, setupHtml } from "./setup";
+import { readWebviewCss } from "./utils/webviewCss";
 
 /**
  * The language switcher behind a double right-click on the version.
@@ -144,7 +142,7 @@ describe("hidden menu", () => {
 });
 
 describe("hidden menu styles", () => {
-  const css = readFileSync(join(process.cwd(), "media/main.css"), "utf8");
+  const css = readWebviewCss();
 
   it("styles the header as presentational chrome", () => {
     const header = css.match(/^\.contextMenuHeader \{[^}]+\}/m)?.[0] ?? "";

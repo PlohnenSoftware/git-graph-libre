@@ -1,9 +1,8 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { readDropdownCss, readWebviewCss } from "./utils/webviewCss";
 
-const css = readFileSync(join(process.cwd(), "media/main.css"), "utf8");
-const dropdownCss = readFileSync(join(process.cwd(), "media/dropdown.css"), "utf8");
+const css = readWebviewCss();
+const dropdownCss = readDropdownCss();
 
 function ruleFor(source: string, selector: string): string {
   const escaped = selector.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");

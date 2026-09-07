@@ -1,0 +1,201 @@
+/* Commit graph canvas and commit table, with sticky headers. */
+
+/* Commit Graph */
+#commitGraph {
+  display: block;
+  position: absolute;
+  left: 8px;
+  top: 0px;
+  z-index: 5;
+  pointer-events: none;
+}
+#commitGraph circle.current,
+#commitGraph rect.current {
+  fill: var(--vscode-editor-background);
+  stroke-width: 2;
+}
+#commitGraph circle:not(.current),
+#commitGraph rect:not(.current) {
+  stroke: var(--vscode-editor-background);
+  stroke-width: 1;
+  stroke-opacity: 0.75;
+}
+#commitGraph path.shaddow {
+  fill: none;
+  stroke: var(--vscode-editor-background);
+  stroke-opacity: 0.75;
+  stroke-width: 4;
+}
+#commitGraph path.line {
+  fill: none;
+  stroke-width: 2;
+}
+
+/* Commit Table */
+#commitTable table {
+  width: 100%;
+  border-collapse: collapse;
+}
+#commitTable table,
+#commitTable tbody,
+#commitTable tr,
+#commitTable th,
+#commitTable td {
+  padding: 0;
+  margin: 0;
+}
+#commitTable th,
+#commitTable td {
+  white-space: nowrap;
+  font-size: var(--git-graph-font-size, 13px);
+  cursor: default;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+#commitTable tr.commit:hover td,
+#commitTable tr.commit:focus-visible td,
+#commitTable tr.commit.contextMenuActive td,
+#commitTable tr.commit.dialogActive td,
+#commitTable tr.commit.commitDetailsOpen td,
+#commitTable tr.unsavedChanges:hover td,
+#commitTable tr.unsavedChanges:focus-visible td,
+#commitTable tr.unsavedChanges.contextMenuActive td,
+#commitTable tr.unsavedChanges.dialogActive td {
+  background-color: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-muted));
+}
+#commitTable tr.commit:hover td,
+#commitTable tr.unsavedChanges:hover td {
+  cursor: pointer;
+}
+#commitTable tr.commit:focus-visible,
+#commitTable tr.unsavedChanges:focus-visible {
+  outline: none;
+}
+#commitTable tr.commit:focus-visible td,
+#commitTable tr.unsavedChanges:focus-visible td {
+  box-shadow: inset 0 1px 0 var(--vscode-focusBorder), inset 0 -1px 0 var(--vscode-focusBorder);
+}
+#commitTable tr.commit:focus-visible td:first-child,
+#commitTable tr.unsavedChanges:focus-visible td:first-child {
+  box-shadow:
+    inset 1px 0 0 var(--vscode-focusBorder),
+    inset 0 1px 0 var(--vscode-focusBorder),
+    inset 0 -1px 0 var(--vscode-focusBorder);
+}
+#commitTable tr.commit:focus-visible td:last-child,
+#commitTable tr.unsavedChanges:focus-visible td:last-child {
+  box-shadow:
+    inset -1px 0 0 var(--vscode-focusBorder),
+    inset 0 1px 0 var(--vscode-focusBorder),
+    inset 0 -1px 0 var(--vscode-focusBorder);
+}
+#commitTable td {
+  line-height: var(--git-graph-row-height, 24px);
+  padding: 0 4px;
+}
+#commitTable th {
+  position: sticky;
+  top: var(--ngg-sticky-top, 0px);
+  z-index: 10;
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-descriptionForeground);
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-strong));
+  line-height: 18px;
+  padding: 6px 12px;
+  box-shadow: 0 1px 0 var(--vscode-scrollbar-shadow, var(--ngg-neutral-overlay-medium));
+}
+#commitTable tr.commit,
+#commitTable tr.unsavedChanges {
+  /* Keep rows revealed by find/locate clear of the sticky top bar + headers */
+  scroll-margin-top: calc(var(--ngg-sticky-top, 0px) + 40px);
+  scroll-margin-bottom: 40px;
+}
+
+#commitTable.fixedLayout table {
+  table-layout: fixed;
+}
+#commitTable.hideDateCol th:nth-child(3),
+#commitTable.hideDateCol tr:not(#commitDetails) > td:nth-child(3),
+#commitTable.hideAuthorCol th:nth-child(4),
+#commitTable.hideAuthorCol tr:not(#commitDetails) > td:nth-child(4),
+#commitTable.hideCommitCol th:nth-child(5),
+#commitTable.hideCommitCol tr:not(#commitDetails) > td:nth-child(5),
+#commitTable.hideSignatureCol th:nth-child(6),
+#commitTable.hideSignatureCol tr:not(#commitDetails) > td:nth-child(6) {
+  display: none;
+}
+#commitTable.autoLayout td:nth-child(2),
+#commitTable.autoLayout th:nth-child(2) {
+  width: 100%;
+  max-width: 0;
+}
+#commitTable.autoLayout td:nth-child(4),
+#commitTable.autoLayout th:nth-child(4) {
+  max-width: 124px;
+}
+#commitTable.autoLayout .signatureCol {
+  width: 64px;
+  max-width: 64px;
+}
+.signatureCol {
+  text-align: center;
+}
+.commitSignature {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+.commitSignature-valid {
+  color: var(--vscode-editor-background);
+  background: var(--ngg-signed-ref);
+}
+.commitSignature-valid > svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+.commitSignature-warning {
+  color: var(--vscode-editorWarning-foreground, var(--vscode-charts-yellow, oklch(78% 0.15 85)));
+  background: color-mix(in srgb, currentColor 14%, var(--ngg-transparent));
+}
+.commitSignature-invalid {
+  color: var(--vscode-testing-iconFailed, var(--vscode-errorForeground, var(--ngg-error)));
+  background: color-mix(in srgb, currentColor 14%, var(--ngg-transparent));
+}
+.commitSignature-unknown {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  border: 1px solid currentColor;
+}
+.commitSignature-unsigned,
+.commitSignature-pending {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-weight: 500;
+}
+#tableColHeaders.resizing th {
+  cursor: col-resize;
+}
+.tableColHeader {
+  position: relative;
+}
+.resizeCol {
+  position: absolute;
+  top: 0px;
+  height: 100%;
+  display: block;
+  width: 6px;
+  cursor: col-resize;
+}
+.resizeCol.left {
+  left: 0px;
+  border-left: 1px solid var(--ngg-neutral-border-medium);
+}
+.resizeCol.right {
+  right: 0px;
+}
