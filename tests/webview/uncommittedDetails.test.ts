@@ -224,7 +224,7 @@ describe("uncommitted details", () => {
 
     const sentBefore = vscodeMock.sentMessages.length;
     dropOnto(unstagedBody as Element, "unstaged work.txt", "unstaged");
-    expect(vscodeMock.sentMessages.length).toBe(sentBefore);
+    expect(vscodeMock.sentMessages).toHaveLength(sentBefore);
   });
 
   it("unstages through the row button without dragging", () => {
