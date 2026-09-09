@@ -87,13 +87,32 @@ describe("dialog styles", () => {
     }
     expect(css).toContain("appearance: none;");
     expect(css).toContain("border-radius: 3px;");
-    expect(css).toContain("background-color: var(--ngg-neutral-overlay-subtle);");
-    expect(css).toContain("border: 1px solid var(--ngg-neutral-border-strong);");
+    // The resting box leads with VS Code's own checkbox tokens so it matches
+    // native controls, and falls back to the repo's OKLCH neutrals.
+    expect(css).toContain(
+      "background-color: var(--vscode-checkbox-background, var(--ngg-neutral-overlay-subtle));"
+    );
+    expect(css).toContain(
+      "border: 1px solid var(--vscode-checkbox-border, var(--ngg-neutral-border-strong));"
+    );
     expect(css).not.toContain("accent-color");
-    // Checked fill, border tick, hover, focus ring, and disabled dimming.
-    expect(css).toContain("border-width: 0 2px 2px 0;");
-    expect(css).toContain("border: solid currentColor;");
+    // A set box is accent-filled — without this rule a ticked checkbox keeps
+    // the resting grey and only the tick distinguishes it.
+    expect(css).toContain("background-color: var(--vscode-button-background, var(--ngg-accent));");
+    // The tick is a clipped shape, not a rotated border: one rule scales to
+    // every box size, so no per-site tick metrics exist to drift.
+    expect(css).toContain(
+      "clip-path: polygon(41% 79%, 11% 51%, 20% 41%, 41% 61%, 80% 20%, 89% 30%);"
+    );
+    expect(css).not.toContain("border-width: 0 2px 2px 0;");
+    expect(css).not.toContain("transform: rotate(45deg);");
+    // Mixed state, hover feedback, focus ring, and disabled dimming.
+    expect(css).toContain(":indeterminate::after");
+    expect(css).toContain(
+      "background-color: var(--vscode-button-hoverBackground, var(--ngg-accent));"
+    );
     expect(css).toContain("outline: 1px solid var(--vscode-focusBorder);");
+    expect(css).toContain("outline-offset: 2px;");
     // High-contrast and reduced-motion counterparts travel with the pattern.
     expect(css).toContain("@media (forced-colors: active)");
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");

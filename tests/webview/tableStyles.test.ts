@@ -199,14 +199,17 @@ describe("commit table styles", () => {
       expect(css).toContain(site);
     }
     // The shared box is 16px; the toolbar checkbox keeps its compact 14px
-    // size with a smaller tick in its own override rules.
+    // size. Its tick needs no override — the clip-path is in percentages, so
+    // it scales with the box.
     const toolbarBlocks = [...css.matchAll(/#showRemoteBranchesCheckbox \{[^}]+\}/g)].map(
       (match) => match[0]
     );
     expect(toolbarBlocks.some((block) => block.includes("width: 14px;"))).toBe(true);
-    expect(css).toContain("#showRemoteBranchesCheckbox:checked::after {");
-    // Checked fill, border tick, hover, focus ring, and disabled dimming.
-    expect(css).toContain("border-width: 0 2px 2px 0;");
+    expect(css).toContain("#showRemoteBranchesCheckbox:checked::after,");
+    // No per-site tick metrics: the compact box must not carry its own
+    // position/size block, or the two sites can drift apart again.
+    const tickOverride = /#showRemoteBranchesCheckbox:checked::after \{[^}]*(?:left|width):/;
+    expect(tickOverride.test(css)).toBe(false);
     expect(css).toContain("outline: 1px solid var(--vscode-focusBorder);");
     expect(css).not.toContain("accent-color");
   });

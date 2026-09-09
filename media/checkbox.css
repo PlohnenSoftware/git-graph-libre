@@ -1,7 +1,14 @@
-/* Native checkboxes, drawn by the extension. One shared rule set covers every
-   checkbox in the webview (dialog forms, the settings hub, the toolbar), so
-   the box, tick, and states stay identical everywhere. Only per-site metrics
-   (size, alignment) live in their own rules below. */
+/* Native checkboxes, repainted by the extension. One shared rule set covers
+   every checkbox in the webview (dialog forms, the settings hub, the toolbar),
+   so the box, tick, and states stay identical everywhere. Only the box size
+   varies per site; the tick is drawn from a percentage clip-path, so it scales
+   with whatever size the box is given and needs no per-site override.
+
+   The resting box takes VS Code's own checkbox tokens so it sits beside native
+   controls without looking foreign, while the checked box takes the button
+   accent — a set box has to be legible at a glance in every theme, and
+   `checkbox.selectBackground` is the same flat grey as the resting state in
+   many of them. */
 
 #dialog table.dialogForm input[type="checkbox"],
 .settingsExtensionInput[type="checkbox"],
@@ -13,9 +20,8 @@
   width: 16px;
   height: 16px;
   padding: 0;
-  background-color: var(--ngg-neutral-overlay-subtle);
-  border: 1px solid var(--ngg-neutral-border-strong);
-  color: inherit;
+  background-color: var(--vscode-checkbox-background, var(--ngg-neutral-overlay-subtle));
+  border: 1px solid var(--vscode-checkbox-border, var(--ngg-neutral-border-strong));
   border-radius: 3px;
   cursor: pointer;
   transition: background-color 120ms ease-in-out, border-color 120ms ease-in-out;
@@ -26,41 +32,67 @@
   outline-style: none;
   margin: 0 6px 0 0;
 }
-/* The toolbar checkbox stays at its compact 14px size with a smaller tick. */
+/* The toolbar checkbox stays at its compact size; the tick follows it. */
 #showRemoteBranchesCheckbox {
   width: 14px;
   height: 14px;
   vertical-align: text-top;
 }
+
+/* Checked and mixed both read as "set": accent fill, matching border. */
+#dialog table.dialogForm input[type="checkbox"]:checked,
+#dialog table.dialogForm input[type="checkbox"]:indeterminate,
+.settingsExtensionInput[type="checkbox"]:checked,
+.settingsExtensionInput[type="checkbox"]:indeterminate,
+#showRemoteBranchesCheckbox:checked,
+#showRemoteBranchesCheckbox:indeterminate {
+  background-color: var(--vscode-button-background, var(--ngg-accent));
+  border-color: var(--vscode-button-background, var(--ngg-accent));
+}
+
+/* The tick is one filled shape clipped to a check outline. Percentage points
+   keep it centered and proportional at any box size, and the mitred corner
+   stays sharp where a rotated border leaves blunt ends. */
 #dialog table.dialogForm input[type="checkbox"]:checked::after,
 .settingsExtensionInput[type="checkbox"]:checked::after,
 #showRemoteBranchesCheckbox:checked::after {
   content: "";
   position: absolute;
-  left: 5px;
-  top: 2px;
-  width: 4px;
-  height: 8px;
-  border: solid currentColor;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+  inset: 0;
+  background-color: var(--vscode-button-foreground, var(--ngg-accent-foreground));
+  clip-path: polygon(41% 79%, 11% 51%, 20% 41%, 41% 61%, 80% 20%, 89% 30%);
 }
-#showRemoteBranchesCheckbox:checked::after {
-  left: 4px;
-  top: 1px;
-  width: 3px;
-  height: 7px;
+/* A mixed checkbox gets a centered bar rather than a tick. */
+#dialog table.dialogForm input[type="checkbox"]:indeterminate::after,
+.settingsExtensionInput[type="checkbox"]:indeterminate::after,
+#showRemoteBranchesCheckbox:indeterminate::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--vscode-button-foreground, var(--ngg-accent-foreground));
+  clip-path: polygon(24% 44%, 76% 44%, 76% 56%, 24% 56%);
 }
-#dialog table.dialogForm input[type="checkbox"]:hover,
-.settingsExtensionInput[type="checkbox"]:hover,
-#showRemoteBranchesCheckbox:hover {
-  background-color: var(--ngg-neutral-overlay-medium);
+
+/* Hover: an unset box firms up its border, a set one takes the button's own
+   hover fill, so both directions give feedback without shifting layout. */
+#dialog table.dialogForm input[type="checkbox"]:hover:not(:disabled),
+.settingsExtensionInput[type="checkbox"]:hover:not(:disabled),
+#showRemoteBranchesCheckbox:hover:not(:disabled) {
+  border-color: var(--vscode-focusBorder, var(--ngg-accent));
+}
+#dialog table.dialogForm input[type="checkbox"]:checked:hover:not(:disabled),
+#dialog table.dialogForm input[type="checkbox"]:indeterminate:hover:not(:disabled),
+.settingsExtensionInput[type="checkbox"]:checked:hover:not(:disabled),
+.settingsExtensionInput[type="checkbox"]:indeterminate:hover:not(:disabled),
+#showRemoteBranchesCheckbox:checked:hover:not(:disabled),
+#showRemoteBranchesCheckbox:indeterminate:hover:not(:disabled) {
+  background-color: var(--vscode-button-hoverBackground, var(--ngg-accent));
 }
 #dialog table.dialogForm input[type="checkbox"]:focus-visible,
 .settingsExtensionInput[type="checkbox"]:focus-visible,
 #showRemoteBranchesCheckbox:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 #dialog table.dialogForm input[type="checkbox"]:disabled,
 .settingsExtensionInput[type="checkbox"]:disabled,
@@ -68,6 +100,9 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* High contrast: hand the box back to the system palette, since theme tokens
+   are not guaranteed to survive forced colors. */
 @media (forced-colors: active) {
   #dialog table.dialogForm input[type="checkbox"],
   .settingsExtensionInput[type="checkbox"],
@@ -76,15 +111,21 @@
     background-color: ButtonFace;
   }
   #dialog table.dialogForm input[type="checkbox"]:checked,
+  #dialog table.dialogForm input[type="checkbox"]:indeterminate,
   .settingsExtensionInput[type="checkbox"]:checked,
-  #showRemoteBranchesCheckbox:checked {
+  .settingsExtensionInput[type="checkbox"]:indeterminate,
+  #showRemoteBranchesCheckbox:checked,
+  #showRemoteBranchesCheckbox:indeterminate {
     background-color: Highlight;
     border-color: Highlight;
   }
   #dialog table.dialogForm input[type="checkbox"]:checked::after,
+  #dialog table.dialogForm input[type="checkbox"]:indeterminate::after,
   .settingsExtensionInput[type="checkbox"]:checked::after,
-  #showRemoteBranchesCheckbox:checked::after {
-    border-color: HighlightText;
+  .settingsExtensionInput[type="checkbox"]:indeterminate::after,
+  #showRemoteBranchesCheckbox:checked::after,
+  #showRemoteBranchesCheckbox:indeterminate::after {
+    background-color: HighlightText;
   }
 }
 @media (prefers-reduced-motion: reduce) {
