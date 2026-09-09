@@ -313,7 +313,7 @@ class Vertex {
       const ring = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       ring.setAttribute("cx", cx.toString());
       ring.setAttribute("cy", cy.toString());
-      ring.setAttribute("r", (NODE_RADIUS + 1).toString());
+      ring.setAttribute("r", NODE_RADIUS.toString());
       ring.setAttribute("class", "stashRing");
       ring.setAttribute("fill", "none");
       ring.setAttribute("stroke", color);

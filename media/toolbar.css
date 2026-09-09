@@ -241,10 +241,19 @@
   border-radius: 14px;
   line-height: 28px;
 }
+/* The stash list is a band inside #topBar, sitting between the status strip
+   and the toolbar. It is centered and capped like a panel rather than run
+   edge to edge, so a handful of stashes do not read as another toolbar row.
+   An empty #stashListSlot must collapse completely — it is measured into
+   --ngg-sticky-top, so any residual padding would push the sticky table
+   header down by that much. */
+#stashListSlot:empty {
+  display: none;
+}
 #stashList {
   box-sizing: border-box;
   max-width: min(920px, calc(100vw - 24px));
-  margin: 10px auto 4px;
+  margin: 4px auto 8px;
   border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
   border-radius: 5px;
   background-color: var(--vscode-sideBar-background, var(--ngg-neutral-overlay-subtle));

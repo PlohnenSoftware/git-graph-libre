@@ -112,6 +112,7 @@ export function buildWebviewHtml(opts: {
     body = `<body style="${styleVars}">
 		<div id="topBar">
 		${buildWebviewStatusStrip(l10nStrings, extensionVersion)}
+		<div id="stashListSlot"></div>
 		${buildWebviewToolbar(l10nStrings)}
 		</div>
 		<div id="settingsWidgetBacking" hidden></div>

@@ -4645,24 +4645,32 @@ class GitGraphView {
     loadMoreCommitsBtn?.addEventListener("click", () => this.loadMoreCommits(loadMoreCommitsBtn));
   }
   private renderStashSection() {
-    // The stash list lives at the top of #content, immediately above the
-    // table, so it scrolls away with it. It stays out of #topBar on purpose:
-    // that element is measured into --ngg-sticky-top, and a variable-height
-    // section there would detach the sticky table header.
+    // The stash list mounts inside #topBar, between the status strip and the
+    // toolbar, so it stays put while the table scrolls.
+    //
+    // #topBar is measured into --ngg-sticky-top, which the sticky table
+    // header offsets itself by. A list that appears, disappears, or changes
+    // height therefore changes that offset, and the ResizeObserver on #topBar
+    // only reacts on a later frame — long enough for the header to visibly
+    // detach. Every path through here publishes the height synchronously
+    // instead, the same fix the find widget needed (Phase 12).
+    const slot = document.getElementById("stashListSlot");
+    if (slot === null) return;
     const stashHtml = this.renderStashList();
-    const existing = document.getElementById("stashList");
-    if (stashHtml === "") {
-      existing?.remove();
-      return;
-    }
-    if (existing !== null) {
-      existing.outerHTML = stashHtml;
-    } else {
-      this.tableElem.insertAdjacentHTML("beforebegin", stashHtml);
-    }
+    if (slot.innerHTML === stashHtml) return;
+
+    slot.innerHTML = stashHtml;
+    this.publishTopBarHeight();
+    if (stashHtml === "") return;
 
     this.registerStashContextMenuListener();
     this.registerStashActivationListeners();
+  }
+  private clearStashSection() {
+    const slot = document.getElementById("stashListSlot");
+    if (slot === null || slot.innerHTML === "") return;
+    slot.innerHTML = "";
+    this.publishTopBarHeight();
   }
   private renderStashList() {
     if (
@@ -4934,9 +4942,9 @@ class GitGraphView {
     setStatusStrip("loading", message);
     this.tableElem.innerHTML = `<h2 id="loadingHeader">${svgIcons.loading}${l10n.loading}</h2>`;
     this.footerElem.innerHTML = "";
-    // Clearing the footer no longer covers the stash list now that it lives
-    // above the table, so remove it explicitly while loading.
-    document.getElementById("stashList")?.remove();
+    // The stash list lives in #topBar, so clearing the table or footer does
+    // not remove it; clear its slot and republish the sticky offset.
+    this.clearStashSection();
   }
   private renderShowError(message: string, reason: string | null) {
     hideDialogAndContextMenu();
@@ -4949,9 +4957,8 @@ class GitGraphView {
         ? `<p class="errorReason">${escapeHtml(reason).replaceAll("\n", "<br>")}</p>`
         : "");
     this.footerElem.innerHTML = "";
-    // Clearing the footer no longer covers the stash list now that it lives
-    // above the table, so remove it explicitly on errors too.
-    document.getElementById("stashList")?.remove();
+    // Same as the loading path: the list is outside the table and footer.
+    this.clearStashSection();
   }
   private checkoutBranchAction(sourceElem: HTMLElement, refName: string) {
     if (sourceElem.classList.contains("head")) {

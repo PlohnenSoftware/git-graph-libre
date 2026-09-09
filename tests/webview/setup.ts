@@ -29,6 +29,7 @@ export function setupHtml(viewState: GGL.GitGraphViewState) {
   document.body.innerHTML = `
     <div id="topBar">
     ${buildWebviewStatusStrip(l10nStrings, "1.2.0")}
+    <div id="stashListSlot"></div>
     ${buildWebviewToolbar(l10nStrings)}
     </div>
     <div id="settingsWidgetBacking" hidden></div>

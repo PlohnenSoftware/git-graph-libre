@@ -117,10 +117,13 @@ describe("graph rendering", () => {
 
     // The base and root keep their plain dot and square; the stash draws an
     // unfilled ring in the lane color plus a smaller filled dot inside it.
-    // Both radii come from NODE_RADIUS (4): ring +1 = 5, dot -2 = 2.
+    // Both radii come from NODE_RADIUS (4): ring 4, dot -2 = 2. With the 2px
+    // band the ring's outer edge lands at 5, so the marker is only slightly
+    // wider than a commit dot and the dot fills the hole rather than
+    // floating in it.
     const ring = document.querySelector("#commitGraph g circle.stashRing");
     const dot = document.querySelector("#commitGraph g circle.stashDot");
-    expect(ring?.getAttribute("r")).toBe("5");
+    expect(ring?.getAttribute("r")).toBe("4");
     expect(ring?.getAttribute("fill")).toBe("none");
     expect(dot?.getAttribute("r")).toBe("2");
     expect(dot?.getAttribute("fill")).toBe("oklch(65% 0.16 250)");

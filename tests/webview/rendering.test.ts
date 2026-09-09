@@ -2234,12 +2234,17 @@ describe("webview rendering", () => {
     expect(document.querySelector(".stashRow")?.textContent).toContain("stash@{0}");
     expect(document.querySelector(".stashRow")?.textContent).toContain("WIP on main");
 
-    // The list sits at the top of #content, immediately above the table —
-    // never in the footer beside the load-more control.
+    // The list sits inside #topBar, between the status strip and the toolbar,
+    // so it stays put while the table scrolls — never in the footer beside
+    // the load-more control, and never inside #content.
     const stashList = document.getElementById("stashList");
-    expect(stashList?.parentElement?.id).toBe("content");
-    expect(stashList?.nextElementSibling?.id).toBe("commitTable");
+    const slot = stashList?.parentElement;
+    expect(slot?.id).toBe("stashListSlot");
+    expect(slot?.parentElement?.id).toBe("topBar");
+    expect(slot?.previousElementSibling?.id).toBe("statusStrip");
+    expect(slot?.nextElementSibling?.id).toBe("controls");
     expect(document.getElementById("footer")?.querySelector("#stashList")).toBeNull();
+    expect(document.getElementById("content")?.querySelector("#stashList")).toBeNull();
 
     openStashContextMenu();
     clickContextMenuItem("Copy Stash Hash");
@@ -2315,8 +2320,9 @@ describe("webview rendering", () => {
       error: null
     });
 
-    // A re-render rebuilds the section above the table with working listeners.
-    expect(document.getElementById("stashList")?.parentElement?.id).toBe("content");
+    // A re-render rebuilds the section in its top-bar slot, with working
+    // listeners (the context-menu assertions below exercise them).
+    expect(document.getElementById("stashList")?.parentElement?.id).toBe("stashListSlot");
     expect(document.getElementById("footer")?.querySelector("#stashList")).toBeNull();
     openStashContextMenu();
     clickContextMenuItem("Copy Stash Hash");

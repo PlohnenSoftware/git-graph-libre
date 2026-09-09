@@ -3273,23 +3273,30 @@ opens a new analysis epoch for this backlog.
 ## Graph and stash UI slices (`2026-09-09`)
 
 Maintainer-prioritized work, taken in slice order: checkbox appearance,
-remote sub-label restyle, stash-list move to the top of `#content`, then
+remote sub-label restyle, stash-list move out of the footer, then
 stashes as graph rows (closing Phase 7's remaining item). Two follow-ups
 landed on top: a per-repo choice of where stashes appear, and a
 create-branch checkout default. Behavioral write-ups were approved by the
 maintainer before code was written, with both the `#stashList` panel and the
 graph stash rows staying (neither surface replaces the other).
 
-**The stash-list placement was a settled decision, not a default.** The panel
-sits at the top of `#content`, above `#commitTable`, and scrolls with the
-table. `#topBar` was considered and rejected: it is measured by the
-`ResizeObserver` in `observeTopBarHeight()` and published as
-`--ngg-sticky-top`, which `media/table.css` consumes for the sticky header's
-`top` and for `scroll-margin-top`, so a variable-height list in there would
-have to re-publish that height synchronously on every show, hide, and
-stash-count change — the fix the find widget needed on `2026-07-03` (Phase
-12). The chosen placement leaves that machinery untouched; do not move the
-panel into `#topBar` without taking that cost on deliberately.
+**The stash-list placement moved twice; the second decision is the live one.**
+It sits inside `#topBar`, in a `#stashListSlot` between the status strip and
+the toolbar, so it stays put while the table scrolls. It was first put at the
+top of `#content` specifically to dodge the sticky-offset cost, and the
+maintainer rejected that: the list belongs with the window chrome, not
+floating above the table headers.
+
+That cost is now paid deliberately, and it is the thing to preserve.
+`#topBar` is measured by the `ResizeObserver` in `observeTopBarHeight()` and
+published as `--ngg-sticky-top`, which `media/table.css` consumes for the
+sticky header's `top` and for `scroll-margin-top`. The observer only reacts a
+frame later — long enough for the header to visibly detach — so
+`renderStashSection()` and `clearStashSection()` both call
+`publishTopBarHeight()` synchronously after touching the slot, the same fix
+the find widget needed on `2026-07-03` (Phase 12). `#stashListSlot:empty` is
+`display: none` for the same reason: residual padding in an empty slot would
+push the sticky header down by that much.
 
 ### Slice 1 — Checkbox appearance
 
@@ -3372,19 +3379,26 @@ end of this section (one gate over the completed six-commit tree).
 
 `renderStashFooter()` became `renderStashList()` (same section HTML, same
 `#stashList` id, `aria-label`, `.stashRow` markup, and `data-stash-ref` /
-`data-stash-hash`), and a new `renderStashSection()` inserts it as the first
-child of `#content` ahead of `#commitTable` (or replaces it in place, or
-removes it when empty). `renderLoadMoreFooter()` now renders only the
-load-more control; the loading and error paths clear the section explicitly
-since emptying the footer no longer covers it. The `showStashes` gating is
-unchanged (it flows through the loaded stash data). One adjacency the move
-required: `#commitGraph` is an overlay pinned at the content top while its
-dot math starts at the table header, so `renderGraph()` re-pins the canvas
-`top` to the table's `offsetTop` on every render — show/hide and count
-changes self-correct with no observer, and `--ngg-sticky-top` /
-`publishTopBarHeight()` are untouched. Rendering tests assert the new parent,
-the footer no longer containing the list, and listeners firing after a
-re-render; a CSS regression test pins the panel container rules.
+`data-stash-hash`), and `renderStashSection()` writes it into
+`#stashListSlot` inside `#topBar`, between the status strip and the toolbar.
+`renderLoadMoreFooter()` now renders only the load-more control; the loading
+and error paths call `clearStashSection()`, since the list is outside both
+the table and the footer and emptying either no longer covers it. The
+`showStashes` gating is unchanged (it flows through the loaded stash data).
+Both slot writers republish the sticky offset synchronously — see the
+placement note at the top of this section.
+
+One adjacency the move out of the footer required, and it still holds:
+`#commitGraph` is an overlay pinned at the content top while its dot math
+starts at the table header, so `renderGraph()` re-pins the canvas `top` to
+the table's `offsetTop` on every render, and show/hide and count changes
+self-correct with no observer. Rendering tests assert the slot, its two
+siblings in `#topBar`, that neither `#content` nor `#footer` contains the
+list, and listeners firing after a re-render.
+
+**The webview body markup is duplicated in `tests/webview/setup.ts`.** Adding
+`#stashListSlot` to `webviewHtml.ts` broke three tests until the fixture was
+updated to match. Any change to that body structure needs both.
 
 Verification: `pnpm run typecheck` clean; focused vitest (`rendering`,
 `tableStyles`: 99 passed); strict Biome over `src/webview/main.ts` and both
@@ -3409,12 +3423,14 @@ in that rule. **The class and the exemption must travel together.** The same
 trap applies to any future node that needs its own stroke color.
 
 The marker's proportions were then set from what survives at the default row
-height rather than by eye in isolation: ring radius `NODE_RADIUS + 1`, band
-`2`, dot radius `NODE_RADIUS - 2`. A `1.5` band was tried first and rejected
-— band, gap, and dot each landed on roughly one device pixel and smeared
-together. Candidates were rasterized at 1:1 and compared against a plain
-commit dot before choosing; do that rather than judging a 10px marker from a
-zoomed rendering.
+height rather than by eye in isolation: ring radius `NODE_RADIUS`, band `2`,
+dot radius `NODE_RADIUS - 2`, so the outer edge lands at 5 and the marker is
+only slightly wider than a commit dot. Two rejected attempts are worth
+knowing: a `1.5` band smeared band, gap, and dot into one shape (each landed
+on roughly one device pixel), and a `NODE_RADIUS + 1` ring left the dot
+floating in too large a hole. Candidates were rasterized at 1:1 and compared
+against a plain commit dot before choosing — a zoomed rendering flatters a
+10px marker and will mislead you.
 
 Closes Phase 7's remaining item (Phase 7 `Status:` and the overview table
 both move to Complete in this slice). Both stash surfaces stay on purpose:
@@ -3550,12 +3566,13 @@ tree. Nothing was pushed before it passed.
 - `pnpm run l10n:check`: `100%` bundle and package coverage for `nl`, `pl`,
   `zh-cn`, `zh-tw`.
 - `pnpm run test:coverage`: `108` files / `960` tests, raw LCOV line coverage
-  `93.0%` (`5,923`/`6,372`).
-- `pnpm run sonar:scan`, task `4a45bffb-9ab6-41ca-8144-d1d727974f0a`,
-  analysis `f8a5728b-0521-45a4-930f-413e905a39b1` (re-run after the
-  maintainer's design corrections; the first pass was task
-  `42fa24ac-a62a-4394-abe6-6eafa5f9e0b4`): `ZAM` gate **`OK`** on all
-  seven reported conditions — `new_coverage` `95.0`,
+  `93.0%` (`5,926`/`6,375`).
+- `pnpm run sonar:scan`, task `2fed9d8d-bc63-4fa6-ba61-7610d53aceb2`,
+  analysis `aca8e249-89a7-4e68-b231-312cbbc838c2` (third pass, after the
+  maintainer's design corrections; earlier passes were
+  `42fa24ac-a62a-4394-abe6-6eafa5f9e0b4` and
+  `4a45bffb-9ab6-41ca-8144-d1d727974f0a`): `ZAM` gate **`OK`** on all
+  seven reported conditions — `new_coverage` `94.9`,
   `new_duplicated_lines_density` `0.0`, `new_violations` `0`,
   `new_software_quality_high_issues` `0`,
   `software_quality_maintainability_rating` `1`, and project-wide reliability
