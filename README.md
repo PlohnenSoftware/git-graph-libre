@@ -27,7 +27,8 @@
 - **Stashes**: See stashes in a list above the graph, as rows beside the commit
   each was taken from, or both; apply, pop, drop, or branch from any of them
 - **Staging**: Click the uncommitted-changes row to stage and unstage files, or
-  whole folders, by dragging them between the staged and unstaged panes
+  whole folders, by dragging them between the staged and unstaged panes;
+  right-click the row to switch between the folder tree and a flat path list
 - **Avatar support**: Optional avatars from GitHub, GitLab, or Gravatar
 - **Multi-repo**: Work with multiple repositories and declared Git submodules in
   one workspace; reload the extension after changing `.gitmodules`
@@ -86,6 +87,7 @@ All settings use the `git-graph-libre` prefix.
 | `repository.includeUnreachableCommits`         | `false`         | Scan for unreachable commits in Show All         |
 | `repository.muteMergeCommits`                  | `false`         | Mute merge commit messages (opt-in)              |
 | `repository.stashDisplay`                      | `"both"`        | Show stashes in the `"table"`, the `"graph"`, or `"both"` |
+| `uncommittedChanges.fileViewMode`              | `"tree"`        | Staging panel shows changes as a `"tree"` or flat `"list"` |
 | `showCurrentBranchByDefault`                   | `false`         | Show only current branch on open                 |
 | `showStatusBarItem`                            | `true`          | Show status bar button                           |
 | `showUncommittedChanges`                       | `true`          | Show uncommitted changes node                    |

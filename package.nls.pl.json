@@ -101,5 +101,9 @@
   "config.telemetry.enabled.title": "Telemetria",
   "config.telemetry.enabled.unset": "Jeszcze nie zdecydowano. Nic nie jest wysyłane, a rozszerzenie zapyta.",
   "config.telemetry.enabled.enabled": "Wysyłaj anonimowe dane o używaniu funkcji.",
-  "config.telemetry.enabled.disabled": "Nie wysyłaj nic i przestań pytać."
+  "config.telemetry.enabled.disabled": "Nie wysyłaj nic i przestań pytać.",
+  "config.uncommittedChanges.fileViewMode": "Określa sposób wyświetlania niezatwierdzonych zmian w panelu przygotowania.",
+  "config.uncommittedChanges.fileViewMode.title": "Tryb widoku niezatwierdzonych zmian",
+  "config.uncommittedChanges.fileViewMode.tree": "Grupuj niezatwierdzone zmiany według folderów",
+  "config.uncommittedChanges.fileViewMode.list": "Pokaż niezatwierdzone zmiany jako płaską listę ścieżek"
 }

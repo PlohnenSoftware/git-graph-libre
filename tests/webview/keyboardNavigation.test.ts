@@ -20,6 +20,7 @@ const viewState: GGL.GitGraphViewState = {
   customBranchGlobPatterns: [],
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "tree",
+  uncommittedFileViewMode: "tree",
   contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
   graphFontSize: 13,
   graphRowHeight: 24,

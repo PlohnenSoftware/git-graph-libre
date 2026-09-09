@@ -8,6 +8,7 @@ const config: Config = {
   autoCenterCommitDetailsView: true,
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "tree",
+  uncommittedFileViewMode: "tree",
   contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
   fetchAvatars: false,
   showSignatureColumn: false,

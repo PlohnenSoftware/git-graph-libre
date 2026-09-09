@@ -12,6 +12,7 @@ const defaultViewState: GGL.GitGraphViewState = {
   autoCenterCommitDetailsView: false,
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "tree",
+  uncommittedFileViewMode: "tree",
   // What `buildWebviewHtml()` really emits: `config.contextMenuActionsVisibility()`
   // runs `normalizeContextMenuActionsVisibility()`, so the booted webview always
   // holds a fully populated map even when the user has set nothing.

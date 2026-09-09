@@ -14,6 +14,7 @@ declare global {
     autoCenterCommitDetailsView: boolean;
     commitDetailsCompactFolders: boolean;
     commitDetailsFileViewMode: GGL.CommitDetailsFileViewMode;
+    uncommittedFileViewMode: GGL.CommitDetailsFileViewMode;
     contextMenuActionsVisibility: GGL.ContextMenuActionsVisibility;
     fetchAvatars: boolean;
     showSignatureColumn: boolean;

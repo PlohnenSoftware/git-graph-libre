@@ -101,5 +101,9 @@
   "config.telemetry.enabled.title": "Telemetrie",
   "config.telemetry.enabled.unset": "Nog niet besloten. Er wordt niets verzonden en de extensie zal het vragen.",
   "config.telemetry.enabled.enabled": "Anonieme gegevens over functiegebruik verzenden.",
-  "config.telemetry.enabled.disabled": "Niets verzenden en niet meer vragen."
+  "config.telemetry.enabled.disabled": "Niets verzenden en niet meer vragen.",
+  "config.uncommittedChanges.fileViewMode": "Bepaalt hoe niet-vastgelegde wijzigingen in het staging-paneel worden weergegeven.",
+  "config.uncommittedChanges.fileViewMode.title": "Weergavemodus voor niet-vastgelegde wijzigingen",
+  "config.uncommittedChanges.fileViewMode.tree": "Niet-vastgelegde wijzigingen per map groeperen",
+  "config.uncommittedChanges.fileViewMode.list": "Niet-vastgelegde wijzigingen als platte padlijst weergeven"
 }

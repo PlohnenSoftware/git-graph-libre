@@ -11,7 +11,8 @@ function makeConfig(): Config {
   return {
     autoCenterCommitDetailsView: () => true,
     commitDetailsCompactFolders: () => true,
-    commitDetailsFileViewMode: () => "list",
+    commitDetailsFileViewMode: () => "list" as const,
+  uncommittedFileViewMode: () => "list" as const,
     contextMenuActionsVisibility: () => ({
       ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
       tag: { ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.tag, push: false }

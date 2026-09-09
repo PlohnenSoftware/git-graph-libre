@@ -137,6 +137,7 @@ function makeConfig(consent: TelemetryConsent): Config {
     autoCenterCommitDetailsView: () => true,
     commitDetailsCompactFolders: () => false,
     commitDetailsFileViewMode: () => "tree",
+    uncommittedFileViewMode: () => "tree",
     contextMenuActionsVisibility: () => ({}) as never,
     dateFormat: () => "Date & Time",
     dateType: () => "Author Date",

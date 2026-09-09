@@ -154,6 +154,7 @@ export type GitGraphViewState = {
   autoCenterCommitDetailsView: boolean;
   commitDetailsCompactFolders: boolean;
   commitDetailsFileViewMode: CommitDetailsFileViewMode;
+  uncommittedFileViewMode: CommitDetailsFileViewMode;
   contextMenuActionsVisibility: ContextMenuActionsVisibility;
   dateFormat: DateFormat;
   fetchAvatars: boolean;

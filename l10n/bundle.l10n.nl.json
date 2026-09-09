@@ -552,5 +552,8 @@
   "telemetry.consent.reject": "Weigeren en niet meer vragen",
   "telemetry.consent.globalOff": "Bedankt. De telemetrie-instelling van Visual Studio Code zelf staat momenteel uit en die heeft altijd voorrang, dus er wordt niets verzonden totdat je die aanzet.",
   "telemetry.consent.openGlobalSetting": "Instelling openen",
-  "telemetry.consent.details": "Wat wordt er verzonden?"
+  "telemetry.consent.details": "Wat wordt er verzonden?",
+  "detail.viewAsTree": "Groeperen per map",
+  "detail.viewAsList": "Als platte lijst weergeven",
+  "dialog.branchFromStash.note": "Git schakelt over naar de nieuwe branch en verwijdert de stash. Op de huidige branch blijven is geen optie."
 }

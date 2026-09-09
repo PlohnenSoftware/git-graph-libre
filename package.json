@@ -185,6 +185,19 @@
           "default": "tree",
           "description": "%config.commitDetails.fileViewMode%"
         },
+        "git-graph-libre.uncommittedChanges.fileViewMode": {
+          "type": "string",
+          "enum": [
+            "tree",
+            "list"
+          ],
+          "enumDescriptions": [
+            "%config.uncommittedChanges.fileViewMode.tree%",
+            "%config.uncommittedChanges.fileViewMode.list%"
+          ],
+          "default": "tree",
+          "description": "%config.uncommittedChanges.fileViewMode%"
+        },
         "git-graph-libre.commitDetails.compactFolders": {
           "type": "boolean",
           "default": false,

@@ -14,6 +14,7 @@ const viewState: GGL.GitGraphViewState = {
   autoCenterCommitDetailsView: false,
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "list",
+  uncommittedFileViewMode: "list",
   contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
   dateFormat: "Date & Time",
   fetchAvatars: false,

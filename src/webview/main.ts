@@ -1666,6 +1666,9 @@ class GitGraphView {
   private applyStringExtensionSetting(configKey: string, value: GGL.JsonValue) {
     if (typeof value !== "string") return false;
     switch (configKey) {
+      case "uncommittedChanges.fileViewMode":
+        if (value === "tree" || value === "list") this.config.uncommittedFileViewMode = value;
+        break;
       case "commitDetails.fileViewMode":
         if (value === "tree" || value === "list") this.config.commitDetailsFileViewMode = value;
         return true;
@@ -2875,6 +2878,14 @@ class GitGraphView {
   }
   private buildUncommittedChangesContextMenu(sourceElem: HTMLElement): ContextMenuElement[] {
     return [
+      {
+        // View option rather than a git action, so it sits with the other
+        // checked view toggles and is not gated on action visibility.
+        title: l10n.detailViewAsTree,
+        checked: this.config.uncommittedFileViewMode === "tree",
+        onClick: () => this.toggleUncommittedFileViewMode()
+      },
+      null,
       this.visibleContextMenuItem("uncommittedChanges", "stash", {
         title: l10n.stashUncommittedChanges + ELLIPSIS,
         onClick: () => this.showStashUncommittedChangesDialog(sourceElem)
@@ -4836,17 +4847,27 @@ class GitGraphView {
       sourceElem
     );
   }
+  /**
+   * Branch from a stash. Unlike the other create-branch dialogs this one has
+   * no "Check out" checkbox, and deliberately so: `git stash branch` creates
+   * *and* checks out the new branch, and drops the stash, with no way to opt
+   * out (verified against git 2.55). A checkbox here could not be honored when
+   * cleared, so the dialog states the behavior instead.
+   */
   private showBranchFromStashDialog(selector: string, sourceElem: HTMLElement) {
-    showRefInputDialog(
+    showFormDialog(
       l10n.dialogBranchFromStashTitle.replace("{0}", `<b><i>${escapeHtml(selector)}</i></b>`),
-      "",
+      [
+        { type: "text-ref", name: "", default: "" },
+        { type: "note" as const, text: l10n.dialogBranchFromStashNote }
+      ],
       l10n.dialogBranchFromStashSubmit,
-      (branchName) => {
+      (values) => {
         sendMessage({
           command: "branchFromStash",
           repo: this.currentRepo,
           selector,
-          branchName
+          branchName: values[0]
         });
         showActionRunningDialog(l10n.statusCreatingBranch);
       },
@@ -5454,7 +5475,8 @@ class GitGraphView {
         }
       },
       detailsHeight: view.detailsHeight,
-      compactFolders: this.config.commitDetailsCompactFolders
+      compactFolders: this.config.commitDetailsCompactFolders,
+      fileViewMode: this.config.uncommittedFileViewMode
     });
     insertAfter(newElem, row);
     this.applyCommitDetailsHeight(newElem);
@@ -5579,6 +5601,20 @@ class GitGraphView {
         this.toggleUncommittedFolder(e);
       });
     });
+  }
+  /**
+   * Flip the staging panel between the folder tree and the flat path list.
+   * The choice is a global setting rather than view state, so it survives a
+   * reload and shows up in the settings hub; the echo back through
+   * `applyExtensionSettings()` is what re-renders the open panel.
+   */
+  private toggleUncommittedFileViewMode() {
+    const next = this.config.uncommittedFileViewMode === "tree" ? "list" : "tree";
+    this.config.uncommittedFileViewMode = next;
+    this.updateExtensionSetting("uncommittedChanges.fileViewMode", next);
+    if (this.uncommittedView !== null) {
+      sendMessage({ command: "uncommittedDetails", repo: this.currentRepo });
+    }
   }
   private toggleUncommittedFolder(e: Event) {
     e.stopPropagation();
@@ -6186,6 +6222,7 @@ const gitGraph = new GitGraphView(
     autoCenterCommitDetailsView: viewState.autoCenterCommitDetailsView,
     commitDetailsCompactFolders: viewState.commitDetailsCompactFolders,
     commitDetailsFileViewMode: viewState.commitDetailsFileViewMode,
+    uncommittedFileViewMode: viewState.uncommittedFileViewMode,
     contextMenuActionsVisibility: viewState.contextMenuActionsVisibility,
     fetchAvatars: viewState.fetchAvatars,
     showSignatureColumn: viewState.showSignatureColumn,

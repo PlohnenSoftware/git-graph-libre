@@ -552,5 +552,8 @@
   "telemetry.consent.reject": "Odrzuć i nie pytaj ponownie",
   "telemetry.consent.globalOff": "Dzięki. Ustawienie telemetrii samego Visual Studio Code jest obecnie wyłączone i zawsze ma pierwszeństwo, więc nic nie zostanie wysłane, dopóki go nie włączysz.",
   "telemetry.consent.openGlobalSetting": "Otwórz ustawienie",
-  "telemetry.consent.details": "Co jest wysyłane?"
+  "telemetry.consent.details": "Co jest wysyłane?",
+  "detail.viewAsTree": "Grupuj według folderów",
+  "detail.viewAsList": "Pokaż jako płaską listę",
+  "dialog.branchFromStash.note": "Git przełącza się na nową gałąź i usuwa schowek. Nie ma opcji pozostania na bieżącej gałęzi."
 }

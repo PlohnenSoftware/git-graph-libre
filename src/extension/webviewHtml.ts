@@ -54,6 +54,7 @@ export function buildWebviewHtml(opts: {
     autoCenterCommitDetailsView: config.autoCenterCommitDetailsView(),
     commitDetailsCompactFolders: config.commitDetailsCompactFolders(),
     commitDetailsFileViewMode: config.commitDetailsFileViewMode(),
+    uncommittedFileViewMode: config.uncommittedFileViewMode(),
     contextMenuActionsVisibility: config.contextMenuActionsVisibility(),
     dateFormat: config.dateFormat(),
     fetchAvatars: config.fetchAvatars() && extensionState.isAvatarStorageAvailable(),

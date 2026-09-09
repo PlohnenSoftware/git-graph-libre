@@ -41,6 +41,7 @@ const defaultViewState: GGL.GitGraphViewState = {
   customBranchGlobPatterns: [{ name: "Features", glob: "--glob=heads/feature/*" }],
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "tree",
+  uncommittedFileViewMode: "tree",
   contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
   graphFontSize: 13,
   graphRowHeight: 24,
@@ -2270,6 +2271,12 @@ describe("webview rendering", () => {
 
     openStashContextMenu();
     clickContextMenuItem("Create Branch from Stash");
+    // No "Check out" checkbox here, unlike the other create-branch dialogs:
+    // `git stash branch` always checks the new branch out and drops the stash
+    // (verified against git 2.55), so a checkbox could not be honored when
+    // cleared. The dialog states the behavior in a note instead.
+    expect(document.querySelector('#dialog input[type="checkbox"]')).toBeNull();
+    expect(document.getElementById("dialog")?.textContent).toContain("drops the stash");
     setDialogInput("recover/stash");
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({

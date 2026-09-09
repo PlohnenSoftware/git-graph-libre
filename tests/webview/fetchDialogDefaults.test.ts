@@ -18,6 +18,7 @@ function makeViewState(fetchTagsByDefault: boolean): GGL.GitGraphViewState {
     autoCenterCommitDetailsView: false,
     commitDetailsCompactFolders: false,
     commitDetailsFileViewMode: "tree",
+    uncommittedFileViewMode: "tree",
     contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
     dateFormat: "Date & Time",
     fetchAvatars: false,

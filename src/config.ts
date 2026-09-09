@@ -129,6 +129,8 @@ export const config = {
   commitDetailsCompactFolders: (): boolean => getConfig("commitDetails.compactFolders", false),
   commitDetailsFileViewMode: (): CommitDetailsFileViewMode =>
     getStringUnionConfig("commitDetails.fileViewMode", "tree", commitDetailsFileViewModes),
+  uncommittedFileViewMode: (): CommitDetailsFileViewMode =>
+    getStringUnionConfig("uncommittedChanges.fileViewMode", "tree", commitDetailsFileViewModes),
   contextMenuActionsVisibility: (): ContextMenuActionsVisibility =>
     normalizeContextMenuActionsVisibility(getConfig("contextMenuActionsVisibility", {})),
   dateFormat: (): DateFormat => getConfig("dateFormat", "Date & Time"),

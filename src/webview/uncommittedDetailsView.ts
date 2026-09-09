@@ -29,6 +29,8 @@ type RenderUncommittedDetailsOptions = {
   detailsHeight: number;
   /** Collapse single-child folder chains, following the commit-details setting. */
   compactFolders?: boolean;
+  /** "tree" groups paths by folder; "list" is the flat path list. */
+  fileViewMode?: "tree" | "list";
 };
 
 /**
@@ -58,12 +60,14 @@ export function renderUncommittedDetailsRowHtml({
   l10n,
   sections,
   detailsHeight,
-  compactFolders
+  compactFolders,
+  fileViewMode
 }: RenderUncommittedDetailsOptions): string {
   const collapsed = sections.collapsedFolders ?? { staged: [], unstaged: [] };
   const tree = (section: UncommittedSection) => ({
     collapsed: new Set(collapsed[section]),
-    compactFolders: compactFolders === true
+    compactFolders: compactFolders === true,
+    flat: fileViewMode === "list"
   });
   return [
     '<td></td><td colspan="5">',
@@ -94,7 +98,7 @@ function sectionIds(section: UncommittedSection): { pane: string; body: string; 
       };
 }
 
-type TreeOptions = { collapsed: Set<string>; compactFolders: boolean };
+type TreeOptions = { collapsed: Set<string>; compactFolders: boolean; flat: boolean };
 
 function renderUncommittedPane(
   section: UncommittedSection,
@@ -132,6 +136,14 @@ function renderUncommittedFileList(
   if (files.length === 0) {
     const empty = section === "staged" ? l10n.detailNoStagedFiles : l10n.detailNoUnstagedFiles;
     return `<ul class="gitFileList"><li class="uncommittedEmpty">${escapeHtml(empty)}</li></ul>`;
+  }
+  // Flat mode is the pre-tree presentation: one row per change, showing the
+  // whole path. Folder grouping is skipped entirely rather than rendered and
+  // flattened, so a flat list has no folder rows to drag.
+  if (tree.flat) {
+    return `<ul class="gitFileList">${files
+      .map((file) => renderUncommittedFileItem(section, file, l10n))
+      .join("")}</ul>`;
   }
   const root = buildPathTree(
     files.map((file) => ({ path: file.path, value: file })),

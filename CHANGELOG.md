@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Choose how uncommitted changes are listed.**
+  `uncommittedChanges.fileViewMode` (`"tree"` or `"list"`, default `"tree"`)
+  switches the staging panel between the folder tree and the flat path list it
+  had before. Right-click the uncommitted-changes row for a checked "Group by
+  folder" item, or set it in the settings hub; the choice is global and
+  persists.
 - **The uncommitted-changes panes group files into folders.** Staged and
   unstaged files now appear as a folder tree rather than a flat list, with
   folders collapsible and following the existing "compact folders" setting.
@@ -62,6 +68,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every dot below it drifted. The panel's height counted toward the measured
   table height while no gap was inserted, so each row height absorbed a share
   of it. Both panels now expand the graph the same way.
+- **The Create Branch from Stash dialog now says what it does.** It has no
+  "Check out" checkbox, unlike the other create-branch dialogs, and cannot:
+  `git stash branch` always creates *and* checks out the new branch and drops
+  the stash, so a checkbox could not be honored when cleared. The dialog
+  states the behavior instead of silently differing.
 - **The stash marker's ring was never drawn.** Its lane colour was set as an
   SVG presentation attribute, which CSS outranks, so the rule that gives every
   node a background-coloured halo repainted the ring invisible — only the inner

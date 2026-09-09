@@ -101,5 +101,9 @@
   "config.telemetry.enabled.title": "遙測",
   "config.telemetry.enabled.unset": "尚未決定。不會傳送任何內容，擴充功能會詢問你。",
   "config.telemetry.enabled.enabled": "傳送匿名的功能使用資料。",
-  "config.telemetry.enabled.disabled": "不傳送任何內容，並且不再詢問。"
+  "config.telemetry.enabled.disabled": "不傳送任何內容，並且不再詢問。",
+  "config.uncommittedChanges.fileViewMode": "指定暫存面板中未提交變更的顯示方式。",
+  "config.uncommittedChanges.fileViewMode.title": "未提交變更檔案檢視模式",
+  "config.uncommittedChanges.fileViewMode.tree": "依資料夾分組顯示未提交變更",
+  "config.uncommittedChanges.fileViewMode.list": "以平面路徑清單顯示未提交變更"
 }

@@ -101,5 +101,9 @@
   "config.telemetry.enabled.title": "Telemetry",
   "config.telemetry.enabled.unset": "Not decided yet. Nothing is sent, and the extension will ask.",
   "config.telemetry.enabled.enabled": "Send anonymous feature-usage data.",
-  "config.telemetry.enabled.disabled": "Send nothing, and stop asking."
+  "config.telemetry.enabled.disabled": "Send nothing, and stop asking.",
+  "config.uncommittedChanges.fileViewMode": "Specifies how uncommitted changes are displayed in the staging panel.",
+  "config.uncommittedChanges.fileViewMode.title": "Uncommitted Changes File View Mode",
+  "config.uncommittedChanges.fileViewMode.tree": "Show uncommitted changes grouped by folder",
+  "config.uncommittedChanges.fileViewMode.list": "Show uncommitted changes as a flat path list"
 }

@@ -552,5 +552,8 @@
   "telemetry.consent.reject": "Reject and Don't Show Again",
   "telemetry.consent.globalOff": "Thanks. Visual Studio Code's own telemetry setting is currently off, and it always wins, so nothing will be sent until you turn that on.",
   "telemetry.consent.openGlobalSetting": "Open Setting",
-  "telemetry.consent.details": "What Is Sent?"
+  "telemetry.consent.details": "What Is Sent?",
+  "detail.viewAsTree": "Group by folder",
+  "detail.viewAsList": "Show as flat list",
+  "dialog.branchFromStash.note": "Git checks out the new branch and drops the stash. There is no option to stay on the current branch."
 }

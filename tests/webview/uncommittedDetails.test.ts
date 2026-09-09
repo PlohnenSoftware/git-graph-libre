@@ -22,6 +22,7 @@ const defaultViewState: GGL.GitGraphViewState = {
   customBranchGlobPatterns: [],
   commitDetailsCompactFolders: false,
   commitDetailsFileViewMode: "tree",
+  uncommittedFileViewMode: "tree",
   contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
   graphFontSize: 13,
   graphRowHeight: 24,
@@ -272,6 +273,47 @@ describe("uncommitted details", () => {
       repo: REPO,
       filePaths: ["src/deep/b.ts", "src/a.ts"]
     });
+  });
+
+  it("switches between the folder tree and a flat path list", () => {
+    const nested = {
+      staged: [],
+      unstaged: [{ path: "src/a.ts", oldPath: null, stagedKind: null, unstagedKind: "M" as const }]
+    };
+    receiveUncommittedDetails(nested);
+    expect(document.querySelector(".uncommittedFolder")).not.toBeNull();
+
+    // The toggle is a checked view option on the uncommitted row's menu.
+    unsavedRow().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const item = [...document.querySelectorAll("#contextMenu li")].find((li) =>
+      li.textContent?.includes("Group by folder")
+    );
+    expect(item).toBeDefined();
+    expect(item?.classList.contains("contextMenuItemCheckbox")).toBe(true);
+    item?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    // It persists as a global setting rather than as view state.
+    expect(latestSent("updateExtensionSetting")).toEqual({
+      command: "updateExtensionSetting",
+      key: "uncommittedChanges.fileViewMode",
+      value: "list",
+      global: true
+    });
+
+    receiveUncommittedDetails(nested);
+    // Flat mode has no folder rows at all — the whole path is on one row, so
+    // there is nothing to drag a subtree from.
+    expect(document.querySelector(".uncommittedFolder")).toBeNull();
+    expect(document.querySelector('.uncommittedFile[data-filepath="src%2Fa.ts"]')).not.toBeNull();
+
+    // Flip back to tree, so the mode this suite shares stays at the default.
+    unsavedRow().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    [...document.querySelectorAll("#contextMenu li")]
+      .find((li) => li.textContent?.includes("Group by folder"))
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(latestSent("updateExtensionSetting")).toMatchObject({ value: "tree" });
+    receiveUncommittedDetails(nested);
+    expect(document.querySelector(".uncommittedFolder")).not.toBeNull();
   });
 
   it("collapses a folder and keeps it collapsed across a re-render", () => {
