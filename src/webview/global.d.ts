@@ -100,10 +100,26 @@ declare global {
     value: boolean;
     /** Present when the value is forced; see DialogInputLock. */
     lock?: DialogInputLock;
+    /**
+     * Belongs to the preceding `group` heading. A heading alone marks only
+     * where a group starts; without marking the members the rows after the
+     * group still read as part of it.
+     */
+    grouped?: boolean;
   }
   interface DialogNoteInput {
     type: "note";
     text: string;
+  }
+  /**
+   * A heading over the rows that follow, carrying no value. It exists so a
+   * run of related checkboxes reads as one thing — the push dialogs use it to
+   * label the remote checkboxes "Remotes", which is what distinguishes a
+   * remote *named* `upstream` from the upstream *branch* set by `-u`.
+   */
+  interface DialogGroupInput {
+    type: "group";
+    name: string;
   }
   interface DialogInputDependency {
     /** Index of the `select` input that controls this input's visibility. */
@@ -118,6 +134,7 @@ declare global {
     | DialogSelectInput
     | DialogCheckboxInput
     | DialogNoteInput
+    | DialogGroupInput
   ) & {
     /** Hides this input's row while the controlling select holds another value. */
     dependsOn?: DialogInputDependency;

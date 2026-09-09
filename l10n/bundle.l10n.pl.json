@@ -555,5 +555,6 @@
   "telemetry.consent.details": "Co jest wysyłane?",
   "detail.viewAsTree": "Grupuj według folderów",
   "detail.viewAsList": "Pokaż jako płaską listę",
-  "dialog.branchFromStash.checkoutLocked": "git stash branch zawsze przełącza się na nową gałąź, więc nie można tego wyłączyć."
+  "dialog.branchFromStash.checkoutLocked": "git stash branch zawsze przełącza się na nową gałąź, więc nie można tego wyłączyć.",
+  "dialog.remotes": "Zdalne repozytoria"
 }

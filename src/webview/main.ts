@@ -4008,15 +4008,19 @@ class GitGraphView {
     const remoteNames = this.getRemoteNames();
     if (remoteNames.length === 0) return;
 
+    const pushTagInputs: DialogInput[] = [
+      ...this.remoteCheckboxInputs(remoteNames),
+      ...this.pushOptionInputs()
+    ];
     showFormDialog(
       l10n.dialogPushTagConfirm.replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`),
-      [...this.remoteCheckboxInputs(remoteNames), ...this.pushOptionInputs()],
+      pushTagInputs,
       l10n.pushTag,
       (values) => {
         const { remotes, noVerify, mode } = this.parsePushDialogValues(
           remoteNames,
-          values,
-          remoteNames.length
+          pushTagInputs,
+          values
         );
         if (remotes.length === 0) {
           showErrorDialog(l10n.dialogPushBranchNoRemoteSelected, null, null);
@@ -4040,15 +4044,19 @@ class GitGraphView {
     const remoteNames = this.getRemoteNames();
     if (remoteNames.length === 0) return;
 
+    const pushAllTagsInputs: DialogInput[] = [
+      ...this.remoteCheckboxInputs(remoteNames),
+      ...this.pushOptionInputs()
+    ];
     showFormDialog(
       l10n.dialogPushAllTagsConfirm,
-      [...this.remoteCheckboxInputs(remoteNames), ...this.pushOptionInputs()],
+      pushAllTagsInputs,
       l10n.dialogPushAllTagsSubmit,
       (values) => {
         const { remotes, noVerify, mode } = this.parsePushDialogValues(
           remoteNames,
-          values,
-          remoteNames.length
+          pushAllTagsInputs,
+          values
         );
         if (remotes.length === 0) {
           showErrorDialog(l10n.dialogPushBranchNoRemoteSelected, null, null);
@@ -4072,13 +4080,27 @@ class GitGraphView {
    * push-mode options — the same construction for branch, tag, and all-tags
    * pushes.
    */
+  /**
+   * The remote checkboxes for a push or fetch dialog, under a "Remotes"
+   * heading.
+   *
+   * The heading is not decoration. Cloning a fork with the `gh` CLI creates a
+   * remote literally named `upstream`, so a bare "Push to upstream" row sits
+   * next to "Set upstream" — which is `git push -u`, a different concept
+   * pointing at a different repository. Labelling the group is what tells the
+   * two apart.
+   */
   private remoteCheckboxInputs(remoteNames: string[]): DialogInput[] {
     const defaultRemote = this.defaultPushRemoteName(remoteNames);
-    return remoteNames.map((remote) => ({
-      type: "checkbox" as const,
-      name: l10n.dialogPushBranchRemote.replace("{0}", remote),
-      value: remote === defaultRemote
-    }));
+    return [
+      { type: "group" as const, name: l10n.dialogRemotes },
+      ...remoteNames.map((remote) => ({
+        type: "checkbox" as const,
+        name: l10n.dialogPushBranchRemote.replace("{0}", remote),
+        value: remote === defaultRemote,
+        grouped: true
+      }))
+    ];
   }
   private pushOptionInputs(): DialogInput[] {
     return [
@@ -4095,11 +4117,31 @@ class GitGraphView {
     ];
   }
   /** `optionsOffset` is the bypass-hooks input index within `values`. */
-  private parsePushDialogValues(remoteNames: string[], values: string[], optionsOffset: number) {
+  /**
+   * Read a push dialog's values back.
+   *
+   * Positions are derived from the input *types*, never counted by hand: the
+   * forms carry value-less rows (a "Remotes" heading, and notes elsewhere),
+   * and an off-by-one here would silently push to the wrong remote. The two
+   * stable facts are that the remote checkboxes come first and that
+   * `pushOptionInputs()` is appended last, so bypass-hooks is the final
+   * checkbox and the mode is the only select.
+   */
+  private parsePushDialogValues(
+    remoteNames: string[],
+    inputs: readonly DialogInput[],
+    values: string[]
+  ) {
+    const indicesOfType = (type: DialogInput["type"]) =>
+      inputs.flatMap((input, index) => (input.type === type ? [index] : []));
+    const checkboxes = indicesOfType("checkbox");
+    const selects = indicesOfType("select");
     return {
-      remotes: remoteNames.filter((_, index) => values[index] === "checked"),
-      noVerify: values[optionsOffset] === "checked",
-      mode: values[optionsOffset + 1] as GitPushBranchMode
+      remotes: remoteNames.filter((_, i) => values[checkboxes[i]] === "checked"),
+      noVerify: values[checkboxes.at(-1) ?? -1] === "checked",
+      mode: values[selects[0] ?? -1] as GitPushBranchMode,
+      /** The checkbox directly after the remotes, where a dialog has one. */
+      afterRemotes: values[checkboxes[remoteNames.length] ?? -1] === "checked"
     };
   }
   public showTagDetails(details: GitTagDetails) {
@@ -4263,10 +4305,10 @@ class GitGraphView {
       inputs,
       l10n.dialogPushBranchSubmit,
       (values) => {
-        const { remotes, noVerify, mode } = this.parsePushDialogValues(
+        const { remotes, noVerify, mode, afterRemotes } = this.parsePushDialogValues(
           remoteNames,
-          values,
-          remoteNames.length + 1
+          inputs,
+          values
         );
         if (remotes.length === 0) {
           showErrorDialog(l10n.dialogPushBranchNoRemoteSelected, null, null);
@@ -4278,7 +4320,7 @@ class GitGraphView {
           repo: this.currentRepo,
           branchName: refName,
           remotes,
-          setUpstream: values[remoteNames.length] === "checked",
+          setUpstream: afterRemotes,
           noVerify,
           mode
         });
@@ -6823,6 +6865,9 @@ function renderDialogInputRow(
   if (input.type === "note") {
     return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2" class="dialogFormNoteCell"><span class="dialogFormNote">${escapeHtml(input.text)}</span></td></tr>`;
   }
+  if (input.type === "group") {
+    return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2" class="dialogFormGroupCell"><span class="dialogFormGroup">${escapeHtml(input.name)}</span></td></tr>`;
+  }
   // A checkbox names itself: its text belongs in the <label> beside the box,
   // never in the form's label column. Splitting them puts the words far from
   // the control and leaves the label column to be squeezed by the input
@@ -6834,7 +6879,8 @@ function renderDialogInputRow(
   return `<tr id="dialogInputRow${index}"${hidden}>${labelCell}<td>${renderDialogInput(input, index, multiElementForm)}</td></tr>`;
 }
 function renderDialogInput(
-  input: Exclude<DialogInput, { type: "note" }>,
+  // Value-less rows are rendered by renderDialogInputRow and never reach here.
+  input: Exclude<DialogInput, { type: "note" | "group" }>,
   index: number,
   multiElementForm: boolean
 ) {
@@ -6859,7 +6905,7 @@ function renderDialogCheckboxInput(
   const checked = input.value ? " checked" : "";
   const label = multiElementForm ? "" : input.name;
   if (input.lock === undefined) {
-    return `<span class="dialogFormCheckbox"><label><input id="dialogInput${index}" type="checkbox"${checked}/>${label}</label></span>`;
+    return `<span class="dialogFormCheckbox${input.grouped === true ? " grouped" : ""}"><label><input id="dialogInput${index}" type="checkbox"${checked}/>${label}</label></span>`;
   }
   // Locked: the same control in its forced state. It keeps `checked` (so the
   // submitted value is the real one), stays focusable and full-contrast rather
@@ -6914,7 +6960,7 @@ function getDialogInputFallbackValue(input: DialogInput) {
   // so pre-render checks (e.g. initial dependent-row visibility) read the
   // configured default instead of a live element.
   if (input.type === "checkbox") return input.value ? "checked" : "unchecked";
-  if (input.type === "note") return "";
+  if (input.type === "note" || input.type === "group") return "";
   return input.default;
 }
 function isDialogInputVisible(inputs: DialogInput[], input: DialogInput) {

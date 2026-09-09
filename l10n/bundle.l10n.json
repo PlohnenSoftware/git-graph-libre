@@ -555,5 +555,6 @@
   "telemetry.consent.details": "What Is Sent?",
   "detail.viewAsTree": "Group by folder",
   "detail.viewAsList": "Show as flat list",
-  "dialog.branchFromStash.checkoutLocked": "git stash branch always checks out the new branch, so this cannot be turned off."
+  "dialog.branchFromStash.checkoutLocked": "git stash branch always checks out the new branch, so this cannot be turned off.",
+  "dialog.remotes": "Remotes"
 }

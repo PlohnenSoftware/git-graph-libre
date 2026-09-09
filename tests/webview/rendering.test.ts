@@ -3600,8 +3600,8 @@ describe("webview rendering", () => {
 
     branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
     clickContextMenuItem("Push Branch");
-    const bypassHooks = document.getElementById("dialogInput2") as HTMLInputElement | null;
-    const pushMode = document.getElementById("dialogInput3") as HTMLSelectElement | null;
+    const bypassHooks = document.getElementById("dialogInput3") as HTMLInputElement | null;
+    const pushMode = document.getElementById("dialogInput4") as HTMLSelectElement | null;
     expect(bypassHooks).not.toBeNull();
     expect(pushMode).not.toBeNull();
     if (bypassHooks !== null) bypassHooks.checked = true;
@@ -4192,9 +4192,9 @@ describe("webview rendering", () => {
     // the bypass-hooks checkbox, and the mode select.
     expect(document.querySelector("#dialog .dialogContent")).not.toBeNull();
     expect(document.querySelector("#dialog .dialogActions")).not.toBeNull();
-    const pushToOrigin = document.getElementById("dialogInput0") as HTMLInputElement | null;
-    const bypassHooks = document.getElementById("dialogInput1") as HTMLInputElement | null;
-    const pushMode = document.getElementById("dialogInput2") as HTMLSelectElement | null;
+    const pushToOrigin = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    const bypassHooks = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    const pushMode = document.getElementById("dialogInput3") as HTMLSelectElement | null;
     expect(pushToOrigin).not.toBeNull();
     expect(bypassHooks).not.toBeNull();
     expect(pushMode).not.toBeNull();
@@ -4270,10 +4270,15 @@ describe("webview rendering", () => {
     tagRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
     clickContextMenuItem("Push Tag");
 
-    const pushToOrigin = document.getElementById("dialogInput0") as HTMLInputElement | null;
-    const pushToUpstream = document.getElementById("dialogInput1") as HTMLInputElement | null;
-    const bypassHooks = document.getElementById("dialogInput2") as HTMLInputElement | null;
-    const pushMode = document.getElementById("dialogInput3") as HTMLSelectElement | null;
+    const pushToOrigin = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    const pushToUpstream = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    const bypassHooks = document.getElementById("dialogInput3") as HTMLInputElement | null;
+    const pushMode = document.getElementById("dialogInput4") as HTMLSelectElement | null;
+    // The remote checkboxes sit under a "Remotes" heading, which is a
+    // value-less row: it shifts every input index, and the parser derives
+    // positions from input types so a heading can never misroute a push.
+    expect(document.querySelector("#dialog .dialogFormGroup")?.textContent).toBe("Remotes");
+    expect(document.getElementById("dialogInput0")).toBeNull();
     expect(pushToOrigin).not.toBeNull();
     expect(pushToUpstream).not.toBeNull();
     expect(bypassHooks).not.toBeNull();
@@ -4436,10 +4441,11 @@ describe("webview rendering", () => {
     expect(pushTagsBtn?.disabled).toBe(false);
     pushTagsBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
-    const pushToOrigin = document.getElementById("dialogInput0") as HTMLInputElement | null;
-    const pushToUpstream = document.getElementById("dialogInput1") as HTMLInputElement | null;
-    const bypassHooks = document.getElementById("dialogInput2") as HTMLInputElement | null;
-    const pushMode = document.getElementById("dialogInput3") as HTMLSelectElement | null;
+    const pushToOrigin = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    const pushToUpstream = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    const bypassHooks = document.getElementById("dialogInput3") as HTMLInputElement | null;
+    const pushMode = document.getElementById("dialogInput4") as HTMLSelectElement | null;
+    expect(document.querySelector("#dialog .dialogFormGroup")?.textContent).toBe("Remotes");
     expect(pushToOrigin).not.toBeNull();
     expect(pushToUpstream).not.toBeNull();
     expect(bypassHooks).not.toBeNull();

@@ -57,6 +57,12 @@ system. Includes everything prepared for 1.5.1, which was never released.
   on VS Code's own checkbox tokens, marked by a check mark rather than a fill,
   with hover, focus, disabled, mixed, high-contrast, and reduced-motion
   states.
+- **Push dialogs group their remote checkboxes under a "Remotes" heading.**
+  Cloning a fork with the `gh` CLI creates a remote literally named
+  `upstream`, which put "Push to upstream" directly beside "Set upstream" —
+  `git push -u`, a different thing pointing at a different repository. The
+  remote rows now sit under a labelled, indented group, so a remote reads as a
+  remote. Applies to Push Branch, Push Tag, and Push All Tags.
 - **Remote segments of a grouped branch badge read as part of the badge.** The
   divider between the local name and each abbreviated remote name is drawn
   from the badge foreground rather than the neutral border.

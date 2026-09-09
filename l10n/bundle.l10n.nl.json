@@ -555,5 +555,6 @@
   "telemetry.consent.details": "Wat wordt er verzonden?",
   "detail.viewAsTree": "Groeperen per map",
   "detail.viewAsList": "Als platte lijst weergeven",
-  "dialog.branchFromStash.checkoutLocked": "git stash branch schakelt altijd over naar de nieuwe branch, dus dit kan niet worden uitgezet."
+  "dialog.branchFromStash.checkoutLocked": "git stash branch schakelt altijd over naar de nieuwe branch, dus dit kan niet worden uitgezet.",
+  "dialog.remotes": "Remotes"
 }

@@ -398,6 +398,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     dialogPushAllTagsConfirm: translate("dialog.pushAllTags.confirm"),
     dialogPushAllTagsSubmit: translate("dialog.pushAllTags.submit"),
     dialogPushBranchConfirm: translate("dialog.pushBranch.confirm"),
+    dialogRemotes: translate("dialog.remotes"),
     dialogPushBranchRemote: translate("dialog.pushBranch.remote"),
     dialogPushBranchSetUpstream: translate("dialog.pushBranch.setUpstream"),
     dialogPushBranchMode: translate("dialog.pushBranch.mode"),

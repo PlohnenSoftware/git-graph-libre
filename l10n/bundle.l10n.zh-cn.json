@@ -555,5 +555,6 @@
   "telemetry.consent.details": "发送了哪些内容？",
   "detail.viewAsTree": "按文件夹分组",
   "detail.viewAsList": "显示为平铺列表",
-  "dialog.branchFromStash.checkoutLocked": "git stash branch 总是检出新分支，因此无法关闭此选项。"
+  "dialog.branchFromStash.checkoutLocked": "git stash branch 总是检出新分支，因此无法关闭此选项。",
+  "dialog.remotes": "远程仓库"
 }

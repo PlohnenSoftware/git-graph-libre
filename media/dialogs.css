@@ -233,6 +233,40 @@ dl.tagDetailsFields dd {
   color: var(--vscode-dropdown-foreground, var(--vscode-input-foreground));
   border-color: var(--vscode-dropdown-border, var(--ngg-neutral-border));
 }
+/* A group heading over the rows that follow. Deliberately quiet — it is a
+   structural label, not a section title competing with the dialog's own
+   message: description foreground, a hairline under it to bind it to its
+   rows, and no all-caps. */
+#dialog table.dialogForm td.dialogFormGroupCell {
+  padding-top: 10px;
+  white-space: normal;
+}
+#dialog table.dialogForm tr:first-child td.dialogFormGroupCell {
+  padding-top: 0;
+}
+#dialog table.dialogForm .dialogFormGroup {
+  display: block;
+  padding-left: 10px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-size: 12px;
+  line-height: 16px;
+}
+/* The group's members carry a left rule, so the group has a visible extent
+   and not merely a start. A heading with an underline marked where the
+   remotes began but nothing marked where they ended, which left "Set
+   upstream" — a different concept entirely — reading as one of them. The
+   rule matches the note's aside treatment, so indented-and-ruled means
+   "belongs to the thing above" throughout the dialogs. */
+#dialog table.dialogForm .dialogFormCheckbox.grouped {
+  display: block;
+}
+/* The rule lives on the cell, not the row's span: cells of adjacent rows meet
+   under `border-collapse: collapse`, so the bracket runs unbroken down the
+   group, where a per-span border is cut into dashes by the row padding. */
+#dialog table.dialogForm td:has(> .dialogFormCheckbox.grouped) {
+  padding-left: 10px;
+  border-left: 2px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+}
 #dialog table.dialogForm td.dialogFormNoteCell {
   white-space: normal;
 }

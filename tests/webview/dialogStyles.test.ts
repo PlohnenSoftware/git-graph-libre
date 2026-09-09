@@ -160,6 +160,21 @@ describe("dialog styles", () => {
     expect(css).toContain(".dialogBtn:focus-visible");
   });
 
+  it("gives a remote group a visible extent, not just a heading", () => {
+    // A heading marks where a group starts; without marking its members the
+    // rows after it still read as part of it, which left "Set upstream" —
+    // git push -u, a different concept — looking like one of the remotes.
+    const heading = ruleFor(css, "#dialog table.dialogForm .dialogFormGroup");
+    expect(heading).toContain("var(--vscode-descriptionForeground");
+    expect(heading).not.toContain("text-transform");
+    // The rule sits on the cell so it runs unbroken down the group; on the
+    // row's span the row padding cuts it into dashes.
+    expect(css).toContain("#dialog table.dialogForm td:has(> .dialogFormCheckbox.grouped)");
+    const member = ruleFor(css, "#dialog table.dialogForm td:has(> .dialogFormCheckbox.grouped)");
+    expect(member).toContain("border-left: 2px solid");
+    expect(member).toContain("padding-left: 10px;");
+  });
+
   it("shows a forced setting as a locked control, not prose or a disabled box", () => {
     // The standing rule: a setting the git command does not allow the user to
     // change keeps its real control, stays focusable and full-contrast, takes

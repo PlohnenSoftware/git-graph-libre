@@ -480,6 +480,34 @@ may not define the token):
 - Dialog panel: `--vscode-editorWidget-background/-foreground/-border`,
   `--vscode-widget-shadow`; content is left-aligned; actions right-aligned in
   a `.dialogActions` flex row.
+- **A run of related checkboxes gets a `group` heading *and* marked members.**
+  A heading alone marks only where a group starts, so the rows after it still
+  read as part of it — the first attempt left "Set upstream" looking like one
+  of the remote checkboxes, which is the exact confusion the grouping existed
+  to remove. Members carry `grouped: true`, and the left rule lives on the
+  **cell** (`td:has(> .dialogFormCheckbox.grouped)`) because cells of adjacent
+  rows meet under `border-collapse: collapse`, while a per-span border is cut
+  into dashes by the row padding.
+
+  **Why this grouping exists:** cloning a fork with the `gh` CLI writes a
+  remote literally named `upstream` — `gh` does it unasked, where plain
+  `git clone` only ever creates `origin` — so a push dialog shows "Push to
+  upstream" beside "Set upstream". Those are different concepts pointing at
+  different repositories: the first is a remote, the second is
+  `git push --set-upstream`, which sets the branch's upstream *branch*
+  (`@{u}`). Labelling the group is what tells them apart. Use
+  "upstream branch" for the `-u` sense, "the `upstream` remote" for the fork
+  sense, and avoid "tracking branch" entirely — people use it for both that
+  and `origin/main`.
+
+  **A value-less row shifts every input index, so never count positions by
+  hand.** `parsePushDialogValues()` read remotes as `values[index]` and took
+  an `optionsOffset` counted at each call site; adding the heading would have
+  silently pushed to the wrong remote. It now derives positions from the input
+  *types* — remotes are the leading checkboxes, bypass-hooks is the last, the
+  mode is the only select — which is stable against any number of headings or
+  notes. Two rendering tests drive a two-remote dialog, so a misroute fails
+  the suite instead of reaching a user.
 - **A checkbox names itself: its text goes in the `<label>` beside the box, on
   a row spanning the whole form.** Never in the form's label column. This is
   not a style preference — a `100%`-width input in the neighbouring column
@@ -3778,13 +3806,19 @@ itself is inferred from that plus the action counts.
 
 Release gate over the completed tree, all clean: strict Biome (one formatting
 fix in `messageHandler.ts`), `pnpm run package`, `pnpm run test` `48` files /
-`499` tests, `pnpm run l10n:check` `100%` for all four locales,
+`500` tests, `pnpm run l10n:check` `100%` for all four locales,
 `pnpm run test:coverage` `109` files / `979` tests at `92.9%` lines
 (`6,040`/`6,502`), and `pnpm run sonar:scan` task
-`62558a8f-8c00-4d74-85d2-7256c6a7a405`, analysis
-`f8122883-18c3-40a4-a909-380e0db6acc7`: `ZAM` gate **`OK`** on all seven
-reported conditions — `new_coverage` `88.9`, `new_violations` `0`,
+`ac35cff7-cee1-41d8-96b0-774ba0e8d26d`, analysis
+`03ee28d2-35bd-4161-a005-0f48efa7a5a7`: `ZAM` gate **`OK`** on all seven
+reported conditions — `new_coverage` `90.2`, `new_violations` `0`,
 duplication `0.0`, window `PREVIOUS_VERSION` `1.5.1`.
+
+The remote-grouping change landed *after* the first release gate, so the tag
+was moved to the final commit and the gate re-run; the earlier pass was task
+`62558a8f-8c00-4d74-85d2-7256c6a7a405`. Moving a tag is only safe because
+nothing had been pushed — once a tag is published, move it and you have
+changed what a released version means.
 
 `sonar.projectVersion` advanced `1.5.1` → `1.6.0` with the package version, so
 this analysis measures the whole delta since the last analyzed version and the
