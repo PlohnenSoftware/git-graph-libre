@@ -10,6 +10,7 @@ import {
   VIEW_FEATURE_SUBMODULE_ACTIVE,
   VIEW_FEATURE_SUBMODULE_REPO,
   VIEW_FEATURE_UNCOMMITTED_PANEL,
+  VIEW_FEATURE_UNCOMMITTED_TREE,
   VIEW_FEATURE_UNREACHABLE
 } from "@/telemetry/viewFeatures";
 
@@ -247,20 +248,40 @@ describe("view feature reporting", () => {
     const spy = createTelemetrySpy();
     const reporter = createViewFeatureReporter(spy.telemetry);
 
-    reporter.recordUncommittedDetailsOpened();
-    reporter.recordUncommittedDetailsOpened();
-    reporter.recordUncommittedDetailsOpened();
+    reporter.recordUncommittedDetailsOpened({ grouped: false });
+    reporter.recordUncommittedDetailsOpened({ grouped: false });
+    reporter.recordUncommittedDetailsOpened({ grouped: false });
 
     expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_UNCOMMITTED_PANEL, ok: true }]);
+  });
+
+  it("reports the folder tree only when a folder actually rendered", () => {
+    const flat = createTelemetrySpy();
+    createViewFeatureReporter(flat.telemetry).recordUncommittedDetailsOpened({ grouped: false });
+    // Tree mode over root-level changes shows a flat list either way, so the
+    // signal would be counting intent rather than use.
+    expect(flat.sent).toEqual([{ feature: VIEW_FEATURE_UNCOMMITTED_PANEL, ok: true }]);
+
+    const grouped = createTelemetrySpy();
+    const reporter = createViewFeatureReporter(grouped.telemetry);
+    reporter.recordUncommittedDetailsOpened({ grouped: true });
+    reporter.recordUncommittedDetailsOpened({ grouped: true });
+
+    // Once per session, like every signal here, and the panel signal still
+    // fires alongside it.
+    expect(grouped.sent).toEqual([
+      { feature: VIEW_FEATURE_UNCOMMITTED_PANEL, ok: true },
+      { feature: VIEW_FEATURE_UNCOMMITTED_TREE, ok: true }
+    ]);
   });
 
   it("shares one session budget between loads and panel opens", () => {
     const spy = createTelemetrySpy();
     const reporter = createViewFeatureReporter(spy.telemetry);
 
-    reporter.recordUncommittedDetailsOpened();
+    reporter.recordUncommittedDetailsOpened({ grouped: false });
     reporter.recordCommitLoad({ ...quietLoad, includeReflog: true });
-    reporter.recordUncommittedDetailsOpened();
+    reporter.recordUncommittedDetailsOpened({ grouped: false });
 
     expect(spy.sent).toEqual([
       { feature: VIEW_FEATURE_UNCOMMITTED_PANEL, ok: true },
@@ -280,12 +301,13 @@ describe("view feature reporting", () => {
         repo: SUBMODULE_REPO
       })
     ).not.toThrow();
-    expect(() => reporter.recordUncommittedDetailsOpened()).not.toThrow();
+    expect(() => reporter.recordUncommittedDetailsOpened({ grouped: true })).not.toThrow();
   });
 
   // The ingest rejects the WHOLE batch when one feature id fails its pattern,
   // so a malformed id here would silently drop up to 25 unrelated events.
   it.each([
+    VIEW_FEATURE_UNCOMMITTED_TREE,
     VIEW_FEATURE_REFLOG,
     VIEW_FEATURE_UNREACHABLE,
     VIEW_FEATURE_SIGNED_TAG,

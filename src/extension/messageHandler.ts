@@ -667,7 +667,18 @@ export function registerMessageHandlers(
     // action chokepoint above cannot see it. Recorded here, after the query
     // produced the panel's data — and the fixed id only, never `msg`, which
     // carries the repository path.
-    viewFeatures.recordUncommittedDetailsOpened();
+    //
+    // `grouped` decides the folder-tree signal, and is computed here rather
+    // than in the reporter so no path ever crosses into the telemetry module:
+    // tree mode selected *and* a change actually in a subdirectory, which is
+    // the difference between the feature taking effect and merely being on.
+    // `changes` is null when the query failed; a failed load shows no tree.
+    const changePaths = [...(details.changes?.staged ?? []), ...(details.changes?.unstaged ?? [])];
+    viewFeatures.recordUncommittedDetailsOpened({
+      grouped:
+        config.uncommittedFileViewMode() === "tree" &&
+        changePaths.some((file) => file.path.includes("/"))
+    });
     bridge.post({ command: "uncommittedDetails", ...details });
   });
 

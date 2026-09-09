@@ -40,6 +40,13 @@ export const VIEW_FEATURE_SUBMODULE_ACTIVE = "view.submoduleRepoActive";
 export const VIEW_FEATURE_UNCOMMITTED_PANEL = "view.uncommittedDetails";
 /** A stash row was present in the loaded graph. */
 export const VIEW_FEATURE_STASH_ROWS = "view.stashRows";
+/**
+ * The staging panel actually grouped changes into folders — the tree mode is
+ * selected *and* at least one change sits in a subdirectory, so a folder row
+ * really rendered. A repository whose changes are all at the root would show a
+ * flat list either way, and reporting that would count intent rather than use.
+ */
+export const VIEW_FEATURE_UNCOMMITTED_TREE = "view.uncommittedTree";
 
 /** Exactly the pattern the ingest applies. Kept here so a test can assert it. */
 export const INGEST_FEATURE_NAME_PATTERN = /^[a-z][a-zA-Z0-9._-]{0,63}$/;
@@ -78,8 +85,12 @@ export type ViewFeatureReporter = {
    * Call after the staging panel's data was produced. Opening the panel is
    * not a commit load, so it needs its own entry point; like every signal
    * here it reports at most once per session.
+   *
+   * `grouped` says whether the panel actually drew a folder tree. It is
+   * computed by the caller from the change paths, which never reach this
+   * module — the payload stays the fixed feature id.
    */
-  recordUncommittedDetailsOpened: () => void;
+  recordUncommittedDetailsOpened: (facts: { grouped: boolean }) => void;
 };
 
 function hasSignedTag(commits: readonly Pick<GitCommitNode, "refs">[]): boolean {
@@ -163,8 +174,9 @@ export function createViewFeatureReporter(
         reportOnce(VIEW_FEATURE_SUBMODULE_ACTIVE);
       }
     },
-    recordUncommittedDetailsOpened() {
+    recordUncommittedDetailsOpened(facts) {
       reportOnce(VIEW_FEATURE_UNCOMMITTED_PANEL);
+      if (facts.grouped) reportOnce(VIEW_FEATURE_UNCOMMITTED_TREE);
     }
   };
 }

@@ -114,6 +114,10 @@ describe("registerMessageHandlers", () => {
     registerMessageHandlers(bridge, {
       config: {
         dateType: () => "Author Date",
+        // Read by the uncommittedDetails route to decide the folder-tree
+        // telemetry signal. This mock is untyped, so a missing accessor is
+        // invisible to tsc and fails at runtime instead.
+        uncommittedFileViewMode: () => "tree",
         showUncommittedChanges: () => false,
         shortHashLength: () => 4,
         gitPath: () => "git"

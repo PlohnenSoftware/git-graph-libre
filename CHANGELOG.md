@@ -5,107 +5,97 @@ All notable changes to this extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.6.0] - 2026-09-10
 
-### Changed
-
-- **Slice 1: checkboxes are drawn by the extension instead of the platform.**
-  Every checkbox (dialogs, settings hub, toolbar) keeps its native
-  `input[type="checkbox"]` behavior and now renders from one shared rule set:
-  a themed 14–16px box (3px radius) on VS Code's own checkbox tokens, marked
-  by a clipped check mark rather than a fill, plus hover, focus-ring,
-  disabled, mixed, high-contrast, and reduced-motion states. The tick is
-  clipped in percentages, so it scales with the box and the compact toolbar
-  variant needs no metrics of its own.
-- **Slice 2: remote segments of grouped branch badges read as part of the badge.**
-  The divider between the local name and each abbreviated remote name is now
-  drawn from the badge foreground instead of the neutral border; fill, text,
-  tooltips, and grouping logic are unchanged.
-- **Slice 3: the stash list moved out of the footer into the top bar.** It
-  now sits between the status strip and the toolbar, and folds away once the
-  view is scrolled — the same treatment the readiness strip gets, so the
-  toolbar and column headers keep the space. The footer keeps only the "load
-  more" control, and the graph canvas re-pins to the table's top edge on every
-  render so dots stay on their rows.
-- **Slice 4: stashes appear as rows on the graph.** Each stash renders directly
-  above the commit it was taken from with a ring-and-dot marker, a stash
-  badge, its message, date, and hash. Clicking opens the read-only commit
-  details; right-click reuses the stash menu; find matches selector, message,
-  and hash; ArrowUp/ArrowDown steps onto stash rows; multi-select and compare
-  skip them. Gated on the existing per-repo "Show stashes" toggle, reported
-  once per session as `view.stashRows` in the anonymous usage data.
-
-### Changed
-
-- **Dialogs share one control system.** Form rows now use the same 28px
-  control metric and 4px radius as the toolbar, on a single row rhythm, with
-  labels aligned to the middle of their control instead of floating above it.
-  Long labels wrap rather than stretching the dialog, form dialogs keep a
-  stable width instead of resizing per field, focus rings clear the input
-  border instead of doubling it, buttons are equal-width with centered text
-  and a visible keyboard focus ring, and notes read as an indented aside.
+Stashes now appear in the graph itself, uncommitted changes group into folders
+you can stage in one drag, and the dialogs were rebuilt on a single control
+system. Includes everything prepared for 1.5.1, which was never released.
 
 ### Added
 
-- **Choose how uncommitted changes are listed.**
-  `uncommittedChanges.fileViewMode` (`"tree"` or `"list"`, default `"tree"`)
-  switches the staging panel between the folder tree and the flat path list it
-  had before. Right-click the uncommitted-changes row for a checked "Group by
-  folder" item, or set it in the settings hub; the choice is global and
-  persists.
-- **The uncommitted-changes panes group files into folders.** Staged and
-  unstaged files now appear as a folder tree rather than a flat list, with
-  folders collapsible and following the existing "compact folders" setting.
-  **A folder can be dragged between the panes to stage or unstage everything
-  under it** in one action, and a collapsed folder stays collapsed across the
-  re-render each staging action triggers.
-
+- **Stashes appear as rows on the graph.** Each stash renders directly above
+  the commit it was taken from, marked with a ring-and-dot node, a stash
+  badge, its message, date, and hash. Clicking one opens read-only commit
+  details, right-click gives the same stash menu as the list, find matches its
+  selector, message, and hash, and ArrowUp/ArrowDown steps onto it. Gated on
+  the existing per-repo "Show stashes" toggle.
 - **Choose where stashes appear.** `repository.stashDisplay` (`"table"`,
   `"graph"`, or `"both"`, default `"both"`) selects whether stashes show in
-  the list above the table, as rows on the graph, or in both places. It is
-  scoped by the existing per-repo "Show stashes" toggle, so turning that off
-  still hides them everywhere.
+  the list above the graph, as rows on the graph, or both. It is scoped by the
+  per-repo "Show stashes" toggle, so turning that off still hides them
+  everywhere.
+- **Uncommitted changes group into folders, and a folder stages in one drag.**
+  The Staged and Unstaged panes show a folder tree instead of a flat list,
+  with collapsible folders that follow the existing "compact folders" setting.
+  Drag a folder to the other pane to stage or unstage everything under it in a
+  single action. A collapsed folder stays collapsed across the refresh each
+  staging action triggers.
+- **Choose how uncommitted changes are listed.**
+  `uncommittedChanges.fileViewMode` (`"tree"` or `"list"`, default `"tree"`)
+  switches that panel between the folder tree and the flat path list it had
+  before. Right-click the uncommitted-changes row for a checked "Group by
+  folder" item, or set it in the settings hub.
 - **The create-branch dialog can check the new branch out for you.**
-  `dialog.createBranch.checkout` (default `true`) pre-checks "Check out" in
-  the dialog, so creating a branch and switching to it is one action instead
-  of two. Clearing the checkbox creates the branch without moving `HEAD`.
+  `dialog.createBranch.checkout` (default `true`) pre-checks "Check out", so
+  creating a branch and switching to it is one action instead of two. Clearing
+  the checkbox creates the branch without moving `HEAD`.
 
-### Fixed
+### Changed
 
-- **The graph stayed aligned only for commit details, not the staging panel.**
-  Opening a commit's details stretches the graph so the commits below stay
-  level with their rows; opening the uncommitted-changes panel did not, and
-  every dot below it drifted. The panel's height counted toward the measured
-  table height while no gap was inserted, so each row height absorbed a share
-  of it. Both panels now expand the graph the same way.
-- **Create Branch from Stash shows the "Check out" checkbox, locked on.**
-  It used to have no checkbox at all, unlike the other create-branch dialogs.
-  `git stash branch` always checks the new branch out, so the option cannot be
-  turned off — but the row is now where you expect it, in its forced state,
-  with a question mark and a bubble explaining why it will not move. This is
-  the standing treatment for any setting git does not let you choose.
-- **The stash marker's ring was never drawn.** Its lane colour was set as an
-  SVG presentation attribute, which CSS outranks, so the rule that gives every
-  node a background-coloured halo repainted the ring invisible — only the inner
-  dot showed. The ring is also smaller and its band thicker, so the marker
-  reads at the default row height.
-
-## [1.5.1] - 2026-09-07
+- **The stash list moved out of the footer to above the graph.** It sits
+  between the status strip and the toolbar, and folds away once you scroll —
+  the same treatment the readiness strip gets, so the toolbar and column
+  headers keep the space.
+- **Dialogs share one control system.** Fields use the same 28px control
+  metric and 4px radius as the toolbar, on one row rhythm, with labels aligned
+  to their control instead of floating above it. Checkbox labels sit beside
+  their box on a full-width row, form dialogs keep a stable width instead of
+  resizing per field, focus rings clear the input border instead of doubling
+  it, and buttons are equal-width with a visible keyboard focus ring.
+- **Checkboxes are drawn by the extension instead of the platform.** Every
+  checkbox keeps its native behavior and now renders from one shared rule set
+  on VS Code's own checkbox tokens, marked by a check mark rather than a fill,
+  with hover, focus, disabled, mixed, high-contrast, and reduced-motion
+  states.
+- **Remote segments of a grouped branch badge read as part of the badge.** The
+  divider between the local name and each abbreviated remote name is drawn
+  from the badge foreground rather than the neutral border.
+- **The output channel has warning and error levels.** Repository scans log a
+  one-line summary naming the Git binary and search depth, so a scan that
+  comes back empty because `git.path` points at something unusable says so
+  instead of failing silently.
 
 ### Fixed
 
 - **Changing the `git.path` setting now re-scans workspace repositories.**
-  Previously the new binary was adopted for future Git calls but repositories
-  found with the old one were never revalidated, so a corrected path left a
-  stale or empty repository list until reload. The extension now re-runs the
-  workspace scan with the new binary and pushes the updated list to the graph.
+  The new binary was adopted for later Git calls, but repositories found with
+  the old one were never revalidated, so a corrected path left a stale or
+  empty repository list until reload.
+- **The graph stayed aligned for commit details but not the staging panel.**
+  Opening a commit's details stretches the graph so the commits below stay
+  level with their rows; opening the uncommitted-changes panel did not, and
+  every dot below it drifted. Both panels now expand the graph the same way.
+- **The stash marker's ring was never drawn.** Its lane color was set as an
+  SVG presentation attribute, which CSS outranks, so the rule that gives every
+  node a background-colored halo repainted the ring invisible — only the inner
+  dot showed. The ring is also smaller with a thicker band, so it reads at the
+  default row height.
+- **Create Branch from Stash shows the "Check out" checkbox, locked on.** It
+  had no checkbox at all, unlike the other create-branch dialogs.
+  `git stash branch` always checks the new branch out, so the option cannot be
+  turned off — the row is now where you expect it, in its forced state, with a
+  question mark and a bubble explaining why. This is the standing treatment
+  for any setting Git does not let you choose.
 
-### Changed
+### Telemetry
 
-- **The output channel now has warning and error levels.** Repository scans
-  log a one-line summary naming the Git binary and search depth, so a scan
-  that comes back empty because `git.path` points at something unusable says
-  so directly instead of failing silently.
+- Two new once-per-session signals, both a yes/no about a feature being
+  *shown* and carrying nothing else: `view.stashRows` when a stash row
+  appeared in the graph, and `view.uncommittedTree` when the staging panel
+  actually grouped changes into folders. Both are recorded only when the
+  feature took effect. Nothing about which repositories, branches, or files
+  you have is sent; see the Telemetry section of the README for the complete
+  list, which `code --telemetry` also reports.
 
 ## [1.5.0] - 2026-09-07
 
@@ -628,8 +618,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.5.1...HEAD
-[1.5.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.5.0...v1.5.1
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.0...v1.4.1
