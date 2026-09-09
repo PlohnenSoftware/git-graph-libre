@@ -46,6 +46,11 @@ system. Includes everything prepared for 1.5.1, which was never released.
   between the status strip and the toolbar, and folds away once you scroll —
   the same treatment the readiness strip gets, so the toolbar and column
   headers keep the space.
+- **Every popup shares one title and one width.** The opening line of a
+  dialog is now a title — a step up in size with real space beneath it,
+  instead of the message and the first field sitting on consecutive lines —
+  and all popups share a baseline width, so opening a confirmation after a
+  form no longer resizes the panel under your pointer.
 - **Dialogs share one control system.** Fields use the same 28px control
   metric and 4px radius as the toolbar, on one row rhythm, with labels aligned
   to their control instead of floating above it. Checkbox labels sit beside

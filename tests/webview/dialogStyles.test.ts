@@ -129,10 +129,11 @@ describe("dialog styles", () => {
     // Cells were top-aligned with only a top pad, so every label sat above the
     // vertical center of its 28px control. One rhythm, middle-aligned.
     // #dialog.active is width:max-content, so a purely percentage-width form
-    // contributes no intrinsic width and the dialog would collapse to its
-    // message line. The min-width is what keeps form dialogs a stable size.
-    const form = ruleFor(css, "#dialog table.dialogForm");
-    expect(form).toContain("min-width: 340px;");
+    // contributes no intrinsic width and would collapse to its title line.
+    // The floor lives on the dialog, not the table, so every popup shape
+    // shares one baseline width instead of only the form ones.
+    expect(ruleFor(css, "#dialog table.dialogForm")).toContain("width: 100%;");
+    expect(ruleFor(css, "#dialog.active")).toContain("min-width: min(340px, 90vw);");
     const cell = ruleFor(css, "#dialog table.dialogForm td");
     expect(cell).toContain("vertical-align: middle;");
     expect(cell).toContain("padding: 4px 0;");

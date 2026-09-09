@@ -64,6 +64,10 @@
   border-radius: 6px;
   text-align: left;
   width: max-content;
+  /* One baseline width for every popup. Without it a confirmation sat at
+     ~300px next to a 375px form and an error at ~215px, so opening two
+     dialogs in a row resized the panel under the pointer. */
+  min-width: min(340px, 90vw);
   max-width: min(440px, 90vw);
   max-height: 80%;
   z-index: 401;
@@ -73,6 +77,21 @@
 #dialog .dialogContent {
   line-height: 20px;
 }
+/* Every popup's opening line. One step up in size carries the hierarchy —
+   not weight, not caps, and not an accent on one word, all of which fight the
+   emphasis the messages already use for ref names. The space below it is the
+   gap that was missing: the title and the first control used to sit on
+   consecutive lines with only a <br> between them. */
+#dialog .dialogTitle {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
+}
+/* Only when something follows: a message-only dialog (a confirmation, or the
+   running-action spinner) must not carry a trailing gap above its buttons. */
+#dialog .dialogTitle:not(:last-child) {
+  margin-bottom: 14px;
+}
 
 #dialog.tagDetails {
   width: min(460px, 90vw);
@@ -80,9 +99,9 @@
 #dialog.tagDetails .dialogContent {
   min-width: 0;
 }
+/* Shares .dialogTitle; only the wrapping behavior is specific to it, since a
+   tag name has no spaces to break on. */
 .tagDetailsTitle {
-  margin-bottom: 12px;
-  line-height: 22px;
   word-break: break-all;
 }
 dl.tagDetailsFields {
@@ -131,13 +150,11 @@ dl.tagDetailsFields dd {
    Rows are laid on a single 8px rhythm, and cells are middle-aligned: with
    top alignment every label sat above the vertical center of its 28px
    control, which is what made these forms look misassembled. */
-/* `width: 100%` alone would be a trap: #dialog.active is `width: max-content`,
-   so a percentage table contributes no intrinsic width and a form dialog would
-   shrink to the width of its message line. The min-width is what gives form
-   dialogs a stable, consistent size — they no longer resize per field. */
+/* `width: 100%` is safe here only because #dialog.active carries the width
+   floor: it is `width: max-content`, so a percentage table contributes no
+   intrinsic width of its own and a form would otherwise shrink to its title. */
 #dialog table.dialogForm {
   width: 100%;
-  min-width: 340px;
   border-collapse: collapse;
 }
 #dialog table.dialogForm td {
@@ -442,6 +459,11 @@ dl.tagDetailsFields dd {
   margin-right: 3px;
   line-height: 20px;
   vertical-align: sub;
+}
+#dialog .dialogErrorIcon {
+  display: inline-flex;
+  vertical-align: text-bottom;
+  margin-right: 8px;
 }
 #dialog .dialogErrorIcon svg {
   fill: var(--vscode-errorForeground, var(--ngg-error));

@@ -520,6 +520,23 @@ may not define the token):
   flush-left rows around it; and a row containing a `textarea` top-aligns its
   label, since a label centered against a tall control floats away from the
   text it names.
+- **Every dialog opens with a `.dialogTitle` and shares one width floor.**
+  All five content builders (`showConfirmationDialog`, `showFormDialog` via
+  `renderDialogForm`, `showErrorDialog`, `showActionRunningDialog`, and the tag
+  details popup) go through `dialogTitleHtml()`, so the size step and the space
+  below it cannot drift apart between popups. The bottom margin is
+  `:not(:last-child)`, so a message-only dialog carries no trailing gap above
+  its buttons. Hierarchy comes from **size only** — not weight, not caps, not
+  an accent on one word, all of which fight the emphasis the messages already
+  put on ref names.
+
+  The width floor lives on `#dialog.active`, **not** on `table.dialogForm`.
+  It was on the table first, which left form dialogs stable while a
+  confirmation sat ~300px and an error ~215px beside a 375px form, so opening
+  two dialogs in a row resized the panel under the pointer. `.dialogForm`
+  keeps `width: 100%` and relies on that floor: `#dialog.active` is
+  `width: max-content`, so a percentage-width table contributes no intrinsic
+  width and a form would otherwise shrink to its title line.
 - **Dialog forms obey the same control metric as the toolbar** — 28px tall,
   4px radius — and their rows are laid on one 8px rhythm with cells
   **middle-aligned**. They were top-aligned with only a `padding-top`, which
@@ -3809,14 +3826,15 @@ fix in `messageHandler.ts`), `pnpm run package`, `pnpm run test` `48` files /
 `500` tests, `pnpm run l10n:check` `100%` for all four locales,
 `pnpm run test:coverage` `109` files / `979` tests at `92.9%` lines
 (`6,040`/`6,502`), and `pnpm run sonar:scan` task
-`ac35cff7-cee1-41d8-96b0-774ba0e8d26d`, analysis
-`03ee28d2-35bd-4161-a005-0f48efa7a5a7`: `ZAM` gate **`OK`** on all seven
-reported conditions — `new_coverage` `90.2`, `new_violations` `0`,
+`be1392ab-99e1-466e-823d-24b7183fa873`, analysis
+`44a5b83d-2389-4f26-b6d1-7e3d2498e376`: `ZAM` gate **`OK`** on all seven
+reported conditions — `new_coverage` `91.1`, `new_violations` `0`,
 duplication `0.0`, window `PREVIOUS_VERSION` `1.5.1`.
 
 The remote-grouping change landed *after* the first release gate, so the tag
-was moved to the final commit and the gate re-run; the earlier pass was task
-`62558a8f-8c00-4d74-85d2-7256c6a7a405`. Moving a tag is only safe because
+was moved to the final commit and the gate re-run each time; earlier passes
+were tasks `62558a8f-8c00-4d74-85d2-7256c6a7a405` and
+`ac35cff7-cee1-41d8-96b0-774ba0e8d26d`. Moving a tag is only safe because
 nothing had been pushed — once a tag is published, move it and you have
 changed what a released version means.
 

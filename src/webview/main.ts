@@ -4163,7 +4163,7 @@ class GitGraphView {
     const messageHtml = message === "" ? null : escapeHtml(message).replaceAll("\n", "<br>");
 
     const html =
-      `<div class="tagDetailsTitle"><b>${l10n.tagDetailsTitle.replace("{0}", escapeHtml(details.tagName))}</b></div>` +
+      `<div class="dialogTitle tagDetailsTitle"><b>${l10n.tagDetailsTitle.replace("{0}", escapeHtml(details.tagName))}</b></div>` +
       `<dl class="tagDetailsFields">` +
       this.tagDetailRow(l10n.tagDetailsType, escapeHtml(tagType)) +
       this.tagDetailRow(
@@ -6717,13 +6717,23 @@ function hideContextMenu() {
 }
 
 /* Dialogs */
+/**
+ * Wrap a dialog's opening line as its title.
+ *
+ * Every popup goes through this, so the step in size and the space below it
+ * are identical in all of them. The bottom margin is applied by CSS only when
+ * something follows, so a message-only dialog does not carry a trailing gap.
+ */
+function dialogTitleHtml(inner: string): string {
+  return `<div class="dialogTitle">${inner}</div>`;
+}
 function showConfirmationDialog(
   message: string,
   confirmed: () => void,
   sourceElem: HTMLElement | null
 ) {
   showDialog(
-    message,
+    dialogTitleHtml(message),
     l10n.dialogYes,
     l10n.dialogCancel,
     () => {
@@ -6848,7 +6858,7 @@ function bindLockedDialogInputs(inputs: DialogInput[]) {
 function renderDialogForm(message: string, inputs: DialogInput[]) {
   const multiElementForm = inputs.length > 1;
   let textRefInput = -1;
-  let html = `${message}<br><table class="dialogForm ${multiElementForm ? "multi" : "single"}">`;
+  let html = `${dialogTitleHtml(message)}<table class="dialogForm ${multiElementForm ? "multi" : "single"}">`;
   for (let i = 0; i < inputs.length; i++) {
     if (inputs[i].type === "text-ref") textRefInput = i;
     html += renderDialogInputRow(inputs[i], i, multiElementForm, inputs);
@@ -7042,8 +7052,7 @@ function getTextRefDialogClassName(noInput: boolean, invalidInput: boolean) {
 }
 function showErrorDialog(message: string, reason: string | null, sourceElem: HTMLElement | null) {
   showDialog(
-    `<span class="dialogErrorIcon">${svgIcons.alert}</span>` +
-      message +
+    dialogTitleHtml(`<span class="dialogErrorIcon">${svgIcons.alert}</span>${message}`) +
       (reason !== null
         ? `<span class="errorReason">${escapeHtml(reason).replaceAll("\n", "<br>")}</span>`
         : ""),
@@ -7056,7 +7065,7 @@ function showErrorDialog(message: string, reason: string | null, sourceElem: HTM
 function showActionRunningDialog(command: string) {
   setStatusStrip("action", `${command}...`);
   showDialog(
-    `<span id="actionRunning">${svgIcons.loading}${command} ...</span>`,
+    dialogTitleHtml(`<span id="actionRunning">${svgIcons.loading}${command} ...</span>`),
     null,
     l10n.dialogDismiss,
     null,
