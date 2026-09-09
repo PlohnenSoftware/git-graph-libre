@@ -142,6 +142,7 @@ export function buildWebviewHtml(opts: {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0">
 			<link rel="stylesheet" type="text/css" href="${mediaUri("tokens.css")}">
 			<link rel="stylesheet" type="text/css" href="${mediaUri("base.css")}">
+			<link rel="stylesheet" type="text/css" href="${mediaUri("checkbox.css")}">
 			<link rel="stylesheet" type="text/css" href="${mediaUri("table.css")}">
 			<link rel="stylesheet" type="text/css" href="${mediaUri("commit-details.css")}">
 			<link rel="stylesheet" type="text/css" href="${mediaUri("refs.css")}">

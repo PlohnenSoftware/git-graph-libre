@@ -157,12 +157,6 @@ dl.tagDetailsFields dd {
   min-height: 96px;
   resize: vertical;
 }
-#dialog table.dialogForm input[type="checkbox"] {
-  vertical-align: text-top;
-  outline-style: none;
-  margin: 0 6px 0 0;
-  accent-color: var(--vscode-button-background, var(--ngg-accent));
-}
 #dialog table.dialogForm input[type="text"],
 #dialog table.dialogForm textarea,
 #dialog table.dialogForm select {

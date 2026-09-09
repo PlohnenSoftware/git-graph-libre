@@ -74,13 +74,29 @@ describe("dialog styles", () => {
     expect(reason).toContain("word-break: break-word;");
   });
 
-  it("themes checkboxes with the button accent color", () => {
+  it("draws checkboxes as themed boxes with a CSS tick from one shared rule set", () => {
     expect(css).toContain("--ngg-accent: oklch(");
-    const dialogCheckbox = ruleFor(css, '#dialog table.dialogForm input[type="checkbox"]');
-    const toolbarCheckbox = ruleFor(css, "#showRemoteBranchesCheckbox");
-
-    expect(dialogCheckbox).toContain("accent-color: var(--vscode-button-background");
-    expect(toolbarCheckbox).toContain("accent-color: var(--vscode-button-background");
+    // Every checkbox site joins the same shared selectors; the native input
+    // stays and only its paint is replaced.
+    for (const site of [
+      '#dialog table.dialogForm input[type="checkbox"],',
+      '.settingsExtensionInput[type="checkbox"],',
+      "#showRemoteBranchesCheckbox {"
+    ]) {
+      expect(css).toContain(site);
+    }
+    expect(css).toContain("appearance: none;");
+    expect(css).toContain("border-radius: 3px;");
+    expect(css).toContain("var(--vscode-checkbox-background");
+    expect(css).toContain("var(--vscode-checkbox-border");
+    expect(css).not.toContain("accent-color");
+    // Checked fill, border tick, hover, focus ring, and disabled dimming.
+    expect(css).toContain("border-width: 0 2px 2px 0;");
+    expect(css).toContain("var(--vscode-button-foreground");
+    expect(css).toContain("outline: 1px solid var(--vscode-focusBorder);");
+    // High-contrast and reduced-motion counterparts travel with the pattern.
+    expect(css).toContain("@media (forced-colors: active)");
+    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
   it("keeps repository settings as a viewport popup above graph chrome", () => {

@@ -175,6 +175,27 @@ describe("commit table styles", () => {
     expect(css).toContain("justify-content: center;");
   });
 
+  it("covers settings and toolbar checkboxes in the shared rule set", () => {
+    // Both sites join the same shared selectors; only their metrics differ.
+    for (const site of [
+      '.settingsExtensionInput[type="checkbox"],',
+      "#showRemoteBranchesCheckbox"
+    ]) {
+      expect(css).toContain(site);
+    }
+    // The shared box is 16px; the toolbar checkbox keeps its compact 14px
+    // size with a smaller tick in its own override rules.
+    const toolbarBlocks = [...css.matchAll(/#showRemoteBranchesCheckbox \{[^}]+\}/g)].map(
+      (match) => match[0]
+    );
+    expect(toolbarBlocks.some((block) => block.includes("width: 14px;"))).toBe(true);
+    expect(css).toContain("#showRemoteBranchesCheckbox:checked::after {");
+    // Checked fill, border tick, hover, focus ring, and disabled dimming.
+    expect(css).toContain("border-width: 0 2px 2px 0;");
+    expect(css).toContain("outline: 1px solid var(--vscode-focusBorder);");
+    expect(css).not.toContain("accent-color");
+  });
+
   it("keeps the graph visible above full-row states", () => {
     expect(css).toContain("z-index: 5;");
     expect(css).toContain("pointer-events: none;");

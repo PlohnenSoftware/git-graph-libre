@@ -1,0 +1,101 @@
+/* Native checkboxes, drawn by the extension. One shared rule set covers every
+   checkbox in the webview (dialog forms, the settings hub, the toolbar), so
+   the box, tick, and states stay identical everywhere. Only per-site metrics
+   (size, alignment) live in their own rules below. */
+
+#dialog table.dialogForm input[type="checkbox"],
+.settingsExtensionInput[type="checkbox"],
+#showRemoteBranchesCheckbox {
+  appearance: none;
+  display: inline-block;
+  position: relative;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background-color: var(--vscode-checkbox-background, var(--ngg-neutral-overlay-subtle));
+  border: 1px solid var(--vscode-checkbox-border, var(--ngg-neutral-border-strong));
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 120ms ease-in-out, border-color 120ms ease-in-out;
+}
+/* Dialog checkboxes keep their text-top alignment and label gap. */
+#dialog table.dialogForm input[type="checkbox"] {
+  vertical-align: text-top;
+  outline-style: none;
+  margin: 0 6px 0 0;
+}
+/* The toolbar checkbox stays at its compact 14px size with a smaller tick. */
+#showRemoteBranchesCheckbox {
+  width: 14px;
+  height: 14px;
+  vertical-align: text-top;
+}
+#dialog table.dialogForm input[type="checkbox"]:checked,
+.settingsExtensionInput[type="checkbox"]:checked,
+#showRemoteBranchesCheckbox:checked {
+  background-color: var(--vscode-button-background, var(--ngg-accent));
+  border-color: var(--vscode-button-background, var(--ngg-accent));
+}
+#dialog table.dialogForm input[type="checkbox"]:checked::after,
+.settingsExtensionInput[type="checkbox"]:checked::after,
+#showRemoteBranchesCheckbox:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--vscode-button-foreground, var(--ngg-accent-foreground));
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+#showRemoteBranchesCheckbox:checked::after {
+  left: 4px;
+  top: 1px;
+  width: 3px;
+  height: 7px;
+}
+#dialog table.dialogForm input[type="checkbox"]:hover,
+.settingsExtensionInput[type="checkbox"]:hover,
+#showRemoteBranchesCheckbox:hover {
+  border-color: var(--vscode-button-background, var(--ngg-accent));
+}
+#dialog table.dialogForm input[type="checkbox"]:focus-visible,
+.settingsExtensionInput[type="checkbox"]:focus-visible,
+#showRemoteBranchesCheckbox:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+#dialog table.dialogForm input[type="checkbox"]:disabled,
+.settingsExtensionInput[type="checkbox"]:disabled,
+#showRemoteBranchesCheckbox:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+@media (forced-colors: active) {
+  #dialog table.dialogForm input[type="checkbox"],
+  .settingsExtensionInput[type="checkbox"],
+  #showRemoteBranchesCheckbox {
+    border-color: ButtonText;
+    background-color: ButtonFace;
+  }
+  #dialog table.dialogForm input[type="checkbox"]:checked,
+  .settingsExtensionInput[type="checkbox"]:checked,
+  #showRemoteBranchesCheckbox:checked {
+    background-color: Highlight;
+    border-color: Highlight;
+  }
+  #dialog table.dialogForm input[type="checkbox"]:checked::after,
+  .settingsExtensionInput[type="checkbox"]:checked::after,
+  #showRemoteBranchesCheckbox:checked::after {
+    border-color: HighlightText;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #dialog table.dialogForm input[type="checkbox"],
+  .settingsExtensionInput[type="checkbox"],
+  #showRemoteBranchesCheckbox {
+    transition: none;
+  }
+}

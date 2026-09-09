@@ -200,11 +200,6 @@
   color: var(--vscode-input-foreground);
   font: inherit;
 }
-.settingsExtensionInput[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--vscode-button-background, var(--ngg-accent));
-}
 .settingsNumberInput {
   width: 96px;
   padding: 0 6px;

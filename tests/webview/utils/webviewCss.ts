@@ -6,6 +6,7 @@ import { join } from "node:path";
 const WEBVIEW_CSS_FILES = [
   "tokens.css",
   "base.css",
+  "checkbox.css",
   "table.css",
   "commit-details.css",
   "refs.css",

@@ -499,7 +499,14 @@ may not define the token):
 - Dropdown widget: control on `--vscode-dropdown-*`, option list on
   `--vscode-dropdown-listBackground` plus `--vscode-list-*` hover/selection
   tokens, filter input on the input tokens above.
-- Checkboxes: `accent-color: var(--vscode-button-background, var(--ngg-accent))`.
+- Checkboxes: keep the native `input[type="checkbox"]` and restyle it with
+  `appearance: none` plus a themed box (`--vscode-checkbox-background` /
+  `--vscode-checkbox-border` with `--ngg-*` OKLCH fallbacks, 3px radius in the
+  existing 3–4px family). The tick is a CSS `::after` border tick drawn in the
+  checked state (never pasted SVG paths — `octicon()` is unavailable from CSS),
+  `:focus-visible` rings `--vscode-focusBorder`, `:disabled` dims, and every
+  checkbox rule set carries `@media (forced-colors: active)` and
+  `@media (prefers-reduced-motion: reduce)` counterparts.
 - Icons: render icons through `octicon(name, className?)` from the generated
   `src/octicons.ts` module (16px octicons, MIT). Add names to
   `scripts/generate-octicons.js` and regenerate with `pnpm run icons:generate`;
@@ -3252,6 +3259,41 @@ touched files, full typecheck/lint, full tests, `pnpm run l10n:check`, fresh
 gate **before** committing. Advance `sonar.projectVersion` when the maintainer
 opens a new analysis epoch for this backlog.
 
+## Graph and stash UI slices (`2026-09-09`)
+
+Maintainer-prioritized work, taken in slice order: checkbox appearance,
+remote sub-label restyle, stash-list move to the top of `#content`, then
+stashes as graph rows (closing Phase 7's remaining item). The four slices
+share one working tree and are split into four commits afterwards; behavioral
+write-ups were approved by the maintainer before code was written, with both
+the `#stashList` panel and the graph stash rows staying (neither surface
+replaces the other).
+
+### Slice 1 — Checkbox appearance
+
+One shared rule set in `media/checkbox.css` (wired into `webviewHtml.ts` and
+the CSS test helper alongside the other links) covers every checkbox in the
+webview — dialog forms, settings hub, toolbar — so the box, tick, and states
+stay identical everywhere. Each site keeps its native
+`input[type="checkbox"]`, restyled with `appearance: none` plus a themed box
+(`--vscode-checkbox-background` / `--vscode-checkbox-border` with `--ngg-*`
+OKLCH fallbacks, 3px radius): unchecked box, checked fill on
+`--vscode-button-background` with a border-based `::after` tick in
+`--vscode-button-foreground`, hover border tint, `:focus-visible` ring on
+`--vscode-focusBorder`, `:disabled` dimming, and `forced-colors` /
+`prefers-reduced-motion` counterparts. Only per-site metrics live outside the
+shared selectors (dialog alignment/margin, toolbar 14px size with a smaller
+tick; dialog and settings share the 16px box). The Webview UI Styling Guide
+checkbox line was rewritten to describe this pattern. CSS regression
+coverage in `tests/webview/dialogStyles.test.ts` and
+`tests/webview/tableStyles.test.ts`.
+
+Verification: focused vitest (`dialogStyles`, `tableStyles`: 41 passed),
+strict Biome over both touched test files (clean).
+
+TODO(maintainer): gate evidence — full gate (typecheck, test, l10n:check,
+coverage, Sonar task id) to be filled in when the release gate runs.
+
 ## Near-Term Work Order
 
 Maintainer-set priority (`2026-08-25`): **the Immediate TODOs bug backlog above
@@ -3259,6 +3301,10 @@ comes before every phase item below.** BUG-1 through BUG-6 were reported against
 `v1.3.0` and root-caused the same day; work them in the slice order recorded at
 the end of that section. Nothing in the phase list starts until that backlog is
 closed or the maintainer explicitly redirects.
+
+**Current priority (`2026-09-09`): the four graph/stash UI slices** in the
+section above — checkboxes, remote sub-label restyle, stash-list move, graph
+stash rows — in that order, before any other remaining phase item.
 
 **Backlog closed `2026-08-25`** — all six entries fixed and gated; per-entry
 implementation records with Sonar task ids are in the backlog section above.

@@ -80,11 +80,6 @@
   color: var(--vscode-editor-foreground);
   font-weight: 400;
 }
-#showRemoteBranchesCheckbox {
-  width: 14px;
-  vertical-align: text-top;
-  accent-color: var(--vscode-button-background, var(--ngg-accent));
-}
 .toolbarFind {
   display: inline-flex;
   align-items: center;

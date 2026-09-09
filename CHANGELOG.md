@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Slice 1: checkboxes are drawn by the extension instead of the platform.**
+  Every checkbox (dialogs, settings hub, toolbar) keeps its native
+  `input[type="checkbox"]` behavior and now renders from one shared rule set:
+  a themed 14–16px box (3px radius) with a CSS tick, hover, focus-ring,
+  disabled, high-contrast, and reduced-motion states.
 ## [1.5.1] - 2026-09-07
 
 ### Fixed
