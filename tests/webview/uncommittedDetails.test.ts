@@ -241,6 +241,64 @@ describe("uncommitted details", () => {
     expect(unstagedItem?.getAttribute("draggable")).toBe("true");
   });
 
+  it("groups nested paths into draggable folder rows and stages a whole folder", () => {
+    receiveUncommittedDetails({
+      staged: [],
+      unstaged: [
+        { path: "src/a.ts", oldPath: null, stagedKind: null, unstagedKind: "M" },
+        { path: "src/deep/b.ts", oldPath: null, stagedKind: null, unstagedKind: "M" },
+        { path: "top.txt", oldPath: null, stagedKind: null, unstagedKind: "M" }
+      ]
+    });
+
+    const folder = document.querySelector<HTMLElement>('.uncommittedFolder[data-folderpath="src"]');
+    expect(folder).not.toBeNull();
+    expect(folder?.getAttribute("draggable")).toBe("true");
+    // A top-level file stays a plain row rather than being wrapped.
+    expect(document.querySelector('.uncommittedFile[data-filepath="top.txt"]')).not.toBeNull();
+    // The folder carries every descendant on offer, so one drop covers the
+    // subtree — including the nested folder's file.
+    expect(folder?.dataset.paths?.split(" ").map(decodeURIComponent)).toEqual([
+      "src/deep/b.ts",
+      "src/a.ts"
+    ]);
+
+    const stagedPane = document.getElementById("commitDetailsSummary");
+    expect(stagedPane?.getAttribute("data-section")).toBe("staged");
+    dropOnto(stagedPane as Element, `unstaged ${folder?.dataset.paths}`, "staged");
+
+    expect(latestSent("stageFiles")).toEqual({
+      command: "stageFiles",
+      repo: REPO,
+      filePaths: ["src/deep/b.ts", "src/a.ts"]
+    });
+  });
+
+  it("collapses a folder and keeps it collapsed across a re-render", () => {
+    receiveUncommittedDetails({
+      staged: [],
+      unstaged: [{ path: "src/a.ts", oldPath: null, stagedKind: null, unstagedKind: "M" }]
+    });
+    const header = document.querySelector<HTMLElement>(".uncommittedFolderHeader");
+    expect(header?.getAttribute("aria-expanded")).toBe("true");
+
+    header?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const folder = document.querySelector<HTMLElement>(".uncommittedFolder");
+    expect(folder?.classList.contains("closed")).toBe(true);
+    expect(document.querySelector(".uncommittedFolderHeader")?.getAttribute("aria-expanded")).toBe(
+      "false"
+    );
+
+    // Every staging action re-queries and re-renders the panel, so collapse
+    // state has to survive that or folders reopen on each drop.
+    receiveUncommittedDetails({
+      staged: [],
+      unstaged: [{ path: "src/a.ts", oldPath: null, stagedKind: null, unstagedKind: "M" }]
+    });
+    expect(document.querySelector(".uncommittedFolder")?.classList.contains("closed")).toBe(true);
+  });
+
   it("expands the graph below the panel, like commit details do", () => {
     // The panel is a #commitDetails row hung off the uncommitted row, but it
     // has no ExpandedCommit. When the graph keyed its gap off `expandedCommit`

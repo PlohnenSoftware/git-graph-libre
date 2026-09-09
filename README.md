@@ -26,8 +26,8 @@
 - **Commit actions**: Checkout, cherry-pick, revert, and reset
 - **Stashes**: See stashes in a list above the graph, as rows beside the commit
   each was taken from, or both; apply, pop, drop, or branch from any of them
-- **Staging**: Click the uncommitted-changes row to stage and unstage files by
-  dragging them between the staged and unstaged panes
+- **Staging**: Click the uncommitted-changes row to stage and unstage files, or
+  whole folders, by dragging them between the staged and unstaged panes
 - **Avatar support**: Optional avatars from GitHub, GitLab, or Gravatar
 - **Multi-repo**: Work with multiple repositories and declared Git submodules in
   one workspace; reload the extension after changing `.gitmodules`

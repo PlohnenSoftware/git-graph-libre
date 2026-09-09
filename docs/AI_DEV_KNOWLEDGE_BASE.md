@@ -3547,6 +3547,42 @@ Two durable points:
   API-mandated names (git flags, `--vscode-*` tokens, CSS syntax, assertion
   boilerplate) as expected overlap rather than signal.
 
+### Follow-up — staging catalogue view, and two rendering fixes
+
+**The uncommitted panes render a folder tree.** `src/webview/utils/pathTree.ts`
+is a new pure module that groups flat `a/b/c.txt` paths into folders, with
+optional compaction of single-child chains and a `collectLeafPaths()` used by
+the folder drag. It deliberately does **no** rendering: commit details and the
+staging panes need the same grouping but very different rows, so only the
+grouping is shared. `commitDetailsView.generateGitFileTree()` still has its own
+older builder — migrating it onto `pathTree` is a follow-up, not done here
+because its per-folder open state and leaf renderer are entangled with its
+markup, and that is a commit-details slice rather than a staging one.
+
+Three contracts worth keeping:
+
+- **A folder drag carries every descendant path, not the folder path.** The
+  payload grew from `"<section> <path>"` to `"<section> <path>..."`, and the
+  drop handler now accepts two-or-more fields. Handing git the folder itself
+  (`git add -- dir/`) would also sweep in changes the pane is not showing —
+  the other section's changes to the same folder, for one — so the descendants
+  actually on screen are listed explicitly. The space separator is still only
+  safe because every path is percent-encoded; that has not changed.
+- **Folder collapse state lives in the view state, keyed by path.** Every
+  staging action re-queries and re-renders the panel, so DOM-held state would
+  reopen every folder on each drop. Toggling is applied in place rather than by
+  re-rendering, because a re-render needs another round trip for the change
+  list and the row heights feed the graph's expansion.
+- **A file row inside a folder row is also draggable**, so the folder's
+  `dragstart` ignores events whose target is not the folder itself. Without
+  that guard, dragging one file stages the whole subtree.
+
+**Two rendering bugs fixed in the same pass**, both recorded in detail in the
+Slice 3 and Slice 4 notes above: the graph did not expand for the uncommitted
+panel (it keyed off `expandedCommit`, which the panel does not have), and the
+stash ring was repainted invisible by the halo rule because a presentation
+attribute loses to CSS.
+
 ### Release gate for these slices (`2026-09-09`)
 
 One gate over the completed tree covering all six commits, in the documented
@@ -3562,17 +3598,20 @@ tree. Nothing was pushed before it passed.
   formatting do not disagree here.
 - `pnpm run package`: typecheck (three projects), whole-tree `biome lint`
   over `241` files, and production builds — all clean.
-- `pnpm run test`: `47` files / `483` tests.
+- `pnpm run test`: `48` files / `496` tests.
 - `pnpm run l10n:check`: `100%` bundle and package coverage for `nl`, `pl`,
   `zh-cn`, `zh-tw`.
-- `pnpm run test:coverage`: `108` files / `960` tests, raw LCOV line coverage
-  `93.0%` (`5,926`/`6,375`).
-- `pnpm run sonar:scan`, task `2fed9d8d-bc63-4fa6-ba61-7610d53aceb2`,
-  analysis `aca8e249-89a7-4e68-b231-312cbbc838c2` (third pass, after the
-  maintainer's design corrections; earlier passes were
-  `42fa24ac-a62a-4394-abe6-6eafa5f9e0b4` and
-  `4a45bffb-9ab6-41ca-8144-d1d727974f0a`): `ZAM` gate **`OK`** on all
-  seven reported conditions — `new_coverage` `94.9`,
+- `pnpm run test:coverage`: `109` files / `973` tests, raw LCOV line coverage
+  `92.9%` (`6,010`/`6,468`).
+- `pnpm run sonar:scan`, task `55613d77-1486-4121-9bfe-b1e0660d3f07`,
+  analysis `9e1e7aea-175b-4a35-b0fd-297733d73aed`: `ZAM` gate **`OK`** on all
+  seven reported conditions. This was the fifth pass; earlier ones were
+  `42fa24ac`, `4a45bffb`, `2fed9d8d`, and `2dd77b07` — the last of which
+  **failed** on `new_software_quality_high_issues` `1`
+  (`typescript:S7761`, `getAttribute("data-id")` where `.dataset` belongs, in
+  the new `expandedRowId()` helper). Fixed and rescanned; note the gate treats
+  that rule as HIGH maintainability impact, so it fails the build rather than
+  counting against the `new_violations` budget — `new_coverage` `92.6`,
   `new_duplicated_lines_density` `0.0`, `new_violations` `0`,
   `new_software_quality_high_issues` `0`,
   `software_quality_maintainability_rating` `1`, and project-wide reliability

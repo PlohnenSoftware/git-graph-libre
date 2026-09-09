@@ -275,6 +275,8 @@ class GitGraphView {
     stagedOpen: boolean;
     unstagedOpen: boolean;
     detailsHeight: number;
+    /** Folder paths the user collapsed, per pane; folders default to open. */
+    collapsedFolders: { staged: Set<string>; unstaged: Set<string> };
   } | null = null;
   private maxCommits: number;
   private readonly hiddenColumns: Set<HideableColumn> = new Set();
@@ -2758,8 +2760,9 @@ class GitGraphView {
    * by a share of it and the dots drifted off their rows.
    */
   private expandedRowId(detailsElem: HTMLElement | null): number | null {
-    const id = detailsElem?.previousElementSibling?.getAttribute("data-id");
-    if (id === null || id === undefined) return null;
+    const sourceRow = detailsElem?.previousElementSibling;
+    const id = sourceRow instanceof HTMLElement ? sourceRow.dataset.id : undefined;
+    if (id === undefined) return null;
     const parsed = Number.parseInt(id, 10);
     return Number.isNaN(parsed) ? null : parsed;
   }
@@ -5402,7 +5405,8 @@ class GitGraphView {
       srcElem: sourceElem,
       stagedOpen: true,
       unstagedOpen: true,
-      detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT
+      detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT,
+      collapsedFolders: { staged: new Set(), unstaged: new Set() }
     };
     sendMessage({ command: "uncommittedDetails", repo: this.currentRepo });
   }
@@ -5440,8 +5444,16 @@ class GitGraphView {
     newElem.innerHTML = renderUncommittedDetailsRowHtml({
       changes,
       l10n,
-      sections: view,
-      detailsHeight: view.detailsHeight
+      sections: {
+        stagedOpen: view.stagedOpen,
+        unstagedOpen: view.unstagedOpen,
+        collapsedFolders: {
+          staged: [...view.collapsedFolders.staged],
+          unstaged: [...view.collapsedFolders.unstaged]
+        }
+      },
+      detailsHeight: view.detailsHeight,
+      compactFolders: this.config.commitDetailsCompactFolders
     });
     insertAfter(newElem, row);
     this.applyCommitDetailsHeight(newElem);
@@ -5471,6 +5483,7 @@ class GitGraphView {
     sendMessage({ command: "uncommittedDetails", repo: this.currentRepo });
   }
   private registerUncommittedPanelListeners(panel: HTMLElement) {
+    this.registerUncommittedFolderListeners(panel);
     panel.querySelectorAll(".uncommittedToggle").forEach((toggle) => {
       toggle.addEventListener("click", (e) => {
         const section = (<HTMLElement>e.currentTarget).dataset.section;
@@ -5491,7 +5504,9 @@ class GitGraphView {
         const section = target.dataset.section;
         const filePath = target.dataset.filepath;
         if (!isUncommittedSection(section) || filePath === undefined) return;
-        this.moveUncommittedFile(section, section === "staged" ? "unstaged" : "staged", filePath);
+        this.moveUncommittedPaths(section, section === "staged" ? "unstaged" : "staged", [
+          filePath
+        ]);
       });
     });
     panel.querySelectorAll(".uncommittedPane").forEach((zone) => {
@@ -5539,6 +5554,56 @@ class GitGraphView {
     body.classList.toggle("hidden", !open);
   }
   /**
+   * Folder rows in the staging panes: draggable as a whole subtree, and
+   * collapsible. Collapse state is keyed by folder path in the view state
+   * rather than held in the DOM, because every staging action re-queries and
+   * re-renders the panel — DOM-held state would reopen every folder on each
+   * drop.
+   */
+  private registerUncommittedFolderListeners(panel: HTMLElement) {
+    panel.querySelectorAll(".uncommittedFolder").forEach((folder) => {
+      folder.addEventListener("dragstart", (e) => {
+        // A file row inside this folder is also draggable; let its own
+        // handler win rather than dragging the whole subtree.
+        if (e.target !== e.currentTarget) return;
+        this.startUncommittedFileDrag(e);
+      });
+    });
+    panel.querySelectorAll(".uncommittedFolderHeader").forEach((header) => {
+      header.addEventListener("click", (e) => this.toggleUncommittedFolder(e));
+      header.addEventListener("keydown", (e) => {
+        const key = (<KeyboardEvent>e).key;
+        if (key !== "Enter" && key !== " ") return;
+        e.preventDefault();
+        this.toggleUncommittedFolder(e);
+      });
+    });
+  }
+  private toggleUncommittedFolder(e: Event) {
+    e.stopPropagation();
+    const row = closestHTMLElement(e.target, ".uncommittedFolder");
+    const view = this.uncommittedView;
+    if (row === null || view === null) return;
+    const section = row.dataset.section;
+    const encoded = row.dataset.folderpath;
+    if (!isUncommittedSection(section) || encoded === undefined) return;
+
+    const path = decodeURIComponent(encoded);
+    const collapsed = view.collapsedFolders[section];
+    const open = !collapsed.has(path);
+    if (open) collapsed.add(path);
+    else collapsed.delete(path);
+
+    // Toggle in place: re-rendering the panel would need another round trip
+    // for the change list, and the row heights feed the graph's expansion.
+    row.classList.toggle("closed", open);
+    row.querySelector(".uncommittedFolderHeader")?.setAttribute("aria-expanded", String(!open));
+    const glyph = row.querySelector(".uncommittedFolderGlyph");
+    if (glyph !== null) glyph.textContent = open ? "+" : "-";
+    row.querySelector(".gitFolderContents")?.classList.toggle("hidden", open);
+    this.renderGraph();
+  }
+  /**
    * Start a file drag, carrying `"<section> <uri-encoded path>"` as the drag
    * payload. The space separator is safe only because the path is
    * percent-encoded by the renderer — a real worktree path may contain spaces
@@ -5548,9 +5613,12 @@ class GitGraphView {
   private startUncommittedFileDrag(e: Event) {
     const item = <HTMLElement>e.currentTarget;
     const transfer = (<DragEvent>e).dataTransfer;
-    if (transfer === null || item.dataset.filepath === undefined) return;
+    if (transfer === null) return;
+    if (item.dataset.filepath === undefined && item.dataset.paths === undefined) return;
     transfer.effectAllowed = "move";
-    transfer.setData("text/plain", `${item.dataset.section ?? ""} ${item.dataset.filepath}`);
+    // A folder row carries its whole subtree; a file row carries one path.
+    const paths = item.dataset.paths ?? item.dataset.filepath ?? "";
+    transfer.setData("text/plain", `${item.dataset.section ?? ""} ${paths}`);
     item.classList.add("dragging");
     item.addEventListener(
       "dragend",
@@ -5586,20 +5654,27 @@ class GitGraphView {
     const target = zone.dataset.section;
     if (transfer === null || !isUncommittedSection(target)) return;
     const payload = transfer.getData("text/plain").split(" ");
-    if (payload.length !== 2 || !isUncommittedSection(payload[0])) return;
-    this.moveUncommittedFile(payload[0], target, payload[1]);
+    // `<section> <path>...`: one path for a file, every descendant for a
+    // folder. Anything shorter than two fields, or with an unknown section,
+    // is text dropped in from outside the panel and is ignored.
+    if (payload.length < 2 || !isUncommittedSection(payload[0])) return;
+    this.moveUncommittedPaths(payload[0], target, payload.slice(1));
   }
-  private moveUncommittedFile(
+  private moveUncommittedPaths(
     source: UncommittedSection,
     target: UncommittedSection,
-    encodedPath: string
+    encodedPaths: readonly string[]
   ) {
     const action = getStagingDropAction(source, target);
     if (action === null) return;
+    const filePaths = encodedPaths
+      .filter((encoded) => encoded !== "")
+      .map((encoded) => decodeURIComponent(encoded));
+    if (filePaths.length === 0) return;
     sendMessage({
       command: action,
       repo: this.currentRepo,
-      filePaths: [decodeURIComponent(encodedPath)]
+      filePaths
     });
     showActionRunningDialog(
       action === "stageFiles" ? l10n.statusStagingFiles : l10n.statusUnstagingFiles

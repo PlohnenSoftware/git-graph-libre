@@ -414,8 +414,37 @@ body.commitDetailsResizing * {
 .uncommittedFile {
   cursor: grab;
 }
-.uncommittedFile.dragging {
+.uncommittedFile.dragging,
+.uncommittedFolder.dragging {
   opacity: 0.5;
+}
+/* Folder rows in the staging panes are draggable as a whole subtree, so they
+   take the same grab cursor as a file row. The header is the click target for
+   collapsing, and it carries the affordance; the row itself must not, or a
+   drag started on the row reads as a collapse. */
+.uncommittedFolder {
+  cursor: grab;
+}
+.uncommittedFolderHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.uncommittedFolderHeader:hover {
+  background-color: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-muted));
+}
+.uncommittedFolderHeader:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+.uncommittedFolderGlyph {
+  flex: 0 0 auto;
+  width: 1ch;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-weight: 600;
+  text-align: center;
 }
 .uncommittedStatus {
   flex: 0 0 auto;

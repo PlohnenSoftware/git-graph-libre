@@ -253,6 +253,11 @@
 #stashList {
   box-sizing: border-box;
   max-width: min(920px, calc(100vw - 24px));
+  /* The list holds position with the rest of #topBar, so an unbounded one
+     would eat the viewport on a repository with many stashes. Cap it and let
+     it scroll internally instead. */
+  max-height: min(40vh, 320px);
+  overflow-y: auto;
   margin: 4px auto 8px;
   border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
   border-radius: 5px;

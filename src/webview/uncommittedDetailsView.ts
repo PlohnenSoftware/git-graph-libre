@@ -4,6 +4,8 @@ import { octicon } from "@/octicons";
 
 import { renderCommitDetailsResizeHandle } from "./commitDetailsView";
 import { escapeHtml } from "./utils/html";
+import type { PathTreeFolder, PathTreeNode } from "./utils/pathTree";
+import { buildPathTree, collectLeafPaths } from "./utils/pathTree";
 
 export type UncommittedSection = "staged" | "unstaged";
 export type StagingDropAction = "stageFiles" | "unstageFiles";
@@ -11,6 +13,13 @@ export type StagingDropAction = "stageFiles" | "unstageFiles";
 export type UncommittedDetailsSectionState = {
   stagedOpen: boolean;
   unstagedOpen: boolean;
+  /**
+   * Folder paths the user has collapsed, per pane. Folders default to open,
+   * so only the exceptions are tracked — and they are keyed by path rather
+   * than by position so a collapsed folder survives the panel's re-query
+   * after every staging action.
+   */
+  collapsedFolders?: { staged: readonly string[]; unstaged: readonly string[] };
 };
 
 type RenderUncommittedDetailsOptions = {
@@ -18,6 +27,8 @@ type RenderUncommittedDetailsOptions = {
   l10n: LocalizedStrings;
   sections: UncommittedDetailsSectionState;
   detailsHeight: number;
+  /** Collapse single-child folder chains, following the commit-details setting. */
+  compactFolders?: boolean;
 };
 
 /**
@@ -46,12 +57,24 @@ export function renderUncommittedDetailsRowHtml({
   changes,
   l10n,
   sections,
-  detailsHeight
+  detailsHeight,
+  compactFolders
 }: RenderUncommittedDetailsOptions): string {
+  const collapsed = sections.collapsedFolders ?? { staged: [], unstaged: [] };
+  const tree = (section: UncommittedSection) => ({
+    collapsed: new Set(collapsed[section]),
+    compactFolders: compactFolders === true
+  });
   return [
     '<td></td><td colspan="5">',
-    renderUncommittedPane("staged", changes.staged, l10n, sections.stagedOpen),
-    renderUncommittedPane("unstaged", changes.unstaged, l10n, sections.unstagedOpen),
+    renderUncommittedPane("staged", changes.staged, l10n, sections.stagedOpen, tree("staged")),
+    renderUncommittedPane(
+      "unstaged",
+      changes.unstaged,
+      l10n,
+      sections.unstagedOpen,
+      tree("unstaged")
+    ),
     renderCommitDetailsResizeHandle(l10n, detailsHeight),
     "</td>"
   ].join("");
@@ -71,11 +94,14 @@ function sectionIds(section: UncommittedSection): { pane: string; body: string; 
       };
 }
 
+type TreeOptions = { collapsed: Set<string>; compactFolders: boolean };
+
 function renderUncommittedPane(
   section: UncommittedSection,
   files: GitUncommittedFile[],
   l10n: LocalizedStrings,
-  open: boolean
+  open: boolean,
+  tree: TreeOptions
 ): string {
   const ids = sectionIds(section);
   const label = section === "staged" ? l10n.detailStaged : l10n.detailUnstaged;
@@ -92,7 +118,7 @@ function renderUncommittedPane(
     `<span class="commitDetailsToggleLabel">${escapeHtml(label)}</span>`,
     "</button>",
     `<div id="${ids.body}" class="${bodyClass}" data-section="${section}">`,
-    renderUncommittedFileList(section, files, l10n),
+    renderUncommittedFileList(section, files, l10n, tree),
     "</div></div>"
   ].join("");
 }
@@ -100,15 +126,63 @@ function renderUncommittedPane(
 function renderUncommittedFileList(
   section: UncommittedSection,
   files: GitUncommittedFile[],
-  l10n: LocalizedStrings
+  l10n: LocalizedStrings,
+  tree: TreeOptions
 ): string {
   if (files.length === 0) {
     const empty = section === "staged" ? l10n.detailNoStagedFiles : l10n.detailNoUnstagedFiles;
     return `<ul class="gitFileList"><li class="uncommittedEmpty">${escapeHtml(empty)}</li></ul>`;
   }
-  return `<ul class="gitFileList">${files
-    .map((file) => renderUncommittedFileItem(section, file, l10n))
+  const root = buildPathTree(
+    files.map((file) => ({ path: file.path, value: file })),
+    { compactFolders: tree.compactFolders }
+  );
+  return `<ul class="gitFileList">${root.children
+    .map((node) => renderUncommittedNode(section, node, l10n, tree))
     .join("")}</ul>`;
+}
+
+function renderUncommittedNode(
+  section: UncommittedSection,
+  node: PathTreeNode<GitUncommittedFile>,
+  l10n: LocalizedStrings,
+  tree: TreeOptions
+): string {
+  return node.type === "folder"
+    ? renderUncommittedFolder(section, node, l10n, tree)
+    : renderUncommittedFileItem(section, node.value, l10n);
+}
+
+/**
+ * A folder row. It is draggable in its own right and carries every descendant
+ * path on offer in this pane, so dropping it stages or unstages the whole
+ * subtree in one git call. The paths are listed rather than the folder's own
+ * path because `git add -- <dir>` would also sweep in changes the pane is not
+ * showing (a different section's changes to the same folder, for one).
+ */
+function renderUncommittedFolder(
+  section: UncommittedSection,
+  folder: PathTreeFolder<GitUncommittedFile>,
+  l10n: LocalizedStrings,
+  tree: TreeOptions
+): string {
+  const open = !tree.collapsed.has(folder.path);
+  const encodedPaths = collectLeafPaths(folder).map(encodeURIComponent).join(" ");
+  const moveLabel = section === "staged" ? l10n.actionUnstageFile : l10n.actionStageFile;
+  return [
+    `<li class="gitFolder uncommittedFolder${open ? "" : " closed"}"`,
+    ` draggable="true" data-section="${section}"`,
+    ` data-folderpath="${encodeURIComponent(folder.path)}"`,
+    ` data-paths="${encodedPaths}" title="${escapeHtml(moveLabel)}">`,
+    `<span class="gitFolderHeader uncommittedFolderHeader" role="button" tabindex="0"`,
+    ` aria-expanded="${open}">`,
+    `<span class="uncommittedFolderGlyph" aria-hidden="true">${open ? "-" : "+"}</span>`,
+    `<span class="gitFolderName">${escapeHtml(folder.name)}</span>`,
+    "</span>",
+    `<ul class="gitFolderContents${open ? "" : " hidden"}">`,
+    folder.children.map((child) => renderUncommittedNode(section, child, l10n, tree)).join(""),
+    "</ul></li>"
+  ].join("");
 }
 
 function renderUncommittedFileItem(

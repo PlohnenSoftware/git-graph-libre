@@ -36,6 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The uncommitted-changes panes group files into folders.** Staged and
+  unstaged files now appear as a folder tree rather than a flat list, with
+  folders collapsible and following the existing "compact folders" setting.
+  **A folder can be dragged between the panes to stage or unstage everything
+  under it** in one action, and a collapsed folder stays collapsed across the
+  re-render each staging action triggers.
+
 - **Choose where stashes appear.** `repository.stashDisplay` (`"table"`,
   `"graph"`, or `"both"`, default `"both"`) selects whether stashes show in
   the list above the table, as rows on the graph, or in both places. It is
@@ -45,6 +52,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `dialog.createBranch.checkout` (default `true`) pre-checks "Check out" in
   the dialog, so creating a branch and switching to it is one action instead
   of two. Clearing the checkbox creates the branch without moving `HEAD`.
+
+### Fixed
+
+- **The graph stayed aligned only for commit details, not the staging panel.**
+  Opening a commit's details stretches the graph so the commits below stay
+  level with their rows; opening the uncommitted-changes panel did not, and
+  every dot below it drifted. The panel's height counted toward the measured
+  table height while no gap was inserted, so each row height absorbed a share
+  of it. Both panels now expand the graph the same way.
+- **The stash marker's ring was never drawn.** Its lane colour was set as an
+  SVG presentation attribute, which CSS outranks, so the rule that gives every
+  node a background-coloured halo repainted the ring invisible — only the inner
+  dot showed. The ring is also smaller and its band thicker, so the marker
+  reads at the default row height.
 
 ## [1.5.1] - 2026-09-07
 

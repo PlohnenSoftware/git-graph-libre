@@ -214,6 +214,19 @@ describe("commit table styles", () => {
     expect(css).not.toContain("accent-color");
   });
 
+  it("keeps the stash list pinned with the top bar and bounded", () => {
+    // The list lives in #topBar, which is sticky, so it holds while the table
+    // scrolls. That also means an unbounded list would swallow the viewport.
+    const topBar = css.match(/#topBar \{[^}]+\}/)?.[0] ?? "";
+    expect(topBar).toContain("position: sticky;");
+    expect(topBar).toContain("top: 0;");
+    const stashList = css.match(/#stashList \{[^}]+\}/)?.[0] ?? "";
+    expect(stashList).toContain("max-height: min(40vh, 320px);");
+    expect(stashList).toContain("overflow-y: auto;");
+    // An empty slot must collapse, or it offsets the sticky table header.
+    expect(css).toContain("#stashListSlot:empty");
+  });
+
   it("exempts the stash ring from the background-stroke rule", () => {
     // A `stroke` set as a presentation attribute in graph.ts loses to any CSS
     // rule. The global halo rule must therefore skip the stash ring, or the
@@ -295,8 +308,12 @@ describe("commit table styles", () => {
     const dropTarget = css.match(/^\.uncommittedPane\.dropTarget \{[^}]+\}/m)?.[0] ?? "";
     expect(dropTarget).toContain("var(--vscode-focusBorder)");
     expect(dropTarget).toContain("outline: 1px dashed");
-    // Pane rows stay draggable list items with per-file stage buttons.
-    expect(css).toContain(".uncommittedFile.dragging {");
+    // Pane rows stay draggable list items with per-file stage buttons. Folder
+    // rows are draggable too and share the drag-opacity rule, so assert the
+    // selector list rather than a standalone file-only rule.
+    expect(css).toContain(".uncommittedFile.dragging,");
+    expect(css).toContain(".uncommittedFolder.dragging {");
+    expect(css).toContain(".uncommittedFolderHeader {");
   });
 
   it("uses OKLCH for owned CSS fallback colors", () => {
