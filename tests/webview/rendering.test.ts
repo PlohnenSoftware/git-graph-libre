@@ -2216,6 +2216,13 @@ describe("webview rendering", () => {
     expect(document.querySelector(".stashRow")?.textContent).toContain("stash@{0}");
     expect(document.querySelector(".stashRow")?.textContent).toContain("WIP on main");
 
+    // The list sits at the top of #content, immediately above the table —
+    // never in the footer beside the load-more control.
+    const stashList = document.getElementById("stashList");
+    expect(stashList?.parentElement?.id).toBe("content");
+    expect(stashList?.nextElementSibling?.id).toBe("commitTable");
+    expect(document.getElementById("footer")?.querySelector("#stashList")).toBeNull();
+
     openStashContextMenu();
     clickContextMenuItem("Copy Stash Hash");
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
@@ -2288,6 +2295,17 @@ describe("webview rendering", () => {
       moreCommitsAvailable: true,
       hard: true,
       error: null
+    });
+
+    // A re-render rebuilds the section above the table with working listeners.
+    expect(document.getElementById("stashList")?.parentElement?.id).toBe("content");
+    expect(document.getElementById("footer")?.querySelector("#stashList")).toBeNull();
+    openStashContextMenu();
+    clickContextMenuItem("Copy Stash Hash");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "Stash Hash",
+      data: "feed1234"
     });
   });
 

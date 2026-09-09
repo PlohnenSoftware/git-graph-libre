@@ -3318,6 +3318,31 @@ CSS is not counted by the strict config).
 TODO(maintainer): gate evidence — full gate (typecheck, test, l10n:check,
 coverage, Sonar task id) to be filled in when the release gate runs.
 
+### Slice 3 — Stash list above the table
+
+`renderStashFooter()` became `renderStashList()` (same section HTML, same
+`#stashList` id, `aria-label`, `.stashRow` markup, and `data-stash-ref` /
+`data-stash-hash`), and a new `renderStashSection()` inserts it as the first
+child of `#content` ahead of `#commitTable` (or replaces it in place, or
+removes it when empty). `renderLoadMoreFooter()` now renders only the
+load-more control; the loading and error paths clear the section explicitly
+since emptying the footer no longer covers it. The `showStashes` gating is
+unchanged (it flows through the loaded stash data). One adjacency the move
+required: `#commitGraph` is an overlay pinned at the content top while its
+dot math starts at the table header, so `renderGraph()` re-pins the canvas
+`top` to the table's `offsetTop` on every render — show/hide and count
+changes self-correct with no observer, and `--ngg-sticky-top` /
+`publishTopBarHeight()` are untouched. Rendering tests assert the new parent,
+the footer no longer containing the list, and listeners firing after a
+re-render; a CSS regression test pins the panel container rules.
+
+Verification: `pnpm run typecheck` clean; focused vitest (`rendering`,
+`tableStyles`: 99 passed); strict Biome over `src/webview/main.ts` and both
+touched test files (clean).
+
+TODO(maintainer): gate evidence — full gate (typecheck, test, l10n:check,
+coverage, Sonar task id) to be filled in when the release gate runs.
+
 ## Near-Term Work Order
 
 Maintainer-set priority (`2026-08-25`): **the Immediate TODOs bug backlog above

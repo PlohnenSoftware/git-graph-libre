@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The divider between the local name and each abbreviated remote name is now
   drawn from the badge foreground instead of the neutral border; fill, text,
   tooltips, and grouping logic are unchanged.
+- **Slice 3: the stash list moved from below the table to above it.** It now
+  sits at the top of `#content`, scrolling with the table; the footer keeps
+  only the "load more" control, and the graph canvas re-pins to the table's
+  top edge on every render so dots stay on their rows.
 ## [1.5.1] - 2026-09-07
 
 ### Fixed

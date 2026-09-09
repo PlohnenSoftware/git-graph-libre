@@ -123,6 +123,16 @@ describe("commit table styles", () => {
     expect(css).toContain("display: none;");
   });
 
+  it("keeps the stash list styled as a panel above the table", () => {
+    const stashList = css.match(/^#stashList \{[^}]+\}/m)?.[0] ?? "";
+
+    expect(stashList).toContain("border: 1px solid var(--vscode-panel-border");
+    expect(stashList).toContain("border-radius: 5px;");
+    expect(stashList).toContain("background-color: var(--vscode-sideBar-background");
+    expect(css).toContain(".stashListHeader {");
+    expect(css).toContain(".stashRow {");
+  });
+
   it("marks the checked-out branch label with a colored border and no bold weight", () => {
     // Bolding is scoped to the commit description (the opt-in
     // `repository.boldCheckedOutCommit` setting wraps the message in <b>), never

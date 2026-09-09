@@ -281,6 +281,7 @@ class GitGraphView {
 
   private readonly tableElem: HTMLElement;
   private readonly footerElem: HTMLElement;
+  private readonly graphContainerElem: HTMLElement;
   private readonly repoDropdown: Dropdown;
   private readonly branchDropdown: Dropdown;
   private readonly authorDropdown: Dropdown;
@@ -337,6 +338,7 @@ class GitGraphView {
     this.graph = new Graph("commitGraph", this.config);
     this.tableElem = requireElement("commitTable");
     this.footerElem = requireElement("footer");
+    this.graphContainerElem = requireElement("commitGraph");
     this.repoDropdown = new Dropdown("repoSelect", true, l10n.repo, (value) => {
       this.currentRepo = value;
       this.maxCommits = this.config.initialLoadCommits;
@@ -638,6 +640,7 @@ class GitGraphView {
     this.updateFilterDropdowns();
     this.updateRemoteActionsVisibility();
     this.renderSettingsWidget();
+    this.renderStashSection();
     this.renderLoadMoreFooter();
   }
 
@@ -946,6 +949,7 @@ class GitGraphView {
       this.gitConfig = createEmptyGitConfig();
       this.updateRemoteActionsVisibility();
       this.renderSettingsWidget();
+      this.renderStashSection();
       this.renderLoadMoreFooter();
       this.activeLoadRepoInfoRequestId = null;
       return;
@@ -2706,6 +2710,11 @@ class GitGraphView {
     this.renderGraph();
   }
   private renderGraph() {
+    // The stash section (when present) sits in normal flow above the table
+    // and pushes its rows down while the overlay canvas stays pinned at the
+    // content top. Re-pin the canvas to the table's top edge on every render
+    // so dots stay on their rows across show/hide and count changes.
+    this.graphContainerElem.style.top = `${this.tableElem.offsetTop}px`;
     const colHeadersElem = document.getElementById("tableColHeaders");
     if (colHeadersElem === null) return;
     const headerHeight = colHeadersElem.clientHeight + 1,
@@ -2780,6 +2789,7 @@ class GitGraphView {
         : `<tr class="emptyGraphRow"><td colspan="6">${l10n.emptyGraph}</td></tr>`;
     }
     this.tableElem.innerHTML = `<table>${html}</table>`;
+    this.renderStashSection();
     this.renderLoadMoreFooter();
     this.makeTableResizable();
     this.restoreExpandedCommit();
@@ -4548,19 +4558,35 @@ class GitGraphView {
     return `<span class="avatar" data-email="${escapeHtml(commit.email)}">${imageHtml}</span>`;
   }
   private renderLoadMoreFooter() {
-    const stashHtml = this.renderStashFooter();
     const loadMoreHtml = this.moreCommitsAvailable
       ? `<div id="loadMoreCommitsBtn" class="roundedBtn">${l10n.loadMore}</div>`
       : "";
-    this.footerElem.innerHTML = stashHtml + loadMoreHtml;
-
-    this.registerStashContextMenuListener();
-    this.registerStashActivationListeners();
+    this.footerElem.innerHTML = loadMoreHtml;
 
     const loadMoreCommitsBtn = document.getElementById("loadMoreCommitsBtn");
     loadMoreCommitsBtn?.addEventListener("click", () => this.loadMoreCommits(loadMoreCommitsBtn));
   }
-  private renderStashFooter() {
+  private renderStashSection() {
+    // The stash list lives at the top of #content, immediately above the
+    // table, so it scrolls away with it. It stays out of #topBar on purpose:
+    // that element is measured into --ngg-sticky-top, and a variable-height
+    // section there would detach the sticky table header.
+    const stashHtml = this.renderStashList();
+    const existing = document.getElementById("stashList");
+    if (stashHtml === "") {
+      existing?.remove();
+      return;
+    }
+    if (existing !== null) {
+      existing.outerHTML = stashHtml;
+    } else {
+      this.tableElem.insertAdjacentHTML("beforebegin", stashHtml);
+    }
+
+    this.registerStashContextMenuListener();
+    this.registerStashActivationListeners();
+  }
+  private renderStashList() {
     if (this.gitStashes.length === 0) return "";
 
     const rows = this.gitStashes
@@ -4786,6 +4812,9 @@ class GitGraphView {
     setStatusStrip("loading", message);
     this.tableElem.innerHTML = `<h2 id="loadingHeader">${svgIcons.loading}${l10n.loading}</h2>`;
     this.footerElem.innerHTML = "";
+    // Clearing the footer no longer covers the stash list now that it lives
+    // above the table, so remove it explicitly while loading.
+    document.getElementById("stashList")?.remove();
   }
   private renderShowError(message: string, reason: string | null) {
     hideDialogAndContextMenu();
@@ -4798,6 +4827,9 @@ class GitGraphView {
         ? `<p class="errorReason">${escapeHtml(reason).replaceAll("\n", "<br>")}</p>`
         : "");
     this.footerElem.innerHTML = "";
+    // Clearing the footer no longer covers the stash list now that it lives
+    // above the table, so remove it explicitly on errors too.
+    document.getElementById("stashList")?.remove();
   }
   private checkoutBranchAction(sourceElem: HTMLElement, refName: string) {
     if (sourceElem.classList.contains("head")) {
