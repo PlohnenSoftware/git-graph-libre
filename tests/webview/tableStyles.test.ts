@@ -102,16 +102,21 @@ describe("commit table styles", () => {
 
   it("mutes only the commit message of muted rows", () => {
     const muted = css.match(
-      /#commitTable tr\.commit\.mutedCommit td:nth-child\(2\) \.commitMessage \{[^}]+\}/
+      /#commitTable tr\.commit\.mutedCommit td:nth-child\(2\) \.commitMessage,[\s\S]*?\{[^}]+\}/
     )?.[0];
 
     expect(muted).toBeDefined();
     expect(muted).toContain("var(--vscode-descriptionForeground");
+    // Stash graph rows share the same message-only scoping.
+    expect(muted).toContain(
+      "#commitTable tr.stashGraphRow.mutedCommit td:nth-child(2) .commitMessage"
+    );
     // The mute color must stay scoped to the message span: `.gitRef` and
     // `.gitRefGroup` set no color of their own, so a cell-level or
     // merge-row-level rule would gray branch and tag labels too.
     expect(css).not.toContain("#commitTable tr.commit.mergeCommit td:nth-child(2)");
     expect(css).not.toMatch(/#commitTable tr\.commit\.mutedCommit td:nth-child\(2\)\s*\{/);
+    expect(css).not.toMatch(/#commitTable tr\.stashGraphRow\.mutedCommit td:nth-child\(2\)\s*\{/);
   });
 
   it("renders grouped local and remote refs as one segmented badge", () => {

@@ -23,6 +23,7 @@
 }
 #commitTable tr.commit.commitDetailsOpen td,
 #commitTable tr.commit.commitSelected td,
+#commitTable tr.stashGraphRow.commitDetailsOpen td,
 #commitTable tr.unsavedChanges.commitDetailsOpen td {
   background-color: color-mix(
     in oklab,
@@ -32,11 +33,13 @@
 }
 #commitTable tr.commit.commitDetailsOpen td:first-child,
 #commitTable tr.commit.commitSelected td:first-child,
+#commitTable tr.stashGraphRow.commitDetailsOpen td:first-child,
 #commitTable tr.unsavedChanges.commitDetailsOpen td:first-child {
   box-shadow: inset 3px 0 0 var(--git-graph-color, var(--vscode-focusBorder));
 }
 #commitTable tr.commit.commitDetailsOpen:hover td,
 #commitTable tr.commit.commitSelected:hover td,
+#commitTable tr.stashGraphRow.commitDetailsOpen:hover td,
 #commitTable tr.unsavedChanges.commitDetailsOpen:hover td {
   background-color: color-mix(
     in oklab,
@@ -82,23 +85,28 @@
 }
 /* Muted rows dim only the commit message, so the active first-parent ancestry
    stands out while branch and tag labels keep their full-contrast identity. */
-#commitTable tr.commit.mutedCommit td:nth-child(2) .commitMessage {
+#commitTable tr.commit.mutedCommit td:nth-child(2) .commitMessage,
+#commitTable tr.stashGraphRow.mutedCommit td:nth-child(2) .commitMessage {
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
 }
-#commitTable tr.commit.findMatch td {
+#commitTable tr.commit.findMatch td,
+#commitTable tr.stashGraphRow.findMatch td {
   background-color: var(--ngg-find-highlight);
 }
-#commitTable tr.commit.findMatchActive td {
+#commitTable tr.commit.findMatchActive td,
+#commitTable tr.stashGraphRow.findMatchActive td {
   background-color: var(--ngg-find-active);
   box-shadow: inset 0 1px 0 var(--vscode-focusBorder), inset 0 -1px 0 var(--vscode-focusBorder);
 }
-#commitTable tr.commit.findMatchActive td:first-child {
+#commitTable tr.commit.findMatchActive td:first-child,
+#commitTable tr.stashGraphRow.findMatchActive td:first-child {
   box-shadow:
     inset 1px 0 0 var(--vscode-focusBorder),
     inset 0 1px 0 var(--vscode-focusBorder),
     inset 0 -1px 0 var(--vscode-focusBorder);
 }
-#commitTable tr.commit.findMatchActive td:last-child {
+#commitTable tr.commit.findMatchActive td:last-child,
+#commitTable tr.stashGraphRow.findMatchActive td:last-child {
   box-shadow:
     inset -1px 0 0 var(--vscode-focusBorder),
     inset 0 1px 0 var(--vscode-focusBorder),

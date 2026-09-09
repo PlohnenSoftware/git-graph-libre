@@ -44,6 +44,13 @@ export type GitCommitNode = {
   refs: GitRef[];
   /** Undefined until signature verification has been requested for this commit. */
   signature?: GitCommitSignature | null;
+  /**
+   * Present only on synthetic stash rows injected beside their base commit.
+   * `ref` is the `stash@{n}` selector as resolved by the same load that built
+   * the row; it is never cached across refreshes because selectors renumber
+   * whenever a stash is dropped or popped.
+   */
+  stash?: { ref: string };
 };
 
 export type GitLogEntry = {
@@ -139,6 +146,12 @@ export type GitStash = {
   hash: string;
   message: string;
   date: number | null;
+  /**
+   * The commit the stash was taken from (parent 0 of the stash commit), used
+   * to place the stash's graph row beside its base. Null when the base cannot
+   * be resolved; such stashes render in the stash list only.
+   */
+  sourceHash: string | null;
 };
 
 export type GitConfigValue = {

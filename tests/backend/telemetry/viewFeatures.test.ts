@@ -6,6 +6,7 @@ import {
   INGEST_FEATURE_NAME_PATTERN,
   VIEW_FEATURE_REFLOG,
   VIEW_FEATURE_SIGNED_TAG,
+  VIEW_FEATURE_STASH_ROWS,
   VIEW_FEATURE_SUBMODULE_ACTIVE,
   VIEW_FEATURE_SUBMODULE_REPO,
   VIEW_FEATURE_UNCOMMITTED_PANEL,
@@ -114,6 +115,26 @@ describe("view feature reporting", () => {
     });
 
     expect(spy.sent).toEqual([]);
+  });
+
+  it("reports stash rows only when a load actually contains one", () => {
+    const spy = createTelemetrySpy();
+    const reporter = createViewFeatureReporter(spy.telemetry);
+
+    reporter.recordCommitLoad(quietLoad);
+    expect(spy.sent).toEqual([]);
+
+    reporter.recordCommitLoad({
+      ...quietLoad,
+      commits: [{ refs: [], stash: { ref: "stash@{0}" } }]
+    });
+    expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_STASH_ROWS, ok: true }]);
+
+    reporter.recordCommitLoad({
+      ...quietLoad,
+      commits: [{ refs: [], stash: { ref: "stash@{0}" } }]
+    });
+    expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_STASH_ROWS, ok: true }]);
   });
 
   it("reports an offered submodule without reporting an active one", () => {
@@ -270,7 +291,8 @@ describe("view feature reporting", () => {
     VIEW_FEATURE_SIGNED_TAG,
     VIEW_FEATURE_SUBMODULE_REPO,
     VIEW_FEATURE_SUBMODULE_ACTIVE,
-    VIEW_FEATURE_UNCOMMITTED_PANEL
+    VIEW_FEATURE_UNCOMMITTED_PANEL,
+    VIEW_FEATURE_STASH_ROWS
   ])("%s matches the id pattern the ingest enforces", (feature) => {
     expect(INGEST_FEATURE_NAME_PATTERN.test(feature)).toBe(true);
   });

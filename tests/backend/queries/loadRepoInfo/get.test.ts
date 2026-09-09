@@ -1,3 +1,4 @@
+import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -103,7 +104,11 @@ describe("loadRepoInfo", () => {
           ref: "stash@{0}",
           hash: expect.stringMatching(/^[0-9a-f]{40,64}$/i),
           message: expect.stringContaining("work in progress"),
-          date: expect.any(Number)
+          date: expect.any(Number),
+          sourceHash: cp
+            .execFileSync("git", ["rev-parse", "HEAD"], { cwd: stashRepo })
+            .toString()
+            .trim()
         }
       ]);
     } finally {

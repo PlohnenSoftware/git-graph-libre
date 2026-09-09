@@ -285,7 +285,8 @@ dl.tagDetailsFields dd {
 }
 
 /* Blink animation for highlighting the current HEAD commit row */
-#commitTable tr.commit.blinking td {
+#commitTable tr.commit.blinking td,
+#commitTable tr.stashGraphRow.blinking td {
   animation: headPulse 900ms ease-in-out infinite;
 }
 
@@ -306,7 +307,8 @@ dl.tagDetailsFields dd {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #commitTable tr.commit.blinking td {
+  #commitTable tr.commit.blinking td,
+  #commitTable tr.stashGraphRow.blinking td {
     animation: none;
     background-color: var(--ngg-reveal-highlight);
   }

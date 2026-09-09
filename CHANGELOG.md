@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sits at the top of `#content`, scrolling with the table; the footer keeps
   only the "load more" control, and the graph canvas re-pins to the table's
   top edge on every render so dots stay on their rows.
+- **Slice 4: stashes appear as rows on the graph.** Each stash renders directly
+  above the commit it was taken from with a ring-and-dot marker, a stash
+  badge, its message, date, and hash. Clicking opens the read-only commit
+  details; right-click reuses the stash menu; find matches selector, message,
+  and hash; ArrowUp/ArrowDown steps onto stash rows; multi-select and compare
+  skip them. Gated on the existing per-repo "Show stashes" toggle, reported
+  once per session as `view.stashRows` in the anonymous usage data.
+
 ## [1.5.1] - 2026-09-07
 
 ### Fixed

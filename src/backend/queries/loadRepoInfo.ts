@@ -6,16 +6,15 @@ import type {
   GitRemote,
   GitRepoConfig,
   GitRepoInfo,
-  GitStash,
   QueryResult
 } from "@/backend/types";
 import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
 import { toGitQueryError } from "@/backend/utils/queryError";
 
+import { loadStashes } from "./stashes";
+
 const eolRegex = /\r\n|\r|\n/g;
-const gitFieldSeparatorFormat = "%x00";
 const gitFieldSeparatorOutput = "\0";
-const stashFieldCount = 4;
 
 type LoadRepoInfoInput = {
   repo?: string | null;
@@ -92,33 +91,6 @@ function splitNulTerminatedFields(stdout: string) {
   const fields = stdout.split(gitFieldSeparatorOutput);
   if (fields.at(-1) === "") fields.pop();
   return fields;
-}
-
-function parseStashIndex(ref: string): number | null {
-  const match = /^stash@\{(\d+)\}$/.exec(ref);
-  if (match === null) return null;
-  const index = Number.parseInt(match[1], 10);
-  return Number.isNaN(index) ? null : index;
-}
-
-function parseStashes(stdout: string): GitStash[] {
-  const fields = splitNulTerminatedFields(stdout);
-  const stashes: GitStash[] = [];
-  for (let i = 0; i + stashFieldCount - 1 < fields.length; i += stashFieldCount) {
-    const ref = fields[i];
-    const index = parseStashIndex(ref);
-    if (index === null) continue;
-
-    const parsedDate = Number.parseInt(fields[i + 3], 10);
-    stashes.push({
-      index,
-      ref,
-      hash: fields[i + 1],
-      message: fields[i + 2],
-      date: Number.isNaN(parsedDate) ? null : parsedDate
-    });
-  }
-  return stashes;
 }
 
 type ScopedGitConfig = {
@@ -216,28 +188,6 @@ async function loadRemotes(
   }
 }
 
-async function loadStashes(
-  git: SimpleGit,
-  context: GitQueryContext
-): Promise<QueryValue<GitStash[]>> {
-  try {
-    const stdout = await runGitRaw(git, {
-      label: "loadRepoInfo.stashes",
-      args: [
-        "stash",
-        "list",
-        "-z",
-        `--format=%gd${gitFieldSeparatorFormat}%H${gitFieldSeparatorFormat}%gs${gitFieldSeparatorFormat}%ct`
-      ],
-      repo: context.repo,
-      record: context.record
-    });
-    return { value: parseStashes(stdout), error: null };
-  } catch (error: unknown) {
-    return { value: [], error: toGitQueryError(error, "Unable to load repository stashes") };
-  }
-}
-
 async function loadAuthors(
   git: SimpleGit,
   context: GitQueryContext
@@ -329,7 +279,9 @@ export async function loadRepoInfo(
     await Promise.all([
       loadHead(git, context),
       loadRemotes(git, context),
-      showStashes ? loadStashes(git, context) : Promise.resolve({ value: [], error: null }),
+      showStashes
+        ? loadStashes(git, context, "loadRepoInfo.stashes")
+        : Promise.resolve({ value: [], error: null }),
       loadConfig(git, context),
       loadAuthors(git, context),
       loadTags(git, context)

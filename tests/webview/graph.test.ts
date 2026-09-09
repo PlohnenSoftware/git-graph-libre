@@ -99,6 +99,29 @@ describe("graph rendering", () => {
     expect(rects[0]?.getAttribute("height")).toBe("8");
   });
 
+  it("draws stash nodes as a ring-and-dot pendant of their base", () => {
+    const graph = makeGraph();
+    const stash = {
+      ...makeCommit("feed1234", ["abc123"]),
+      message: "WIP on main: stash polish",
+      refs: [],
+      stash: { ref: "stash@{0}" }
+    };
+    // Backend order: the stash row precedes its base, like any child.
+    const commits = [stash, makeCommit("abc123", ["def456"]), makeCommit("def456")];
+
+    graph.loadCommits(commits, "abc123", { feed1234: 0, abc123: 1, def456: 2 });
+    graph.render(null);
+
+    // The base and root keep their plain dot and square; the stash draws an
+    // unfilled ring plus an inner dot instead of a plain circle.
+    const ring = document.querySelector('#commitGraph g circle[fill="none"]');
+    expect(ring?.getAttribute("r")).toBe("5.5");
+    expect(ring?.getAttribute("stroke")).toBe("oklch(65% 0.16 250)");
+    const circles = document.querySelectorAll("#commitGraph g circle");
+    expect(circles).toHaveLength(3);
+  });
+
   it("does not trail a line below a root commit that has no parent", () => {
     const graph = makeGraph();
     // "Ra" is a root (no parents) that is NOT at the bottom of the graph; "B" is

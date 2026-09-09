@@ -9,6 +9,7 @@ import type {
   GitQueryError,
   GitRef,
   GitRefData,
+  GitStash,
   QueryResult
 } from "@/backend/types";
 import {
@@ -20,6 +21,8 @@ import {
 import { authorArgs, selectedLogRefs } from "@/backend/utils/logFilters";
 import { toGitQueryError } from "@/backend/utils/queryError";
 import { isHiddenRemoteRef, remoteExcludeArgs } from "@/backend/utils/remoteRefs";
+
+import { loadStashes } from "./stashes";
 
 const eolRegex = /\r\n|\r|\n/g;
 const gitLogFormatFieldSeparator = "%x00";
@@ -59,6 +62,8 @@ type LoadCommitsInput = {
   onlyFollowFirstParent?: boolean;
   commitOrdering?: CommitOrdering;
   showSignature?: boolean;
+  /** Opt-in per call; absent means no stash rows (existing callers unchanged). */
+  showStashes?: boolean;
   hard: boolean;
   dateType: DateType;
   showUncommittedChanges: boolean;
@@ -577,6 +582,77 @@ export async function loadCommits(
   await addUnsavedChangesCommit(git, commits, refData, showUncommittedChanges, context);
   await reclassifyUnverifiedSignatures(git, commits, input.gitPath, context);
   const commitNodes = createCommitNodes(commits, refData);
+  const stashNodes = await loadStashGraphNodes(git, input, context);
+  const nodesWithStashes = insertStashNodes(commitNodes, stashNodes);
 
-  return { commits: commitNodes, head: refData.head, moreCommitsAvailable, hard, error };
+  return {
+    commits: nodesWithStashes,
+    head: refData.head,
+    moreCommitsAvailable,
+    hard,
+    error
+  };
+}
+
+/**
+ * Loads the stashes backing the graph stash rows, or nothing when the caller
+ * did not opt in. A stash-query failure resolves to no rows rather than a
+ * failed graph: the stash list panel reports stash errors through its own
+ * `loadRepoInfo` load, and losing the whole graph over a pendant row would be
+ * the wrong trade.
+ */
+async function loadStashGraphNodes(
+  git: SimpleGit,
+  input: LoadCommitsInput,
+  context: GitQueryContext
+): Promise<GitStash[]> {
+  if (input.showStashes !== true) return [];
+  const result = await loadStashes(git, context, "loadCommits.stashes");
+  return result.value;
+}
+
+/**
+ * Inserts one synthetic row per stash directly above its base commit, so the
+ * layout engine draws each stash as a pendant of the commit it was taken
+ * from. The rows must precede the base: the layout walker only follows
+ * parents forward (children above parents), so a stash placed after its base
+ * would never resolve its parent and the layout would loop forever.
+ * Stashes whose base is not on the page (filtered out or beyond the load
+ * budget) are skipped, and injection runs after paging so stash rows never
+ * consume the commit budget.
+ *
+ * Only the base commit (parent 0) is linked. A stash commit carries one or
+ * two further parents — the index state, plus the untracked-files commit when
+ * taken with `--include-untracked` — and linking those would draw phantom
+ * lines per stash while promoting internal commits to ordinary table rows.
+ */
+function insertStashNodes(commitNodes: GitCommitNode[], stashes: GitStash[]): GitCommitNode[] {
+  if (stashes.length === 0) return commitNodes;
+  const stashesByBase = new Map<string, GitStash[]>();
+  for (const stash of stashes) {
+    if (stash.sourceHash === null) continue;
+    const group = stashesByBase.get(stash.sourceHash) ?? [];
+    group.push(stash);
+    stashesByBase.set(stash.sourceHash, group);
+  }
+  if (stashesByBase.size === 0) return commitNodes;
+
+  const nodes: GitCommitNode[] = [];
+  for (const node of commitNodes) {
+    for (const stash of stashesByBase.get(node.hash) ?? []) {
+      nodes.push({
+        hash: stash.hash,
+        parentHashes: [node.hash],
+        author: "",
+        email: "",
+        date: stash.date ?? node.date,
+        message: stash.message,
+        refs: [],
+        signature: null,
+        stash: { ref: stash.ref }
+      });
+    }
+    nodes.push(node);
+  }
+  return nodes;
 }

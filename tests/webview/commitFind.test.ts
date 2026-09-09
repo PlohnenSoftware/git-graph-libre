@@ -56,6 +56,26 @@ describe("commit find matching", () => {
     expect(JSON.stringify(commits)).toBe(before);
   });
 
+  it("matches stash rows by their selector, message, and hash", () => {
+    const withStash: GitCommitNode[] = [
+      ...commits,
+      {
+        hash: "feed1234",
+        parentHashes: ["abc123"],
+        author: "",
+        email: "",
+        date: 1700500000,
+        message: "WIP on main: stash polish",
+        refs: [],
+        stash: { ref: "stash@{0}" }
+      }
+    ];
+
+    expect(findCommitIndexes(withStash, "stash@{0}", 4)).toEqual([3]);
+    expect(findCommitIndexes(withStash, "stash polish", 4)).toEqual([3]);
+    expect(findCommitIndexes(withStash, "feed1234", 4)).toEqual([3]);
+  });
+
   it("formats localized match counts", () => {
     expect(formatFindMatchCount("{0} of {1}", 1, 3)).toBe("2 of 3");
     expect(formatFindMatchCount("{0} z {1}", 0, 2)).toBe("1 z 2");

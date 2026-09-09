@@ -184,11 +184,28 @@ const repoInfoWithStash: GitRepoInfo = {
       ref: "stash@{0}",
       hash: "feed1234",
       message: "WIP on main: stash polish",
-      date: 1700500000
+      date: 1700500000,
+      sourceHash: "abc123"
     }
   ],
   stashCount: 1
 };
+
+const commitsWithStashRow: GitCommitNode[] = [
+  {
+    hash: "feed1234",
+    parentHashes: ["abc123"],
+    author: "",
+    email: "",
+    date: 1700500000,
+    message: "WIP on main: stash polish",
+    refs: [],
+    signature: null,
+    stash: { ref: "stash@{0}" }
+  },
+  { ...twoCommits[0] },
+  { ...twoCommits[1] }
+];
 
 describe("webview rendering", () => {
   let vscodeMock: ReturnType<typeof createVscodeMock>;
@@ -2301,6 +2318,41 @@ describe("webview rendering", () => {
     expect(document.getElementById("stashList")?.parentElement?.id).toBe("content");
     expect(document.getElementById("footer")?.querySelector("#stashList")).toBeNull();
     openStashContextMenu();
+    clickContextMenuItem("Copy Stash Hash");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "Stash Hash",
+      data: "feed1234"
+    });
+  });
+
+  it("renders stash graph rows beside their base commit with stash interactions", () => {
+    receiveLoadedCommits(commitsWithStashRow, "abc123");
+
+    const rows = Array.from(document.querySelectorAll<HTMLElement>("#commitTable .stashGraphRow"));
+    expect(rows).toHaveLength(1);
+    const row = rows[0];
+    // Directly above the base commit, carrying the badge, message, and hash.
+    expect(row.nextElementSibling?.getAttribute("data-hash")).toBe("abc123");
+    expect(row.textContent).toContain("stash@{0}");
+    expect(row.textContent).toContain("WIP on main");
+    expect(row.textContent).toContain("fee");
+    expect(row.dataset.stashRef).toBe("stash@{0}");
+    expect(row.dataset.stashHash).toBe("feed1234");
+    // Not a commit row: selection and the commit menu never attach.
+    expect(row.classList.contains("commit")).toBe(false);
+    expect(row.getAttribute("aria-selected")).toBe("false");
+
+    // Click opens the read-only commit details for the stash hash.
+    row.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "commitDetails",
+      repo: REPO,
+      commitHash: "feed1234"
+    });
+
+    // Right-click reuses the stash menu with the row's fresh selector.
+    row.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 8, clientY: 8 }));
     clickContextMenuItem("Copy Stash Hash");
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
       command: "copyToClipboard",

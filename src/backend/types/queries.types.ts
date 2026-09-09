@@ -97,6 +97,7 @@ type QueryPayloads = {
       onlyFollowFirstParent: boolean;
       commitOrdering: CommitOrdering;
       showSignature: boolean;
+      showStashes?: boolean;
       hard: boolean;
     };
     result: LoadCommitsResult;

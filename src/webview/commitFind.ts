@@ -12,6 +12,8 @@ function commitSearchFields(commit: GitCommitNode, shortHashLength: number): str
     commit.email,
     commit.hash,
     abbrevCommit(commit.hash, shortHashLength),
+    // Stash rows carry no refs, so the selector would otherwise be unfindable.
+    ...(commit.stash === undefined ? [] : [commit.stash.ref]),
     ...commit.refs.map((ref) => ref.name)
   ];
 }

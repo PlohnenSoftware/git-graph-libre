@@ -1045,6 +1045,7 @@ class GitGraphView {
       onlyFollowFirstParent: this.getOnlyFollowFirstParent(),
       commitOrdering: this.getCommitOrdering(),
       showSignature: !this.hiddenColumns.has("signature"),
+      showStashes: this.getShowStashes(),
       hard: hard
     });
   }
@@ -1277,7 +1278,7 @@ class GitGraphView {
     if (!this.revealCommit(hash)) showErrorDialog(l10n.unableToShowSearchResult, null, null);
   }
   private revealCommit(hash: string) {
-    const row = this.findCommitRow(hash);
+    const row = this.findAnyRowByHash(hash);
     if (row === null) return false;
     if (typeof row.scrollIntoView === "function") {
       row.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -1414,8 +1415,9 @@ class GitGraphView {
 
   private navigateCommitDetails(delta: number) {
     if (this.expandedCommit === null) return;
+    const targetId = (this.expandedCommit.id + delta).toString();
     const targetRow = document.querySelector<HTMLElement>(
-      `tr.commit[data-id="${(this.expandedCommit.id + delta).toString()}"]`
+      `tr.commit[data-id="${targetId}"],tr.stashGraphRow[data-id="${targetId}"]`
     );
     const hash = targetRow?.dataset.hash;
     if (targetRow === null || hash === undefined || hash === this.expandedCommit.hash) return;
@@ -2797,6 +2799,7 @@ class GitGraphView {
 
     this.registerCommitContextMenuListener();
     this.registerUncommittedChangesContextMenuListener();
+    this.registerStashGraphRowListeners();
     this.registerCommitActivationListeners();
     this.registerUncommittedActivationListeners();
     this.registerGitRefContextMenuListener();
@@ -3168,7 +3171,11 @@ class GitGraphView {
     const last = Math.max(anchorIndex, targetIndex);
     for (let index = first; index <= last; index++) {
       const commit = this.commits[index];
-      if (commit.hash !== "*") this.setCommitSelected(commit.hash, true);
+      // Stash rows between the endpoints stay out of the selection: they have
+      // their own menu and no compare semantics.
+      if (commit.hash !== "*" && commit.stash === undefined) {
+        this.setCommitSelected(commit.hash, true);
+      }
     }
   }
   private selectedCommitListHtml(selectedCommits: readonly string[]) {
@@ -4390,6 +4397,15 @@ class GitGraphView {
     mutedHeadNonAncestors: Set<string>
   ) {
     const commit = this.commits[index];
+    if (commit.stash !== undefined) {
+      return this.renderStashGraphRow(
+        index,
+        commit,
+        findMatchIndexes,
+        activeFindCommitIndex,
+        mutedHeadNonAncestors.has(commit.hash)
+      );
+    }
     const message = escapeHtml(commit.message);
     const date = getCommitDate(commit.date);
     const isHeadCommit = commit.hash === this.commitHead;
@@ -4422,6 +4438,41 @@ class GitGraphView {
       this.renderCommitAvatar(commit) +
       escapeHtml(commit.author) +
       `</td><td title="${escapeHtml(commit.hash)}">` +
+      this.displayHash(commit.hash) +
+      `</td>${this.renderCommitSignatureCell(commit)}</tr>`
+    );
+  }
+  private renderStashGraphRow(
+    index: number,
+    commit: GitCommitNode,
+    findMatchIndexes: Set<number>,
+    activeFindCommitIndex: number,
+    mutedByHeadAncestry: boolean
+  ) {
+    // Stash rows are ordinary table rows for layout and find, but they stay
+    // out of the commit selection entirely: no "commit" class (so the commit
+    // context menu, ctrl+click selection, and compare never attach), a
+    // read-only details open on click, and the shared stash menu on
+    // right-click. The durable identity is the stash hash; the selector in
+    // data-stash-ref is re-resolved by every load, never cached.
+    const selector = commit.stash?.ref ?? "";
+    const rowClasses = ["stashGraphRow"];
+    if (mutedByHeadAncestry) rowClasses.push("mutedCommit");
+    if (findMatchIndexes.has(index)) rowClasses.push("findMatch");
+    if (activeFindCommitIndex === index) rowClasses.push("findMatchActive");
+    const date = getCommitDate(commit.date);
+    const escapedHash = escapeHtml(commit.hash);
+    const escapedSelector = escapeHtml(selector);
+    return (
+      `<tr class="${rowClasses.join(" ")}" tabindex="0" aria-selected="false"` +
+      ` data-id="${index}" data-hash="${escapedHash}"` +
+      ` data-stash-ref="${escapedSelector}" data-stash-hash="${escapedHash}"` +
+      ` data-color="${this.graph.getVertexColor(index)}"><td></td><td>` +
+      `<span class="gitRef stash" data-name="${escapedSelector}" title="${escapedSelector}">${escapedSelector}</span>` +
+      `<span class="commitMessage">${escapeHtml(commit.message)}</span>` +
+      `</td><td title="${date.title}">` +
+      date.value +
+      `</td><td></td><td title="${escapedHash}">` +
       this.displayHash(commit.hash) +
       `</td>${this.renderCommitSignatureCell(commit)}</tr>`
     );
@@ -4786,12 +4837,51 @@ class GitGraphView {
     }
     this.loadCommitDetails(elem);
   }
-  private findExpandedCommitElement(hash: string) {
-    const elems = <HTMLCollectionOf<HTMLElement>>document.getElementsByClassName("commit");
-    for (const elem of elems) {
-      if (hash === elem.dataset.hash) return elem;
+  private registerStashGraphRowListeners() {
+    addListenerToClass("stashGraphRow", "click", (e: Event) => {
+      const row = closestHTMLElement(e.target, ".stashGraphRow");
+      const hash = row?.dataset.hash;
+      if (row === null || hash === undefined) return;
+      this.clearCommitSelection();
+      this.toggleCommitDetails(row, hash);
+    });
+    addListenerToClass("stashGraphRow", "keydown", (e: Event) => {
+      if (!(e instanceof KeyboardEvent) || (e.key !== "Enter" && e.key !== " ")) return;
+      const row = closestHTMLElement(e.target, ".stashGraphRow");
+      const hash = row?.dataset.hash;
+      if (row === null || hash === undefined) return;
+      e.preventDefault();
+      this.clearCommitSelection();
+      this.toggleCommitDetails(row, hash);
+    });
+    addListenerToClass("stashGraphRow", "contextmenu", (e: Event) => {
+      e.stopPropagation();
+      const row = closestHTMLElement(e.target, ".stashGraphRow");
+      const selector = row?.dataset.stashRef;
+      const hash = row?.dataset.hash;
+      if (row === null || selector === undefined || hash === undefined) return;
+      showContextMenu(<MouseEvent>e, this.buildStashContextMenu(selector, hash, row), row);
+    });
+  }
+  /**
+   * Finds a rendered row by commit hash, including stash graph rows. Commit
+   * selection and compare keep using the commit-only lookup; only reveal,
+   * find navigation, details keyboard stepping, and details restore reach
+   * stash rows through here.
+   */
+  private findAnyRowByHash(hash: string): HTMLElement | null {
+    const commitRow = this.findCommitRow(hash);
+    if (commitRow !== null) return commitRow;
+    const stashRows = <HTMLCollectionOf<HTMLElement>>(
+      document.getElementsByClassName("stashGraphRow")
+    );
+    for (const row of stashRows) {
+      if (hash === row.dataset.hash) return row;
     }
     return null;
+  }
+  private findExpandedCommitElement(hash: string) {
+    return this.findAnyRowByHash(hash);
   }
   private renderUncommitedChanges() {
     const date = getCommitDate(this.commits[0].date);

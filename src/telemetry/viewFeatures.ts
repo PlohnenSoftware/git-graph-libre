@@ -38,6 +38,8 @@ export const VIEW_FEATURE_SUBMODULE_REPO = "view.submoduleRepo";
 export const VIEW_FEATURE_SUBMODULE_ACTIVE = "view.submoduleRepoActive";
 /** The uncommitted-changes staging panel was opened. */
 export const VIEW_FEATURE_UNCOMMITTED_PANEL = "view.uncommittedDetails";
+/** A stash row was present in the loaded graph. */
+export const VIEW_FEATURE_STASH_ROWS = "view.stashRows";
 
 /** Exactly the pattern the ingest applies. Kept here so a test can assert it. */
 export const INGEST_FEATURE_NAME_PATTERN = /^[a-z][a-zA-Z0-9._-]{0,63}$/;
@@ -56,8 +58,8 @@ export type CommitLoadFacts = {
    * use.
    */
   showsAllRefs: boolean;
-  /** The commits the load produced, scanned once for a signed tag. */
-  commits: readonly Pick<GitCommitNode, "refs">[];
+  /** The commits the load produced, scanned for shown-feature markers. */
+  commits: readonly Pick<GitCommitNode, "refs" | "stash">[];
   /**
    * Every repository currently in the dropdown, and the one this load is for.
    *
@@ -84,6 +86,10 @@ function hasSignedTag(commits: readonly Pick<GitCommitNode, "refs">[]): boolean 
   return commits.some((commit) =>
     commit.refs.some((ref) => ref.type === "tag" && ref.signed === true)
   );
+}
+
+function hasStashRows(commits: readonly Pick<GitCommitNode, "stash">[]): boolean {
+  return commits.some((commit) => commit.stash !== undefined);
 }
 
 /**
@@ -133,6 +139,11 @@ export function createViewFeatureReporter(
       // the answer is known for this session.
       if (!reported.has(VIEW_FEATURE_SIGNED_TAG) && hasSignedTag(facts.commits)) {
         reportOnce(VIEW_FEATURE_SIGNED_TAG);
+      }
+      // Guarded like the signed-tag scan: one walk per session until a stash
+      // row is actually present in a load.
+      if (!reported.has(VIEW_FEATURE_STASH_ROWS) && hasStashRows(facts.commits)) {
+        reportOnce(VIEW_FEATURE_STASH_ROWS);
       }
       // Submodules are a shown feature as well: discovery puts them in the
       // repository dropdown as indented entries and there is no command

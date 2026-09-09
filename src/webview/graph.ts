@@ -206,6 +206,7 @@ class Vertex {
   private onBranch: Branch | null = null;
   private isCommitted: boolean = true;
   private isCurrent: boolean = false;
+  private isStashRow: boolean = false;
   private nextX: number = 0;
   private connections: UnavailablePoint[] = [];
 
@@ -280,6 +281,9 @@ class Vertex {
   public setNotCommited() {
     this.isCommitted = false;
   }
+  public setStashRow() {
+    this.isStashRow = true;
+  }
   public setCurrent() {
     this.isCurrent = true;
   }
@@ -292,6 +296,25 @@ class Vertex {
     const cx = this.x * config.grid.x + config.grid.offsetX;
     const cy =
       this.y * config.grid.y + config.grid.offsetY + (expandOffset ? config.grid.expandY : 0);
+
+    // Stash rows hang off their base commit as pendants; the ring-and-dot
+    // marks them as shelved work rather than history.
+    if (this.isStashRow) {
+      const ring = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      ring.setAttribute("cx", cx.toString());
+      ring.setAttribute("cy", cy.toString());
+      ring.setAttribute("r", (NODE_RADIUS + 1.5).toString());
+      ring.setAttribute("fill", "none");
+      ring.setAttribute("stroke", color);
+      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      dot.setAttribute("cx", cx.toString());
+      dot.setAttribute("cy", cy.toString());
+      dot.setAttribute("r", (NODE_RADIUS - 2).toString());
+      dot.setAttribute("fill", color);
+      svg.appendChild(ring);
+      svg.appendChild(dot);
+      return;
+    }
 
     const isRoot = this.parents.length === 0;
     const node = document.createElementNS("http://www.w3.org/2000/svg", isRoot ? "rect" : "circle");
@@ -379,6 +402,7 @@ export class Graph {
           this.vertices[i].addParent(this.vertices[commitLookup[parentHash]]);
         }
       }
+      if (commit.stash !== undefined) this.vertices[i].setStashRow();
     }
 
     if (commits.length > 0) {

@@ -548,6 +548,7 @@ export function registerMessageHandlers(
       onlyFollowFirstParent: msg.onlyFollowFirstParent,
       commitOrdering: msg.commitOrdering,
       showSignature: msg.showSignature,
+      showStashes: msg.showStashes === true,
       hard: msg.hard,
       dateType: config.dateType(),
       showUncommittedChanges: config.showUncommittedChanges(),

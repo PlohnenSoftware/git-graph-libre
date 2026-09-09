@@ -606,7 +606,7 @@ together):
 | 4 Find, search, keyboard navigation | Complete |
 | 5 Branch, tag, and author filters | Complete |
 | 6 Repo settings and view options | Mostly complete — initial-branches-on-load remains |
-| 7 Stash management | Partial — actions done; graph stash rows remain |
+| 7 Stash management | Complete — actions, stash list panel, and graph stash rows done |
 | 8 Comparison and multi-select | Partial — compare-with-HEAD and multi-select done; arbitrary two-commit/ref comparison and external directory diff remain |
 | 9 Repository and remote management | Mostly complete — repository dropdown ordering preference remains |
 | 10 Advanced history, text, integrations | Partial — issue links, config export, archive, commit and tag signature status done (tag signatures in Phase 15); text rendering, mailmap, code review, encoding remain |
@@ -1027,7 +1027,7 @@ Slice progress:
 
 ### Phase 7: Stash Management
 
-**Status: partially complete** — stash data loading (behind the per-repo toggle) and the apply/pop/drop/branch/stash-uncommitted action suite are done (`6750480`). Remaining: rendering stashes as rows/labels inside the graph itself.
+**Status: complete** — stash data loading (behind the per-repo toggle), the apply/pop/drop/branch/stash-uncommitted action suite (`6750480`), the stash list panel above the table, and graph stash rows beside their base commits are all done.
 
 Goal: display stashes and provide safe apply, pop, and drop actions.
 
@@ -3339,6 +3339,75 @@ re-render; a CSS regression test pins the panel container rules.
 Verification: `pnpm run typecheck` clean; focused vitest (`rendering`,
 `tableStyles`: 99 passed); strict Biome over `src/webview/main.ts` and both
 touched test files (clean).
+
+TODO(maintainer): gate evidence — full gate (typecheck, test, l10n:check,
+coverage, Sonar task id) to be filled in when the release gate runs.
+
+### Slice 4 — Stashes as graph rows
+
+Closes Phase 7's remaining item (Phase 7 `Status:` and the overview table
+both move to Complete in this slice). Both stash surfaces stay on purpose:
+the `#stashList` panel is the compact action surface (every stash in one
+place, keyboard-operable list), while graph rows show each stash in context
+beside the commit it was taken from. Either surface alone would lose
+something — the panel has no base-commit context, the rows only appear when
+their base is on the page.
+
+Data flow (backend injection, not webview merge): the stash query moved into
+a shared `src/backend/queries/stashes.ts` used by both `loadRepoInfo` and
+`loadCommits`. The query format gained `%P`, so each `GitStash` carries
+`sourceHash` (parent 0) at no extra git cost; a repository with no stash
+answers exit 0 with an empty list. `loadCommits` takes an opt-in
+`showStashes` (absent means off, so existing callers are unchanged),
+plumbed from the webview's per-repo toggle through the `loadCommits`
+message — no new setting, no settings-plumbing change. Injection runs after
+paging: one synthetic `GitCommitNode` (`stash: { ref }` marker, empty
+author/email, base-or-stash date, `signature: null`) spliced directly above
+its base commit, linking parent 0 only. Above, not below: the layout walker
+only follows parents forward (children above parents), so a stash placed
+after its base never resolves its parent and the layout loops forever. The index and untracked parents are
+deliberately excluded — linking them would draw phantom lines per stash and
+promote internal commits to ordinary rows. Stashes whose base is filtered
+out or paged off are skipped, and stash rows never consume the commit
+budget. A stash-query failure degrades to no rows rather than a failed
+graph. Rows and their selectors come from the same backend load, so the
+selector in `data-stash-ref` is always fresh — nothing caches `stash@{n}`
+across refreshes.
+
+Webview: `renderStashGraphRow()` emits `tr.stashGraphRow` (never the
+`commit` class) with badge, message, date, hash, and an unsigned signature
+cell. Click/Enter/Space opens the read-only commit details through the
+existing panel path (inheriting the one-panel constraint); right-click
+reuses `buildStashContextMenu()`. Find matches selector, message, and hash
+(`commitFind` gains the selector field; full-history search is unchanged —
+it operates on git log history, which never contains stashes). ArrowUp/Down
+details stepping, reveal, and details restore reach stash rows via
+`findAnyRowByHash()`; range selection skips them and they can never enter
+the selection set, so multi-select and compare are untouched. The layout
+engine draws each row as a ring-and-dot pendant in the branch color
+(`Vertex.setStash()`); row hover, focus, details-open tint, find highlight,
+blink, mute, and scroll-margin selectors cover the new class with the same
+BUG-4 scoping (message span only, no `color` on ref selectors, no
+font-weight, oklab mixes only). No new user-facing strings, so l10n is
+untouched. Telemetry: `view.stashRows` reported once per session from the
+commit-load chokepoint only when a load actually contains a stash row;
+`telemetry.json` and the README disclosure updated in the same slice.
+
+Git facts, all reproduced against real scratch repositories (kept outside
+the repo): default `git log` (HEAD/branches) excludes stash commits while
+`--all` includes them; a `-u` stash has three parents (base, index,
+untracked) and a plain stash two; empty `git stash list` exits 0; dropping
+`stash@{1}` renumbered the old `stash@{2}` hash to `stash@{1}`, confirming
+selectors must be re-resolved per refresh.
+
+Verification: backend `stashRows` (4 passed, real repositories: injection
+above base with base-only parents, no index/untracked phantoms, opt-in
+gating, base-off-page skip, drop-and-renumber re-resolution),
+`loadRepoInfo/get` (6 passed), `viewFeatures` (stash signal + id pattern);
+webview `rendering` (75), `tableStyles` (25), `dialogStyles`,
+`commitFind`, `graph` (ring-and-dot) — 129 passed across the five files;
+`pnpm run typecheck` clean; `pnpm run l10n:check` 100% (no new strings);
+strict Biome over all touched files (clean after two format-only fixes).
 
 TODO(maintainer): gate evidence — full gate (typecheck, test, l10n:check,
 coverage, Sonar task id) to be filled in when the release gate runs.
