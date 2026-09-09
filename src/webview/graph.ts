@@ -433,22 +433,30 @@ export class Graph {
     }
   }
 
-  public render(expandedCommit: ExpandedCommit | null) {
+  /**
+   * Draws the graph. `expandAt` is the row index the details panel is attached
+   * to, or null when nothing is open: rows below it shift down by
+   * `config.grid.expandY` so their dots stay level with their table rows.
+   *
+   * This is a row index rather than an ExpandedCommit because the uncommitted
+   * staging panel expands a row too and has no ExpandedCommit of its own.
+   */
+  public render(expandAt: number | null) {
     const group = <SVGGElement>document.createElementNS("http://www.w3.org/2000/svg", "g");
     const width = this.getWidth();
     group.setAttribute("mask", "url(#GraphMask)");
 
     for (const branch of this.branches) {
-      branch.draw(group, this.config, expandedCommit !== null ? expandedCommit.id : -1);
+      branch.draw(group, this.config, expandAt ?? -1);
     }
     for (const [i, vertex] of this.vertices.entries()) {
-      vertex.draw(group, this.config, expandedCommit !== null && i > expandedCommit.id);
+      vertex.draw(group, this.config, expandAt !== null && i > expandAt);
     }
 
     if (this.svgGroup !== null) this.svgGroup.remove();
     this.svg.appendChild(group);
     this.svgGroup = group;
-    this.setDimensions(width, this.getHeight(expandedCommit));
+    this.setDimensions(width, this.getHeight(expandAt));
     this.applyMaxWidth(width);
   }
 
@@ -469,12 +477,12 @@ export class Graph {
     return x * this.config.grid.x;
   }
 
-  public getHeight(expandedCommit: ExpandedCommit | null) {
+  public getHeight(expandAt: number | null) {
     return (
       this.vertices.length * this.config.grid.y +
       this.config.grid.offsetY -
       this.config.grid.y / 2 +
-      (expandedCommit !== null ? this.config.grid.expandY : 0)
+      (expandAt !== null ? this.config.grid.expandY : 0)
     );
   }
 

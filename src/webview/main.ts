@@ -2729,22 +2729,39 @@ class GitGraphView {
     this.graphContainerElem.style.top = `${this.tableElem.offsetTop}px`;
     const colHeadersElem = document.getElementById("tableColHeaders");
     if (colHeadersElem === null) return;
-    const headerHeight = colHeadersElem.clientHeight + 1,
-      expandedCommitElem =
-        this.expandedCommit !== null ? document.getElementById("commitDetails") : null;
+    const headerHeight = colHeadersElem.clientHeight + 1;
+    const detailsElem = document.getElementById("commitDetails");
+    const expandAt = this.expandedRowId(detailsElem);
     const tableHeight = this.tableElem.children[0]?.clientHeight ?? 0;
     this.config.grid.expandY =
-      expandedCommitElem !== null
-        ? expandedCommitElem.getBoundingClientRect().height || this.getCommitDetailsRenderedHeight()
+      detailsElem !== null
+        ? detailsElem.getBoundingClientRect().height || this.getCommitDetailsRenderedHeight()
         : this.config.grid.expandY;
-    const expandedHeight = this.expandedCommit === null ? 0 : this.config.grid.expandY;
+    const expandedHeight = expandAt === null ? 0 : this.config.grid.expandY;
     const renderedRowHeight =
       this.commits.length > 0
         ? (tableHeight - headerHeight - expandedHeight) / this.commits.length
         : this.config.graphRowHeight;
     this.config.grid.y = renderedRowHeight > 0 ? renderedRowHeight : this.config.graphRowHeight;
     this.config.grid.offsetY = headerHeight + this.config.grid.y / 2;
-    this.graph.render(this.expandedCommit);
+    this.graph.render(expandAt);
+  }
+  /**
+   * Row index the graph must open its gap after: the row `#commitDetails` is
+   * attached to, which is always the row directly above it.
+   *
+   * Read from the DOM rather than from `expandedCommit`, because the
+   * uncommitted staging panel is the same `#commitDetails` row hung off the
+   * uncommitted row and has no `ExpandedCommit` of its own. Keying off
+   * `expandedCommit` alone meant the panel's height stayed in the measured
+   * table height while no gap was inserted, so every row height was inflated
+   * by a share of it and the dots drifted off their rows.
+   */
+  private expandedRowId(detailsElem: HTMLElement | null): number | null {
+    const id = detailsElem?.previousElementSibling?.getAttribute("data-id");
+    if (id === null || id === undefined) return null;
+    const parsed = Number.parseInt(id, 10);
+    return Number.isNaN(parsed) ? null : parsed;
   }
   private displayHash(hash: string) {
     return abbrevCommit(hash, this.config.shortHashLength);

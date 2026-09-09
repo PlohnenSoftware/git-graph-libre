@@ -181,7 +181,7 @@ describe("graph rendering", () => {
     const firstGroup = document.querySelector("#commitGraph g");
 
     graph.limitMaxWidth(20);
-    graph.render(expandedCommit);
+    graph.render(expandedCommit.id);
 
     const svg = document.querySelector("#commitGraph svg");
     const groups = document.querySelectorAll("#commitGraph g");

@@ -241,6 +241,21 @@ describe("uncommitted details", () => {
     expect(unstagedItem?.getAttribute("draggable")).toBe("true");
   });
 
+  it("expands the graph below the panel, like commit details do", () => {
+    // The panel is a #commitDetails row hung off the uncommitted row, but it
+    // has no ExpandedCommit. When the graph keyed its gap off `expandedCommit`
+    // alone, the panel's height stayed in the measured table height with no
+    // gap inserted, so every row height was inflated by a share of it and the
+    // dots drifted off their rows. The panel must expand the graph the same
+    // way an open commit's details does.
+    const details = document.getElementById("commitDetails");
+    expect(details).not.toBeNull();
+    // The graph reads the expanded row from the row directly above the panel.
+    const sourceRow = details?.previousElementSibling;
+    expect(sourceRow?.classList.contains("unsavedChanges")).toBe(true);
+    expect(sourceRow?.getAttribute("data-id")).toBe("0");
+  });
+
   it("toggles closed when the row is clicked again", () => {
     unsavedRow().dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
