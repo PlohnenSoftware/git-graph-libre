@@ -40,11 +40,20 @@
   border: 0;
   border-radius: 0;
 }
+/* Remote segments keep the badge fill with the badge foreground: that pair is
+   the one measured at AA in light themes, so only the divider changes. It is
+   drawn from the badge foreground itself so it reads as part of the badge
+   rather than a neutral fence between the segments. */
 .gitRefGroup > .gitRefAlias {
   padding-left: 6px;
   background-color: var(--vscode-badge-background, var(--ngg-neutral-overlay-medium));
   color: var(--vscode-badge-foreground, var(--vscode-descriptionForeground));
-  border-left: 1px solid var(--ngg-neutral-border-heavy);
+  border-left: 1px solid
+    color-mix(
+      in oklab,
+      var(--vscode-badge-foreground, var(--ngg-neutral-icon)) 30%,
+      var(--ngg-transparent)
+    );
 }
 .gitRefGroup > .gitRefAlias > svg {
   display: none;

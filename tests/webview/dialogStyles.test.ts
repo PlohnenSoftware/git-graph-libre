@@ -236,6 +236,36 @@ describe("dialog styles", () => {
     expect(badge).toContain("border-radius: 0;");
   });
 
+  it("keeps remote alias segments on the badge token pair with an oklab divider", () => {
+    const alias = ruleFor(css, ".gitRefGroup > .gitRefAlias");
+
+    // Abbreviated remote names sit on the badge fill with the badge
+    // foreground; that pair is the one verified at AA in light themes.
+    expect(alias).toContain("background-color: var(--vscode-badge-background");
+    expect(alias).toContain("color: var(--vscode-badge-foreground");
+    // The divider is drawn from the badge foreground, mixed in oklab only.
+    expect(alias).toContain("border-left: 1px solid");
+    expect(alias).toContain("color-mix(");
+    expect(alias).toContain("in oklab,");
+    expect(alias).not.toContain("in srgb");
+    // The remote icon stays hidden; the abbreviated name alone labels the segment.
+    expect(ruleFor(css, ".gitRefGroup > .gitRefAlias > svg")).toContain("display: none;");
+  });
+
+  it("leaves ref label text on the inherited foreground without added weight", () => {
+    // BUG-4: muting must never reach ref labels through a color override here,
+    // and the checked-out branch keeps its border-only distinction (no bolding).
+    for (const selector of [".gitRef", ".gitRefGroup"]) {
+      expect(ruleFor(css, selector)).not.toContain("\n  color:");
+    }
+    for (const selector of [".gitRef.active", ".gitRefGroup.active"]) {
+      const rule = ruleFor(css, selector);
+      expect(rule).toContain("border-color: var(--git-graph-color);");
+      expect(rule).not.toContain("font-weight");
+    }
+    expect(css).not.toContain("color-mix(in srgb");
+  });
+
   it("renders the valid signature as a filled green circle with the glyph", () => {
     const valid = ruleFor(css, ".commitSignature-valid");
 

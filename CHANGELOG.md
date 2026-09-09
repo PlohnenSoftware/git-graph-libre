@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `input[type="checkbox"]` behavior and now renders from one shared rule set:
   a themed 14–16px box (3px radius) with a CSS tick, hover, focus-ring,
   disabled, high-contrast, and reduced-motion states.
+- **Slice 2: remote segments of grouped branch badges read as part of the badge.**
+  The divider between the local name and each abbreviated remote name is now
+  drawn from the badge foreground instead of the neutral border; fill, text,
+  tooltips, and grouping logic are unchanged.
 ## [1.5.1] - 2026-09-07
 
 ### Fixed
