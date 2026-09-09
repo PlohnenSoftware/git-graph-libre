@@ -3280,12 +3280,21 @@ create-branch checkout default. Behavioral write-ups were approved by the
 maintainer before code was written, with both the `#stashList` panel and the
 graph stash rows staying (neither surface replaces the other).
 
-**The stash-list placement moved twice; the second decision is the live one.**
-It sits inside `#topBar`, in a `#stashListSlot` between the status strip and
-the toolbar, so it stays put while the table scrolls. It was first put at the
-top of `#content` specifically to dodge the sticky-offset cost, and the
-maintainer rejected that: the list belongs with the window chrome, not
-floating above the table headers.
+**The stash-list placement moved twice, and its scroll behavior was settled
+separately.** It sits inside `#topBar`, in a `#stashListSlot` between the
+status strip and the toolbar. It was first put at the top of `#content`
+specifically to dodge the sticky-offset cost, and the maintainer rejected
+that: the list belongs with the window chrome, not floating above the table
+headers.
+
+**It folds away on scroll rather than holding position** (`#topBar.scrolled
+#stashListSlot`), mirroring the readiness strip. The rule to carry forward is
+which chrome earns permanent space: the **toolbar** and the table's **column
+headers** must stay reachable at any scroll position, while the stash list is
+reference rather than navigation and yields its band as soon as the user
+scrolls. An intermediate version kept it pinned; that was rejected. Note
+`overflow: hidden` is load-bearing in the fold — without it the panel's own
+margins survive `height: 0` and leave a live ~12px band behind.
 
 That cost is now paid deliberately, and it is the thing to preserve.
 `#topBar` is measured by the `ResizeObserver` in `observeTopBarHeight()` and
@@ -3603,10 +3612,10 @@ tree. Nothing was pushed before it passed.
   `zh-cn`, `zh-tw`.
 - `pnpm run test:coverage`: `109` files / `973` tests, raw LCOV line coverage
   `92.9%` (`6,010`/`6,468`).
-- `pnpm run sonar:scan`, task `55613d77-1486-4121-9bfe-b1e0660d3f07`,
-  analysis `9e1e7aea-175b-4a35-b0fd-297733d73aed`: `ZAM` gate **`OK`** on all
-  seven reported conditions. This was the fifth pass; earlier ones were
-  `42fa24ac`, `4a45bffb`, `2fed9d8d`, and `2dd77b07` — the last of which
+- `pnpm run sonar:scan`, task `2a0a49a8-c113-4b94-b936-1a724e38f0ad`,
+  analysis `f690758a-1247-4ed5-b277-2a75298c290e`: `ZAM` gate **`OK`** on all
+  seven reported conditions (`new_coverage` `93.0`). Earlier passes were
+  `42fa24ac`, `4a45bffb`, `2fed9d8d`, `2dd77b07`, and `55613d77` — `2dd77b07`
   **failed** on `new_software_quality_high_issues` `1`
   (`typescript:S7761`, `getAttribute("data-id")` where `.dataset` belongs, in
   the new `expandedRowId()` helper). Fixed and rescanned; note the gate treats

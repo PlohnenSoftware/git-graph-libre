@@ -214,15 +214,26 @@ describe("commit table styles", () => {
     expect(css).not.toContain("accent-color");
   });
 
-  it("keeps the stash list pinned with the top bar and bounded", () => {
-    // The list lives in #topBar, which is sticky, so it holds while the table
-    // scrolls. That also means an unbounded list would swallow the viewport.
+  it("folds the stash list away on scroll while the toolbar and header hold", () => {
+    // The toolbar and the table's column headers must stay reachable at any
+    // scroll position; the stash list is reference, not navigation, so it
+    // folds once scrolled — the same treatment the readiness strip gets.
     const topBar = css.match(/#topBar \{[^}]+\}/)?.[0] ?? "";
     expect(topBar).toContain("position: sticky;");
     expect(topBar).toContain("top: 0;");
+    const folded = css.match(/#topBar\.scrolled #stashListSlot \{[^}]+\}/)?.[0] ?? "";
+    expect(folded).toContain("height: 0;");
+    expect(folded).toContain("opacity: 0;");
+    // Without overflow the panel's own margins survive the collapse and leave
+    // a live band behind at height 0.
+    expect(folded).toContain("overflow: hidden;");
+    // The fold must not be animated: the sticky header offset is republished
+    // in the same frame as the class change, so a transition would drift.
     const stashList = css.match(/#stashList \{[^}]+\}/)?.[0] ?? "";
-    expect(stashList).toContain("max-height: min(40vh, 320px);");
-    expect(stashList).toContain("overflow-y: auto;");
+    expect(stashList).not.toContain("transition");
+    expect(folded).not.toContain("transition");
+    // The column headers stay sticky, offset by the (now shorter) top bar.
+    expect(css).toContain("top: var(--ngg-sticky-top, 0px);");
     // An empty slot must collapse, or it offsets the sticky table header.
     expect(css).toContain("#stashListSlot:empty");
   });

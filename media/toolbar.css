@@ -250,6 +250,22 @@
 #stashListSlot:empty {
   display: none;
 }
+/* The list folds away once the view is scrolled, the same way the readiness
+   strip does: the toolbar and the table's column headers are what must stay
+   reachable at every scroll position, and the stash list is reference rather
+   than navigation. `overflow: hidden` is what makes the collapse complete —
+   it clips the panel and contains its margins, which would otherwise keep
+   ~12px of the band alive at height 0.
+
+   Like the status strip's collapse this is deliberately not animated: the
+   sticky table header offsets itself by the top bar's height, which is
+   republished in the same frame as the class change, so an animated height
+   would drift out of step with the header for the length of the transition. */
+#topBar.scrolled #stashListSlot {
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
 #stashList {
   box-sizing: border-box;
   max-width: min(920px, calc(100vw - 24px));

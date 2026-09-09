@@ -22,10 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   drawn from the badge foreground instead of the neutral border; fill, text,
   tooltips, and grouping logic are unchanged.
 - **Slice 3: the stash list moved out of the footer into the top bar.** It
-  now sits between the status strip and the toolbar and stays put while the
-  table scrolls; the footer keeps only the "load more" control, and the graph
-  canvas re-pins to the table's top edge on every render so dots stay on
-  their rows.
+  now sits between the status strip and the toolbar, and folds away once the
+  view is scrolled — the same treatment the readiness strip gets, so the
+  toolbar and column headers keep the space. The footer keeps only the "load
+  more" control, and the graph canvas re-pins to the table's top edge on every
+  render so dots stay on their rows.
 - **Slice 4: stashes appear as rows on the graph.** Each stash renders directly
   above the commit it was taken from with a ring-and-dot marker, a stash
   badge, its message, date, and hash. Clicking opens the read-only commit

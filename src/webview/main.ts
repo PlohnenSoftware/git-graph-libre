@@ -4666,7 +4666,8 @@ class GitGraphView {
   }
   private renderStashSection() {
     // The stash list mounts inside #topBar, between the status strip and the
-    // toolbar, so it stays put while the table scrolls.
+    // toolbar. It folds away on scroll (CSS, `#topBar.scrolled`), so the
+    // toolbar and the table's column headers keep that space.
     //
     // #topBar is measured into --ngg-sticky-top, which the sticky table
     // header offsets itself by. A list that appears, disappears, or changes
