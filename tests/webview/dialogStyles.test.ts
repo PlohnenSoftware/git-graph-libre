@@ -137,13 +137,22 @@ describe("dialog styles", () => {
     expect(cell).toContain("vertical-align: middle;");
     expect(cell).toContain("padding: 4px 0;");
     expect(css).toContain("#dialog table.dialogForm tr:first-child td");
-    // The label column is a stable gutter and may wrap rather than widen the
-    // dialog past its cap.
+    // The label column is a gutter for short field names and stays nowrap.
+    // Allowing it to wrap was tried and reverted: the 100%-width input beside
+    // it squeezes the column to its narrowest word, stacking a long label one
+    // word per line. Long self-naming controls span both columns instead.
     const labelCell = ruleFor(css, "#dialog table.dialogForm.multi td:nth-child(1)");
     expect(labelCell).toContain("padding-right: 12px;");
-    expect(labelCell).toContain("white-space: normal;");
+    expect(labelCell).not.toContain("white-space: normal;");
+    expect(ruleFor(css, "#dialog table.dialogForm td")).toContain("white-space: nowrap;");
     // The ring clears the input border instead of drawing on top of it.
     expect(css).toContain("outline-offset: 1px;");
+    // An unlabelled row must not reserve the gutter, or its control is inset
+    // from the flush-left rows around it.
+    expect(css).toContain("#dialog table.dialogForm.multi td:nth-child(1):empty");
+    // A label sits at the first line of a multi-line control, not centered
+    // against its full height.
+    expect(css).toContain("#dialog table.dialogForm tr:has(textarea) td");
     // Buttons are equal-width with centered text and a visible focus ring.
     const button = ruleFor(css, ".dialogBtn");
     expect(button).toContain("min-width: 78px;");
@@ -155,6 +164,9 @@ describe("dialog styles", () => {
     // The standing rule: a setting the git command does not allow the user to
     // change keeps its real control, stays focusable and full-contrast, takes
     // a help cursor, and explains itself in a bubble on hover or focus.
+    // A self-naming control spans the form, so its text stays beside the box
+    // instead of being squeezed into the label column one word per line.
+    expect(css).toContain('#dialog table.dialogForm td[colspan="2"] .dialogFormCheckbox > label');
     const label = ruleFor(css, "#dialog table.dialogForm .dialogFormCheckbox.locked > label");
     expect(label).toContain("cursor: help;");
     const hint = ruleFor(css, ".dialogLockHint");

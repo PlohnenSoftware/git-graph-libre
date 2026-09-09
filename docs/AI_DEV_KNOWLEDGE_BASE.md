@@ -480,6 +480,18 @@ may not define the token):
 - Dialog panel: `--vscode-editorWidget-background/-foreground/-border`,
   `--vscode-widget-shadow`; content is left-aligned; actions right-aligned in
   a `.dialogActions` flex row.
+- **A checkbox names itself: its text goes in the `<label>` beside the box, on
+  a row spanning the whole form.** Never in the form's label column. This is
+  not a style preference — a `100%`-width input in the neighbouring column
+  squeezes the label column to its narrowest word, so
+  "Check out the branch after creating it" stacks one word per line. That
+  shipped once and looked broken. `renderDialogInputRow()` gives every
+  checkbox `colspan="2"`, and the label column stays `white-space: nowrap`
+  for short field names only. Two matching rules: an *empty* label cell drops
+  its gutter padding (`:empty`), or an unlabelled control is inset from the
+  flush-left rows around it; and a row containing a `textarea` top-aligns its
+  label, since a label centered against a tall control floats away from the
+  text it names.
 - **Dialog forms obey the same control metric as the toolbar** — 28px tall,
   4px radius — and their rows are laid on one 8px rhythm with cells
   **middle-aligned**. They were top-aligned with only a `padding-top`, which
@@ -3667,6 +3679,29 @@ stating that git checks the branch out and drops the stash. A rendering test
 pins both the absence of a checkbox and the presence of the note, so a future
 "fix" cannot quietly add a control that does nothing.
 
+### Verifying webview visuals without a browser (`2026-09-10`)
+
+Two visual defects shipped in a row because they were reasoned about instead
+of looked at: an accent-filled checkbox the maintainer rejected, and a dialog
+label wrapped one word per line. There **is** a way to see the result on this
+machine, and it should be used before calling any visual change done:
+
+`PyQt6.QtWebEngineWidgets` is installed (a real Chromium) and `Xvfb` is
+available, so a page built from the actual `media/*.css` can be rendered and
+screenshotted headlessly:
+
+```bash
+xvfb-run -a python3 shot.py preview.html out.png   # QWebEngineView + grab()
+```
+
+The scratchpad harness that produced the dialog screenshots builds a page from
+the real stylesheet list, injects Dark Modern token values so the theme
+fallbacks resolve the way they do in the editor, and forces hover-only
+elements visible. Do the same for future visual work: render it, read the
+image, then fix what the image shows. Note VS Code's bundled Electron
+(`.vscode-test/*/code`) is **not** usable for this — it starts VS Code rather
+than accepting a URL — and no standalone Chromium or Firefox is installed.
+
 ### Release gate for these slices (`2026-09-09`)
 
 One gate over the completed tree covering all six commits, in the documented
@@ -3687,8 +3722,8 @@ tree. Nothing was pushed before it passed.
   `zh-cn`, `zh-tw`.
 - `pnpm run test:coverage`: `109` files / `977` tests, raw LCOV line coverage
   `92.9%` (`6,034`/`6,496`).
-- `pnpm run sonar:scan`, task `6a1508fe-95ba-4e45-9c9f-bf954415fd98`,
-  analysis `f0592725-9f8d-4492-828f-c4f59d0ab557`: `ZAM` gate **`OK`** on all
+- `pnpm run sonar:scan`, task `f48436b6-303d-4622-99e2-f547982d995f`,
+  analysis `3722726b-68fd-494b-85fe-c1330db6ba6a`: `ZAM` gate **`OK`** on all
   seven reported conditions (`new_coverage` `91.8`). Earlier passes were
   `42fa24ac`, `4a45bffb`, `2fed9d8d`, `2dd77b07`, and `55613d77` — `2dd77b07`
   **failed** on `new_software_quality_high_issues` `1`

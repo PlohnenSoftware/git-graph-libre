@@ -2278,6 +2278,13 @@ describe("webview rendering", () => {
     // value the user is trying to read.
     const lockedBox = document.querySelector<HTMLInputElement>('#dialog input[type="checkbox"]');
     expect(lockedBox).not.toBeNull();
+    // A checkbox names itself: its text lives in the <label> beside the box on
+    // a row spanning the form, never in the form's label column, where the
+    // input column squeezes it to one word per line.
+    const boxRow = lockedBox?.closest("tr");
+    expect(boxRow?.querySelectorAll("td")).toHaveLength(1);
+    expect(boxRow?.querySelector("td")?.getAttribute("colspan")).toBe("2");
+    expect(lockedBox?.closest("label")?.textContent).toContain("Check out");
     expect(lockedBox?.checked).toBe(true);
     expect(lockedBox?.disabled).toBe(false);
     expect(lockedBox?.getAttribute("aria-disabled")).toBe("true");

@@ -6823,6 +6823,13 @@ function renderDialogInputRow(
   if (input.type === "note") {
     return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2" class="dialogFormNoteCell"><span class="dialogFormNote">${escapeHtml(input.text)}</span></td></tr>`;
   }
+  // A checkbox names itself: its text belongs in the <label> beside the box,
+  // never in the form's label column. Splitting them puts the words far from
+  // the control and leaves the label column to be squeezed by the input
+  // column beside it, which wraps the text one word per line.
+  if (input.type === "checkbox") {
+    return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2">${renderDialogInput(input, index, false)}</td></tr>`;
+  }
   const labelCell = multiElementForm ? `<td>${input.name}</td>` : "";
   return `<tr id="dialogInputRow${index}"${hidden}>${labelCell}<td>${renderDialogInput(input, index, multiElementForm)}</td></tr>`;
 }

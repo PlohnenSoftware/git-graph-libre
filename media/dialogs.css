@@ -152,13 +152,35 @@ dl.tagDetailsFields dd {
 #dialog table.dialogForm td:last-child {
   width: 100%;
 }
-/* The label column: a stable gutter, and labels allowed to wrap rather than
-   forcing the dialog wider than its cap. */
+/* The label column is a gutter for short field names only, and stays nowrap:
+   with wrapping allowed the column gets squeezed to its narrowest word by the
+   100%-width input beside it, which stacks the label one word per line. Long
+   self-naming controls (checkboxes) span both columns instead — see
+   renderDialogInputRow. */
 #dialog table.dialogForm.multi td:nth-child(1) {
   padding-right: 12px;
-  max-width: 148px;
-  white-space: normal;
   color: var(--vscode-foreground);
+}
+/* An unlabelled row must not reserve the gutter, or its control is inset
+   from every flush-left row above and below it. */
+#dialog table.dialogForm.multi td:nth-child(1):empty {
+  padding-right: 0;
+}
+/* A label belongs at the first line of a multi-line control, not floating at
+   its vertical center. */
+#dialog table.dialogForm tr:has(textarea) td {
+  vertical-align: top;
+}
+#dialog table.dialogForm tr:has(textarea) td:nth-child(1) {
+  padding-top: 9px;
+}
+/* A control that names itself spans the form and keeps its text beside the
+   box, so the label reads as one line at the control's own height. */
+#dialog table.dialogForm td[colspan="2"] .dialogFormCheckbox > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: normal;
   line-height: 16px;
 }
 #dialog table.dialogForm.single select {
