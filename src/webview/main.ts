@@ -1617,6 +1617,9 @@ class GitGraphView {
       case "dialog.pullBranch.noFastForward":
         this.config.pullBranchNoFastForward = value;
         return true;
+      case "dialog.createBranch.checkout":
+        this.config.createBranchCheckout = value;
+        return true;
       case "repository.onlyFollowFirstParent":
         this.config.onlyFollowFirstParent = value;
         return true;
@@ -3237,16 +3240,24 @@ class GitGraphView {
     );
   }
   private showCreateBranchDialog(hash: string, sourceElem: HTMLElement) {
-    showRefInputDialog(
+    showFormDialog(
       l10n.dialogCreateBranchTitle.replace("{0}", `<b><i>${this.displayHash(hash)}</i></b>`),
-      "",
+      [
+        { type: "text-ref", name: "", default: "" },
+        {
+          type: "checkbox",
+          name: l10n.dialogCreateBranchCheckout,
+          value: this.config.createBranchCheckout
+        }
+      ],
       l10n.dialogCreateBranchSubmit,
-      (name) => {
+      (values) => {
         sendMessage({
           command: "createBranch",
           repo: this.currentRepo,
-          branchName: name,
-          commitHash: hash
+          branchName: values[0],
+          commitHash: hash,
+          checkout: values[1] === "checked"
         });
       },
       sourceElem
@@ -6095,6 +6106,7 @@ const gitGraph = new GitGraphView(
     fetchTagsByDefault: viewState.fetchTagsByDefault,
     mergeNoFastForward: viewState.mergeNoFastForward,
     pullBranchNoFastForward: viewState.pullBranchNoFastForward,
+    createBranchCheckout: viewState.createBranchCheckout,
     onlyFollowFirstParent: viewState.onlyFollowFirstParent,
     showCurrentBranchByDefault: viewState.showCurrentBranchByDefault,
     showRemoteBranches: viewState.showRemoteBranches,

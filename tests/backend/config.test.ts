@@ -76,6 +76,14 @@ describe("configuration", () => {
     expect(config.pullBranchNoFastForward()).toBe(true);
   });
 
+  it("pre-checks the create-branch dialog's checkout option and honors an opt-out", async () => {
+    const { config } = await import("@/config");
+    expect(config.createBranchCheckout()).toBe(true);
+
+    settings.set("git-graph-libre.dialog.createBranch.checkout", false);
+    expect(config.createBranchCheckout()).toBe(false);
+  });
+
   it("keeps the signature column off by default and reads its permanent setting", async () => {
     const { config } = await import("@/config");
     expect(config.showSignatureColumn()).toBe(false);
@@ -253,6 +261,7 @@ describe("configuration", () => {
     { accessor: "fetchTagsByDefault", expected: true },
     { accessor: "mergeNoFastForward", expected: true },
     { accessor: "pullBranchNoFastForward", expected: false },
+    { accessor: "createBranchCheckout", expected: true },
     { accessor: "onlyFollowFirstParent", expected: false },
     { accessor: "showCurrentBranchByDefault", expected: false },
     { accessor: "showRemoteBranches", expected: true },

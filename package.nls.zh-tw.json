@@ -61,6 +61,8 @@
   "config.repository.boldCheckedOutCommit.title": "粗體顯示目前簽出的提交",
   "config.repository.fetchTagsByDefault": "在「擷取」對話框中預先勾選「擷取所有標籤」。預設開啟。",
   "config.repository.fetchTagsByDefault.title": "預設擷取標籤",
+  "config.dialog.createBranch.checkout": "在建立分支對話框中預設勾選「建立後切換到新分支」。預設開啟。",
+  "config.dialog.createBranch.checkout.title": "建立分支對話框：切換分支",
   "config.dialog.merge.noFastForward": "在合併對話框中預設勾選「即使可以快進也建立新提交」。預設開啟。",
   "config.dialog.merge.noFastForward.title": "合併對話框：不快進",
   "config.dialog.pullBranch.noFastForward": "在拉取分支對話框中預設勾選「即使可以快進也建立新提交」。預設關閉。",

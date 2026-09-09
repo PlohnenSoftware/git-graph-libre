@@ -38,6 +38,7 @@ function makeConfig(): Config {
     fetchTagsByDefault: () => false,
     mergeNoFastForward: () => false,
     pullBranchNoFastForward: () => true,
+    createBranchCheckout: () => true,
     onlyFollowFirstParent: () => false,
     showCurrentBranchByDefault: () => false,
     showRemoteBranches: () => true,
@@ -86,6 +87,7 @@ describe("webview HTML", () => {
     expect(viewState.commitDetailsFileViewMode).toBe("list");
     expect(viewState.showSignatureColumn).toBe(false);
     expect(viewState.stashDisplay).toBe("graph");
+    expect(viewState.createBranchCheckout).toBe(true);
     expect(viewState.contextMenuActionsVisibility.tag.push).toBe(false);
     expect(viewState.graphFontSize).toBe(15);
     expect(viewState.graphRowHeight).toBe(30);

@@ -135,13 +135,16 @@ describe("extension manifest", () => {
   //  - dialog.merge.noFastForward / dialog.pullBranch.noFastForward: these two
   //    reproduce the values the merge and pull dialogs used to hardcode, so
   //    flipping either changes what those dialogs do out of the box.
+  //  - dialog.createBranch.checkout: on, so the create-branch dialog checks
+  //    out the new branch unless the user opts out.
   it.each([
     ["git-graph-libre.columns.signature", false],
     ["git-graph-libre.repository.muteMergeCommits", false],
     ["git-graph-libre.repository.boldCheckedOutCommit", false],
     ["git-graph-libre.repository.fetchTagsByDefault", true],
     ["git-graph-libre.dialog.merge.noFastForward", true],
-    ["git-graph-libre.dialog.pullBranch.noFastForward", false]
+    ["git-graph-libre.dialog.pullBranch.noFastForward", false],
+    ["git-graph-libre.dialog.createBranch.checkout", true]
   ])("contributes %s as a boolean defaulting to %s", (key, expectedDefault) => {
     const manifest = readManifest();
     const setting = manifest.contributes.configuration.properties[key];

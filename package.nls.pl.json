@@ -61,6 +61,8 @@
   "config.repository.boldCheckedOutCommit.title": "Pogrubienie wybranego commita",
   "config.repository.fetchTagsByDefault": "Zaznaczaj wstępnie opcję „Pobierz wszystkie tagi” w oknie pobierania. Domyślnie włączone.",
   "config.repository.fetchTagsByDefault.title": "Domyślne pobieranie tagów",
+  "config.dialog.createBranch.checkout": "Domyślnie zaznaczaj opcję „Przełącz na utworzoną gałąź” w oknie tworzenia gałęzi. Domyślnie włączone.",
+  "config.dialog.createBranch.checkout.title": "Okno tworzenia gałęzi: przełączenie",
   "config.dialog.merge.noFastForward": "Domyślnie zaznaczaj opcję „Utwórz nowy commit nawet wtedy, gdy możliwy jest fast-forward” w oknach scalania. Domyślnie włączone.",
   "config.dialog.merge.noFastForward.title": "Okno scalania: bez fast-forward",
   "config.dialog.pullBranch.noFastForward": "Domyślnie zaznaczaj opcję „Utwórz nowy commit nawet wtedy, gdy możliwy jest fast-forward” w oknie pobierania gałęzi. Domyślnie wyłączone.",

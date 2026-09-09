@@ -315,6 +315,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     dialogAddTagSubmit: translate("dialog.addTag.submit"),
     dialogCreateBranchTitle: translate("dialog.createBranch.title"),
     dialogCreateBranchSubmit: translate("dialog.createBranch.submit"),
+    dialogCreateBranchCheckout: translate("dialog.createBranch.checkout"),
     dialogCheckoutConfirm: translate("dialog.checkout.confirm"),
     dialogCherryPickConfirm: translate("dialog.cherryPick.confirm"),
     dialogRevertConfirm: translate("dialog.revert.confirm"),

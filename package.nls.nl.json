@@ -61,6 +61,8 @@
   "config.repository.boldCheckedOutCommit.title": "Uitgecheckte commit vet",
   "config.repository.fetchTagsByDefault": "\"Alle tags fetchen\" vooraf aanvinken in het Fetch-dialoogvenster. Standaard ingeschakeld.",
   "config.repository.fetchTagsByDefault.title": "Standaard tags fetchen",
+  "config.dialog.createBranch.checkout": "In het branch-aanmaakdialoogvenster standaard \"Nieuwe branch uitchecken na het aanmaken\" aanvinken. Standaard ingeschakeld.",
+  "config.dialog.createBranch.checkout.title": "Branch-dialoogvenster: uitchecken",
   "config.dialog.merge.noFastForward": "In merge-dialoogvensters standaard \"Maak een nieuwe commit, zelfs als fast-forward mogelijk is\" aanvinken. Standaard ingeschakeld.",
   "config.dialog.merge.noFastForward.title": "Merge-dialoogvenster: geen fast-forward",
   "config.dialog.pullBranch.noFastForward": "In het pull-branch-dialoogvenster standaard \"Maak een nieuwe commit, zelfs als fast-forward mogelijk is\" aanvinken. Standaard uitgeschakeld.",

@@ -49,6 +49,7 @@ function viewState(
     fetchTagsByDefault: true,
     mergeNoFastForward: true,
     pullBranchNoFastForward: false,
+    createBranchCheckout: true,
     onlyFollowFirstParent: false,
     repos,
     showCurrentBranchByDefault: false,

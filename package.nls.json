@@ -61,6 +61,8 @@
   "config.repository.boldCheckedOutCommit.title": "Bold Checked-out Commit",
   "config.repository.fetchTagsByDefault": "Pre-check \"Fetch all tags\" in the Fetch dialog. Enabled by default.",
   "config.repository.fetchTagsByDefault.title": "Fetch Tags by Default",
+  "config.dialog.createBranch.checkout": "Pre-check \"Check out the branch after creating it\" in the create-branch dialog. Enabled by default.",
+  "config.dialog.createBranch.checkout.title": "Create Branch Dialog: Checkout",
   "config.dialog.merge.noFastForward": "Pre-check \"Create a new commit even if fast-forward is possible\" in merge dialogs. Enabled by default.",
   "config.dialog.merge.noFastForward.title": "Merge Dialog: No Fast-forward",
   "config.dialog.pullBranch.noFastForward": "Pre-check \"Create a new commit even if fast-forward is possible\" in the pull-branch dialog. Disabled by default.",

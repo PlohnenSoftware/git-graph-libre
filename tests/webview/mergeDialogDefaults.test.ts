@@ -38,6 +38,7 @@ function makeViewState({ mergeNoFastForward, pullBranchNoFastForward }: Defaults
     fetchTagsByDefault: true,
     mergeNoFastForward,
     pullBranchNoFastForward,
+    createBranchCheckout: true,
     onlyFollowFirstParent: false,
     repos: { [REPO]: { columnWidths: null } },
     showCurrentBranchByDefault: false,

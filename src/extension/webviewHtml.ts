@@ -74,6 +74,7 @@ export function buildWebviewHtml(opts: {
     boldCheckedOutCommit: config.boldCheckedOutCommit(),
     fetchTagsByDefault: config.fetchTagsByDefault(),
     mergeNoFastForward: config.mergeNoFastForward(),
+    createBranchCheckout: config.createBranchCheckout(),
     pullBranchNoFastForward: config.pullBranchNoFastForward(),
     onlyFollowFirstParent: config.onlyFollowFirstParent(),
     repos: repoManager.getRepos(),

@@ -165,6 +165,7 @@ export const config = {
   fetchTagsByDefault: (): boolean => getConfig("repository.fetchTagsByDefault", true),
   mergeNoFastForward: (): boolean => getConfig("dialog.merge.noFastForward", true),
   pullBranchNoFastForward: (): boolean => getConfig("dialog.pullBranch.noFastForward", false),
+  createBranchCheckout: (): boolean => getConfig("dialog.createBranch.checkout", true),
   onlyFollowFirstParent: (): boolean => getConfig("repository.onlyFollowFirstParent", false),
   showCurrentBranchByDefault: (): boolean => getConfig("showCurrentBranchByDefault", false),
   showRemoteBranches: (): boolean => getConfig("repository.showRemoteBranches", true),

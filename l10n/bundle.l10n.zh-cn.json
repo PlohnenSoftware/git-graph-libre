@@ -231,6 +231,7 @@
   "dialog.addTag.submit": "添加标签",
   "dialog.createBranch.title": "输入 {0} 的新分支名称",
   "dialog.createBranch.submit": "创建分支",
+  "dialog.createBranch.checkout": "创建后切换到新分支",
   "dialog.checkout.confirm": "确定要检出提交 {0} 吗？这将导致“分离 HEAD”状态。",
   "dialog.cherryPick.confirm": "确定要拣选提交 {0} 吗？",
   "dialog.revert.confirm": "确定要还原提交 {0} 吗？",

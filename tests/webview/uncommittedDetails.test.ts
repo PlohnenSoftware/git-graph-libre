@@ -38,6 +38,7 @@ const defaultViewState: GGL.GitGraphViewState = {
   fetchTagsByDefault: false,
   mergeNoFastForward: true,
   pullBranchNoFastForward: false,
+  createBranchCheckout: true,
   onlyFollowFirstParent: false,
   repos: { [REPO]: { columnWidths: null } },
   showCurrentBranchByDefault: false,

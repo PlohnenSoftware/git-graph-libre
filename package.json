@@ -365,6 +365,11 @@
           "default": true,
           "description": "%config.repository.fetchTagsByDefault%"
         },
+        "git-graph-libre.dialog.createBranch.checkout": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.dialog.createBranch.checkout%"
+        },
         "git-graph-libre.dialog.merge.noFastForward": {
           "type": "boolean",
           "default": true,

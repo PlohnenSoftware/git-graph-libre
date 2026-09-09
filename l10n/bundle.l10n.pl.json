@@ -231,6 +231,7 @@
   "dialog.addTag.submit": "Dodaj tag",
   "dialog.createBranch.title": "Wpisz nazwę gałęzi {0}",
   "dialog.createBranch.submit": "Utwórz gałąź",
+  "dialog.createBranch.checkout": "Przełącz na utworzoną gałąź",
   "dialog.checkout.confirm": "Czy na pewno chcesz przełączyć na commit {0}? Spowoduje to stan 'detached HEAD'.",
   "dialog.cherryPick.confirm": "Czy na pewno chcesz wykonać cherry-pick commita {0}?",
   "dialog.revert.confirm": "Czy na pewno chcesz odwrócić commit {0}?",

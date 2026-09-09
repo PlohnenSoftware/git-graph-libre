@@ -160,6 +160,7 @@ function makeConfig(consent: TelemetryConsent): Config {
     fetchTagsByDefault: () => false,
     mergeNoFastForward: () => true,
     pullBranchNoFastForward: () => false,
+    createBranchCheckout: () => true,
     onlyFollowFirstParent: () => false,
     showCurrentBranchByDefault: () => false,
     showRemoteBranches: () => true,

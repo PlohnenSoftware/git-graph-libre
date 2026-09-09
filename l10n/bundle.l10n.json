@@ -231,6 +231,7 @@
   "dialog.addTag.submit": "Add Tag",
   "dialog.createBranch.title": "Enter the name of the branch {0}",
   "dialog.createBranch.submit": "Create Branch",
+  "dialog.createBranch.checkout": "Check out the branch after creating it",
   "dialog.checkout.confirm": "Are you sure you want to checkout commit {0}? This will result in a 'detached HEAD' state.",
   "dialog.cherryPick.confirm": "Are you sure you want to cherry pick commit {0}?",
   "dialog.revert.confirm": "Are you sure you want to revert commit {0}?",

@@ -231,6 +231,7 @@
   "dialog.addTag.submit": "Tag toevoegen",
   "dialog.createBranch.title": "Voer de naam van de branch {0} in",
   "dialog.createBranch.submit": "Branch maken",
+  "dialog.createBranch.checkout": "Nieuwe branch uitchecken na het aanmaken",
   "dialog.checkout.confirm": "Weet je zeker dat je commit {0} wilt uitchecken? Dit resulteert in een 'detached HEAD'-status.",
   "dialog.cherryPick.confirm": "Weet je zeker dat je commit {0} wilt cherry-picken?",
   "dialog.revert.confirm": "Weet je zeker dat je commit {0} wilt terugdraaien?",

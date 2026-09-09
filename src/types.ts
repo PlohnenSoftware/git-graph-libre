@@ -173,6 +173,7 @@ export type GitGraphViewState = {
   fetchTagsByDefault: boolean;
   mergeNoFastForward: boolean;
   pullBranchNoFastForward: boolean;
+  createBranchCheckout: boolean;
   onlyFollowFirstParent: boolean;
   repos: GitRepoSet;
   showCurrentBranchByDefault: boolean;

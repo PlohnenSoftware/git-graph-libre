@@ -34,6 +34,43 @@ describe("createBranch", () => {
     expect(listed).toBe("new-branch");
   });
 
+  it("checks out the new branch when asked to", async () => {
+    await createBranch(simpleGit(repo), {
+      branchName: "checked-out-branch",
+      commitHash,
+      checkout: true
+    });
+
+    const current = cp
+      .execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: repo })
+      .toString()
+      .trim();
+    expect(current).toBe("checked-out-branch");
+  });
+
+  it("leaves the current branch alone without the checkout opt-in", async () => {
+    const before = cp
+      .execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: repo })
+      .toString()
+      .trim();
+
+    await createBranch(simpleGit(repo), {
+      branchName: "plain-branch",
+      commitHash
+    });
+
+    const listed = cp
+      .execFileSync("git", ["branch", "--list", "plain-branch"], { cwd: repo })
+      .toString()
+      .trim();
+    expect(listed).toBe("plain-branch");
+    const current = cp
+      .execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: repo })
+      .toString()
+      .trim();
+    expect(current).toBe(before);
+  });
+
   it("throws when the branch already exists", async () => {
     await expect(
       createBranch(simpleGit(repo), { branchName: "main", commitHash })

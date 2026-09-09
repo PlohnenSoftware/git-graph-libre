@@ -61,6 +61,8 @@
   "config.repository.boldCheckedOutCommit.title": "加粗当前检出的提交",
   "config.repository.fetchTagsByDefault": "在“抓取”对话框中预先勾选“抓取所有标签”。默认开启。",
   "config.repository.fetchTagsByDefault.title": "默认抓取标签",
+  "config.dialog.createBranch.checkout": "在创建分支对话框中默认勾选“创建后切换到新分支”。默认开启。",
+  "config.dialog.createBranch.checkout.title": "创建分支对话框：切换分支",
   "config.dialog.merge.noFastForward": "在合并对话框中默认勾选“即使可以快进合并，也要创建新提交”。默认开启。",
   "config.dialog.merge.noFastForward.title": "合并对话框：不快进",
   "config.dialog.pullBranch.noFastForward": "在拉取分支对话框中默认勾选“即使可以快进合并，也要创建新提交”。默认关闭。",

@@ -11,6 +11,9 @@ export async function createBranch(
   input: ActionPayload<"createBranch">
 ): Promise<void> {
   await git.raw(["branch", input.branchName, input.commitHash]);
+  if (input.checkout === true) {
+    await git.checkout(input.branchName);
+  }
 }
 
 export async function deleteBranch(

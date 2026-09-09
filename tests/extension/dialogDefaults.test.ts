@@ -15,11 +15,13 @@ suite("no-fast-forward dialog defaults", () => {
   const section = "git-graph-libre";
   const mergeKey = "dialog.merge.noFastForward";
   const pullKey = "dialog.pullBranch.noFastForward";
+  const checkoutKey = "dialog.createBranch.checkout";
 
   async function reset() {
     const settings = vscode.workspace.getConfiguration(section);
     await settings.update(mergeKey, undefined, vscode.ConfigurationTarget.Global);
     await settings.update(pullKey, undefined, vscode.ConfigurationTarget.Global);
+    await settings.update(checkoutKey, undefined, vscode.ConfigurationTarget.Global);
   }
 
   suiteSetup(reset);
@@ -28,6 +30,7 @@ suite("no-fast-forward dialog defaults", () => {
   test("reads the manifest defaults when nothing is stored", () => {
     assert.strictEqual(config.mergeNoFastForward(), true);
     assert.strictEqual(config.pullBranchNoFastForward(), false);
+    assert.strictEqual(config.createBranchCheckout(), true);
   });
 
   test("reads a stored value back, in both directions", async () => {
@@ -37,9 +40,13 @@ suite("no-fast-forward dialog defaults", () => {
     await vscode.workspace
       .getConfiguration(section)
       .update(pullKey, true, vscode.ConfigurationTarget.Global);
+    await vscode.workspace
+      .getConfiguration(section)
+      .update(checkoutKey, false, vscode.ConfigurationTarget.Global);
 
     assert.strictEqual(config.mergeNoFastForward(), false, "merge default should follow the store");
     assert.strictEqual(config.pullBranchNoFastForward(), true, "pull default should follow it too");
+    assert.strictEqual(config.createBranchCheckout(), false, "checkout default follows the store");
   });
 
   test("the settings the manifest contributes are the ones the accessors read", () => {

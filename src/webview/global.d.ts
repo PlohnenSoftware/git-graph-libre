@@ -34,6 +34,7 @@ declare global {
     fetchTagsByDefault: boolean;
     mergeNoFastForward: boolean;
     pullBranchNoFastForward: boolean;
+    createBranchCheckout: boolean;
     onlyFollowFirstParent: boolean;
     showCurrentBranchByDefault: boolean;
     showRemoteBranches: boolean;

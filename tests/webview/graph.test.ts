@@ -28,6 +28,7 @@ const config: Config = {
   fetchTagsByDefault: true,
   mergeNoFastForward: true,
   pullBranchNoFastForward: false,
+  createBranchCheckout: true,
   onlyFollowFirstParent: false,
   showCurrentBranchByDefault: false,
   showRemoteBranches: true,

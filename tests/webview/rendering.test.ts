@@ -61,6 +61,7 @@ const defaultViewState: GGL.GitGraphViewState = {
   fetchTagsByDefault: false,
   mergeNoFastForward: true,
   pullBranchNoFastForward: false,
+  createBranchCheckout: true,
   onlyFollowFirstParent: false,
   repos: { [REPO]: { columnWidths: null } },
   showCurrentBranchByDefault: false,
@@ -3783,6 +3784,9 @@ describe("webview rendering", () => {
   it("creates branches and renames local refs from context menus", () => {
     openHeadCommitContextMenu();
     clickContextMenuItem("Create Branch");
+    expect(
+      (document.getElementById("dialogInput1") as HTMLInputElement | null)?.checked
+    ).toBe(true);
     setDialogInput("feature/sonar-cleanup");
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
 
@@ -3790,7 +3794,8 @@ describe("webview rendering", () => {
       command: "createBranch",
       repo: REPO,
       branchName: "feature/sonar-cleanup",
-      commitHash: "abc123"
+      commitHash: "abc123",
+      checkout: true
     });
 
     const headRef = document.querySelector<HTMLElement>(".gitRef.head");
@@ -3805,6 +3810,46 @@ describe("webview rendering", () => {
       oldName: "main",
       newName: "main-renamed"
     });
+  });
+
+  it("creates branches without checking out when the option is cleared", () => {
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Create Branch");
+    const checkout = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    expect(checkout).not.toBeNull();
+    if (checkout !== null) checkout.checked = false;
+    setDialogInput("feature/no-checkout");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "createBranch",
+      repo: REPO,
+      branchName: "feature/no-checkout",
+      commitHash: "abc123",
+      checkout: false
+    });
+  });
+
+  it("opens the create-branch dialog unchecked when the checkout default is off", () => {
+    receiveExtensionSetting("dialog.createBranch.checkout", false);
+
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Create Branch");
+    expect(
+      (document.getElementById("dialogInput1") as HTMLInputElement | null)?.checked
+    ).toBe(false);
+    setDialogInput("feature/stays-put");
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "createBranch",
+      repo: REPO,
+      branchName: "feature/stays-put",
+      commitHash: "abc123",
+      checkout: false
+    });
+
+    receiveExtensionSetting("dialog.createBranch.checkout", true);
   });
 
   it("toggles commit details from keyboard activation", () => {

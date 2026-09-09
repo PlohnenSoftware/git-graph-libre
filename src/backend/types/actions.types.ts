@@ -19,7 +19,7 @@ type ActionPayloads = {
   cherrypickCommit: { commitHash: string; parentIndex: number };
   cleanUntrackedFiles: { includeDirectories: boolean };
   createArchive: { ref: string };
-  createBranch: { commitHash: string; branchName: string };
+  createBranch: { commitHash: string; branchName: string; checkout?: boolean };
   createPullRequest: {
     branchName: string;
     remoteName: string;
