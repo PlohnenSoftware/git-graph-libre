@@ -2491,9 +2491,9 @@ describe("webview rendering", () => {
 
     expect(findRow("tip1111")?.classList.contains("commitSelected")).toBe(true);
     expect(findRow("abc123")?.classList.contains("commitSelected")).toBe(true);
-    expect(
-      document.querySelector(".stashGraphRow")?.classList.contains("commitSelected")
-    ).toBe(false);
+    expect(document.querySelector(".stashGraphRow")?.classList.contains("commitSelected")).toBe(
+      false
+    );
   });
 
   it("opens stash details from the keyboard and ignores other keys", () => {
@@ -2546,18 +2546,14 @@ describe("webview rendering", () => {
     receiveExtensionSetting("repository.muteCommitsNotAncestorsOfHead", true);
     receiveLoadedCommits(commitsWithStashRow, "abc123");
 
-    expect(document.querySelector(".stashGraphRow")?.classList.contains("mutedCommit")).toBe(
-      true
-    );
+    expect(document.querySelector(".stashGraphRow")?.classList.contains("mutedCommit")).toBe(true);
   });
 
   it("leaves stash rows unmuted when muting is disabled", () => {
     receiveExtensionSetting("repository.muteCommitsNotAncestorsOfHead", false);
     receiveLoadedCommits(commitsWithStashRow, "abc123");
 
-    expect(document.querySelector(".stashGraphRow")?.classList.contains("mutedCommit")).toBe(
-      false
-    );
+    expect(document.querySelector(".stashGraphRow")?.classList.contains("mutedCommit")).toBe(false);
 
     receiveExtensionSetting("repository.muteCommitsNotAncestorsOfHead", true);
   });
@@ -2643,12 +2639,16 @@ describe("webview rendering", () => {
 
     receive({ command: "loadRepos", repos: {}, lastActiveRepo: null });
 
-    expect(
-      vscodeMock.sentMessages.filter((msg) => msg.command === "loadRepoInfo")
-    ).toHaveLength(loadRepoInfoBefore);
+    expect(vscodeMock.sentMessages.filter((msg) => msg.command === "loadRepoInfo")).toHaveLength(
+      loadRepoInfoBefore
+    );
     expect(document.querySelector("#stashList")).toBeNull();
 
-    receive({ command: "loadRepos", repos: { [REPO]: { columnWidths: null } }, lastActiveRepo: REPO });
+    receive({
+      command: "loadRepos",
+      repos: { [REPO]: { columnWidths: null } },
+      lastActiveRepo: REPO
+    });
     const repoInfoRequest = latestLoadRepoInfoRequest();
     receive({
       command: "loadRepoInfo",
@@ -3784,9 +3784,9 @@ describe("webview rendering", () => {
   it("creates branches and renames local refs from context menus", () => {
     openHeadCommitContextMenu();
     clickContextMenuItem("Create Branch");
-    expect(
-      (document.getElementById("dialogInput1") as HTMLInputElement | null)?.checked
-    ).toBe(true);
+    expect((document.getElementById("dialogInput1") as HTMLInputElement | null)?.checked).toBe(
+      true
+    );
     setDialogInput("feature/sonar-cleanup");
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
 
@@ -3835,9 +3835,9 @@ describe("webview rendering", () => {
 
     openHeadCommitContextMenu();
     clickContextMenuItem("Create Branch");
-    expect(
-      (document.getElementById("dialogInput1") as HTMLInputElement | null)?.checked
-    ).toBe(false);
+    expect((document.getElementById("dialogInput1") as HTMLInputElement | null)?.checked).toBe(
+      false
+    );
     setDialogInput("feature/stays-put");
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
 

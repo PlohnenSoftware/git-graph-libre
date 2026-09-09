@@ -12,8 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Slice 1: checkboxes are drawn by the extension instead of the platform.**
   Every checkbox (dialogs, settings hub, toolbar) keeps its native
   `input[type="checkbox"]` behavior and now renders from one shared rule set:
-  a themed 14–16px box (3px radius) with a CSS tick, hover, focus-ring,
-  disabled, high-contrast, and reduced-motion states.
+  a themed 14–16px box (3px radius) on VS Code's own checkbox tokens, an
+  accent fill once set, a clipped check mark, plus hover, focus-ring,
+  disabled, mixed, high-contrast, and reduced-motion states. The tick is
+  clipped in percentages, so it scales with the box and the compact toolbar
+  variant needs no metrics of its own.
 - **Slice 2: remote segments of grouped branch badges read as part of the badge.**
   The divider between the local name and each abbreviated remote name is now
   drawn from the badge foreground instead of the neutral border; fill, text,
@@ -29,6 +32,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and hash; ArrowUp/ArrowDown steps onto stash rows; multi-select and compare
   skip them. Gated on the existing per-repo "Show stashes" toggle, reported
   once per session as `view.stashRows` in the anonymous usage data.
+
+### Added
+
+- **Choose where stashes appear.** `repository.stashDisplay` (`"table"`,
+  `"graph"`, or `"both"`, default `"both"`) selects whether stashes show in
+  the list above the table, as rows on the graph, or in both places. It is
+  scoped by the existing per-repo "Show stashes" toggle, so turning that off
+  still hides them everywhere.
+- **The create-branch dialog can check the new branch out for you.**
+  `dialog.createBranch.checkout` (default `true`) pre-checks "Check out" in
+  the dialog, so creating a branch and switching to it is one action instead
+  of two. Clearing the checkbox creates the branch without moving `HEAD`.
 
 ## [1.5.1] - 2026-09-07
 

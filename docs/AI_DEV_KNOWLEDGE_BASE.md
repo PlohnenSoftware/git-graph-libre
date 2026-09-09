@@ -502,9 +502,18 @@ may not define the token):
 - Checkboxes: keep the native `input[type="checkbox"]` and restyle it with
   `appearance: none` plus a themed box (`--vscode-checkbox-background` /
   `--vscode-checkbox-border` with `--ngg-*` OKLCH fallbacks, 3px radius in the
-  existing 3–4px family). The tick is a CSS `::after` border tick drawn in the
-  checked state (never pasted SVG paths — `octicon()` is unavailable from CSS),
-  `:focus-visible` rings `--vscode-focusBorder`, `:disabled` dims, and every
+  existing 3–4px family). A **set** box — `:checked` *and* `:indeterminate` —
+  must carry its own fill, `--vscode-button-background` with `--ngg-accent`
+  behind it: the resting checkbox tokens are a flat grey in most themes, so a
+  rule set with only a tick and no fill leaves checked and unchecked boxes
+  nearly indistinguishable (this shipped once, and it is what "the checkbox
+  looks unfinished" turned out to mean). The tick is an `::after` shape
+  clipped with `clip-path: polygon(...)` in **percentages**, never pasted SVG
+  paths (`octicon()` is unavailable from CSS) and never a rotated border — a
+  percentage clip scales with the box, so a compact variant needs no tick
+  metrics of its own, while a rotated border needs hand-tuned `left`/`top` per
+  size and leaves blunt ends where the two arms meet. `:focus-visible` rings
+  `--vscode-focusBorder` at `outline-offset: 2px`, `:disabled` dims, and every
   checkbox rule set carries `@media (forced-colors: active)` and
   `@media (prefers-reduced-motion: reduce)` counterparts.
 - Icons: render icons through `octicon(name, className?)` from the generated
@@ -3263,11 +3272,22 @@ opens a new analysis epoch for this backlog.
 
 Maintainer-prioritized work, taken in slice order: checkbox appearance,
 remote sub-label restyle, stash-list move to the top of `#content`, then
-stashes as graph rows (closing Phase 7's remaining item). The four slices
-share one working tree and are split into four commits afterwards; behavioral
-write-ups were approved by the maintainer before code was written, with both
-the `#stashList` panel and the graph stash rows staying (neither surface
-replaces the other).
+stashes as graph rows (closing Phase 7's remaining item). Two follow-ups
+landed on top: a per-repo choice of where stashes appear, and a
+create-branch checkout default. Behavioral write-ups were approved by the
+maintainer before code was written, with both the `#stashList` panel and the
+graph stash rows staying (neither surface replaces the other).
+
+**The stash-list placement was a settled decision, not a default.** The panel
+sits at the top of `#content`, above `#commitTable`, and scrolls with the
+table. `#topBar` was considered and rejected: it is measured by the
+`ResizeObserver` in `observeTopBarHeight()` and published as
+`--ngg-sticky-top`, which `media/table.css` consumes for the sticky header's
+`top` and for `scroll-margin-top`, so a variable-height list in there would
+have to re-publish that height synchronously on every show, hide, and
+stash-count change — the fix the find widget needed on `2026-07-03` (Phase
+12). The chosen placement leaves that machinery untouched; do not move the
+panel into `#topBar` without taking that cost on deliberately.
 
 ### Slice 1 — Checkbox appearance
 
@@ -3277,22 +3297,47 @@ webview — dialog forms, settings hub, toolbar — so the box, tick, and states
 stay identical everywhere. Each site keeps its native
 `input[type="checkbox"]`, restyled with `appearance: none` plus a themed box
 (`--vscode-checkbox-background` / `--vscode-checkbox-border` with `--ngg-*`
-OKLCH fallbacks, 3px radius): unchecked box, checked fill on
-`--vscode-button-background` with a border-based `::after` tick in
-`--vscode-button-foreground`, hover border tint, `:focus-visible` ring on
-`--vscode-focusBorder`, `:disabled` dimming, and `forced-colors` /
-`prefers-reduced-motion` counterparts. Only per-site metrics live outside the
-shared selectors (dialog alignment/margin, toolbar 14px size with a smaller
-tick; dialog and settings share the 16px box). The Webview UI Styling Guide
-checkbox line was rewritten to describe this pattern. CSS regression
-coverage in `tests/webview/dialogStyles.test.ts` and
+OKLCH fallbacks, 3px radius): resting box, accent fill once set, a clipped
+`::after` check mark in `--vscode-button-foreground`, hover feedback,
+`:focus-visible` ring on `--vscode-focusBorder` at `outline-offset: 2px`,
+`:disabled` dimming, and `forced-colors` / `prefers-reduced-motion`
+counterparts. Only the box size lives outside the shared selectors (dialog
+alignment/margin, toolbar 14px; dialog and settings share the 16px box). The
+Webview UI Styling Guide checkbox line was rewritten to describe this
+pattern. CSS regression coverage in `tests/webview/dialogStyles.test.ts` and
 `tests/webview/tableStyles.test.ts`.
 
-Verification: focused vitest (`dialogStyles`, `tableStyles`: 41 passed),
-strict Biome over both touched test files (clean).
+**Two defects were found in this slice after it was first written, and both
+are worth not repeating.** The maintainer reported the result as looking
+strange, and the cause was not subtle once the CSS was read against the
+rendered control:
 
-TODO(maintainer): gate evidence — full gate (typecheck, test, l10n:check,
-coverage, Sonar task id) to be filled in when the release gate runs.
+- **There was no `:checked` rule at all** — only `:checked::after` for the
+  tick. A set box therefore kept the resting grey and was distinguished only
+  by a `currentColor` tick, which is why it read as unfinished. The paragraph
+  above originally described an accent fill that the stylesheet never carried;
+  treat a styling record as a claim to verify, not as evidence.
+- **The resting box ignored VS Code's checkbox tokens**, using the repo's
+  generic grey overlays directly, so it looked foreign beside native
+  controls. The tokens are now the primary source with the OKLCH neutrals as
+  fallbacks, per the styling guide's own token-first rule.
+
+The tick was also rebuilt: it is one `::after` shape clipped with
+`clip-path: polygon(...)` in percentages rather than a rotated border. The
+percentage clip scales with the box, which deleted the toolbar's separate
+tick metrics — the compact variant previously carried its own hand-tuned
+`left`/`top`/`width`/`height`, a second set of numbers that could drift from
+the first. `:indeterminate` was added in the same pass and shares the set-box
+fill with a bar-shaped clip. A regression test pins that no per-site tick
+override exists.
+
+Verification: focused vitest (`dialogStyles`, `tableStyles`: 44 passed),
+strict Biome over the touched files (clean after one formatting fix). The
+tick polygon was additionally rasterized off-tree and inspected by eye before
+committing, since the defect being fixed was one that only shows up rendered.
+
+Gate evidence: covered by the release gate of `2026-09-09` recorded at the
+end of this section (one gate over the completed six-commit tree).
 
 ### Slice 2 — Remote sub-label restyle
 
@@ -3315,8 +3360,8 @@ Verification: focused vitest (`dialogStyles`, `tableStyles`, `refLabels`,
 `rendering`: 121 passed), strict Biome over the touched test file (clean;
 CSS is not counted by the strict config).
 
-TODO(maintainer): gate evidence — full gate (typecheck, test, l10n:check,
-coverage, Sonar task id) to be filled in when the release gate runs.
+Gate evidence: covered by the release gate of `2026-09-09` recorded at the
+end of this section (one gate over the completed six-commit tree).
 
 ### Slice 3 — Stash list above the table
 
@@ -3340,8 +3385,8 @@ Verification: `pnpm run typecheck` clean; focused vitest (`rendering`,
 `tableStyles`: 99 passed); strict Biome over `src/webview/main.ts` and both
 touched test files (clean).
 
-TODO(maintainer): gate evidence — full gate (typecheck, test, l10n:check,
-coverage, Sonar task id) to be filled in when the release gate runs.
+Gate evidence: covered by the release gate of `2026-09-09` recorded at the
+end of this section (one gate over the completed six-commit tree).
 
 ### Slice 4 — Stashes as graph rows
 
@@ -3409,8 +3454,92 @@ webview `rendering` (75), `tableStyles` (25), `dialogStyles`,
 `pnpm run typecheck` clean; `pnpm run l10n:check` 100% (no new strings);
 strict Biome over all touched files (clean after two format-only fixes).
 
-TODO(maintainer): gate evidence — full gate (typecheck, test, l10n:check,
-coverage, Sonar task id) to be filled in when the release gate runs.
+Gate evidence: covered by the release gate of `2026-09-09` recorded at the
+end of this section (one gate over the completed six-commit tree).
+
+### Follow-up — where stashes appear, and a checkout default
+
+Two additions on top of the four slices, both through the standard setting
+plumbing (manifest, five `package.nls*.json`, `src/config.ts`,
+`src/types.ts`, `webviewHtml.ts`, `global.d.ts`, the webview config switch
+plus constructor literal, README):
+
+- `repository.stashDisplay` (`"table"` / `"graph"` / `"both"`, default
+  `"both"`) chooses which stash surface is shown. It is **scoped by**
+  `repository.showStashes` rather than replacing it: the boolean still gates
+  whether stashes load at all, so switching it off hides both surfaces
+  regardless of this value. Keep that nesting — a three-way display mode that
+  could resurrect stashes a user had switched off would be a surprise.
+- `dialog.createBranch.checkout` (default `true`) pre-checks "Check out" in
+  the create-branch dialog. The backend does the create and the checkout as
+  two steps (`branch` then `checkout`) rather than `checkout -b`, so a failed
+  checkout still leaves the branch created — which is the recoverable
+  outcome, and the one the dialog's own error path already reports.
+
+### Licence review of these slices (`2026-09-09`)
+
+The whole stack was reviewed against a maintainer-supplied comparison build
+before any of it was pushed, at token level and by identifier. The review
+found and removed one genuine problem, and it is recorded here because the
+*way* it arrived is the reusable lesson: an intermediate commit rewrote this
+project's own independently-written stash node — a stroked ring at
+`NODE_RADIUS + 1.5` with a filled dot — into a shape carrying two class names
+and two radii that were not ours. Our own construction was restored, and the
+node's two identifiers were renamed into this project's vocabulary
+(`isStashRow`/`setStashRow`, and `sourceHash` on `GitStash`). The commits were
+rewritten rather than fixed forward, so none of it reached published history.
+
+Two durable points:
+
+- **A visual target and a code target are different things.** Matching how a
+  feature *looks* is fine; arriving at the same identifiers and the same
+  magic numbers is not, and expressing a borrowed constant as arithmetic on
+  one of ours (`NODE_RADIUS + 0.5` for `4.5`) disguises it without changing
+  it. Derive constants from this project's own geometry and say in a comment
+  why that derivation is the right one.
+- **Token-run scanning alone is not enough.** A renamed transliteration
+  breaks every token run below the detection threshold, so the scan stayed
+  silent on the one real finding; it surfaced only from reading the two
+  routines side by side, and from an identifier census that asked which names
+  are new here *and* present there. Run both, and treat generic English and
+  API-mandated names (git flags, `--vscode-*` tokens, CSS syntax, assertion
+  boilerplate) as expected overlap rather than signal.
+
+### Release gate for these slices (`2026-09-09`)
+
+One gate over the completed tree covering all six commits, in the documented
+order. The commits were already made when the gate ran — the slices were
+committed before review rather than after, contrary to the standing rule — so
+this is a gate on committed-but-unpushed work rather than on a clean working
+tree. Nothing was pushed before it passed.
+
+- strict Biome (`biome.strict.jsonc`, lint + format + import order, warnings
+  as errors) over all touched files: clean, after one formatting fix in
+  `tests/webview/rendering.test.ts` that the patch replay had introduced.
+  Note both configs carry the same `lineWidth: 100`, so strict and whole-tree
+  formatting do not disagree here.
+- `pnpm run package`: typecheck (three projects), whole-tree `biome lint`
+  over `241` files, and production builds — all clean.
+- `pnpm run test`: `47` files / `482` tests.
+- `pnpm run l10n:check`: `100%` bundle and package coverage for `nl`, `pl`,
+  `zh-cn`, `zh-tw`.
+- `pnpm run test:coverage`: `108` files / `959` tests, raw LCOV line coverage
+  `93.0%` (`5,921`/`6,370`).
+- `pnpm run sonar:scan`, task `42fa24ac-a62a-4394-abe6-6eafa5f9e0b4`,
+  analysis `a6e5b0aa-1249-40b2-b302-4f93c4679961`: `ZAM` gate **`OK`** on all
+  seven reported conditions — `new_coverage` `95.0`,
+  `new_duplicated_lines_density` `0.0`, `new_violations` `0`,
+  `new_software_quality_high_issues` `0`,
+  `software_quality_maintainability_rating` `1`, and project-wide reliability
+  and security issues `0`. Window `PREVIOUS_VERSION` `1.5.0`. The eighth
+  condition (`new_security_hotspots_reviewed`) was not reported because
+  `/api/hotspots/search?inNewCodePeriod=true&status=TO_REVIEW` returns `0`.
+- `graphify update .` + `graphify tree`: map rebuilt at `2,517` nodes /
+  `5,864` edges / `155` communities.
+- `sonar.projectVersion` was **deliberately left at `1.5.1`**, so this
+  analysis measures against the `1.5.0` baseline and covers the whole
+  delta. Advancing it is a maintainer decision about opening a new analysis
+  epoch and has not been taken.
 
 ## Near-Term Work Order
 
@@ -3420,9 +3549,11 @@ comes before every phase item below.** BUG-1 through BUG-6 were reported against
 the end of that section. Nothing in the phase list starts until that backlog is
 closed or the maintainer explicitly redirects.
 
-**Current priority (`2026-09-09`): the four graph/stash UI slices** in the
-section above — checkboxes, remote sub-label restyle, stash-list move, graph
-stash rows — in that order, before any other remaining phase item.
+**Current priority (`2026-09-09`): the graph/stash UI slices** in the section
+above — checkboxes, remote sub-label restyle, stash-list move, graph stash
+rows, then the stash-display choice and the create-branch checkout default —
+before any other remaining phase item. All six are implemented and committed
+on `AIdev`, unpushed, awaiting the release gate.
 
 **Backlog closed `2026-08-25`** — all six entries fixed and gated; per-entry
 implementation records with Sonar task ids are in the backlog section above.

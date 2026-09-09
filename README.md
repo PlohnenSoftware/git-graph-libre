@@ -24,6 +24,8 @@
     signing configuration (`tag.gpgSign`, `user.signingkey`, `gpg.format`) and
     may have an optional message
 - **Commit actions**: Checkout, cherry-pick, revert, and reset
+- **Stashes**: See stashes in a list above the graph, as rows beside the commit
+  each was taken from, or both; apply, pop, drop, or branch from any of them
 - **Staging**: Click the uncommitted-changes row to stage and unstage files by
   dragging them between the staged and unstaged panes
 - **Avatar support**: Optional avatars from GitHub, GitLab, or Gravatar
@@ -69,6 +71,7 @@ All settings use the `git-graph-libre` prefix.
 | `autoCenterCommitDetailsView`                  | `true`          | Center commit details when opened                |
 | `dateFormat`                                   | `"Date & Time"` | `"Date & Time"`, `"Date Only"`, or `"Relative"`  |
 | `dateType`                                     | `"Author Date"` | `"Author Date"` or `"Commit Date"`               |
+| `dialog.createBranch.checkout`                 | `true`          | Pre-check "Check out" in the create-branch dialog |
 | `dialog.merge.noFastForward`                   | `true`          | Pre-check "no fast-forward" in merge dialogs     |
 | `dialog.pullBranch.noFastForward`              | `false`         | Pre-check "no fast-forward" in the pull dialog   |
 | `fetchAvatars`                                 | `false`         | Fetch avatars (sends email to external services) |
@@ -82,6 +85,7 @@ All settings use the `git-graph-libre` prefix.
 | `repository.includeReflog`                     | `false`         | Include commits referenced only by reflogs       |
 | `repository.includeUnreachableCommits`         | `false`         | Scan for unreachable commits in Show All         |
 | `repository.muteMergeCommits`                  | `false`         | Mute merge commit messages (opt-in)              |
+| `repository.stashDisplay`                      | `"both"`        | Show stashes in the `"table"`, the `"graph"`, or `"both"` |
 | `showCurrentBranchByDefault`                   | `false`         | Show only current branch on open                 |
 | `showStatusBarItem`                            | `true`          | Show status bar button                           |
 | `showUncommittedChanges`                       | `true`          | Show uncommitted changes node                    |
