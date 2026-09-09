@@ -87,12 +87,12 @@ describe("dialog styles", () => {
     }
     expect(css).toContain("appearance: none;");
     expect(css).toContain("border-radius: 3px;");
-    expect(css).toContain("var(--vscode-checkbox-background");
-    expect(css).toContain("var(--vscode-checkbox-border");
+    expect(css).toContain("background-color: var(--ngg-neutral-overlay-subtle);");
+    expect(css).toContain("border: 1px solid var(--ngg-neutral-border-strong);");
     expect(css).not.toContain("accent-color");
     // Checked fill, border tick, hover, focus ring, and disabled dimming.
     expect(css).toContain("border-width: 0 2px 2px 0;");
-    expect(css).toContain("var(--vscode-button-foreground");
+    expect(css).toContain("border: solid currentColor;");
     expect(css).toContain("outline: 1px solid var(--vscode-focusBorder);");
     // High-contrast and reduced-motion counterparts travel with the pattern.
     expect(css).toContain("@media (forced-colors: active)");
@@ -236,19 +236,12 @@ describe("dialog styles", () => {
     expect(badge).toContain("border-radius: 0;");
   });
 
-  it("keeps remote alias segments on the badge token pair with an oklab divider", () => {
+  it("styles remote sublabels with an italic name and an OKLCH divider", () => {
     const alias = ruleFor(css, ".gitRefGroup > .gitRefAlias");
-
-    // Abbreviated remote names sit on the badge fill with the badge
-    // foreground; that pair is the one verified at AA in light themes.
-    expect(alias).toContain("background-color: var(--vscode-badge-background");
-    expect(alias).toContain("color: var(--vscode-badge-foreground");
-    // The divider is drawn from the badge foreground, mixed in oklab only.
-    expect(alias).toContain("border-left: 1px solid");
-    expect(alias).toContain("color-mix(");
-    expect(alias).toContain("in oklab,");
-    expect(alias).not.toContain("in srgb");
-    // The remote icon stays hidden; the abbreviated name alone labels the segment.
+    expect(alias).toContain("background-color: var(--ngg-neutral-overlay-muted);");
+    expect(alias).toContain("color: inherit;");
+    expect(alias).toContain("font-style: italic;");
+    expect(alias).toContain("border-left: 1px solid oklch(60% 0 0 / 0.45);");
     expect(ruleFor(css, ".gitRefGroup > .gitRefAlias > svg")).toContain("display: none;");
   });
 

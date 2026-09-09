@@ -19,6 +19,7 @@ const ICON_NAMES = [
   "git-branch",
   "git-commit",
   "history",
+  "inbox",
   "info",
   "link-external",
   "search",

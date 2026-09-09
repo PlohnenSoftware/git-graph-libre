@@ -6,6 +6,7 @@ import { octicon } from "@/octicons";
 export const svgIcons = {
   alert: octicon("alert"),
   branch: octicon("git-branch"),
+  stash: octicon("inbox"),
   copy: octicon("copy", "fileActionIcon copyIcon"),
   info: octicon("info"),
   noCommits: octicon("git-commit", "noCommitsIcon"),

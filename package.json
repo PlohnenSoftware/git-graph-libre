@@ -310,6 +310,21 @@
           "default": true,
           "description": "%config.repository.showStashes%"
         },
+        "git-graph-libre.repository.stashDisplay": {
+          "type": "string",
+          "enum": [
+            "table",
+            "graph",
+            "both"
+          ],
+          "enumDescriptions": [
+            "%config.repository.stashDisplay.table%",
+            "%config.repository.stashDisplay.graph%",
+            "%config.repository.stashDisplay.both%"
+          ],
+          "default": "both",
+          "description": "%config.repository.stashDisplay%"
+        },
         "git-graph-libre.repository.showTags": {
           "type": "boolean",
           "default": true,

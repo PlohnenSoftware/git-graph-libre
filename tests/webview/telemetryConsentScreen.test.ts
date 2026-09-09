@@ -164,6 +164,7 @@ function makeConfig(consent: TelemetryConsent): Config {
     showCurrentBranchByDefault: () => false,
     showRemoteBranches: () => true,
     showStashes: () => true,
+    stashDisplay: () => "both",
     showTags: () => true,
     showStatusBarItem: () => true,
     showUncommittedChanges: () => true,

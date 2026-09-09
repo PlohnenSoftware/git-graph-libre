@@ -148,6 +148,8 @@ export type ExtensionSetting = {
   maximum?: number;
 };
 
+export type StashDisplay = "table" | "graph" | "both";
+
 export type GitGraphViewState = {
   autoCenterCommitDetailsView: boolean;
   commitDetailsCompactFolders: boolean;
@@ -176,6 +178,7 @@ export type GitGraphViewState = {
   showCurrentBranchByDefault: boolean;
   showRemoteBranches: boolean;
   showStashes: boolean;
+  stashDisplay?: StashDisplay;
   showTags: boolean;
   includeReflog: boolean;
   includeUnreachableCommits: boolean;

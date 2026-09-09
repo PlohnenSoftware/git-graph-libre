@@ -1045,7 +1045,7 @@ class GitGraphView {
       onlyFollowFirstParent: this.getOnlyFollowFirstParent(),
       commitOrdering: this.getCommitOrdering(),
       showSignature: !this.hiddenColumns.has("signature"),
-      showStashes: this.getShowStashes(),
+      showStashes: this.getShowStashes() && this.config.stashDisplay !== "table",
       hard: hard
     });
   }
@@ -1519,6 +1519,7 @@ class GitGraphView {
   private applyExtensionSettings(settings: GGL.ExtensionSetting[], changedKeys: readonly string[]) {
     const beforeRemoteBranches = this.getShowRemoteBranches();
     const beforeStashes = this.getShowStashes();
+    const beforeStashDisplay = this.config.stashDisplay;
     const beforeTags = this.getShowTags();
     const beforeIncludeReflog = this.getIncludeReflog();
     const beforeIncludeUnreachable = this.getIncludeUnreachableCommits();
@@ -1548,6 +1549,7 @@ class GitGraphView {
     const repoFilterDefaultsChanged =
       beforeRemoteBranches !== this.getShowRemoteBranches() ||
       beforeStashes !== this.getShowStashes() ||
+      beforeStashDisplay !== this.config.stashDisplay ||
       beforeTags !== this.getShowTags() ||
       beforeIncludeReflog !== this.getIncludeReflog() ||
       beforeIncludeUnreachable !== this.getIncludeUnreachableCommits() ||
@@ -1661,6 +1663,11 @@ class GitGraphView {
     switch (configKey) {
       case "commitDetails.fileViewMode":
         if (value === "tree" || value === "list") this.config.commitDetailsFileViewMode = value;
+        return true;
+      case "repository.stashDisplay":
+        if (value === "table" || value === "graph" || value === "both") {
+          this.config.stashDisplay = value;
+        }
         return true;
       case "dateFormat":
         if (value === "Date & Time" || value === "Date Only" || value === "Relative") {
@@ -3556,6 +3563,11 @@ class GitGraphView {
     });
   }
   private buildGitRefContextMenu(sourceElem: HTMLElement, refName: string) {
+    if (sourceElem.classList.contains("stash")) {
+      const row = closestHTMLElement(sourceElem, ".stashGraphRow");
+      const hash = row?.dataset.hash;
+      return hash === undefined ? [] : this.buildStashContextMenu(refName, hash, sourceElem);
+    }
     const isTag = sourceElem.classList.contains("tag");
     const menu = isTag
       ? this.buildTagContextMenu(refName)
@@ -4373,13 +4385,17 @@ class GitGraphView {
     );
   }
   private registerGitRefActivationListeners() {
-    addListenerToClass("gitRef", "click", (e: Event) => e.stopPropagation());
+    addListenerToClass("gitRef", "click", (e: Event) => {
+      if (closestHTMLElement(e.target, ".gitRef")?.classList.contains("stash")) return;
+      e.stopPropagation();
+    });
     addListenerToClass("gitRef", "dblclick", (e: Event) => {
       e.stopPropagation();
       hideDialogAndContextMenu();
       const sourceElem = closestHTMLElement(e.target, ".gitRef");
       const refName = sourceElem?.dataset.name;
       if (sourceElem === null || refName === undefined) return;
+      if (sourceElem.classList.contains("stash")) return;
       this.checkoutBranchAction(sourceElem, unescapeHtml(refName));
     });
   }
@@ -4468,7 +4484,7 @@ class GitGraphView {
       ` data-id="${index}" data-hash="${escapedHash}"` +
       ` data-stash-ref="${escapedSelector}" data-stash-hash="${escapedHash}"` +
       ` data-color="${this.graph.getVertexColor(index)}"><td></td><td>` +
-      `<span class="gitRef stash" data-name="${escapedSelector}" title="${escapedSelector}">${escapedSelector}</span>` +
+      `<span class="gitRef stash" data-name="${escapedSelector}" title="${escapedSelector}" aria-label="${escapedSelector}">${svgIcons.stash}${escapeHtml(selector.replace(/^stash/, ""))}</span>` +
       `<span class="commitMessage">${escapeHtml(commit.message)}</span>` +
       `</td><td title="${date.title}">` +
       date.value +
@@ -4638,7 +4654,12 @@ class GitGraphView {
     this.registerStashActivationListeners();
   }
   private renderStashList() {
-    if (this.gitStashes.length === 0) return "";
+    if (
+      !this.getShowStashes() ||
+      this.config.stashDisplay === "graph" ||
+      this.gitStashes.length === 0
+    )
+      return "";
 
     const rows = this.gitStashes
       .map((stash) => {
@@ -6078,6 +6099,7 @@ const gitGraph = new GitGraphView(
     showCurrentBranchByDefault: viewState.showCurrentBranchByDefault,
     showRemoteBranches: viewState.showRemoteBranches,
     showStashes: viewState.showStashes,
+    stashDisplay: viewState.stashDisplay ?? "both",
     showTags: viewState.showTags,
     shortHashLength: viewState.shortHashLength
   },

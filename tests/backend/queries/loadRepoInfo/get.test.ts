@@ -116,6 +116,30 @@ describe("loadRepoInfo", () => {
     }
   });
 
+  it("skips the stash query when stashes are hidden", async () => {
+    const stashRepo = makeRepo();
+    try {
+      fs.writeFileSync(path.join(stashRepo, "f"), "changed");
+      git(["stash", "push", "-m", "work in progress"], stashRepo);
+
+      const records: GitCommandRecord[] = [];
+      const result = await loadRepoInfo(simpleGit(stashRepo), {
+        repo: stashRepo,
+        showStashes: false,
+        recordGitCommand: (record) => {
+          records.push(record);
+        }
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.repoInfo.stashes).toEqual([]);
+      expect(result.repoInfo.stashCount).toBe(0);
+      expect(records.some((record) => record.args.includes("stash"))).toBe(false);
+    } finally {
+      fs.rmSync(stashRepo, { recursive: true, force: true });
+    }
+  });
+
   it("records sanitized Git command metadata", async () => {
     git(
       ["remote", "set-url", "origin", "https://user:secret@example.test/repo.git"],

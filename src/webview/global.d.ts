@@ -38,6 +38,7 @@ declare global {
     showCurrentBranchByDefault: boolean;
     showRemoteBranches: boolean;
     showStashes: boolean;
+    stashDisplay: GGL.StashDisplay;
     showTags: boolean;
     shortHashLength: number;
   }

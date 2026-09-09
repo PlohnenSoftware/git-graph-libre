@@ -80,6 +80,7 @@ export function buildWebviewHtml(opts: {
     showCurrentBranchByDefault: config.showCurrentBranchByDefault(),
     showRemoteBranches: config.showRemoteBranches(),
     showStashes: config.showStashes(),
+    stashDisplay: config.stashDisplay(),
     showTags: config.showTags(),
     shortHashLength: config.shortHashLength(),
     language,

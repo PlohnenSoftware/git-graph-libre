@@ -123,7 +123,7 @@ describe("commit table styles", () => {
     expect(css).toContain(".gitRefGroup {");
     expect(css).toContain("display: inline-flex;");
     expect(css).toContain(".gitRefGroup > .gitRefAlias {");
-    expect(css).toContain("var(--vscode-badge-background");
+    expect(css).toContain("border-left: 1px solid oklch(60% 0 0 / 0.45);");
     expect(css).toContain(".gitRefGroup > .gitRefAlias > svg");
     expect(css).toContain("display: none;");
   });

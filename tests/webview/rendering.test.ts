@@ -2334,7 +2334,9 @@ describe("webview rendering", () => {
     const row = rows[0];
     // Directly above the base commit, carrying the badge, message, and hash.
     expect(row.nextElementSibling?.getAttribute("data-hash")).toBe("abc123");
-    expect(row.textContent).toContain("stash@{0}");
+    expect(row.querySelector(".gitRef.stash")?.textContent).toBe("@{0}");
+    expect(row.querySelector(".gitRef.stash")?.getAttribute("title")).toBe("stash@{0}");
+    expect(row.querySelector(".gitRef.stash svg.octicon-inbox")).not.toBeNull();
     expect(row.textContent).toContain("WIP on main");
     expect(row.textContent).toContain("fee");
     expect(row.dataset.stashRef).toBe("stash@{0}");
@@ -2358,6 +2360,320 @@ describe("webview rendering", () => {
       command: "copyToClipboard",
       type: "Stash Hash",
       data: "feed1234"
+    });
+  });
+
+  it("opens stash actions from the graph badge and its icon", () => {
+    receiveLoadedCommits(commitsWithStashRow, "abc123");
+    for (const selector of [".gitRef.stash", ".gitRef.stash svg", ".gitRef.stash svg path"]) {
+      const target = document.querySelector(selector);
+      expect(target).not.toBeNull();
+      target?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+      expect(contextMenuItem("Checkout Branch")).toBeUndefined();
+      for (const label of ["Apply Stash", "Create Branch from Stash", "Pop Stash", "Drop Stash"]) {
+        expect(contextMenuItem(label)).not.toBeUndefined();
+      }
+      clickContextMenuItem("Copy Stash Name");
+      expect(vscodeMock.sentMessages.at(-1)).toEqual({
+        command: "copyToClipboard",
+        type: "Stash Name",
+        data: "stash@{0}"
+      });
+    }
+    findRow("abc123")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    document
+      .querySelector(".gitRef.stash svg")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(vscodeMock.sentMessages.at(-1)).toEqual({
+      command: "commitDetails",
+      repo: REPO,
+      commitHash: "feed1234"
+    });
+  });
+
+  it("switches stash display between table, graph, and both without changing Show Stashes", () => {
+    for (const mode of ["table", "graph", "both"] as const) {
+      receiveExtensionSetting("repository.stashDisplay", mode);
+      const repoInfoRequest = latestLoadRepoInfoRequest();
+      expect(repoInfoRequest.showStashes).toBe(true);
+      receive({
+        command: "loadRepoInfo",
+        requestId: repoInfoRequest.requestId,
+        repoInfo: repoInfoWithStash,
+        error: null
+      });
+      const branchesRequest = latestLoadBranchesRequest();
+      receive({
+        command: "loadBranches",
+        requestId: branchesRequest.requestId,
+        branches: ["main"],
+        head: "main",
+        hard: true,
+        isRepo: true,
+        error: null
+      });
+      const commitsRequest = latestLoadCommitsRequest();
+      expect(commitsRequest.showStashes).toBe(mode !== "table");
+      receive({
+        command: "loadCommits",
+        requestId: commitsRequest.requestId,
+        commits: mode === "table" ? twoCommits : commitsWithStashRow,
+        head: "abc123",
+        moreCommitsAvailable: true,
+        hard: true,
+        error: null
+      });
+      expect(document.querySelector("#stashList") !== null).toBe(mode !== "graph");
+      expect(document.querySelector(".stashGraphRow") !== null).toBe(mode !== "table");
+      expect(document.querySelectorAll("#commitTable tr.commit")).toHaveLength(2);
+    }
+  });
+
+  it("ignores unknown stash display modes without reloading", () => {
+    const loadRepoInfoCount = (command: string) =>
+      vscodeMock.sentMessages.filter((msg) => msg.command === command).length;
+    const repoInfoBefore = loadRepoInfoCount("loadRepoInfo");
+    const commitsBefore = sentLoadCommitsCount();
+
+    receiveExtensionSetting("repository.stashDisplay", "cards");
+
+    expect(loadRepoInfoCount("loadRepoInfo")).toBe(repoInfoBefore);
+    expect(sentLoadCommitsCount()).toBe(commitsBefore);
+  });
+
+  it("stops badge clicks at the label instead of opening details", () => {
+    receiveLoadedCommits(twoCommits, "abc123");
+
+    const before = vscodeMock.sentMessages.length;
+    gitRef("main")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(vscodeMock.sentMessages).toHaveLength(before);
+  });
+
+  it("checks out branches on badge double-click but never stashes", () => {
+    receiveLoadedCommits(commitsWithStashRow, "abc123");
+
+    gitRef("main")?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "checkoutBranch",
+      repo: REPO,
+      branchName: "main",
+      remoteBranch: null
+    });
+
+    const before = vscodeMock.sentMessages.length;
+    document
+      .querySelector(".gitRef.stash")
+      ?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    expect(vscodeMock.sentMessages).toHaveLength(before);
+  });
+
+  it("skips stash rows in shift-select ranges", () => {
+    receiveLoadedCommits(
+      [
+        {
+          hash: "tip1111",
+          parentHashes: ["abc123"],
+          author: "Zed",
+          email: "zed@example.com",
+          date: 1700600000,
+          message: "Tip commit",
+          refs: []
+        },
+        ...commitsWithStashRow
+      ],
+      "tip1111"
+    );
+
+    findRow("tip1111")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    findRow("abc123")?.dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: true }));
+
+    expect(findRow("tip1111")?.classList.contains("commitSelected")).toBe(true);
+    expect(findRow("abc123")?.classList.contains("commitSelected")).toBe(true);
+    expect(
+      document.querySelector(".stashGraphRow")?.classList.contains("commitSelected")
+    ).toBe(false);
+  });
+
+  it("opens stash details from the keyboard and ignores other keys", () => {
+    receiveLoadedCommits(commitsWithStashRow, "abc123");
+
+    const row = document.querySelector<HTMLElement>(".stashGraphRow");
+    expect(row).not.toBeNull();
+    row?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "commitDetails",
+      repo: REPO,
+      commitHash: "feed1234"
+    });
+
+    const before = vscodeMock.sentMessages.length;
+    row?.dispatchEvent(new KeyboardEvent("keydown", { key: "x", bubbles: true }));
+    expect(vscodeMock.sentMessages).toHaveLength(before);
+
+    row?.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "commitDetails",
+      repo: REPO,
+      commitHash: "feed1234"
+    });
+  });
+
+  it("finds stash rows by message and navigates to them", () => {
+    receiveLoadedCommits(commitsWithStashRow, "abc123");
+
+    document.getElementById("findBtn")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    setFindQuery("polish");
+
+    expect(document.querySelector(".stashGraphRow")?.classList.contains("findMatch")).toBe(true);
+    expect(document.querySelector(".stashGraphRow")?.classList.contains("findMatchActive")).toBe(
+      true
+    );
+    expect(document.getElementById("findMatchCount")?.textContent).toBe("1 of 1");
+
+    document
+      .getElementById("findNextBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(document.querySelector(".stashGraphRow")?.classList.contains("findMatchActive")).toBe(
+      true
+    );
+
+    clearFind();
+  });
+
+  it("mutes stash rows outside the HEAD ancestry when enabled", () => {
+    receiveExtensionSetting("repository.muteCommitsNotAncestorsOfHead", true);
+    receiveLoadedCommits(commitsWithStashRow, "abc123");
+
+    expect(document.querySelector(".stashGraphRow")?.classList.contains("mutedCommit")).toBe(
+      true
+    );
+  });
+
+  it("leaves stash rows unmuted when muting is disabled", () => {
+    receiveExtensionSetting("repository.muteCommitsNotAncestorsOfHead", false);
+    receiveLoadedCommits(commitsWithStashRow, "abc123");
+
+    expect(document.querySelector(".stashGraphRow")?.classList.contains("mutedCommit")).toBe(
+      false
+    );
+
+    receiveExtensionSetting("repository.muteCommitsNotAncestorsOfHead", true);
+  });
+
+  it("navigates find matches across multiple stash rows", () => {
+    receiveLoadedCommits(
+      [
+        {
+          hash: "feed1234",
+          parentHashes: ["abc123"],
+          author: "",
+          email: "",
+          date: 1700500000,
+          message: "WIP first",
+          refs: [],
+          signature: null,
+          stash: { ref: "stash@{0}" }
+        },
+        { ...twoCommits[0] },
+        {
+          hash: "feed5678",
+          parentHashes: ["def456"],
+          author: "",
+          email: "",
+          date: 1700400000,
+          message: "WIP second",
+          refs: [],
+          signature: null,
+          stash: { ref: "stash@{1}" }
+        },
+        { ...twoCommits[1] }
+      ],
+      "abc123"
+    );
+
+    document.getElementById("findBtn")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    setFindQuery("second");
+
+    const secondRow = document.querySelector('.stashGraphRow[data-hash="feed5678"]');
+    expect(secondRow?.classList.contains("findMatch")).toBe(true);
+    expect(secondRow?.classList.contains("findMatchActive")).toBe(true);
+    expect(document.getElementById("findMatchCount")?.textContent).toBe("1 of 1");
+
+    document
+      .getElementById("findNextBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(
+      document
+        .querySelector('.stashGraphRow[data-hash="feed5678"]')
+        ?.classList.contains("findMatchActive")
+    ).toBe(true);
+
+    clearFind();
+  });
+
+  it("stays silent when a stash row loses its rendered identity", () => {
+    receiveLoadedCommits(commitsWithStashRow, "abc123");
+
+    const row = document.querySelector<HTMLElement>(".stashGraphRow");
+    expect(row).not.toBeNull();
+    // A badge whose graph row carries no hash offers no menu.
+    row?.removeAttribute("data-hash");
+    document
+      .querySelector(".gitRef.stash")
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(document.querySelector("#contextMenu .contextMenuItem")).toBeNull();
+
+    // Row activation and menus without an identity stay silent too.
+    const before = vscodeMock.sentMessages.length;
+    row?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    row?.removeAttribute("data-stash-ref");
+    row?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(document.querySelector("#contextMenu .contextMenuItem")).toBeNull();
+    expect(vscodeMock.sentMessages).toHaveLength(before);
+
+    receiveLoadedCommits(commitsWithStashRow, "abc123");
+  });
+
+  it("clears the stash section without requesting when no repository is open", () => {
+    const loadRepoInfoBefore = vscodeMock.sentMessages.filter(
+      (msg) => msg.command === "loadRepoInfo"
+    ).length;
+
+    receive({ command: "loadRepos", repos: {}, lastActiveRepo: null });
+
+    expect(
+      vscodeMock.sentMessages.filter((msg) => msg.command === "loadRepoInfo")
+    ).toHaveLength(loadRepoInfoBefore);
+    expect(document.querySelector("#stashList")).toBeNull();
+
+    receive({ command: "loadRepos", repos: { [REPO]: { columnWidths: null } }, lastActiveRepo: REPO });
+    const repoInfoRequest = latestLoadRepoInfoRequest();
+    receive({
+      command: "loadRepoInfo",
+      requestId: repoInfoRequest.requestId,
+      repoInfo: repoInfoWithoutRemotes,
+      error: null
+    });
+    const branchesRequest = latestLoadBranchesRequest();
+    receive({
+      command: "loadBranches",
+      requestId: branchesRequest.requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    const commitsRequest = latestLoadCommitsRequest();
+    receive({
+      command: "loadCommits",
+      requestId: commitsRequest.requestId,
+      commits: twoCommits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: true,
+      error: null
     });
   });
 

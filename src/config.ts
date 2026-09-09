@@ -13,6 +13,7 @@ import type {
   CustomBranchGlobPattern,
   DateFormat,
   GraphStyle,
+  StashDisplay,
   TelemetryConsent
 } from "./types";
 
@@ -169,6 +170,8 @@ export const config = {
   showRemoteBranches: (): boolean => getConfig("repository.showRemoteBranches", true),
   showStatusBarItem: (): boolean => getConfig("showStatusBarItem", true),
   showStashes: (): boolean => getConfig("repository.showStashes", true),
+  stashDisplay: (): StashDisplay =>
+    getStringUnionConfig("repository.stashDisplay", "both", ["table", "graph", "both"]),
   showTags: (): boolean => getConfig("repository.showTags", true),
   showUncommittedChanges: (): boolean => getConfig("showUncommittedChanges", true),
   telemetryConsent: (): TelemetryConsent =>

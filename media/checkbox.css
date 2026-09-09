@@ -13,8 +13,9 @@
   width: 16px;
   height: 16px;
   padding: 0;
-  background-color: var(--vscode-checkbox-background, var(--ngg-neutral-overlay-subtle));
-  border: 1px solid var(--vscode-checkbox-border, var(--ngg-neutral-border-strong));
+  background-color: var(--ngg-neutral-overlay-subtle);
+  border: 1px solid var(--ngg-neutral-border-strong);
+  color: inherit;
   border-radius: 3px;
   cursor: pointer;
   transition: background-color 120ms ease-in-out, border-color 120ms ease-in-out;
@@ -31,12 +32,6 @@
   height: 14px;
   vertical-align: text-top;
 }
-#dialog table.dialogForm input[type="checkbox"]:checked,
-.settingsExtensionInput[type="checkbox"]:checked,
-#showRemoteBranchesCheckbox:checked {
-  background-color: var(--vscode-button-background, var(--ngg-accent));
-  border-color: var(--vscode-button-background, var(--ngg-accent));
-}
 #dialog table.dialogForm input[type="checkbox"]:checked::after,
 .settingsExtensionInput[type="checkbox"]:checked::after,
 #showRemoteBranchesCheckbox:checked::after {
@@ -46,7 +41,7 @@
   top: 2px;
   width: 4px;
   height: 8px;
-  border: solid var(--vscode-button-foreground, var(--ngg-accent-foreground));
+  border: solid currentColor;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
@@ -59,7 +54,7 @@
 #dialog table.dialogForm input[type="checkbox"]:hover,
 .settingsExtensionInput[type="checkbox"]:hover,
 #showRemoteBranchesCheckbox:hover {
-  border-color: var(--vscode-button-background, var(--ngg-accent));
+  background-color: var(--ngg-neutral-overlay-medium);
 }
 #dialog table.dialogForm input[type="checkbox"]:focus-visible,
 .settingsExtensionInput[type="checkbox"]:focus-visible,

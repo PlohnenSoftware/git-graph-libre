@@ -298,7 +298,11 @@ class Vertex {
       this.y * config.grid.y + config.grid.offsetY + (expandOffset ? config.grid.expandY : 0);
 
     // Stash rows hang off their base commit as pendants; the ring-and-dot
-    // marks them as shelved work rather than history.
+    // marks them as shelved work rather than history. Both radii derive from
+    // NODE_RADIUS so a stash stays proportional to the commit dots around it
+    // if that constant is ever retuned: the outline sits a little outside a
+    // commit's footprint, and the dot inside it is small enough that the gap
+    // between the two reads as deliberate at this size.
     if (this.isStashRow) {
       const ring = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       ring.setAttribute("cx", cx.toString());

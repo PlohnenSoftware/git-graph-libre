@@ -42,6 +42,7 @@ function makeConfig(): Config {
     showCurrentBranchByDefault: () => false,
     showRemoteBranches: () => true,
     showStashes: () => true,
+    stashDisplay: () => "graph",
     showTags: () => true,
     showStatusBarItem: () => true,
     showUncommittedChanges: () => true,
@@ -84,6 +85,7 @@ describe("webview HTML", () => {
     expect(viewState.commitDetailsCompactFolders).toBe(true);
     expect(viewState.commitDetailsFileViewMode).toBe("list");
     expect(viewState.showSignatureColumn).toBe(false);
+    expect(viewState.stashDisplay).toBe("graph");
     expect(viewState.contextMenuActionsVisibility.tag.push).toBe(false);
     expect(viewState.graphFontSize).toBe(15);
     expect(viewState.graphRowHeight).toBe(30);

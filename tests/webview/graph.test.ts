@@ -32,6 +32,7 @@ const config: Config = {
   showCurrentBranchByDefault: false,
   showRemoteBranches: true,
   showStashes: true,
+  stashDisplay: "both",
   showTags: true,
   shortHashLength: 8
 };
@@ -99,7 +100,7 @@ describe("graph rendering", () => {
     expect(rects[0]?.getAttribute("height")).toBe("8");
   });
 
-  it("draws stash nodes as a ring-and-dot pendant of their base", () => {
+  it("draws stash nodes as a ringed pendant of their base", () => {
     const graph = makeGraph();
     const stash = {
       ...makeCommit("feed1234", ["abc123"]),
@@ -114,10 +115,15 @@ describe("graph rendering", () => {
     graph.render(null);
 
     // The base and root keep their plain dot and square; the stash draws an
-    // unfilled ring plus an inner dot instead of a plain circle.
+    // unfilled ring in the lane color plus a smaller filled dot inside it.
+    // Both radii come from NODE_RADIUS (4): ring 5.5, dot 2.
     const ring = document.querySelector('#commitGraph g circle[fill="none"]');
+    const dot = document.querySelector('#commitGraph g circle[r="2"]');
     expect(ring?.getAttribute("r")).toBe("5.5");
     expect(ring?.getAttribute("stroke")).toBe("oklch(65% 0.16 250)");
+    expect(dot?.getAttribute("fill")).toBe("oklch(65% 0.16 250)");
+    expect(dot?.getAttribute("cx")).toBe(ring?.getAttribute("cx"));
+    expect(dot?.getAttribute("cy")).toBe(ring?.getAttribute("cy"));
     const circles = document.querySelectorAll("#commitGraph g circle");
     expect(circles).toHaveLength(3);
   });

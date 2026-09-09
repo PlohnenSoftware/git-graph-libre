@@ -128,6 +128,18 @@ describe("configuration", () => {
     expect(config.commitDetailsFileViewMode()).toBe("tree");
   });
 
+  it.each(["table", "graph", "both"] as const)("reads the %s stash display mode", async (mode) => {
+    settings.set("git-graph-libre.repository.stashDisplay", mode);
+    const { config } = await import("@/config");
+    expect(config.stashDisplay()).toBe(mode);
+  });
+
+  it("defaults invalid stash display modes to both", async () => {
+    settings.set("git-graph-libre.repository.stashDisplay", "cards");
+    const { config } = await import("@/config");
+    expect(config.stashDisplay()).toBe("both");
+  });
+
   it("accepts OKLCH, HEX, and RGB graph colors and filters invalid values", async () => {
     settings.set("git-graph-libre.graphColors", [
       "oklch(65% 0.17 245)",
@@ -246,6 +258,7 @@ describe("configuration", () => {
     { accessor: "showRemoteBranches", expected: true },
     { accessor: "showStatusBarItem", expected: true },
     { accessor: "showStashes", expected: true },
+    { accessor: "stashDisplay", expected: "both" },
     { accessor: "showTags", expected: true },
     { accessor: "showUncommittedChanges", expected: true },
     { accessor: "telemetryConsent", expected: "unset" },
