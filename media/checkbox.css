@@ -4,11 +4,9 @@
    varies per site; the tick is drawn from a percentage clip-path, so it scales
    with whatever size the box is given and needs no per-site override.
 
-   The resting box takes VS Code's own checkbox tokens so it sits beside native
-   controls without looking foreign, while the checked box takes the button
-   accent — a set box has to be legible at a glance in every theme, and
-   `checkbox.selectBackground` is the same flat grey as the resting state in
-   many of them. */
+   The box takes VS Code's own checkbox tokens so it sits beside native
+   controls without looking foreign, and stays neutral whether set or unset —
+   the tick alone marks the state. */
 
 #dialog table.dialogForm input[type="checkbox"],
 .settingsExtensionInput[type="checkbox"],
@@ -39,27 +37,20 @@
   vertical-align: text-top;
 }
 
-/* Checked and mixed both read as "set": accent fill, matching border. */
-#dialog table.dialogForm input[type="checkbox"]:checked,
-#dialog table.dialogForm input[type="checkbox"]:indeterminate,
-.settingsExtensionInput[type="checkbox"]:checked,
-.settingsExtensionInput[type="checkbox"]:indeterminate,
-#showRemoteBranchesCheckbox:checked,
-#showRemoteBranchesCheckbox:indeterminate {
-  background-color: var(--vscode-button-background, var(--ngg-accent));
-  border-color: var(--vscode-button-background, var(--ngg-accent));
-}
-
 /* The tick is one filled shape clipped to a check outline. Percentage points
    keep it centered and proportional at any box size, and the mitred corner
-   stays sharp where a rotated border leaves blunt ends. */
+   stays sharp where a rotated border leaves blunt ends.
+
+   An accent fill behind it was tried and rejected: at 16px, beside the
+   toolbar's other neutral controls, a saturated square pulls far more
+   attention than the setting it represents. The box stays neutral. */
 #dialog table.dialogForm input[type="checkbox"]:checked::after,
 .settingsExtensionInput[type="checkbox"]:checked::after,
 #showRemoteBranchesCheckbox:checked::after {
   content: "";
   position: absolute;
   inset: 0;
-  background-color: var(--vscode-button-foreground, var(--ngg-accent-foreground));
+  background-color: var(--vscode-checkbox-foreground, currentColor);
   clip-path: polygon(41% 79%, 11% 51%, 20% 41%, 41% 61%, 80% 20%, 89% 30%);
 }
 /* A mixed checkbox gets a centered bar rather than a tick. */
@@ -69,30 +60,22 @@
   content: "";
   position: absolute;
   inset: 0;
-  background-color: var(--vscode-button-foreground, var(--ngg-accent-foreground));
+  background-color: var(--vscode-checkbox-foreground, currentColor);
   clip-path: polygon(24% 44%, 76% 44%, 76% 56%, 24% 56%);
 }
 
-/* Hover: an unset box firms up its border, a set one takes the button's own
-   hover fill, so both directions give feedback without shifting layout. */
+/* Hover deepens the box itself, the same feedback the neutral controls
+   beside it use. */
 #dialog table.dialogForm input[type="checkbox"]:hover:not(:disabled),
 .settingsExtensionInput[type="checkbox"]:hover:not(:disabled),
 #showRemoteBranchesCheckbox:hover:not(:disabled) {
-  border-color: var(--vscode-focusBorder, var(--ngg-accent));
-}
-#dialog table.dialogForm input[type="checkbox"]:checked:hover:not(:disabled),
-#dialog table.dialogForm input[type="checkbox"]:indeterminate:hover:not(:disabled),
-.settingsExtensionInput[type="checkbox"]:checked:hover:not(:disabled),
-.settingsExtensionInput[type="checkbox"]:indeterminate:hover:not(:disabled),
-#showRemoteBranchesCheckbox:checked:hover:not(:disabled),
-#showRemoteBranchesCheckbox:indeterminate:hover:not(:disabled) {
-  background-color: var(--vscode-button-hoverBackground, var(--ngg-accent));
+  background-color: var(--ngg-neutral-overlay-medium);
 }
 #dialog table.dialogForm input[type="checkbox"]:focus-visible,
 .settingsExtensionInput[type="checkbox"]:focus-visible,
 #showRemoteBranchesCheckbox:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: 2px;
+  outline-offset: 1px;
 }
 #dialog table.dialogForm input[type="checkbox"]:disabled,
 .settingsExtensionInput[type="checkbox"]:disabled,
@@ -110,22 +93,13 @@
     border-color: ButtonText;
     background-color: ButtonFace;
   }
-  #dialog table.dialogForm input[type="checkbox"]:checked,
-  #dialog table.dialogForm input[type="checkbox"]:indeterminate,
-  .settingsExtensionInput[type="checkbox"]:checked,
-  .settingsExtensionInput[type="checkbox"]:indeterminate,
-  #showRemoteBranchesCheckbox:checked,
-  #showRemoteBranchesCheckbox:indeterminate {
-    background-color: Highlight;
-    border-color: Highlight;
-  }
   #dialog table.dialogForm input[type="checkbox"]:checked::after,
   #dialog table.dialogForm input[type="checkbox"]:indeterminate::after,
   .settingsExtensionInput[type="checkbox"]:checked::after,
   .settingsExtensionInput[type="checkbox"]:indeterminate::after,
   #showRemoteBranchesCheckbox:checked::after,
   #showRemoteBranchesCheckbox:indeterminate::after {
-    background-color: HighlightText;
+    background-color: ButtonText;
   }
 }
 @media (prefers-reduced-motion: reduce) {

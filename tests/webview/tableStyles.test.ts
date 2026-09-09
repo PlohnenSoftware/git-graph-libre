@@ -214,6 +214,20 @@ describe("commit table styles", () => {
     expect(css).not.toContain("accent-color");
   });
 
+  it("exempts the stash ring from the background-stroke rule", () => {
+    // A `stroke` set as a presentation attribute in graph.ts loses to any CSS
+    // rule. The global halo rule must therefore skip the stash ring, or the
+    // ring is repainted in the editor background and never appears — the bug
+    // this exemption exists for.
+    expect(css).toContain("#commitGraph circle:not(.current):not(.stashRing),");
+    const ring = css.match(/#commitGraph circle\.stashRing \{[^}]+\}/)?.[0] ?? "";
+    expect(ring).toContain("stroke-width: 2;");
+    expect(ring).toContain("stroke-opacity: 1;");
+    // The ring must not be given a `stroke` here; its color is the lane color
+    // supplied per node at render time.
+    expect(ring).not.toContain("stroke:");
+  });
+
   it("keeps the graph visible above full-row states", () => {
     expect(css).toContain("z-index: 5;");
     expect(css).toContain("pointer-events: none;");

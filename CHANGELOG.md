@@ -12,8 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Slice 1: checkboxes are drawn by the extension instead of the platform.**
   Every checkbox (dialogs, settings hub, toolbar) keeps its native
   `input[type="checkbox"]` behavior and now renders from one shared rule set:
-  a themed 14–16px box (3px radius) on VS Code's own checkbox tokens, an
-  accent fill once set, a clipped check mark, plus hover, focus-ring,
+  a themed 14–16px box (3px radius) on VS Code's own checkbox tokens, marked
+  by a clipped check mark rather than a fill, plus hover, focus-ring,
   disabled, mixed, high-contrast, and reduced-motion states. The tick is
   clipped in percentages, so it scales with the box and the compact toolbar
   variant needs no metrics of its own.

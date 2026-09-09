@@ -502,12 +502,14 @@ may not define the token):
 - Checkboxes: keep the native `input[type="checkbox"]` and restyle it with
   `appearance: none` plus a themed box (`--vscode-checkbox-background` /
   `--vscode-checkbox-border` with `--ngg-*` OKLCH fallbacks, 3px radius in the
-  existing 3–4px family). A **set** box — `:checked` *and* `:indeterminate` —
-  must carry its own fill, `--vscode-button-background` with `--ngg-accent`
-  behind it: the resting checkbox tokens are a flat grey in most themes, so a
-  rule set with only a tick and no fill leaves checked and unchecked boxes
-  nearly indistinguishable (this shipped once, and it is what "the checkbox
-  looks unfinished" turned out to mean). The tick is an `::after` shape
+  existing 3–4px family). The box stays **neutral whether set or unset** — the
+  tick alone marks the state, and the tick takes
+  `--vscode-checkbox-foreground` with `currentColor` behind it. An accent fill
+  on `:checked` was tried and **rejected by the maintainer**: at 16px, beside
+  the toolbar's other neutral controls, a saturated square pulls far more
+  attention than the setting it represents. Do not reintroduce it; a CSS
+  regression test scans every checkbox box rule for the button tokens. The
+  tick is an `::after` shape
   clipped with `clip-path: polygon(...)` in **percentages**, never pasted SVG
   paths (`octicon()` is unavailable from CSS) and never a rotated border — a
   percentage clip scales with the box, so a compact variant needs no tick
@@ -3297,7 +3299,7 @@ webview — dialog forms, settings hub, toolbar — so the box, tick, and states
 stay identical everywhere. Each site keeps its native
 `input[type="checkbox"]`, restyled with `appearance: none` plus a themed box
 (`--vscode-checkbox-background` / `--vscode-checkbox-border` with `--ngg-*`
-OKLCH fallbacks, 3px radius): resting box, accent fill once set, a clipped
+OKLCH fallbacks, 3px radius): a neutral box whether set or unset, a clipped
 `::after` check mark in `--vscode-button-foreground`, hover feedback,
 `:focus-visible` ring on `--vscode-focusBorder` at `outline-offset: 2px`,
 `:disabled` dimming, and `forced-colors` / `prefers-reduced-motion`
@@ -3312,11 +3314,14 @@ are worth not repeating.** The maintainer reported the result as looking
 strange, and the cause was not subtle once the CSS was read against the
 rendered control:
 
-- **There was no `:checked` rule at all** — only `:checked::after` for the
-  tick. A set box therefore kept the resting grey and was distinguished only
-  by a `currentColor` tick, which is why it read as unfinished. The paragraph
-  above originally described an accent fill that the stylesheet never carried;
-  treat a styling record as a claim to verify, not as evidence.
+- **The record and the stylesheet disagreed.** The paragraph above originally
+  described an accent fill on `:checked` that the stylesheet never carried —
+  there was no `:checked` rule at all, only `:checked::after` for the tick.
+  Treat a styling record as a claim to verify, not as evidence. The fix,
+  though, was **not** to add the fill: an accent-filled box was implemented,
+  shown to the maintainer, and rejected as far too loud at this size. The box
+  is neutral by design and the tick carries the state; what actually needed
+  fixing was the tick's shape and contrast.
 - **The resting box ignored VS Code's checkbox tokens**, using the repo's
   generic grey overlays directly, so it looked foreign beside native
   controls. The tokens are now the primary source with the OKLCH neutrals as
@@ -3389,6 +3394,27 @@ Gate evidence: covered by the release gate of `2026-09-09` recorded at the
 end of this section (one gate over the completed six-commit tree).
 
 ### Slice 4 — Stashes as graph rows
+
+**A `stroke` set from `graph.ts` loses to CSS, and it hid the stash ring
+entirely.** `setAttribute("stroke", color)` produces a *presentation
+attribute*, which ranks below every CSS declaration, and
+`#commitGraph circle:not(.current)` in `media/table.css` paints every node's
+stroke in `--vscode-editor-background` as a halo. The stash ring's stroke *is*
+the marker, so it was being repainted background-on-background: only the inner
+dot ever rendered, which is what "the ring and dot doesn't look properly"
+turned out to be. The ring now carries a `stashRing` class, the halo rule
+excludes it (`:not(.current):not(.stashRing)`), and a CSS regression test
+pins both halves — the exemption and the absence of any `stroke` of its own
+in that rule. **The class and the exemption must travel together.** The same
+trap applies to any future node that needs its own stroke color.
+
+The marker's proportions were then set from what survives at the default row
+height rather than by eye in isolation: ring radius `NODE_RADIUS + 1`, band
+`2`, dot radius `NODE_RADIUS - 2`. A `1.5` band was tried first and rejected
+— band, gap, and dot each landed on roughly one device pixel and smeared
+together. Candidates were rasterized at 1:1 and compared against a plain
+commit dot before choosing; do that rather than judging a 10px marker from a
+zoomed rendering.
 
 Closes Phase 7's remaining item (Phase 7 `Status:` and the overview table
 both move to Complete in this slice). Both stash surfaces stay on purpose:
@@ -3520,13 +3546,15 @@ tree. Nothing was pushed before it passed.
   formatting do not disagree here.
 - `pnpm run package`: typecheck (three projects), whole-tree `biome lint`
   over `241` files, and production builds — all clean.
-- `pnpm run test`: `47` files / `482` tests.
+- `pnpm run test`: `47` files / `483` tests.
 - `pnpm run l10n:check`: `100%` bundle and package coverage for `nl`, `pl`,
   `zh-cn`, `zh-tw`.
-- `pnpm run test:coverage`: `108` files / `959` tests, raw LCOV line coverage
-  `93.0%` (`5,921`/`6,370`).
-- `pnpm run sonar:scan`, task `42fa24ac-a62a-4394-abe6-6eafa5f9e0b4`,
-  analysis `a6e5b0aa-1249-40b2-b302-4f93c4679961`: `ZAM` gate **`OK`** on all
+- `pnpm run test:coverage`: `108` files / `960` tests, raw LCOV line coverage
+  `93.0%` (`5,923`/`6,372`).
+- `pnpm run sonar:scan`, task `4a45bffb-9ab6-41ca-8144-d1d727974f0a`,
+  analysis `f8a5728b-0521-45a4-930f-413e905a39b1` (re-run after the
+  maintainer's design corrections; the first pass was task
+  `42fa24ac-a62a-4394-abe6-6eafa5f9e0b4`): `ZAM` gate **`OK`** on all
   seven reported conditions — `new_coverage` `95.0`,
   `new_duplicated_lines_density` `0.0`, `new_violations` `0`,
   `new_software_quality_high_issues` `0`,

@@ -300,20 +300,28 @@ class Vertex {
     // Stash rows hang off their base commit as pendants; the ring-and-dot
     // marks them as shelved work rather than history. Both radii derive from
     // NODE_RADIUS so a stash stays proportional to the commit dots around it
-    // if that constant is ever retuned: the outline sits a little outside a
-    // commit's footprint, and the dot inside it is small enough that the gap
-    // between the two reads as deliberate at this size.
+    // if that constant is ever retuned.
+    //
+    // The ring carries a `stashRing` class for one load-bearing reason: a
+    // `stroke` set here is a *presentation attribute*, which CSS outranks, and
+    // `#commitGraph circle:not(.current)` in table.css paints every other
+    // circle's stroke in the editor background. Without a class to exempt it
+    // there, the ring was repainted background-on-background and never
+    // appeared at all — only the inner dot showed. Keep the class and the
+    // matching CSS exemption together.
     if (this.isStashRow) {
       const ring = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       ring.setAttribute("cx", cx.toString());
       ring.setAttribute("cy", cy.toString());
-      ring.setAttribute("r", (NODE_RADIUS + 1.5).toString());
+      ring.setAttribute("r", (NODE_RADIUS + 1).toString());
+      ring.setAttribute("class", "stashRing");
       ring.setAttribute("fill", "none");
       ring.setAttribute("stroke", color);
       const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       dot.setAttribute("cx", cx.toString());
       dot.setAttribute("cy", cy.toString());
       dot.setAttribute("r", (NODE_RADIUS - 2).toString());
+      dot.setAttribute("class", "stashDot");
       dot.setAttribute("fill", color);
       svg.appendChild(ring);
       svg.appendChild(dot);

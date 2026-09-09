@@ -14,11 +14,23 @@
   fill: var(--vscode-editor-background);
   stroke-width: 2;
 }
-#commitGraph circle:not(.current),
+/* Every node gets a thin background-colored halo so overlapping lanes stay
+   readable. The stash ring is exempt: its stroke IS the node, and a `stroke`
+   presentation attribute set in graph.ts loses to any CSS rule, so matching it
+   here would repaint the ring background-on-background and hide it entirely. */
+#commitGraph circle:not(.current):not(.stashRing),
 #commitGraph rect:not(.current) {
   stroke: var(--vscode-editor-background);
   stroke-width: 1;
   stroke-opacity: 0.75;
+}
+/* The stash ring keeps the lane color from its presentation attribute; only
+   its weight is set here. 2px is a floor, not a preference: at 1.5 the band,
+   the gap, and the inner dot each land on ~1 device pixel and smear into one
+   another, which is what made the marker look broken rather than hollow. */
+#commitGraph circle.stashRing {
+  stroke-width: 2;
+  stroke-opacity: 1;
 }
 #commitGraph path.shaddow {
   fill: none;

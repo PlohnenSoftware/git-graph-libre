@@ -96,9 +96,19 @@ describe("dialog styles", () => {
       "border: 1px solid var(--vscode-checkbox-border, var(--ngg-neutral-border-strong));"
     );
     expect(css).not.toContain("accent-color");
-    // A set box is accent-filled — without this rule a ticked checkbox keeps
-    // the resting grey and only the tick distinguishes it.
-    expect(css).toContain("background-color: var(--vscode-button-background, var(--ngg-accent));");
+    // The box stays neutral whether set or unset — the tick alone marks the
+    // state. An accent fill was tried and rejected as too loud at 16px, so no
+    // checkbox box rule may paint itself with the button accent. Scoped to
+    // checkbox rules: buttons elsewhere use that token legitimately.
+    const checkboxBoxRules = [...css.matchAll(/([^{}]*checkbox[^{}]*)\{([^}]*)\}/gi)].filter(
+      ([, selector]) => !selector.includes("::after")
+    );
+    expect(checkboxBoxRules.length).toBeGreaterThan(0);
+    for (const [, , body] of checkboxBoxRules) {
+      expect(body).not.toContain("--vscode-button-background");
+      expect(body).not.toContain("--vscode-button-hoverBackground");
+    }
+    expect(css).toContain("background-color: var(--vscode-checkbox-foreground, currentColor);");
     // The tick is a clipped shape, not a rotated border: one rule scales to
     // every box size, so no per-site tick metrics exist to drift.
     expect(css).toContain(
@@ -108,11 +118,8 @@ describe("dialog styles", () => {
     expect(css).not.toContain("transform: rotate(45deg);");
     // Mixed state, hover feedback, focus ring, and disabled dimming.
     expect(css).toContain(":indeterminate::after");
-    expect(css).toContain(
-      "background-color: var(--vscode-button-hoverBackground, var(--ngg-accent));"
-    );
+    expect(css).toContain("background-color: var(--ngg-neutral-overlay-medium);");
     expect(css).toContain("outline: 1px solid var(--vscode-focusBorder);");
-    expect(css).toContain("outline-offset: 2px;");
     // High-contrast and reduced-motion counterparts travel with the pattern.
     expect(css).toContain("@media (forced-colors: active)");
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
