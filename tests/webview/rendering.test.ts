@@ -2219,7 +2219,7 @@ describe("webview rendering", () => {
     });
   });
 
-  it("renders stashes from repo info and sends stash action messages", () => {
+  it("renders stashes from repo info and sends stash action messages", async () => {
     document
       .getElementById("refreshBtn")
       ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -2271,12 +2271,30 @@ describe("webview rendering", () => {
 
     openStashContextMenu();
     clickContextMenuItem("Create Branch from Stash");
-    // No "Check out" checkbox here, unlike the other create-branch dialogs:
-    // `git stash branch` always checks the new branch out and drops the stash
-    // (verified against git 2.55), so a checkbox could not be honored when
-    // cleared. The dialog states the behavior in a note instead.
-    expect(document.querySelector('#dialog input[type="checkbox"]')).toBeNull();
-    expect(document.getElementById("dialog")?.textContent).toContain("drops the stash");
+    // The same "Check out" checkbox as the other create-branch dialogs, but
+    // locked on: `git stash branch` always checks the branch out (verified
+    // against git 2.55). Locked means present and forced, NOT missing and NOT
+    // disabled — a disabled control leaves the tab order and greys out the
+    // value the user is trying to read.
+    const lockedBox = document.querySelector<HTMLInputElement>('#dialog input[type="checkbox"]');
+    expect(lockedBox).not.toBeNull();
+    expect(lockedBox?.checked).toBe(true);
+    expect(lockedBox?.disabled).toBe(false);
+    expect(lockedBox?.getAttribute("aria-disabled")).toBe("true");
+    // Clicking must not move it. The click is refused outright, and the value
+    // is re-asserted on a microtask because a checkbox's toggle happens in the
+    // activation steps around the listener, not in it.
+    const clickEvent = new MouseEvent("click", { bubbles: true, cancelable: true });
+    lockedBox?.dispatchEvent(clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    await Promise.resolve();
+    expect(lockedBox?.checked).toBe(true);
+    // The reason is described to assistive tech, not just shown on hover.
+    const hintId = lockedBox?.getAttribute("aria-describedby");
+    expect(hintId).toBeTruthy();
+    expect(document.getElementById(hintId as string)?.textContent).toContain(
+      "always checks out the new branch"
+    );
     setDialogInput("recover/stash");
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({

@@ -4848,18 +4848,26 @@ class GitGraphView {
     );
   }
   /**
-   * Branch from a stash. Unlike the other create-branch dialogs this one has
-   * no "Check out" checkbox, and deliberately so: `git stash branch` creates
-   * *and* checks out the new branch, and drops the stash, with no way to opt
-   * out (verified against git 2.55). A checkbox here could not be honored when
-   * cleared, so the dialog states the behavior instead.
+   * Branch from a stash. This carries the same "Check out" checkbox as the
+   * other create-branch dialogs, locked on: `git stash branch` creates *and*
+   * checks out the new branch with no way to opt out (verified against git
+   * 2.55). Showing the real control in its forced state, with the reason on
+   * hover, beats both a silently missing checkbox and a paragraph of prose —
+   * the user sees the same row in the same place and learns why it will not
+   * move. This is the standing pattern for any forced setting; see the
+   * locked-control rule in the styling guide.
    */
   private showBranchFromStashDialog(selector: string, sourceElem: HTMLElement) {
     showFormDialog(
       l10n.dialogBranchFromStashTitle.replace("{0}", `<b><i>${escapeHtml(selector)}</i></b>`),
       [
         { type: "text-ref", name: "", default: "" },
-        { type: "note" as const, text: l10n.dialogBranchFromStashNote }
+        {
+          type: "checkbox" as const,
+          name: l10n.dialogCreateBranchCheckout,
+          value: true,
+          lock: { reason: l10n.dialogBranchFromStashCheckoutLocked }
+        }
       ],
       l10n.dialogBranchFromStashSubmit,
       (values) => {
@@ -6758,6 +6766,42 @@ function showFormDialog(
   ) {
     bindFormDialogInputs(inputs, textRefInput, actionName);
   }
+  bindLockedDialogInputs(inputs);
+}
+/**
+ * Hold locked checkboxes at their forced value.
+ *
+ * `disabled` would be the obvious way and is the wrong one: it drops the
+ * control out of the tab order and greys it, so the value it is reporting
+ * becomes hard to read and impossible to reach — exactly when the user most
+ * wants to know why it cannot move. The control stays enabled and the change
+ * is refused instead, which keeps it focusable, full-contrast, and able to
+ * surface its own explanation on focus.
+ */
+function bindLockedDialogInputs(inputs: DialogInput[]) {
+  for (const [index, input] of inputs.entries()) {
+    if (input.type !== "checkbox" || input.lock === undefined) continue;
+    const elem = <HTMLInputElement | null>document.getElementById(`dialogInput${index}`);
+    if (elem === null) continue;
+    const forced = input.value;
+    // `preventDefault()` is what refuses the toggle, and in a browser it is
+    // enough on its own. The re-assert is not redundant belt-and-braces: a
+    // checkbox is flipped by the pre-click activation steps *before* any
+    // listener runs, and the revert that undoes it runs *after* them — so
+    // assigning `checked` inside the handler is overwritten by that revert.
+    // Restoring on a microtask lands after the activation steps finish, which
+    // holds the control whatever an engine does in between (jsdom, for one,
+    // reverts to the post-toggle value rather than the original).
+    elem.addEventListener("click", (e) => {
+      e.preventDefault();
+      queueMicrotask(() => {
+        elem.checked = forced;
+      });
+    });
+    elem.addEventListener("keydown", (e) => {
+      if (e.key === " " || e.key === "Enter") e.preventDefault();
+    });
+  }
 }
 function renderDialogForm(message: string, inputs: DialogInput[]) {
   const multiElementForm = inputs.length > 1;
@@ -6807,7 +6851,23 @@ function renderDialogCheckboxInput(
 ) {
   const checked = input.value ? " checked" : "";
   const label = multiElementForm ? "" : input.name;
-  return `<span class="dialogFormCheckbox"><label><input id="dialogInput${index}" type="checkbox"${checked}/>${label}</label></span>`;
+  if (input.lock === undefined) {
+    return `<span class="dialogFormCheckbox"><label><input id="dialogInput${index}" type="checkbox"${checked}/>${label}</label></span>`;
+  }
+  // Locked: the same control in its forced state. It keeps `checked` (so the
+  // submitted value is the real one), stays focusable and full-contrast rather
+  // than `disabled`, and is described by the hint so assistive tech gets the
+  // reason a sighted user gets from the bubble.
+  const hintId = `dialogInputLock${index}`;
+  return [
+    '<span class="dialogFormCheckbox locked">',
+    `<label><input id="dialogInput${index}" type="checkbox"${checked}`,
+    ` aria-disabled="true" aria-describedby="${hintId}"/>`,
+    `${label}<span class="dialogLockGlyph" aria-hidden="true">?</span></label>`,
+    `<span class="dialogLockHint" id="${hintId}" role="tooltip">`,
+    `${escapeHtml(input.lock.reason)}</span>`,
+    "</span>"
+  ].join("");
 }
 function renderDialogTextInput(
   input: Extract<DialogInput, { type: "text" | "text-ref" }>,

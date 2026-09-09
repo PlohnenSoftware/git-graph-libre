@@ -125,6 +125,50 @@ describe("dialog styles", () => {
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
+  it("aligns form rows on one control metric with a lifted focus ring", () => {
+    // Cells were top-aligned with only a top pad, so every label sat above the
+    // vertical center of its 28px control. One rhythm, middle-aligned.
+    // #dialog.active is width:max-content, so a purely percentage-width form
+    // contributes no intrinsic width and the dialog would collapse to its
+    // message line. The min-width is what keeps form dialogs a stable size.
+    const form = ruleFor(css, "#dialog table.dialogForm");
+    expect(form).toContain("min-width: 340px;");
+    const cell = ruleFor(css, "#dialog table.dialogForm td");
+    expect(cell).toContain("vertical-align: middle;");
+    expect(cell).toContain("padding: 4px 0;");
+    expect(css).toContain("#dialog table.dialogForm tr:first-child td");
+    // The label column is a stable gutter and may wrap rather than widen the
+    // dialog past its cap.
+    const labelCell = ruleFor(css, "#dialog table.dialogForm.multi td:nth-child(1)");
+    expect(labelCell).toContain("padding-right: 12px;");
+    expect(labelCell).toContain("white-space: normal;");
+    // The ring clears the input border instead of drawing on top of it.
+    expect(css).toContain("outline-offset: 1px;");
+    // Buttons are equal-width with centered text and a visible focus ring.
+    const button = ruleFor(css, ".dialogBtn");
+    expect(button).toContain("min-width: 78px;");
+    expect(button).toContain("justify-content: center;");
+    expect(css).toContain(".dialogBtn:focus-visible");
+  });
+
+  it("shows a forced setting as a locked control, not prose or a disabled box", () => {
+    // The standing rule: a setting the git command does not allow the user to
+    // change keeps its real control, stays focusable and full-contrast, takes
+    // a help cursor, and explains itself in a bubble on hover or focus.
+    const label = ruleFor(css, "#dialog table.dialogForm .dialogFormCheckbox.locked > label");
+    expect(label).toContain("cursor: help;");
+    const hint = ruleFor(css, ".dialogLockHint");
+    expect(hint).toContain("visibility: hidden;");
+    expect(hint).toContain("var(--vscode-editorHoverWidget-background");
+    // Toggled by visibility rather than display, so appearing cannot reflow
+    // the dialog underneath it.
+    expect(hint).not.toContain("display: none;");
+    expect(css).toContain(".dialogFormCheckbox.locked:focus-within > .dialogLockHint");
+    expect(css).toContain(".dialogFormCheckbox.locked:hover > .dialogLockHint");
+    // The glyph is a marker, never the explanation itself.
+    expect(ruleFor(css, ".dialogLockGlyph")).toContain("border-radius: 50%;");
+  });
+
   it("keeps repository settings as a viewport popup above graph chrome", () => {
     const backing = ruleFor(css, "#settingsWidgetBacking");
     const popup = ruleFor(css, "#settingsWidget");

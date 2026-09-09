@@ -82,10 +82,24 @@ declare global {
     options: { name: string; value: string }[];
     default: string;
   }
+  /**
+   * Why a forced value cannot be changed, in one sentence.
+   *
+   * A setting the underlying git command does not let the user choose renders
+   * as the ordinary control in its forced state — focusable, full-contrast,
+   * explaining itself on hover or focus. It is never replaced by prose and
+   * never omitted. See the locked-control rule in the Webview UI Styling
+   * Guide.
+   */
+  interface DialogInputLock {
+    reason: string;
+  }
   interface DialogCheckboxInput {
     type: "checkbox";
     name: string;
     value: boolean;
+    /** Present when the value is forced; see DialogInputLock. */
+    lock?: DialogInputLock;
   }
   interface DialogNoteInput {
     type: "note";

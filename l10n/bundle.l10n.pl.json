@@ -555,5 +555,5 @@
   "telemetry.consent.details": "Co jest wysyłane?",
   "detail.viewAsTree": "Grupuj według folderów",
   "detail.viewAsList": "Pokaż jako płaską listę",
-  "dialog.branchFromStash.note": "Git przełącza się na nową gałąź i usuwa schowek. Nie ma opcji pozostania na bieżącej gałęzi."
+  "dialog.branchFromStash.checkoutLocked": "git stash branch zawsze przełącza się na nową gałąź, więc nie można tego wyłączyć."
 }

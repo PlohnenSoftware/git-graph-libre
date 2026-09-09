@@ -555,5 +555,5 @@
   "telemetry.consent.details": "傳送了哪些內容？",
   "detail.viewAsTree": "依資料夾分組",
   "detail.viewAsList": "顯示為平面清單",
-  "dialog.branchFromStash.note": "Git 會簽出新分支並刪除該收藏。無法選擇留在目前分支。"
+  "dialog.branchFromStash.checkoutLocked": "git stash branch 一律會簽出新分支，因此無法關閉此選項。"
 }

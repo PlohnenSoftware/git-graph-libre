@@ -126,21 +126,40 @@ dl.tagDetailsFields dd {
   height: 14px;
 }
 
+/* Form rows. One metric governs every control in the webview — 28px tall,
+   4px radius, matching .toolbarFindInput — and the dialogs now obey it too.
+   Rows are laid on a single 8px rhythm, and cells are middle-aligned: with
+   top alignment every label sat above the vertical center of its 28px
+   control, which is what made these forms look misassembled. */
+/* `width: 100%` alone would be a trap: #dialog.active is `width: max-content`,
+   so a percentage table contributes no intrinsic width and a form dialog would
+   shrink to the width of its message line. The min-width is what gives form
+   dialogs a stable, consistent size — they no longer resize per field. */
 #dialog table.dialogForm {
-  width: 360px;
-  max-width: 100%;
+  width: 100%;
+  min-width: 340px;
   border-collapse: collapse;
 }
 #dialog table.dialogForm td {
-  padding-top: 10px;
+  padding: 4px 0;
+  vertical-align: middle;
   text-align: left;
   white-space: nowrap;
+}
+#dialog table.dialogForm tr:first-child td {
+  padding-top: 0;
 }
 #dialog table.dialogForm td:last-child {
   width: 100%;
 }
+/* The label column: a stable gutter, and labels allowed to wrap rather than
+   forcing the dialog wider than its cap. */
 #dialog table.dialogForm.multi td:nth-child(1) {
-  padding-right: 8px;
+  padding-right: 12px;
+  max-width: 148px;
+  white-space: normal;
+  color: var(--vscode-foreground);
+  line-height: 16px;
 }
 #dialog table.dialogForm.single select {
   width: 100%;
@@ -154,7 +173,8 @@ dl.tagDetailsFields dd {
 }
 #dialog table.dialogForm textarea {
   width: 100%;
-  min-height: 96px;
+  min-height: 88px;
+  padding: 6px 8px;
   resize: vertical;
 }
 #dialog table.dialogForm input[type="text"],
@@ -178,11 +198,13 @@ dl.tagDetailsFields dd {
 #dialog table.dialogForm input[type="text"]::placeholder {
   color: var(--vscode-input-placeholderForeground);
 }
+/* The ring sits a pixel clear of the input's own border; at offset 0 the two
+   lines touch and read as one thick, smudged edge. */
 #dialog table.dialogForm input[type="text"]:focus,
 #dialog table.dialogForm textarea:focus,
 #dialog table.dialogForm select:focus {
   outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: 0;
+  outline-offset: 1px;
 }
 #dialog table.dialogForm select {
   background-color: var(--vscode-dropdown-background, var(--vscode-input-background));
@@ -193,9 +215,93 @@ dl.tagDetailsFields dd {
   white-space: normal;
 }
 #dialog table.dialogForm .dialogFormNote {
+  display: block;
+  padding-left: 8px;
+  border-left: 2px solid var(--vscode-panel-border, var(--ngg-neutral-border));
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
   font-size: 12px;
   line-height: 16px;
+}
+/* Locked control: a setting the git command behind this dialog does not let
+   the user choose. It is the ordinary checkbox in its forced state — enabled,
+   focusable, full contrast — because greying it out would hide the very value
+   the user is trying to read. The whole row takes `cursor: help`, and the
+   reason appears in a bubble on hover or keyboard focus.
+
+   This is the standing pattern for any forced setting: same control, same
+   place, explained in place. Never swap it for prose, and never drop it. */
+#dialog table.dialogForm .dialogFormCheckbox.locked {
+  position: relative;
+  display: inline-block;
+}
+#dialog table.dialogForm .dialogFormCheckbox.locked > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: help;
+}
+.dialogLockGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-size: 10px;
+  line-height: 1;
+}
+/* The bubble. Sits above the row and is `visibility`-toggled rather than
+   removed, so it keeps its measured size and does not reflow the dialog when
+   it appears. */
+.dialogLockHint {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 1;
+  visibility: hidden;
+  opacity: 0;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(260px, 70vw);
+  padding: 6px 8px;
+  background-color: var(--vscode-editorHoverWidget-background, var(--vscode-menu-background));
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-menu-foreground));
+  border: 1px solid var(--vscode-editorHoverWidget-border, var(--ngg-neutral-border-strong));
+  border-radius: 4px;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: normal;
+  text-align: left;
+}
+/* The tail, built from the same border color so it reads as one surface. */
+.dialogLockHint::after,
+.dialogLockHint::before {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 14px;
+  border: 5px solid var(--ngg-transparent);
+}
+.dialogLockHint::before {
+  border-top-color: var(--vscode-editorHoverWidget-border, var(--ngg-neutral-border-strong));
+}
+.dialogLockHint::after {
+  margin-top: -1px;
+  border-top-color: var(--vscode-editorHoverWidget-background, var(--vscode-menu-background));
+}
+.dialogFormCheckbox.locked:hover > .dialogLockHint,
+.dialogFormCheckbox.locked:focus-within > .dialogLockHint {
+  visibility: visible;
+  opacity: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dialogLockHint {
+    transition: opacity 90ms ease-out;
+  }
 }
 #dialog.inputInvalid table.dialogForm input[type="text"] {
   background-color: var(--vscode-inputValidation-errorBackground);
@@ -205,12 +311,16 @@ dl.tagDetailsFields dd {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 16px;
 }
 .dialogBtn {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   box-sizing: border-box;
-  padding: 3px 14px;
+  min-width: 78px;
+  height: 26px;
+  padding: 0 14px;
   border: 1px solid var(--vscode-button-border, var(--ngg-transparent));
   border-radius: 2px;
   background-color: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-medium));
@@ -222,6 +332,10 @@ dl.tagDetailsFields dd {
 }
 .dialogBtn:hover {
   background-color: var(--vscode-button-secondaryHoverBackground, var(--ngg-neutral-overlay-strong));
+}
+.dialogBtn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
 }
 .dialogBtn.dialogBtnPrimary {
   background-color: var(--vscode-button-background, var(--ngg-accent));

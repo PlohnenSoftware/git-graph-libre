@@ -541,7 +541,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     detailCollapseFiles: translate("detail.collapseFiles"),
     detailExpandFiles: translate("detail.expandFiles"),
     detailStaged: translate("detail.staged"),
-    dialogBranchFromStashNote: translate("dialog.branchFromStash.note"),
+    dialogBranchFromStashCheckoutLocked: translate("dialog.branchFromStash.checkoutLocked"),
     detailViewAsTree: translate("detail.viewAsTree"),
     detailViewAsList: translate("detail.viewAsList"),
     detailUnstaged: translate("detail.unstaged"),

@@ -480,6 +480,16 @@ may not define the token):
 - Dialog panel: `--vscode-editorWidget-background/-foreground/-border`,
   `--vscode-widget-shadow`; content is left-aligned; actions right-aligned in
   a `.dialogActions` flex row.
+- **Dialog forms obey the same control metric as the toolbar** — 28px tall,
+  4px radius — and their rows are laid on one 8px rhythm with cells
+  **middle-aligned**. They were top-aligned with only a `padding-top`, which
+  put every label above the vertical center of its control and is what made
+  the forms look misassembled. The label column is a fixed 12px gutter with a
+  `max-width` and `white-space: normal`, so a long label wraps instead of
+  forcing the dialog past its width cap. Focus rings take
+  `outline-offset: 1px` so they clear the input's own border rather than
+  drawing on top of it, and buttons are equal-width (`min-width: 78px`) with
+  centered text and their own `:focus-visible` ring.
 - Dialog markup contract (`showDialog()` in `src/webview/main.ts`): content in
   `.dialogContent`, buttons are `.dialogBtn` divs, the primary action carries
   `dialogBtnPrimary`, and a dismiss-only dialog promotes dismiss to primary.
@@ -499,6 +509,38 @@ may not define the token):
 - Dropdown widget: control on `--vscode-dropdown-*`, option list on
   `--vscode-dropdown-listBackground` plus `--vscode-list-*` hover/selection
   tokens, filter input on the input tokens above.
+- **Forced settings use a locked control, never prose and never a missing
+  control.** When the git command behind a dialog does not let the user choose
+  a value, show the **same control in the same place**, in its forced state,
+  and explain it there. Concretely: keep the real `input`, keep it `checked`
+  (or whatever the forced value is) so the submitted payload is honest, mark
+  it `aria-disabled="true"` with `aria-describedby` pointing at the reason,
+  give the row `cursor: help` and a `?` marker, and reveal a
+  `.dialogLockHint` bubble on `:hover` and `:focus-within`. Add
+  `lock: { reason }` to the `DialogInput` rather than inventing a variant.
+
+  Three things are deliberate and should not be "simplified":
+
+  - **Not `disabled`.** A disabled control leaves the tab order and greys
+    out the very value the user is trying to read, exactly when they most
+    want to know why it will not move. It stays enabled and refuses the
+    change instead.
+  - **Not a `note`.** A paragraph explaining that a checkbox would have been
+    pointless is worse than the checkbox: the user loses the row they were
+    looking for and has to read prose to find out what the setting is. The
+    `note` input still exists for genuine asides (lightweight tags), not for
+    this.
+  - **The value is re-asserted on a microtask**, not inside the click
+    handler. A checkbox is toggled by the pre-click activation steps *before*
+    listeners run and reverted *after* them, so an assignment in the handler
+    is overwritten; `queueMicrotask` lands after the activation steps finish
+    and holds whatever an engine does in between. `preventDefault()` is what
+    refuses the toggle in a real browser and stays.
+
+  The first use is the Create Branch from Stash dialog: `git stash branch`
+  always checks the branch out (verified against git `2.55.0`), so its
+  "Check out" checkbox is locked on. Apply the same treatment to any future
+  forced option.
 - Checkboxes: keep the native `input[type="checkbox"]` and restyle it with
   `appearance: none` plus a themed box (`--vscode-checkbox-background` /
   `--vscode-checkbox-border` with `--ngg-*` OKLCH fallbacks, 3px radius in the
@@ -3640,14 +3682,14 @@ tree. Nothing was pushed before it passed.
   formatting do not disagree here.
 - `pnpm run package`: typecheck (three projects), whole-tree `biome lint`
   over `241` files, and production builds — all clean.
-- `pnpm run test`: `48` files / `497` tests.
+- `pnpm run test`: `48` files / `499` tests.
 - `pnpm run l10n:check`: `100%` bundle and package coverage for `nl`, `pl`,
   `zh-cn`, `zh-tw`.
-- `pnpm run test:coverage`: `109` files / `975` tests, raw LCOV line coverage
-  `92.9%` (`6,020`/`6,481`).
-- `pnpm run sonar:scan`, task `9b253110-3478-40b4-8275-59d5c0893a68`,
-  analysis `3100f6b3-a868-4a9e-ae8a-6c38b62d0b50`: `ZAM` gate **`OK`** on all
-  seven reported conditions (`new_coverage` `92.2`). Earlier passes were
+- `pnpm run test:coverage`: `109` files / `977` tests, raw LCOV line coverage
+  `92.9%` (`6,034`/`6,496`).
+- `pnpm run sonar:scan`, task `6a1508fe-95ba-4e45-9c9f-bf954415fd98`,
+  analysis `f0592725-9f8d-4492-828f-c4f59d0ab557`: `ZAM` gate **`OK`** on all
+  seven reported conditions (`new_coverage` `91.8`). Earlier passes were
   `42fa24ac`, `4a45bffb`, `2fed9d8d`, `2dd77b07`, and `55613d77` — `2dd77b07`
   **failed** on `new_software_quality_high_issues` `1`
   (`typescript:S7761`, `getAttribute("data-id")` where `.dataset` belongs, in

@@ -35,6 +35,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skip them. Gated on the existing per-repo "Show stashes" toggle, reported
   once per session as `view.stashRows` in the anonymous usage data.
 
+### Changed
+
+- **Dialogs share one control system.** Form rows now use the same 28px
+  control metric and 4px radius as the toolbar, on a single row rhythm, with
+  labels aligned to the middle of their control instead of floating above it.
+  Long labels wrap rather than stretching the dialog, form dialogs keep a
+  stable width instead of resizing per field, focus rings clear the input
+  border instead of doubling it, buttons are equal-width with centered text
+  and a visible keyboard focus ring, and notes read as an indented aside.
+
 ### Added
 
 - **Choose how uncommitted changes are listed.**
@@ -68,11 +78,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every dot below it drifted. The panel's height counted toward the measured
   table height while no gap was inserted, so each row height absorbed a share
   of it. Both panels now expand the graph the same way.
-- **The Create Branch from Stash dialog now says what it does.** It has no
-  "Check out" checkbox, unlike the other create-branch dialogs, and cannot:
-  `git stash branch` always creates *and* checks out the new branch and drops
-  the stash, so a checkbox could not be honored when cleared. The dialog
-  states the behavior instead of silently differing.
+- **Create Branch from Stash shows the "Check out" checkbox, locked on.**
+  It used to have no checkbox at all, unlike the other create-branch dialogs.
+  `git stash branch` always checks the new branch out, so the option cannot be
+  turned off — but the row is now where you expect it, in its forced state,
+  with a question mark and a bubble explaining why it will not move. This is
+  the standing treatment for any setting git does not let you choose.
 - **The stash marker's ring was never drawn.** Its lane colour was set as an
   SVG presentation attribute, which CSS outranks, so the rule that gives every
   node a background-coloured halo repainted the ring invisible — only the inner
