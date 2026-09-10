@@ -1,15 +1,8 @@
 <div align="center">
-  <img src="./resources/icon.png" height="128"/>
-  <samp>
-    <h1>Git Graph Libre for Visual Studio Code</h1>
-    <h3>Visual git history, branch actions, and devcontainer support. A copyleft fork continuing Git Graph's MIT lineage.</h3>
-  </samp>
+  <img src="./resources/ggl-opengraph-banner-8k.avif"
+       alt="Git Graph Libre"
+       width="100%">
 </div>
-
-[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
-
-<!-- Badges to restore after publication (with the new publisher/repo IDs):
-     GitHub release, marketplace downloads/installs -->
 
 ## Features
 
