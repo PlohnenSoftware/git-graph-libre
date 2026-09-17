@@ -5,6 +5,22 @@ All notable changes to this extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-09-17
+
+### Changed
+
+- Releases are published to the [Open VSX Registry](https://open-vsx.org)
+  again, alongside the VS Code Marketplace, so VSCodium, Cursor, Gitpod and
+  Eclipse Theia can install the extension from their own registry. Both
+  publishes use the same VSIX that is attached to the GitHub release, and
+  either is skipped when its token is not configured. No change to the
+  extension itself — this release exists to put 1.6.0's feature set on the
+  second registry.
+- Development toolchain updated to current releases (Biome 2.5.13, Vitest
+  5.0.1, vsce 4.0.0, jsdom 30, esbuild 0.28.2). `@types/vscode` stays pinned to
+  the declared `engines.vscode`, so the minimum supported VS Code is unchanged
+  at 1.98.
+
 ## [1.6.0] - 2026-09-10
 
 Stashes now appear in the graph itself, uncommitted changes group into folders
@@ -629,7 +645,8 @@ system. Includes everything prepared for 1.5.1, which was never released.
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.1...v1.4.2

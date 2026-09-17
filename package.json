@@ -1,7 +1,7 @@
 {
   "name": "git-graph-libre",
   "displayName": "%displayName%",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "%description%",
   "categories": [
     "SCM Providers",
@@ -95,21 +95,22 @@
     "simple-git": "^3.36.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.5",
-    "@primer/octicons": "^19.31.0",
+    "@biomejs/biome": "^2.5.13",
+    "@primer/octicons": "^19.36.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.6.1",
     "@types/vscode": "~1.98.0",
-    "@vitest/coverage-v8": "4.1.10",
+    "@vitest/coverage-v8": "5.0.1",
     "@vscode/l10n-dev": "^0.0.35",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",
-    "@vscode/vsce": "^3.9.2",
-    "esbuild": "^0.28.1",
-    "jsdom": "^29.1.1",
-    "tsc-alias": "^1.9.1",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2",
+    "jsdom": "^30.0.1",
+    "ovsx": "^1.2.0",
+    "tsc-alias": "^1.9.5",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.1"
   },
   "l10n": "./l10n",
   "contributes": {

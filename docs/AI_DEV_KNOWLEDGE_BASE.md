@@ -2229,7 +2229,7 @@ one per feature, gated and pushed, for the maintainer to pick from**:
 | `upstream/bold-current-branch` | `08318d3` | Checked-out branch label renders semibold (`.gitRef.active { font-weight: 600 }`); aliases/tags unaffected | `f7b190a`, pushed, ZAM `OK` (task `b1a0962b`, `new_violations` 0) |
 | `upstream/retain-panel` | `0bf8812` + `0c8f1da` | `retainContextWhenHidden` on the graph panel; re-show posts `loadRepos`+`refresh` over the bridge instead of reassigning `webview.html` (which would drop the retained document) | `ce1b143`, pushed, ZAM `OK` (task `cec3c2c3`, `new_violations` 0) |
 | `upstream/no-commits-view` | `e7d1f8a` | Dedicated zero-commit view (icon + heading + create-first-commit hint; signal `commits empty && commitHead null && branches empty` so filters cannot fake it) and hidden branch/tag/author/remote-branch controls while it shows | `105a6ec`, pushed, ZAM `OK` (task `986e261d`, analysis `92deacb2`, `new_violations` 0). Landed after a ~35 min Sonar outage on `2026-08-25`; per the no-server rule the commit waited for a healthy gate — fresh coverage was regenerated and the scan re-run after recovery. |
-| _(no branch — applied directly)_ | `750f96f` | Release workflow publishes with the official `vsce` CLI (`vsce publish --packagePath --skip-duplicate`, `VSCE_PAT`) instead of the third-party `HaaLeo/publish-vscode-extension` action; sub-actions pinned to exact releases | Applied on `2026-08-25` at maintainer request. **Open VSX deliberately not taken** — upstream's companion `ovsx publish` step and its `ovsx` dependency are excluded; this project publishes to the VS Marketplace only. `pnpm-workspace.yaml` was left alone: upstream's `allowBuilds` rewrite is a pnpm-config change, and our `onlyBuiltDependencies` list already covers the live `@vscode/vsce-sign`/`keytar`/`esbuild` builds. |
+| _(no branch — applied directly)_ | `750f96f` | Release workflow publishes with the official `vsce` CLI (`vsce publish --packagePath --skip-duplicate`, `VSCE_PAT`) instead of the third-party `HaaLeo/publish-vscode-extension` action; sub-actions pinned to exact releases | Applied on `2026-08-25` at maintainer request. **Open VSX deliberately not taken** — upstream's companion `ovsx publish` step and its `ovsx` dependency are excluded; this project publishes to the VS Marketplace only. **Reversed on `2026-09-17`; see "Open VSX restored as a publish target" below.** `pnpm-workspace.yaml` was left alone: upstream's `allowBuilds` rewrite is a pnpm-config change, and our `onlyBuiltDependencies` list already covers the live `@vscode/vsce-sign`/`keytar`/`esbuild` builds. |
 
 **CI note (`2026-08-25`).** The publish step no longer uses a third-party
 action. Two properties of the surrounding workflow are load-bearing and must
@@ -3847,6 +3847,135 @@ next one starts a fresh window.
 branch-and-release policy's final steps are still outstanding: fast-forward
 `main` to this commit, then push the branch and the tag to let the Marketplace
 workflow run.
+
+## Open VSX restored as a publish target, released as `1.6.1` (`2026-09-17`)
+
+**Maintainer reversal of the `2026-08-25` decision.** The release workflow
+publishes to Open VSX again, so releases reach VSCodium, Cursor, Gitpod and
+Eclipse Theia as well as the VS Marketplace. Open VSX was this project's own
+second target until `3be16fc` (`2026-07-25`) collapsed the two-entry
+`HaaLeo/publish-vscode-extension` matrix to a Marketplace-only job; the
+`2026-08-25` upstream review then recorded the exclusion as deliberate. Both
+notes are historical now — do not re-propose dropping it without a new
+maintainer decision.
+
+What the restoration is made of:
+
+- **`ovsx` is a devDependency** (`^1.2.0`), so the CLI version is pinned by the
+  lockfile exactly like `@vscode/vsce`. Do not switch this to `pnpm dlx`: an
+  unpinned publisher is the thing the `2026-08-25` move off the third-party
+  action was avoiding.
+- **The secret keeps its historical name, `OPEN_VSX_TOKEN`** — the name
+  `3be16fc` removed, and the one upstream uses. `ovsx` itself reads the token
+  from `OVSX_PAT`, so the step maps one to the other; they are not
+  interchangeable.
+- **Two token-check steps, not one.** `Check Open VSX token` mirrors
+  `Check marketplace token` for the same reason that step exists at all: the
+  `secrets` context is not available to a step-level `if`. Keeping them
+  separate is what lets a release publish to one registry while the other's
+  token is absent.
+- **Both publishes take `--packagePath "$VSIX" --skip-duplicate`** against the
+  single VSIX that `Package extension` built and the GitHub release carries, so
+  the two registries cannot receive differently-built artifacts and a re-run is
+  a no-op rather than a failure.
+- **The steps are sequential, so a failing Marketplace publish skips Open VSX.**
+  That is the existing workflow's shape, kept deliberately: `--skip-duplicate`
+  makes re-running the whole job safe. If a registry outage ever makes that
+  coupling expensive, the fix is an `if: !cancelled()` guard on the Open VSX
+  step plus an explicit `steps.package.outcome == 'success'` condition — not
+  `always()`, which would run it after a failed package step.
+
+**The `PlohnenSoftware` namespace must exist and be claimed before the first
+publish, and neither is the workflow's job.** Creating it is
+`ovsx create-namespace PlohnenSoftware -p <token>` once; until a namespace has
+an owner, Open VSX shows "This namespace is not verified" and a warning icon
+instead of the shield. Ownership is granted by the Eclipse Foundation on a
+public request issue at
+`github.com/EclipseFdn/open-vsx.org/issues/new/choose`, which requires having
+logged into open-vsx.org at least once and signed the Publisher Agreement. The
+criteria exist to stop namespace squatting — an extension published on both
+registries should come from the same person or organization — so the request
+should link this repository and the Marketplace publisher page as evidence.
+Publishing works while unverified; only the badge and banner change.
+
+### Toolchain upgraded in the same change (`2026-09-17`)
+
+`pnpm up --latest` on the maintainer's request. `@biomejs/biome` `2.5.5` →
+`2.5.13`, `@primer/octicons` `19.31.0` → `19.36.0`, `@types/node` `26.1.1` →
+`26.6.1`, `@vitest/coverage-v8` and `vitest` `4.1.10` → `5.0.1`,
+`@vscode/vsce` `3.9.2` → `4.0.0`, `esbuild` `0.28.1` → `0.28.2`, `jsdom`
+`29.1.1` → `30.0.1`, `tsc-alias` `1.9.1` → `1.9.5`. Three findings worth
+keeping:
+
+- **`@types/vscode` must not be upgraded past `engines.vscode`.** `pnpm up
+  --latest` raised it to `~1.137.0` against `engines.vscode` `^1.98.0`, and
+  `vsce package` refuses that outright: `@types/vscode ~1.137.0 greater than
+  engines.vscode ^1.98.0`. That is the release workflow's first step, so the
+  upgrade would have broken every release. It is pinned back to `~1.98.0`;
+  raising it is only correct as half of a deliberate decision to raise the
+  minimum supported VS Code, which drops users below that version.
+- **`pnpm add <pkg>` upgrades every other dependency too** under pnpm 12.3.4 —
+  it rewrote all nine specifiers in `package.json` while adding `ovsx`. Add a
+  dependency by editing `package.json` and running `pnpm install
+  --lockfile-only` when the intent is to add one thing. Running `pnpm` at all
+  in this tree also drops the `@pnpm/exe` entries from the lockfile's
+  package-manager document; they were restored by hand so the diff stays the
+  dependency change.
+- **The Biome config schema versions were stale** (`2.5.5` in `biome.jsonc`,
+  `2.5.2` in `biome.strict.jsonc`) and are now both `2.5.13`, which clears the
+  schema-version info that every `pnpm run lint` had been printing since
+  `2026-07-27`.
+
+Verification of the upgraded tree: `pnpm run typecheck` clean;
+`pnpm run lint` clean (`243` files, no diagnostics at all now);
+`pnpm run test` backend `61` files / `479` tests and webview `48` files / `500`
+tests; `pnpm run l10n:check` `100%` for `nl`, `pl`, `zh-cn`, `zh-tw`;
+`pnpm run package` clean; `pnpm run test:coverage` `109` files / `979` tests;
+`pnpm run test:ext` both launches green (`58` + `1`, exit `0`);
+`pnpm install --frozen-lockfile` — the release workflow's own install step —
+passes; `pnpm exec vsce package --no-dependencies` produces a `263.58 KB`
+VSIX under `vsce` `4.0.0`; and `pnpm exec ovsx publish --packagePath <vsix>
+--skip-duplicate` was run without a token, which resolved the namespace and
+stopped at the credential prompt, proving the invocation rather than
+publishing anything.
+
+Two knowns, neither caused by the upgrade:
+
+- **`pnpm run format` still reports drift in ten untouched files** — the eight
+  of the `2026-09-07` list plus `tests/webview/tableColumnResize.test.ts` and
+  `tests/webview/webviewHtml.test.ts`. Verified identical under Biome `2.5.5`
+  and `2.5.13`, so the upgrade added none of it, and whole-tree strict Biome
+  reports the same `7` warnings under both versions.
+- **Vitest 5 prints a Vite warning about `vitest.config.ts`**: ESM syntax in a
+  file loaded as CommonJS, unsupported by the `configLoader: 'native'` that a
+  future Vite major will default to. Renaming it to `.mts` is the documented
+  fix but the file uses `__dirname`, which does not exist in ESM, so the
+  rename has to come with an `import.meta.dirname` rewrite. Left as noise for
+  a slice that can test it.
+
+### Release gate for `1.6.1` (`2026-09-17`)
+
+A patch release with **no change to the extension itself** — its whole purpose
+is to put 1.6.0's feature set on the second registry, so the first Open VSX
+version is one the Marketplace already carries rather than a fork-specific
+build. `1.6.0` was live on the Marketplace at `194` installs when this started
+and Open VSX had nothing.
+
+Run in the documented order over the completed tree: strict Biome on the
+touched JSON configs (clean), `pnpm run package`, `pnpm run test` (backend `61`
+files / `479` tests, webview `48` / `500`), `pnpm run l10n:check` `100%` for
+all four locales, `pnpm run test:ext` (both launches, `58` + `1`, exit `0`),
+fresh `pnpm run test:coverage` (`109` files / `979` tests), then
+`pnpm run sonar:scan` — task `3876e0c3-5df3-4b76-a254-95d630442a95`, analysis
+`95f16d0c-d671-4322-a3cc-219bbdff8709`: `ZAM` gate **`OK`** on all seven
+reported conditions — `new_coverage` `100.0`, `new_violations` `0`,
+`new_duplicated_lines_density` `0.0`, `new_software_quality_high_issues` `0`,
+maintainability rating `1`, reliability and security issues `0`. The eighth
+condition was not reported because
+`/api/hotspots/search?inNewCodePeriod=true&status=TO_REVIEW` returns `0`.
+
+`sonar.projectVersion` advanced `1.6.0` → `1.6.1` with the package version, so
+this analysis measures the whole delta since the last analyzed version.
 
 ## Near-Term Work Order
 

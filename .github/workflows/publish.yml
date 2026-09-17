@@ -50,7 +50,7 @@ jobs:
           fi
 
       # The `secrets` context is not available to a step-level `if`, so resolve
-      # the token into an output first and gate the publish step on that.
+      # each token into an output first and gate its publish step on that.
       - name: Check marketplace token
         id: marketplace
         env:
@@ -63,18 +63,28 @@ jobs:
             echo "::notice::VS_MARKETPLACE_TOKEN is not set; skipping marketplace publish."
           fi
 
-      # Published with the official `vsce` CLI (a devDependency) rather than a
-      # third-party action, so the publish path is the one Microsoft supports
-      # and the version is pinned by our lockfile. `--packagePath` republishes
-      # the exact VSIX attached to the release above instead of repackaging,
-      # and `--skip-duplicate` makes re-running the workflow for an existing
-      # version a no-op instead of a failure.
-      #
-      # Deliberately Marketplace-only: this project does not publish to
-      # Open VSX, so there is no `ovsx` step and no `ovsx` dependency.
+      - name: Check Open VSX token
+        id: openvsx
+        env:
+          OPEN_VSX_TOKEN: ${{ secrets.OPEN_VSX_TOKEN }}
+        run: |
+          if [ -n "$OPEN_VSX_TOKEN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::OPEN_VSX_TOKEN is not set; skipping Open VSX publish."
+          fi
+
       - name: Publish to VS Marketplace
         if: steps.marketplace.outputs.configured == 'true'
         env:
           VSCE_PAT: ${{ secrets.VS_MARKETPLACE_TOKEN }}
           VSIX: ${{ steps.package.outputs.vsix }}
         run: pnpm exec vsce publish --packagePath "$VSIX" --skip-duplicate
+
+      - name: Publish to Open VSX
+        if: steps.openvsx.outputs.configured == 'true'
+        env:
+          OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
+          VSIX: ${{ steps.package.outputs.vsix }}
+        run: pnpm exec ovsx publish --packagePath "$VSIX" --skip-duplicate

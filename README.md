@@ -51,6 +51,8 @@ Marketplace listings are coming soon — this fork has not been published yet.
 Once it is, it will be available from:
 
 - VS Code Marketplace: _link to follow after publication_
+- Open VSX Registry (VSCodium, Cursor, Gitpod, Eclipse Theia): _link to follow
+  after publication_
 
 Until then, you can build and install it locally: `pnpm install`, package the
 bundled extension with `pnpm exec vsce package --no-dependencies`, then in VS

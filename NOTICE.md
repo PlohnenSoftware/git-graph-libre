@@ -92,8 +92,12 @@ This project descends from the MIT-licensed lineage of Git Graph:
     release, and gates the publish on token presence; the decision to drop the
     third-party action, the `vsce publish --packagePath --skip-duplicate`
     invocation, and the `VSCE_PAT` wiring come from upstream. Upstream's
-    companion Open VSX publish step was deliberately **not** taken — this
-    project publishes to the VS Marketplace only.
+    companion Open VSX publish step was initially **not** taken; on
+    `2026-09-17` the maintainer restored Open VSX as a publish target, which
+    this project had carried under its own `OPEN_VSX_TOKEN` secret before
+    dropping it, so the release workflow now runs `ovsx publish` as well —
+    gated on token presence and against the same VSIX, in this project's own
+    form.
   - `ef9114f`, `37671b6` — re-running the repository scan when the Git
     binary setting changes, naming the binary in scan log lines, and
     leveled output-channel logging. Reimplemented here on our own logger,
