@@ -47,16 +47,17 @@ provenance.
 
 ## Installation
 
-Marketplace listings are coming soon — this fork has not been published yet.
-Once it is, it will be available from:
+Install it from your editor's registry:
 
-- VS Code Marketplace: _link to follow after publication_
-- Open VSX Registry (VSCodium, Cursor, Gitpod, Eclipse Theia): _link to follow
-  after publication_
+- **VS Code Marketplace** —
+  [marketplace.visualstudio.com](https://marketplace.visualstudio.com/items?itemName=PlohnenSoftware.git-graph-libre),
+  or press `Ctrl+P` and run `ext install PlohnenSoftware.git-graph-libre`.
+- **Open VSX Registry**, for VSCodium, Cursor, Gitpod, and Eclipse Theia —
+  [open-vsx.org](https://open-vsx.org/extension/PlohnenSoftware/git-graph-libre).
 
-Until then, you can build and install it locally: `pnpm install`, package the
-bundled extension with `pnpm exec vsce package --no-dependencies`, then in VS
-Code run `Extensions: Install from VSIX...`.
+You can also build and install it yourself: `pnpm install`, package the bundled
+extension with `pnpm exec vsce package --no-dependencies`, then in VS Code run
+`Extensions: Install from VSIX...`.
 
 ## Configuration
 
