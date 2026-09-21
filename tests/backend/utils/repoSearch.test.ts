@@ -81,6 +81,24 @@ describe("searchDirectoryForRepos", () => {
     }
   });
 
+  // Regression: the workspace file watcher can invoke this function directly
+  // on a subdirectory of a repository (for example when a new directory is
+  // created inside `cmd/`, `internal/`, or similar), bypassing the top-down
+  // walk that would otherwise stop at the repo's own root. If the containing
+  // repo is not (yet) in `knownRepoPaths` — e.g. it raced the initial scan,
+  // or was reached without it — the subdirectory must still not be reported
+  // as its own repository.
+  it("does not report an unknown subdirectory of a repo as its own repo", async () => {
+    const sub = path.join(repoA, "cmd");
+    fs.mkdirSync(sub);
+    try {
+      const result = await searchDirectoryForRepos(sub, 0, "git", []);
+      expect(result).toEqual([]);
+    } finally {
+      fs.rmdirSync(sub);
+    }
+  });
+
   it("includes git submodules declared in .gitmodules", async () => {
     const parentRepo = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-submodule-parent-"));
     const submoduleRepo = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-submodule-child-"));
