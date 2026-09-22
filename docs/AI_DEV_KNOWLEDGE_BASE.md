@@ -180,6 +180,13 @@ Workflow rules:
   every affected check plus coverage and Sonar before committing. If the server
   is unavailable or the gate cannot run, do not silently substitute a
   post-commit scan; record the exact reason and remaining risk in the handoff.
+- The Rust arm runs **only when `engine/**` changed**: `pnpm run engine:check`,
+  `pnpm run engine:test`, `pnpm run engine:lint`, `pnpm run engine:fmt`
+  (each with `--manifest-path engine/Cargo.toml`), plus the `engine.yml` CI
+  job on GitHub. Biome and SonarQube never see `engine/` — their configs are
+  allowlists that miss it, and `sonar.exclusions` names it explicitly — so a
+  slice that touches no Rust file skips this arm entirely, and a slice that
+  does must pass it before committing alongside the TypeScript gates above.
 - SonarQube's local new-code definition is `Previous Version`. The
   `sonar.projectVersion` value is therefore an analysis baseline, not only a
   package-release label. Advance it deliberately when starting a stricter local
@@ -724,7 +731,7 @@ together):
 | 13 Settings hub: tabbed widget, color editor, settings export | Complete |
 | 14 Reveal highlight: persistent blink and configurable color | Complete |
 | 15 Tag surfaces: signed-tag distinction and remote tag deletion | Complete |
-| 16 Rust engine backend | Planned (`2026-09-22`) — not started; slices 16.1–16.9 below |
+| 16 Rust engine backend | In progress (`2026-09-22`) — 16.1 done, 16.2 next; slices 16.1–16.9 below |
 | Immediate TODOs bug backlog (BUG-1 … BUG-6, `2026-08-25`) | Complete (`2026-08-25`; see the per-entry implementation records) |
 
 ### Phase 0: Guardrails and Baseline
@@ -2069,7 +2076,7 @@ Test notes for future slices:
 
 ### Phase 16: Rust Engine Backend
 
-**Status: planned (`2026-09-22`). Not started.** The engine's source and its
+**Status: in progress (`2026-09-22`) — slice 16.1 done, 16.2 next.** The engine's source and its
 52-commit history live on `rusty` under `engine/`; see "Evaluating the Rust
 engine of `vscode-git-graph-rs`" for what it is, what was excluded, and why it
 was not adopted wholesale. **Nothing in the extension reads it yet.** This
@@ -2153,6 +2160,24 @@ both miss `engine/` entirely.
 
 Acceptance: the four scripts exist and pass from a clean checkout; CI runs
 them; `pnpm run lint` still reports the same file count it does today.
+
+Implementation record (`2026-09-22`, four subslice commits, all signed):
+
+- 16.1a `package.json`: the four `engine:*` scripts, each with
+  `--manifest-path engine/Cargo.toml`. All pass: `fmt` clean, `check` with
+  zero warnings, `cargo test` 101 passed / 0 failed, `clippy` clean under
+  `-D warnings`.
+- 16.1b `.github/workflows/engine.yml`: runs the four scripts on
+  `ubuntu-latest`, keyed on `engine/**` plus the workflow itself. Action pins
+  and Node setup mirror `publish.yml`; `rustup component add clippy rustfmt`
+  covers components the runner image does not guarantee.
+- 16.1c `sonar-project.properties`: `engine/**` appended to
+  `sonar.exclusions` with the belt-and-braces comment. `pnpm run lint` checks
+  243 files before and after — the acceptance count.
+- 16.1d this file: the Rust arm added to the documented gate order, running
+  only when `engine/**` changed.
+- Nothing in `src/` references the engine; `git status` shows only the four
+  intended files across the subslices, and `engine/target/` stays ignored.
 
 #### Slice 16.2 — Build the addon locally for one target
 
@@ -4567,9 +4592,11 @@ whatever unrelated slice was scanned next.
 `rusty` branch, which is where `1.7.0` is being assembled. The engine's source
 and history are merged under `engine/` and nothing reads them yet; the phase
 plan cuts the wiring into slices 16.1–16.9, and **16.1 (a gate for the Rust
-side) comes first** — nothing else can be verified until `cargo check`,
+side) came first** — nothing else can be verified until `cargo check`,
 `cargo test`, `cargo clippy` and `cargo fmt` are part of the documented gate,
 because `sonar.sources` and Biome's allowlist both miss `engine/` entirely.
+Slice 16.1 is done (`2026-09-22`: `engine:*` scripts, `engine.yml` CI,
+`sonar.exclusions`, gate-order docs); **16.2 (local addon build) is next**.
 Read that phase's non-goals and design rules before starting any of it: three
 of this fork's own features are things the engine cannot serve, and the plan
 keeps them on the CLI by decision rather than by accident.
