@@ -519,6 +519,7 @@ describe("registerMessageHandlers", () => {
       cp.execFileSync("git", ["init", "-b", "main", source]);
       git(["config", "user.email", "t@t.com"], source);
       git(["config", "user.name", "T"], source);
+      git(["config", "commit.gpgsign", "false"], source);
       git(["config", "tag.gpgsign", "false"], source);
       fs.writeFileSync(path.join(source, "f"), "x");
       git(["add", "."], source);
