@@ -193,7 +193,6 @@ export type GitGraphViewState = {
   includeUnreachableCommits: boolean;
   settingsWidgetTab?: SettingsWidgetTab;
   shortHashLength: number;
-  backend: EngineBackend;
   /** Locale the webview's strings were built in. */
   language: string;
   /** Locales the language switcher offers. */

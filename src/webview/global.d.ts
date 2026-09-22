@@ -43,7 +43,6 @@ declare global {
     stashDisplay: GGL.StashDisplay;
     showTags: boolean;
     shortHashLength: number;
-    backend: GGL.EngineBackend;
   }
 
   /** Presentational heading for a context menu; carries no action. */

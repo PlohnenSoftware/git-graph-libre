@@ -36,13 +36,14 @@ export type EngineAddon = {
 };
 
 /**
- * The `engine/native` directory holding this platform's binary, or null when
- * the host has no prebuilt target (musl/Alpine above all — those installs
- * fall back to the CLI by construction).
+ * The `engine/native` directory holding a platform's binary, or null when
+ * the platform has no prebuilt target (musl/Alpine above all — those
+ * installs fall back to the CLI by construction).
+ *
+ * Pure in its arguments so every triple is unit-testable; the loader below
+ * calls it with the host's own values.
  */
-function platformDirectory(): string | null {
-  const platform = process.platform;
-  const arch = process.arch;
+export function platformDirectoryFor(platform: string, arch: string): string | null {
   if (platform === "win32" && arch === "x64") return "win32-x64-msvc";
   if (platform === "win32" && arch === "arm64") return "win32-arm64-msvc";
   if (platform === "linux" && arch === "x64") return "linux-x64-gnu";
@@ -50,6 +51,10 @@ function platformDirectory(): string | null {
   if (platform === "darwin" && arch === "x64") return "darwin-x64";
   if (platform === "darwin" && arch === "arm64") return "darwin-arm64";
   return null;
+}
+
+function platformDirectory(): string | null {
+  return platformDirectoryFor(process.platform, process.arch);
 }
 
 /**
@@ -82,31 +87,38 @@ export function loadEngineAddon(): EngineAddon | null {
 }
 
 function tryLoadEngineAddon(): EngineAddon | null {
-  try {
-    const directory = platformDirectory();
-    if (directory === null) return null;
-    // Absolute paths: esbuild leaves this require alone at bundle time, so
-    // the `.node` binary is loaded from beside the bundle, never packed into
-    // it. The require base is the candidate file itself — absolute requires
-    // ignore the base, and `createRequire` never validates it, so this adds
-    // no filesystem assumption beyond the candidates.
-    for (const addonFile of candidateAddonFiles(directory)) {
-      let loaded: unknown;
-      try {
-        loaded = createRequire(addonFile)(addonFile) as unknown;
-      } catch {
-        continue;
-      }
-      if (!isEngineAddon(loaded)) continue;
-      // A `.node` from a different build than this TypeScript is refused
-      // into the CLI path rather than trusted: its shapes may have moved.
-      if (safeEngineVersion(loaded) !== EXPECTED_ENGINE_VERSION) continue;
-      return loaded;
+  const directory = platformDirectory();
+  if (directory === null) return null;
+  // Absolute paths: esbuild leaves this require alone at bundle time, so
+  // the `.node` binary is loaded from beside the bundle, never packed into
+  // it. The require base is the candidate file itself — absolute requires
+  // ignore the base, and `createRequire` never validates it, so this adds
+  // no filesystem assumption beyond the candidates. Every stage guards
+  // itself (the require, the shape check, the version read), so there is no
+  // outer catch left to cover.
+  for (const addonFile of candidateAddonFiles(directory)) {
+    let loaded: unknown;
+    try {
+      loaded = createRequire(addonFile)(addonFile) as unknown;
+    } catch {
+      continue;
     }
-    return null;
-  } catch {
-    return null;
+    const validated = validateLoadedAddon(loaded);
+    if (validated !== null) return validated;
   }
+  return null;
+}
+
+/**
+ * Accept a loaded module as the engine addon, or refuse it into null.
+ * Separated from the loader so the contract is unit-testable without a
+ * binary: a missing export or a version from a different build than this
+ * TypeScript must both land the caller on the CLI path.
+ */
+export function validateLoadedAddon(loaded: unknown): EngineAddon | null {
+  if (!isEngineAddon(loaded)) return null;
+  if (safeEngineVersion(loaded) !== EXPECTED_ENGINE_VERSION) return null;
+  return loaded;
 }
 
 function isEngineAddon(loaded: unknown): loaded is EngineAddon {

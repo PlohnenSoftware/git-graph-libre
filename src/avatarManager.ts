@@ -24,7 +24,7 @@ export class AvatarManager {
   constructor(
     gitPath: () => string,
     extensionState: ExtensionState,
-    backendPreference: () => EngineBackend = () => "auto"
+    backendPreference: () => EngineBackend
   ) {
     this.gitPath = gitPath;
     this.backendPreference = backendPreference;

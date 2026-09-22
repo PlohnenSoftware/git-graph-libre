@@ -47,7 +47,6 @@ function makeViewState({ mergeNoFastForward, pullBranchNoFastForward }: Defaults
     showStashes: true,
     showTags: true,
     shortHashLength: 8,
-    backend: "auto",
     language: "en",
     languages: [{ id: "en", label: "English" }]
   } satisfies GGL.GitGraphViewState;

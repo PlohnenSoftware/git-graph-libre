@@ -85,7 +85,6 @@ export function buildWebviewHtml(opts: {
     stashDisplay: config.stashDisplay(),
     showTags: config.showTags(),
     shortHashLength: config.shortHashLength(),
-    backend: config.backend(),
     language,
     languages
   };

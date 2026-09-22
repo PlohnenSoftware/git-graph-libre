@@ -731,7 +731,7 @@ together):
 | 13 Settings hub: tabbed widget, color editor, settings export | Complete |
 | 14 Reveal highlight: persistent blink and configurable color | Complete |
 | 15 Tag surfaces: signed-tag distinction and remote tag deletion | Complete |
-| 16 Rust engine backend | In progress (`2026-09-22`) — 16.1–16.2 done, 16.3 next; slices 16.1–16.9 below |
+| 16 Rust engine backend | In progress (`2026-09-22`) — 16.1–16.3 done, 16.4 next; slices 16.1–16.9 below |
 | Immediate TODOs bug backlog (BUG-1 … BUG-6, `2026-08-25`) | Complete (`2026-08-25`; see the per-entry implementation records) |
 
 ### Phase 0: Guardrails and Baseline
@@ -2076,7 +2076,7 @@ Test notes for future slices:
 
 ### Phase 16: Rust Engine Backend
 
-**Status: in progress (`2026-09-22`) — slices 16.1–16.2 done, 16.3 next.** The engine's source and its
+**Status: in progress (`2026-09-22`) — slices 16.1–16.3 done, 16.4 next.** The engine's source and its
 52-commit history live on `rusty` under `engine/`; see "Evaluating the Rust
 engine of `vscode-git-graph-rs`" for what it is, what was excluded, and why it
 was not adopted wholesale. **Nothing in the extension reads it yet.** This
@@ -2264,6 +2264,47 @@ Acceptance: with no addon built, every existing test passes and behavior is
 identical to 1.6.2; with an addon built, `remoteUrl` is served by the engine
 and the parity test proves the two agree; setting `backend` to `"git-cli"`
 restores the CLI path without a reload of the window.
+
+Implementation record (`2026-09-22`, five subslice commits, all signed):
+
+- 16.3a `git-graph-libre.backend` (`auto` | `git-cli`, default `auto`):
+  manifest, five `package.nls*.json`, validated `config.backend()`, the
+  `EngineBackend` type, README row. The first pass also carried the full
+  webview cascade (view-state field, Config field, echo case) per the hop
+  list — removed again in 16.3e: the setting is consumed only on the host
+  (like `tabIconColorTheme`, which has no webview surface at all), the hub
+  echo safely ignores unknown keys without reloading, and the case was
+  unobservable and therefore uncoverable dead code. The fourteen test
+  literals the cascade briefly required are reverted with it.
+- 16.3e corrections: `AvatarManager` takes the preference as a *required*
+  thunk (no `auto` default to hide behind); the loader gained a pure
+  `platformDirectoryFor()` and an exported `validateLoadedAddon()` so every
+  triple and every refusal is unit-tested; the dead outer try/catch is gone
+  (each stage guards itself).
+- 16.3b `src/backend/engine/addon.ts` (the only module that knows the
+  `.node` file: dual `__dirname` anchors, `createRequire` on absolute
+  paths, `EXPECTED_ENGINE_VERSION` refusal) and `index.ts` (engine-first
+  reader, fallback only on `NotARepository:`/`Unsupported:`, genuine
+  failures to null without CLI retry, `git-cli` never loads, session
+  served-flag, per-call preference).
+- 16.3c AvatarManager wiring (preference as a live thunk) plus the
+  parity table (https origin, split push url, no remotes, non-repo dir)
+  and a manager→github end-to-end wiring test on real backends.
+- 16.3d `view.engineBackend` from the existing `recordCommitLoad` call
+  site, true only when the engine served; `telemetry.json` and the README
+  disclosure moved in the same slice.
+- Four findings fixed inside the slice: napi camelCases exports (the
+  addon speaks `remoteUrl`, verified against the binary; the loader
+  refuses a binary without it); the engine contract is
+  URL-or-null-or-decline (a non-repo throws `NotARepository`, which the
+  parity model and the reader both route to the CLI); stub-based avatar
+  tests pin `git-cli` to stay hermetic; fake timers hold back the engine
+  threadpool, so the wiring test polls on real timers (proven by probe).
+- Gate: the first scan failed `new_coverage` at `71.2` (ten uncovered
+  lines: foreign-platform branches, the validator's refusal paths, the
+  dead echo case, the preference default) and passed everything else;
+  after the 16.3e corrections the gate is `OK` — full numbers in the
+  16.3e commit.
 
 #### Slice 16.4 — `loadRepoInfo`
 
@@ -4623,8 +4664,11 @@ side) came first** — nothing else can be verified until `cargo check`,
 because `sonar.sources` and Biome's allowlist both miss `engine/` entirely.
 Slice 16.1 is done (`2026-09-22`: `engine:*` scripts, `engine.yml` CI,
 `sonar.exclusions`, gate-order docs) and so is 16.2 (local addon build plus
-smoke test, debug binary loading with `engineVersion()` `1.0.24`);
-**16.3 (the seam, the escape hatch, and one trivial read) is next**.
+smoke test, debug binary loading with `engineVersion()` `1.0.24`); 16.3 is
+done too (the seam, the `backend` setting, `remoteUrl` on the reader with a
+parity table, and `view.engineBackend` telemetry).
+**16.4 (`loadRepoInfo`, the first slice where mapping matters) is next** —
+read its ordering-contract warnings before starting.
 Read that phase's non-goals and design rules before starting any of it: three
 of this fork's own features are things the engine cannot serve, and the plan
 keeps them on the CLI by decision rather than by accident.

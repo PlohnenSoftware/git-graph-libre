@@ -3,7 +3,12 @@ import * as path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { EXPECTED_ENGINE_VERSION, loadEngineAddon } from "@/backend/engine/addon";
+import {
+  EXPECTED_ENGINE_VERSION,
+  loadEngineAddon,
+  platformDirectoryFor,
+  validateLoadedAddon
+} from "@/backend/engine/addon";
 
 function workspaceVersion(): string {
   const manifest = fs.readFileSync(path.resolve(__dirname, "../../../engine/Cargo.toml"), "utf8");
@@ -27,5 +32,51 @@ describe("engine addon loader", () => {
       return;
     }
     expect(addon.engineVersion()).toBe(EXPECTED_ENGINE_VERSION);
+  });
+
+  const triples: [string, string, string | null][] = [
+    ["win32", "x64", "win32-x64-msvc"],
+    ["win32", "arm64", "win32-arm64-msvc"],
+    ["linux", "x64", "linux-x64-gnu"],
+    ["linux", "arm64", "linux-arm64-gnu"],
+    ["darwin", "x64", "darwin-x64"],
+    ["darwin", "arm64", "darwin-arm64"],
+    ["linux", "riscv64", null],
+    ["freebsd", "x64", null]
+  ];
+  it.each(triples)("maps %s/%s to %s", (platform, arch, expected) => {
+    expect(platformDirectoryFor(platform, arch)).toBe(expected);
+  });
+
+  it("accepts a module with the expected version", () => {
+    const loaded = {
+      engineVersion: () => EXPECTED_ENGINE_VERSION,
+      remoteUrl: async () => null
+    };
+    expect(validateLoadedAddon(loaded)).toBe(loaded);
+  });
+
+  const refusals: [string, unknown][] = [
+    [
+      "a binary from a different build",
+      { engineVersion: () => "0.0.0", remoteUrl: async () => null }
+    ],
+    [
+      "a version that throws on read",
+      {
+        engineVersion: () => {
+          throw new Error("boom");
+        },
+        remoteUrl: async () => null
+      }
+    ],
+    ["a non-string version", { engineVersion: () => 42, remoteUrl: async () => null }],
+    ["a missing remoteUrl export", { engineVersion: () => EXPECTED_ENGINE_VERSION }],
+    ["a missing engineVersion export", { remoteUrl: async () => null }],
+    ["a null module", null],
+    ["a string module", "git-graph.node"]
+  ];
+  it.each(refusals)("refuses %s into null", (_name, loaded) => {
+    expect(validateLoadedAddon(loaded)).toBeNull();
   });
 });

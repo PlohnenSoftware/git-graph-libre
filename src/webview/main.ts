@@ -1677,12 +1677,6 @@ class GitGraphView {
           this.config.stashDisplay = value;
         }
         return true;
-      case "backend":
-        // Host-side only: nothing in the graph renders from it, but the key
-        // is accepted (validated) so settings-hub writes apply live like
-        // every other manifest-derived setting instead of falling through.
-        if (value === "auto" || value === "git-cli") this.config.backend = value;
-        return true;
       case "dateFormat":
         if (value === "Date & Time" || value === "Date Only" || value === "Relative") {
           viewState.dateFormat = value;
@@ -6306,8 +6300,7 @@ const gitGraph = new GitGraphView(
     showStashes: viewState.showStashes,
     stashDisplay: viewState.stashDisplay ?? "both",
     showTags: viewState.showTags,
-    shortHashLength: viewState.shortHashLength,
-    backend: viewState.backend ?? "auto"
+    shortHashLength: viewState.shortHashLength
   },
   vscode.getState() ?? null
 );

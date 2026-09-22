@@ -50,7 +50,9 @@ function makeConfig(): Config {
     showUncommittedChanges: () => true,
     telemetryConsent: () => "enabled" as const,
     tabIconColorTheme: () => "color",
-    backend: () => "git-cli",
+    // Host-only: never called from the view state, but the mock is typed as
+    // the whole config shape, so the accessor stays.
+    backend: () => "auto",
     gitPath: () => "git"
   };
 }
@@ -107,9 +109,6 @@ describe("webview HTML", () => {
     expect(viewState.mergeNoFastForward).toBe(false);
     expect(viewState.pullBranchNoFastForward).toBe(true);
     expect(viewState.shortHashLength).toBe(12);
-    // Non-default on purpose, like the boolean pair above: proves the
-    // accessor reaches the view state rather than the manifest default.
-    expect(viewState.backend).toBe("git-cli");
     expect(result.html).toContain('id="settingsWidgetBacking" hidden');
     expect(result.html).toContain('id="settingsWidget" role="dialog" aria-modal="true"');
   });
