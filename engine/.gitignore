@@ -1,0 +1,9 @@
+# Cargo build output
+/target/
+
+# Built Node-API addons. The engine sources under native/core and native/node
+# are tracked; the per-target directories the build writes alongside them hold
+# the compiled git-graph.node binaries and are build artefacts, never commits.
+native/*/
+!native/core/
+!native/node/

@@ -48,6 +48,8 @@ travels with the published extension and not only with the git history.
 
 ## Incorporated MIT-licensed material
 
+### The Git Graph lineage
+
 This project descends from the MIT-licensed lineage of Git Graph:
 
 - [Git Graph](https://github.com/mhutchie/vscode-git-graph) by Michael
@@ -111,6 +113,37 @@ copyright notice and permission notice are preserved in full in
 [LICENSE.mit](LICENSE.mit), together with per-era contributor rosters compiled
 from this repository's git history, and they continue to cover the
 incorporated material.
+
+### The Git engine (`engine/`)
+
+Separately from the lineage above, and not descended from it, this project
+incorporates the Rust Git engine of
+[neophack/vscode-git-graph-rs](https://github.com/neophack/vscode-git-graph-rs)
+— the `native/core` and `native/node` crates, which read a repository's object
+database, refs and index in process rather than by spawning `git`. It is
+MIT-licensed: that repository's workspace declares `license = "MIT"` and its
+`LICENSE` names "the Rust native engine (./native/)" among its original
+contributions, Copyright (c) 2026 penghongxia. The engine's history is
+preserved here, with its original authors and dates, from the commits spanning
+`611a8fa` (2026-08-22) to `f93e8b2` (2026-09-21).
+
+[engine/NOTICE.md](engine/NOTICE.md) carries the rest: the verbatim copyright
+line and permission notice the MIT license requires be included in all copies,
+the provenance of the import and its authorship, and the attribution owed for
+the Rust crates the engine links.
+
+**What was deliberately not incorporated, and may not be.** That project is
+also a Visual Studio Code extension, and by its own `LICENSE` its webview and
+extension-host layers (`src/`, `web/`, and the compiled `media/` and `out/`)
+are ported from Git Graph by mhutchie under a license reading *"Permission is
+NOT GRANTED to publish, distribute, sublicense, and/or sell derivative works
+of the Software."* None of that is here. One file inside the engine itself was
+excluded for the same reason: `native/core/src/gerrit.rs` documented itself as
+"a faithful port of the parser that ran on the extension host (see
+`src/gerrit.ts`)", so it was derived from the restricted layer regardless of
+the workspace's MIT declaration. It is absent from every commit of the
+imported history, as are that project's own `LICENSE` and `licenses/`
+directory, which described the tree that was not taken.
 
 The upstream projects above remain available under the MIT license from their
 own repositories. The modifications and additions made in this fork are

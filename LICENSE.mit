@@ -4,16 +4,24 @@ Copyright (c) 2019-present, mhutchie
 Copyright (c) 2019 mhutchie. Fork (c) 2026-present asispts
 Copyright (c) 2019 Larry Lu, Shoshin Nikita, Walter Meier, Viktor Fonic
 Copyright (c) 2026 Krzysztof Zabłocki (zamkorus), Mr.Lee
+Copyright (c) 2026 penghongxia
 
 The first line above is the copyright notice exactly as it stood in the
 original Git Graph repository at commit 4af8583, the last MIT commit. The
 second is the notice as received from the asispts/neo-git-graph fork. Both
 are preserved verbatim, as the MIT license requires, for the lineage
-described in NOTICE.md. The lines added after them name the further
+described in NOTICE.md. The two lines after them name the further
 contributors to that MIT-licensed material, each of whom holds copyright in
-their respective contributions. The full roster with contribution dates,
-compiled from the author records in this repository's git history (automated
-dependency-bot commits omitted):
+their respective contributions.
+
+The last line is a separate matter. It is the notice of the Rust Git engine
+under `engine/`, which is not part of the Git Graph lineage at all but an
+independent MIT-licensed work incorporated alongside it. It is preserved
+verbatim for the same reason, and `engine/NOTICE.md` carries its permission
+notice, its provenance, and the record of what was deliberately left behind.
+
+The full rosters with contribution dates, compiled from the author records in
+this repository's git history (automated dependency-bot commits omitted):
 
 Original Git Graph — https://github.com/mhutchie/vscode-git-graph
 MIT era, up to and including commit 4af8583 (2019-05-09), the last MIT commit:
@@ -36,6 +44,16 @@ branches diverged (see NOTICE.md for which, and for what was taken from each).
 These add no further copyright holders; all were authored by asispts:
 
   Asis Pattisahusiwa (asispts)     2026-07-21 to 2026-08-25
+
+Git engine — https://github.com/neophack/vscode-git-graph-rs
+The `native/` crates of that repository, incorporated under `engine/` from its
+history spanning commits 611a8fa (2026-08-22) to f93e8b2 (2026-09-21). Its
+webview and extension-host layers are NOT incorporated, are not MIT, and may
+not be; NOTICE.md records why:
+
+  penghongxia                      2026-08-22 to 2026-09-15
+  neophack                         2026-09-04 to 2026-09-21
+  unusuallman                      2026-09-04 to 2026-09-12
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
