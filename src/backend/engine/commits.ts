@@ -89,7 +89,7 @@ export function shouldServeLoadCommitsFromEngine(input: EngineLoadCommitsInput):
   if (input.commitOrdering === "topo") return false;
   const refs = engineLoadCommitsRefs(input);
   // `--glob=` is not understood by the engine's tip resolution.
-  if (refs !== null && refs.some((ref) => ref.startsWith("--glob="))) return false;
+  if (refs?.some((ref) => ref.startsWith("--glob="))) return false;
   if (refs !== null) return true;
   // On a show-all load the CLI adds `--reflog` / `git fsck --unreachable`,
   // which have no engine equivalent at all. With explicit refs the CLI
