@@ -2378,6 +2378,61 @@ Acceptance: parity across filters, orderings, page sizes and stash display;
 every declined shape provably lands on the CLI; the `1.2.0` signature
 behavior unchanged.
 
+Implementation record (`2026-09-22`, twelve subslice commits, all signed):
+
+- 16.5a `src/backend/engine/commits.ts`: the pre-call decline predicate
+  (`showSignature`, `Author Date`, reflog/unreachable discovery on
+  show-all loads, `--glob=` patterns) plus the `LogOptions` builder reusing
+  the CLI's own ref/author/remote helpers with CLI-equivalent constants.
+- 16.5b wire guard (`parseEngineCommitData`) and node mapping
+  (`mapEngineCommitData`): heads/tags/remotes onto project refs, no
+  `signature` key except the CLI-pinned null on stash rows, in-place stash
+  marks stripped, rows dropped when the caller did not opt in.
+- 16.5c reader `loadCommits` with the 16.3 routing shape, the route reading
+  the preference live, and the loader refusing binaries without the new
+  export. Routing cases with a counted CLI module, including the pin that
+  turning the signature column on moves the load from engine to CLI.
+- 16.5d1 ref labels re-sorted into `for-each-ref` order (heads, remotes,
+  tags, byte-sorted) and the root `[""]` parse artifact mirrored, so the
+  parity table stays a strict `toEqual` that fails loudly on CLI change.
+- 16.5d2 the tag scan flag covers shown *or* selected tags (the CLI scans
+  `refs/tags` for both) while only shown tags become walk tips.
+- 16.5d3/d5 two CLI fills, each gated on page content so remoteless loads
+  pay no spawn: symbolic remote HEADs (`origin/HEAD`) attached in CLI
+  order, and signed-tag badges flipped reusing the loader's own signature
+  atom (probed end to end against a crafted PGP-signed tag).
+- 16.5d4 post-call reroutes: unborn stays on the CLI, which owns the
+  empty-graph error shape; unfiltered show-all pages that lost HEAD go back
+  to the whole CLI read, mirroring the move-HEAD-onto-page contract.
+  Filtered loads exclude HEAD by request on both backends.
+- 16.5d6 `topo` declined to the CLI: the engine walks each history line
+  depth-first while git interleaves branch lines by date under the same
+  topological constraint — both valid, visibly different row orders. Date
+  and author-date agree byte for byte past the window floor.
+- 16.5d7 parity table: deterministic fixtures (branchy clean/dirty, clone,
+  detached deep/tip, unborn, 30-commit roomy) across orderings, filters,
+  page sizes and stash display, strict `toEqual` with the served flag. Only
+  the `*` date is masked; author cases collapse the pre-existing CLI
+  duplication quirk below.
+- Probe findings (throwaway scripts, `/tmp/parity*`, preserved for review):
+  date/author-date exact on a 433-commit branchy history past the
+  256-commit window floor, so the window never materialized; same-second
+  ties can order differently on either backend (inherent to equal
+  timestamps, recorded); the CLI duplicates an author match when HEAD is
+  filtered out — its detached recovery re-queries HEAD alone and prepends
+  a row that already appears below, adjacently or not — while the engine
+  is provably correct, so the loader keeps that bug for its own behavior
+  slice; `for-each-ref` sorts globally (heads < remotes < tags) while the
+  engine annotates heads, tags, remotes; unborn errors on the CLI where the
+  engine returns null; a detached HEAD deeper than the page needs the
+  CLI's move-onto-page.
+- Known engine deviations, recorded not fixed (exotic layouts): Gerrit
+  `/changes/` refs are dropped from labels, remote tag refs
+  (`refs/remotes/*/tags/*`) classify as tags rather than remotes, and a
+  dangling symref HEAD with no other remote label on the page gets no fill
+  (the fill gates on page remotes).
+- Gate: numbers in the 16.5e commit.
+
 #### Slice 16.6 — Commit details, comparison, and line counts
 
 `load_commit_details`, `load_stash_details`, `load_uncommitted_details`,
@@ -2450,6 +2505,11 @@ Only now, and only if the earlier slices have paid off.
   repository this can differ from `git log`. If it does, `loadCommits` may
   have to stay CLI and the phase loses most of its value — so measure this
   early, in 16.4 or a spike, rather than discovering it in 16.5.
+  **Resolved in 16.5:** measured late but decisively — date and author-date
+  agree byte for byte on a 433-commit branchy history past the 256-commit
+  window floor, so the window never materialized. Topo diverges for a
+  different reason (depth-first lines versus git's date-interleaved lines)
+  and stays CLI by decline, which moots the window question for it too.
 - **Devcontainers and remote.** This project advertises "Works in remote and
   container environments". The addon must match the *remote* platform, which
   per-platform VSIXs handle for the targets that are built and nothing else.
@@ -4695,12 +4755,13 @@ done too (the seam, the `backend` setting, `remoteUrl` on the reader with a
 parity table, and `view.engineBackend` telemetry); 16.4 is done as well
 (`loadRepoInfo` through the reader: engine head/tags/stashes with CLI
 fills, parity byte-for-byte, `loadBranches` untouched).
-**16.5 (`loadCommits`, the largest slice — read the non-goals first) is
-next.** The declines (reflog, unreachable discovery, `--glob=`
-patterns, signature column) route to the CLI *before* any engine call.
-Read that phase's non-goals and design rules before starting any of it: three
-of this fork's own features are things the engine cannot serve, and the plan
-keeps them on the CLI by decision rather than by accident.
+**16.5 (`loadCommits`) is done** (`2026-09-22`: pre-call declines plus
+post-call HEAD/unborn reroutes, seam mapping with two gated CLI fills,
+`topo` declined over a measured tie-break difference, byte-for-byte parity
+with the served flag). **16.6 (commit details, comparison, line counts) is
+next** — note its deferred-shape question, and read the non-goals before
+starting any of it: the engine reports file statuses without counts, and
+this fork renders counts eagerly.
 
 Maintainer-set priority (`2026-08-25`): **the Immediate TODOs bug backlog above
 comes before every phase item below.** BUG-1 through BUG-6 were reported against
