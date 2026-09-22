@@ -25,8 +25,14 @@ export const EXPECTED_ENGINE_VERSION = "1.0.24";
 export type EngineAddon = {
   /** The engine's own version (`CARGO_PKG_VERSION`), for skew detection. */
   engineVersion(): string;
-  /** The fetch URL of a remote, or null when it is not configured. */
-  remote_url(repoPath: string, remote: string): Promise<string | null>;
+  /**
+   * The fetch URL of a remote, or null when it is not configured.
+   *
+   * napi exposes Rust `remote_url` under this camelCase name — verified
+   * against the built addon, whose exports are `remoteUrl`, `remoteNames`
+   * and `engineVersion`. The loader below refuses a binary without it.
+   */
+  remoteUrl(repoPath: string, remote: string): Promise<string | null>;
 };
 
 /**
@@ -105,7 +111,8 @@ function tryLoadEngineAddon(): EngineAddon | null {
 
 function isEngineAddon(loaded: unknown): loaded is EngineAddon {
   if (typeof loaded !== "object" || loaded === null) return false;
-  return typeof (loaded as { engineVersion?: unknown }).engineVersion === "function";
+  const candidate = loaded as { engineVersion?: unknown; remoteUrl?: unknown };
+  return typeof candidate.engineVersion === "function" && typeof candidate.remoteUrl === "function";
 }
 
 function safeEngineVersion(loaded: EngineAddon): string | null {

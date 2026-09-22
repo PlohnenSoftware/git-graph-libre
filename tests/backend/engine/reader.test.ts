@@ -48,7 +48,7 @@ beforeEach(() => {
 function fakeAddon(implementation: (repoPath: string) => Promise<string | null>): AddonProvider {
   const addon: EngineAddon = {
     engineVersion: () => "fake",
-    remote_url: async (repoPath: string) => implementation(repoPath)
+    remoteUrl: async (repoPath: string) => implementation(repoPath)
   };
   return () => addon;
 }

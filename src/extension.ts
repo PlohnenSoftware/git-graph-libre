@@ -28,7 +28,7 @@ export function activate(context: vscode.ExtensionContext) {
   initL10n(context.extensionPath);
   const logger = createLogger(l10n.t("outputChannel.text"));
   const extensionState = new ExtensionState(context);
-  const avatarManager = new AvatarManager(config.gitPath, extensionState);
+  const avatarManager = new AvatarManager(config.gitPath, extensionState, config.backend);
   const statusBarItem = new StatusBarItem(context, config, logger);
   // Usage telemetry. Gated twice: by VS Code's global telemetry setting,
   // which always wins, and by git-graph-libre.telemetry.enabled. With no

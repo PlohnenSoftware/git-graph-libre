@@ -3,12 +3,13 @@ import * as fs from "node:fs";
 import type * as http from "node:http";
 import * as https from "node:https";
 
-import { getRemoteUrl } from "./backend/utils/git";
+import { createRepoReader } from "./backend/engine/index";
 import type { ExtensionState } from "./extensionState";
-import type { AvatarCache, ResponseMessage } from "./types";
+import type { AvatarCache, EngineBackend, ResponseMessage } from "./types";
 
 export class AvatarManager {
   private readonly gitPath: () => string;
+  private readonly backendPreference: () => EngineBackend;
   private readonly extensionState: ExtensionState;
   private readonly avatarStorageFolder: string;
   private postToWebview: ((msg: ResponseMessage) => void) | null = null;
@@ -20,8 +21,13 @@ export class AvatarManager {
   private githubTimeout: number = 0;
   private gitLabTimeout: number = 0;
 
-  constructor(gitPath: () => string, extensionState: ExtensionState) {
+  constructor(
+    gitPath: () => string,
+    extensionState: ExtensionState,
+    backendPreference: () => EngineBackend = () => "auto"
+  ) {
     this.gitPath = gitPath;
+    this.backendPreference = backendPreference;
     this.extensionState = extensionState;
     this.avatarStorageFolder = this.extensionState.getAvatarStoragePath();
     this.avatars = this.extensionState.getAvatarCache();
@@ -106,8 +112,14 @@ export class AvatarManager {
       // If the repo exists in the cache of remote sources
       return this.remoteSourceCache[avatarRequest.repo];
     } else {
-      // Fetch the remote repo source
-      let remoteUrl = await getRemoteUrl(avatarRequest.repo, this.gitPath()),
+      // Fetch the remote repo source. The preference is read live on every
+      // call, so flipping git-graph-libre.backend needs no reload; the
+      // reader serves from the engine where it can and the CLI elsewhere.
+      const reader = createRepoReader({
+        preference: this.backendPreference(),
+        gitPath: this.gitPath()
+      });
+      let remoteUrl = await reader.getRemoteUrl(avatarRequest.repo),
         remoteSource: RemoteSource;
       if (remoteUrl === null) {
         remoteSource = { type: "gravatar" };

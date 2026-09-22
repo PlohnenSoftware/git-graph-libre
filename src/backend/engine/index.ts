@@ -86,7 +86,7 @@ async function readRemoteUrl(
   const addon = provider();
   if (addon === null) return getRemoteUrl(repoPath, gitPath);
   try {
-    const url = await addon.remote_url(repoPath, "origin");
+    const url = await addon.remoteUrl(repoPath, "origin");
     engineServedRead = true;
     // Same normalization the CLI arm applies: trim, empty means unconfigured.
     const normalized = (url ?? "").trim();

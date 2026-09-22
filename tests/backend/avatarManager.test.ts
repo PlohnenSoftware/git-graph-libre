@@ -42,7 +42,8 @@ vi.mock("node:https", () => ({
       // Deliver on a later tick so the caller can attach its listeners first.
       queueMicrotask(() => {
         const listeners = new Map<string, (chunk?: Buffer) => void>();
-        const contentType = stub.contentType === null ? undefined : (stub.contentType ?? "image/png");
+        const contentType =
+          stub.contentType === null ? undefined : (stub.contentType ?? "image/png");
         const res = {
           statusCode: stub.statusCode ?? 200,
           headers: { "content-type": contentType, ...stub.headers },
@@ -61,10 +62,7 @@ vi.mock("node:https", () => ({
 }));
 
 vi.mock("node:fs", () => ({
-  readFile: (
-    filePath: string,
-    callback: (error: Error | null, data?: Buffer) => void
-  ): void => {
+  readFile: (filePath: string, callback: (error: Error | null, data?: Buffer) => void): void => {
     if (disk.readError) {
       callback(new Error("missing"));
       return;
@@ -116,7 +114,15 @@ async function createManager(cache: AvatarCache = {}) {
   const { AvatarManager } = await import("@/avatarManager");
   const extensionState = makeExtensionState(cache);
   const posted: ResponseMessage[] = [];
-  const manager = new AvatarManager(() => "git", extensionState.state);
+  // Pinned to the CLI: these cases stub getRemoteUrl per test (including for
+  // paths that never existed), so the engine must not get between the stub
+  // and the manager. The auto/engine routing is covered by the parity table
+  // and the wiring test in tests/backend/engine instead.
+  const manager = new AvatarManager(
+    () => "git",
+    extensionState.state,
+    () => "git-cli"
+  );
   manager.registerBridge((msg) => posted.push(msg));
   return { manager, posted, extensionState };
 }
