@@ -731,7 +731,7 @@ together):
 | 13 Settings hub: tabbed widget, color editor, settings export | Complete |
 | 14 Reveal highlight: persistent blink and configurable color | Complete |
 | 15 Tag surfaces: signed-tag distinction and remote tag deletion | Complete |
-| 16 Rust engine backend | In progress (`2026-09-22`) — 16.1 done, 16.2 next; slices 16.1–16.9 below |
+| 16 Rust engine backend | In progress (`2026-09-22`) — 16.1–16.2 done, 16.3 next; slices 16.1–16.9 below |
 | Immediate TODOs bug backlog (BUG-1 … BUG-6, `2026-08-25`) | Complete (`2026-08-25`; see the per-entry implementation records) |
 
 ### Phase 0: Guardrails and Baseline
@@ -2076,7 +2076,7 @@ Test notes for future slices:
 
 ### Phase 16: Rust Engine Backend
 
-**Status: in progress (`2026-09-22`) — slice 16.1 done, 16.2 next.** The engine's source and its
+**Status: in progress (`2026-09-22`) — slices 16.1–16.2 done, 16.3 next.** The engine's source and its
 52-commit history live on `rusty` under `engine/`; see "Evaluating the Rust
 engine of `vscode-git-graph-rs`" for what it is, what was excluded, and why it
 was not adopted wholesale. **Nothing in the extension reads it yet.** This
@@ -2193,6 +2193,32 @@ Implementation record (`2026-09-22`, four subslice commits, all signed):
 Acceptance: `pnpm run engine:build` produces a loadable `.node` on
 `x86_64-unknown-linux-gnu`; `git status` is clean afterwards; nothing in
 `src/` references it.
+
+Implementation record (`2026-09-22`, three subslice commits, all signed):
+
+- 16.2a `@napi-rs/cli` as a root devDependency (resolved `3.10.4` against
+  the `^3.8.6` pin). The CLI ships in the workspace root's `node_modules`,
+  so `build-addon.mjs` now resolves it there first, keeping an
+  engine-local `node_modules` as the fallback for standalone checkouts.
+- 16.2b `engine:build` (host triple, debug — the script's documented local
+  default) and `engine:smoke` (`engine/scripts/smoke-addon.mjs`), which
+  `require()`s the built addon and asserts `engineVersion()` equals the
+  `[workspace.package]` version in `engine/Cargo.toml`, refusing a stale
+  binary. The smoke runs by hand, not under vitest, which never builds it.
+- Two wiring findings, both fixed in 16.2b: napi's CLI requires an
+  `engine/package.json` for its config lookup (the filtered import dropped
+  it with the TS layer — first build failed `package.json not found`), so a
+  private manifest now carries name/version plus `napi.binaryName` and the
+  single-key `engine/napi.conf.json` is removed as superseded; its
+  `version` must track the Cargo workspace version (drift only affects the
+  staging filename, which the build discards, but keep them together).
+- Verified on `x86_64-unknown-linux-gnu`: debug build placed
+  `engine/native/linux-x64-gnu/git-graph.node` (186.2 MB — debug symbols;
+  release size is recorded in 16.9), smoke reports `engineVersion()`
+  `1.0.24`, `git status` shows no artifacts (`native/*/` stays ignored),
+  `pnpm install --frozen-lockfile` still passes (the engine manifest is not
+  a workspace package), `pnpm run package` green, manifest tests 16/16.
+- Nothing in `src/` references the addon.
 
 **Do not attempt the other five triples in this slice.** Their link
 environments are the expensive part (`docs/DEPENDENCIES.md` in `engine/` is
@@ -4596,7 +4622,9 @@ side) came first** — nothing else can be verified until `cargo check`,
 `cargo test`, `cargo clippy` and `cargo fmt` are part of the documented gate,
 because `sonar.sources` and Biome's allowlist both miss `engine/` entirely.
 Slice 16.1 is done (`2026-09-22`: `engine:*` scripts, `engine.yml` CI,
-`sonar.exclusions`, gate-order docs); **16.2 (local addon build) is next**.
+`sonar.exclusions`, gate-order docs) and so is 16.2 (local addon build plus
+smoke test, debug binary loading with `engineVersion()` `1.0.24`);
+**16.3 (the seam, the escape hatch, and one trivial read) is next**.
 Read that phase's non-goals and design rules before starting any of it: three
 of this fork's own features are things the engine cannot serve, and the plan
 keeps them on the CLI by decision rather than by accident.
