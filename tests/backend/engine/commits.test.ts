@@ -65,6 +65,14 @@ describe("shouldServeLoadCommitsFromEngine", () => {
     expect(shouldServeLoadCommitsFromEngine({ ...BASE, dateType: "Author Date" })).toBe(false);
   });
 
+  it("declines topo ordering, whose tie-breaks differ visibly from git", () => {
+    expect(shouldServeLoadCommitsFromEngine({ ...BASE, commitOrdering: "topo" })).toBe(false);
+    expect(shouldServeLoadCommitsFromEngine({ ...BASE, commitOrdering: "date" })).toBe(true);
+    expect(shouldServeLoadCommitsFromEngine({ ...BASE, commitOrdering: "author-date" })).toBe(
+      true
+    );
+  });
+
   it("declines reflog and unreachable discovery on show-all loads only", () => {
     expect(shouldServeLoadCommitsFromEngine({ ...BASE, includeReflog: true })).toBe(false);
     expect(shouldServeLoadCommitsFromEngine({ ...BASE, includeUnreachableCommits: true })).toBe(

@@ -24,6 +24,10 @@
  *   engine;
  * - a `--glob=` branch pattern: the engine's tip resolution silently skips
  *   revisions it cannot resolve instead of expanding the glob.
+ * - the `topo` commit ordering: the engine walks each line of history
+ *   depth-first while git interleaves branch lines by date within the same
+ *   topological constraint — both valid, visibly different row orders, so
+ *   topo loads stay on the CLI (pinned by the parity table).
  */
 
 import type { SimpleGit } from "simple-git";
@@ -81,6 +85,8 @@ export function shouldServeLoadCommitsFromEngine(input: EngineLoadCommitsInput):
   if (input.showSignature === true) return false;
   // The engine's wire date is always the committer date.
   if (input.dateType === "Author Date") return false;
+  // The engine's topo tie-breaks differ visibly from git's (see above).
+  if (input.commitOrdering === "topo") return false;
   const refs = engineLoadCommitsRefs(input);
   // `--glob=` is not understood by the engine's tip resolution.
   if (refs !== null && refs.some((ref) => ref.startsWith("--glob="))) return false;

@@ -537,7 +537,8 @@ describe("createRepoReader loadCommits", () => {
       "unreachable discovery on a show-all load",
       { includeUnreachableCommits: true } as Partial<LoadCommitsArgs>
     ],
-    ["a --glob= pattern", { branches: ["--glob=feature/*"] } as Partial<LoadCommitsArgs>]
+    ["a --glob= pattern", { branches: ["--glob=feature/*"] } as Partial<LoadCommitsArgs>],
+    ["topo ordering", { commitOrdering: "topo" } as Partial<LoadCommitsArgs>]
   ])("declines %s to the CLI without loading the addon", async (_name, overrides) => {
     const provider = vi.fn(engineProvider(emptyPage));
     const result = await commitsReader("auto", provider, overrides);
