@@ -389,26 +389,34 @@ export function insertRemoteHeadLabels(
     if (!byHash.has(node.hash)) byHash.set(node.hash, node);
   }
   for (const label of labels) {
-    if (isHiddenRemoteRef(label.name, hiddenRemotes)) continue;
-    const node = byHash.get(label.hash);
-    if (node === undefined) continue;
-    if (node.refs.some((ref) => ref.type === "remote" && ref.name === label.name)) continue;
-    const ref: GitRef = { hash: label.hash, name: label.name, type: "remote" };
-    const fullName = remoteRefName(label.name);
-    let index = node.refs.length;
-    for (let existingIndex = 0; existingIndex < node.refs.length; existingIndex++) {
-      const existing = node.refs[existingIndex];
-      if (
-        refSortRank(existing) > 1 ||
-        (refSortRank(existing) === 1 &&
-          compareRefNames(fullRefName(existing), fullName) > 0)
-      ) {
-        index = existingIndex;
-        break;
-      }
-    }
-    node.refs.splice(index, 0, ref);
+    insertOneRemoteHeadLabel(byHash, label, hiddenRemotes);
   }
+}
+
+function insertOneRemoteHeadLabel(
+  byHash: Map<string, GitCommitNode>,
+  label: RemoteHeadLabel,
+  hiddenRemotes?: string[]
+): void {
+  if (isHiddenRemoteRef(label.name, hiddenRemotes)) return;
+  const node = byHash.get(label.hash);
+  if (node === undefined) return;
+  if (node.refs.some((ref) => ref.type === "remote" && ref.name === label.name)) return;
+  const ref: GitRef = { hash: label.hash, name: label.name, type: "remote" };
+  node.refs.splice(remoteHeadInsertIndex(node.refs, remoteRefName(label.name)), 0, ref);
+}
+
+function remoteHeadInsertIndex(refs: GitRef[], fullName: string): number {
+  for (let index = 0; index < refs.length; index++) {
+    const existing = refs[index];
+    if (
+      refSortRank(existing) > 1 ||
+      (refSortRank(existing) === 1 && compareRefNames(fullRefName(existing), fullName) > 0)
+    ) {
+      return index;
+    }
+  }
+  return refs.length;
 }
 
 export type RemoteHeadFills = {
