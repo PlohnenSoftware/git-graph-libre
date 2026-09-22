@@ -46,13 +46,12 @@ import {
 } from "@/backend/actions/stash";
 import { addTag, deleteTag, pushAllTags, pushTag } from "@/backend/actions/tag";
 import { deleteUserDetails, editUserDetails } from "@/backend/actions/userConfig";
-import { didEngineServeRead } from "@/backend/engine/index";
+import { createRepoReader, didEngineServeRead } from "@/backend/engine/index";
 import type { GitClient } from "@/backend/gitClient";
 import { commitComparison } from "@/backend/queries/commitComparison";
 import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadBranches } from "@/backend/queries/loadBranches";
 import { loadCommits } from "@/backend/queries/loadCommits";
-import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
 import { searchCommits } from "@/backend/queries/searchCommits";
 import { tagDetails } from "@/backend/queries/tagDetails";
 import { uncommittedDetails } from "@/backend/queries/uncommittedDetails";
@@ -608,12 +607,20 @@ export function registerMessageHandlers(
   });
 
   bridge.onMessage("loadRepoInfo", async (msg) => {
+    // The preference is read live on every load, so flipping
+    // git-graph-libre.backend needs no reload. The reader serves from the
+    // engine where it can and the CLI elsewhere, with an identical shape.
+    const reader = createRepoReader({
+      preference: config.backend(),
+      gitPath: config.gitPath()
+    });
     bridge.post({
       command: "loadRepoInfo",
       requestId: msg.requestId,
-      ...(await loadRepoInfo(gitClient.getInstance(), {
-        repo: msg.repo,
+      ...(await reader.loadRepoInfo({
+        repoPath: msg.repo,
         showStashes: msg.showStashes,
+        git: gitClient.getInstance(),
         recordGitCommand
       }))
     });

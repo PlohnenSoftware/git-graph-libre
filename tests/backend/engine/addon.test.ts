@@ -51,7 +51,8 @@ describe("engine addon loader", () => {
   it("accepts a module with the expected version", () => {
     const loaded = {
       engineVersion: () => EXPECTED_ENGINE_VERSION,
-      remoteUrl: async () => null
+      remoteUrl: async () => null,
+      loadRepoInfo: async () => "{}"
     };
     expect(validateLoadedAddon(loaded)).toBe(loaded);
   });
@@ -72,6 +73,10 @@ describe("engine addon loader", () => {
     ],
     ["a non-string version", { engineVersion: () => 42, remoteUrl: async () => null }],
     ["a missing remoteUrl export", { engineVersion: () => EXPECTED_ENGINE_VERSION }],
+    [
+      "a missing loadRepoInfo export",
+      { engineVersion: () => EXPECTED_ENGINE_VERSION, remoteUrl: async () => null }
+    ],
     ["a missing engineVersion export", { remoteUrl: async () => null }],
     ["a null module", null],
     ["a string module", "git-graph.node"]

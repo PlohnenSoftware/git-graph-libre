@@ -120,7 +120,10 @@ describe("registerMessageHandlers", () => {
         uncommittedFileViewMode: () => "tree",
         showUncommittedChanges: () => false,
         shortHashLength: () => 4,
-        gitPath: () => "git"
+        gitPath: () => "git",
+        // Pinned to the CLI: the engine routing lives in the reader and
+        // parity suites, not in these route-shape tests.
+        backend: () => "git-cli"
       } as unknown as Config,
       gitClient,
       repoManager,

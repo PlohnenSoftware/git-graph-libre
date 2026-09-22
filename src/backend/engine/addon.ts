@@ -33,6 +33,11 @@ export type EngineAddon = {
    * and `engineVersion`. The loader below refuses a binary without it.
    */
   remoteUrl(repoPath: string, remote: string): Promise<string | null>;
+  /**
+   * `load_repo_info` encoded as JSON (napi exposes Rust `load_repo_info`
+   * under this name). Options are the JSON built by `buildRepoInfoOptions`.
+   */
+  loadRepoInfo(repoPath: string, optionsJson: string): Promise<string>;
 };
 
 /**
@@ -123,8 +128,16 @@ export function validateLoadedAddon(loaded: unknown): EngineAddon | null {
 
 function isEngineAddon(loaded: unknown): loaded is EngineAddon {
   if (typeof loaded !== "object" || loaded === null) return false;
-  const candidate = loaded as { engineVersion?: unknown; remoteUrl?: unknown };
-  return typeof candidate.engineVersion === "function" && typeof candidate.remoteUrl === "function";
+  const candidate = loaded as {
+    engineVersion?: unknown;
+    remoteUrl?: unknown;
+    loadRepoInfo?: unknown;
+  };
+  return (
+    typeof candidate.engineVersion === "function" &&
+    typeof candidate.remoteUrl === "function" &&
+    typeof candidate.loadRepoInfo === "function"
+  );
 }
 
 function safeEngineVersion(loaded: EngineAddon): string | null {

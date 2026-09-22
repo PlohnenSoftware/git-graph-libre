@@ -15,10 +15,17 @@
  * decline prefixes below route to the CLI.
  */
 
+import type { SimpleGit } from "simple-git";
+
+import { emptyRepoInfo, loadRepoInfo } from "@/backend/queries/loadRepoInfo";
+import type { QueryResult } from "@/backend/types";
 import { getRemoteUrl } from "@/backend/utils/git";
+import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
+import { toGitQueryError } from "@/backend/utils/queryError";
 import type { EngineBackend } from "@/types";
 
 import { type EngineAddon, loadEngineAddon } from "./addon";
+import { buildRepoInfoOptions, composeEngineRepoInfo, parseEngineRepoInfo } from "./repoInfo";
 
 /** How the reader loads the addon. The default is the real loader; tests inject fakes. */
 export type AddonProvider = () => EngineAddon | null;
@@ -33,6 +40,15 @@ export type RepoReaderDeps = {
 export type RepoReader = {
   /** The fetch URL of `origin`, or null when it is not configured. Total: never throws. */
   getRemoteUrl(repoPath: string): Promise<string | null>;
+  /** The repository info for the graph header. Genuine engine failures surface as the read error. */
+  loadRepoInfo(args: RepoInfoArgs): Promise<QueryResult<"loadRepoInfo">>;
+};
+
+export type RepoInfoArgs = {
+  repoPath: string;
+  showStashes: boolean;
+  git: SimpleGit;
+  recordGitCommand?: GitCommandRecorder;
 };
 
 /** Prefixes the engine uses for declines the CLI must serve instead. */
@@ -71,7 +87,8 @@ export function createRepoReader(deps: RepoReaderDeps): RepoReader {
   const provider = deps.addonProvider ?? loadEngineAddon;
   return {
     getRemoteUrl: (repoPath: string) =>
-      readRemoteUrl(deps.preference, deps.gitPath, provider, repoPath)
+      readRemoteUrl(deps.preference, deps.gitPath, provider, repoPath),
+    loadRepoInfo: (args: RepoInfoArgs) => readRepoInfo(deps.preference, provider, args)
   };
 }
 
@@ -94,5 +111,54 @@ async function readRemoteUrl(
   } catch (error: unknown) {
     if (!isEngineFallbackError(error)) return null;
     return getRemoteUrl(repoPath, gitPath);
+  }
+}
+
+async function readRepoInfo(
+  preference: EngineBackend,
+  provider: AddonProvider,
+  args: RepoInfoArgs
+): Promise<QueryResult<"loadRepoInfo">> {
+  const cliRead = (): Promise<QueryResult<"loadRepoInfo">> =>
+    loadRepoInfo(args.git, {
+      repo: args.repoPath,
+      showStashes: args.showStashes,
+      recordGitCommand: args.recordGitCommand
+    });
+  // The total no-op path: the addon is not even loaded.
+  if (preference === "git-cli") return cliRead();
+  const addon = provider();
+  if (addon === null) return cliRead();
+  try {
+    const info = parseEngineRepoInfo(
+      await addon.loadRepoInfo(args.repoPath, buildRepoInfoOptions(args.showStashes))
+    );
+    if (info === null) {
+      return {
+        repoInfo: emptyRepoInfo(true),
+        error: toGitQueryError(
+          new Error("Engine returned malformed repository info"),
+          "Unable to load repository info"
+        )
+      };
+    }
+    // The partial-error field is reserved (always null today): stay on the
+    // CLI behavior rather than guessing which half to trust.
+    if (info.error !== null) return cliRead();
+    const composed = await composeEngineRepoInfo(
+      { git: args.git, repo: args.repoPath, recordGitCommand: args.recordGitCommand },
+      info
+    );
+    if (composed === null) return cliRead();
+    engineServedRead = true;
+    return composed;
+  } catch (error: unknown) {
+    if (!isEngineFallbackError(error)) {
+      return {
+        repoInfo: emptyRepoInfo(true),
+        error: toGitQueryError(error, "Unable to load repository info")
+      };
+    }
+    return cliRead();
   }
 }

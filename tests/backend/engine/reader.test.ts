@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import { git, makeRepo } from "@tests/backend/helpers";
+import { simpleGit } from "simple-git";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EngineAddon } from "@/backend/engine/addon";
 import {
@@ -9,8 +10,21 @@ import {
   isEngineFallbackError,
   resetEngineServedRead
 } from "@/backend/engine/index";
+import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
 
 const cliCalls = vi.hoisted(() => ({ count: 0 }));
+const fallbackReads = vi.hoisted(() => ({ count: 0 }));
+
+vi.mock("@/backend/queries/loadRepoInfo", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/backend/queries/loadRepoInfo")>();
+  return {
+    ...original,
+    loadRepoInfo: (...args: Parameters<typeof original.loadRepoInfo>) => {
+      fallbackReads.count += 1;
+      return original.loadRepoInfo(...args);
+    }
+  };
+});
 
 vi.mock("@/backend/utils/git", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/backend/utils/git")>();
@@ -42,13 +56,17 @@ afterAll(() => {
 
 beforeEach(() => {
   cliCalls.count = 0;
+  fallbackReads.count = 0;
   resetEngineServedRead();
 });
 
 function fakeAddon(implementation: (repoPath: string) => Promise<string | null>): AddonProvider {
   const addon: EngineAddon = {
     engineVersion: () => "fake",
-    remoteUrl: async (repoPath: string) => implementation(repoPath)
+    remoteUrl: async (repoPath: string) => implementation(repoPath),
+    loadRepoInfo: async () => {
+      throw new Error("Unsupported: repoInfo not stubbed in this fake");
+    }
   };
   return () => addon;
 }
@@ -176,5 +194,139 @@ describe("createRepoReader remoteUrl", () => {
     });
 
     expect(await reader.getRemoteUrl(repoWithoutRemote)).toBeNull();
+  });
+});
+
+describe("createRepoReader repoInfo", () => {
+  const payload = JSON.stringify({
+    branches: ["main"],
+    head: "main",
+    remotes: ["origin"],
+    stashes: [],
+    tags: [],
+    error: null
+  });
+
+  function repoInfoReader(preference: "auto" | "git-cli", addonProvider?: AddonProvider) {
+    return createRepoReader({ preference, gitPath: "git", addonProvider }).loadRepoInfo({
+      repoPath: repoWithRemote,
+      showStashes: true,
+      git: simpleGit(repoWithRemote)
+    });
+  }
+
+  it("serves the CLI read untouched on the git-cli preference", async () => {
+    const provider = vi.fn<AddonProvider>(() => null);
+    const [viaReader, direct] = await Promise.all([
+      repoInfoReader("git-cli", provider),
+      loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote })
+    ]);
+
+    expect(provider).not.toHaveBeenCalled();
+    expect(viaReader).toEqual(direct);
+    expect(fallbackReads.count).toBe(2);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("uses the CLI when no addon is available", async () => {
+    const result = await repoInfoReader("auto", () => null);
+
+    expect(result.error).toBeNull();
+    expect(result.repoInfo.isRepo).toBe(true);
+    expect(fallbackReads.count).toBe(1);
+  });
+
+  it("composes the engine payload with CLI fills", async () => {
+    const result = await repoInfoReader("auto", () => ({
+      engineVersion: () => "fake",
+      remoteUrl: async () => null,
+      loadRepoInfo: async () => payload
+    }));
+    const direct = await loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote });
+
+    expect(result).toEqual(direct);
+    expect(fallbackReads.count).toBe(1);
+    expect(didEngineServeRead()).toBe(true);
+  });
+
+  it.each(["NotARepository: no git dir", "Unsupported: declined"])(
+    "falls back to the whole CLI read on %s",
+    async (message) => {
+      const provider: AddonProvider = () => ({
+        engineVersion: () => "fake",
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => {
+          throw new Error(message);
+        }
+      });
+      const [viaReader, direct] = await Promise.all([
+        repoInfoReader("auto", provider),
+        loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote })
+      ]);
+
+      expect(viaReader).toEqual(direct);
+      expect(fallbackReads.count).toBe(2);
+      expect(didEngineServeRead()).toBe(false);
+    }
+  );
+
+  it("falls back to the whole CLI read on a reserved partial error", async () => {
+    const provider: AddonProvider = () => ({
+      engineVersion: () => "fake",
+      remoteUrl: async () => null,
+      loadRepoInfo: async () => JSON.stringify({ ...JSON.parse(payload), error: "partial" })
+    });
+    const result = await repoInfoReader("auto", provider);
+
+    expect(result.error).toBeNull();
+    expect(result.repoInfo.isRepo).toBe(true);
+    expect(fallbackReads.count).toBe(1);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it.each(["not json", "[1,2]", JSON.stringify({ ...JSON.parse(payload), tags: [42] })])(
+    "surfaces malformed payloads as the read error without retrying",
+    async (text) => {
+      const provider: AddonProvider = () => ({
+        engineVersion: () => "fake",
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => text
+      });
+      const result = await repoInfoReader("auto", provider);
+
+      expect(result.repoInfo.isRepo).toBe(true);
+      expect(result.error?.message).toContain("malformed repository info");
+      expect(fallbackReads.count).toBe(0);
+      expect(didEngineServeRead()).toBe(false);
+    }
+  );
+
+  it("surfaces genuine engine failures as the read error without retrying", async () => {
+    const provider: AddonProvider = () => ({
+      engineVersion: () => "fake",
+      remoteUrl: async () => null,
+      loadRepoInfo: async () => {
+        throw new Error("Git: corrupt object");
+      }
+    });
+    const result = await repoInfoReader("auto", provider);
+
+    expect(result.repoInfo).toEqual({
+      isRepo: true,
+      head: null,
+      headCommit: null,
+      authors: [],
+      tags: [],
+      remotes: [],
+      stashes: [],
+      stashCount: 0,
+      config: {
+        userName: { local: null, global: null },
+        userEmail: { local: null, global: null }
+      }
+    });
+    expect(result.error?.message).toContain("corrupt object");
+    expect(fallbackReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(false);
   });
 });
