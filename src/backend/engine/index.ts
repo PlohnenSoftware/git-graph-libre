@@ -22,6 +22,7 @@ import { emptyRepoInfo, loadRepoInfo } from "@/backend/queries/loadRepoInfo";
 import type { QueryResult } from "@/backend/types";
 import { getRemoteUrl } from "@/backend/utils/git";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
+import { uniqueNonEmpty } from "@/backend/utils/logFilters";
 import { toGitQueryError } from "@/backend/utils/queryError";
 import type { EngineBackend } from "@/types";
 
@@ -29,6 +30,7 @@ import { type EngineAddon, loadEngineAddon } from "./addon";
 import {
   attachRemoteHeadLabels,
   buildLoadCommitsOptions,
+  engineLoadCommitsRefs,
   type EngineLoadCommitsInput,
   mapEngineCommitData,
   parseEngineCommitData,
@@ -240,6 +242,21 @@ async function readCommits(
     // CLI behavior rather than guessing which half to trust.
     if (data.error !== null) return cliRead();
     const nodes = mapEngineCommitData(data, showStashes);
+    // An unborn repository has no page to serve: the CLI owns the
+    // empty-graph error shape, so those loads stay on it exactly.
+    if (data.head === null) return cliRead();
+    // An unfiltered show-all load always shows HEAD: the CLI pulls it onto
+    // the page when it falls beyond it, and rows the uncommitted changes
+    // beneath it. An engine page without HEAD is not a valid substitute, so
+    // those rare loads go straight to the CLI — correct by construction.
+    // Filtered loads exclude HEAD by request on both backends instead.
+    if (
+      engineLoadCommitsRefs(args) === null &&
+      uniqueNonEmpty(args.authors) === null &&
+      !nodes.some((node) => node.hash === data.head)
+    ) {
+      return cliRead();
+    }
     // The engine never records symbolic remote HEADs (`origin/HEAD`): one
     // narrow scan attaches them in CLI order, but only when the page carries
     // remote labels at all — a repository without remotes pays no spawn.

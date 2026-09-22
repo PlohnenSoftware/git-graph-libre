@@ -372,6 +372,40 @@ describe("createRepoReader loadCommits", () => {
     moreCommitsAvailable: false,
     error: null
   });
+  // A born repository always carries HEAD on its page: the show-all
+  // engine-serve cases use this headed page, while `emptyPage` (head null)
+  // exercises the unborn reroute.
+  const headedPage = JSON.stringify({
+    commits: [
+      {
+        hash: "a".repeat(40),
+        parents: [],
+        author: "Ada",
+        email: "ada@x.com",
+        date: 1790090408,
+        message: "only",
+        heads: ["main"],
+        tags: [],
+        remotes: [],
+        stash: null
+      }
+    ],
+    head: "a".repeat(40),
+    tags: [],
+    moreCommitsAvailable: false,
+    error: null
+  });
+  const headedNodes = [
+    {
+      hash: "a".repeat(40),
+      parentHashes: [""],
+      author: "Ada",
+      email: "ada@x.com",
+      date: 1790090408,
+      message: "only",
+      refs: [{ hash: "a".repeat(40), name: "main", type: "head" }]
+    }
+  ];
 
   function commitArgs(overrides: Partial<LoadCommitsArgs> = {}): LoadCommitsArgs {
     return {
@@ -466,11 +500,11 @@ describe("createRepoReader loadCommits", () => {
   });
 
   it("serves an engine page without touching the CLI", async () => {
-    const result = await commitsReader("auto", engineProvider(emptyPage));
+    const result = await commitsReader("auto", engineProvider(headedPage));
 
     expect(result).toEqual({
-      commits: [],
-      head: null,
+      commits: headedNodes,
+      head: "a".repeat(40),
       moreCommitsAvailable: false,
       hard: false,
       error: null
@@ -480,7 +514,7 @@ describe("createRepoReader loadCommits", () => {
   });
 
   it("moves the load from engine to CLI the moment the signature column is on", async () => {
-    const provider = vi.fn(engineProvider(emptyPage));
+    const provider = vi.fn(engineProvider(headedPage));
 
     const served = await commitsReader("auto", provider);
     expect(served.error).toBeNull();
@@ -515,7 +549,7 @@ describe("createRepoReader loadCommits", () => {
   });
 
   it("keeps reflog and unreachable flags on the engine with explicit refs", async () => {
-    const result = await commitsReader("auto", engineProvider(emptyPage), {
+    const result = await commitsReader("auto", engineProvider(headedPage), {
       branches: ["main"],
       includeReflog: true,
       includeUnreachableCommits: true
@@ -560,6 +594,59 @@ describe("createRepoReader loadCommits", () => {
     expect(result.commits).toHaveLength(1);
     expect(commitReads.count).toBe(1);
     expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("leaves unborn repositories on the CLI, which owns the empty-graph shape", async () => {
+    const result = await commitsReader("auto", engineProvider(emptyPage));
+
+    expect(result.error).toBeNull();
+    expect(result.commits).toHaveLength(1);
+    expect(commitReads.count).toBe(1);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("reroutes a show-all page that lost HEAD back to the whole CLI read", async () => {
+    const page = JSON.stringify({
+      commits: [
+        {
+          hash: "a".repeat(40),
+          parents: [],
+          author: "Ada",
+          email: "ada@x.com",
+          date: 1790090408,
+          message: "elsewhere",
+          heads: [],
+          tags: [],
+          remotes: [],
+          stash: null
+        }
+      ],
+      head: "f".repeat(40),
+      tags: [],
+      moreCommitsAvailable: true,
+      error: null
+    });
+    const result = await commitsReader("auto", engineProvider(page));
+
+    expect(result.error).toBeNull();
+    expect(result.commits).toHaveLength(1);
+    expect(commitReads.count).toBe(1);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("serves a filtered page without HEAD from the engine", async () => {
+    const page = JSON.stringify({
+      commits: [],
+      head: "f".repeat(40),
+      tags: [],
+      moreCommitsAvailable: false,
+      error: null
+    });
+    const result = await commitsReader("auto", engineProvider(page), { authors: ["Nobody"] });
+
+    expect(result.error).toBeNull();
+    expect(commitReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(true);
   });
 
   it.each(["not json", "[1]", JSON.stringify({ ...JSON.parse(emptyPage), tags: [42] })])(
