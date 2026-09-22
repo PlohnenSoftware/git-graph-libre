@@ -724,6 +724,7 @@ together):
 | 13 Settings hub: tabbed widget, color editor, settings export | Complete |
 | 14 Reveal highlight: persistent blink and configurable color | Complete |
 | 15 Tag surfaces: signed-tag distinction and remote tag deletion | Complete |
+| 16 Rust engine backend | Planned (`2026-09-22`) — not started; slices 16.1–16.9 below |
 | Immediate TODOs bug backlog (BUG-1 … BUG-6, `2026-08-25`) | Complete (`2026-08-25`; see the per-entry implementation records) |
 
 ### Phase 0: Guardrails and Baseline
@@ -2065,6 +2066,282 @@ Test notes for future slices:
 - Webview tests that click `refreshBtn` must re-supply commits with
   `receiveLoadedCommits(...)` after answering `loadRepoInfo`; the refresh clears
   the table, so ref lookups silently find nothing otherwise.
+
+### Phase 16: Rust Engine Backend
+
+**Status: planned (`2026-09-22`). Not started.** The engine's source and its
+52-commit history live on `rusty` under `engine/`; see "Evaluating the Rust
+engine of `vscode-git-graph-rs`" for what it is, what was excluded, and why it
+was not adopted wholesale. **Nothing in the extension reads it yet.** This
+phase is the wiring, cut so that every slice leaves a shippable extension and
+can be abandoned without unwinding the ones before it.
+
+Goal: serve the hot repository reads in process from the engine where it is
+available *and* correct to do so, and from the `git` CLI everywhere else, with
+no user-visible change except speed. Their measured numbers on a
+10,000-commit repository are a `4.5×` view load and one to two orders of
+magnitude on single-object reads, because a `git` spawn costs ~40–70 ms on
+Windows before it does any work.
+
+#### Non-goals, permanently
+
+No slice should try to move these. They are not deferred, they are excluded:
+
+- **Every write.** All 41 operations stay on `runGitRaw`. gix implements no
+  `push`, so a literal 100% is not reachable and chasing it is not the point.
+- **`repository.includeReflog`.** The engine declines reflog tips with
+  `Unsupported`.
+- **`repository.includeUnreachableCommits`.** `git fsck --unreachable` has no
+  engine equivalent at all.
+- **Signature verification.** The engine reports signature *presence* and
+  leaves status `E`. This project's `1.2.0` work — `%G?` plus the batched
+  `git cat-file --batch` `gpgsig` probe that separates genuinely unsigned from
+  SSH-signed-but-unverifiable — has no counterpart and must not regress.
+- **`customBranchGlobPatterns`.** `--glob=` is not understood by the engine's
+  tip resolution.
+
+Each of these is a *decline*, not a bug: the backend wrapper routes them to
+the CLI automatically, and a test pins that it does.
+
+#### Design rules — invariants every slice must keep
+
+1. **This project's types, never the engine's wire shapes.** `engine/native/
+   core/src/types.rs` says its structs serialise "to exactly the shape the
+   existing webview already consumes" — that is *their* webview. Map at the
+   seam into `GitCommitNode`, `GitRef`, `GitStash` and friends. Two reasons:
+   it keeps this project independent of their type evolution, and it keeps the
+   licence boundary clean (see the evaluation section on `types.rs`).
+2. **The CLI is the default and the engine is the optimization.** Every read
+   keeps a working CLI implementation. A platform with no prebuilt binary, a
+   failed `require()`, a version-skewed addon, or a user who switched the
+   setting off must all land on exactly the behavior of 1.6.2.
+3. **Two implementations, proven to agree.** Every read wired to the engine
+   gains a cross-backend parity test that drives both against the same real
+   repository and asserts identical output. A divergence is an engine bug, not
+   a test to relax.
+4. **No slice changes user-visible behavior.** If a slice would, it is the
+   wrong slice: split the behavior change out and take it on its own merits.
+5. **Handles are resources.** `open_repository` keeps pack indexes and an
+   object cache resident for the session — that is where the speed comes from
+   and also where a leak would come from. Every path that removes a repository
+   from the workspace must call `close_repository`.
+6. **Telemetry stays at the three documented chokepoints.** Which backend
+   served is a *shown* property, so it belongs in
+   `createViewFeatureReporter()`, once per session, as a fixed id — never a
+   path, never a per-load count.
+
+#### Slice 16.1 — A gate for the Rust side, with no wiring at all
+
+Nothing can be verified until the Rust half has a gate, and today
+`sonar.sources` (`src,scripts,esbuild.js`) and Biome's `includes` allowlist
+both miss `engine/` entirely.
+
+1. Add package scripts: `engine:check` (`cargo check --workspace
+   --all-targets`), `engine:test` (`cargo test --workspace`), `engine:lint`
+   (`cargo clippy --workspace --all-targets -- -D warnings`), `engine:fmt`
+   (`cargo fmt --all --check`), each running with `--manifest-path
+   engine/Cargo.toml` so they work from the repository root.
+2. Add a CI job that runs all four on `ubuntu-latest`, keyed on changes under
+   `engine/**`.
+3. Add `engine/**` to `sonar.exclusions` **explicitly**. It is already outside
+   `sonar.sources`, so this is belt-and-braces — but the exclusion is one line
+   and the failure it prevents (a 418-line `build-addon.mjs` with
+   `spawnSync(…, { shell: true })` entering analysis if `sonar.sources` is
+   ever broadened) lands on an unrelated slice.
+4. Extend the documented gate order in this file with the Rust arm, stating
+   that it runs only when `engine/**` changed.
+
+Acceptance: the four scripts exist and pass from a clean checkout; CI runs
+them; `pnpm run lint` still reports the same file count it does today.
+
+#### Slice 16.2 — Build the addon locally for one target
+
+1. Add `@napi-rs/cli` as a devDependency (upstream pins `^3.8.6`; the crates
+   are `napi` 3 with the `napi4` feature).
+2. Add `engine:build` producing `engine/native/<triple>/git-graph.node` for
+   the host triple only. `engine/.gitignore` already ignores `native/*/`, so
+   the artifact is untracked by construction — confirm, do not assume.
+3. Add a smoke test, run by the Rust arm rather than vitest, that `require()`s
+   the built addon and asserts `engineVersion()` equals the workspace version
+   in `engine/Cargo.toml`.
+
+Acceptance: `pnpm run engine:build` produces a loadable `.node` on
+`x86_64-unknown-linux-gnu`; `git status` is clean afterwards; nothing in
+`src/` references it.
+
+**Do not attempt the other five triples in this slice.** Their link
+environments are the expensive part (`docs/DEPENDENCIES.md` in `engine/` is
+the map: MSVC plus the Windows SDK, a separate ARM64 CRT, `cargo-xwin`,
+`cargo-zigbuild` with zig, Xcode) and none of it is needed until 16.8.
+
+#### Slice 16.3 — The seam, the escape hatch, and one trivial read
+
+The first wiring slice. It proves loader, fallback, setting, parity testing
+and telemetry end to end on a read whose result is a single string, so that
+nothing about data-shape mapping can obscure a plumbing failure.
+
+1. **`src/backend/engine/addon.ts`** — the only module that knows the engine
+   is a `.node` binary. Resolves the path for the host platform, `require()`s
+   it inside a `try`, and exports `null` when it is absent or throws. Nothing
+   above it may know the file exists.
+2. **`src/backend/engine/index.ts`** — `createRepoReader(config)` returning an
+   object that satisfies the reader interface, choosing engine-with-CLI-
+   fallback or CLI-only. The fallback rule is upstream's and is worth keeping:
+   fall back only on "not a repository" and "unsupported"; a genuine Git
+   failure (bad revision, corrupt object) must not be retried through the CLI,
+   because it will fail again more slowly and hide the real error.
+3. **The setting, before any read depends on it.**
+   `git-graph-libre.backend` (`"auto"` | `"git-cli"`, default `"auto"`)
+   through the standard eight-hop plumbing — manifest, five
+   `package.nls*.json`, `src/config.ts`, `src/types.ts`, `webviewHtml.ts`,
+   `global.d.ts`, the webview config switch plus constructor literal, and the
+   README table. `"git-cli"` must be a total no-op path: the addon is not even
+   loaded.
+4. **Wire exactly one read: `remoteUrl`** (`remote_url`). One string in, one
+   string or null out.
+5. **Cross-backend parity test** — `tests/backend/engine/parity.test.ts`,
+   built to grow: a table of cases driven against both implementations over
+   real scratch repositories, asserting identical results. Skip the engine
+   half with a clear message when no addon is built, so the suite passes on a
+   machine that has never run `engine:build`.
+6. **Telemetry**: `view.engineBackend`, once per session, reported from the
+   existing `recordCommitLoad()` call site, true only when the engine actually
+   served a read. Update `telemetry.json` and the README disclosure in the
+   same slice, as the telemetry rules require.
+
+Acceptance: with no addon built, every existing test passes and behavior is
+identical to 1.6.2; with an addon built, `remoteUrl` is served by the engine
+and the parity test proves the two agree; setting `backend` to `"git-cli"`
+restores the CLI path without a reload of the window.
+
+#### Slice 16.4 — `loadRepoInfo`
+
+Branches, tags, remotes, stashes and HEAD — one engine call (`load_repo_info`)
+against several CLI invocations, and the first slice where mapping matters.
+
+1. Map `GitRepoInfo` onto this project's shape. Watch the ordering contracts:
+   the repository dropdown and the branch dropdown both depend on the order
+   they receive names in, and `read_refs` orders by its own scan.
+2. `showRemoteBranches`, `showRemoteHeads`, `hideRemotes` and the stash toggle
+   all have engine equivalents — thread them rather than post-filtering.
+3. Parity cases: no remotes, several remotes, detached HEAD, an unborn branch,
+   a repository with no commits, annotated and lightweight tags, hidden
+   remotes, stashes on and off.
+
+Acceptance: the graph opens identically on both backends for every case above;
+parity test green; no change to `loadBranches`.
+
+#### Slice 16.5 — `loadCommits`, and the three declines
+
+The largest slice and the one that can most easily regress this fork's
+distinguishing features. **Read the non-goals above before starting.**
+
+1. Route to the engine **only** when none of the declines apply: reflog off,
+   unreachable-commit discovery off, no `--glob=` branch patterns, and the
+   signature column not requested. Anything else goes straight to the CLI —
+   decided *before* the call, not by catching a failure.
+2. Signature handling is the trap. `git-graph-libre.columns.signature` is off
+   by default, so the engine path is the common one; but the moment the column
+   is on, the whole load must take the CLI path, or `parseGpgsigPresence` and
+   the `unverifiable` status disappear. A test must pin that turning the
+   column on changes which backend serves the load.
+3. Stash rows: the engine's `GitStash.base_hash` is this project's
+   `sourceHash`, and injection above the base commit with parent-0-only
+   linking must be preserved exactly — the layout walker loops forever
+   otherwise (see the Slice 4 note under the graph/stash section).
+4. Uncommitted-changes row, `more_commits_available`, author and path filters,
+   and the three commit orderings all have engine equivalents; the engine's
+   ordering is exact within a bounded window rather than over the whole
+   history, which is a real behavioral difference — pin it with a parity test
+   over a branchy history and record the result, then decide whether it is
+   acceptable or whether this read stays CLI.
+
+Acceptance: parity across filters, orderings, page sizes and stash display;
+every declined shape provably lands on the CLI; the `1.2.0` signature
+behavior unchanged.
+
+#### Slice 16.6 — Commit details, comparison, and line counts
+
+`load_commit_details`, `load_stash_details`, `load_uncommitted_details`,
+`compare_commits`, `load_line_counts`, `load_commit_file`,
+`load_commit_file_diff`.
+
+1. The engine returns file lists as statuses only and settles `+N/-M`
+   separately, because each count reads two blobs. This project renders counts
+   eagerly. Either adopt the deferred shape (a real UX change, so its own
+   slice) or call `load_line_counts` for the whole list — measure both before
+   choosing, and record the numbers here.
+2. `load_commit_file_diff` covers the commit↔parent case only; an arbitrary
+   from→to pair stays CLI.
+3. Rename detection matches git's `-M50%`. Parity must cover renames, copies,
+   binary files, a root commit, an unborn branch, and a file that is modified
+   but unstaged.
+
+#### Slice 16.7 — The remaining reads
+
+`search_history`, `load_tag_details`, `load_commit_bodies`,
+`load_commit_subject`, `load_commit_summaries`, `count_commits_before`,
+`current_branch_upstream`, `current_branch_name`, `remote_names`,
+`submodules`, `load_config`/`config_list`, `repo_root`.
+
+Individually small; take them in one slice with one parity table. Note
+`count_commits_before` declines reflog tips and `--glob=` patterns, and
+`config_list` declines a file carrying `include`/`includeIf` directives.
+
+#### Slice 16.8 — Handle lifetime and post-write freshness
+
+**The correctness risk that is easiest to miss, and it deserves its own
+slice.** The engine keeps a repository open for the session. This project
+writes through the CLI, so after every write the engine's view must be proven
+fresh, and after a repository leaves the workspace its handle must be dropped.
+
+1. Establish empirically — against real repositories, recorded here — whether
+   a warm handle sees a commit, a ref update, a stash push and a checkout made
+   by an external `git` process, and how quickly. Do not infer this from gix's
+   documentation.
+2. If it does not, the fix is a cache-bust at the existing chokepoint: every
+   action already triggers a refresh, and `RepoFileWatcher` already fires.
+   Upstream's answer was a watcher plus a 5-second poll; prefer dropping the
+   handle on write, which this project can do precisely because writes are
+   funnelled through `registerAction()`.
+3. Call `close_repository` when a repository is removed, and
+   `close_all_repositories` on deactivate. `open_repository_count()` exists for
+   the test that proves handles do not accumulate across repository switches.
+
+#### Slice 16.9 — Per-platform packaging
+
+Only now, and only if the earlier slices have paid off.
+
+1. Build the six triples in CI on native runners, following
+   `engine/docs/DEPENDENCIES.md`.
+2. Publish per-platform VSIXs (`vsce package --target win32-x64`,
+   `linux-x64`, `darwin-arm64`, …) **plus a universal CLI-only VSIX** as the
+   fallback for every platform not built — musl/Alpine above all, where the
+   gnu binaries will not load.
+3. The release workflow's shape is load-bearing and must survive: the token
+   checks exist because the `secrets` context is not available to a
+   step-level `if`, and both publishes take `--packagePath` against the same
+   artifact with `--skip-duplicate`. A matrix must not quietly break either.
+4. Size: today's VSIX is `263 KB` from one job. Record the new per-platform
+   size here when it is known.
+
+#### Risks to decide before 16.5, not during
+
+- **Ordering within a window.** The engine orders exactly within a window that
+  is a multiple of the page, not over the whole history. On a branchy
+  repository this can differ from `git log`. If it does, `loadCommits` may
+  have to stay CLI and the phase loses most of its value — so measure this
+  early, in 16.4 or a spike, rather than discovering it in 16.5.
+- **Devcontainers and remote.** This project advertises "Works in remote and
+  container environments". The addon must match the *remote* platform, which
+  per-platform VSIXs handle for the targets that are built and nothing else.
+  Alpine-based devcontainers fall back to the CLI and must be tested doing so.
+- **`engineVersion()` skew.** A `.node` from a different build than the
+  TypeScript expects must be detected and refused into the CLI path, not
+  trusted.
+- **Two identities in the engine's history.** Whether `penghongxia` and
+  `neophack` are one person is unresolved; it affects nothing technical but
+  the rosters record both as the history has them.
 
 ### Submodule discovery (`2026-08-21`)
 
@@ -4285,6 +4562,17 @@ security hotspot) into analysis, where it would count against the gate on
 whatever unrelated slice was scanned next.
 
 ## Near-Term Work Order
+
+**Current priority (`2026-09-22`): Phase 16, the Rust engine backend**, on the
+`rusty` branch, which is where `1.7.0` is being assembled. The engine's source
+and history are merged under `engine/` and nothing reads them yet; the phase
+plan cuts the wiring into slices 16.1–16.9, and **16.1 (a gate for the Rust
+side) comes first** — nothing else can be verified until `cargo check`,
+`cargo test`, `cargo clippy` and `cargo fmt` are part of the documented gate,
+because `sonar.sources` and Biome's allowlist both miss `engine/` entirely.
+Read that phase's non-goals and design rules before starting any of it: three
+of this fork's own features are things the engine cannot serve, and the plan
+keeps them on the CLI by decision rather than by accident.
 
 Maintainer-set priority (`2026-08-25`): **the Immediate TODOs bug backlog above
 comes before every phase item below.** BUG-1 through BUG-6 were reported against

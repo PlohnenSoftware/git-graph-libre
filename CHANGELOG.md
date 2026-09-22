@@ -5,6 +5,15 @@ All notable changes to this extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Nothing user-facing yet. The version is on `1.7.0` because the Rust Git engine
+now lives in this repository under `engine/`, which opens a new analysis epoch
+even though no part of the extension reads it: every repository read still
+goes through the `git` CLI exactly as in 1.6.2, and `engine/` is excluded from
+the published VSIX. See [engine/NOTICE.md](engine/NOTICE.md) for what it is
+and where it came from.
+
 ## [1.6.2] - 2026-09-22
 
 ### Fixed
