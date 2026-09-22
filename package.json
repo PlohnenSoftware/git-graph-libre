@@ -115,6 +115,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
+    "@napi-rs/cli": "^3.10.4",
     "@primer/octicons": "^19.36.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "^26.6.1",

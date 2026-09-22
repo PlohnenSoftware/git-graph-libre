@@ -356,9 +356,14 @@ function main() {
 		process.exit(1);
 	}
 
-	const cli = path.join(root, 'node_modules', '@napi-rs', 'cli', 'dist', 'cli.js');
-	if (!fs.existsSync(cli)) {
-		throw new Error('@napi-rs/cli is not installed. Run `npm install` first.');
+	// The CLI is a devDependency of the extension package, so it lives in the
+	// repository root's node_modules; an engine-local install is the fallback
+	// (e.g. a standalone checkout of the engine sources).
+	const cli = ['..', '.']
+		.map((relative) => path.join(root, relative, 'node_modules', '@napi-rs', 'cli', 'dist', 'cli.js'))
+		.find((candidate) => fs.existsSync(candidate));
+	if (cli === undefined) {
+		throw new Error('@napi-rs/cli is not installed. Run `pnpm install` from the repository root first.');
 	}
 
 	// A forced cross-compile of a target whose OS family matches the host: napi's cross path will
