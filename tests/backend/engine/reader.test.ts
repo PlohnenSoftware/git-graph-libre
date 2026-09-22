@@ -8,12 +8,15 @@ import {
   createRepoReader,
   didEngineServeRead,
   isEngineFallbackError,
+  type LoadCommitsArgs,
   resetEngineServedRead
 } from "@/backend/engine/index";
+import { loadCommits } from "@/backend/queries/loadCommits";
 import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
 
 const cliCalls = vi.hoisted(() => ({ count: 0 }));
 const fallbackReads = vi.hoisted(() => ({ count: 0 }));
+const commitReads = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock("@/backend/queries/loadRepoInfo", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/backend/queries/loadRepoInfo")>();
@@ -22,6 +25,17 @@ vi.mock("@/backend/queries/loadRepoInfo", async (importOriginal) => {
     loadRepoInfo: (...args: Parameters<typeof original.loadRepoInfo>) => {
       fallbackReads.count += 1;
       return original.loadRepoInfo(...args);
+    }
+  };
+});
+
+vi.mock("@/backend/queries/loadCommits", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/backend/queries/loadCommits")>();
+  return {
+    ...original,
+    loadCommits: (...args: Parameters<typeof original.loadCommits>) => {
+      commitReads.count += 1;
+      return original.loadCommits(...args);
     }
   };
 });
@@ -57,6 +71,7 @@ afterAll(() => {
 beforeEach(() => {
   cliCalls.count = 0;
   fallbackReads.count = 0;
+  commitReads.count = 0;
   resetEngineServedRead();
 });
 
@@ -66,6 +81,9 @@ function fakeAddon(implementation: (repoPath: string) => Promise<string | null>)
     remoteUrl: async (repoPath: string) => implementation(repoPath),
     loadRepoInfo: async () => {
       throw new Error("Unsupported: repoInfo not stubbed in this fake");
+    },
+    loadCommits: async () => {
+      throw new Error("Unsupported: commits not stubbed in this fake");
     }
   };
   return () => addon;
@@ -240,7 +258,10 @@ describe("createRepoReader repoInfo", () => {
     const result = await repoInfoReader("auto", () => ({
       engineVersion: () => "fake",
       remoteUrl: async () => null,
-      loadRepoInfo: async () => payload
+      loadRepoInfo: async () => payload,
+      loadCommits: async () => {
+        throw new Error("Unsupported: commits not stubbed");
+      }
     }));
     const direct = await loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote });
 
@@ -257,6 +278,9 @@ describe("createRepoReader repoInfo", () => {
         remoteUrl: async () => null,
         loadRepoInfo: async () => {
           throw new Error(message);
+        },
+        loadCommits: async () => {
+          throw new Error("Unsupported: commits not stubbed");
         }
       });
       const [viaReader, direct] = await Promise.all([
@@ -274,7 +298,10 @@ describe("createRepoReader repoInfo", () => {
     const provider: AddonProvider = () => ({
       engineVersion: () => "fake",
       remoteUrl: async () => null,
-      loadRepoInfo: async () => JSON.stringify({ ...JSON.parse(payload), error: "partial" })
+      loadRepoInfo: async () => JSON.stringify({ ...JSON.parse(payload), error: "partial" }),
+      loadCommits: async () => {
+        throw new Error("Unsupported: commits not stubbed");
+      }
     });
     const result = await repoInfoReader("auto", provider);
 
@@ -290,7 +317,10 @@ describe("createRepoReader repoInfo", () => {
       const provider: AddonProvider = () => ({
         engineVersion: () => "fake",
         remoteUrl: async () => null,
-        loadRepoInfo: async () => text
+        loadRepoInfo: async () => text,
+        loadCommits: async () => {
+          throw new Error("Unsupported: commits not stubbed");
+        }
       });
       const result = await repoInfoReader("auto", provider);
 
@@ -307,6 +337,9 @@ describe("createRepoReader repoInfo", () => {
       remoteUrl: async () => null,
       loadRepoInfo: async () => {
         throw new Error("Git: corrupt object");
+      },
+      loadCommits: async () => {
+        throw new Error("Unsupported: commits not stubbed");
       }
     });
     const result = await repoInfoReader("auto", provider);
@@ -327,6 +360,242 @@ describe("createRepoReader repoInfo", () => {
     });
     expect(result.error?.message).toContain("corrupt object");
     expect(fallbackReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(false);
+  });
+});
+
+describe("createRepoReader loadCommits", () => {
+  const emptyPage = JSON.stringify({
+    commits: [],
+    head: null,
+    tags: [],
+    moreCommitsAvailable: false,
+    error: null
+  });
+
+  function commitArgs(overrides: Partial<LoadCommitsArgs> = {}): LoadCommitsArgs {
+    return {
+      branchName: "",
+      branches: null,
+      authors: null,
+      tags: null,
+      maxCommits: 100,
+      showRemoteBranches: true,
+      hiddenRemotes: [],
+      showTags: true,
+      includeReflog: false,
+      includeUnreachableCommits: false,
+      onlyFollowFirstParent: false,
+      commitOrdering: "date",
+      showSignature: false,
+      showStashes: false,
+      dateType: "Commit Date",
+      showUncommittedChanges: true,
+      repoPath: repoWithRemote,
+      git: simpleGit(repoWithRemote),
+      hard: false,
+      ...overrides
+    };
+  }
+
+  function commitsReader(
+    preference: "auto" | "git-cli",
+    addonProvider?: AddonProvider,
+    overrides: Partial<LoadCommitsArgs> = {}
+  ) {
+    return createRepoReader({ preference, gitPath: "git", addonProvider }).loadCommits(
+      commitArgs(overrides)
+    );
+  }
+
+  function directCli(overrides: Partial<LoadCommitsArgs> = {}) {
+    const args = commitArgs(overrides);
+    return loadCommits(simpleGit(repoWithRemote), {
+      branchName: args.branchName,
+      branches: args.branches,
+      authors: args.authors,
+      tags: args.tags,
+      maxCommits: args.maxCommits,
+      showRemoteBranches: args.showRemoteBranches,
+      hiddenRemotes: args.hiddenRemotes,
+      showTags: args.showTags,
+      includeReflog: args.includeReflog,
+      includeUnreachableCommits: args.includeUnreachableCommits,
+      onlyFollowFirstParent: args.onlyFollowFirstParent,
+      commitOrdering: args.commitOrdering,
+      showSignature: args.showSignature,
+      showStashes: args.showStashes,
+      hard: args.hard,
+      dateType: args.dateType,
+      showUncommittedChanges: args.showUncommittedChanges,
+      repo: args.repoPath
+    });
+  }
+
+  function engineProvider(payload: string): AddonProvider {
+    return () => ({
+      engineVersion: () => "fake",
+      remoteUrl: async () => null,
+      loadRepoInfo: async () => {
+        throw new Error("Unsupported: repoInfo not stubbed");
+      },
+      loadCommits: async () => payload
+    });
+  }
+
+  it("serves the CLI read untouched on the git-cli preference", async () => {
+    const provider = vi.fn<AddonProvider>(() => null);
+    const [viaReader, direct] = await Promise.all([
+      commitsReader("git-cli", provider),
+      directCli()
+    ]);
+
+    expect(provider).not.toHaveBeenCalled();
+    expect(viaReader).toEqual(direct);
+    expect(commitReads.count).toBe(2);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("uses the CLI when no addon is available", async () => {
+    const result = await commitsReader("auto", () => null);
+
+    expect(result.error).toBeNull();
+    expect(result.commits).toHaveLength(1);
+    expect(commitReads.count).toBe(1);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("serves an engine page without touching the CLI", async () => {
+    const result = await commitsReader("auto", engineProvider(emptyPage));
+
+    expect(result).toEqual({
+      commits: [],
+      head: null,
+      moreCommitsAvailable: false,
+      hard: false,
+      error: null
+    });
+    expect(commitReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(true);
+  });
+
+  it("moves the load from engine to CLI the moment the signature column is on", async () => {
+    const provider = vi.fn(engineProvider(emptyPage));
+
+    const served = await commitsReader("auto", provider);
+    expect(served.error).toBeNull();
+    expect(commitReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(true);
+
+    resetEngineServedRead();
+    const declined = await commitsReader("auto", provider, { showSignature: true });
+    expect(declined.error).toBeNull();
+    expect(declined.commits).toHaveLength(1);
+    expect(provider).toHaveBeenCalledTimes(1);
+    expect(commitReads.count).toBe(1);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it.each([
+    ["Author Date", { dateType: "Author Date" } as Partial<LoadCommitsArgs>],
+    ["reflog on a show-all load", { includeReflog: true } as Partial<LoadCommitsArgs>],
+    [
+      "unreachable discovery on a show-all load",
+      { includeUnreachableCommits: true } as Partial<LoadCommitsArgs>
+    ],
+    ["a --glob= pattern", { branches: ["--glob=feature/*"] } as Partial<LoadCommitsArgs>]
+  ])("declines %s to the CLI without loading the addon", async (_name, overrides) => {
+    const provider = vi.fn(engineProvider(emptyPage));
+    const result = await commitsReader("auto", provider, overrides);
+
+    expect(result.error).toBeNull();
+    expect(provider).not.toHaveBeenCalled();
+    expect(commitReads.count).toBe(1);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("keeps reflog and unreachable flags on the engine with explicit refs", async () => {
+    const result = await commitsReader("auto", engineProvider(emptyPage), {
+      branches: ["main"],
+      includeReflog: true,
+      includeUnreachableCommits: true
+    });
+
+    expect(result.error).toBeNull();
+    expect(commitReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(true);
+  });
+
+  it.each(["NotARepository: no git dir", "Unsupported: declined"])(
+    "falls back to the whole CLI read on %s",
+    async (message) => {
+      const provider: AddonProvider = () => ({
+        engineVersion: () => "fake",
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => {
+          throw new Error("Unsupported: repoInfo not stubbed");
+        },
+        loadCommits: async () => {
+          throw new Error(message);
+        }
+      });
+      const [viaReader, direct] = await Promise.all([
+        commitsReader("auto", provider),
+        directCli()
+      ]);
+
+      expect(viaReader).toEqual(direct);
+      expect(commitReads.count).toBe(2);
+      expect(didEngineServeRead()).toBe(false);
+    }
+  );
+
+  it("falls back to the whole CLI read on a reserved partial error", async () => {
+    const result = await commitsReader(
+      "auto",
+      engineProvider(JSON.stringify({ ...JSON.parse(emptyPage), error: "partial" }))
+    );
+
+    expect(result.error).toBeNull();
+    expect(result.commits).toHaveLength(1);
+    expect(commitReads.count).toBe(1);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it.each(["not json", "[1]", JSON.stringify({ ...JSON.parse(emptyPage), tags: [42] })])(
+    "surfaces malformed payloads as the read error without retrying",
+    async (text) => {
+      const result = await commitsReader("auto", engineProvider(text));
+
+      expect(result.commits).toEqual([]);
+      expect(result.error?.message).toContain("malformed commit data");
+      expect(commitReads.count).toBe(0);
+      expect(didEngineServeRead()).toBe(false);
+    }
+  );
+
+  it("surfaces genuine engine failures as the read error without retrying", async () => {
+    const provider: AddonProvider = () => ({
+      engineVersion: () => "fake",
+      remoteUrl: async () => null,
+      loadRepoInfo: async () => {
+        throw new Error("Unsupported: repoInfo not stubbed");
+      },
+      loadCommits: async () => {
+        throw new Error("Git: corrupt object");
+      }
+    });
+    const result = await commitsReader("auto", provider);
+
+    expect(result).toEqual({
+      commits: [],
+      head: null,
+      moreCommitsAvailable: false,
+      hard: false,
+      error: result.error
+    });
+    expect(result.error?.message).toContain("corrupt object");
+    expect(commitReads.count).toBe(0);
     expect(didEngineServeRead()).toBe(false);
   });
 });

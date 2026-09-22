@@ -17,6 +17,7 @@
 
 import type { SimpleGit } from "simple-git";
 
+import { loadCommits } from "@/backend/queries/loadCommits";
 import { emptyRepoInfo, loadRepoInfo } from "@/backend/queries/loadRepoInfo";
 import type { QueryResult } from "@/backend/types";
 import { getRemoteUrl } from "@/backend/utils/git";
@@ -25,6 +26,13 @@ import { toGitQueryError } from "@/backend/utils/queryError";
 import type { EngineBackend } from "@/types";
 
 import { type EngineAddon, loadEngineAddon } from "./addon";
+import {
+  buildLoadCommitsOptions,
+  type EngineLoadCommitsInput,
+  mapEngineCommitData,
+  parseEngineCommitData,
+  shouldServeLoadCommitsFromEngine
+} from "./commits";
 import { buildRepoInfoOptions, composeEngineRepoInfo, parseEngineRepoInfo } from "./repoInfo";
 
 /** How the reader loads the addon. The default is the real loader; tests inject fakes. */
@@ -42,12 +50,21 @@ export type RepoReader = {
   getRemoteUrl(repoPath: string): Promise<string | null>;
   /** The repository info for the graph header. Genuine engine failures surface as the read error. */
   loadRepoInfo(args: RepoInfoArgs): Promise<QueryResult<"loadRepoInfo">>;
+  /** One page of the graph. Genuine engine failures surface as the read error. */
+  loadCommits(args: LoadCommitsArgs): Promise<QueryResult<"loadCommits">>;
 };
 
 export type RepoInfoArgs = {
   repoPath: string;
   showStashes: boolean;
   git: SimpleGit;
+  recordGitCommand?: GitCommandRecorder;
+};
+
+export type LoadCommitsArgs = EngineLoadCommitsInput & {
+  repoPath: string;
+  git: SimpleGit;
+  hard: boolean;
   recordGitCommand?: GitCommandRecorder;
 };
 
@@ -88,7 +105,9 @@ export function createRepoReader(deps: RepoReaderDeps): RepoReader {
   return {
     getRemoteUrl: (repoPath: string) =>
       readRemoteUrl(deps.preference, deps.gitPath, provider, repoPath),
-    loadRepoInfo: (args: RepoInfoArgs) => readRepoInfo(deps.preference, provider, args)
+    loadRepoInfo: (args: RepoInfoArgs) => readRepoInfo(deps.preference, provider, args),
+    loadCommits: (args: LoadCommitsArgs) =>
+      readCommits(deps.preference, deps.gitPath, provider, args)
   };
 }
 
@@ -157,6 +176,84 @@ async function readRepoInfo(
       return {
         repoInfo: emptyRepoInfo(true),
         error: toGitQueryError(error, "Unable to load repository info")
+      };
+    }
+    return cliRead();
+  }
+}
+
+async function readCommits(
+  preference: EngineBackend,
+  gitPath: string,
+  provider: AddonProvider,
+  args: LoadCommitsArgs
+): Promise<QueryResult<"loadCommits">> {
+  const cliRead = (): Promise<QueryResult<"loadCommits">> =>
+    loadCommits(args.git, {
+      branchName: args.branchName,
+      branches: args.branches,
+      authors: args.authors,
+      tags: args.tags,
+      maxCommits: args.maxCommits,
+      showRemoteBranches: args.showRemoteBranches,
+      hiddenRemotes: args.hiddenRemotes,
+      showTags: args.showTags,
+      includeReflog: args.includeReflog,
+      includeUnreachableCommits: args.includeUnreachableCommits,
+      onlyFollowFirstParent: args.onlyFollowFirstParent,
+      commitOrdering: args.commitOrdering,
+      showSignature: args.showSignature,
+      showStashes: args.showStashes,
+      hard: args.hard,
+      dateType: args.dateType,
+      showUncommittedChanges: args.showUncommittedChanges,
+      repo: args.repoPath,
+      gitPath,
+      recordGitCommand: args.recordGitCommand
+    });
+  // The total no-op path: the addon is not even loaded.
+  if (preference === "git-cli") return cliRead();
+  // The pre-call declines: shapes the engine cannot serve go straight to
+  // the CLI, decided here and never by catching a failure.
+  if (!shouldServeLoadCommitsFromEngine(args)) return cliRead();
+  const addon = provider();
+  if (addon === null) return cliRead();
+  const showStashes = args.showStashes === true;
+  try {
+    const data = parseEngineCommitData(
+      await addon.loadCommits(args.repoPath, buildLoadCommitsOptions(args))
+    );
+    if (data === null) {
+      return {
+        commits: [],
+        head: null,
+        moreCommitsAvailable: false,
+        hard: args.hard,
+        error: toGitQueryError(
+          new Error("Engine returned malformed commit data"),
+          "Unable to load commits"
+        )
+      };
+    }
+    // The partial-error field is reserved (always null today): stay on the
+    // CLI behavior rather than guessing which half to trust.
+    if (data.error !== null) return cliRead();
+    engineServedRead = true;
+    return {
+      commits: mapEngineCommitData(data, showStashes),
+      head: data.head,
+      moreCommitsAvailable: data.moreCommitsAvailable,
+      hard: args.hard,
+      error: null
+    };
+  } catch (error: unknown) {
+    if (!isEngineFallbackError(error)) {
+      return {
+        commits: [],
+        head: null,
+        moreCommitsAvailable: false,
+        hard: args.hard,
+        error: toGitQueryError(error, "Unable to load commits")
       };
     }
     return cliRead();

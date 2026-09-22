@@ -51,7 +51,6 @@ import type { GitClient } from "@/backend/gitClient";
 import { commitComparison } from "@/backend/queries/commitComparison";
 import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadBranches } from "@/backend/queries/loadBranches";
-import { loadCommits } from "@/backend/queries/loadCommits";
 import { searchCommits } from "@/backend/queries/searchCommits";
 import { tagDetails } from "@/backend/queries/tagDetails";
 import { uncommittedDetails } from "@/backend/queries/uncommittedDetails";
@@ -534,7 +533,14 @@ export function registerMessageHandlers(
   // --- Query handlers ---
 
   bridge.onMessage("loadCommits", async (msg) => {
-    const result = await loadCommits(gitClient.getInstance(), {
+    // The preference is read live on every load, so flipping
+    // git-graph-libre.backend needs no reload. The reader serves from the
+    // engine where it can and the CLI elsewhere, with an identical shape.
+    const reader = createRepoReader({
+      preference: config.backend(),
+      gitPath: config.gitPath()
+    });
+    const result = await reader.loadCommits({
       branchName: msg.branchName,
       branches: msg.branches,
       authors: msg.authors,
@@ -552,8 +558,8 @@ export function registerMessageHandlers(
       hard: msg.hard,
       dateType: config.dateType(),
       showUncommittedChanges: config.showUncommittedChanges(),
-      repo: msg.repo,
-      gitPath: config.gitPath(),
+      repoPath: msg.repo,
+      git: gitClient.getInstance(),
       recordGitCommand
     });
 

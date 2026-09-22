@@ -38,6 +38,11 @@ export type EngineAddon = {
    * under this name). Options are the JSON built by `buildRepoInfoOptions`.
    */
   loadRepoInfo(repoPath: string, optionsJson: string): Promise<string>;
+  /**
+   * `load_commits` encoded as JSON (napi exposes Rust `load_commits` under
+   * this name). Options are the JSON built by `buildLoadCommitsOptions`.
+   */
+  loadCommits(repoPath: string, optionsJson: string): Promise<string>;
 };
 
 /**
@@ -132,11 +137,13 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     engineVersion?: unknown;
     remoteUrl?: unknown;
     loadRepoInfo?: unknown;
+    loadCommits?: unknown;
   };
   return (
     typeof candidate.engineVersion === "function" &&
     typeof candidate.remoteUrl === "function" &&
-    typeof candidate.loadRepoInfo === "function"
+    typeof candidate.loadRepoInfo === "function" &&
+    typeof candidate.loadCommits === "function"
   );
 }
 

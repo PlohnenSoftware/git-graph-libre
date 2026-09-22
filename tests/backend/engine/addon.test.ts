@@ -52,7 +52,8 @@ describe("engine addon loader", () => {
     const loaded = {
       engineVersion: () => EXPECTED_ENGINE_VERSION,
       remoteUrl: async () => null,
-      loadRepoInfo: async () => "{}"
+      loadRepoInfo: async () => "{}",
+      loadCommits: async () => "{}"
     };
     expect(validateLoadedAddon(loaded)).toBe(loaded);
   });
@@ -76,6 +77,14 @@ describe("engine addon loader", () => {
     [
       "a missing loadRepoInfo export",
       { engineVersion: () => EXPECTED_ENGINE_VERSION, remoteUrl: async () => null }
+    ],
+    [
+      "a missing loadCommits export",
+      {
+        engineVersion: () => EXPECTED_ENGINE_VERSION,
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => "{}"
+      }
     ],
     ["a missing engineVersion export", { remoteUrl: async () => null }],
     ["a null module", null],
