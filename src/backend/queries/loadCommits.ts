@@ -32,12 +32,13 @@ const gitLogSignatureFieldCount = 3;
 const gitRefFormatFieldSeparator = "%00";
 const gitRefOutputFieldSeparator = "\0";
 const gitRefFieldCount = 5;
-const gitRefSignedMarker = "1";
+export const gitRefSignedMarker = "1";
 /**
  * Collapses the multi-line `%(contents:signature)` block into a single token so
- * one ref still occupies exactly one output line.
+ * one ref still occupies exactly one output line. Shared with the engine
+ * seam's signed-tag fill, so both scans classify signatures identically.
  */
-const gitRefSignatureAtom = `%(if)%(contents:signature)%(then)${gitRefSignedMarker}%(else)0%(end)`;
+export const gitRefSignatureAtom = `%(if)%(contents:signature)%(then)${gitRefSignedMarker}%(else)0%(end)`;
 const gitCommitSignatureStatuses: Readonly<Record<string, GitCommitSignature["status"]>> = {
   G: "valid",
   U: "valid-untrusted",

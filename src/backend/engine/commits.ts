@@ -28,6 +28,7 @@
 
 import type { SimpleGit } from "simple-git";
 
+import { gitRefSignatureAtom } from "@/backend/queries/loadCommits";
 import type { CommitOrdering, DateType, GitCommitNode, GitRef } from "@/backend/types";
 import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
 import { selectedLogRefs, uniqueNonEmpty } from "@/backend/utils/logFilters";
@@ -434,6 +435,57 @@ export async function attachRemoteHeadLabels(
     return;
   }
   insertRemoteHeadLabels(nodes, parseRemoteHeadLabels(stdout), hiddenRemotes);
+}
+
+/**
+ * Tag names carrying a signature block, as the fill reads them. Only
+ * annotated tags can carry one, so every name here flips a badge the CLI
+ * would also show.
+ */
+export function parseSignedTagNames(stdout: string): string[] {
+  const signed: string[] = [];
+  for (const line of stdout.split(remoteHeadLineEndings)) {
+    if (line === "") continue;
+    const [refName = "", hasSignature = ""] = line.split("\0");
+    if (hasSignature !== "1" || !refName.startsWith("refs/tags/")) continue;
+    signed.push(refName.slice("refs/tags/".length));
+  }
+  return signed;
+}
+
+/** Flip the signed badge on the named tag labels. Unknown names are ignored. */
+export function applySignedTagNames(nodes: GitCommitNode[], signed: string[]): void {
+  if (signed.length === 0) return;
+  const names = new Set(signed);
+  for (const node of nodes) {
+    for (const ref of node.refs) {
+      if (ref.type === "tag" && names.has(ref.name)) ref.signed = true;
+    }
+  }
+}
+
+/**
+ * One narrow `for-each-ref` over `refs/tags` for the signature presence the
+ * engine never reports, reusing the loader's own signature atom so both
+ * scans classify identically. Same failure trade as the other fills: a
+ * failed scan keeps the page rather than failing the graph.
+ */
+export async function attachSignedTagNames(
+  fills: RemoteHeadFills,
+  nodes: GitCommitNode[]
+): Promise<void> {
+  let stdout: string;
+  try {
+    stdout = await runGitRaw(fills.git, {
+      label: "loadCommits.signedTags",
+      args: ["for-each-ref", `--format=%(refname)%00${gitRefSignatureAtom}`, "refs/tags"],
+      repo: fills.repo,
+      record: fills.recordGitCommand
+    });
+  } catch {
+    return;
+  }
+  applySignedTagNames(nodes, parseSignedTagNames(stdout));
 }
 
 /**

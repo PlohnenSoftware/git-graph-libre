@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applySignedTagNames,
   buildLoadCommitsOptions,
   engineLoadCommitsRefs,
   insertRemoteHeadLabels,
   mapEngineCommitData,
   parseEngineCommitData,
   parseRemoteHeadLabels,
+  parseSignedTagNames,
   shortStashRef,
   shouldServeLoadCommitsFromEngine,
   type EngineCommit,
@@ -233,6 +235,44 @@ describe("parseRemoteHeadLabels", () => {
       ""
     ].join("\n");
     expect(parseRemoteHeadLabels(stdout)).toEqual([{ hash: "a".repeat(40), name: "origin/HEAD" }]);
+  });
+});
+
+describe("parseSignedTagNames", () => {
+  it("keeps only signature-carrying lines under refs/tags", () => {
+    const stdout = [
+      `refs/tags/faketag\0${"1"}`,
+      `refs/tags/v1.0.0\0${"0"}`,
+      `refs/remotes/origin/main\0${"1"}`,
+      "garbage",
+      ""
+    ].join("\n");
+    expect(parseSignedTagNames(stdout)).toEqual(["faketag"]);
+  });
+});
+
+describe("applySignedTagNames", () => {
+  it("flips the badge on named tag labels and ignores the rest", () => {
+    const nodes: GitCommitNode[] = [
+      {
+        hash: "a".repeat(40),
+        parentHashes: [],
+        author: "Ada",
+        email: "ada@x.com",
+        date: 1,
+        message: "tip",
+        refs: [
+          { hash: "a".repeat(40), name: "main", type: "head" },
+          { hash: "a".repeat(40), name: "faketag", type: "tag", signed: false },
+          { hash: "a".repeat(40), name: "v1.0.0", type: "tag", signed: false }
+        ]
+      }
+    ];
+    applySignedTagNames(nodes, ["faketag", "missing"]);
+    expect(nodes[0]?.refs.map((ref) => ref.signed)).toEqual([undefined, true, false]);
+    const before = JSON.stringify(nodes);
+    applySignedTagNames(nodes, []);
+    expect(JSON.stringify(nodes)).toBe(before);
   });
 });
 
