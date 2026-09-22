@@ -18,7 +18,7 @@ export type StashQueryResult = {
   error: GitQueryError | null;
 };
 
-function parseStashIndex(ref: string): number | null {
+export function parseStashIndex(ref: string): number | null {
   const match = /^stash@\{(\d+)\}$/.exec(ref);
   if (match === null) return null;
   const index = Number.parseInt(match[1], 10);

@@ -32,7 +32,7 @@ type QueryValue<T> = {
   error: GitQueryError | null;
 };
 
-function emptyRepoInfo(isRepo: boolean): GitRepoInfo {
+export function emptyRepoInfo(isRepo: boolean): GitRepoInfo {
   return {
     isRepo,
     head: null,
@@ -136,7 +136,7 @@ async function isInsideWorkTree(git: SimpleGit, context: GitQueryContext): Promi
   }
 }
 
-async function loadHead(
+export async function loadHead(
   git: SimpleGit,
   context: GitQueryContext
 ): Promise<QueryValue<Pick<GitRepoInfo, "head" | "headCommit">>> {
@@ -171,7 +171,7 @@ async function loadHead(
   }
 }
 
-async function loadRemotes(
+export async function loadRemotes(
   git: SimpleGit,
   context: GitQueryContext
 ): Promise<QueryValue<GitRemote[]>> {
@@ -188,7 +188,7 @@ async function loadRemotes(
   }
 }
 
-async function loadAuthors(
+export async function loadAuthors(
   git: SimpleGit,
   context: GitQueryContext
 ): Promise<QueryValue<string[]>> {
@@ -219,7 +219,7 @@ async function loadTags(git: SimpleGit, context: GitQueryContext): Promise<Query
   }
 }
 
-function uniqueSortedLines(stdout: string) {
+export function uniqueSortedLines(stdout: string) {
   return [
     ...new Set(
       stdout
@@ -251,7 +251,7 @@ async function loadScopedConfig(
   }
 }
 
-async function loadConfig(
+export async function loadConfig(
   git: SimpleGit,
   context: GitQueryContext
 ): Promise<QueryValue<GitRepoConfig>> {
