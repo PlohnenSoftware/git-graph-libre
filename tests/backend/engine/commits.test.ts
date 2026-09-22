@@ -3,14 +3,17 @@ import { describe, expect, it } from "vitest";
 import {
   buildLoadCommitsOptions,
   engineLoadCommitsRefs,
+  insertRemoteHeadLabels,
   mapEngineCommitData,
   parseEngineCommitData,
+  parseRemoteHeadLabels,
   shortStashRef,
   shouldServeLoadCommitsFromEngine,
   type EngineCommit,
   type EngineCommitData,
   type EngineLoadCommitsInput
 } from "@/backend/engine/commits";
+import type { GitCommitNode } from "@/backend/types";
 
 const BASE: EngineLoadCommitsInput = {
   branchName: "",
@@ -217,6 +220,70 @@ describe("shortStashRef", () => {
   it("strips the whole-ref prefix the engine names", () => {
     expect(shortStashRef("refs/stash@{0}")).toBe("stash@{0}");
     expect(shortStashRef("stash@{2}")).toBe("stash@{2}");
+  });
+});
+
+describe("parseRemoteHeadLabels", () => {
+  it("keeps only symref lines under refs/remotes", () => {
+    const stdout = [
+      `${"a".repeat(40)}\0refs/remotes/origin/HEAD\0refs/remotes/origin/main`,
+      `${"a".repeat(40)}\0refs/remotes/origin/main\0`,
+      `${"b".repeat(40)}\0refs/heads/main\0refs/heads/main`,
+      "garbage",
+      ""
+    ].join("\n");
+    expect(parseRemoteHeadLabels(stdout)).toEqual([{ hash: "a".repeat(40), name: "origin/HEAD" }]);
+  });
+});
+
+describe("insertRemoteHeadLabels", () => {
+  const node = (): GitCommitNode => ({
+    hash: "a".repeat(40),
+    parentHashes: [],
+    author: "Ada",
+    email: "ada@x.com",
+    date: 1,
+    message: "tip",
+    refs: [
+      { hash: "a".repeat(40), name: "main", type: "head" },
+      { hash: "a".repeat(40), name: "origin/main", type: "remote" },
+      { hash: "a".repeat(40), name: "v1.0.0", type: "tag", signed: false }
+    ]
+  });
+
+  it("inserts in for-each-ref order among the remote labels", () => {
+    const nodes = [node()];
+    insertRemoteHeadLabels(nodes, [{ hash: "a".repeat(40), name: "origin/HEAD" }]);
+    expect(nodes[0]?.refs.map((ref) => `${ref.type}:${ref.name}`)).toEqual([
+      "head:main",
+      "remote:origin/HEAD",
+      "remote:origin/main",
+      "tag:v1.0.0"
+    ]);
+  });
+
+  it("inserts past off-page targets and duplicates", () => {
+    const nodes = [node()];
+    insertRemoteHeadLabels(nodes, [
+      { hash: "f".repeat(40), name: "origin/HEAD" },
+      { hash: "a".repeat(40), name: "origin/main" },
+      { hash: "a".repeat(40), name: "origin/HEAD" }
+    ]);
+    expect(nodes[0]?.refs.map((ref) => `${ref.type}:${ref.name}`)).toEqual([
+      "head:main",
+      "remote:origin/HEAD",
+      "remote:origin/main",
+      "tag:v1.0.0"
+    ]);
+  });
+
+  it("keeps hidden remotes hidden and ignores empty fills", () => {
+    const nodes = [node()];
+    insertRemoteHeadLabels(nodes, [{ hash: "a".repeat(40), name: "origin/HEAD" }], ["origin"]);
+    expect(nodes[0]?.refs).toHaveLength(3);
+    const before = JSON.stringify(nodes);
+    insertRemoteHeadLabels(nodes, []);
+    expect(JSON.stringify(nodes)).toBe(before);
   });
 });
 

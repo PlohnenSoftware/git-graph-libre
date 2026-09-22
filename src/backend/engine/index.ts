@@ -27,6 +27,7 @@ import type { EngineBackend } from "@/types";
 
 import { type EngineAddon, loadEngineAddon } from "./addon";
 import {
+  attachRemoteHeadLabels,
   buildLoadCommitsOptions,
   type EngineLoadCommitsInput,
   mapEngineCommitData,
@@ -238,9 +239,23 @@ async function readCommits(
     // The partial-error field is reserved (always null today): stay on the
     // CLI behavior rather than guessing which half to trust.
     if (data.error !== null) return cliRead();
+    const nodes = mapEngineCommitData(data, showStashes);
+    // The engine never records symbolic remote HEADs (`origin/HEAD`): one
+    // narrow scan attaches them in CLI order, but only when the page carries
+    // remote labels at all — a repository without remotes pays no spawn.
+    if (
+      args.showRemoteBranches &&
+      nodes.some((node) => node.refs.some((ref) => ref.type === "remote"))
+    ) {
+      await attachRemoteHeadLabels(
+        { git: args.git, repo: args.repoPath, recordGitCommand: args.recordGitCommand },
+        nodes,
+        args.hiddenRemotes
+      );
+    }
     engineServedRead = true;
     return {
-      commits: mapEngineCommitData(data, showStashes),
+      commits: nodes,
       head: data.head,
       moreCommitsAvailable: data.moreCommitsAvailable,
       hard: args.hard,

@@ -26,9 +26,12 @@
  *   revisions it cannot resolve instead of expanding the glob.
  */
 
+import type { SimpleGit } from "simple-git";
+
 import type { CommitOrdering, DateType, GitCommitNode, GitRef } from "@/backend/types";
+import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
 import { selectedLogRefs, uniqueNonEmpty } from "@/backend/utils/logFilters";
-import { normalizeHiddenRemotes } from "@/backend/utils/remoteRefs";
+import { isHiddenRemoteRef, normalizeHiddenRemotes } from "@/backend/utils/remoteRefs";
 
 /** The route fields the engine decision, options and (16.5b) mapping need. */
 export type EngineLoadCommitsInput = {
@@ -335,6 +338,102 @@ export function mapEngineCommitData(data: EngineCommitData, showStashes: boolean
     });
   }
   return nodes;
+}
+
+/** One remote `HEAD` symref target as the fill reads it. */
+export type RemoteHeadLabel = {
+  hash: string;
+  name: string;
+};
+
+const remoteHeadLineEndings = /\r\n|\r|\n/;
+
+/**
+ * Parse a `for-each-ref` symref scan over `refs/remotes`. Only symrefs carry
+ * a target, so a line with an empty third field is a plain ref the engine
+ * already recorded. Nothing here reimplements a CLI parse: the shape mirrors
+ * the loader's own ref records, narrowed to the symbolic labels.
+ */
+export function parseRemoteHeadLabels(stdout: string): RemoteHeadLabel[] {
+  const labels: RemoteHeadLabel[] = [];
+  for (const line of stdout.split(remoteHeadLineEndings)) {
+    if (line === "") continue;
+    const [hash = "", refName = "", symref = ""] = line.split("\0");
+    if (hash === "" || symref === "" || !refName.startsWith("refs/remotes/")) continue;
+    labels.push({ hash, name: refName.slice("refs/remotes/".length) });
+  }
+  return labels;
+}
+
+/**
+ * Attach remote `HEAD` symref labels to the nodes at their targets, in
+ * `for-each-ref` byte order among the node's remote labels. Hidden remotes
+ * stay hidden via the CLI's own predicate; labels whose target is off-page
+ * or already recorded are skipped.
+ */
+export function insertRemoteHeadLabels(
+  nodes: GitCommitNode[],
+  labels: RemoteHeadLabel[],
+  hiddenRemotes?: string[]
+): void {
+  if (labels.length === 0) return;
+  const byHash = new Map<string, GitCommitNode>();
+  for (const node of nodes) {
+    if (!byHash.has(node.hash)) byHash.set(node.hash, node);
+  }
+  for (const label of labels) {
+    if (isHiddenRemoteRef(label.name, hiddenRemotes)) continue;
+    const node = byHash.get(label.hash);
+    if (node === undefined) continue;
+    if (node.refs.some((ref) => ref.type === "remote" && ref.name === label.name)) continue;
+    const ref: GitRef = { hash: label.hash, name: label.name, type: "remote" };
+    const fullName = remoteRefName(label.name);
+    let index = node.refs.length;
+    for (let existingIndex = 0; existingIndex < node.refs.length; existingIndex++) {
+      const existing = node.refs[existingIndex];
+      if (
+        refSortRank(existing) > 1 ||
+        (refSortRank(existing) === 1 &&
+          compareRefNames(fullRefName(existing), fullName) > 0)
+      ) {
+        index = existingIndex;
+        break;
+      }
+    }
+    node.refs.splice(index, 0, ref);
+  }
+}
+
+export type RemoteHeadFills = {
+  git: SimpleGit;
+  repo: string;
+  recordGitCommand?: GitCommandRecorder;
+};
+
+/**
+ * One narrow `for-each-ref` over `refs/remotes` for the symbolic `HEAD`
+ * labels the engine never records, attached in CLI order. A failed scan
+ * resolves to no labels rather than a failed graph — the same trade the
+ * stash rows make: the engine served the page, and losing it over pendant
+ * labels would be the wrong trade.
+ */
+export async function attachRemoteHeadLabels(
+  fills: RemoteHeadFills,
+  nodes: GitCommitNode[],
+  hiddenRemotes?: string[]
+): Promise<void> {
+  let stdout: string;
+  try {
+    stdout = await runGitRaw(fills.git, {
+      label: "loadCommits.remoteHeads",
+      args: ["for-each-ref", "--format=%(objectname)%00%(refname)%00%(symref)", "refs/remotes"],
+      repo: fills.repo,
+      record: fills.recordGitCommand
+    });
+  } catch {
+    return;
+  }
+  insertRemoteHeadLabels(nodes, parseRemoteHeadLabels(stdout), hiddenRemotes);
 }
 
 /**
