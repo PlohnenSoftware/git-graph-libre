@@ -224,11 +224,47 @@ describe("mapEngineCommitData", () => {
       message: "second",
       refs: [
         { hash: "a".repeat(40), name: "main", type: "head" },
-        { hash: "a".repeat(40), name: "v1.0.0", type: "tag", signed: false },
-        { hash: "a".repeat(40), name: "origin/main", type: "remote" }
+        { hash: "a".repeat(40), name: "origin/main", type: "remote" },
+        { hash: "a".repeat(40), name: "v1.0.0", type: "tag", signed: false }
       ]
     });
     expect("signature" in (node ?? {})).toBe(false);
+  });
+
+  it("sorts labels into for-each-ref order regardless of wire order", () => {
+    const [node] = mapEngineCommitData(
+      {
+        ...PAGE,
+        commits: [
+          {
+            ...COMMIT,
+            heads: ["zebra", "alpha"],
+            tags: [
+              { name: "v1.0.0", annotated: false },
+              { name: "a-tag", annotated: true }
+            ],
+            remotes: [
+              { name: "origin/main", remote: "origin" },
+              { name: "origin/HEAD", remote: "origin" }
+            ]
+          }
+        ]
+      },
+      true
+    );
+    expect(node?.refs.map((ref) => `${ref.type}:${ref.name}`)).toEqual([
+      "head:alpha",
+      "head:zebra",
+      "remote:origin/HEAD",
+      "remote:origin/main",
+      "tag:a-tag",
+      "tag:v1.0.0"
+    ]);
+  });
+
+  it("mirrors the CLI root wart: no parents parses to [\"\"]", () => {
+    const [node] = mapEngineCommitData({ ...PAGE, commits: [{ ...COMMIT, parents: [] }] }, true);
+    expect(node?.parentHashes).toEqual([""]);
   });
 
   it("shapes stash rows like the CLI injection: blank author, null signature, short ref", () => {

@@ -244,14 +244,54 @@ function isStashRow(commit: EngineCommit, stash: EngineCommitStash): boolean {
   return commit.parents.length === 1 && commit.parents[0] === stash.baseHash;
 }
 
+const headRefName = (name: string): string => `refs/heads/${name}`;
+const remoteRefName = (name: string): string => `refs/remotes/${name}`;
+const tagRefName = (name: string): string => `refs/tags/${name}`;
+
+const refNameEncoder = new TextEncoder();
+
 /**
- * Map one engine page onto the project node shape. Ref labels keep the wire
- * order (probed in 16.5d); the CLI's `signature` key stays absent everywhere
- * except stash rows, which the CLI pins to null; in-place stash marks are
- * always stripped because the CLI never marks — it only injects rows.
+ * Byte order over UTF-8, the order `git for-each-ref` lists refnames in.
+ * Only reachable with non-ASCII refnames (every ASCII order agrees); kept
+ * exact so the seam never depends on the engine's scan order.
+ */
+function compareRefNames(a: string, b: string): number {
+  const left = refNameEncoder.encode(a);
+  const right = refNameEncoder.encode(b);
+  const shared = Math.min(left.length, right.length);
+  for (let index = 0; index < shared; index++) {
+    if (left[index] !== right[index]) return left[index] < right[index] ? -1 : 1;
+  }
+  return left.length - right.length;
+}
+
+/** `for-each-ref` sorts the whole ref set by refname, so every head sorts before every remote before every tag. */
+function refSortRank(ref: GitRef): number {
+  if (ref.type === "head") return 0;
+  if (ref.type === "remote") return 1;
+  return 2;
+}
+
+function fullRefName(ref: GitRef): string {
+  if (ref.type === "head") return headRefName(ref.name);
+  if (ref.type === "remote") return remoteRefName(ref.name);
+  return tagRefName(ref.name);
+}
+
+/**
+ * Map one engine page onto the project node shape. Ref labels are re-sorted
+ * into the CLI's `for-each-ref` order (the engine annotates heads, tags,
+ * remotes; the CLI lists heads, remotes, tags, each byte-sorted), so label
+ * order agrees by construction rather than by scan luck; the CLI's
+ * `signature` key stays absent everywhere except stash rows, which the CLI
+ * pins to null; in-place stash marks are always stripped because the CLI
+ * never marks — it only injects rows.
  *
- * Tag `signed` is provisionally false: the engine reports presence nowhere,
- * and 16.5d decides between a CLI fill and a recorded deviation.
+ * Two CLI parse artifacts are mirrored deliberately, so the parity table
+ * stays a strict `toEqual` and any future CLI change fails loudly instead of
+ * drifting silently: a root commit's parents are `[""]` (`"".split(" ")`),
+ * and tag `signed` is provisionally false (the engine reports presence
+ * nowhere — 16.5d decides between a CLI fill and a recorded deviation).
  */
 export function mapEngineCommitData(data: EngineCommitData, showStashes: boolean): GitCommitNode[] {
   const nodes: GitCommitNode[] = [];
@@ -272,22 +312,26 @@ export function mapEngineCommitData(data: EngineCommitData, showStashes: boolean
       });
       continue;
     }
+    const refs: GitRef[] = [
+      ...commit.heads.map((name): GitRef => ({ hash: commit.hash, name, type: "head" })),
+      ...commit.tags.map(
+        (tag): GitRef => ({ hash: commit.hash, name: tag.name, type: "tag", signed: false })
+      ),
+      ...commit.remotes.map(
+        (remote): GitRef => ({ hash: commit.hash, name: remote.name, type: "remote" })
+      )
+    ];
+    refs.sort(
+      (a, b) => refSortRank(a) - refSortRank(b) || compareRefNames(fullRefName(a), fullRefName(b))
+    );
     nodes.push({
       hash: commit.hash,
-      parentHashes: [...commit.parents],
+      parentHashes: commit.parents.length === 0 ? [""] : [...commit.parents],
       author: commit.author,
       email: commit.email,
       date: commit.date,
       message: commit.message,
-      refs: [
-        ...commit.heads.map((name): GitRef => ({ hash: commit.hash, name, type: "head" })),
-        ...commit.tags.map(
-          (tag): GitRef => ({ hash: commit.hash, name: tag.name, type: "tag", signed: false })
-        ),
-        ...commit.remotes.map(
-          (remote): GitRef => ({ hash: commit.hash, name: remote.name, type: "remote" })
-        )
-      ]
+      refs
     });
   }
   return nodes;
