@@ -88,6 +88,8 @@
     "engine:test": "cargo test --manifest-path engine/Cargo.toml --workspace",
     "engine:lint": "cargo clippy --manifest-path engine/Cargo.toml --workspace --all-targets -- -D warnings",
     "engine:fmt": "cargo fmt --manifest-path engine/Cargo.toml --all --check",
+    "engine:build": "node engine/scripts/build-addon.mjs",
+    "engine:smoke": "node engine/scripts/smoke-addon.mjs",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc -p ./src --noEmit --watch",
     "format": "biome format .",

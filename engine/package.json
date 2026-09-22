@@ -1,0 +1,10 @@
+{
+  "name": "git-graph-libre-engine",
+  "version": "1.0.24",
+  "private": true,
+  "license": "MIT",
+  "description": "Rust Git engine (napi) for Git Graph Libre. Built locally via pnpm run engine:build, never published.",
+  "napi": {
+    "binaryName": "git-graph"
+  }
+}
