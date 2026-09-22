@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   buildLoadCommitsOptions,
   engineLoadCommitsRefs,
+  mapEngineCommitData,
+  parseEngineCommitData,
+  shortStashRef,
   shouldServeLoadCommitsFromEngine,
+  type EngineCommit,
+  type EngineCommitData,
   type EngineLoadCommitsInput
 } from "@/backend/engine/commits";
 
@@ -129,5 +134,127 @@ describe("buildLoadCommitsOptions", () => {
     const options = JSON.parse(buildLoadCommitsOptions({ ...BASE, showTags: false }));
     expect(options.showTags).toBe(false);
     expect(options.showCommitsOnlyReferencedByTags).toBe(false);
+  });
+});
+
+const COMMIT: EngineCommit = {
+  hash: "a".repeat(40),
+  parents: ["b".repeat(40)],
+  author: "Ada",
+  email: "ada@x.com",
+  date: 1790090408,
+  message: "second",
+  heads: ["main"],
+  tags: [{ name: "v1.0.0", annotated: false }],
+  remotes: [{ name: "origin/main", remote: "origin" }],
+  stash: null
+};
+
+const STASH_ROW: EngineCommit = {
+  hash: "c".repeat(40),
+  parents: ["b".repeat(40)],
+  author: "Ada",
+  email: "ada@x.com",
+  date: 1790090500,
+  message: "On main: wip",
+  heads: [],
+  tags: [],
+  remotes: [],
+  stash: { selector: "refs/stash@{0}", baseHash: "b".repeat(40), untrackedFilesHash: null }
+};
+
+const PAGE: EngineCommitData = {
+  commits: [COMMIT, STASH_ROW],
+  head: "a".repeat(40),
+  tags: ["v1.0.0"],
+  branches: ["main"],
+  moreCommitsAvailable: false,
+  error: null
+};
+
+describe("parseEngineCommitData", () => {
+  it("decodes a complete payload", () => {
+    expect(parseEngineCommitData(JSON.stringify(PAGE))).toEqual(PAGE);
+  });
+
+  it("accepts a payload without the optional branch list", () => {
+    const { branches: _dropped, ...withoutBranches } = PAGE;
+    expect(parseEngineCommitData(JSON.stringify(withoutBranches))?.branches).toBeNull();
+  });
+
+  it.each(["not json", "[1]", "null", '"str"', "42"])("rejects %s", (text) => {
+    expect(parseEngineCommitData(text)).toBeNull();
+  });
+
+  it("rejects payloads with missing or mistyped fields", () => {
+    expect(parseEngineCommitData(JSON.stringify({ ...PAGE, commits: "x" }))).toBeNull();
+    expect(
+      parseEngineCommitData(
+        JSON.stringify({ ...PAGE, commits: [{ ...COMMIT, date: "yesterday" }] })
+      )
+    ).toBeNull();
+    expect(
+      parseEngineCommitData(
+        JSON.stringify({ ...PAGE, commits: [{ ...COMMIT, tags: [{ name: "v" }] }] })
+      )
+    ).toBeNull();
+    expect(parseEngineCommitData(JSON.stringify({ ...PAGE, head: 42 }))).toBeNull();
+    expect(parseEngineCommitData(JSON.stringify({ ...PAGE, moreCommitsAvailable: 0 }))).toBeNull();
+    const { error: _dropped, ...withoutError } = PAGE;
+    expect(parseEngineCommitData(JSON.stringify(withoutError))).toBeNull();
+  });
+});
+
+describe("shortStashRef", () => {
+  it("strips the whole-ref prefix the engine names", () => {
+    expect(shortStashRef("refs/stash@{0}")).toBe("stash@{0}");
+    expect(shortStashRef("stash@{2}")).toBe("stash@{2}");
+  });
+});
+
+describe("mapEngineCommitData", () => {
+  it("maps labels onto project refs and leaves the signature key absent", () => {
+    const [node] = mapEngineCommitData(PAGE, true);
+    expect(node).toEqual({
+      hash: "a".repeat(40),
+      parentHashes: ["b".repeat(40)],
+      author: "Ada",
+      email: "ada@x.com",
+      date: 1790090408,
+      message: "second",
+      refs: [
+        { hash: "a".repeat(40), name: "main", type: "head" },
+        { hash: "a".repeat(40), name: "v1.0.0", type: "tag", signed: false },
+        { hash: "a".repeat(40), name: "origin/main", type: "remote" }
+      ]
+    });
+    expect("signature" in (node ?? {})).toBe(false);
+  });
+
+  it("shapes stash rows like the CLI injection: blank author, null signature, short ref", () => {
+    const [, row] = mapEngineCommitData(PAGE, true);
+    expect(row).toEqual({
+      hash: "c".repeat(40),
+      parentHashes: ["b".repeat(40)],
+      author: "",
+      email: "",
+      date: 1790090500,
+      message: "On main: wip",
+      refs: [],
+      signature: null,
+      stash: { ref: "stash@{0}" }
+    });
+  });
+
+  it("drops stash rows and strips in-place marks when the caller did not opt in", () => {
+    const marked: EngineCommit = {
+      ...COMMIT,
+      parents: ["b".repeat(40), "d".repeat(40)],
+      stash: { selector: "refs/stash@{1}", baseHash: "b".repeat(40), untrackedFilesHash: null }
+    };
+    const nodes = mapEngineCommitData({ ...PAGE, commits: [marked, STASH_ROW] }, false);
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]).not.toHaveProperty("stash");
+    expect(nodes[0]).not.toHaveProperty("signature");
   });
 });

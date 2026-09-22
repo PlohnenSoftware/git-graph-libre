@@ -26,7 +26,7 @@
  *   revisions it cannot resolve instead of expanding the glob.
  */
 
-import type { CommitOrdering, DateType } from "@/backend/types";
+import type { CommitOrdering, DateType, GitCommitNode, GitRef } from "@/backend/types";
 import { selectedLogRefs, uniqueNonEmpty } from "@/backend/utils/logFilters";
 import { normalizeHiddenRemotes } from "@/backend/utils/remoteRefs";
 
@@ -87,6 +87,210 @@ export function shouldServeLoadCommitsFromEngine(input: EngineLoadCommitsInput):
   if (input.includeReflog === true) return false;
   if (input.includeUnreachableCommits === true) return false;
   return true;
+}
+
+/** One tag label as the engine encodes it. `annotated` marks the peeled record. */
+export type EngineCommitTag = {
+  name: string;
+  annotated: boolean;
+};
+
+/** One remote label as the engine encodes it. `remote` names the owning remote, if known. */
+export type EngineCommitRemote = {
+  name: string;
+  remote: string | null;
+};
+
+/** The stash attached to a wire commit: a row of its own above its base, or an in-place mark. */
+export type EngineCommitStash = {
+  selector: string;
+  baseHash: string;
+  untrackedFilesHash: string | null;
+};
+
+/** One commit as the engine encodes it. Ref order is the engine's scan order (see 16.5d). */
+export type EngineCommit = {
+  hash: string;
+  parents: string[];
+  author: string;
+  email: string;
+  date: number;
+  message: string;
+  heads: string[];
+  tags: EngineCommitTag[];
+  remotes: EngineCommitRemote[];
+  stash: EngineCommitStash | null;
+};
+
+/**
+ * `load_commits` decoded. `tags` and `branches` ride along for callers that
+ * need them; this read consumes neither (branch display stays on
+ * `loadBranches`, on the CLI), so they are carried, not mapped.
+ */
+export type EngineCommitData = {
+  commits: EngineCommit[];
+  head: string | null;
+  tags: string[];
+  branches?: string[] | null;
+  moreCommitsAvailable: boolean;
+  error: string | null;
+};
+
+function isStringList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item): item is string => typeof item === "string");
+}
+
+function isEngineCommitTag(value: unknown): value is EngineCommitTag {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { name?: unknown }).name === "string" &&
+    typeof (value as { annotated?: unknown }).annotated === "boolean"
+  );
+}
+
+function isEngineCommitRemote(value: unknown): value is EngineCommitRemote {
+  if (typeof value !== "object" || value === null) return false;
+  const { name, remote } = value as { name?: unknown; remote?: unknown };
+  return typeof name === "string" && (typeof remote === "string" || remote === null);
+}
+
+function isEngineCommitStash(value: unknown): value is EngineCommitStash {
+  if (typeof value !== "object" || value === null) return false;
+  const { selector, baseHash, untrackedFilesHash } = value as {
+    selector?: unknown;
+    baseHash?: unknown;
+    untrackedFilesHash?: unknown;
+  };
+  return (
+    typeof selector === "string" &&
+    typeof baseHash === "string" &&
+    (typeof untrackedFilesHash === "string" || untrackedFilesHash === null)
+  );
+}
+
+function isEngineCommit(value: unknown): value is EngineCommit {
+  if (typeof value !== "object" || value === null) return false;
+  const commit = value as Record<string, unknown>;
+  return (
+    typeof commit.hash === "string" &&
+    isStringList(commit.parents) &&
+    typeof commit.author === "string" &&
+    typeof commit.email === "string" &&
+    typeof commit.date === "number" &&
+    typeof commit.message === "string" &&
+    isStringList(commit.heads) &&
+    Array.isArray(commit.tags) &&
+    (commit.tags as unknown[]).every(isEngineCommitTag) &&
+    Array.isArray(commit.remotes) &&
+    (commit.remotes as unknown[]).every(isEngineCommitRemote) &&
+    (commit.stash === null || isEngineCommitStash(commit.stash))
+  );
+}
+
+/**
+ * Decode and validate an engine payload. Anything malformed is null — never
+ * a partial page the caller would have to second-guess.
+ */
+export function parseEngineCommitData(text: string): EngineCommitData | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const { commits, head, tags, branches, moreCommitsAvailable, error } =
+    parsed as Record<string, unknown>;
+  if (!Array.isArray(commits) || !(commits as unknown[]).every(isEngineCommit)) return null;
+  if (head !== null && typeof head !== "string") return null;
+  if (!isStringList(tags)) return null;
+  if (
+    branches !== undefined &&
+    branches !== null &&
+    !isStringList(branches as unknown)
+  ) {
+    return null;
+  }
+  if (typeof moreCommitsAvailable !== "boolean") return null;
+  if (error !== null && typeof error !== "string") return null;
+  return {
+    commits: commits as EngineCommit[],
+    head: head as string | null,
+    tags: tags as string[],
+    branches: (branches ?? null) as string[] | null,
+    moreCommitsAvailable,
+    error: error as string | null
+  };
+}
+
+/**
+ * The `stash@{n}` selector as the CLI contract carries it. The engine names
+ * the whole ref (`refs/stash@{0}`); selectors are never cached across
+ * refreshes because they renumber on drop/pop, so the short form is resolved
+ * fresh per load like the CLI's own rows.
+ */
+export function shortStashRef(selector: string): string {
+  return selector.startsWith("refs/") ? selector.slice("refs/".length) : selector;
+}
+
+/**
+ * Whether a stashed wire commit is a synthetic row above its base (the only
+ * parent is the base) rather than an in-place mark on a stash commit that is
+ * itself on screen. A stash commit always carries its index state as a second
+ * parent, so a single parent equal to the base is the row fingerprint.
+ */
+function isStashRow(commit: EngineCommit, stash: EngineCommitStash): boolean {
+  return commit.parents.length === 1 && commit.parents[0] === stash.baseHash;
+}
+
+/**
+ * Map one engine page onto the project node shape. Ref labels keep the wire
+ * order (probed in 16.5d); the CLI's `signature` key stays absent everywhere
+ * except stash rows, which the CLI pins to null; in-place stash marks are
+ * always stripped because the CLI never marks — it only injects rows.
+ *
+ * Tag `signed` is provisionally false: the engine reports presence nowhere,
+ * and 16.5d decides between a CLI fill and a recorded deviation.
+ */
+export function mapEngineCommitData(data: EngineCommitData, showStashes: boolean): GitCommitNode[] {
+  const nodes: GitCommitNode[] = [];
+  for (const commit of data.commits) {
+    const { stash } = commit;
+    if (stash !== null && isStashRow(commit, stash)) {
+      if (!showStashes) continue;
+      nodes.push({
+        hash: commit.hash,
+        parentHashes: [stash.baseHash],
+        author: "",
+        email: "",
+        date: commit.date,
+        message: commit.message,
+        refs: [],
+        signature: null,
+        stash: { ref: shortStashRef(stash.selector) }
+      });
+      continue;
+    }
+    nodes.push({
+      hash: commit.hash,
+      parentHashes: [...commit.parents],
+      author: commit.author,
+      email: commit.email,
+      date: commit.date,
+      message: commit.message,
+      refs: [
+        ...commit.heads.map((name): GitRef => ({ hash: commit.hash, name, type: "head" })),
+        ...commit.tags.map(
+          (tag): GitRef => ({ hash: commit.hash, name: tag.name, type: "tag", signed: false })
+        ),
+        ...commit.remotes.map(
+          (remote): GitRef => ({ hash: commit.hash, name: remote.name, type: "remote" })
+        )
+      ]
+    });
+  }
+  return nodes;
 }
 
 /**
