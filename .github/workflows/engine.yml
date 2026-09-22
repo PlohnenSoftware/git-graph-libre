@@ -1,0 +1,47 @@
+name: engine
+
+# Rust gate for `engine/` (Phase 16, slice 16.1). The extension's Biome and
+# SonarQube gates never see the engine — `sonar.sources` and Biome's
+# `includes` allowlist both miss it — so these four cargo commands are the
+# engine's own pre-commit gate. They run only when the engine changed.
+
+on:
+  push:
+    paths:
+      - "engine/**"
+      - ".github/workflows/engine.yml"
+  pull_request:
+    paths:
+      - "engine/**"
+      - ".github/workflows/engine.yml"
+
+jobs:
+  gate:
+    name: cargo check, test, clippy, fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+
+      - run: corepack enable
+
+      # `ubuntu-latest` ships a stable Rust toolchain, but clippy and rustfmt
+      # are not guaranteed components — ensure both before running the gate.
+      - name: Ensure clippy and rustfmt
+        run: rustup component add clippy rustfmt
+
+      - name: cargo check
+        run: pnpm run engine:check
+
+      - name: cargo test
+        run: pnpm run engine:test
+
+      - name: cargo clippy
+        run: pnpm run engine:lint
+
+      - name: cargo fmt
+        run: pnpm run engine:fmt
