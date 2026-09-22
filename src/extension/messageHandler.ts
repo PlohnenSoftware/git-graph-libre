@@ -46,6 +46,7 @@ import {
 } from "@/backend/actions/stash";
 import { addTag, deleteTag, pushAllTags, pushTag } from "@/backend/actions/tag";
 import { deleteUserDetails, editUserDetails } from "@/backend/actions/userConfig";
+import { didEngineServeRead } from "@/backend/engine/index";
 import type { GitClient } from "@/backend/gitClient";
 import { commitComparison } from "@/backend/queries/commitComparison";
 import { commitDetails } from "@/backend/queries/commitDetails";
@@ -578,7 +579,10 @@ export function registerMessageHandlers(
       // last `loadRepos` so a submodule discovered by a watcher tick mid-
       // session is not missed.
       repoPaths: Object.keys(repoManager.getRepos()),
-      repo: msg.repo
+      repo: msg.repo,
+      // The reader's session flag: true only when the engine actually served
+      // a read, so the signal means "installed and in effect", never a count.
+      engineServed: didEngineServeRead()
     });
 
     bridge.post({

@@ -41,6 +41,12 @@ export const VIEW_FEATURE_UNCOMMITTED_PANEL = "view.uncommittedDetails";
 /** A stash row was present in the loaded graph. */
 export const VIEW_FEATURE_STASH_ROWS = "view.stashRows";
 /**
+ * The Rust engine actually served a read this session. Reported, like every
+ * signal here, at most once per session with the fixed id as the whole
+ * payload — never a path, never a per-load count.
+ */
+export const VIEW_FEATURE_ENGINE_BACKEND = "view.engineBackend";
+/**
  * The staging panel actually grouped changes into folders — the tree mode is
  * selected *and* at least one change sits in a subdirectory, so a folder row
  * really rendered. A repository whose changes are all at the root would show a
@@ -67,6 +73,12 @@ export type CommitLoadFacts = {
   showsAllRefs: boolean;
   /** The commits the load produced, scanned for shown-feature markers. */
   commits: readonly Pick<GitCommitNode, "refs" | "stash">[];
+  /**
+   * Whether the engine has served any read so far this session (the reader's
+   * session flag, read at the call site). True reports the engine signal;
+   * false reports nothing — the CLI path is the default, not a feature.
+   */
+  engineServed: boolean;
   /**
    * Every repository currently in the dropdown, and the one this load is for.
    *
@@ -156,6 +168,7 @@ export function createViewFeatureReporter(
       if (!reported.has(VIEW_FEATURE_STASH_ROWS) && hasStashRows(facts.commits)) {
         reportOnce(VIEW_FEATURE_STASH_ROWS);
       }
+      if (facts.engineServed) reportOnce(VIEW_FEATURE_ENGINE_BACKEND);
       // Submodules are a shown feature as well: discovery puts them in the
       // repository dropdown as indented entries and there is no command
       // behind them, so neither action chokepoint can see them. Two signals

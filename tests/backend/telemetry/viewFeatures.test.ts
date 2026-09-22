@@ -4,6 +4,7 @@ import type { GitRef } from "@/backend/types";
 import {
   createViewFeatureReporter,
   INGEST_FEATURE_NAME_PATTERN,
+  VIEW_FEATURE_ENGINE_BACKEND,
   VIEW_FEATURE_REFLOG,
   VIEW_FEATURE_SIGNED_TAG,
   VIEW_FEATURE_STASH_ROWS,
@@ -42,7 +43,8 @@ const quietLoad = {
   showsAllRefs: true,
   commits: [commitWith(branch)],
   repoPaths: [PARENT_REPO],
-  repo: PARENT_REPO
+  repo: PARENT_REPO,
+  engineServed: false
 };
 
 describe("view feature reporting", () => {
@@ -138,6 +140,20 @@ describe("view feature reporting", () => {
     expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_STASH_ROWS, ok: true }]);
   });
 
+  it("reports the engine backend only when the engine actually served", () => {
+    const spy = createTelemetrySpy();
+    const reporter = createViewFeatureReporter(spy.telemetry);
+
+    reporter.recordCommitLoad(quietLoad);
+    expect(spy.sent).toEqual([]);
+
+    reporter.recordCommitLoad({ ...quietLoad, engineServed: true });
+    expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_ENGINE_BACKEND, ok: true }]);
+
+    reporter.recordCommitLoad({ ...quietLoad, engineServed: true });
+    expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_ENGINE_BACKEND, ok: true }]);
+  });
+
   it("reports an offered submodule without reporting an active one", () => {
     const spy = createTelemetrySpy();
 
@@ -225,7 +241,8 @@ describe("view feature reporting", () => {
       showsAllRefs: true,
       commits: [commitWith(signedTag)],
       repoPaths: [PARENT_REPO, SUBMODULE_REPO],
-      repo: SUBMODULE_REPO
+      repo: SUBMODULE_REPO,
+      engineServed: false
     };
 
     reporter.recordCommitLoad(busyLoad);
@@ -295,6 +312,7 @@ describe("view feature reporting", () => {
       reporter.recordCommitLoad({
         includeReflog: true,
         includeUnreachableCommits: true,
+        engineServed: false,
         showsAllRefs: true,
         commits: [commitWith(signedTag)],
         repoPaths: [PARENT_REPO, SUBMODULE_REPO],
@@ -308,6 +326,7 @@ describe("view feature reporting", () => {
   // so a malformed id here would silently drop up to 25 unrelated events.
   it.each([
     VIEW_FEATURE_UNCOMMITTED_TREE,
+    VIEW_FEATURE_ENGINE_BACKEND,
     VIEW_FEATURE_REFLOG,
     VIEW_FEATURE_UNREACHABLE,
     VIEW_FEATURE_SIGNED_TAG,
