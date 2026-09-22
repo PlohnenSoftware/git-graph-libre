@@ -5,6 +5,38 @@ All notable changes to this extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - 2026-09-22
+
+### Fixed
+
+- **A repository's own subfolders are no longer offered as separate
+  repositories.** The check behind repository discovery asked Git whether a
+  path was *inside* a working tree, which is true of every subfolder of one.
+  A folder created inside an already-open repository — `src/`, `internal/`,
+  `web/` and the like — could therefore be registered as a repository in its
+  own right in the dropdown, and stayed there, because the same check also
+  backed the periodic validation that would otherwise have dropped it. It now
+  asks for the working tree's root and compares that instead. Both paths are
+  reduced to a canonical form first, so a repository opened through a symlink,
+  on a Windows drive letter whose case differs, or with a trailing separator
+  is still recognized. Thanks to [Arezim](https://github.com/Arezim), who
+  contributed this fix in
+  [#9](https://github.com/PlohnenSoftware/git-graph-libre/pull/9).
+
+### Changed
+
+- The README's licensing link pointed at a document that had never been in the
+  repository. It now points at [NOTICE.md](NOTICE.md), which carries the
+  licensing strategy and the provenance of the incorporated MIT material, and
+  at [LICENSE.mit](LICENSE.mit), which carries the preserved MIT notices and
+  the per-era contributor rosters.
+- A development test fixture built a real repository with tag signing disabled
+  but commit signing left alone, so on a machine configured to sign every
+  commit it waited on an interactive passphrase prompt rather than running.
+  Nothing about the extension changes. Thanks to
+  [Arezim](https://github.com/Arezim), who contributed this fix in
+  [#8](https://github.com/PlohnenSoftware/git-graph-libre/pull/8).
+
 ## [1.6.1] - 2026-09-17
 
 ### Changed
@@ -645,7 +677,8 @@ system. Includes everything prepared for 1.5.1, which was never released.
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.1...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.2...HEAD
+[1.6.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.4.2...v1.5.0

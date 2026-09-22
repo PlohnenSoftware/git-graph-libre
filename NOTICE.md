@@ -32,6 +32,7 @@ rosters in [LICENSE.mit](LICENSE.mit) instead):
 
   Krzysztof Zabłocki (Zamkorus, PlohnenSoftware)   2026-07-01 to present
   Kristjan ESPERANTO                               2026-08-22
+  Arezimt (Arezim)                                 2026-09-22
 
 Deliberately **not** recorded in [LICENSE.mit](LICENSE.mit): that file
 preserves the MIT notices and the rosters of the MIT-licensed material this

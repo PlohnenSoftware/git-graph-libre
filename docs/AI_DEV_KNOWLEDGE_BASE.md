@@ -3977,6 +3977,286 @@ condition was not reported because
 `sonar.projectVersion` advanced `1.6.0` → `1.6.1` with the package version, so
 this analysis measures the whole delta since the last analyzed version.
 
+## Pull request review — #8 and #9, released as `1.6.2` (`2026-09-22`)
+
+Two pull requests from the same outside contributor (Arezim,
+`Arezimt <arezimt@gmail.com>`), both branched on `main` and both green
+on the `ZAM` gate as pushed. **One of them was still broken**, which is the
+`2026-09-05` lesson repeating: the gate cannot see a comparison that is wrong
+for paths no test exercises. Read the feature, not just the result.
+
+### PR #8 — `commit.gpgsign` in the fetch-tags fixture
+
+One line, correct, merged. The `fetchTags` test in
+`tests/webview/messageHandler.test.ts` hand-rolls its own repository with
+`cp.execFileSync("git", ["init", …])` instead of using `makeRepo()`, and set
+only `tag.gpgsign false`. With the maintainer's global `commit.gpgsign true`,
+its `git commit -m init` waits on a pinentry prompt.
+
+**It does not weaken signature coverage, and the reason is worth knowing
+before anyone else asks the same question.** The tests that exercise signing
+never consult git's signing configuration at all — they synthesize signed
+objects directly:
+
+- `tests/backend/queries/loadCommits/signedTags.test.ts` writes a
+  signature-bearing tag object with `git mktag` and points a ref at it with
+  `update-ref`.
+- `tests/backend/queries/loadCommits/unverifiedSignatures.test.ts` writes a
+  commit carrying a `gpgsig -----BEGIN SSH SIGNATURE-----` header through
+  `git hash-object -t commit -w --stdin`.
+- `tests/backend/actions/tag/add.test.ts` sets `tag.gpgsign **true**` on its
+  own repository on purpose, to prove BUG-3's `--no-sign`.
+
+So no fixture's signing configuration can make a signature test pass
+vacuously, and `git config` without `--global` cannot reach outside the one
+`mkdtemp` directory it is run in. Follow-up not taken: that fixture should use
+`makeRepo()` (`tests/backend/helpers.ts`), which sets both keys, rather than
+hand-rolling a repository.
+
+### PR #9 — repository discovery, right diagnosis and a broken comparison
+
+The defect it reports is real, and was confirmed before anything was changed:
+`checkIsRepo()` with no argument falls through to
+`["rev-parse", "--is-inside-work-tree"]` in `node_modules/simple-git`, and a
+probe against unmodified `main` showed a subdirectory of a repository
+answering `true`. Discovery masks this because the top-down scan stops at the
+first hit, but the workspace watcher calls the search directly on whatever
+directory it just saw created.
+
+The fix compared `git rev-parse --show-toplevel` against the queried path as
+**raw strings**, and that is wrong in three ways that have nothing to do with
+being different directories:
+
+- **Symlinks.** `--show-toplevel` prints the *physical* path. Reproduced
+  against git `2.55.0`: a repository opened through a symlink answered
+  `false`, where the `checkIsRepo()` being replaced answered `true`. This
+  project performs no `realpath` normalization anywhere — `grep -rn realpath
+  src/` returns nothing — so there was no second line of defence.
+- **Drive-letter case.** `getPathFromUri` is
+  `uri.fsPath.replaceAll("\\", "/")`, and `Uri.fsPath` lower-cases the drive
+  letter while git prints it as the filesystem stores it. `"C:/…" === "c:/…"`
+  is false, so **every** repository on Windows would have failed the check.
+- **Trailing separators**, for a path that arrived through `path.join` rather
+  than `getPathFromUri`.
+
+**Answering `false` here is not a harmless miss.** `isGitRepository()` backs
+three call sites — `repoSearch.ts` (discovery), the not-a-repository answer in
+`loadBranches`, and `repoManager`'s periodic "does this repository still
+exist" validation — so a false negative removes the repository from the
+dropdown *and* keeps it out.
+
+Fixed in `e1668f9` with `canonicalizePath()`, applied to both sides.
+It is exported rather than private because the Windows shapes are pure string
+normalization and can only be covered from a Linux or macOS run by driving
+them directly. Note also that the branch's own new tests would have **failed
+on macOS**: `os.tmpdir()` lives under `/var`, itself a symlink to
+`/private/var`.
+
+**`typescript:S8786` caught a ReDoS in the fix itself, and this is its third
+appearance.** The first version trimmed trailing separators with `/\/+$/`; a
+`+` against an end anchor backtracks super-linearly, and these paths come from
+whatever workspace the user opened. The gate came back **ERROR** on
+`software_quality_reliability_issues` `1`. Replaced with a linear scan that
+also keeps the filesystem root as `/`. The rule to carry forward: **no
+quantifier-before-anchor regex on a path or a config line that came from the
+user's disk** — it flagged the `.gitmodules` reader when PR #1 was merged
+(`1.4.2`) and it flagged this.
+
+Verification (`2026-09-22`), all three trees:
+
+| Tree | strict Biome | `test` | Sonar task | `ZAM` | `new_coverage` |
+| --- | --- | --- | --- | --- | --- |
+| PR #8 as pushed | clean | 479 / 500 | `f6501c34` | `OK` | `100.0` |
+| PR #9 as pushed | **FAIL** | 481 / 500 | `f3848b99` | `OK` | `100.0` |
+| PR #9 + fix | clean | 488 / 500 | `12096efb` | `OK` | `100.0` |
+
+`new_violations` `0`, duplication `0.0` and all four project-wide conditions
+`0` on the first and third; the middle scan is the one whose gate passed while
+the branch was broken. Windows `PREVIOUS_VERSION` `1.6.0` throughout, new
+security hotspots to review `0`. `package`, `l10n:check` (100%, all four
+locales) and fresh `test:coverage` (109 files / 988 tests on the fixed tree)
+all passed.
+
+The new coverage was confirmed by mutation: restoring the raw comparison fails
+the symlink and trailing-separator cases.
+
+**The strict-Biome failure on PR #9 was pre-existing on `main`** — the import
+block of `tests/backend/utils/isGitRepository.test.ts` was already unsorted
+and the branch added `node:path` into it. Whole-tree `pnpm run lint` passes
+either way, because the migration config carries no import-order assist; that
+is the `2026-09-07` note repeating. Fixed in the same push under the
+touched-files rule.
+
+### Two environment facts recorded while doing this
+
+- **A Rust toolchain is now installed**: `rustup` from `pacman` with a stable
+  toolchain (`rustc`/`cargo` `1.98.1`) in `~/.rustup`. `rustup` and the distro
+  `rust` package **conflict** on Arch — `rustup` declares
+  `Conflicts With: rust cargo rustfmt` and owns `/usr/bin/cargo` as a shim —
+  so `rustup default stable` is the only way to make the installed package
+  functional, and it is also the one that keeps `rustup target add` for
+  cross-compilation.
+- **`tests/backend/utils` has a latent flaky test**, unrelated to any slice
+  that happens to hit it. `queries.rs`'s
+  `a_bare_repository_has_no_upstream_and_no_submodules` (in the engine
+  repository, see the next section) fails intermittently under load with
+  `git clone --bare` reporting `fatal: unknown error occurred while reading
+  the configuration files`. Cause: the `TestRepo` harness sets
+  `.env("HOME", …)` on every git call **except** that one `git clone`, which
+  therefore reads the real `~/.gitconfig`. The same shape of bug is worth
+  checking for in this repository's own fixtures.
+
+## Evaluating the Rust engine of `vscode-git-graph-rs` (`2026-09-22`)
+
+The maintainer asked whether the Rust engine of
+[`neophack/vscode-git-graph-rs`](https://github.com/neophack/vscode-git-graph-rs)
+could be adopted, and whether that project's licensing is safe to build on.
+Nothing has been adopted. This section is the record so the next attempt
+starts from findings rather than a fresh survey.
+
+### Licensing verdict
+
+**`src/` and `web/` are unusable — 41,543 lines under a licence that forbids
+redistribution.** That project's own `LICENSE` says the webview and
+extension-host layers are ported from Git Graph by mhutchie and governed by
+`licenses/LICENSE_GIT_GRAPH`, whose text reads *"Permission is NOT GRANTED to
+publish, distribute, sublicense, and/or sell derivative works of the
+Software."* Every post-MIT surface is present (`pullRequests.ts`,
+`askpass/*`, code review, worktrees, `openExternalDirDiff`). Treat that tree
+the way the Mission section treats any non-MIT material: do not read it for
+implementation, do not copy from it, do not merge it.
+
+Two details worth carrying:
+
+- Their `package.json` declares `"license": "MIT"` for the whole extension and
+  they publish to both registries. The package metadata is not evidence of
+  anything.
+- Their initial commit is titled *"…the Gerrit integration removed"* and a
+  later one *"re-port the Gerrit integration"*, but mhutchie's Git Graph has
+  no Gerrit support. What they ported was a Gerrit-carrying derivative they
+  attribute to mhutchie, so the provenance chain is murkier than their
+  `LICENSE` states.
+
+**`native/` is MIT and may come in — with one carve-out.** The workspace
+declares `license = "MIT"` and the root `LICENSE` names "the Rust native
+engine (./native/)" among its Original Contributions, Copyright (c) 2026
+penghongxia. MIT into AGPL is the direction the Mission section allows.
+However **`native/core/src/gerrit.rs` is not clean**, by its own module
+documentation: *"The classification below is a faithful port of the parser
+that ran on the extension host (see `src/gerrit.ts`), case for case"* — and
+`src/gerrit.ts` is inside the restricted tree. It arrived in `d625ec3`,
+**later** than the initial import, which is the pattern to expect: their
+engine absorbs code from the restricted layer over time. Any future sync is a
+manual licence audit, not a merge.
+
+`native/core/src/types.rs` is a second, much milder case: it states that every
+struct "serialises to exactly the shape the existing webview already consumes
+(see the shared types in `src/types` in the original extension)". That is
+interface compatibility rather than copied expression, and most of the names
+(`GitCommit`, `GitRef`, `GitStash`, `UNCOMMITTED`) predate the MIT boundary
+anyway — but the free fix is to define this project's own serde shapes against
+`GitCommitNode`/`GitRef` and not carry theirs across.
+
+**`neophack/git-graph-studio`**: everything committed to that repository is
+original (a Tauri 2 desktop workbench) and MIT, but its *built products* embed
+the restricted webview from the `vscode-git-graph-rs` submodule. Nothing in it
+is useful to a VS Code extension. Its only relevance is as proof that
+`native/core`'s `api::Engine` works as a standalone library.
+
+### Should the engine be adopted? Not wholesale
+
+The engine is good work — roughly 4,800 lines with its own 3,700-line `cargo
+test` suite, a deliberate "one type, one file" library facade in `api.rs`, and
+the lane layout left in the webview (so it is *not* a port of mhutchie's
+`graph.ts`). Their measured numbers, on a 10,000-commit synthetic repository:
+view load `429.7 ms` → `96.5 ms`, `getCommitDetails` `125.7 ms` → `0.7 ms`,
+`getConfig` `69.6 ms` → `0.1 ms`. The gap is the process-spawn floor
+(~40–70 ms per `git` on Windows) and it does not shrink as repositories grow.
+
+**The costs land badly for this project, and the decisive one is feature
+coverage, not effort.** The three things that distinguish this fork are
+exactly what the engine declines:
+
+- `repository.includeReflog` → the engine answers `Unsupported` for reflog
+  tips and falls back to the CLI.
+- `repository.includeUnreachableCommits` (`git fsck --unreachable`) → **no
+  equivalent at all**.
+- Signature status → the engine reads signature *presence* only and leaves
+  engine-only installations at status `E`. The `1.2.0` `parseGpgsigPresence`
+  work, which distinguishes genuinely unsigned from SSH-signed-but-unverifiable,
+  has no counterpart.
+- `customBranchGlobPatterns` → `--glob=` is declined.
+- The staging panel and every write stay on the CLI regardless; gix has no
+  `push`.
+
+The one clean fit is stashes: their `GitStash.base_hash` maps onto this
+project's `sourceHash`.
+
+Against that: six target triples each needing their own link environment (MSVC
+plus the Windows SDK, a separate ARM64 CRT, `cargo-xwin`, `cargo-zigbuild` and
+zig, Xcode — see their `docs/DEPENDENCIES.md`), per-platform VSIXs where there
+is now one `263 KB` artifact from one job, a second quality-gate toolchain that
+`sonar.sources` and Biome do not cover, and a dual-backend architecture whose
+two implementations must be proven to agree. **Nothing in the roadmap or the
+bug backlog reports the graph as slow.**
+
+**Recommendation on record: do not adopt wholesale.** If the performance is
+ever wanted, the proportionate route is a bounded experiment — vendor the
+engine minus Gerrit behind this project's own seam for `loadRepoInfo`,
+`loadCommits` and `commitDetails` only, keep `gitRunner` as the sole path for
+reflog, unreachable commits, signature verification, glob patterns and every
+write, ship it off by default on one platform, and measure before committing
+to the build matrix.
+
+### The filtered engine repository, prepared but not merged
+
+At the maintainer's request the engine was extracted to
+`../git-graph-engine` (a sibling of this repository, not yet merged). What it
+is, so nobody has to re-derive it:
+
+- **52 commits**, filtered from the 154 of `611a8fa`…`f93e8b2`
+  (`2026-08-22`…`2026-09-21`). The 49 that carried engine content keep their
+  original authors and author dates — penghongxia (31), neophack (14),
+  unusuallman (4); the other three are the maintainer's.
+- **Every commit is signed and the committer is the maintainer.** Signing was
+  done with `git filter-branch --commit-filter 'git commit-tree -S "$@"'`
+  rather than a rebase, so the two merge commits survive.
+- **Excluded from every commit, not merely from the tip**: the whole
+  TypeScript extension layer, `native/core/src/gerrit.rs` and its test, the
+  upstream root `LICENSE`, and the entire `licenses/` directory. Audited by
+  walking every tree of every commit.
+- **The imported commits keep the upstream directory layout**, deliberately,
+  so any one of them can be diffed against `neophack/vscode-git-graph-rs` to
+  verify exactly what was taken — confirmed by hashing `log.rs`, `status.rs`,
+  `node/src/lib.rs` and `Cargo.lock` against their upstream counterparts. A
+  single later commit re-homes the tree under `engine/`; `git log` on a moved
+  file therefore needs `--follow` to reach back past it.
+- **`engine/NOTICE.md`** carries what the removed licence files legitimately
+  held: penghongxia's verbatim MIT copyright line and permission notice (which
+  MIT requires be included in all copies), the provenance and authorship, the
+  exclusion list with the Gerrit reasoning, and the crate-attribution
+  obligation.
+- Verified with the toolchain above: `cargo check --workspace --all-targets`
+  clean with **zero warnings**, `cargo test --workspace` **101 passed, 0
+  failed**.
+
+**Two things are still owed if it is ever merged**, both required by the
+Mission section rather than optional: `LICENSE.mit` gains the three engine
+authors and the boundary commit, and `NOTICE.md` gains a section pointing at
+`engine/NOTICE.md`. Shipping a compiled `git-graph.node` additionally requires
+attributing the ~175 statically linked crates (`MIT OR Apache-2.0`, plus
+`zlib-rs` under Zlib and a BSD-3-Clause component in `encoding_rs`), including
+the Apache-2.0 §4(d) notice for binary redistribution; `cargo about generate`
+produces that inventory.
+
+**Layout decision, if it is merged**: under `engine/`, not at the repository
+root. Beyond keeping the licence boundary a directory rather than a file list,
+there is a concrete gate reason — `sonar.sources=src,scripts,esbuild.js` names
+`scripts` as a directory, so a root-level merge would put the engine's
+418-line `build-addon.mjs` (which calls `spawnSync(…, { shell: true })`, a
+security hotspot) into analysis, where it would count against the gate on
+whatever unrelated slice was scanned next.
+
 ## Near-Term Work Order
 
 Maintainer-set priority (`2026-08-25`): **the Immediate TODOs bug backlog above
