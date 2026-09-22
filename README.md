@@ -41,9 +41,9 @@ toolchain.
 From version 1.0.0 the project is licensed under the GNU AGPL-3.0-or-later.
 Copyleft guarantees this fork stays open: anyone may redistribute or build on
 it, but every distributed or network-hosted derivative must keep its complete
-source available under the same terms. See
-[docs/LICENSING.md](docs/LICENSING.md) for the full licensing strategy and
-provenance.
+source available under the same terms. See [NOTICE.md](NOTICE.md) for the
+full licensing strategy and provenance, and [LICENSE.mit](LICENSE.mit) for
+the preserved MIT notices and contributor rosters.
 
 ## Installation
 
