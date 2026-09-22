@@ -731,7 +731,7 @@ together):
 | 13 Settings hub: tabbed widget, color editor, settings export | Complete |
 | 14 Reveal highlight: persistent blink and configurable color | Complete |
 | 15 Tag surfaces: signed-tag distinction and remote tag deletion | Complete |
-| 16 Rust engine backend | In progress (`2026-09-22`) — 16.1–16.3 done, 16.4 next; slices 16.1–16.9 below |
+| 16 Rust engine backend | In progress (`2026-09-22`) — 16.1–16.4 done, 16.5 next; slices 16.1–16.9 below |
 | Immediate TODOs bug backlog (BUG-1 … BUG-6, `2026-08-25`) | Complete (`2026-08-25`; see the per-entry implementation records) |
 
 ### Phase 0: Guardrails and Baseline
@@ -2076,7 +2076,7 @@ Test notes for future slices:
 
 ### Phase 16: Rust Engine Backend
 
-**Status: in progress (`2026-09-22`) — slices 16.1–16.3 done, 16.4 next.** The engine's source and its
+**Status: in progress (`2026-09-22`) — slices 16.1–16.4 done, 16.5 next.** The engine's source and its
 52-commit history live on `rusty` under `engine/`; see "Evaluating the Rust
 engine of `vscode-git-graph-rs`" for what it is, what was excluded, and why it
 was not adopted wholesale. **Nothing in the extension reads it yet.** This
@@ -2322,6 +2322,32 @@ against several CLI invocations, and the first slice where mapping matters.
 
 Acceptance: the graph opens identically on both backends for every case above;
 parity test green; no change to `loadBranches`.
+
+Implementation record (`2026-09-22`, four subslice commits, all signed):
+
+- 16.4b `src/backend/engine/repoInfo.ts`: options builder (only
+  `showStashes` threaded; the ref options take engine defaults),
+  strict payload guard, stash mapping through the CLI's own
+  `parseStashIndex`, composition from engine head/tags/stashes plus the
+  CLI fills (headCommit, authors, remotes with push URLs, config —
+  exported for the seam). Tags go through the CLI's own sorter, so every
+  locale matches by construction.
+- 16.4c reader `loadRepoInfo` with the 16.3 routing shape, the
+  `loadRepoInfo` route reading the preference live, and the loader
+  refusing binaries without the new export. Nine routing cases with a
+  counted CLI module.
+- 16.4d parity table: plain, featured (±stashes), detached, unborn —
+  auto, git-cli, and direct CLI agree byte for byte with the served flag
+  pinning the engine.
+- Probe findings (throwaway scripts, `/tmp`): engine tags arrive in CLI
+  order even adversarially; stashes arrive newest-first with
+  `refs/`-prefixed selectors; `hideRemotes` and the remote toggles leave
+  the consumed fields invariant (they only reshape the dropped branches);
+  detached gives `head: null`; unborn answers with a name; non-repos
+  throw `NotARepository:`. A global `tag.gpgsign=true` on dev machines
+  hangs plain `git tag` — the test helpers already neutralise it.
+- `loadBranches` untouched: filtering still travels on its own message.
+- Gate: numbers in the 16.4e commit.
 
 #### Slice 16.5 — `loadCommits`, and the three declines
 
@@ -4666,9 +4692,12 @@ Slice 16.1 is done (`2026-09-22`: `engine:*` scripts, `engine.yml` CI,
 `sonar.exclusions`, gate-order docs) and so is 16.2 (local addon build plus
 smoke test, debug binary loading with `engineVersion()` `1.0.24`); 16.3 is
 done too (the seam, the `backend` setting, `remoteUrl` on the reader with a
-parity table, and `view.engineBackend` telemetry).
-**16.4 (`loadRepoInfo`, the first slice where mapping matters) is next** —
-read its ordering-contract warnings before starting.
+parity table, and `view.engineBackend` telemetry); 16.4 is done as well
+(`loadRepoInfo` through the reader: engine head/tags/stashes with CLI
+fills, parity byte-for-byte, `loadBranches` untouched).
+**16.5 (`loadCommits`, the largest slice — read the non-goals first) is
+next.** The declines (reflog, unreachable discovery, `--glob=`
+patterns, signature column) route to the CLI *before* any engine call.
 Read that phase's non-goals and design rules before starting any of it: three
 of this fork's own features are things the engine cannot serve, and the plan
 keeps them on the CLI by decision rather than by accident.
