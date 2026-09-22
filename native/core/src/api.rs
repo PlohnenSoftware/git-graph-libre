@@ -93,8 +93,6 @@ impl GraphOptions {
             commit_ordering: self.ordering,
             remotes,
             hide_remotes: self.hide_remotes.clone(),
-            gerrit_refs: None,
-            gerrit_show_change_refs: false,
             filter_paths: self.paths.clone(),
             defer_uncommitted_changes: false,
             show_uncommitted_changes: true,
@@ -109,7 +107,6 @@ impl GraphOptions {
             show_remote_branches: self.show_remote_branches,
             show_remote_heads: self.show_remote_branches,
             hide_remotes: self.hide_remotes.clone(),
-            show_change_refs: false,
         }
     }
 }
@@ -311,7 +308,7 @@ mod tests {
         assert!(options.show_tags && options.show_remote_branches);
         let log = options.to_log_options(vec!["origin".into()]);
         assert_eq!(log.remotes, ["origin"]);
-        assert!(!log.defer_remote_refs && log.gerrit_refs.is_none());
+        assert!(!log.defer_remote_refs);
     }
 
     #[test]

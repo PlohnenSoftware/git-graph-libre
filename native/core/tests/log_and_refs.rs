@@ -486,7 +486,7 @@ fn reads_remote_tracking_branches_and_honours_the_view_options() {
 }
 
 #[test]
-fn shows_gerrit_change_refs_only_when_asked() {
+fn never_shows_code_review_change_refs() {
     require_git!();
     let mut repo = TestRepo::new();
     let head = repo.commit_file("a.txt", "1", "first");
@@ -496,8 +496,8 @@ fn shows_gerrit_change_refs_only_when_asked() {
 
     let engine = open(&repo);
 
-    // A Gerrit repository can hold tens of thousands of change refs, so they stay out of the
-    // graph — and out of the Branches dropdown — unless "Show Refs" is on.
+    // A repository fetching code-review change refs can hold tens of thousands of them, so they
+    // stay out of the graph and out of the Branches dropdown.
     let options = RefReadOptions {
         show_remote_branches: true,
         ..Default::default()
@@ -508,23 +508,6 @@ fn shows_gerrit_change_refs_only_when_asked() {
         .remotes
         .iter()
         .all(|r| !r.name.contains("changes/")));
-
-    let options = RefReadOptions {
-        show_remote_branches: true,
-        show_change_refs: true,
-        ..Default::default()
-    };
-    let snapshot = read_refs(&engine, &options).unwrap();
-    let names: Vec<&str> = snapshot
-        .ref_data
-        .remotes
-        .iter()
-        .map(|r| r.name.as_str())
-        .collect();
-    assert!(names.contains(&"origin/changes/45/12345/1"));
-    // The NoteDb meta refs are never displayed.
-    assert!(!names.iter().any(|name| name.ends_with("/meta")));
-    // Change refs are never offered as branches, however they are displayed.
     assert!(snapshot
         .branches
         .iter()

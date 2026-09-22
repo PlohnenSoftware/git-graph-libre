@@ -14,7 +14,7 @@ use napi_derive::napi;
 
 use git_graph_core::types::{LogOptions, RefReadOptions};
 use git_graph_core::{
-    blob, config, details, diff, gerrit, graph, log, refs, stash, stats, status, Error, ErrorKind,
+    blob, config, details, diff, graph, log, refs, stash, stats, status, Error, ErrorKind,
     RepoManager,
 };
 
@@ -397,43 +397,6 @@ pub async fn current_branch_name(path: String) -> Result<Option<String>> {
     .await
 }
 
-/// The review states of the given Gerrit changes, parsed from their NoteDb meta histories in one
-/// in-process pass, as a JSON array aligned with the input order.
-///
-/// An entry is NULL when the change's meta ref is not available locally. `url_base`, when given,
-/// is prefixed onto each change number to produce the state's web URL.
-#[napi]
-pub async fn parse_gerrit_metas(
-    path: String,
-    remote: String,
-    changes: Vec<i64>,
-    url_base: Option<String>,
-) -> Result<String> {
-    run(move || {
-        let repo = RepoManager::global().get(&path)?;
-        encode(&gerrit::parse_gerrit_metas(
-            &repo,
-            &remote,
-            &changes,
-            url_base.as_deref(),
-        )?)
-    })
-    .await
-}
-
-/// The local Gerrit change refs of a remote (`refs/remotes/<remote>/changes/**`), as a JSON array
-/// of `[refname, hash]` pairs — one in-process scan of the ref store replacing a
-/// `git for-each-ref` child process.
-#[napi]
-pub async fn list_change_refs(path: String, remote: String) -> Result<String> {
-    run(move || {
-        let repo = RepoManager::global().get(&path)?;
-        let refs = gerrit::list_change_refs(&repo, &remote)?;
-        encode(&refs)
-    })
-    .await
-}
-
 /// The engine's version, so the extension can report which backend it is running.
 #[napi]
 pub fn engine_version() -> String {
@@ -511,7 +474,6 @@ struct RefOptionsPayload {
     show_remote_branches: bool,
     show_remote_heads: bool,
     hide_remotes: Vec<String>,
-    show_change_refs: bool,
     show_stashes: bool,
 }
 
@@ -521,7 +483,6 @@ impl Default for RefOptionsPayload {
             show_remote_branches: true,
             show_remote_heads: false,
             hide_remotes: Vec::new(),
-            show_change_refs: false,
             show_stashes: true,
         }
     }
@@ -533,7 +494,6 @@ impl RefOptionsPayload {
             show_remote_branches: self.show_remote_branches,
             show_remote_heads: self.show_remote_heads,
             hide_remotes: self.hide_remotes.clone(),
-            show_change_refs: self.show_change_refs,
         }
     }
 }

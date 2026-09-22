@@ -110,8 +110,6 @@ pub struct RefReadOptions {
     pub show_remote_branches: bool,
     pub show_remote_heads: bool,
     pub hide_remotes: Vec<String>,
-    /// Show Gerrit change refs (below `changes/` on a remote) as remote branch refs.
-    pub show_change_refs: bool,
 }
 
 /* ---------- Repository info ---------- */
@@ -327,57 +325,6 @@ pub struct GitHistoryMatch {
     pub message: String,
 }
 
-/* ---------- Gerrit change states ---------- */
-
-/// One review event parsed out of a NoteDb meta commit, in the shape the webview renders.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GerritChangeEvent {
-    #[serde(rename = "type")]
-    pub kind: String,
-    pub patchset: u32,
-    /// The Gerrit user that performed the action; omitted when the record names none.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reviewer: Option<String>,
-    /// The votes a review event recorded.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub labels: Option<Vec<GerritVote>>,
-    pub timestamp: i64,
-    /// The meta commit's subject line.
-    pub raw: String,
-    /// The verbatim meta commit message, shown when the event is expanded.
-    pub raw_full: String,
-}
-
-/// One label vote of a review event (e.g. `Code-Review +2`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GerritVote {
-    pub name: String,
-    pub value: i32,
-}
-
-/// The review state of one Gerrit change, as the badges and the review dialog consume it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GerritChangeState {
-    pub change: u64,
-    /// The latest patchset.
-    pub patchset: u32,
-    /// -2..2, the Code-Review vote with the greatest absolute value.
-    pub code_review: i32,
-    /// -1..1, the Verified vote with the greatest absolute value.
-    pub verified: i32,
-    /// `new`, `merged` or `abandoned`.
-    pub status: String,
-    pub wip: bool,
-    /// The code commit of the latest patchset — the badge's anchor.
-    pub head_hash: String,
-    pub events: Vec<GerritChangeEvent>,
-    /// The change's web URL, when the remote's URL allowed deriving one.
-    pub url: Option<String>,
-}
-
 /* ---------- Tag details ---------- */
 
 /// An annotated tag in full, or the fields a lightweight tag can fill in.
@@ -433,16 +380,13 @@ pub struct LogOptions {
     pub show_remote_heads: bool,
     /// Skip the `refs/remotes/` scan in this load: the response carries the local refs (and the
     /// tags) only, and the caller follows up with a complete load. The remote pass dominates the
-    /// scan time on repositories with many remote-tracking refs — a Gerrit one above all.
+    /// scan time on repositories with many remote-tracking refs.
     pub defer_remote_refs: bool,
     pub include_commits_mentioned_by_reflogs: bool,
     pub only_follow_first_parent: bool,
     pub commit_ordering: CommitOrdering,
     pub remotes: Vec<String>,
     pub hide_remotes: Vec<String>,
-    /// Gerrit change refs allowed into the graph; `None` disables the Gerrit integration.
-    pub gerrit_refs: Option<Vec<String>>,
-    pub gerrit_show_change_refs: bool,
     /// Only show commits touching these repository-relative paths.
     pub filter_paths: Vec<String>,
     /// Skip the working-tree scan that produces the "Uncommitted Changes" row.

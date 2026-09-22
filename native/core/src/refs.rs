@@ -1,8 +1,8 @@
 //! Reading the references a view load needs, in one pass.
 //!
-//! Refs dominate the cost of opening the view on a large repository — particularly a Gerrit one,
-//! where the `changes/` tree of a remote can hold tens of thousands of refs. Two things keep this
-//! affordable, and both are about *not* doing work:
+//! Refs dominate the cost of opening the view on a large repository — particularly one whose
+//! remote carries a `changes/` tree of tens of thousands of code-review refs. Two things keep
+//! this affordable, and both are about *not* doing work:
 //!
 //! 1. **Names are filtered before any object is read.** A ref the view is not showing costs the
 //!    price of a string comparison and nothing more.
@@ -162,6 +162,12 @@ fn read_remote_refs(
         if !options.show_remote_heads && remote_ref.ends_with("/HEAD") {
             continue;
         }
+        // Code-review change refs — the `refs/remotes/<remote>/changes/**` layout Gerrit fetches
+        // into. A repository using them can hold tens of thousands, which would swamp both the
+        // graph and the Branches dropdown, so they are skipped by name before any object is read.
+        if remote_ref.contains("/changes/") {
+            continue;
+        }
         let Some(hash) = direct_target(&reference) else {
             continue;
         };
@@ -179,17 +185,6 @@ fn read_remote_refs(
                 name,
                 annotated: false,
             });
-        } else if remote_ref.contains("/changes/") {
-            // A Gerrit change ref, shown as a remote branch ref when "Show Refs" is enabled (the
-            // NoteDb meta refs never are). They are deliberately never offered as branches: a
-            // Gerrit repository can hold tens of thousands of them, which would swamp the
-            // Branches dropdown.
-            if options.show_change_refs && !remote_ref.ends_with("/meta") {
-                ref_data.remotes.push(GitRef {
-                    hash,
-                    name: remote_ref.to_string(),
-                });
-            }
         } else {
             ref_data.remotes.push(GitRef {
                 hash,

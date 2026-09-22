@@ -78,7 +78,6 @@ pub fn load_commits(repo: &Repo, options: &LogOptions) -> Result<GitCommitData> 
         show_remote_branches: options.show_remote_branches && !options.defer_remote_refs,
         show_remote_heads: options.show_remote_heads,
         hide_remotes: options.hide_remotes.clone(),
-        show_change_refs: options.gerrit_show_change_refs,
     };
     let snapshot = read_refs(repo, &ref_options).unwrap_or_default();
     let stashes = read_stashes(repo).unwrap_or_default();
@@ -107,14 +106,6 @@ pub fn load_commits(repo: &Repo, options: &LogOptions) -> Result<GitCommitData> 
     let more_commits_available = records.len() > options.max_commits as usize;
     if more_commits_available {
         records.pop();
-    }
-
-    // The injected Gerrit change refs are walked from like any other tip, but the page cut keeps
-    // the newest commits only: a change whose patchset is older than the page would lose its row
-    // — and with it the badge the fetch limit promised. Those commits are pinned onto the page.
-    if let Some(gerrit_refs) = &options.gerrit_refs {
-        let pinned = log::resolve_tips(repo, gerrit_refs)?;
-        log::pin_commits(repo, &mut records, &pinned)?;
     }
 
     let mut commits: Vec<GitCommit> = records
@@ -174,16 +165,7 @@ fn resolve_tips(
                 revisions.extend(ref_data.tags.iter().map(|tag| tag.hash.clone()));
             }
             if options.show_remote_branches {
-                // Gerrit change refs are never walked from wholesale — a Gerrit repository holds
-                // tens of thousands of them, and walking them all would bury the branches the user
-                // actually asked to see. The ones the Gerrit integration selected are added below.
-                revisions.extend(
-                    ref_data
-                        .remotes
-                        .iter()
-                        .filter(|remote| !remote.name.contains("/changes/"))
-                        .map(|remote| remote.hash.clone()),
-                );
+                revisions.extend(ref_data.remotes.iter().map(|remote| remote.hash.clone()));
             }
             // Stashes hang off commits that may not be reachable from any branch.
             for stash in stashes {
@@ -191,12 +173,6 @@ fn resolve_tips(
             }
             revisions.push("HEAD".to_string());
         }
-    }
-
-    // The Gerrit change refs allowed through the filter are walked whether the view is showing all
-    // refs or a specific set of branches.
-    if let Some(gerrit_refs) = &options.gerrit_refs {
-        revisions.extend(gerrit_refs.iter().cloned());
     }
 
     log::resolve_tips(repo, &revisions)
