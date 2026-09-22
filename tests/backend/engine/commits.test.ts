@@ -135,6 +135,14 @@ describe("buildLoadCommitsOptions", () => {
     expect(options.showTags).toBe(false);
     expect(options.showCommitsOnlyReferencedByTags).toBe(false);
   });
+
+  it("scans tags selected as filters even when tags are hidden", () => {
+    const options = JSON.parse(
+      buildLoadCommitsOptions({ ...BASE, showTags: false, tags: ["v1.0.0"] })
+    );
+    expect(options.showTags).toBe(true);
+    expect(options.showCommitsOnlyReferencedByTags).toBe(false);
+  });
 });
 
 const COMMIT: EngineCommit = {

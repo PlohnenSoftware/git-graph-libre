@@ -347,14 +347,17 @@ export function mapEngineCommitData(data: EngineCommitData, showStashes: boolean
  *   remote HEADs stay an engine gap — probed in 16.5d);
  * - `showUntrackedFiles: true`: the CLI counts every `status.files` entry,
  *   untracked files included;
- * - `showCommitsOnlyReferencedByTags` follows `showTags`, reproducing the
- *   CLI's `--tags` walk tips;
+ * - `showTags` covers tags shown *or* selected as filters (the CLI scans
+ *   `refs/tags` for both), while `showCommitsOnlyReferencedByTags` follows
+ *   the shown flag alone, reproducing the CLI's `--tags` walk tips;
  * - `filterPaths`, `deferRemoteRefs`, `deferUncommittedChanges`, `useMailmap`
  *   are all false/empty: this fork's `loadCommits` route sends none of them
  *   and the CLI honors none of them.
  */
 export function buildLoadCommitsOptions(input: EngineLoadCommitsInput): string {
-  const showTags = input.showTags !== false;
+  // The CLI scans `refs/tags` when tags are shown OR selected as filters,
+  // but only walks `--tags` tips when they are shown: two flags, not one.
+  const showTags = input.showTags !== false || (input.tags ?? null) !== null;
   return JSON.stringify({
     branches: engineLoadCommitsRefs(input),
     authors: uniqueNonEmpty(input.authors),
@@ -372,7 +375,7 @@ export function buildLoadCommitsOptions(input: EngineLoadCommitsInput): string {
     deferUncommittedChanges: false,
     showUncommittedChanges: input.showUncommittedChanges,
     showUntrackedFiles: true,
-    showCommitsOnlyReferencedByTags: showTags,
+    showCommitsOnlyReferencedByTags: input.showTags !== false,
     useMailmap: false
   });
 }
