@@ -89,6 +89,7 @@ All settings use the `git-graph-libre` prefix.
 | `showUncommittedChanges`                       | `true`          | Show uncommitted changes node                    |
 | `telemetry.enabled`                            | `"unset"`       | `unset` / `enabled` / `disabled` — see below     |
 | `tabIconColorTheme`                            | `"color"`       | `"color"` or `"grey"`                            |
+| `backend`                                      | `"auto"`        | `"auto"` (Rust engine with Git CLI fallback) or `"git-cli"` |
 
 ## Telemetry
 

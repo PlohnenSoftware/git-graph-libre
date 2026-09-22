@@ -12,6 +12,7 @@ import type {
   ContextMenuActionsVisibility,
   CustomBranchGlobPattern,
   DateFormat,
+  EngineBackend,
   GraphStyle,
   StashDisplay,
   TelemetryConsent
@@ -183,6 +184,7 @@ export const config = {
     const value = getConfigWithLegacy<string>("tabIconColorTheme", "tabIconColourTheme", "color");
     return value === "grey" ? "grey" : "color";
   },
+  backend: (): EngineBackend => getStringUnionConfig("backend", "auto", ["auto", "git-cli"]),
   gitPath: (): string => vscode.workspace.getConfiguration("git").get("path", null) ?? "git"
 };
 

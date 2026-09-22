@@ -190,6 +190,22 @@ describe("extension manifest", () => {
     expect(setting.tags).toEqual(expect.arrayContaining(["telemetry", "usesOnlineServices"]));
   });
 
+  // The default is the optimization model: the engine is tried where it is
+  // available and the CLI covers everything else, so a default of "git-cli" —
+  // or a slip to a boolean — would silently disable the engine everywhere.
+  it("contributes the backend switch as two states defaulting to auto", () => {
+    const manifest = readManifest();
+    const setting = manifest.contributes.configuration.properties["git-graph-libre.backend"];
+
+    expect(setting).toMatchObject({
+      type: "string",
+      default: "auto",
+      enum: ["auto", "git-cli"],
+      enumDescriptions: ["%config.backend.auto%", "%config.backend.git-cli%"],
+      description: "%config.backend%"
+    });
+  });
+
   it("contributes custom branch glob preset settings", () => {
     const manifest = readManifest();
     const setting =

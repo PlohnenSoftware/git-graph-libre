@@ -50,6 +50,7 @@ const viewStateFixture: GGL.GitGraphViewState = {
   showStashes: true,
   showTags: true,
   shortHashLength: 8,
+  backend: "auto",
   language: "pl",
   languages: [
     { id: "en", label: "English" },

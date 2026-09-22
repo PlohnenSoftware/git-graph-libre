@@ -150,6 +150,13 @@ export type ExtensionSetting = {
 
 export type StashDisplay = "table" | "graph" | "both";
 
+/**
+ * Which backend serves repository reads. `auto` tries the built-in Rust
+ * engine first and falls back to the Git command line; `git-cli` never loads
+ * the engine at all.
+ */
+export type EngineBackend = "auto" | "git-cli";
+
 export type GitGraphViewState = {
   autoCenterCommitDetailsView: boolean;
   commitDetailsCompactFolders: boolean;
@@ -186,6 +193,7 @@ export type GitGraphViewState = {
   includeUnreachableCommits: boolean;
   settingsWidgetTab?: SettingsWidgetTab;
   shortHashLength: number;
+  backend: EngineBackend;
   /** Locale the webview's strings were built in. */
   language: string;
   /** Locales the language switcher offers. */

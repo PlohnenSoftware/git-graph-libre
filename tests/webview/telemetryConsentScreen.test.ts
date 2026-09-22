@@ -172,6 +172,7 @@ function makeConfig(consent: TelemetryConsent): Config {
     showUncommittedChanges: () => true,
     telemetryConsent: () => consent,
     tabIconColorTheme: () => "color",
+    backend: () => "auto",
     gitPath: () => "git"
   } as unknown as Config;
 }

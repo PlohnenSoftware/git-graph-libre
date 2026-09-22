@@ -33,7 +33,7 @@ function viewState(
     customBranchGlobPatterns: [],
     commitDetailsCompactFolders: false,
     commitDetailsFileViewMode: "tree",
-  uncommittedFileViewMode: "tree",
+    uncommittedFileViewMode: "tree",
     contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
     graphFontSize: 13,
     graphRowHeight: 24,
@@ -58,6 +58,7 @@ function viewState(
     showStashes: true,
     showTags: true,
     shortHashLength: 4,
+    backend: "auto",
     language: "en",
     languages: [{ id: "en", label: "English" }]
   };

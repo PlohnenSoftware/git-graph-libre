@@ -36,7 +36,8 @@ const config: Config = {
   showStashes: true,
   stashDisplay: "both",
   showTags: true,
-  shortHashLength: 8
+  shortHashLength: 8,
+  backend: "auto"
 };
 
 function makeCommit(hash: string, parentHashes: string[] = []): GitCommitNode {

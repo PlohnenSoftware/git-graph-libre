@@ -42,6 +42,7 @@ const defaultViewState: GGL.GitGraphViewState = {
   showStashes: true,
   showTags: true,
   shortHashLength: 8,
+  backend: "auto",
   language: "en",
   languages: [{ id: "en", label: "English" }]
 };

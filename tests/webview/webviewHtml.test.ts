@@ -12,7 +12,7 @@ function makeConfig(): Config {
     autoCenterCommitDetailsView: () => true,
     commitDetailsCompactFolders: () => true,
     commitDetailsFileViewMode: () => "list" as const,
-  uncommittedFileViewMode: () => "list" as const,
+    uncommittedFileViewMode: () => "list" as const,
     contextMenuActionsVisibility: () => ({
       ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
       tag: { ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.tag, push: false }
@@ -50,6 +50,7 @@ function makeConfig(): Config {
     showUncommittedChanges: () => true,
     telemetryConsent: () => "enabled" as const,
     tabIconColorTheme: () => "color",
+    backend: () => "git-cli",
     gitPath: () => "git"
   };
 }
@@ -106,6 +107,9 @@ describe("webview HTML", () => {
     expect(viewState.mergeNoFastForward).toBe(false);
     expect(viewState.pullBranchNoFastForward).toBe(true);
     expect(viewState.shortHashLength).toBe(12);
+    // Non-default on purpose, like the boolean pair above: proves the
+    // accessor reaches the view state rather than the manifest default.
+    expect(viewState.backend).toBe("git-cli");
     expect(result.html).toContain('id="settingsWidgetBacking" hidden');
     expect(result.html).toContain('id="settingsWidget" role="dialog" aria-modal="true"');
   });

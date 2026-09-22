@@ -148,6 +148,18 @@ describe("configuration", () => {
     expect(config.stashDisplay()).toBe("both");
   });
 
+  it.each(["auto", "git-cli"] as const)("reads the %s engine backend", async (backend) => {
+    settings.set("git-graph-libre.backend", backend);
+    const { config } = await import("@/config");
+    expect(config.backend()).toBe(backend);
+  });
+
+  it("defaults invalid engine backends to auto", async () => {
+    settings.set("git-graph-libre.backend", "turbo");
+    const { config } = await import("@/config");
+    expect(config.backend()).toBe("auto");
+  });
+
   it("accepts OKLCH, HEX, and RGB graph colors and filters invalid values", async () => {
     settings.set("git-graph-libre.graphColors", [
       "oklch(65% 0.17 245)",
@@ -275,6 +287,7 @@ describe("configuration", () => {
     { accessor: "commitDetailsCompactFolders", expected: false },
     { accessor: "commitDetailsFileViewMode", expected: "tree" },
     { accessor: "tabIconColorTheme", expected: "color" },
+    { accessor: "backend", expected: "auto" },
     { accessor: "gitPath", expected: "git" },
     { accessor: "customBranchGlobPatterns", expected: [] }
   ])("reads $accessor with its manifest default", async ({ accessor, expected }) => {

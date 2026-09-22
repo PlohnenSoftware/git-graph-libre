@@ -540,6 +540,19 @@
           ],
           "default": "color",
           "description": "%config.tabIconColorTheme%"
+        },
+        "git-graph-libre.backend": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "git-cli"
+          ],
+          "enumDescriptions": [
+            "%config.backend.auto%",
+            "%config.backend.git-cli%"
+          ],
+          "default": "auto",
+          "description": "%config.backend%"
         }
       }
     }
