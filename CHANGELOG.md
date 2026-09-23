@@ -27,10 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **"Load more" now loads 1000 commits at a time instead of 100.** The graph
-  still opens with the first 300, so it appears just as quickly, but scrolling
-  further into history now pauses about a tenth as often. `loadMoreCommits`
-  remains configurable if you want the old behavior.
+- **"Load more" now loads 750 commits at a time instead of 100**, and the graph
+  opens with 250 rather than 300. The first page appears a touch sooner, and
+  scrolling further into history pauses roughly seven times less often.
+  `initialLoadCommits` and `loadMoreCommits` remain configurable if you want
+  the old behavior.
 
 ### Fixed
 

@@ -2929,14 +2929,18 @@ and the constant is not small.
 The consequence decides the page sizes. Because the whole table is rebuilt
 each time, a larger `loadMoreCommits` means strictly *less* total work, not
 more: reaching 3,000 commits costs about 27 rebuilds of a growing table at a
-step of 100, and about 3 at a step of 1,000. The trade is fewer, larger
+step of 100, and about 4 at a step of 750. The trade is fewer, larger
 stalls instead of many smaller ones — and since `autoLoadMoreCommitsOnScroll`
 fires whenever the viewport comes within 96 px of the bottom, the small-step
 version stalls repeatedly during ordinary scrolling.
 
 **Set on `2026-09-23` at the maintainer's direction**: `initialLoadCommits`
-stays `300` (it is the latency-critical first paint, and 300 rows render
-quickly), `loadMoreCommits` goes from `100` to `1000`.
+`300` -> `250`, `loadMoreCommits` `100` -> `750`. The first page is the
+latency-critical paint and is trimmed slightly; the follow-on page is the one
+that was costing repeated stalls and is raised well clear of them. Both sit
+below the round numbers this section measured, which is the conservative
+direction given that the render figures below are jsdom's and not a
+browser's.
 
 **The real fix, not done here.** The rebuild is `O(total)` per load when it
 could be `O(step)` — appending the new rows instead of regenerating the table

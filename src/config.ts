@@ -155,11 +155,11 @@ export const config = {
         MAX_SHORT_HASH_LENGTH
       )
     ),
-  initialLoadCommits: (): number => getConfig("initialLoadCommits", 300),
+  initialLoadCommits: (): number => getConfig("initialLoadCommits", 250),
   includeReflog: (): boolean => getConfig("repository.includeReflog", false),
   includeUnreachableCommits: (): boolean =>
     getConfig("repository.includeUnreachableCommits", false),
-  loadMoreCommits: (): number => getConfig("loadMoreCommits", 1000),
+  loadMoreCommits: (): number => getConfig("loadMoreCommits", 750),
   maxDepthOfRepoSearch: (): number => getConfig("maxDepthOfRepoSearch", 0),
   muteCommitsNotAncestorsOfHead: (): boolean =>
     getConfig("repository.muteCommitsNotAncestorsOfHead", false),
