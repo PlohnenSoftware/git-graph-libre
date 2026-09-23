@@ -96,25 +96,66 @@ export type EngineAddon = {
 };
 
 /**
- * The `engine/native` directory holding a platform's binary, or null when
- * the platform has no prebuilt target (musl/Alpine above all — those
- * installs fall back to the CLI by construction).
+ * Whether this Node runs against musl rather than glibc — Alpine, in
+ * practice.
  *
- * Pure in its arguments so every triple is unit-testable; the loader below
- * calls it with the host's own values.
+ * `process.platform` is `"linux"` on Alpine exactly as it is on Debian, so
+ * the platform map alone cannot tell the two apart. `glibcVersionRuntime` is
+ * present in the process report only when glibc is the C library, which is
+ * the check `detect-libc` makes and the only one available without spawning
+ * anything. A report that cannot be read at all is treated as glibc, because
+ * that is the overwhelmingly more common case and the candidate order below
+ * recovers from a wrong guess anyway.
  */
-export function platformDirectoryFor(platform: string, arch: string): string | null {
-  if (platform === "win32" && arch === "x64") return "win32-x64-msvc";
-  if (platform === "win32" && arch === "arm64") return "win32-arm64-msvc";
-  if (platform === "linux" && arch === "x64") return "linux-x64-gnu";
-  if (platform === "linux" && arch === "arm64") return "linux-arm64-gnu";
-  if (platform === "darwin" && arch === "x64") return "darwin-x64";
-  if (platform === "darwin" && arch === "arm64") return "darwin-arm64";
-  return null;
+export function isMuslRuntime(): boolean {
+  try {
+    const header = process.report?.getReport() as { header?: { glibcVersionRuntime?: string } };
+    return header?.header?.glibcVersionRuntime === undefined;
+  } catch {
+    return false;
+  }
 }
 
-function platformDirectory(): string | null {
-  return platformDirectoryFor(process.platform, process.arch);
+/** Platforms whose binary is decided by `platform:arch` alone. */
+const FIXED_PLATFORM_DIRECTORIES: Record<string, string | undefined> = {
+  "win32:x64": "win32-x64-msvc",
+  "win32:arm64": "win32-arm64-msvc",
+  "darwin:x64": "darwin-x64",
+  "darwin:arm64": "darwin-arm64"
+};
+
+/** Linux architectures, as `[glibc, musl]` — the C library picks between them. */
+const LINUX_PLATFORM_DIRECTORIES: Record<string, readonly [string, string] | undefined> = {
+  x64: ["linux-x64-gnu", "linux-x64-musl"],
+  arm64: ["linux-arm64-gnu", "linux-arm64-musl"]
+};
+
+/**
+ * The `engine/native` directories that may hold this platform's binary, in
+ * the order to try them, or empty when there is no prebuilt target at all
+ * (32-bit ARM — `linux-armhf` — is the only VS Code desktop target this
+ * project does not build, and those installs run on the `git` CLI).
+ *
+ * Linux returns two: the C library is not visible in `process.platform`, so
+ * the detected one is tried first and the other is kept as a fallback. That
+ * is deliberate belt-and-braces — a wrong detection costs one failed
+ * `require()` and still lands on the right binary, instead of silently
+ * dropping the whole platform to the CLI.
+ *
+ * Pure in its arguments so every combination is unit-testable; the loader
+ * below calls it with the host's own values.
+ */
+export function platformDirectoriesFor(platform: string, arch: string, musl: boolean): string[] {
+  const fixed = FIXED_PLATFORM_DIRECTORIES[`${platform}:${arch}`];
+  if (fixed !== undefined) return [fixed];
+  const linux = platform === "linux" ? LINUX_PLATFORM_DIRECTORIES[arch] : undefined;
+  if (linux === undefined) return [];
+  const [gnu, muslDirectory] = linux;
+  return musl ? [muslDirectory, gnu] : [gnu, muslDirectory];
+}
+
+function platformDirectories(): string[] {
+  return platformDirectoriesFor(process.platform, process.arch, isMuslRuntime());
 }
 
 /**
@@ -151,8 +192,7 @@ export function loadEngineAddon(): EngineAddon | null {
 }
 
 function tryLoadEngineAddon(): EngineAddon | null {
-  const directory = platformDirectory();
-  if (directory === null) return null;
+  const directories = platformDirectories();
   // Absolute paths: esbuild leaves this require alone at bundle time, so
   // the `.node` binary is loaded from beside the bundle, never packed into
   // it. The require base is the candidate file itself — absolute requires
@@ -160,15 +200,17 @@ function tryLoadEngineAddon(): EngineAddon | null {
   // no filesystem assumption beyond the candidates. Every stage guards
   // itself (the require, the shape check, the version read), so there is no
   // outer catch left to cover.
-  for (const addonFile of candidateAddonFiles(directory)) {
-    let loaded: unknown;
-    try {
-      loaded = createRequire(addonFile)(addonFile) as unknown;
-    } catch {
-      continue;
+  for (const directory of directories) {
+    for (const addonFile of candidateAddonFiles(directory)) {
+      let loaded: unknown;
+      try {
+        loaded = createRequire(addonFile)(addonFile) as unknown;
+      } catch {
+        continue;
+      }
+      const validated = validateLoadedAddon(loaded);
+      if (validated !== null) return validated;
     }
-    const validated = validateLoadedAddon(loaded);
-    if (validated !== null) return validated;
   }
   return null;
 }

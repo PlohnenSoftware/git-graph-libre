@@ -45,7 +45,12 @@ const TARGET_DIRECTORIES = {
 	'x86_64-unknown-linux-gnu': 'linux-x64-gnu',
 	'aarch64-unknown-linux-gnu': 'linux-arm64-gnu',
 	'x86_64-apple-darwin': 'darwin-x64',
-	'aarch64-apple-darwin': 'darwin-arm64'
+	'aarch64-apple-darwin': 'darwin-arm64',
+	// Alpine and other musl systems: `process.platform` is `linux` there too, so the
+	// extension cannot tell them apart by platform alone and the loader detects the C
+	// library instead. A gnu binary cannot load on musl at all — it needs `libc.so.6`.
+	'x86_64-unknown-linux-musl': 'linux-x64-musl',
+	'aarch64-unknown-linux-musl': 'linux-arm64-musl'
 };
 
 function parseArguments(argv) {

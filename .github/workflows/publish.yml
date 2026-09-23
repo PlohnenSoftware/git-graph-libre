@@ -30,12 +30,13 @@ jobs:
 
       # One VSIX carries every platform's engine and `vsce` is given no
       # `--target`, so a single artifact installs everywhere: the loader picks
-      # its directory from `process.platform`/`process.arch` at runtime, and a
-      # platform with no directory of its own (musl/Alpine above all) finds
-      # nothing and runs on the `git` CLI, exactly as it would have with no
-      # engine at all. The cost is deliberate — every install carries five
-      # binaries it cannot load — and buys one file to download instead of
-      # seven.
+      # its directory from `process.platform`/`process.arch` and the detected C
+      # library at runtime. Alpine is served too: `process.platform` is `linux`
+      # there as well, so the loader reads the C library and takes the musl
+      # binary. The one VS Code desktop target with no binary here is 32-bit
+      # ARM (`linux-armhf`), which finds nothing and runs on the `git` CLI. The
+      # cost is deliberate — every install carries seven binaries it cannot
+      # load — and buys one file to download instead of nine.
       - name: Download engine binaries
         uses: actions/download-artifact@v4.0.0
         with:
@@ -48,8 +49,8 @@ jobs:
       - name: Assert every platform is present
         run: |
           staged="$(ls -1 engine/native/*/git-graph.node 2>/dev/null | wc -l)"
-          if [ "$staged" -ne 6 ]; then
-            echo "::error::expected 6 engine binaries, found $staged"
+          if [ "$staged" -ne 8 ]; then
+            echo "::error::expected 8 engine binaries, found $staged"
             exit 1
           fi
           ls -l engine/native/*/git-graph.node

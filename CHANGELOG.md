@@ -31,10 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before it asks, so these never silently change. Every read is implemented
   twice and the two are tested against each other on real repositories.
 - **A platform without the engine loses nothing but the speed.** The engine
-  is compiled for Windows, macOS and Linux on x64 and arm64; anywhere else —
-  Alpine and other musl systems above all — the extension installs the same
-  and runs entirely on `git`, as does any installation where the component
-  fails to load.
+  is compiled for Windows, macOS and Linux on x64 and arm64, including Alpine
+  and other musl-based systems. The one desktop platform without a compiled
+  engine is 32-bit ARM, where the extension installs the same and runs
+  entirely on `git` — as does any installation where the component fails to
+  load.
 - **There is still one download.** The release carries every platform's
   engine in a single package and each installation uses the one it can run,
   so installing by hand means picking one file rather than matching your

@@ -7,12 +7,12 @@
  * a maintainer on their own machine, so a release never depends on a CI
  * provider still existing or still offering the same runners. Every target is
  * built with `--cross-compile`, including the host's own, so the host platform
- * cannot change what comes out: the six binaries a laptop produces are built
- * by the same linkers, from the same toolchain versions, as the six a CI
- * runner produces.
+ * cannot change what comes out: the binaries a laptop produces are built by the
+ * same linkers, from the same toolchain versions, as the ones a CI runner
+ * produces.
  *
  * The routing is `build-addon.mjs`'s, which this only drives:
- *   - Linux and macOS targets -> cargo-zigbuild (zig supplies glibc and the
+ *   - Linux and macOS targets -> cargo-zigbuild (zig supplies glibc, musl and the
  *     macOS libc stubs, and ad-hoc signs arm64 Mach-O, which Apple Silicon
  *     refuses to load without)
  *   - Windows targets         -> cargo-xwin (downloads the MSVC CRT and SDK)
@@ -52,7 +52,9 @@ const TARGETS = {
 	'linux-x64-gnu': 'x86_64-unknown-linux-gnu',
 	'linux-arm64-gnu': 'aarch64-unknown-linux-gnu',
 	'darwin-x64': 'x86_64-apple-darwin',
-	'darwin-arm64': 'aarch64-apple-darwin'
+	'darwin-arm64': 'aarch64-apple-darwin',
+	'linux-x64-musl': 'x86_64-unknown-linux-musl',
+	'linux-arm64-musl': 'aarch64-unknown-linux-musl'
 };
 
 function run(command, args, options = {}) {
