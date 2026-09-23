@@ -198,14 +198,22 @@ export function resolveLocalGitConfigPath(repo: string): string | null {
       gitDir = dotGit;
     } else {
       const firstLine = fs.readFileSync(dotGit, "utf8").split("\n")[0] ?? "";
-      const match = /^gitdir:\s*(.+?)\s*$/.exec(firstLine);
-      if (match?.[1] === undefined) return null;
-      gitDir = path.resolve(repo, match[1]);
+      const target = parseGitDirLine(firstLine);
+      if (target === null) return null;
+      gitDir = path.resolve(repo, target);
     }
   } catch {
     return null;
   }
   return path.join(gitDir, "config");
+}
+
+const gitDirPrefix = "gitdir:";
+
+function parseGitDirLine(firstLine: string): string | null {
+  if (!firstLine.startsWith(gitDirPrefix)) return null;
+  const target = firstLine.slice(gitDirPrefix.length).trim();
+  return target === "" ? null : target;
 }
 
 /**

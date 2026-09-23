@@ -1,5 +1,7 @@
 import * as cp from "node:child_process";
 import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { git, makeRepo } from "@tests/backend/helpers";
 import { simpleGit } from "simple-git";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -310,41 +312,54 @@ describe("createRepoReader repoInfo", () => {
     expect(fallbackReads.count).toBe(1);
   });
 
-  it("composes the engine payload with CLI fills", async () => {
-    const result = await repoInfoReader("auto", () => ({
-      engineVersion: () => "fake",
-      remoteUrl: async () => null,
-      loadRepoInfo: async () => payload,
-      loadCommits: async () => {
-        throw new Error("Unsupported: commits not stubbed");
-      },
-      loadCommitDetails: async () => {
-        throw new Error("Unsupported: details not stubbed");
-      },
-      loadLineCounts: async () => {
-        throw new Error("Unsupported: counts not stubbed");
-      },
-      loadStashes: async () => {
-        throw new Error("Unsupported: stashes not stubbed");
-      },
-      loadStashDetails: async () => {
-        throw new Error("Unsupported: stash details not stubbed");
-      },
-      compareCommits: async () => {
-        throw new Error("Unsupported: compare not stubbed");
-      },
-      loadCommitFile: async () => {
-        throw new Error("Unsupported: file not stubbed");
-      },
-      configList: async () => {
-        throw new Error("Unsupported: config not stubbed");
-      }
-    }));
-    const direct = await loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote });
+  it("composes the engine payload with CLI fills and the engine config", async () => {
+    // Both sides read the same controlled global file, so the comparison
+    // depends on the fixture and never on the machine's own configuration.
+    // makeRepo configures the local identity this fake mirrors.
+    const savedGlobal = process.env.GIT_CONFIG_GLOBAL;
+    const globalDir = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-test-reader-global-"));
+    const globalFile = path.join(globalDir, "gitconfig");
+    fs.writeFileSync(globalFile, "");
+    process.env.GIT_CONFIG_GLOBAL = globalFile;
+    try {
+      const result = await repoInfoReader("auto", () => ({
+        engineVersion: () => "fake",
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => payload,
+        loadCommits: async () => {
+          throw new Error("Unsupported: commits not stubbed");
+        },
+        loadCommitDetails: async () => {
+          throw new Error("Unsupported: details not stubbed");
+        },
+        loadLineCounts: async () => {
+          throw new Error("Unsupported: counts not stubbed");
+        },
+        loadStashes: async () => {
+          throw new Error("Unsupported: stashes not stubbed");
+        },
+        loadStashDetails: async () => {
+          throw new Error("Unsupported: stash details not stubbed");
+        },
+        compareCommits: async () => {
+          throw new Error("Unsupported: compare not stubbed");
+        },
+        loadCommitFile: async () => {
+          throw new Error("Unsupported: file not stubbed");
+        },
+        configList: async (_repo: string, local: boolean) =>
+          JSON.stringify(local ? { "user.name": "T", "user.email": "t@t.com" } : {})
+      }));
+      const direct = await loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote });
 
-    expect(result).toEqual(direct);
-    expect(fallbackReads.count).toBe(1);
-    expect(didEngineServeRead()).toBe(true);
+      expect(result).toEqual(direct);
+      expect(fallbackReads.count).toBe(1);
+      expect(didEngineServeRead()).toBe(true);
+    } finally {
+      if (savedGlobal === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+      else process.env.GIT_CONFIG_GLOBAL = savedGlobal;
+      fs.rmSync(globalDir, { recursive: true, force: true });
+    }
   });
 
   it.each(["NotARepository: no git dir", "Unsupported: declined"])(
