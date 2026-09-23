@@ -9,6 +9,9 @@
  *   node scripts/build-addon.mjs                       # debug, for the host platform
  *   node scripts/build-addon.mjs --release             # what ships
  *   node scripts/build-addon.mjs --target <triple>     # cross-compile
+ *   node scripts/build-addon.mjs --cross-compile      # the host triple, but linked by the cross
+ *                                                      # toolchain rather than the system one, so
+ *                                                      # the result does not depend on the host
  *   node scripts/build-addon.mjs --target <triple> --cross-compile
  *                                                      # force the cross toolchain (cargo-zigbuild
  *                                                      # / cargo-xwin) even for the host's own OS
@@ -391,12 +394,15 @@ function main() {
 		staging
 	];
 	if (options.release) args.push('--release');
-	if (target !== host) {
+	// `--cross-compile` is honored for the host's own triple too, and that is
+	// the point rather than an oversight: `build-all.mjs` forces every target
+	// through the cross toolchain so the host a release is built on cannot
+	// change what comes out. Without it, the host binary would be linked by
+	// the system linker while the other five were linked by zig, and a
+	// maintainer's laptop and a CI runner would ship different bytes.
+	if (target !== host || options.crossCompile) {
 		args.push('--target', target);
 		if (options.crossCompile || osFamilyOf(target) !== osFamilyOf(host)) args.push('--cross-compile');
-	} else if (options.crossCompile) {
-		console.error('! --cross-compile needs a --target: it only means anything when cross-compiling.');
-		process.exit(1);
 	}
 
 	console.log(`> napi ${args.slice(1).join(' ')}`);

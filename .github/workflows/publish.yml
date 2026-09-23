@@ -13,8 +13,6 @@ jobs:
   native:
     name: Build engine binaries
     uses: ./.github/workflows/native-build.yml
-    with:
-      scope: full
 
   package:
     name: Package universal VSIX
@@ -41,31 +39,20 @@ jobs:
       - name: Download engine binaries
         uses: actions/download-artifact@v4.0.0
         with:
-          pattern: native-*
-          path: staging/
+          name: native-all
+          path: engine/native/
 
-      # `download-artifact` names each directory after its artifact, so the
-      # `native-` prefix comes off before the binaries land where
-      # `.vscodeignore` whitelists them and the loader looks for them.
-      - name: Stage every platform binary
+      # A missing binary would package silently and leave that platform on the
+      # CLI with nothing to say why — exactly the failure the loader's fallback
+      # is designed to hide — so the count is asserted rather than trusted.
+      - name: Assert every platform is present
         run: |
-          shopt -s nullglob
-          staged=0
-          for dir in staging/native-*/; do
-            platform="$(basename "$dir")"
-            platform="${platform#native-}"
-            mkdir -p "engine/native/$platform"
-            mv "$dir"*.node "engine/native/$platform/"
-            staged=$((staged + 1))
-          done
-          # A missing binary would package silently and leave that platform on
-          # the CLI with nothing to say why, so the count is asserted rather
-          # than trusted.
+          staged="$(ls -1 engine/native/*/git-graph.node 2>/dev/null | wc -l)"
           if [ "$staged" -ne 6 ]; then
-            echo "::error::expected 6 engine binaries, staged $staged"
+            echo "::error::expected 6 engine binaries, found $staged"
             exit 1
           fi
-          ls -l engine/native/*/*.node
+          ls -l engine/native/*/git-graph.node
 
       # `vsce package` runs `vscode:prepublish`, which typechecks, lints, and
       # builds the production bundle before writing the VSIX. It does not

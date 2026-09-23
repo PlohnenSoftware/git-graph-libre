@@ -1,65 +1,25 @@
 name: native
 
-# Builds the `.node` engine binaries the per-platform VSIXs ship (Phase 16,
-# slice 16.9). Called by `publish.yml` on tag builds (`scope: full`) and
-# runnable by hand for ad-hoc rebuilds. The niche triples this skips fall
-# back to the `git` CLI backend by construction.
+# Builds the engine for all six shipped platforms on one Linux runner, by
+# running `engine/scripts/build-all.mjs` — the same script and the same
+# pinned toolchain a maintainer runs locally. That is the point: a release
+# must not depend on this CI provider still existing, still offering these
+# runners, or still offering them free, so the only build path is one that
+# works anywhere a Linux box and a Rust toolchain do.
 #
-# Link environments follow `engine/docs/DEPENDENCIES.md`: every build runs
-# where its linker already exists. The three common triples build natively
-# on their own runners; Windows arm64 cross-links from `windows-latest`
-# through cargo-xwin and macOS x64 through zig on the arm64 runner — both
-# installed on first use by `engine/scripts/build-addon.mjs`, which also
-# owns the triple-to-directory mapping this workflow must not duplicate.
+# Linux and macOS targets link through cargo-zigbuild, Windows targets through
+# cargo-xwin; both install themselves on first use. zig is pinned by the
+# script rather than taken from the runner image, because zig 0.16 breaks the
+# macOS link (see the constant's comment there).
 
 on:
   workflow_call:
-    inputs:
-      scope:
-        description: "'common' builds the three mainstream triples, 'full' all six"
-        type: string
-        default: common
   workflow_dispatch:
-    inputs:
-      scope:
-        description: "'common' builds the three mainstream triples, 'full' all six"
-        type: choice
-        options: [common, full]
-        default: full
 
 jobs:
-  targets:
-    name: Select triples
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.select.outputs.matrix }}
-    steps:
-      - id: select
-        run: |
-          common='[
-            {"triple":"x86_64-pc-windows-msvc","dir":"win32-x64-msvc","runner":"windows-latest","flags":""},
-            {"triple":"x86_64-unknown-linux-gnu","dir":"linux-x64-gnu","runner":"ubuntu-latest","flags":""},
-            {"triple":"aarch64-apple-darwin","dir":"darwin-arm64","runner":"macos-latest","flags":""}
-          ]'
-          extra='[
-            {"triple":"aarch64-pc-windows-msvc","dir":"win32-arm64-msvc","runner":"windows-latest","flags":"--cross-compile"},
-            {"triple":"aarch64-unknown-linux-gnu","dir":"linux-arm64-gnu","runner":"ubuntu-24.04-arm","flags":""},
-            {"triple":"x86_64-apple-darwin","dir":"darwin-x64","runner":"macos-latest","flags":"--cross-compile"}
-          ]'
-          if [ "${{ inputs.scope }}" = "full" ]; then
-            echo "matrix=$(echo "$common" "$extra" | jq -s add -c)" >> "$GITHUB_OUTPUT"
-          else
-            echo "matrix=$(echo "$common" | jq -c .)" >> "$GITHUB_OUTPUT"
-          fi
-
   build:
-    name: Build ${{ matrix.target.dir }}
-    needs: targets
-    strategy:
-      fail-fast: false
-      matrix:
-        target: ${{ fromJSON(needs.targets.outputs.matrix) }}
-    runs-on: ${{ matrix.target.runner }}
+    name: Build all six engine binaries
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
 
@@ -68,17 +28,22 @@ jobs:
         with:
           node-version: 24
 
-      - run: corepack enable && pnpm install --frozen-lockfile
+      - run: corepack enable
 
-      - name: Add Rust target
-        run: rustup target add ${{ matrix.target.triple }}
+      - name: Build every platform
+        run: node engine/scripts/build-all.mjs
 
-      - name: Build addon
-        run: node engine/scripts/build-addon.mjs --release --target ${{ matrix.target.triple }} ${{ matrix.target.flags }}
+      - name: Report what was built
+        run: |
+          ls -l engine/native/*/git-graph.node
+          sha256sum engine/native/*/git-graph.node
 
-      - name: Upload binary
+      # One artifact carrying all six platform directories, so the packaging
+      # job restores them in one step and the layout it gets is the layout
+      # `.vscodeignore` whitelists and the loader reads.
+      - name: Upload engine binaries
         uses: actions/upload-artifact@v4.0.0
         with:
-          name: native-${{ matrix.target.dir }}
-          path: engine/native/${{ matrix.target.dir }}/git-graph.node
+          name: native-all
+          path: engine/native/*/git-graph.node
           if-no-files-found: error
