@@ -12,6 +12,10 @@
 !out/
 !media/
 !l10n/
+# The engine binary for exactly one platform: CI stages a single directory
+# before packaging (per-platform VSIXs), or none (the universal CLI-only
+# VSIX). Binaries are gitignored, so a checkout never carries a stale one.
+!engine/native/**
 
 !resources/icon.png
 !resources/webview-icon-color-dark.svg

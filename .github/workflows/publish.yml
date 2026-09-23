@@ -10,8 +10,26 @@ on:
       - "v*"
 
 jobs:
-  release:
-    name: Package, release, and publish
+  native:
+    name: Build engine binaries
+    uses: ./.github/workflows/native-build.yml
+    with:
+      scope: full
+
+  package:
+    name: Package ${{ matrix.target.vsix }}
+    needs: native
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { dir: "win32-x64-msvc", vsce: "win32-x64", vsix: "win32-x64" }
+          - { dir: "win32-arm64-msvc", vsce: "win32-arm64", vsix: "win32-arm64" }
+          - { dir: "linux-x64-gnu", vsce: "linux-x64", vsix: "linux-x64" }
+          - { dir: "linux-arm64-gnu", vsce: "linux-arm64", vsix: "linux-arm64" }
+          - { dir: "darwin-x64", vsce: "darwin-x64", vsix: "darwin-x64" }
+          - { dir: "darwin-arm64", vsce: "darwin-arm64", vsix: "darwin-arm64" }
+          - { dir: "", vsce: "", vsix: "universal" }
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
@@ -23,30 +41,72 @@ jobs:
 
       - run: corepack enable && pnpm install --frozen-lockfile
 
+      # Only the wanted platform directory is ever on disk: a fresh
+      # checkout carries no binaries (they are gitignored), and exactly one
+      # artifact lands here. The universal VSIX ships none and falls back
+      # to the `git` CLI backend everywhere — musl/Alpine above all.
+      - name: Download engine binary
+        if: matrix.target.dir != ''
+        uses: actions/download-artifact@v4.0.0
+        with:
+          name: native-${{ matrix.target.dir }}
+          path: engine/native/${{ matrix.target.dir }}/
+
       # `vsce package` runs `vscode:prepublish`, which typechecks, lints, and
       # builds the production bundle before writing the VSIX.
       - name: Package extension
         id: package
         run: |
-          pnpm exec vsce package --no-dependencies
+          if [ -n "${{ matrix.target.vsce }}" ]; then
+            pnpm exec vsce package --no-dependencies --target "${{ matrix.target.vsce }}"
+          else
+            pnpm exec vsce package --no-dependencies
+          fi
           vsix="$(ls -1 ./*.vsix | head -n 1)"
           if [ -z "$vsix" ]; then
             echo "::error::vsce package produced no .vsix file"
             exit 1
           fi
           echo "vsix=$vsix" >> "$GITHUB_OUTPUT"
-          echo "Packaged $vsix"
+          echo "Packaged $vsix ($(du -h "$vsix" | cut -f1))"
+
+      - name: Upload VSIX
+        uses: actions/upload-artifact@v4.0.0
+        with:
+          name: vsix-${{ matrix.target.vsix }}
+          path: ${{ steps.package.outputs.vsix }}
+          if-no-files-found: error
+
+  release:
+    name: Release and publish
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+
+      - run: corepack enable && pnpm install --frozen-lockfile
+
+      - name: Download VSIXs
+        uses: actions/download-artifact@v4.0.0
+        with:
+          pattern: vsix-*
+          merge-multiple: true
+          path: dist/
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VSIX: ${{ steps.package.outputs.vsix }}
           TAG: ${{ github.ref_name }}
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$VSIX" --clobber
+            gh release upload "$TAG" dist/*.vsix --clobber
           else
-            gh release create "$TAG" "$VSIX" --title "$TAG" --generate-notes
+            gh release create "$TAG" dist/*.vsix --title "$TAG" --generate-notes
           fi
 
       # The `secrets` context is not available to a step-level `if`, so resolve
@@ -75,16 +135,22 @@ jobs:
             echo "::notice::OPEN_VSX_TOKEN is not set; skipping Open VSX publish."
           fi
 
+      # Every VSIX publishes against its own path with `--skip-duplicate`,
+      # so a re-run only fills the gaps and never fails on what is live.
       - name: Publish to VS Marketplace
         if: steps.marketplace.outputs.configured == 'true'
         env:
           VSCE_PAT: ${{ secrets.VS_MARKETPLACE_TOKEN }}
-          VSIX: ${{ steps.package.outputs.vsix }}
-        run: pnpm exec vsce publish --packagePath "$VSIX" --skip-duplicate
+        run: |
+          for vsix in dist/*.vsix; do
+            pnpm exec vsce publish --packagePath "$vsix" --skip-duplicate
+          done
 
       - name: Publish to Open VSX
         if: steps.openvsx.outputs.configured == 'true'
         env:
           OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
-          VSIX: ${{ steps.package.outputs.vsix }}
-        run: pnpm exec ovsx publish --packagePath "$VSIX" --skip-duplicate
+        run: |
+          for vsix in dist/*.vsix; do
+            pnpm exec ovsx publish --packagePath "$vsix" --skip-duplicate
+          done
