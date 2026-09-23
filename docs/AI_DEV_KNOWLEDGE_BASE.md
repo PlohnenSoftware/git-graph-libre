@@ -2557,6 +2557,26 @@ fresh, and after a repository leaves the workspace its handle must be dropped.
    `close_all_repositories` on deactivate. `open_repository_count()` exists for
    the test that proves handles do not accumulate across repository switches.
 
+Implementation record (`2026-09-23`, three subslice commits, all signed):
+
+- Empirical probe first (`/tmp/probe168.mjs`, preserved for review):
+  a warmed handle was opened, then an external commit, branch and tag
+  creation, a stash push and a checkout were made by a separate `git`
+  process. The immediate re-read showed all of them — commits 1→3, head
+  `main`→`side`, one stash, the new tag — with no change after a further
+  6s settle wait, and a second external wave was seen too. gix re-reads
+  refs and objects fresh on every call; the handle caches only immutable
+  data. So no write-time cache bust exists in this slice: there is
+  nothing to bust.
+- 16.8a the seam gains `closeRepository`, `closeAllRepositories` and
+  `openRepositoryCount`, with best-effort wrappers that never throw, so
+  removal and deactivation succeed whether or not the engine cooperates.
+- 16.8b `removeRepo` — the single funnel for every repository removal —
+  drops the engine handle in exactly one place, and a new `deactivate`
+  export closes all handles. A real-addon lifecycle test proves handles
+  do not accumulate across reads, drop on close, and reopen lazily.
+- Gate: numbers in the 16.8c commit.
+
 #### Slice 16.9 — Per-platform packaging
 
 Only now, and only if the earlier slices have paid off.
@@ -4841,10 +4861,12 @@ parity over renames/copies/binary/root/unborn/dirty plus file bytes).
 **16.7 (the remaining reads) is done** (`2026-09-23`: the user-config
 fill from `config_list` with whole-read rollback, parity over plain,
 include-carrying and missing-global cases, every other candidate
-declined with its reason recorded). **16.8 (handle lifetime and
-post-write freshness) is next** — the correctness risk that is easiest
-to miss: establish empirically whether a warm handle sees external
-writes before designing the bust.
+declined with its reason recorded). **16.8 (handle lifetime and post-write freshness) is done**
+(`2026-09-23`: warm handles proven fresh against external writes by
+probe, so no write-time bust — only leak prevention via removal and
+deactivation closes, with a no-accumulation test). **16.9
+(per-platform packaging) is next** — six triples in CI plus the
+universal CLI-only VSIX; the release workflow shape must survive.
 
 Maintainer-set priority (`2026-08-25`): **the Immediate TODOs bug backlog above
 comes before every phase item below.** BUG-1 through BUG-6 were reported against
