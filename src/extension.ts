@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 
 import { AvatarManager } from "./avatarManager";
+import { closeAllEngineRepositories } from "./backend/engine/index";
 import { gitClientFactory } from "./backend/gitClient";
 import { buildExtensionUri } from "./backend/utils/path";
 import { config } from "./config";
@@ -175,4 +176,10 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   logger.log("Extension activated successfully");
+}
+
+export function deactivate() {
+  // Drop every engine handle so open packs and caches do not outlive the
+  // window. Best effort: deactivation must succeed without an addon.
+  closeAllEngineRepositories();
 }

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 
+import { closeEngineRepository } from "@/backend/engine/index";
 import { isGitRepository } from "@/backend/utils/git";
 import { getPathFromUri } from "@/backend/utils/path";
 import { evalPromises } from "@/backend/utils/promise";
@@ -39,6 +40,10 @@ export function createRepoManager(
   function removeRepo(repo: string) {
     delete repos[repo];
     extensionState.saveRepos(repos);
+    // Every removal path funnels through here, so the engine handle is
+    // dropped in exactly one place. Best effort: removal must succeed
+    // whether or not the engine cooperates.
+    closeEngineRepository(repo);
   }
 
   function registerViewCallback(cb: (repos: GitRepoSet, numRepos: number) => void) {
