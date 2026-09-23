@@ -33,6 +33,39 @@ jobs:
       # pure `cargo` job.
       - run: corepack enable && pnpm install --frozen-lockfile
 
+      # Three caches, because the run populates three unrelated things and the
+      # first one is by far the largest. Every key carries the toolchain pin,
+      # so raising `rust-toolchain.toml` starts clean rather than mixing
+      # artifacts from two compilers.
+
+      # ~1.2 GB: the MSVC CRT and Windows SDK cargo-xwin downloads for the two
+      # Windows targets. Fixed content, so the key only has to change when the
+      # build script that drives it does.
+      - name: Cache the MSVC CRT
+        uses: actions/cache@v4.2.0
+        with:
+          path: ~/.cache/cargo-xwin
+          key: xwin-${{ runner.os }}-${{ hashFiles('engine/scripts/build-addon.mjs') }}
+          restore-keys: xwin-${{ runner.os }}-
+
+      # ~350 MB: the pinned zig. Keyed on the script that names the version,
+      # so a new pin fetches a new wheel instead of reusing the old one.
+      - name: Cache the pinned zig
+        uses: actions/cache@v4.2.0
+        with:
+          path: engine/.toolchain
+          key: zig-${{ runner.os }}-${{ hashFiles('engine/scripts/build-all.mjs') }}
+
+      # The compiled dependencies, eight targets' worth. `Swatinem/rust-cache`
+      # keys on the lockfile and the rustc version itself and prunes the
+      # workspace's own artifacts, which is what keeps this from growing past
+      # the repository cache budget.
+      - name: Cache the cargo build
+        uses: Swatinem/rust-cache@v2.8.0
+        with:
+          workspaces: engine
+          key: native-all
+
       - name: Build every platform
         run: node engine/scripts/build-all.mjs
 

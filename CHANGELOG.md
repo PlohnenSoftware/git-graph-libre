@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   engine is 32-bit ARM, where the extension installs the same and runs
   entirely on `git` — as does any installation where the component fails to
   load.
+- **The engine is built reproducibly.** The compiler version is pinned in the
+  repository and the build erases the machine-specific paths that would
+  otherwise end up inside the binary, so the same source produces the same
+  bytes wherever it is built. Anyone can rebuild what ships with one command
+  and compare.
 - **There is still one download.** The release carries every platform's
   engine in a single package and each installation uses the one it can run,
   so installing by hand means picking one file rather than matching your

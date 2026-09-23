@@ -60,9 +60,16 @@ build` to build the whole stack — the Rust engine for your platform and the
 extension itself — then `pnpm exec vsce package --no-dependencies` and, in VS
 Code, `Extensions: Install from VSIX...`.
 
-`pnpm run build` needs a Rust toolchain. Without one, skip it: `vsce package`
-on its own still produces a working extension that runs entirely on the `git`
-CLI, which is also what the universal package on the registries contains.
+`pnpm run build` needs `rustup`; the exact compiler version is pinned in
+`rust-toolchain.toml` and installed for you. Without a Rust toolchain, skip
+it: `vsce package` on its own still produces a working extension that runs
+entirely on the `git` CLI.
+
+`pnpm run build:all` builds the engine for **every** supported platform rather
+than just yours — Windows, macOS and Linux on x64 and arm64, including musl
+systems such as Alpine — which is what the published package contains. It
+cross-compiles all of them from whichever machine you run it on, so releasing
+never depends on a particular CI service.
 
 ## Configuration
 

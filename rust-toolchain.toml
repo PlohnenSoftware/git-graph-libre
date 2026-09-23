@@ -1,0 +1,33 @@
+# The Rust toolchain every build of the engine uses, pinned so that a bug is
+# never a version difference between one machine and another.
+#
+# This sits at the repository root rather than beside `engine/Cargo.toml`
+# deliberately. rustup resolves an override by walking up from the *current
+# directory*, and the two ways cargo is invoked here start in different
+# places: `build-addon.mjs` runs it with `engine/` as the cwd, while the
+# `engine:check` / `engine:test` / `engine:lint` / `engine:fmt` scripts run it
+# from the repository root with `--manifest-path`. Only a file at the root is
+# found by both, so only a file at the root pins the build and the gate to the
+# same compiler.
+#
+# `rust-version` in `engine/Cargo.toml` is a different thing and stays where it
+# is: that is the minimum the source supports, this is the one it is built
+# with.
+#
+# Raising the channel is a deliberate act. Do it on its own, rebuild all eight
+# targets, and expect the hashes to change.
+
+[toolchain]
+channel = "1.98.1"
+profile = "minimal"
+components = ["clippy", "rustfmt"]
+targets = [
+  "x86_64-pc-windows-msvc",
+  "aarch64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+  "aarch64-unknown-linux-musl",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin"
+]

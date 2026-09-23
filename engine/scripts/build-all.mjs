@@ -22,6 +22,7 @@
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -67,17 +68,21 @@ function run(command, args, options = {}) {
 
 /**
  * The directory holding the pinned zig, installing it into a throwaway virtual
- * environment under `target/` on first use. Kept out of the system toolchain
- * deliberately: a distribution's zig moves on its own schedule, and this build
- * has already been broken once by exactly that.
+ * environment on first use. Kept out of the system toolchain deliberately: a
+ * distribution's zig moves on its own schedule, and this build has already
+ * been broken once by exactly that.
+ *
+ * It lives in `.toolchain/` rather than under `target/` so that a Rust cache
+ * action can own `target/` — including cleaning it — without evicting a 350 MB
+ * download that only changes when the pin does.
  */
 function pinnedZigDirectory() {
-	const root = path.join(ENGINE, 'target', 'toolchain', `zig-${ZIG_VERSION}`);
+	const root = path.join(ENGINE, '.toolchain', `zig-${ZIG_VERSION}`);
 	const marker = path.join(root, 'lib');
 	if (!existsSync(marker)) {
 		console.log(`> installing pinned zig ${ZIG_VERSION}`);
 		mkdirSync(path.dirname(root), { recursive: true });
-		const venv = path.join(ENGINE, 'target', 'toolchain', 'venv');
+		const venv = path.join(ENGINE, '.toolchain', 'venv');
 		run('python3', ['-m', 'venv', venv]);
 		const pip = path.join(venv, 'bin', 'pip');
 		run(pip, ['install', '--quiet', `ziglang==${ZIG_VERSION}`]);
@@ -97,12 +102,42 @@ function pinnedZigDirectory() {
 	return root;
 }
 
+/**
+ * `--remap-path-prefix` arguments that take the two absolute paths rustc would
+ * otherwise bake into the binary — the checkout and the cargo registry — and
+ * replace them with fixed strings.
+ *
+ * Without this the same source produces different bytes on every machine,
+ * because `/home/zam/...` and `/home/runner/work/...` end up inside the
+ * artifact. With it, plus the pinned toolchain in `rust-toolchain.toml`, a
+ * local build and a CI build have the same inputs.
+ *
+ * The cost is that panic messages and backtraces name `/engine/...` rather
+ * than a path an editor can open. That is the right trade for the binaries
+ * that ship; use a plain `engine:build` for anything you intend to debug.
+ */
+function remapArguments() {
+	const cargoHome = process.env.CARGO_HOME ?? path.join(homedir(), '.cargo');
+	return [
+		`--remap-path-prefix=${ENGINE}=/engine`,
+		`--remap-path-prefix=${cargoHome}/registry=/cargo/registry`,
+		`--remap-path-prefix=${cargoHome}/git=/cargo/git`
+	];
+}
+
 function main() {
 	const zigDirectory = pinnedZigDirectory();
-	const env = { ...process.env, PATH: `${zigDirectory}${path.delimiter}${process.env.PATH}` };
+	const rustflags = [process.env.RUSTFLAGS ?? '', ...remapArguments()].join(' ').trim();
+	const env = {
+		...process.env,
+		PATH: `${zigDirectory}${path.delimiter}${process.env.PATH}`,
+		RUSTFLAGS: rustflags
+	};
+	console.log(`> RUSTFLAGS ${rustflags}`);
 
+	// Run from `engine/` so rustup resolves the same override the build does.
 	console.log('> rustup target add');
-	run('rustup', ['target', 'add', ...Object.values(TARGETS)]);
+	run('rustup', ['target', 'add', ...Object.values(TARGETS)], { cwd: ENGINE });
 
 	const built = [];
 	for (const [directory, triple] of Object.entries(TARGETS)) {
