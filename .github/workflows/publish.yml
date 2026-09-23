@@ -17,19 +17,8 @@ jobs:
       scope: full
 
   package:
-    name: Package ${{ matrix.target.vsix }}
+    name: Package universal VSIX
     needs: native
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - { dir: "win32-x64-msvc", vsce: "win32-x64", vsix: "win32-x64" }
-          - { dir: "win32-arm64-msvc", vsce: "win32-arm64", vsix: "win32-arm64" }
-          - { dir: "linux-x64-gnu", vsce: "linux-x64", vsix: "linux-x64" }
-          - { dir: "linux-arm64-gnu", vsce: "linux-arm64", vsix: "linux-arm64" }
-          - { dir: "darwin-x64", vsce: "darwin-x64", vsix: "darwin-x64" }
-          - { dir: "darwin-arm64", vsce: "darwin-arm64", vsix: "darwin-arm64" }
-          - { dir: "", vsce: "", vsix: "universal" }
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
@@ -41,35 +30,50 @@ jobs:
 
       - run: corepack enable && pnpm install --frozen-lockfile
 
-      # Only the wanted platform directory is ever on disk: a fresh
-      # checkout carries no binaries (they are gitignored), and exactly one
-      # artifact lands here. The universal VSIX ships none and falls back
-      # to the `git` CLI backend everywhere — musl/Alpine above all.
-      - name: Download engine binary
-        if: matrix.target.dir != ''
+      # One VSIX carries every platform's engine and `vsce` is given no
+      # `--target`, so a single artifact installs everywhere: the loader picks
+      # its directory from `process.platform`/`process.arch` at runtime, and a
+      # platform with no directory of its own (musl/Alpine above all) finds
+      # nothing and runs on the `git` CLI, exactly as it would have with no
+      # engine at all. The cost is deliberate — every install carries five
+      # binaries it cannot load — and buys one file to download instead of
+      # seven.
+      - name: Download engine binaries
         uses: actions/download-artifact@v4.0.0
         with:
-          name: native-${{ matrix.target.dir }}
-          path: engine/native/${{ matrix.target.dir }}/
+          pattern: native-*
+          path: staging/
 
-      - name: Assert no engine binary (universal)
-        if: matrix.target.dir == ''
+      # `download-artifact` names each directory after its artifact, so the
+      # `native-` prefix comes off before the binaries land where
+      # `.vscodeignore` whitelists them and the loader looks for them.
+      - name: Stage every platform binary
         run: |
-          if ls engine/native/*/*.node >/dev/null 2>&1; then
-            echo "::error::the universal VSIX must ship no engine binaries"
+          shopt -s nullglob
+          staged=0
+          for dir in staging/native-*/; do
+            platform="$(basename "$dir")"
+            platform="${platform#native-}"
+            mkdir -p "engine/native/$platform"
+            mv "$dir"*.node "engine/native/$platform/"
+            staged=$((staged + 1))
+          done
+          # A missing binary would package silently and leave that platform on
+          # the CLI with nothing to say why, so the count is asserted rather
+          # than trusted.
+          if [ "$staged" -ne 6 ]; then
+            echo "::error::expected 6 engine binaries, staged $staged"
             exit 1
           fi
+          ls -l engine/native/*/*.node
 
       # `vsce package` runs `vscode:prepublish`, which typechecks, lints, and
-      # builds the production bundle before writing the VSIX.
+      # builds the production bundle before writing the VSIX. It does not
+      # rebuild the engine — the binaries staged above are what ships.
       - name: Package extension
         id: package
         run: |
-          if [ -n "${{ matrix.target.vsce }}" ]; then
-            pnpm exec vsce package --no-dependencies --target "${{ matrix.target.vsce }}"
-          else
-            pnpm exec vsce package --no-dependencies
-          fi
+          pnpm exec vsce package --no-dependencies
           vsix="$(ls -1 ./*.vsix | head -n 1)"
           if [ -z "$vsix" ]; then
             echo "::error::vsce package produced no .vsix file"
@@ -81,7 +85,7 @@ jobs:
       - name: Upload VSIX
         uses: actions/upload-artifact@v4.0.0
         with:
-          name: vsix-${{ matrix.target.vsix }}
+          name: vsix
           path: ${{ steps.package.outputs.vsix }}
           if-no-files-found: error
 
@@ -99,22 +103,32 @@ jobs:
 
       - run: corepack enable && pnpm install --frozen-lockfile
 
-      - name: Download VSIXs
+      - name: Download VSIX
         uses: actions/download-artifact@v4.0.0
         with:
-          pattern: vsix-*
-          merge-multiple: true
+          name: vsix
           path: dist/
+
+      - name: Resolve the VSIX
+        id: vsix
+        run: |
+          vsix="$(ls -1 dist/*.vsix | head -n 1)"
+          if [ -z "$vsix" ]; then
+            echo "::error::no .vsix was produced by the package job"
+            exit 1
+          fi
+          echo "path=$vsix" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
+          VSIX: ${{ steps.vsix.outputs.path }}
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/*.vsix --clobber
+            gh release upload "$TAG" "$VSIX" --clobber
           else
-            gh release create "$TAG" dist/*.vsix --title "$TAG" --generate-notes
+            gh release create "$TAG" "$VSIX" --title "$TAG" --generate-notes
           fi
 
       # The `secrets` context is not available to a step-level `if`, so resolve
@@ -143,22 +157,18 @@ jobs:
             echo "::notice::OPEN_VSX_TOKEN is not set; skipping Open VSX publish."
           fi
 
-      # Every VSIX publishes against its own path with `--skip-duplicate`,
-      # so a re-run only fills the gaps and never fails on what is live.
+      # Both publishes take the same artifact the GitHub release carries, with
+      # `--skip-duplicate` so a re-run is a no-op rather than a failure.
       - name: Publish to VS Marketplace
         if: steps.marketplace.outputs.configured == 'true'
         env:
           VSCE_PAT: ${{ secrets.VS_MARKETPLACE_TOKEN }}
-        run: |
-          for vsix in dist/*.vsix; do
-            pnpm exec vsce publish --packagePath "$vsix" --skip-duplicate
-          done
+          VSIX: ${{ steps.vsix.outputs.path }}
+        run: pnpm exec vsce publish --packagePath "$VSIX" --skip-duplicate
 
       - name: Publish to Open VSX
         if: steps.openvsx.outputs.configured == 'true'
         env:
           OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
-        run: |
-          for vsix in dist/*.vsix; do
-            pnpm exec ovsx publish --packagePath "$vsix" --skip-duplicate
-          done
+          VSIX: ${{ steps.vsix.outputs.path }}
+        run: pnpm exec ovsx publish --packagePath "$VSIX" --skip-duplicate

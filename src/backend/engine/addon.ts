@@ -120,9 +120,13 @@ function platformDirectory(): string | null {
 /**
  * Candidate repository roots, first hit wins. `__dirname` is `out/` in the
  * packaged extension and `src/backend/engine/` under vitest — the same
- * dual-anchor pattern the backend manifest tests rely on. A packaged VSIX
- * carries no `engine/` directory, so both anchors miss there and the load
- * below falls through to null (and the CLI).
+ * dual-anchor pattern the backend manifest tests rely on. The first anchor is
+ * the one that resolves in a packaged VSIX, where `.vscodeignore` whitelists
+ * `engine/native/*&#47;*.node` and the binary sits at
+ * `extension/engine/native/<platform>/git-graph.node` beside `extension/out/`.
+ * The published VSIX carries every platform's binary and this picks the one
+ * for the host; a platform with no directory of its own misses both anchors
+ * and the load below falls through to null (and the CLI).
  */
 function candidateAddonFiles(directory: string): string[] {
   return [

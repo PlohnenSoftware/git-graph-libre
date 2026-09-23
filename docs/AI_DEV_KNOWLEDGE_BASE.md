@@ -2620,6 +2620,23 @@ Implementation record (`2026-09-23`, three subslice commits, all signed):
   sizes are pending the first tag run; musl/Alpine is covered by the
   universal VSIX, whose gnu-binary absence is the point.
 
+  **Maintainer decision (`2026-09-23`): one universal VSIX, not seven.** The
+  per-platform matrix was replaced by a single package carrying every
+  platform's binary, which `vsce` is given no `--target` for, so one artifact
+  installs everywhere. Measured at **`15.06 MB`** (42 files, six binaries) —
+  about 5.5× a single-platform VSIX rather than 6×, since they compress well
+  together. It needs no code: `platformDirectoryFor()` already picks the
+  directory from `process.platform`/`process.arch` at load time, and
+  `.vscodeignore` whitelists `engine/native/*/*.node` across every directory.
+  The cost is accepted knowingly — each install carries five binaries it
+  cannot load — and it buys one file to download instead of seven, which is
+  what the maintainer asked for and what `vscode-git-graph-rs` did by default
+  (their `package-platforms.mjs` is the per-platform alternative, not the
+  norm). `publish.yml` is correspondingly one package job rather than a
+  seven-way matrix, and asserts it staged exactly six binaries, because a
+  missing one would package silently and leave that platform on the CLI with
+  nothing to say why.
+
   **An earlier revision of this line recorded linux-x64 at `37.63 MB`
   with "the 195 MB binary inside", and that number was measured against
   a *debug* build.** `engine:build` defaults to debug, and

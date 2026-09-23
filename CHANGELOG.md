@@ -31,12 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before it asks, so these never silently change. Every read is implemented
   twice and the two are tested against each other on real repositories.
 - **A platform without the engine loses nothing but the speed.** The engine
-  ships as a small compiled component for Windows, macOS and Linux on x64 and
-  arm64; anywhere else — Alpine and other musl systems above all — the
-  extension installs the same and runs entirely on `git`, as does any
-  installation where the component fails to load.
-- Releases now publish one package per platform plus a universal package
-  carrying no compiled component, which is what those other platforms get.
+  is compiled for Windows, macOS and Linux on x64 and arm64; anywhere else —
+  Alpine and other musl systems above all — the extension installs the same
+  and runs entirely on `git`, as does any installation where the component
+  fails to load.
+- **There is still one download.** The release carries every platform's
+  engine in a single package and each installation uses the one it can run,
+  so installing by hand means picking one file rather than matching your
+  processor and operating system against a list. The package is
+  correspondingly larger than 1.6.2's.
 
 See [engine/NOTICE.md](engine/NOTICE.md) for what the engine is, where it came
 from, and the license terms it arrived under.
