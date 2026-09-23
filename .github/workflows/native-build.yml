@@ -18,7 +18,7 @@ on:
 
 jobs:
   build:
-    name: Build all six engine binaries
+    name: Build every engine binary
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
@@ -28,7 +28,10 @@ jobs:
         with:
           node-version: 24
 
-      - run: corepack enable
+      # `build-addon.mjs` delegates the cargo plumbing to `@napi-rs/cli`, a
+      # devDependency, so the install is not optional here the way it is for a
+      # pure `cargo` job.
+      - run: corepack enable && pnpm install --frozen-lockfile
 
       - name: Build every platform
         run: node engine/scripts/build-all.mjs
