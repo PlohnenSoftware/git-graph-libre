@@ -486,12 +486,12 @@
         },
         "git-graph-libre.initialLoadCommits": {
           "type": "number",
-          "default": 300,
+          "default": 250,
           "description": "%config.initialLoadCommits%"
         },
         "git-graph-libre.loadMoreCommits": {
           "type": "number",
-          "default": 1000,
+          "default": 750,
           "description": "%config.loadMoreCommits%"
         },
         "git-graph-libre.maxDepthOfRepoSearch": {
