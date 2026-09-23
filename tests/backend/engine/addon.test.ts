@@ -58,7 +58,8 @@ describe("engine addon loader", () => {
       loadLineCounts: async () => "{}",
       loadStashes: async () => "[]",
       loadStashDetails: async () => "{}",
-      compareCommits: async () => "[]"
+      compareCommits: async () => "[]",
+      loadCommitFile: async () => "{}"
     };
     expect(validateLoadedAddon(loaded)).toBe(loaded);
   });
@@ -144,6 +145,20 @@ describe("engine addon loader", () => {
         loadLineCounts: async () => "{}",
         loadStashes: async () => "[]",
         loadStashDetails: async () => "{}"
+      }
+    ],
+    [
+      "a missing loadCommitFile export",
+      {
+        engineVersion: () => EXPECTED_ENGINE_VERSION,
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => "{}",
+        loadCommits: async () => "{}",
+        loadCommitDetails: async () => "{}",
+        loadLineCounts: async () => "{}",
+        loadStashes: async () => "[]",
+        loadStashDetails: async () => "{}",
+        compareCommits: async () => "[]"
       }
     ],
     ["a missing engineVersion export", { remoteUrl: async () => null }],

@@ -6,10 +6,12 @@ import {
   lineCountPaths,
   mapEngineFileChange,
   parseEngineCommitDetails,
+  parseEngineCommitFile,
   parseEngineLineCounts,
   parseEngineStashEntries,
   stashEntryPayload,
   type EngineCommitDetails,
+  type EngineCommitFile,
   type EngineFileChange
 } from "@/backend/engine/details";
 import type { GitFileChange } from "@/backend/types";
@@ -53,7 +55,9 @@ describe("parseEngineCommitDetails", () => {
       parseEngineCommitDetails(JSON.stringify({ ...PAGE, fileChanges: [{ ...CHANGE, type: "C" }] }))
     ).toBeNull();
     expect(
-      parseEngineCommitDetails(JSON.stringify({ ...PAGE, fileChanges: [{ ...CHANGE, additions: "1" }] }))
+      parseEngineCommitDetails(
+        JSON.stringify({ ...PAGE, fileChanges: [{ ...CHANGE, additions: "1" }] })
+      )
     ).toBeNull();
     const { body: _dropped, ...withoutBody } = PAGE;
     expect(parseEngineCommitDetails(JSON.stringify(withoutBody))).toBeNull();
@@ -140,5 +144,27 @@ describe("stash entries", () => {
     expect(parseEngineStashEntries("not json")).toBeNull();
     expect(parseEngineStashEntries("{}")).toBeNull();
     expect(parseEngineStashEntries(JSON.stringify([{ hash: "c" }]))).toBeNull();
+  });
+});
+
+describe("parseEngineCommitFile", () => {
+  const text: EngineCommitFile = { contents: "line one\n", binary: false };
+
+  it("decodes a text payload", () => {
+    expect(parseEngineCommitFile(JSON.stringify(text))).toEqual(text);
+  });
+
+  it("keeps the binary marker as a valid answer", () => {
+    expect(parseEngineCommitFile(JSON.stringify({ contents: null, binary: true }))).toEqual({
+      contents: null,
+      binary: true
+    });
+  });
+
+  it("rejects malformed payloads", () => {
+    expect(parseEngineCommitFile("not json")).toBeNull();
+    expect(parseEngineCommitFile("{}")).toBeNull();
+    expect(parseEngineCommitFile(JSON.stringify({ contents: 42, binary: false }))).toBeNull();
+    expect(parseEngineCommitFile(JSON.stringify({ contents: null, binary: "yes" }))).toBeNull();
   });
 });

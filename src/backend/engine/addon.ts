@@ -72,6 +72,12 @@ export type EngineAddon = {
    * two revisions. An empty `to` compares against the working tree.
    */
   compareCommits(repoPath: string, from: string, to: string): Promise<string>;
+  /**
+   * `load_commit_file` encoded as JSON: the file's text at one revision, or
+   * a binary marker when it is not text (the caller falls back to the CLI
+   * there, keeping the byte-identical binary presentation).
+   */
+  loadCommitFile(repoPath: string, hash: string, file: string): Promise<string>;
 };
 
 /**
@@ -172,6 +178,7 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     loadStashes?: unknown;
     loadStashDetails?: unknown;
     compareCommits?: unknown;
+    loadCommitFile?: unknown;
   };
   return (
     typeof candidate.engineVersion === "function" &&
@@ -182,7 +189,8 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     typeof candidate.loadLineCounts === "function" &&
     typeof candidate.loadStashes === "function" &&
     typeof candidate.loadStashDetails === "function" &&
-    typeof candidate.compareCommits === "function"
+    typeof candidate.compareCommits === "function" &&
+    typeof candidate.loadCommitFile === "function"
   );
 }
 

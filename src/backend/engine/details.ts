@@ -234,3 +234,35 @@ export function stashEntryPayload(entry: EngineStashEntry): string {
     untrackedFilesHash: entry.untrackedFilesHash
   });
 }
+
+/** One file's text at one revision as `load_commit_file` encodes it. */
+export type EngineCommitFile = {
+  contents: string | null;
+  binary: boolean;
+};
+
+function isEngineCommitFile(value: unknown): value is EngineCommitFile {
+  if (typeof value !== "object" || value === null) return false;
+  const file = value as Record<string, unknown>;
+  return (
+    (typeof file.contents === "string" || file.contents === null) &&
+    typeof file.binary === "boolean"
+  );
+}
+
+/**
+ * Decode a `load_commit_file` payload. Null on anything malformed. A binary
+ * marker (`contents: null`) is a valid answer, not a malformed one — the
+ * caller falls back to the CLI there, keeping the byte-identical binary
+ * presentation instead of serving an empty document.
+ */
+export function parseEngineCommitFile(text: string): EngineCommitFile | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!isEngineCommitFile(parsed)) return null;
+  return parsed;
+}
