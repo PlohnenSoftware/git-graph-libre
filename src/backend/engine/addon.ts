@@ -78,6 +78,12 @@ export type EngineAddon = {
    * there, keeping the byte-identical binary presentation).
    */
   loadCommitFile(repoPath: string, hash: string, file: string): Promise<string>;
+  /**
+   * `config_list` encoded as JSON: the entries of one location (local or
+   * global), last value per key. A file carrying `include`/`includeIf`
+   * directives declines, so the CLI resolves them.
+   */
+  configList(repoPath: string, local: boolean): Promise<string>;
 };
 
 /**
@@ -179,6 +185,7 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     loadStashDetails?: unknown;
     compareCommits?: unknown;
     loadCommitFile?: unknown;
+    configList?: unknown;
   };
   return (
     typeof candidate.engineVersion === "function" &&
@@ -190,7 +197,8 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     typeof candidate.loadStashes === "function" &&
     typeof candidate.loadStashDetails === "function" &&
     typeof candidate.compareCommits === "function" &&
-    typeof candidate.loadCommitFile === "function"
+    typeof candidate.loadCommitFile === "function" &&
+    typeof candidate.configList === "function"
   );
 }
 

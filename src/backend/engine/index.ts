@@ -209,7 +209,7 @@ async function readRepoInfo(
     // CLI behavior rather than guessing which half to trust.
     if (info.error !== null) return cliRead();
     const composed = await composeEngineRepoInfo(
-      { git: args.git, repo: args.repoPath, recordGitCommand: args.recordGitCommand },
+      { git: args.git, repo: args.repoPath, recordGitCommand: args.recordGitCommand, addon },
       info
     );
     if (composed === null) return cliRead();

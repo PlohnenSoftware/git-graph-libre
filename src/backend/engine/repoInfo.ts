@@ -3,10 +3,12 @@
  *
  * One engine call (`load_repo_info`) replaces the ref-shape CLI invocations —
  * HEAD branch, tags, stashes — while the fills the engine has no equivalent
- * for (HEAD commit, authors, remotes with push URLs, user config) keep using
- * the exact CLI pieces from `src/backend/queries/loadRepoInfo.ts`. Nothing
- * here reimplements a CLI parse: the seam maps engine shapes into the
- * project's shapes and reuses the CLI parsers where they exist.
+ * for (HEAD commit, authors, remotes with push URLs) keep using the exact
+ * CLI pieces from `src/backend/queries/loadRepoInfo.ts`. User config reads
+ * from `config_list` first (local plus global), falling back to the CLI
+ * fill whenever the shapes could differ. Nothing here reimplements a CLI
+ * parse: the seam maps engine shapes into the project's shapes and reuses
+ * the CLI parsers where they exist.
  *
  * Ordering contracts (probed against real repositories, pinned by the parity
  * table): engine tags arrive in CLI order; engine stashes arrive newest
@@ -15,9 +17,11 @@
  * every locale is the CLI's by construction rather than by observation.
  */
 
+import * as fs from "node:fs";
+import * as path from "node:path";
 import type { SimpleGit } from "simple-git";
 
-import type { GitRepoInfo, GitStash, QueryResult } from "@/backend/types";
+import type { GitRepoConfig, GitRepoInfo, GitStash, QueryResult } from "@/backend/types";
 import {
   loadAuthors,
   loadConfig,
@@ -27,6 +31,8 @@ import {
 } from "@/backend/queries/loadRepoInfo";
 import { parseStashIndex } from "@/backend/queries/stashes";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
+
+import type { EngineAddon } from "./addon";
 
 /** One stash entry as the engine encodes it. */
 export type EngineStash = {
@@ -133,12 +139,125 @@ export type EngineRepoInfoFills = {
   git: SimpleGit;
   repo: string;
   recordGitCommand?: GitCommandRecorder;
+  /** The loaded addon: with it the config fill reads from the engine first. */
+  addon?: Pick<EngineAddon, "configList"> | null;
 };
+
+/** One `config_list` location decoded: last value per lower-cased key. */
+export function parseEngineConfigList(text: string): Record<string, string> | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+  const map: Record<string, string> = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (typeof value !== "string") return null;
+    map[key] = value;
+  }
+  return map;
+}
+
+function isFile(candidate: string): boolean {
+  try {
+    return fs.statSync(candidate).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The global config file the engine's `config_list` reads, mirroring its
+ * resolution order (`GIT_CONFIG_GLOBAL`, then `~/.gitconfig`, then XDG).
+ * Null when no home is configured at all.
+ */
+export function resolveGlobalGitConfigPath(): string | null {
+  const explicit = process.env.GIT_CONFIG_GLOBAL;
+  if (explicit !== undefined && explicit !== "") return explicit;
+  const home = process.env.HOME ?? process.env.USERPROFILE;
+  if (home === undefined || home === "") return null;
+  const dotted = path.join(home, ".gitconfig");
+  if (isFile(dotted)) return dotted;
+  const xdg = process.env.XDG_CONFIG_HOME;
+  const base = xdg !== undefined && xdg !== "" ? xdg : path.join(home, ".config");
+  return path.join(base, "git", "config");
+}
+
+/**
+ * The local config file `git config --list --local` reads (`<gitdir>/config`;
+ * a `.git` file, as in worktrees and submodules, names the real git dir on
+ * its `gitdir:` line). Null when it cannot be resolved.
+ */
+export function resolveLocalGitConfigPath(repo: string): string | null {
+  const dotGit = path.join(repo, ".git");
+  let gitDir: string;
+  try {
+    if (fs.statSync(dotGit).isDirectory()) {
+      gitDir = dotGit;
+    } else {
+      const firstLine = fs.readFileSync(dotGit, "utf8").split("\n")[0] ?? "";
+      const match = /^gitdir:\s*(.+?)\s*$/.exec(firstLine);
+      if (match?.[1] === undefined) return null;
+      gitDir = path.resolve(repo, match[1]);
+    }
+  } catch {
+    return null;
+  }
+  return path.join(gitDir, "config");
+}
+
+/**
+ * User identity from the engine's `config_list` (local plus global), or null
+ * when the CLI fill must run instead: an unresolvable scope path, a
+ * resolvable-but-absent file on either scope (the CLI errors there where
+ * the engine answers empty), any throw including the include-directive
+ * decline, or a malformed payload. Null rolls up to the whole CLI read,
+ * which reproduces the exact CLI shape — errors included.
+ */
+export async function loadEngineConfig(
+  addon: Pick<EngineAddon, "configList">,
+  repo: string
+): Promise<GitRepoConfig | null> {
+  const globalPath = resolveGlobalGitConfigPath();
+  const localPath = resolveLocalGitConfigPath(repo);
+  if (globalPath === null || localPath === null) return null;
+  let localText: string;
+  let globalText: string;
+  try {
+    if (!isFile(globalPath) || !isFile(localPath)) return null;
+    [localText, globalText] = await Promise.all([
+      addon.configList(repo, true),
+      addon.configList(repo, false)
+    ]);
+  } catch {
+    return null;
+  }
+  const local = parseEngineConfigList(localText);
+  const global = parseEngineConfigList(globalText);
+  if (local === null || global === null) return null;
+  return {
+    userName: { local: local["user.name"] ?? null, global: global["user.name"] ?? null },
+    userEmail: { local: local["user.email"] ?? null, global: global["user.email"] ?? null }
+  };
+}
+
+async function loadFillConfig(
+  fills: EngineRepoInfoFills
+): Promise<Awaited<ReturnType<typeof loadConfig>>> {
+  if (fills.addon !== undefined && fills.addon !== null) {
+    const value = await loadEngineConfig(fills.addon, fills.repo);
+    if (value !== null) return { value, error: null };
+  }
+  return loadConfig(fills.git, { repo: fills.repo, record: fills.recordGitCommand });
+}
 
 /**
  * Compose the project shape from one engine payload plus the CLI fills.
  * Piece order and error precedence mirror the CLI implementation. Null
- * signals an unmappable stash: fall back, do not ship partial.
+ * signals an unmappable stash or an engine config the CLI must serve:
+ * fall back, do not ship partial.
  */
 export async function composeEngineRepoInfo(
   fills: EngineRepoInfoFills,
@@ -148,7 +267,7 @@ export async function composeEngineRepoInfo(
   const [headResult, remotesResult, configResult, authorsResult] = await Promise.all([
     loadHead(fills.git, context),
     loadRemotes(fills.git, context),
-    loadConfig(fills.git, context),
+    loadFillConfig(fills),
     loadAuthors(fills.git, context)
   ]);
 
@@ -172,7 +291,6 @@ export async function composeEngineRepoInfo(
   };
   return {
     repoInfo,
-    error:
-      headResult.error ?? remotesResult.error ?? configResult.error ?? authorsResult.error
+    error: headResult.error ?? remotesResult.error ?? configResult.error ?? authorsResult.error
   };
 }

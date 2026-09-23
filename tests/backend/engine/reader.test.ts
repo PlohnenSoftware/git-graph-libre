@@ -137,6 +137,9 @@ function fakeAddon(implementation: (repoPath: string) => Promise<string | null>)
     },
     loadCommitFile: async () => {
       throw new Error("Unsupported: file not stubbed");
+    },
+    configList: async () => {
+      throw new Error("Unsupported: config not stubbed");
     }
   };
   return () => addon;
@@ -332,6 +335,9 @@ describe("createRepoReader repoInfo", () => {
       },
       loadCommitFile: async () => {
         throw new Error("Unsupported: file not stubbed");
+      },
+      configList: async () => {
+        throw new Error("Unsupported: config not stubbed");
       }
     }));
     const direct = await loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote });
@@ -370,6 +376,9 @@ describe("createRepoReader repoInfo", () => {
         },
         loadCommitFile: async () => {
           throw new Error("Unsupported: file not stubbed");
+        },
+        configList: async () => {
+          throw new Error("Unsupported: config not stubbed");
         }
       });
       const [viaReader, direct] = await Promise.all([
@@ -408,6 +417,9 @@ describe("createRepoReader repoInfo", () => {
       },
       loadCommitFile: async () => {
         throw new Error("Unsupported: file not stubbed");
+      },
+      configList: async () => {
+        throw new Error("Unsupported: config not stubbed");
       }
     });
     const result = await repoInfoReader("auto", provider);
@@ -445,6 +457,9 @@ describe("createRepoReader repoInfo", () => {
         },
         loadCommitFile: async () => {
           throw new Error("Unsupported: file not stubbed");
+        },
+        configList: async () => {
+          throw new Error("Unsupported: config not stubbed");
         }
       });
       const result = await repoInfoReader("auto", provider);
@@ -483,6 +498,9 @@ describe("createRepoReader repoInfo", () => {
       },
       loadCommitFile: async () => {
         throw new Error("Unsupported: file not stubbed");
+      },
+      configList: async () => {
+        throw new Error("Unsupported: config not stubbed");
       }
     });
     const result = await repoInfoReader("auto", provider);
@@ -625,7 +643,8 @@ describe("createRepoReader loadCommits", () => {
       loadStashes: unsupported,
       loadStashDetails: unsupported,
       compareCommits: unsupported,
-      loadCommitFile: unsupported
+      loadCommitFile: unsupported,
+      configList: unsupported
     });
   }
 
@@ -742,6 +761,9 @@ describe("createRepoReader loadCommits", () => {
         },
         loadCommitFile: async () => {
           throw new Error("Unsupported: file not stubbed");
+        },
+        configList: async () => {
+          throw new Error("Unsupported: config not stubbed");
         }
       });
       const [viaReader, direct] = await Promise.all([commitsReader("auto", provider), directCli()]);
@@ -856,6 +878,9 @@ describe("createRepoReader loadCommits", () => {
       },
       loadCommitFile: async () => {
         throw new Error("Unsupported: file not stubbed");
+      },
+      configList: async () => {
+        throw new Error("Unsupported: config not stubbed");
       }
     });
     const result = await commitsReader("auto", provider);
@@ -948,7 +973,8 @@ describe("createRepoReader loadCommitDetails", () => {
       loadStashes: impl.stashes ?? unsupported,
       loadStashDetails: impl.stashDetails ?? unsupported,
       compareCommits: unsupported,
-      loadCommitFile: unsupported
+      loadCommitFile: unsupported,
+      configList: unsupported
     });
   }
 
@@ -1214,7 +1240,8 @@ describe("createRepoReader loadCommitComparison", () => {
       loadStashes: unsupported,
       loadStashDetails: unsupported,
       compareCommits: impl.compare ?? unsupported,
-      loadCommitFile: unsupported
+      loadCommitFile: unsupported,
+      configList: unsupported
     });
   }
 
