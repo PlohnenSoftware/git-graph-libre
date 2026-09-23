@@ -731,7 +731,7 @@ together):
 | 13 Settings hub: tabbed widget, color editor, settings export | Complete |
 | 14 Reveal highlight: persistent blink and configurable color | Complete |
 | 15 Tag surfaces: signed-tag distinction and remote tag deletion | Complete |
-| 16 Rust engine backend | In progress (`2026-09-22`) — 16.1–16.4 done, 16.5 next; slices 16.1–16.9 below |
+| 16 Rust engine backend | In progress (`2026-09-23`) — 16.1–16.9 done, full gate green throughout, first tag push still to prove the CI matrix; slices 16.1–16.9 below |
 | Immediate TODOs bug backlog (BUG-1 … BUG-6, `2026-08-25`) | Complete (`2026-08-25`; see the per-entry implementation records) |
 
 ### Phase 0: Guardrails and Baseline
@@ -2593,6 +2593,34 @@ Only now, and only if the earlier slices have paid off.
    artifact with `--skip-duplicate`. A matrix must not quietly break either.
 4. Size: today's VSIX is `263 KB` from one job. Record the new per-platform
    size here when it is known.
+
+Implementation record (`2026-09-23`, three subslice commits, all signed):
+
+- 16.9a `native-build.yml` (called by `publish.yml` on tags with
+  `scope: full`, runnable by hand): matrix over the triples, each on
+  the runner where its linker already exists — Windows x64, Linux x64
+  and Linux arm64 and macOS arm64 natively; Windows arm64 through
+  cargo-xwin and macOS x64 through zig, both installed on first use by
+  the build script, which also owns the triple-to-directory mapping.
+  One `native-<dir>` artifact per binary.
+- 16.9b `publish.yml` packages seven VSIXs (six `--target` platform
+  builds each staging exactly one binary directory, plus a binary-free
+  universal CLI-only build guarded by an assert-no-binary step), then
+  releases all seven and publishes each against its own path with
+  `--skip-duplicate` on both registries. The token-check shape
+  survives: outputs plus step-level `if`s, untouched.
+- `.vscodeignore` whitelists only `engine/native/*/*.node` — the first
+  revision opened the whole native tree and shipped Rust sources, caught
+  by unzipping a local build. Inclusion proven with vsce 4.0.0's own
+  minimatch pipeline (its semantics, not gitignore's).
+- Sizes, measured locally with vsce 4.0.0: universal `272.52 KB`
+  (36 files, no binary — the CLI-only fallback); linux-x64 `37.63 MB`
+  (37 files, the 195 MB binary inside). The other five platform sizes
+  are pending the first tag run; musl/Alpine is covered by the
+  universal VSIX, whose gnu-binary absence is the point.
+- Gate: `vsce package` green for both shapes locally (which also runs
+  `vscode:prepublish`), both workflows YAML-parsed; the six-remote CI
+  matrix itself is proven on the first tag push, not here.
 
 #### Risks to decide before 16.5, not during
 
@@ -4865,8 +4893,11 @@ declined with its reason recorded). **16.8 (handle lifetime and post-write fresh
 (`2026-09-23`: warm handles proven fresh against external writes by
 probe, so no write-time bust — only leak prevention via removal and
 deactivation closes, with a no-accumulation test). **16.9
-(per-platform packaging) is next** — six triples in CI plus the
-universal CLI-only VSIX; the release workflow shape must survive.
+(per-platform packaging) is done** (`2026-09-23`: native-build matrix
+for six triples, seven VSIXs — six platform plus the universal
+CLI-only fallback — release shape preserved, universal `272.52 KB`
+and linux-x64 `37.63 MB` measured, remaining platform sizes pending
+the first tag push, which also proves the remote CI matrix).
 
 Maintainer-set priority (`2026-08-25`): **the Immediate TODOs bug backlog above
 comes before every phase item below.** BUG-1 through BUG-6 were reported against

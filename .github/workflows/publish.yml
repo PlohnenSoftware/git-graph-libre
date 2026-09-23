@@ -52,6 +52,14 @@ jobs:
           name: native-${{ matrix.target.dir }}
           path: engine/native/${{ matrix.target.dir }}/
 
+      - name: Assert no engine binary (universal)
+        if: matrix.target.dir == ''
+        run: |
+          if ls engine/native/*/*.node >/dev/null 2>&1; then
+            echo "::error::the universal VSIX must ship no engine binaries"
+            exit 1
+          fi
+
       # `vsce package` runs `vscode:prepublish`, which typechecks, lints, and
       # builds the production bundle before writing the VSIX.
       - name: Package extension
