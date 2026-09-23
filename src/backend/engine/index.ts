@@ -20,6 +20,7 @@ import type { SimpleGit } from "simple-git";
 import { commitDetails } from "@/backend/queries/commitDetails";
 import { commitComparison } from "@/backend/queries/commitComparison";
 import { loadCommits } from "@/backend/queries/loadCommits";
+import { normalizeMaxResults, searchCommits } from "@/backend/queries/searchCommits";
 import { emptyRepoInfo, loadRepoInfo } from "@/backend/queries/loadRepoInfo";
 import type { DateType, GitCommitDetails, GitFileChange, QueryResult } from "@/backend/types";
 import { getRemoteUrl } from "@/backend/utils/git";
@@ -29,6 +30,13 @@ import { toGitQueryError } from "@/backend/utils/queryError";
 import type { EngineBackend } from "@/types";
 
 import { type EngineAddon, loadEngineAddon } from "./addon";
+import {
+  buildSearchOptions,
+  type EngineSearchInput,
+  mapEngineSearchResults,
+  parseEngineSearchResults,
+  shouldServeSearchFromEngine
+} from "./search";
 import {
   buildLoadCommitsOptions,
   engineLoadCommitsRefs,
@@ -72,6 +80,8 @@ export type RepoReader = {
   loadCommitDetails(args: CommitDetailsArgs): Promise<QueryResult<"commitDetails">>;
   /** One arbitrary revision pair, counts settled eagerly like the CLI. */
   loadCommitComparison(args: CommitComparisonArgs): Promise<QueryResult<"commitComparison">>;
+  /** The Find dialogue's hits, ordered by their position in the graph walk. */
+  searchCommits(args: SearchArgs): Promise<QueryResult<"searchCommits">>;
 };
 
 export type RepoInfoArgs = {
@@ -93,6 +103,12 @@ export type CommitDetailsArgs = {
   git: SimpleGit;
   commitHash: string;
   dateType: DateType;
+  recordGitCommand?: GitCommandRecorder;
+};
+
+export type SearchArgs = EngineSearchInput & {
+  repoPath: string;
+  git: SimpleGit;
   recordGitCommand?: GitCommandRecorder;
 };
 
@@ -192,7 +208,8 @@ export function createRepoReader(deps: RepoReaderDeps): RepoReader {
     loadCommitDetails: (args: CommitDetailsArgs) =>
       readCommitDetails(deps.preference, provider, args),
     loadCommitComparison: (args: CommitComparisonArgs) =>
-      readCommitComparison(deps.preference, provider, args)
+      readCommitComparison(deps.preference, provider, args),
+    searchCommits: (args: SearchArgs) => readSearch(deps.preference, provider, args)
   };
 }
 
@@ -551,6 +568,57 @@ async function readCommitComparison(
         commitDetails: null,
         error: toGitQueryError(error, "Unable to load commit comparison")
       };
+    }
+    return cliRead();
+  }
+}
+
+/**
+ * The Find dialogue's search.
+ *
+ * A decline, a failed engine call, or a payload this version does not
+ * recognise all land on the CLI with the same arguments, so the dialogue's
+ * behaviour is identical either way.
+ */
+async function readSearch(
+  preference: EngineBackend,
+  provider: AddonProvider,
+  args: SearchArgs
+): Promise<QueryResult<"searchCommits">> {
+  const cliRead = (): Promise<QueryResult<"searchCommits">> =>
+    searchCommits(args.git, {
+      query: args.query,
+      maxResults: args.maxResults,
+      showRemoteBranches: args.showRemoteBranches,
+      hiddenRemotes: args.hiddenRemotes,
+      showTags: args.showTags,
+      branches: args.branches,
+      authors: args.authors,
+      tags: args.tags,
+      dateType: args.dateType,
+      repo: args.repoPath,
+      recordGitCommand: args.recordGitCommand
+    });
+  // The total no-op path: the addon is not even loaded.
+  if (preference === "git-cli") return cliRead();
+  if (!shouldServeSearchFromEngine(args)) return cliRead();
+  const addon = provider();
+  if (addon === null) return cliRead();
+  // The CLI clamps before building `--max-count`; the engine is given the same
+  // clamped number so both page identically.
+  const maxResults = normalizeMaxResults(args.maxResults);
+  // An empty query is not a search on either backend.
+  if (args.query.trim() === "") return { results: [], error: null };
+  try {
+    const parsed = parseEngineSearchResults(
+      await addon.searchCommits(args.repoPath, buildSearchOptions(args, maxResults))
+    );
+    if (parsed === null) return cliRead();
+    engineServedRead = true;
+    return { results: mapEngineSearchResults(parsed), error: null };
+  } catch (error: unknown) {
+    if (!isEngineFallbackError(error)) {
+      return { results: [], error: toGitQueryError(error, "Unable to search commits") };
     }
     return cliRead();
   }

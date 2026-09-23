@@ -44,6 +44,13 @@ export type EngineAddon = {
    */
   loadCommits(repoPath: string, optionsJson: string): Promise<string>;
   /**
+   * `search_commits` encoded as JSON: the Find dialogue's hits, each carrying
+   * its position in the graph walk. Options are the JSON built by
+   * `buildSearchOptions`. Distinct from the engine's own `search_history`,
+   * which is a regex over messages and is deliberately not used.
+   */
+  searchCommits(repoPath: string, optionsJson: string): Promise<string>;
+  /**
    * `load_commit_details` encoded as JSON: the commit's fields with its file
    * statuses, counts left null for `load_line_counts` to settle.
    */
@@ -262,6 +269,7 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     authors?: unknown;
     loadConfig?: unknown;
     currentBranchName?: unknown;
+    searchCommits?: unknown;
     loadRefs?: unknown;
     closeRepository?: unknown;
     closeAllRepositories?: unknown;
@@ -282,6 +290,7 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     typeof candidate.authors === "function" &&
     typeof candidate.loadConfig === "function" &&
     typeof candidate.currentBranchName === "function" &&
+    typeof candidate.searchCommits === "function" &&
     typeof candidate.loadRefs === "function" &&
     typeof candidate.closeRepository === "function" &&
     typeof candidate.closeAllRepositories === "function" &&

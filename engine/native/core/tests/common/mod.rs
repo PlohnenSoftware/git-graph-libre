@@ -161,6 +161,30 @@ impl TestRepo {
         self.head()
     }
 
+    /// Commit under a specific author, for tests that search or filter by one.
+    pub fn commit_as(&mut self, name: &str, email: &str, message: &str) -> String {
+        self.git(&["add", "-A"]);
+        self.clock += 60;
+        let date = format!("{} +0000", self.clock);
+        let output = Command::new("git")
+            .args(["commit", "--quiet", "--allow-empty", "-m", message])
+            .current_dir(self.path())
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("HOME", self.path())
+            .env("GIT_AUTHOR_DATE", &date)
+            .env("GIT_COMMITTER_DATE", &date)
+            .env("GIT_AUTHOR_NAME", name)
+            .env("GIT_AUTHOR_EMAIL", email)
+            .output()
+            .expect("could not run `git commit`");
+        assert!(
+            output.status.success(),
+            "`git commit` failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        self.head()
+    }
+
     /// Write a file and commit it in one step.
     pub fn commit_file(&mut self, path: &str, contents: &str, message: &str) -> String {
         self.write(path, contents);

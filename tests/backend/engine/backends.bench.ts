@@ -168,6 +168,22 @@ const CASES: Case[] = [
         dateType: "Commit Date"
       })
   },
+  {
+    name: "search (message term)",
+    run: (reader) =>
+      reader.searchCommits({
+        repoPath,
+        git,
+        query: "fix",
+        maxResults: 50,
+        showRemoteBranches: true,
+        showTags: true,
+        branches: null,
+        authors: null,
+        tags: null,
+        dateType: "Commit Date" as const
+      })
+  },
   { name: "remote url", run: (reader) => reader.getRemoteUrl(repoPath) }
 ];
 

@@ -174,7 +174,7 @@ pub fn read_commit(commit: &gix::Commit<'_>) -> Result<CommitRecord> {
 /// trailing "<", a name that is a textual prefix of another author's name (e.g. "Bob" inside
 /// "Bobby <bobby@x.com>") would match commits it should not. This mirrors that exactly, case-
 /// insensitively (case sensitivity is the one place this still deviates from a bare `git log`).
-fn commit_matches_author(commit: &gix::Commit<'_>, authors: &[String]) -> Result<bool> {
+pub(crate) fn commit_matches_author(commit: &gix::Commit<'_>, authors: &[String]) -> Result<bool> {
     let author = commit
         .author()
         .git_ctx("Could not decode the commit author")?;
