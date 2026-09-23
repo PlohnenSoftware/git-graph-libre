@@ -30,8 +30,6 @@ import type { EngineBackend } from "@/types";
 
 import { type EngineAddon, loadEngineAddon } from "./addon";
 import {
-  attachRemoteHeadLabels,
-  attachSignedTagNames,
   buildLoadCommitsOptions,
   engineLoadCommitsRefs,
   type EngineLoadCommitsInput,
@@ -340,27 +338,6 @@ async function readCommits(
       !nodes.some((node) => node.hash === data.head)
     ) {
       return cliRead();
-    }
-    // The engine never records symbolic remote HEADs (`origin/HEAD`): one
-    // narrow scan attaches them in CLI order, but only when the page carries
-    // remote labels at all — a repository without remotes pays no spawn.
-    if (
-      args.showRemoteBranches &&
-      nodes.some((node) => node.refs.some((ref) => ref.type === "remote"))
-    ) {
-      await attachRemoteHeadLabels(
-        { git: args.git, repo: args.repoPath, recordGitCommand: args.recordGitCommand },
-        nodes,
-        args.hiddenRemotes
-      );
-    }
-    // The engine never reports tag signature presence either: one narrow
-    // scan flips the badges, but only when the page carries tag labels.
-    if (nodes.some((node) => node.refs.some((ref) => ref.type === "tag"))) {
-      await attachSignedTagNames(
-        { git: args.git, repo: args.repoPath, recordGitCommand: args.recordGitCommand },
-        nodes
-      );
     }
     engineServedRead = true;
     return {

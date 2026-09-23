@@ -265,7 +265,7 @@ describe("configuration", () => {
     { accessor: "initialLoadCommits", expected: 300 },
     { accessor: "includeReflog", expected: false },
     { accessor: "includeUnreachableCommits", expected: false },
-    { accessor: "loadMoreCommits", expected: 75 },
+    { accessor: "loadMoreCommits", expected: 100 },
     { accessor: "maxDepthOfRepoSearch", expected: 0 },
     { accessor: "muteCommitsNotAncestorsOfHead", expected: false },
     { accessor: "muteMergeCommits", expected: false },

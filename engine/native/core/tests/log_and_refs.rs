@@ -526,3 +526,110 @@ fn an_empty_repository_reports_no_head_rather_than_failing() {
     // `git status` report it — so the view names the branch the first commit will land on.
     assert_eq!(snapshot.branches, vec!["main"]);
 }
+
+/// Write a tag object carrying a PGP signature block, without needing a keyring.
+///
+/// The engine only reports signature *presence*, so a fabricated block exercises exactly the
+/// path a real signature would, and the fixture stays deterministic on a machine with no GPG.
+fn write_signed_tag(repo: &TestRepo, tag_name: &str, target: &str) {
+    let object = format!(
+        "object {target}\n\
+         type commit\n\
+         tag {tag_name}\n\
+         tagger Test <test@example.invalid> 0 +0000\n\
+         \n\
+         a signed tag\n\
+         -----BEGIN PGP SIGNATURE-----\n\
+         \n\
+         aBcD\n\
+         -----END PGP SIGNATURE-----\n"
+    );
+    let hash = repo.git_stdin(&["hash-object", "-t", "tag", "-w", "--stdin"], &object);
+    repo.update_ref(&format!("refs/tags/{tag_name}"), hash.trim());
+}
+
+#[test]
+fn reports_tag_signature_presence_the_way_for_each_ref_does() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    let first = repo.commit_file("a.txt", "1", "first");
+    // Three of the four shapes `for-each-ref %(contents:signature)` distinguishes. The fourth —
+    // a lightweight tag over a *signed commit* — is false by construction here: the check reads
+    // the tag object, and a lightweight tag has none, so a commit's own signature never leaks
+    // into a tag badge. Verified against git directly before this was written.
+    repo.git(&["tag", "lightweight"]);
+    repo.git(&["tag", "-a", "annotated", "-m", "unsigned annotated"]);
+    write_signed_tag(&repo, "signed", &first);
+
+    let engine = open(&repo);
+    let snapshot = read_refs(&engine, &RefReadOptions::default()).unwrap();
+
+    let signed_for = |name: &str| -> bool {
+        snapshot
+            .ref_data
+            .tags
+            .iter()
+            .find(|tag| tag.name == name)
+            .unwrap_or_else(|| panic!("the tag {name} was not read"))
+            .signed
+    };
+    assert!(
+        !signed_for("lightweight"),
+        "a lightweight tag is never signed"
+    );
+    assert!(
+        !signed_for("annotated"),
+        "an unsigned annotated tag is not signed"
+    );
+    assert!(
+        signed_for("signed"),
+        "a signed tag object was reported unsigned"
+    );
+
+    // Both records of an annotated tag agree, because the signature belongs to the tag rather
+    // than to either hash, and the graph attaches the peeled record.
+    let records: Vec<bool> = snapshot
+        .ref_data
+        .tags
+        .iter()
+        .filter(|tag| tag.name == "signed")
+        .map(|tag| tag.signed)
+        .collect();
+    assert_eq!(
+        records,
+        vec![true, true],
+        "the peeled record lost the signature"
+    );
+}
+
+#[test]
+fn resolves_a_symbolic_remote_head_rather_than_dropping_it() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    let head = repo.commit_file("a.txt", "1", "first");
+    repo.add_fake_remote("origin", "main", &head);
+    // What `git clone` writes: a *symbolic* ref, unlike the direct one the neighbouring test
+    // uses. `for-each-ref %(objectname)` reports the object it resolves to, so the view shows
+    // the label — dropping it here is what used to cost a `for-each-ref` spawn to put back.
+    repo.git(&[
+        "symbolic-ref",
+        "refs/remotes/origin/HEAD",
+        "refs/remotes/origin/main",
+    ]);
+
+    let engine = open(&repo);
+    let options = RefReadOptions {
+        show_remote_branches: true,
+        show_remote_heads: true,
+        ..Default::default()
+    };
+    let snapshot = read_refs(&engine, &options).unwrap();
+
+    let entry = snapshot
+        .ref_data
+        .remotes
+        .iter()
+        .find(|r| r.name == "origin/HEAD")
+        .expect("the symbolic remote HEAD was dropped");
+    assert_eq!(entry.hash, head, "the symref resolved to the wrong object");
+}

@@ -1,21 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  applySignedTagNames,
   buildLoadCommitsOptions,
   type EngineCommit,
   type EngineCommitData,
   type EngineLoadCommitsInput,
   engineLoadCommitsRefs,
-  insertRemoteHeadLabels,
   mapEngineCommitData,
   parseEngineCommitData,
-  parseRemoteHeadLabels,
-  parseSignedTagNames,
   shortStashRef,
   shouldServeLoadCommitsFromEngine
 } from "@/backend/engine/commits";
-import type { GitCommitNode } from "@/backend/types";
 
 const BASE: EngineLoadCommitsInput = {
   branchName: "",
@@ -165,7 +160,7 @@ const COMMIT: EngineCommit = {
   date: 1790090408,
   message: "second",
   heads: ["main"],
-  tags: [{ name: "v1.0.0", annotated: false }],
+  tags: [{ name: "v1.0.0", annotated: false, signed: false }],
   remotes: [{ name: "origin/main", remote: "origin" }],
   stash: null
 };
@@ -232,108 +227,6 @@ describe("shortStashRef", () => {
   });
 });
 
-describe("parseRemoteHeadLabels", () => {
-  it("keeps only symref lines under refs/remotes", () => {
-    const stdout = [
-      `${"a".repeat(40)}\0refs/remotes/origin/HEAD\0refs/remotes/origin/main`,
-      `${"a".repeat(40)}\0refs/remotes/origin/main\0`,
-      `${"b".repeat(40)}\0refs/heads/main\0refs/heads/main`,
-      "garbage",
-      ""
-    ].join("\n");
-    expect(parseRemoteHeadLabels(stdout)).toEqual([{ hash: "a".repeat(40), name: "origin/HEAD" }]);
-  });
-});
-
-describe("parseSignedTagNames", () => {
-  it("keeps only signature-carrying lines under refs/tags", () => {
-    const stdout = [
-      `refs/tags/faketag\0${"1"}`,
-      `refs/tags/v1.0.0\0${"0"}`,
-      `refs/remotes/origin/main\0${"1"}`,
-      "garbage",
-      ""
-    ].join("\n");
-    expect(parseSignedTagNames(stdout)).toEqual(["faketag"]);
-  });
-});
-
-describe("applySignedTagNames", () => {
-  it("flips the badge on named tag labels and ignores the rest", () => {
-    const nodes: GitCommitNode[] = [
-      {
-        hash: "a".repeat(40),
-        parentHashes: [],
-        author: "Ada",
-        email: "ada@x.com",
-        date: 1,
-        message: "tip",
-        refs: [
-          { hash: "a".repeat(40), name: "main", type: "head" },
-          { hash: "a".repeat(40), name: "faketag", type: "tag", signed: false },
-          { hash: "a".repeat(40), name: "v1.0.0", type: "tag", signed: false }
-        ]
-      }
-    ];
-    applySignedTagNames(nodes, ["faketag", "missing"]);
-    expect(nodes[0]?.refs.map((ref) => ref.signed)).toEqual([undefined, true, false]);
-    const before = JSON.stringify(nodes);
-    applySignedTagNames(nodes, []);
-    expect(JSON.stringify(nodes)).toBe(before);
-  });
-});
-
-describe("insertRemoteHeadLabels", () => {
-  const node = (): GitCommitNode => ({
-    hash: "a".repeat(40),
-    parentHashes: [],
-    author: "Ada",
-    email: "ada@x.com",
-    date: 1,
-    message: "tip",
-    refs: [
-      { hash: "a".repeat(40), name: "main", type: "head" },
-      { hash: "a".repeat(40), name: "origin/main", type: "remote" },
-      { hash: "a".repeat(40), name: "v1.0.0", type: "tag", signed: false }
-    ]
-  });
-
-  it("inserts in for-each-ref order among the remote labels", () => {
-    const nodes = [node()];
-    insertRemoteHeadLabels(nodes, [{ hash: "a".repeat(40), name: "origin/HEAD" }]);
-    expect(nodes[0]?.refs.map((ref) => `${ref.type}:${ref.name}`)).toEqual([
-      "head:main",
-      "remote:origin/HEAD",
-      "remote:origin/main",
-      "tag:v1.0.0"
-    ]);
-  });
-
-  it("inserts past off-page targets and duplicates", () => {
-    const nodes = [node()];
-    insertRemoteHeadLabels(nodes, [
-      { hash: "f".repeat(40), name: "origin/HEAD" },
-      { hash: "a".repeat(40), name: "origin/main" },
-      { hash: "a".repeat(40), name: "origin/HEAD" }
-    ]);
-    expect(nodes[0]?.refs.map((ref) => `${ref.type}:${ref.name}`)).toEqual([
-      "head:main",
-      "remote:origin/HEAD",
-      "remote:origin/main",
-      "tag:v1.0.0"
-    ]);
-  });
-
-  it("keeps hidden remotes hidden and ignores empty fills", () => {
-    const nodes = [node()];
-    insertRemoteHeadLabels(nodes, [{ hash: "a".repeat(40), name: "origin/HEAD" }], ["origin"]);
-    expect(nodes[0]?.refs).toHaveLength(3);
-    const before = JSON.stringify(nodes);
-    insertRemoteHeadLabels(nodes, []);
-    expect(JSON.stringify(nodes)).toBe(before);
-  });
-});
-
 describe("mapEngineCommitData", () => {
   it("maps labels onto project refs and leaves the signature key absent", () => {
     const [node] = mapEngineCommitData(PAGE, true);
@@ -362,8 +255,8 @@ describe("mapEngineCommitData", () => {
             ...COMMIT,
             heads: ["zebra", "alpha"],
             tags: [
-              { name: "v1.0.0", annotated: false },
-              { name: "a-tag", annotated: true }
+              { name: "v1.0.0", annotated: false, signed: false },
+              { name: "a-tag", annotated: true, signed: false }
             ],
             remotes: [
               { name: "origin/main", remote: "origin" },

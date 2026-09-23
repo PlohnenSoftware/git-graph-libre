@@ -33,6 +33,10 @@ pub struct GitCommit {
 pub struct GitCommitTag {
     pub name: String,
     pub annotated: bool,
+    /// True when the tag object carries a signature. Only an annotated tag has a tag object, so a
+    /// lightweight tag is never signed — not even over a signed commit, which `for-each-ref`'s
+    /// `%(contents:signature)` also reports as unsigned.
+    pub signed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,6 +84,9 @@ pub struct GitTagRef {
     /// True for the peeled record of an annotated tag, which points at the commit rather than at
     /// the tag object.
     pub annotated: bool,
+    /// True when the tag object carries a signature. Both records of an annotated tag carry the
+    /// same value, because the signature belongs to the tag, not to either hash.
+    pub signed: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

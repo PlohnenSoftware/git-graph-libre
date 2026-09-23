@@ -159,7 +159,7 @@ export const config = {
   includeReflog: (): boolean => getConfig("repository.includeReflog", false),
   includeUnreachableCommits: (): boolean =>
     getConfig("repository.includeUnreachableCommits", false),
-  loadMoreCommits: (): number => getConfig("loadMoreCommits", 75),
+  loadMoreCommits: (): number => getConfig("loadMoreCommits", 100),
   maxDepthOfRepoSearch: (): number => getConfig("maxDepthOfRepoSearch", 0),
   muteCommitsNotAncestorsOfHead: (): boolean =>
     getConfig("repository.muteCommitsNotAncestorsOfHead", false),

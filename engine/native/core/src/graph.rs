@@ -297,6 +297,7 @@ fn annotate_refs(ref_data: &GitRefData, options: &LogOptions, commits: &mut [Git
                 commits[index].tags.push(GitCommitTag {
                     name: tag.name.clone(),
                     annotated: tag.annotated,
+                    signed: tag.signed,
                 });
             }
         }
