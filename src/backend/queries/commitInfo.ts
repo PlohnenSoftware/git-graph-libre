@@ -8,7 +8,11 @@ const gitFieldSeparatorFormat = "%x00";
 const gitFieldSeparatorOutput = "\0";
 const commitInfoFieldCount = 9;
 
-function trimTrailingBlankLines(text: string) {
+/**
+ * Shared with the engine seam: the CLI trims `%B` output this way, so the
+ * engine's raw message goes through the identical function.
+ */
+export function trimTrailingBlankLines(text: string) {
   const lines = text.split(eolRegex);
   let lastLine = lines.length - 1;
   while (lastLine >= 0 && lines[lastLine] === "") lastLine--;
