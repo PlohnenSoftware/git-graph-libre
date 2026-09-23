@@ -17,9 +17,11 @@
 
 import type { SimpleGit } from "simple-git";
 
+import { commitDetails } from "@/backend/queries/commitDetails";
+import { commitComparison } from "@/backend/queries/commitComparison";
 import { loadCommits } from "@/backend/queries/loadCommits";
 import { emptyRepoInfo, loadRepoInfo } from "@/backend/queries/loadRepoInfo";
-import type { QueryResult } from "@/backend/types";
+import type { DateType, GitCommitDetails, GitFileChange, QueryResult } from "@/backend/types";
 import { getRemoteUrl } from "@/backend/utils/git";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { uniqueNonEmpty } from "@/backend/utils/logFilters";
@@ -37,6 +39,18 @@ import {
   parseEngineCommitData,
   shouldServeLoadCommitsFromEngine
 } from "./commits";
+import {
+  applyLineCounts,
+  findStashEntry,
+  lineCountPaths,
+  mapEngineFileChange,
+  parseEngineCommitDetails,
+  parseEngineFileChanges,
+  parseEngineLineCounts,
+  parseEngineStashEntries,
+  stashEntryPayload,
+  type EngineCommitDetails
+} from "./details";
 import { buildRepoInfoOptions, composeEngineRepoInfo, parseEngineRepoInfo } from "./repoInfo";
 
 /** How the reader loads the addon. The default is the real loader; tests inject fakes. */
@@ -56,6 +70,10 @@ export type RepoReader = {
   loadRepoInfo(args: RepoInfoArgs): Promise<QueryResult<"loadRepoInfo">>;
   /** One page of the graph. Genuine engine failures surface as the read error. */
   loadCommits(args: LoadCommitsArgs): Promise<QueryResult<"loadCommits">>;
+  /** One commit in full, counts settled eagerly like the CLI. */
+  loadCommitDetails(args: CommitDetailsArgs): Promise<QueryResult<"commitDetails">>;
+  /** One arbitrary revision pair, counts settled eagerly like the CLI. */
+  loadCommitComparison(args: CommitComparisonArgs): Promise<QueryResult<"commitComparison">>;
 };
 
 export type RepoInfoArgs = {
@@ -69,6 +87,24 @@ export type LoadCommitsArgs = EngineLoadCommitsInput & {
   repoPath: string;
   git: SimpleGit;
   hard: boolean;
+  recordGitCommand?: GitCommandRecorder;
+};
+
+export type CommitDetailsArgs = {
+  repoPath: string;
+  git: SimpleGit;
+  commitHash: string;
+  dateType: DateType;
+  recordGitCommand?: GitCommandRecorder;
+};
+
+export type CommitComparisonArgs = {
+  repoPath: string;
+  git: SimpleGit;
+  commitHash: string;
+  baseRef: string;
+  compareRef: string;
+  dateType: DateType;
   recordGitCommand?: GitCommandRecorder;
 };
 
@@ -111,7 +147,11 @@ export function createRepoReader(deps: RepoReaderDeps): RepoReader {
       readRemoteUrl(deps.preference, deps.gitPath, provider, repoPath),
     loadRepoInfo: (args: RepoInfoArgs) => readRepoInfo(deps.preference, provider, args),
     loadCommits: (args: LoadCommitsArgs) =>
-      readCommits(deps.preference, deps.gitPath, provider, args)
+      readCommits(deps.preference, deps.gitPath, provider, args),
+    loadCommitDetails: (args: CommitDetailsArgs) =>
+      readCommitDetails(deps.preference, provider, args),
+    loadCommitComparison: (args: CommitComparisonArgs) =>
+      readCommitComparison(deps.preference, provider, args)
   };
 }
 
@@ -295,6 +335,201 @@ async function readCommits(
         moreCommitsAvailable: false,
         hard: args.hard,
         error: toGitQueryError(error, "Unable to load commits")
+      };
+    }
+    return cliRead();
+  }
+}
+
+/**
+ * Settle the whole path list through `load_line_counts` and join the counts
+ * onto the mapped changes. A failed or malformed counts call reroutes to the
+ * whole CLI read: counts are the point of the read, and serving them null
+ * would be silently wrong where the CLI is exact.
+ */
+async function fillLineCounts<
+  T extends QueryResult<"commitDetails"> | QueryResult<"commitComparison">
+>(
+  addon: EngineAddon,
+  args: { repoPath: string },
+  from: string | null,
+  to: string,
+  fileChanges: GitFileChange[],
+  cliRead: () => Promise<T>
+): Promise<T | null> {
+  const paths = lineCountPaths(fileChanges);
+  if (paths.length === 0) return null;
+  let countsText: string;
+  try {
+    countsText = await addon.loadLineCounts(args.repoPath, from, to, JSON.stringify(paths));
+  } catch {
+    return cliRead();
+  }
+  const counts = parseEngineLineCounts(countsText);
+  if (counts === null) return cliRead();
+  applyLineCounts(fileChanges, counts);
+  return null;
+}
+
+function toGitCommitDetails(
+  data: EngineCommitDetails,
+  fileChanges: GitFileChange[]
+): GitCommitDetails {
+  return {
+    hash: data.hash,
+    parents: [...data.parents],
+    author: data.author,
+    email: data.authorEmail,
+    authorDate: data.authorDate,
+    committer: data.committer,
+    committerEmail: data.committerEmail,
+    committerDate: data.committerDate,
+    body: data.body,
+    fileChanges
+  };
+}
+
+async function readCommitDetails(
+  preference: EngineBackend,
+  provider: AddonProvider,
+  args: CommitDetailsArgs
+): Promise<QueryResult<"commitDetails">> {
+  const cliRead = (): Promise<QueryResult<"commitDetails">> =>
+    commitDetails(args.git, {
+      commitHash: args.commitHash,
+      dateType: args.dateType,
+      repo: args.repoPath,
+      recordGitCommand: args.recordGitCommand
+    });
+  // The total no-op path: the addon is not even loaded.
+  if (preference === "git-cli") return cliRead();
+  // A blank hash and the `*` row both error on the CLI today (`git show`
+  // resolves neither); the engine would serve uncommitted-shaped data for
+  // `*`, which is a UX change for its own slice — so both stay CLI.
+  if (args.commitHash.trim() === "" || args.commitHash === "*") return cliRead();
+  const addon = provider();
+  if (addon === null) return cliRead();
+  try {
+    // The stash list rides along so a stash hash takes `load_stash_details`
+    // (diffed against its base, untracked appended) instead of the plain
+    // commit diff. Both calls are in-process; the plain details are
+    // discarded on the rare stash path.
+    const [stashesText, detailsText] = await Promise.all([
+      addon.loadStashes(args.repoPath),
+      addon.loadCommitDetails(args.repoPath, args.commitHash)
+    ]);
+    const details = parseEngineCommitDetails(detailsText);
+    if (details === null) {
+      return {
+        commitDetails: null,
+        error: toGitQueryError(
+          new Error("Engine returned malformed commit details"),
+          "Unable to load commit details"
+        )
+      };
+    }
+    // The CLI diffs a merge against every parent (`-m`); the engine diffs
+    // against the first parent only. A multi-parent page is not a valid
+    // substitute, so those loads go back to the whole CLI read.
+    if (details.parents.length > 1) return cliRead();
+    const stashes = parseEngineStashEntries(stashesText);
+    const stash = stashes === null ? undefined : findStashEntry(stashes, args.commitHash);
+    let fileChanges = details.fileChanges.map(mapEngineFileChange);
+    let from: string | null = null;
+    if (stash !== undefined) {
+      const stashText = await addon.loadStashDetails(
+        args.repoPath,
+        args.commitHash,
+        stashEntryPayload(stash)
+      );
+      const stashDetails = parseEngineCommitDetails(stashText);
+      if (stashDetails === null) {
+        return {
+          commitDetails: null,
+          error: toGitQueryError(
+            new Error("Engine returned malformed stash details"),
+            "Unable to load commit details"
+          )
+        };
+      }
+      fileChanges = stashDetails.fileChanges.map(mapEngineFileChange);
+      from = stash.baseHash;
+    }
+    const filled = await fillLineCounts(addon, args, from, args.commitHash, fileChanges, cliRead);
+    if (filled !== null) return filled;
+    engineServedRead = true;
+    return { commitDetails: toGitCommitDetails(details, fileChanges), error: null };
+  } catch (error: unknown) {
+    if (!isEngineFallbackError(error)) {
+      return {
+        commitDetails: null,
+        error: toGitQueryError(error, "Unable to load commit details")
+      };
+    }
+    return cliRead();
+  }
+}
+
+async function readCommitComparison(
+  preference: EngineBackend,
+  provider: AddonProvider,
+  args: CommitComparisonArgs
+): Promise<QueryResult<"commitComparison">> {
+  const cliRead = (): Promise<QueryResult<"commitComparison">> =>
+    commitComparison(args.git, {
+      commitHash: args.commitHash,
+      baseRef: args.baseRef,
+      compareRef: args.compareRef,
+      dateType: args.dateType,
+      repo: args.repoPath,
+      recordGitCommand: args.recordGitCommand
+    });
+  // The total no-op path: the addon is not even loaded.
+  if (preference === "git-cli") return cliRead();
+  // The CLI rejects blank refs before any git call; the engine would resolve
+  // an empty `to` against the working tree instead — so those stay CLI,
+  // reproducing the exact validation error.
+  if (
+    args.commitHash.trim() === "" ||
+    args.baseRef.trim() === "" ||
+    args.compareRef.trim() === ""
+  ) {
+    return cliRead();
+  }
+  const addon = provider();
+  if (addon === null) return cliRead();
+  try {
+    const [detailsText, changesText] = await Promise.all([
+      addon.loadCommitDetails(args.repoPath, args.commitHash),
+      addon.compareCommits(args.repoPath, args.baseRef, args.compareRef)
+    ]);
+    const details = parseEngineCommitDetails(detailsText);
+    const fileChanges = parseEngineFileChanges(changesText);
+    if (details === null || fileChanges === null) {
+      return {
+        commitDetails: null,
+        error: toGitQueryError(
+          new Error("Engine returned malformed commit comparison"),
+          "Unable to load commit comparison"
+        )
+      };
+    }
+    const filled = await fillLineCounts(
+      addon,
+      args,
+      args.baseRef,
+      args.compareRef,
+      fileChanges,
+      cliRead
+    );
+    if (filled !== null) return filled;
+    engineServedRead = true;
+    return { commitDetails: toGitCommitDetails(details, fileChanges), error: null };
+  } catch (error: unknown) {
+    if (!isEngineFallbackError(error)) {
+      return {
+        commitDetails: null,
+        error: toGitQueryError(error, "Unable to load commit comparison")
       };
     }
     return cliRead();

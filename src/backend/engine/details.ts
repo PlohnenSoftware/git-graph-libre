@@ -116,8 +116,26 @@ export function mapEngineFileChange(change: EngineFileChange): GitFileChange {
   };
 }
 
+/**
+ * Decode a bare file-change list (`compare_commits`) and map it. Null on
+ * anything malformed.
+ */
+export function parseEngineFileChanges(text: string): GitFileChange[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed) || !(parsed as unknown[]).every(isEngineFileChange)) return null;
+  return (parsed as EngineFileChange[]).map(mapEngineFileChange);
+}
+
 /** The `+N/-M` map `load_line_counts` returns, keyed by path. */
-export type EngineLineCounts = Record<string, { additions: number | null; deletions: number | null }>;
+export type EngineLineCounts = Record<
+  string,
+  { additions: number | null; deletions: number | null }
+>;
 
 function isEngineLineCounts(value: unknown): value is EngineLineCounts {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;

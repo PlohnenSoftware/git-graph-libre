@@ -53,7 +53,12 @@ describe("engine addon loader", () => {
       engineVersion: () => EXPECTED_ENGINE_VERSION,
       remoteUrl: async () => null,
       loadRepoInfo: async () => "{}",
-      loadCommits: async () => "{}"
+      loadCommits: async () => "{}",
+      loadCommitDetails: async () => "{}",
+      loadLineCounts: async () => "{}",
+      loadStashes: async () => "[]",
+      loadStashDetails: async () => "{}",
+      compareCommits: async () => "[]"
     };
     expect(validateLoadedAddon(loaded)).toBe(loaded);
   });
@@ -84,6 +89,61 @@ describe("engine addon loader", () => {
         engineVersion: () => EXPECTED_ENGINE_VERSION,
         remoteUrl: async () => null,
         loadRepoInfo: async () => "{}"
+      }
+    ],
+    [
+      "a missing loadCommitDetails export",
+      {
+        engineVersion: () => EXPECTED_ENGINE_VERSION,
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => "{}",
+        loadCommits: async () => "{}"
+      }
+    ],
+    [
+      "a missing loadLineCounts export",
+      {
+        engineVersion: () => EXPECTED_ENGINE_VERSION,
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => "{}",
+        loadCommits: async () => "{}",
+        loadCommitDetails: async () => "{}"
+      }
+    ],
+    [
+      "a missing loadStashes export",
+      {
+        engineVersion: () => EXPECTED_ENGINE_VERSION,
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => "{}",
+        loadCommits: async () => "{}",
+        loadCommitDetails: async () => "{}",
+        loadLineCounts: async () => "{}"
+      }
+    ],
+    [
+      "a missing loadStashDetails export",
+      {
+        engineVersion: () => EXPECTED_ENGINE_VERSION,
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => "{}",
+        loadCommits: async () => "{}",
+        loadCommitDetails: async () => "{}",
+        loadLineCounts: async () => "{}",
+        loadStashes: async () => "[]"
+      }
+    ],
+    [
+      "a missing compareCommits export",
+      {
+        engineVersion: () => EXPECTED_ENGINE_VERSION,
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => "{}",
+        loadCommits: async () => "{}",
+        loadCommitDetails: async () => "{}",
+        loadLineCounts: async () => "{}",
+        loadStashes: async () => "[]",
+        loadStashDetails: async () => "{}"
       }
     ],
     ["a missing engineVersion export", { remoteUrl: async () => null }],

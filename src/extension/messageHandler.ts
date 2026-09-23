@@ -48,8 +48,6 @@ import { addTag, deleteTag, pushAllTags, pushTag } from "@/backend/actions/tag";
 import { deleteUserDetails, editUserDetails } from "@/backend/actions/userConfig";
 import { createRepoReader, didEngineServeRead } from "@/backend/engine/index";
 import type { GitClient } from "@/backend/gitClient";
-import { commitComparison } from "@/backend/queries/commitComparison";
-import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadBranches } from "@/backend/queries/loadBranches";
 import { searchCommits } from "@/backend/queries/searchCommits";
 import { tagDetails } from "@/backend/queries/tagDetails";
@@ -664,12 +662,20 @@ export function registerMessageHandlers(
   });
 
   bridge.onMessage("commitDetails", async (msg) => {
+    // The preference is read live on every load, so flipping
+    // git-graph-libre.backend needs no reload. The reader serves from the
+    // engine where it can and the CLI elsewhere, with an identical shape.
+    const reader = createRepoReader({
+      preference: config.backend(),
+      gitPath: config.gitPath()
+    });
     bridge.post({
       command: "commitDetails",
-      ...(await commitDetails(gitClient.getInstance(), {
+      ...(await reader.loadCommitDetails({
         commitHash: msg.commitHash,
         dateType: config.dateType(),
-        repo: msg.repo,
+        repoPath: msg.repo,
+        git: gitClient.getInstance(),
         recordGitCommand
       }))
     });
@@ -700,14 +706,19 @@ export function registerMessageHandlers(
   });
 
   bridge.onMessage("commitComparison", async (msg) => {
+    const reader = createRepoReader({
+      preference: config.backend(),
+      gitPath: config.gitPath()
+    });
     bridge.post({
       command: "commitComparison",
-      ...(await commitComparison(gitClient.getInstance(), {
+      ...(await reader.loadCommitComparison({
         commitHash: msg.commitHash,
         baseRef: msg.baseRef,
         compareRef: msg.compareRef,
         dateType: config.dateType(),
-        repo: msg.repo,
+        repoPath: msg.repo,
+        git: gitClient.getInstance(),
         recordGitCommand
       }))
     });

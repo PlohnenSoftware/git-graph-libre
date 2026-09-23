@@ -1,3 +1,4 @@
+import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import { git, makeRepo } from "@tests/backend/helpers";
 import { simpleGit } from "simple-git";
@@ -5,18 +6,24 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { EngineAddon } from "@/backend/engine/addon";
 import {
   type AddonProvider,
+  type CommitComparisonArgs,
+  type CommitDetailsArgs,
   createRepoReader,
   didEngineServeRead,
   isEngineFallbackError,
   type LoadCommitsArgs,
   resetEngineServedRead
 } from "@/backend/engine/index";
+import { commitComparison } from "@/backend/queries/commitComparison";
+import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadCommits } from "@/backend/queries/loadCommits";
 import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
 
 const cliCalls = vi.hoisted(() => ({ count: 0 }));
 const fallbackReads = vi.hoisted(() => ({ count: 0 }));
 const commitReads = vi.hoisted(() => ({ count: 0 }));
+const detailsReads = vi.hoisted(() => ({ count: 0 }));
+const comparisonReads = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock("@/backend/queries/loadRepoInfo", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/backend/queries/loadRepoInfo")>();
@@ -40,6 +47,28 @@ vi.mock("@/backend/queries/loadCommits", async (importOriginal) => {
   };
 });
 
+vi.mock("@/backend/queries/commitDetails", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/backend/queries/commitDetails")>();
+  return {
+    ...original,
+    commitDetails: (...args: Parameters<typeof original.commitDetails>) => {
+      detailsReads.count += 1;
+      return original.commitDetails(...args);
+    }
+  };
+});
+
+vi.mock("@/backend/queries/commitComparison", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/backend/queries/commitComparison")>();
+  return {
+    ...original,
+    commitComparison: (...args: Parameters<typeof original.commitComparison>) => {
+      comparisonReads.count += 1;
+      return original.commitComparison(...args);
+    }
+  };
+});
+
 vi.mock("@/backend/utils/git", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/backend/utils/git")>();
   return {
@@ -55,9 +84,13 @@ const ORIGIN_URL = "https://github.com/some/repo.git";
 
 let repoWithRemote: string;
 let repoWithoutRemote: string;
+let initialHash: string;
 
 beforeAll(() => {
   repoWithRemote = makeRepo();
+  initialHash = cp
+    .execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoWithRemote, encoding: "utf8" })
+    .trim();
   git(["remote", "add", "origin", ORIGIN_URL], repoWithRemote);
 
   repoWithoutRemote = makeRepo();
@@ -72,6 +105,8 @@ beforeEach(() => {
   cliCalls.count = 0;
   fallbackReads.count = 0;
   commitReads.count = 0;
+  detailsReads.count = 0;
+  comparisonReads.count = 0;
   resetEngineServedRead();
 });
 
@@ -84,6 +119,21 @@ function fakeAddon(implementation: (repoPath: string) => Promise<string | null>)
     },
     loadCommits: async () => {
       throw new Error("Unsupported: commits not stubbed in this fake");
+    },
+    loadCommitDetails: async () => {
+      throw new Error("Unsupported: details not stubbed");
+    },
+    loadLineCounts: async () => {
+      throw new Error("Unsupported: counts not stubbed");
+    },
+    loadStashes: async () => {
+      throw new Error("Unsupported: stashes not stubbed");
+    },
+    loadStashDetails: async () => {
+      throw new Error("Unsupported: stash details not stubbed");
+    },
+    compareCommits: async () => {
+      throw new Error("Unsupported: compare not stubbed");
     }
   };
   return () => addon;
@@ -261,6 +311,21 @@ describe("createRepoReader repoInfo", () => {
       loadRepoInfo: async () => payload,
       loadCommits: async () => {
         throw new Error("Unsupported: commits not stubbed");
+      },
+      loadCommitDetails: async () => {
+        throw new Error("Unsupported: details not stubbed");
+      },
+      loadLineCounts: async () => {
+        throw new Error("Unsupported: counts not stubbed");
+      },
+      loadStashes: async () => {
+        throw new Error("Unsupported: stashes not stubbed");
+      },
+      loadStashDetails: async () => {
+        throw new Error("Unsupported: stash details not stubbed");
+      },
+      compareCommits: async () => {
+        throw new Error("Unsupported: compare not stubbed");
       }
     }));
     const direct = await loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote });
@@ -281,6 +346,21 @@ describe("createRepoReader repoInfo", () => {
         },
         loadCommits: async () => {
           throw new Error("Unsupported: commits not stubbed");
+        },
+        loadCommitDetails: async () => {
+          throw new Error("Unsupported: details not stubbed");
+        },
+        loadLineCounts: async () => {
+          throw new Error("Unsupported: counts not stubbed");
+        },
+        loadStashes: async () => {
+          throw new Error("Unsupported: stashes not stubbed");
+        },
+        loadStashDetails: async () => {
+          throw new Error("Unsupported: stash details not stubbed");
+        },
+        compareCommits: async () => {
+          throw new Error("Unsupported: compare not stubbed");
         }
       });
       const [viaReader, direct] = await Promise.all([
@@ -301,6 +381,21 @@ describe("createRepoReader repoInfo", () => {
       loadRepoInfo: async () => JSON.stringify({ ...JSON.parse(payload), error: "partial" }),
       loadCommits: async () => {
         throw new Error("Unsupported: commits not stubbed");
+      },
+      loadCommitDetails: async () => {
+        throw new Error("Unsupported: details not stubbed");
+      },
+      loadLineCounts: async () => {
+        throw new Error("Unsupported: counts not stubbed");
+      },
+      loadStashes: async () => {
+        throw new Error("Unsupported: stashes not stubbed");
+      },
+      loadStashDetails: async () => {
+        throw new Error("Unsupported: stash details not stubbed");
+      },
+      compareCommits: async () => {
+        throw new Error("Unsupported: compare not stubbed");
       }
     });
     const result = await repoInfoReader("auto", provider);
@@ -320,6 +415,21 @@ describe("createRepoReader repoInfo", () => {
         loadRepoInfo: async () => text,
         loadCommits: async () => {
           throw new Error("Unsupported: commits not stubbed");
+        },
+        loadCommitDetails: async () => {
+          throw new Error("Unsupported: details not stubbed");
+        },
+        loadLineCounts: async () => {
+          throw new Error("Unsupported: counts not stubbed");
+        },
+        loadStashes: async () => {
+          throw new Error("Unsupported: stashes not stubbed");
+        },
+        loadStashDetails: async () => {
+          throw new Error("Unsupported: stash details not stubbed");
+        },
+        compareCommits: async () => {
+          throw new Error("Unsupported: compare not stubbed");
         }
       });
       const result = await repoInfoReader("auto", provider);
@@ -340,6 +450,21 @@ describe("createRepoReader repoInfo", () => {
       },
       loadCommits: async () => {
         throw new Error("Unsupported: commits not stubbed");
+      },
+      loadCommitDetails: async () => {
+        throw new Error("Unsupported: details not stubbed");
+      },
+      loadLineCounts: async () => {
+        throw new Error("Unsupported: counts not stubbed");
+      },
+      loadStashes: async () => {
+        throw new Error("Unsupported: stashes not stubbed");
+      },
+      loadStashDetails: async () => {
+        throw new Error("Unsupported: stash details not stubbed");
+      },
+      compareCommits: async () => {
+        throw new Error("Unsupported: compare not stubbed");
       }
     });
     const result = await repoInfoReader("auto", provider);
@@ -467,13 +592,21 @@ describe("createRepoReader loadCommits", () => {
   }
 
   function engineProvider(payload: string): AddonProvider {
+    const unsupported = () => {
+      throw new Error("Unsupported: details not stubbed");
+    };
     return () => ({
       engineVersion: () => "fake",
       remoteUrl: async () => null,
       loadRepoInfo: async () => {
         throw new Error("Unsupported: repoInfo not stubbed");
       },
-      loadCommits: async () => payload
+      loadCommits: async () => payload,
+      loadCommitDetails: unsupported,
+      loadLineCounts: unsupported,
+      loadStashes: unsupported,
+      loadStashDetails: unsupported,
+      compareCommits: unsupported
     });
   }
 
@@ -572,12 +705,24 @@ describe("createRepoReader loadCommits", () => {
         },
         loadCommits: async () => {
           throw new Error(message);
+        },
+        loadCommitDetails: async () => {
+          throw new Error("Unsupported: details not stubbed");
+        },
+        loadLineCounts: async () => {
+          throw new Error("Unsupported: counts not stubbed");
+        },
+        loadStashes: async () => {
+          throw new Error("Unsupported: stashes not stubbed");
+        },
+        loadStashDetails: async () => {
+          throw new Error("Unsupported: stash details not stubbed");
+        },
+        compareCommits: async () => {
+          throw new Error("Unsupported: compare not stubbed");
         }
       });
-      const [viaReader, direct] = await Promise.all([
-        commitsReader("auto", provider),
-        directCli()
-      ]);
+      const [viaReader, direct] = await Promise.all([commitsReader("auto", provider), directCli()]);
 
       expect(viaReader).toEqual(direct);
       expect(commitReads.count).toBe(2);
@@ -671,6 +816,21 @@ describe("createRepoReader loadCommits", () => {
       },
       loadCommits: async () => {
         throw new Error("Git: corrupt object");
+      },
+      loadCommitDetails: async () => {
+        throw new Error("Unsupported: details not stubbed");
+      },
+      loadLineCounts: async () => {
+        throw new Error("Unsupported: counts not stubbed");
+      },
+      loadStashes: async () => {
+        throw new Error("Unsupported: stashes not stubbed");
+      },
+      loadStashDetails: async () => {
+        throw new Error("Unsupported: stash details not stubbed");
+      },
+      compareCommits: async () => {
+        throw new Error("Unsupported: compare not stubbed");
       }
     });
     const result = await commitsReader("auto", provider);
@@ -684,6 +844,461 @@ describe("createRepoReader loadCommits", () => {
     });
     expect(result.error?.message).toContain("corrupt object");
     expect(commitReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(false);
+  });
+});
+
+describe("createRepoReader loadCommitDetails", () => {
+  const detailsPayload = JSON.stringify({
+    hash: "a".repeat(40),
+    parents: [],
+    author: "Ada",
+    authorEmail: "ada@x.com",
+    authorDate: 1790090408,
+    committer: "Ada",
+    committerEmail: "ada@x.com",
+    committerDate: 1790090408,
+    signature: null,
+    body: "only\n",
+    fileChanges: [
+      { oldFilePath: "f", newFilePath: "f", type: "M", additions: null, deletions: null }
+    ]
+  });
+  const countsPayload = JSON.stringify({ f: { additions: 1, deletions: 0 } });
+  const servedNodes = {
+    commitDetails: {
+      hash: "a".repeat(40),
+      parents: [],
+      author: "Ada",
+      email: "ada@x.com",
+      authorDate: 1790090408,
+      committer: "Ada",
+      committerEmail: "ada@x.com",
+      committerDate: 1790090408,
+      body: "only",
+      fileChanges: [{ oldFilePath: "f", newFilePath: "f", type: "M", additions: 1, deletions: 0 }]
+    },
+    error: null
+  };
+
+  function detailsReader(
+    preference: "auto" | "git-cli",
+    addonProvider?: AddonProvider,
+    overrides: Partial<CommitDetailsArgs> = {}
+  ) {
+    return createRepoReader({ preference, gitPath: "git", addonProvider }).loadCommitDetails({
+      repoPath: repoWithRemote,
+      git: simpleGit(repoWithRemote),
+      commitHash: initialHash,
+      dateType: "Commit Date",
+      ...overrides
+    });
+  }
+
+  function directDetails(overrides: { commitHash?: string } = {}) {
+    return commitDetails(simpleGit(repoWithRemote), {
+      commitHash: initialHash,
+      dateType: "Commit Date",
+      repo: repoWithRemote,
+      ...overrides
+    });
+  }
+
+  function detailsAddon(impl: {
+    details?: () => Promise<string>;
+    counts?: () => Promise<string>;
+    stashes?: () => Promise<string>;
+    stashDetails?: (repoPath: string, hash: string, stashJson: string) => Promise<string>;
+  }): AddonProvider {
+    const unsupported = (): Promise<string> => {
+      throw new Error("Unsupported");
+    };
+    return () => ({
+      engineVersion: () => "fake",
+      remoteUrl: async () => null,
+      loadRepoInfo: unsupported,
+      loadCommits: unsupported,
+      loadCommitDetails: impl.details ?? unsupported,
+      loadLineCounts: impl.counts ?? unsupported,
+      loadStashes: impl.stashes ?? unsupported,
+      loadStashDetails: impl.stashDetails ?? unsupported,
+      compareCommits: unsupported
+    });
+  }
+
+  it("serves the CLI read untouched on the git-cli preference", async () => {
+    const provider = vi.fn<AddonProvider>(() => null);
+    const [viaReader, direct] = await Promise.all([
+      detailsReader("git-cli", provider),
+      directDetails()
+    ]);
+
+    expect(provider).not.toHaveBeenCalled();
+    expect(viaReader).toEqual(direct);
+    expect(detailsReads.count).toBe(2);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("uses the CLI when no addon is available", async () => {
+    const result = await detailsReader("auto", () => null);
+
+    expect(result.error).toBeNull();
+    expect(result.commitDetails?.fileChanges).toHaveLength(1);
+    expect(detailsReads.count).toBe(1);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("serves an engine page with settled counts without touching the CLI", async () => {
+    const result = await detailsReader(
+      "auto",
+      detailsAddon({
+        details: async () => detailsPayload,
+        counts: async () => countsPayload,
+        stashes: async () => "[]"
+      })
+    );
+
+    expect(result).toEqual(servedNodes);
+    expect(detailsReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(true);
+  });
+
+  it.each([
+    ["the * row", "*"],
+    ["a blank hash", "  "]
+  ])("keeps %s on the CLI without loading the addon", async (_name, commitHash) => {
+    const provider = vi.fn(
+      detailsAddon({
+        details: async () => detailsPayload,
+        counts: async () => countsPayload,
+        stashes: async () => "[]"
+      })
+    );
+    const result = await detailsReader("auto", provider, { commitHash });
+
+    expect(provider).not.toHaveBeenCalled();
+    expect(result.commitDetails).toBeNull();
+    expect(result.error).not.toBeNull();
+    expect(detailsReads.count).toBe(1);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("reroutes a merge back to the whole CLI read", async () => {
+    const merged = JSON.stringify({
+      ...JSON.parse(detailsPayload),
+      parents: ["b".repeat(40), "c".repeat(40)]
+    });
+    const result = await detailsReader(
+      "auto",
+      detailsAddon({
+        details: async () => merged,
+        counts: async () => countsPayload,
+        stashes: async () => "[]"
+      })
+    );
+
+    expect(result.error).toBeNull();
+    expect(result.commitDetails?.fileChanges).toHaveLength(1);
+    expect(detailsReads.count).toBe(1);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("takes stash hashes through load_stash_details with the base as from", async () => {
+    const stashHash = "c".repeat(40);
+    const stashDetailsPayload = JSON.stringify({
+      ...JSON.parse(detailsPayload),
+      hash: stashHash,
+      fileChanges: [
+        { oldFilePath: "s", newFilePath: "s", type: "A", additions: null, deletions: null }
+      ]
+    });
+    const stashDetailsFn = vi.fn(async () => stashDetailsPayload);
+    const countsFn = vi.fn(async () => JSON.stringify({ s: { additions: 2, deletions: 0 } }));
+    const result = await detailsReader(
+      "auto",
+      detailsAddon({
+        details: async () => detailsPayload,
+        counts: countsFn,
+        stashes: async () =>
+          JSON.stringify([
+            {
+              hash: stashHash,
+              baseHash: "b".repeat(40),
+              untrackedFilesHash: null,
+              selector: "refs/stash@{0}"
+            }
+          ]),
+        stashDetails: stashDetailsFn
+      }),
+      { commitHash: stashHash }
+    );
+
+    expect(stashDetailsFn).toHaveBeenCalledWith(
+      repoWithRemote,
+      stashHash,
+      JSON.stringify({
+        selector: "refs/stash@{0}",
+        baseHash: "b".repeat(40),
+        untrackedFilesHash: null
+      })
+    );
+    expect(countsFn).toHaveBeenCalledWith(
+      repoWithRemote,
+      "b".repeat(40),
+      stashHash,
+      JSON.stringify(["s"])
+    );
+    expect(result.commitDetails?.fileChanges).toEqual([
+      { oldFilePath: "s", newFilePath: "s", type: "A", additions: 2, deletions: 0 }
+    ]);
+    expect(result.error).toBeNull();
+    expect(detailsReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(true);
+  });
+
+  it("reroutes to the whole CLI read on malformed counts", async () => {
+    const result = await detailsReader(
+      "auto",
+      detailsAddon({
+        details: async () => detailsPayload,
+        counts: async () => "not json",
+        stashes: async () => "[]"
+      })
+    );
+
+    expect(result.error).toBeNull();
+    expect(result.commitDetails?.fileChanges).toHaveLength(1);
+    expect(detailsReads.count).toBe(1);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it.each(["not json", "[1]"])(
+    "surfaces malformed payloads as the read error without retrying",
+    async (text) => {
+      const result = await detailsReader(
+        "auto",
+        detailsAddon({
+          details: async () => text,
+          counts: async () => countsPayload,
+          stashes: async () => "[]"
+        })
+      );
+
+      expect(result.commitDetails).toBeNull();
+      expect(result.error?.message).toContain("malformed");
+      expect(detailsReads.count).toBe(0);
+      expect(didEngineServeRead()).toBe(false);
+    }
+  );
+
+  it("surfaces genuine engine failures as the read error without retrying", async () => {
+    const result = await detailsReader(
+      "auto",
+      detailsAddon({
+        details: async () => {
+          throw new Error("Git: corrupt object");
+        },
+        counts: async () => countsPayload,
+        stashes: async () => "[]"
+      })
+    );
+
+    expect(result.commitDetails).toBeNull();
+    expect(result.error?.message).toContain("corrupt object");
+    expect(detailsReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it.each(["NotARepository: no git dir", "Unsupported: declined"])(
+    "falls back to the whole CLI read on %s",
+    async (message) => {
+      const provider = detailsAddon({
+        details: async () => {
+          throw new Error(message);
+        },
+        counts: async () => countsPayload,
+        stashes: async () => "[]"
+      });
+      const [viaReader, direct] = await Promise.all([
+        detailsReader("auto", provider),
+        directDetails()
+      ]);
+
+      expect(viaReader).toEqual(direct);
+      expect(detailsReads.count).toBe(2);
+      expect(didEngineServeRead()).toBe(false);
+    }
+  );
+});
+
+describe("createRepoReader loadCommitComparison", () => {
+  const changesPayload = JSON.stringify([
+    { oldFilePath: "f", newFilePath: "g", type: "R", additions: null, deletions: null }
+  ]);
+
+  function comparisonReader(
+    preference: "auto" | "git-cli",
+    addonProvider?: AddonProvider,
+    overrides: Partial<CommitComparisonArgs> = {}
+  ) {
+    return createRepoReader({ preference, gitPath: "git", addonProvider }).loadCommitComparison({
+      repoPath: repoWithRemote,
+      git: simpleGit(repoWithRemote),
+      commitHash: initialHash,
+      baseRef: initialHash,
+      compareRef: "HEAD",
+      dateType: "Commit Date",
+      ...overrides
+    });
+  }
+
+  function directComparison(overrides: Partial<CommitComparisonArgs> = {}) {
+    const args = {
+      repoPath: repoWithRemote,
+      commitHash: initialHash,
+      baseRef: initialHash,
+      compareRef: "HEAD",
+      dateType: "Commit Date" as const,
+      ...overrides
+    };
+    return commitComparison(simpleGit(repoWithRemote), {
+      commitHash: args.commitHash,
+      baseRef: args.baseRef,
+      compareRef: args.compareRef,
+      dateType: args.dateType,
+      repo: args.repoPath
+    });
+  }
+
+  function comparisonAddon(impl: {
+    details?: () => Promise<string>;
+    compare?: () => Promise<string>;
+    counts?: () => Promise<string>;
+  }): AddonProvider {
+    const unsupported = (): Promise<string> => {
+      throw new Error("Unsupported");
+    };
+    return () => ({
+      engineVersion: () => "fake",
+      remoteUrl: async () => null,
+      loadRepoInfo: unsupported,
+      loadCommits: unsupported,
+      loadCommitDetails: impl.details ?? unsupported,
+      loadLineCounts: impl.counts ?? unsupported,
+      loadStashes: unsupported,
+      loadStashDetails: unsupported,
+      compareCommits: impl.compare ?? unsupported
+    });
+  }
+
+  const headerPayload = JSON.stringify({
+    hash: "a".repeat(40),
+    parents: [],
+    author: "Ada",
+    authorEmail: "ada@x.com",
+    authorDate: 1790090408,
+    committer: "Ada",
+    committerEmail: "ada@x.com",
+    committerDate: 1790090408,
+    signature: null,
+    body: "only\n",
+    fileChanges: []
+  });
+
+  it("serves the CLI read untouched on the git-cli preference", async () => {
+    const provider = vi.fn<AddonProvider>(() => null);
+    const [viaReader, direct] = await Promise.all([
+      comparisonReader("git-cli", provider),
+      directComparison()
+    ]);
+
+    expect(provider).not.toHaveBeenCalled();
+    expect(viaReader).toEqual(direct);
+    expect(comparisonReads.count).toBe(2);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("serves an engine comparison with settled counts", async () => {
+    const result = await comparisonReader(
+      "auto",
+      comparisonAddon({
+        details: async () => headerPayload,
+        compare: async () => changesPayload,
+        counts: async () => JSON.stringify({ g: { additions: 1, deletions: 1 } })
+      })
+    );
+
+    expect(result).toEqual({
+      commitDetails: {
+        hash: "a".repeat(40),
+        parents: [],
+        author: "Ada",
+        email: "ada@x.com",
+        authorDate: 1790090408,
+        committer: "Ada",
+        committerEmail: "ada@x.com",
+        committerDate: 1790090408,
+        body: "only",
+        fileChanges: [{ oldFilePath: "f", newFilePath: "g", type: "R", additions: 1, deletions: 1 }]
+      },
+      error: null
+    });
+    expect(comparisonReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(true);
+  });
+
+  it.each([
+    ["a blank hash", { commitHash: "  " } as Partial<CommitComparisonArgs>],
+    ["a blank base", { baseRef: "" } as Partial<CommitComparisonArgs>],
+    ["a blank compare ref", { compareRef: " " } as Partial<CommitComparisonArgs>]
+  ])("reproduces the CLI validation error for %s", async (_name, overrides) => {
+    const provider = vi.fn(
+      comparisonAddon({
+        details: async () => headerPayload,
+        compare: async () => changesPayload,
+        counts: async () => "{}"
+      })
+    );
+    const [viaReader, direct] = await Promise.all([
+      comparisonReader("auto", provider, overrides),
+      directComparison(overrides)
+    ]);
+
+    expect(provider).not.toHaveBeenCalled();
+    expect(viaReader).toEqual(direct);
+    expect(viaReader.error?.message).toContain("is required");
+    expect(comparisonReads.count).toBe(2);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("surfaces genuine engine failures and falls back on declines", async () => {
+    const genuine = await comparisonReader(
+      "auto",
+      comparisonAddon({
+        details: async () => {
+          throw new Error("Git: corrupt object");
+        },
+        compare: async () => changesPayload,
+        counts: async () => "{}"
+      })
+    );
+    expect(genuine.commitDetails).toBeNull();
+    expect(genuine.error?.message).toContain("corrupt object");
+    expect(comparisonReads.count).toBe(0);
+
+    const declined = await comparisonReader(
+      "auto",
+      comparisonAddon({
+        details: async () => {
+          throw new Error("Unsupported: declined");
+        },
+        compare: async () => changesPayload,
+        counts: async () => "{}"
+      })
+    );
+    const direct = await directComparison();
+    expect(declined).toEqual(direct);
+    expect(comparisonReads.count).toBe(2);
     expect(didEngineServeRead()).toBe(false);
   });
 });

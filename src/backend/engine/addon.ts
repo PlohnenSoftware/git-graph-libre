@@ -43,6 +43,35 @@ export type EngineAddon = {
    * this name). Options are the JSON built by `buildLoadCommitsOptions`.
    */
   loadCommits(repoPath: string, optionsJson: string): Promise<string>;
+  /**
+   * `load_commit_details` encoded as JSON: the commit's fields with its file
+   * statuses, counts left null for `load_line_counts` to settle.
+   */
+  loadCommitDetails(repoPath: string, hash: string): Promise<string>;
+  /**
+   * `load_line_counts` encoded as JSON: the `+N/-M` map for the given paths.
+   * `from` is null to diff against the first parent (the empty tree for a
+   * root commit).
+   */
+  loadLineCounts(
+    repoPath: string,
+    from: string | null,
+    to: string,
+    pathsJson: string
+  ): Promise<string>;
+  /** `load_stashes` encoded as JSON: the entries `load_stash_details` needs. */
+  loadStashes(repoPath: string): Promise<string>;
+  /**
+   * `load_stash_details` encoded as JSON: the stash diffed against its base,
+   * untracked files appended. `stashJson` is the `stash_json` argument built
+   * by `stashEntryPayload`.
+   */
+  loadStashDetails(repoPath: string, hash: string, stashJson: string): Promise<string>;
+  /**
+   * `compare_commits` encoded as JSON: the file statuses differing between
+   * two revisions. An empty `to` compares against the working tree.
+   */
+  compareCommits(repoPath: string, from: string, to: string): Promise<string>;
 };
 
 /**
@@ -138,12 +167,22 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     remoteUrl?: unknown;
     loadRepoInfo?: unknown;
     loadCommits?: unknown;
+    loadCommitDetails?: unknown;
+    loadLineCounts?: unknown;
+    loadStashes?: unknown;
+    loadStashDetails?: unknown;
+    compareCommits?: unknown;
   };
   return (
     typeof candidate.engineVersion === "function" &&
     typeof candidate.remoteUrl === "function" &&
     typeof candidate.loadRepoInfo === "function" &&
-    typeof candidate.loadCommits === "function"
+    typeof candidate.loadCommits === "function" &&
+    typeof candidate.loadCommitDetails === "function" &&
+    typeof candidate.loadLineCounts === "function" &&
+    typeof candidate.loadStashes === "function" &&
+    typeof candidate.loadStashDetails === "function" &&
+    typeof candidate.compareCommits === "function"
   );
 }
 
