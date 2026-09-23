@@ -243,12 +243,20 @@ export async function loadEngineConfig(
   };
 }
 
+/**
+ * The config piece of the composition: the engine fill when an addon is
+ * present, the CLI fill otherwise. Null rolls up to the whole CLI read —
+ * a CLI fill mixed into an engine composition would misattribute the
+ * served flag and could ship a half-engine shape the parity table never
+ * approved.
+ */
 async function loadFillConfig(
   fills: EngineRepoInfoFills
-): Promise<Awaited<ReturnType<typeof loadConfig>>> {
+): Promise<Awaited<ReturnType<typeof loadConfig>> | null> {
   if (fills.addon !== undefined && fills.addon !== null) {
     const value = await loadEngineConfig(fills.addon, fills.repo);
-    if (value !== null) return { value, error: null };
+    if (value === null) return null;
+    return { value, error: null };
   }
   return loadConfig(fills.git, { repo: fills.repo, record: fills.recordGitCommand });
 }
@@ -270,6 +278,7 @@ export async function composeEngineRepoInfo(
     loadFillConfig(fills),
     loadAuthors(fills.git, context)
   ]);
+  if (configResult === null) return null;
 
   const stashes: GitStash[] = [];
   for (const stash of info.stashes) {

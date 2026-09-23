@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { git, makeRepo } from "@tests/backend/helpers";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { simpleGit } from "simple-git";
 import { loadEngineAddon } from "@/backend/engine/addon";
 import { parseEngineCommitFile } from "@/backend/engine/details";
@@ -858,5 +858,105 @@ describe("engine/CLI parity: commit details, comparison and files", () => {
     expect(() =>
       cp.execFileSync("git", ["show", "HEAD:nope.txt"], { cwd: current.dir, stdio: "pipe" })
     ).toThrow();
+  }, 120000);
+});
+
+describe("engine/CLI parity: repoInfo config", () => {
+  // The 16.7 parity table for the user-config fill: a plain repository
+  // served from the engine, an include directive (local and global) that
+  // declines to the CLI which resolves it, and a missing global file that
+  // stays CLI with the CLI's own error shape. The global file is fully
+  // controlled through `GIT_CONFIG_GLOBAL`, which both sides honor, so no
+  // case depends on the machine's own configuration.
+  const savedGlobal = process.env.GIT_CONFIG_GLOBAL;
+  const dirs: string[] = [];
+  let dir: string;
+  let globalFile: string;
+
+  beforeAll(() => {
+    const globalDir = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-test-config-"));
+    dirs.push(globalDir);
+    globalFile = path.join(globalDir, "gitconfig");
+    fs.writeFileSync(globalFile, "[user]\n\tname = Grace\n\temail = grace@x.com\n");
+    dir = makeRepo();
+    dirs.push(dir);
+    git(["config", "user.name", "Ada"], dir);
+    git(["config", "user.email", "ada@x.com"], dir);
+  }, 180000);
+
+  afterAll(() => {
+    for (const candidate of dirs) fs.rmSync(candidate, { recursive: true, force: true });
+  });
+
+  afterEach(() => {
+    if (savedGlobal === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+    else process.env.GIT_CONFIG_GLOBAL = savedGlobal;
+  });
+
+  function requireAddon(context: { skip: (message?: string) => never }) {
+    if (loadEngineAddon() === null) {
+      context.skip("Engine addon not built — run pnpm run engine:build for the engine half.");
+    }
+  }
+
+  async function expectRepoInfoParity(
+    repo: string,
+    label: string,
+    expectedServed: boolean
+  ): Promise<void> {
+    resetEngineServedRead();
+    const [viaAuto, direct] = await Promise.all([
+      createRepoReader({ preference: "auto", gitPath: "git" }).loadRepoInfo({
+        repoPath: repo,
+        git: simpleGit(repo),
+        showStashes: true
+      }),
+      loadRepoInfo(simpleGit(repo), { repo })
+    ]);
+    expect(didEngineServeRead(), `${label} served`).toBe(expectedServed);
+    expect(viaAuto, `${label} result`).toEqual(direct);
+  }
+
+  it("serves user identity from the engine on a plain repository", async (context) => {
+    requireAddon(context);
+    process.env.GIT_CONFIG_GLOBAL = globalFile;
+    await expectRepoInfoParity(dir, "plain", true);
+  }, 120000);
+
+  it("stays on the CLI when the local config carries includes", async (context) => {
+    requireAddon(context);
+    const included = path.join(dir, "included-config");
+    fs.writeFileSync(included, "[user]\n\tname = Included\n");
+    const localConfig = path.join(dir, ".git", "config");
+    const original = fs.readFileSync(localConfig, "utf8");
+    fs.appendFileSync(localConfig, `[include]\n\tpath = ${included}\n`);
+    try {
+      process.env.GIT_CONFIG_GLOBAL = globalFile;
+      await expectRepoInfoParity(dir, "local include", false);
+    } finally {
+      fs.writeFileSync(localConfig, original);
+      fs.rmSync(included, { force: true });
+    }
+  }, 120000);
+
+  it("stays on the CLI when the global config carries includes", async (context) => {
+    requireAddon(context);
+    const withInclude = `${globalFile}-include`;
+    const included = `${globalFile}-included`;
+    fs.writeFileSync(included, "[user]\n\temail = included@x.com\n");
+    fs.writeFileSync(withInclude, `[include]\n\tpath = ${included}\n`);
+    try {
+      process.env.GIT_CONFIG_GLOBAL = withInclude;
+      await expectRepoInfoParity(dir, "global include", false);
+    } finally {
+      fs.rmSync(withInclude, { force: true });
+      fs.rmSync(included, { force: true });
+    }
+  }, 120000);
+
+  it("stays on the CLI with the CLI error shape when the global file is absent", async (context) => {
+    requireAddon(context);
+    process.env.GIT_CONFIG_GLOBAL = `${globalFile}-absent`;
+    await expectRepoInfoParity(dir, "absent global", false);
   }, 120000);
 });

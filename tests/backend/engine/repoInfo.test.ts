@@ -293,6 +293,22 @@ describe("loadEngineConfig", () => {
     }
   });
 
+  it("rolls the composition back to the whole CLI read when the fill declines", async () => {
+    const addon = configAddon({}, {}, new Error("Unsupported: includes"));
+    const composed = await composeEngineRepoInfo(
+      { git: simpleGit(repo), repo, addon },
+      {
+        branches: [],
+        head: "main",
+        remotes: [],
+        stashes: [],
+        tags: [],
+        error: null
+      }
+    );
+    expect(composed).toBeNull();
+  });
+
   it("composes the engine config fill without config git calls", async () => {
     const addon = configAddon(
       { "user.name": "Ada", "user.email": "ada@x.com" },
