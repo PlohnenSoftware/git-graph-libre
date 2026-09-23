@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Searching history is about eight times faster**, and no longer starts four
+  `git` processes for one search. Measured on a real 1,036-commit repository:
+  62 ms to 8 ms. What it matches is unchanged — the same literal text search
+  over messages, the same author and commit-hash matching, in the same order.
 - **The graph opens roughly four times faster.** Measured on a real
   1,036-commit repository: the work behind opening the view went from 69 ms to
   16 ms, reading the branch, tag, remote and stash lists from 60 ms to 8 ms,
@@ -35,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Searching for text containing `(` or `[` no longer fails the Find
+  dialogue.** A query with an unbalanced bracket made Git reject the search
+  outright and the dialogue reported an error instead of results. Author
+  matching is unchanged otherwise — it still matches names and email addresses,
+  ignoring case.
 - **Signed tags keep their badge, and `origin/HEAD` keeps its label**, without
   the extension running extra `git` commands to find either out. Both are now
   read directly from the repository along with everything else on the row. A

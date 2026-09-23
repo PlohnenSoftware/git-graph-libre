@@ -119,6 +119,44 @@ pub struct RefReadOptions {
     pub hide_remotes: Vec<String>,
 }
 
+/* ---------- Commit search ---------- */
+
+/// What the Find dialogue asks for. Mirrors the inputs the `git` CLI backend builds its four
+/// `git log` runs from, so both backends answer the same question.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchOptions {
+    pub query: String,
+    /// Already normalised by the caller (the CLI clamps to 1..=200, defaulting to 50).
+    pub max_results: u32,
+    /// An explicit ref selection from the dropdowns, or `None` to search what the view shows.
+    pub branches: Option<Vec<String>>,
+    /// The author filter, which narrows the numbering walk as well as the matches.
+    pub authors: Option<Vec<String>>,
+    #[serde(default = "default_true")]
+    pub show_tags: bool,
+    pub show_remote_branches: bool,
+    pub hide_remotes: Vec<String>,
+    /// Report the author date rather than the committer date, for `dateType: "Author Date"`.
+    pub use_author_date: bool,
+}
+
+/// One search hit, in the shape the Find dialogue lists.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitSearchResult {
+    pub hash: String,
+    pub parents: Vec<String>,
+    pub author: String,
+    pub email: String,
+    pub date: i64,
+    /// The subject line only, as `%s` prints it.
+    pub message: String,
+    /// The commit's 1-based position in the graph's own walk — how far the view would have to load
+    /// to reach it, and the key the results are ordered by.
+    pub load_count: u32,
+}
+
 /* ---------- Repository info ---------- */
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

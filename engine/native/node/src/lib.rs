@@ -12,9 +12,9 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
-use git_graph_core::types::{LogOptions, RefReadOptions};
+use git_graph_core::types::{LogOptions, RefReadOptions, SearchOptions};
 use git_graph_core::{
-    blob, config, details, diff, graph, log, refs, stash, stats, status, Error, ErrorKind,
+    blob, config, details, diff, graph, log, refs, search, stash, stats, status, Error, ErrorKind,
     RepoManager,
 };
 
@@ -62,6 +62,21 @@ pub async fn load_repo_info(path: String, options_json: String) -> Result<String
         let repo = RepoManager::global().get(&path)?;
         let info = graph::repo_info(&repo, &payload.to_options(), payload.show_stashes)?;
         encode(&info)
+    })
+    .await
+}
+
+/// The Find dialogue's commit search. `options_json` is a serialised `SearchOptions`.
+///
+/// Distinct from `search_history`: this reproduces what the `git` CLI backend does — a literal
+/// message match, an author match, a hash lookup, and the graph-walk position each hit carries.
+#[napi]
+pub async fn search_commits(path: String, options_json: String) -> Result<String> {
+    run(move || {
+        let options: SearchOptions = decode(&options_json)?;
+        let repo = RepoManager::global().get(&path)?;
+        let results = search::search_commits(&repo, &options)?;
+        encode(&results)
     })
     .await
 }

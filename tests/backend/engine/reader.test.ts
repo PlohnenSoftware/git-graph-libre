@@ -146,6 +146,7 @@ function fakeAddon(implementation: (repoPath: string) => Promise<string | null>)
     authors: async () => "[]",
     loadConfig: async () => JSON.stringify({ remotes: [] }),
     currentBranchName: async () => null,
+    searchCommits: async () => "[]",
     loadRefs: async () => JSON.stringify({ head: null }),
     configList: async () => {
       throw new Error("Unsupported: config not stubbed");
@@ -413,6 +414,7 @@ describe("createRepoReader repoInfo", () => {
             remotes: [{ name: "origin", url: "https://github.com/some/repo.git", pushUrl: null }]
           }),
         currentBranchName: async () => null,
+        searchCommits: async () => "[]",
         loadRefs: async () => JSON.stringify({ head: null }),
         configList: async (_repo: string, local: boolean) =>
           JSON.stringify(local ? { "user.name": "T", "user.email": "t@t.com" } : {}),
@@ -465,6 +467,7 @@ describe("createRepoReader repoInfo", () => {
         authors: async () => "[]",
         loadConfig: async () => JSON.stringify({ remotes: [] }),
         currentBranchName: async () => null,
+        searchCommits: async () => "[]",
         loadRefs: async () => JSON.stringify({ head: null }),
         configList: async () => {
           throw new Error("Unsupported: config not stubbed");
@@ -519,6 +522,7 @@ describe("createRepoReader repoInfo", () => {
       authors: async () => "[]",
       loadConfig: async () => JSON.stringify({ remotes: [] }),
       currentBranchName: async () => null,
+      searchCommits: async () => "[]",
       loadRefs: async () => JSON.stringify({ head: null }),
       configList: async () => {
         throw new Error("Unsupported: config not stubbed");
@@ -572,6 +576,7 @@ describe("createRepoReader repoInfo", () => {
         authors: async () => "[]",
         loadConfig: async () => JSON.stringify({ remotes: [] }),
         currentBranchName: async () => null,
+        searchCommits: async () => "[]",
         loadRefs: async () => JSON.stringify({ head: null }),
         configList: async () => {
           throw new Error("Unsupported: config not stubbed");
@@ -626,6 +631,7 @@ describe("createRepoReader repoInfo", () => {
       authors: async () => "[]",
       loadConfig: async () => JSON.stringify({ remotes: [] }),
       currentBranchName: async () => null,
+      searchCommits: async () => "[]",
       loadRefs: async () => JSON.stringify({ head: null }),
       configList: async () => {
         throw new Error("Unsupported: config not stubbed");
@@ -784,6 +790,7 @@ describe("createRepoReader loadCommits", () => {
       authors: unsupported,
       loadConfig: unsupported,
       currentBranchName: unsupported,
+      searchCommits: unsupported,
       loadRefs: unsupported,
       configList: unsupported,
       closeRepository: unsupported,
@@ -911,6 +918,7 @@ describe("createRepoReader loadCommits", () => {
         authors: async () => "[]",
         loadConfig: async () => JSON.stringify({ remotes: [] }),
         currentBranchName: async () => null,
+        searchCommits: async () => "[]",
         loadRefs: async () => JSON.stringify({ head: null }),
         configList: async () => {
           throw new Error("Unsupported: config not stubbed");
@@ -1041,6 +1049,7 @@ describe("createRepoReader loadCommits", () => {
       authors: async () => "[]",
       loadConfig: async () => JSON.stringify({ remotes: [] }),
       currentBranchName: async () => null,
+      searchCommits: async () => "[]",
       loadRefs: async () => JSON.stringify({ head: null }),
       configList: async () => {
         throw new Error("Unsupported: config not stubbed");
@@ -1149,6 +1158,7 @@ describe("createRepoReader loadCommitDetails", () => {
       authors: unsupported,
       loadConfig: unsupported,
       currentBranchName: unsupported,
+      searchCommits: unsupported,
       loadRefs: unsupported,
       configList: unsupported,
       closeRepository: unsupported,
@@ -1425,6 +1435,7 @@ describe("createRepoReader loadCommitComparison", () => {
       authors: unsupported,
       loadConfig: unsupported,
       currentBranchName: unsupported,
+      searchCommits: unsupported,
       loadRefs: unsupported,
       configList: unsupported,
       closeRepository: unsupported,

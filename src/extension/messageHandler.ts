@@ -49,7 +49,6 @@ import { deleteUserDetails, editUserDetails } from "@/backend/actions/userConfig
 import { createRepoReader, didEngineServeRead } from "@/backend/engine/index";
 import type { GitClient } from "@/backend/gitClient";
 import { loadBranches } from "@/backend/queries/loadBranches";
-import { searchCommits } from "@/backend/queries/searchCommits";
 import { tagDetails } from "@/backend/queries/tagDetails";
 import { uncommittedDetails } from "@/backend/queries/uncommittedDetails";
 import type { GitFileChangeType } from "@/backend/types";
@@ -642,10 +641,19 @@ export function registerMessageHandlers(
   });
 
   bridge.onMessage("searchCommits", async (msg) => {
+    // The preference is read live on every search, so flipping
+    // git-graph-libre.backend needs no reload. The reader serves from the
+    // engine where it can and the CLI elsewhere, with an identical shape.
+    const reader = createRepoReader({
+      preference: config.backend(),
+      gitPath: config.gitPath()
+    });
     bridge.post({
       command: "searchCommits",
       requestId: msg.requestId,
-      ...(await searchCommits(gitClient.getInstance(), {
+      ...(await reader.searchCommits({
+        repoPath: msg.repo,
+        git: gitClient.getInstance(),
         query: msg.query,
         maxResults: msg.maxResults,
         showRemoteBranches: msg.showRemoteBranches,
@@ -655,7 +663,6 @@ export function registerMessageHandlers(
         authors: msg.authors,
         tags: msg.tags,
         dateType: config.dateType(),
-        repo: msg.repo,
         recordGitCommand
       }))
     });

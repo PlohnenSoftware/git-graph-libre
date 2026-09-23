@@ -33,7 +33,12 @@ type GitQueryContext = {
   record?: GitCommandRecorder;
 };
 
-function normalizeMaxResults(maxResults: number): number {
+/**
+ * The page size both backends use. Exported so the engine seam clamps with
+ * this function rather than a copy of it: a divergence here would page the
+ * two backends differently for the same request.
+ */
+export function normalizeMaxResults(maxResults: number): number {
   if (!Number.isFinite(maxResults) || maxResults < 1) return defaultMaxResults;
   return Math.min(Math.floor(maxResults), maxResultsLimit);
 }
@@ -74,10 +79,6 @@ function parseLogEntries(stdout: string): GitLogEntry[] {
     });
   }
   return commits;
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[\\^$.*+?()[\]{}|]/g, String.raw`\$&`);
 }
 
 async function runSearchLog(
@@ -210,7 +211,13 @@ export async function searchCommits(
       runSearchLog(
         git,
         "searchCommits.author",
-        ["--regexp-ignore-case", `--author=${escapeRegExp(query)}`],
+        // `--fixed-strings` rather than a hand-escaped pattern. `--author`
+        // takes a *basic* regular expression, in which `\(` opens a group
+        // instead of escaping a parenthesis — so escaping the query inverted
+        // the meaning and made git reject any search containing an unbalanced
+        // `(` or `[` outright, failing the whole dialogue. A literal match was
+        // always the intent; this is how git spells it.
+        ["--regexp-ignore-case", "--fixed-strings", `--author=${query}`],
         input,
         context
       ),

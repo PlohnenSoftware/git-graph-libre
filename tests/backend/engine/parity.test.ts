@@ -18,6 +18,7 @@ import { commitComparison } from "@/backend/queries/commitComparison";
 import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadCommits } from "@/backend/queries/loadCommits";
 import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
+import { searchCommits as searchCommitsQuery } from "@/backend/queries/searchCommits";
 import type { GitCommitNode } from "@/backend/types";
 import { getRemoteUrl } from "@/backend/utils/git";
 
@@ -958,5 +959,162 @@ describe("engine/CLI parity: repoInfo config", () => {
     requireAddon(context);
     process.env.GIT_CONFIG_GLOBAL = `${globalFile}-absent`;
     await expectRepoInfoParity(dir, "absent global", false);
+  }, 120000);
+});
+
+describe("engine/CLI parity: searchCommits", () => {
+  // The Find dialogue is the one read where a wrong backend is *silently*
+  // wrong: a regex engine and a fixed-string CLI both return results, just
+  // different ones. Every case here is a query shape that would diverge if
+  // the engine's own `search_history` had been wired instead.
+  const dirs: string[] = [];
+  let dir: string;
+
+  beforeAll(() => {
+    dir = makeRepo();
+    dirs.push(dir);
+    // Message shapes: a literal dot, regex metacharacters, mixed case, and a
+    // body-only term that `--grep` reaches but `%s` does not show.
+    fs.writeFileSync(path.join(dir, "a.txt"), "1");
+    git(["add", "-A"], dir);
+    git(["commit", "-m", "release a.c shipped"], dir);
+    fs.writeFileSync(path.join(dir, "b.txt"), "2");
+    git(["add", "-A"], dir);
+    git(["commit", "-m", "release abc shipped"], dir);
+    fs.writeFileSync(path.join(dir, "c.txt"), "3");
+    git(["add", "-A"], dir);
+    git(["commit", "-m", "Fix The Thing", "-m", "body mentioning windmills"], dir);
+    fs.writeFileSync(path.join(dir, "d.txt"), "4");
+    git(["add", "-A"], dir);
+    git(
+      ["-c", "user.name=Ada Lovelace", "-c", "user.email=ada@example.invalid",
+       "commit", "-m", "an unrelated subject"],
+      dir
+    );
+    fs.writeFileSync(path.join(dir, "e.txt"), "5");
+    git(["add", "-A"], dir);
+    git(["commit", "-m", "parsing of (unbalanced"], dir);
+  }, 180000);
+
+  afterAll(() => {
+    for (const candidate of dirs) fs.rmSync(candidate, { recursive: true, force: true });
+  });
+
+  function requireAddon(context: { skip: (message?: string) => never }) {
+    if (loadEngineAddon() === null) {
+      context.skip("Engine addon not built — run pnpm run engine:build for the engine half.");
+    }
+  }
+
+  async function expectSearchParity(
+    query: string,
+    label: string,
+    expectedServed: boolean
+  ): Promise<void> {
+    const args = {
+      repoPath: dir,
+      git: simpleGit(dir),
+      query,
+      maxResults: 50,
+      showRemoteBranches: true,
+      showTags: true,
+      branches: null,
+      authors: null,
+      tags: null,
+      dateType: "Commit Date" as const
+    };
+    resetEngineServedRead();
+    const viaAuto = await createRepoReader({ preference: "auto", gitPath: "git" }).searchCommits(
+      args
+    );
+    const served = didEngineServeRead();
+    const viaCli = await createRepoReader({ preference: "git-cli", gitPath: "git" }).searchCommits(
+      args
+    );
+    const direct = await searchCommitsQuery(simpleGit(dir), {
+      query,
+      maxResults: 50,
+      showRemoteBranches: true,
+      showTags: true,
+      branches: null,
+      authors: null,
+      tags: null,
+      dateType: "Commit Date",
+      repo: dir
+    });
+    expect(served, `${label} served`).toBe(expectedServed);
+    expect(viaAuto, `${label} auto`).toEqual(direct);
+    expect(viaCli, `${label} git-cli`).toEqual(direct);
+  }
+
+  it("matches a literal dot rather than any character", async (context) => {
+    requireAddon(context);
+    await expectSearchParity("a.c", "literal dot", true);
+  }, 120000);
+
+  it("searches a query that is not valid regex", async (context) => {
+    requireAddon(context);
+    await expectSearchParity("(", "invalid regex", true);
+  }, 120000);
+
+  it("matches regardless of case", async (context) => {
+    requireAddon(context);
+    await expectSearchParity("fix the thing", "case", true);
+  }, 120000);
+
+  it("reaches the body but reports the subject", async (context) => {
+    requireAddon(context);
+    await expectSearchParity("windmills", "body", true);
+  }, 120000);
+
+  it("matches the author as well as the message", async (context) => {
+    requireAddon(context);
+    await expectSearchParity("lovelace", "author", true);
+  }, 120000);
+
+  it("finds nothing for a term that is absent", async (context) => {
+    requireAddon(context);
+    await expectSearchParity("nothingmatchesthis", "absent", true);
+  }, 120000);
+
+  it("resolves an abbreviated hash", async (context) => {
+    requireAddon(context);
+    const head = cp
+      .execFileSync("git", ["rev-parse", "HEAD"], { cwd: dir, encoding: "utf8" })
+      .trim();
+    await expectSearchParity(head.slice(0, 8), "hash prefix", true);
+  }, 120000);
+
+  it("declines a glob ref pattern to the CLI", async (context) => {
+    requireAddon(context);
+    const args = {
+      repoPath: dir,
+      git: simpleGit(dir),
+      query: "release",
+      maxResults: 50,
+      showRemoteBranches: true,
+      showTags: true,
+      branches: ["--glob=refs/heads/*"],
+      authors: null,
+      tags: null,
+      dateType: "Commit Date" as const
+    };
+    resetEngineServedRead();
+    const viaAuto = await createRepoReader({ preference: "auto", gitPath: "git" }).searchCommits(
+      args
+    );
+    expect(didEngineServeRead(), "glob served").toBe(false);
+    const direct = await searchCommitsQuery(simpleGit(dir), {
+      query: "release",
+      maxResults: 50,
+      showRemoteBranches: true,
+      showTags: true,
+      branches: ["--glob=refs/heads/*"],
+      authors: null,
+      tags: null,
+      dateType: "Commit Date",
+      repo: dir
+    });
+    expect(viaAuto, "glob result").toEqual(direct);
   }, 120000);
 });

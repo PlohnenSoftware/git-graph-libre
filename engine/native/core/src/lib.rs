@@ -20,6 +20,7 @@ pub mod graph;
 pub mod log;
 pub mod refs;
 pub mod repository;
+pub mod search;
 pub mod stash;
 pub mod stats;
 pub mod status;
