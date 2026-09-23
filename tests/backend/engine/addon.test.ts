@@ -60,7 +60,10 @@ describe("engine addon loader", () => {
       loadStashDetails: async () => "{}",
       compareCommits: async () => "[]",
       loadCommitFile: async () => "{}",
-      configList: async () => "{}"
+      configList: async () => "{}",
+      closeRepository: () => {},
+      closeAllRepositories: () => {},
+      openRepositoryCount: () => 0
     };
     expect(validateLoadedAddon(loaded)).toBe(loaded);
   });
@@ -175,6 +178,57 @@ describe("engine addon loader", () => {
         loadStashDetails: async () => "{}",
         compareCommits: async () => "[]",
         loadCommitFile: async () => "{}"
+      }
+    ],
+    [
+      "a missing closeRepository export",
+      {
+        engineVersion: () => EXPECTED_ENGINE_VERSION,
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => "{}",
+        loadCommits: async () => "{}",
+        loadCommitDetails: async () => "{}",
+        loadLineCounts: async () => "{}",
+        loadStashes: async () => "[]",
+        loadStashDetails: async () => "{}",
+        compareCommits: async () => "[]",
+        loadCommitFile: async () => "{}",
+        configList: async () => "{}"
+      }
+    ],
+    [
+      "a missing closeAllRepositories export",
+      {
+        engineVersion: () => EXPECTED_ENGINE_VERSION,
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => "{}",
+        loadCommits: async () => "{}",
+        loadCommitDetails: async () => "{}",
+        loadLineCounts: async () => "{}",
+        loadStashes: async () => "[]",
+        loadStashDetails: async () => "{}",
+        compareCommits: async () => "[]",
+        loadCommitFile: async () => "{}",
+        configList: async () => "{}",
+        closeRepository: () => {}
+      }
+    ],
+    [
+      "a missing openRepositoryCount export",
+      {
+        engineVersion: () => EXPECTED_ENGINE_VERSION,
+        remoteUrl: async () => null,
+        loadRepoInfo: async () => "{}",
+        loadCommits: async () => "{}",
+        loadCommitDetails: async () => "{}",
+        loadLineCounts: async () => "{}",
+        loadStashes: async () => "[]",
+        loadStashDetails: async () => "{}",
+        compareCommits: async () => "[]",
+        loadCommitFile: async () => "{}",
+        configList: async () => "{}",
+        closeRepository: () => {},
+        closeAllRepositories: () => {}
       }
     ],
     ["a missing engineVersion export", { remoteUrl: async () => null }],

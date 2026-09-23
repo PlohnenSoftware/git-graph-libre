@@ -8,12 +8,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { EngineAddon } from "@/backend/engine/addon";
 import {
   type AddonProvider,
+  closeAllEngineRepositories,
+  closeEngineRepository,
   type CommitComparisonArgs,
   type CommitDetailsArgs,
   createRepoReader,
   didEngineServeRead,
   isEngineFallbackError,
   type LoadCommitsArgs,
+  openEngineRepositoryCount,
   resetEngineServedRead
 } from "@/backend/engine/index";
 import { commitComparison } from "@/backend/queries/commitComparison";
@@ -142,6 +145,15 @@ function fakeAddon(implementation: (repoPath: string) => Promise<string | null>)
     },
     configList: async () => {
       throw new Error("Unsupported: config not stubbed");
+    },
+    closeRepository: () => {
+      throw new Error("Unsupported: close not stubbed");
+    },
+    closeAllRepositories: () => {
+      throw new Error("Unsupported: close not stubbed");
+    },
+    openRepositoryCount: () => {
+      throw new Error("Unsupported: count not stubbed");
     }
   };
   return () => addon;
@@ -174,6 +186,45 @@ describe("isEngineFallbackError", () => {
     expect(isEngineFallbackError("Unsupported: bare string")).toBe(false);
     expect(isEngineFallbackError(null)).toBe(false);
     expect(isEngineFallbackError({})).toBe(false);
+  });
+});
+
+describe("engine handle lifecycle", () => {
+  it("drops one repository handle without touching others", () => {
+    const closeRepository = vi.fn();
+    closeEngineRepository("/repo/gone", () => ({ closeRepository }));
+
+    expect(closeRepository).toHaveBeenCalledWith("/repo/gone");
+  });
+
+  it("drops every handle on deactivation", () => {
+    const closeAllRepositories = vi.fn();
+    closeAllEngineRepositories(() => ({ closeAllRepositories }));
+
+    expect(closeAllRepositories).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports the open handle count", () => {
+    expect(openEngineRepositoryCount(() => ({ openRepositoryCount: () => 3 }))).toBe(3);
+  });
+
+  it("never throws: a missing addon reads as nothing to drop", () => {
+    expect(() => closeEngineRepository("/repo/gone", () => null)).not.toThrow();
+    expect(() => closeAllEngineRepositories(() => null)).not.toThrow();
+    expect(openEngineRepositoryCount(() => null)).toBe(0);
+  });
+
+  it("never throws: a close that fails must not break removal", () => {
+    const failing = (): never => {
+      throw new Error("Io: denied");
+    };
+    expect(() =>
+      closeEngineRepository("/repo/gone", () => ({ closeRepository: failing }))
+    ).not.toThrow();
+    expect(() =>
+      closeAllEngineRepositories(() => ({ closeAllRepositories: failing }))
+    ).not.toThrow();
+    expect(openEngineRepositoryCount(() => ({ openRepositoryCount: failing }))).toBe(0);
   });
 });
 
@@ -348,7 +399,10 @@ describe("createRepoReader repoInfo", () => {
           throw new Error("Unsupported: file not stubbed");
         },
         configList: async (_repo: string, local: boolean) =>
-          JSON.stringify(local ? { "user.name": "T", "user.email": "t@t.com" } : {})
+          JSON.stringify(local ? { "user.name": "T", "user.email": "t@t.com" } : {}),
+        closeRepository: () => {},
+        closeAllRepositories: () => {},
+        openRepositoryCount: () => 0
       }));
       const direct = await loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote });
 
@@ -394,6 +448,15 @@ describe("createRepoReader repoInfo", () => {
         },
         configList: async () => {
           throw new Error("Unsupported: config not stubbed");
+        },
+        closeRepository: () => {
+          throw new Error("Unsupported: close not stubbed");
+        },
+        closeAllRepositories: () => {
+          throw new Error("Unsupported: close not stubbed");
+        },
+        openRepositoryCount: () => {
+          throw new Error("Unsupported: count not stubbed");
         }
       });
       const [viaReader, direct] = await Promise.all([
@@ -435,6 +498,15 @@ describe("createRepoReader repoInfo", () => {
       },
       configList: async () => {
         throw new Error("Unsupported: config not stubbed");
+      },
+      closeRepository: () => {
+        throw new Error("Unsupported: close not stubbed");
+      },
+      closeAllRepositories: () => {
+        throw new Error("Unsupported: close not stubbed");
+      },
+      openRepositoryCount: () => {
+        throw new Error("Unsupported: count not stubbed");
       }
     });
     const result = await repoInfoReader("auto", provider);
@@ -475,6 +547,15 @@ describe("createRepoReader repoInfo", () => {
         },
         configList: async () => {
           throw new Error("Unsupported: config not stubbed");
+        },
+        closeRepository: () => {
+          throw new Error("Unsupported: close not stubbed");
+        },
+        closeAllRepositories: () => {
+          throw new Error("Unsupported: close not stubbed");
+        },
+        openRepositoryCount: () => {
+          throw new Error("Unsupported: count not stubbed");
         }
       });
       const result = await repoInfoReader("auto", provider);
@@ -516,6 +597,15 @@ describe("createRepoReader repoInfo", () => {
       },
       configList: async () => {
         throw new Error("Unsupported: config not stubbed");
+      },
+      closeRepository: () => {
+        throw new Error("Unsupported: close not stubbed");
+      },
+      closeAllRepositories: () => {
+        throw new Error("Unsupported: close not stubbed");
+      },
+      openRepositoryCount: () => {
+        throw new Error("Unsupported: count not stubbed");
       }
     });
     const result = await repoInfoReader("auto", provider);
@@ -659,7 +749,12 @@ describe("createRepoReader loadCommits", () => {
       loadStashDetails: unsupported,
       compareCommits: unsupported,
       loadCommitFile: unsupported,
-      configList: unsupported
+      configList: unsupported,
+      closeRepository: unsupported,
+      closeAllRepositories: unsupported,
+      openRepositoryCount: () => {
+        throw new Error("Unsupported: count not stubbed");
+      }
     });
   }
 
@@ -779,6 +874,15 @@ describe("createRepoReader loadCommits", () => {
         },
         configList: async () => {
           throw new Error("Unsupported: config not stubbed");
+        },
+        closeRepository: () => {
+          throw new Error("Unsupported: close not stubbed");
+        },
+        closeAllRepositories: () => {
+          throw new Error("Unsupported: close not stubbed");
+        },
+        openRepositoryCount: () => {
+          throw new Error("Unsupported: count not stubbed");
         }
       });
       const [viaReader, direct] = await Promise.all([commitsReader("auto", provider), directCli()]);
@@ -896,6 +1000,15 @@ describe("createRepoReader loadCommits", () => {
       },
       configList: async () => {
         throw new Error("Unsupported: config not stubbed");
+      },
+      closeRepository: () => {
+        throw new Error("Unsupported: close not stubbed");
+      },
+      closeAllRepositories: () => {
+        throw new Error("Unsupported: close not stubbed");
+      },
+      openRepositoryCount: () => {
+        throw new Error("Unsupported: count not stubbed");
       }
     });
     const result = await commitsReader("auto", provider);
@@ -989,7 +1102,12 @@ describe("createRepoReader loadCommitDetails", () => {
       loadStashDetails: impl.stashDetails ?? unsupported,
       compareCommits: unsupported,
       loadCommitFile: unsupported,
-      configList: unsupported
+      configList: unsupported,
+      closeRepository: unsupported,
+      closeAllRepositories: unsupported,
+      openRepositoryCount: () => {
+        throw new Error("Unsupported: count not stubbed");
+      }
     });
   }
 
@@ -1256,7 +1374,12 @@ describe("createRepoReader loadCommitComparison", () => {
       loadStashDetails: unsupported,
       compareCommits: impl.compare ?? unsupported,
       loadCommitFile: unsupported,
-      configList: unsupported
+      configList: unsupported,
+      closeRepository: unsupported,
+      closeAllRepositories: unsupported,
+      openRepositoryCount: () => {
+        throw new Error("Unsupported: count not stubbed");
+      }
     });
   }
 

@@ -84,6 +84,15 @@ export type EngineAddon = {
    * directives declines, so the CLI resolves them.
    */
   configList(repoPath: string, local: boolean): Promise<string>;
+  /**
+   * Drop one repository handle, releasing its object cache and open pack
+   * files. Handles reopen lazily on the next read.
+   */
+  closeRepository(repoPath: string): void;
+  /** Drop every repository handle (deactivation). */
+  closeAllRepositories(): void;
+  /** How many repository handles are currently open (tests, diagnostics). */
+  openRepositoryCount(): number;
 };
 
 /**
@@ -186,6 +195,9 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     compareCommits?: unknown;
     loadCommitFile?: unknown;
     configList?: unknown;
+    closeRepository?: unknown;
+    closeAllRepositories?: unknown;
+    openRepositoryCount?: unknown;
   };
   return (
     typeof candidate.engineVersion === "function" &&
@@ -198,7 +210,10 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     typeof candidate.loadStashDetails === "function" &&
     typeof candidate.compareCommits === "function" &&
     typeof candidate.loadCommitFile === "function" &&
-    typeof candidate.configList === "function"
+    typeof candidate.configList === "function" &&
+    typeof candidate.closeRepository === "function" &&
+    typeof candidate.closeAllRepositories === "function" &&
+    typeof candidate.openRepositoryCount === "function"
   );
 }
 

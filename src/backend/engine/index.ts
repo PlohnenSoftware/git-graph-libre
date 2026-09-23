@@ -140,6 +140,49 @@ export function resetEngineServedRead(): void {
   engineServedRead = false;
 }
 
+/**
+ * Drop one repository's engine handle after it leaves the workspace,
+ * releasing its object cache and open pack files. Best effort by design:
+ * a missing addon means there is nothing to drop, and a close that throws
+ * must never break repository removal. Handles reopen lazily on the next
+ * read — the probe behind slice 16.8 showed a warm handle sees external
+ * commits, ref updates, stash pushes and checkouts immediately, so no
+ * write-time bust is needed and this is purely about not accumulating
+ * handles across repository switches.
+ */
+export function closeEngineRepository(
+  repoPath: string,
+  provider: () => Pick<EngineAddon, "closeRepository"> | null = loadEngineAddon
+): void {
+  try {
+    provider()?.closeRepository(repoPath);
+  } catch {
+    // Removal must succeed whether or not the engine cooperates.
+  }
+}
+
+/** Drop every engine handle (extension deactivation). Best effort, as above. */
+export function closeAllEngineRepositories(
+  provider: () => Pick<EngineAddon, "closeAllRepositories"> | null = loadEngineAddon
+): void {
+  try {
+    provider()?.closeAllRepositories();
+  } catch {
+    // Deactivation must succeed whether or not the engine cooperates.
+  }
+}
+
+/** How many engine handles are currently open; 0 without a loadable addon. */
+export function openEngineRepositoryCount(
+  provider: () => Pick<EngineAddon, "openRepositoryCount"> | null = loadEngineAddon
+): number {
+  try {
+    return provider()?.openRepositoryCount() ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function createRepoReader(deps: RepoReaderDeps): RepoReader {
   const provider = deps.addonProvider ?? loadEngineAddon;
   return {
