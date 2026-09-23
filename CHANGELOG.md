@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that engine and the previous behavior. `"git-cli"` is a complete opt-out:
   the engine is not even loaded.
 
+### Changed
+
+- **"Load more" now loads 1000 commits at a time instead of 100.** The graph
+  still opens with the first 300, so it appears just as quickly, but scrolling
+  further into history now pauses about a tenth as often. `loadMoreCommits`
+  remains configurable if you want the old behavior.
+
 ### Fixed
 
 - **Signed tags keep their badge, and `origin/HEAD` keeps its label**, without
