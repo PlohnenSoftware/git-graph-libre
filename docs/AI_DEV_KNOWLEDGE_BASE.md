@@ -2615,13 +2615,42 @@ Implementation record (`2026-09-23`, three subslice commits, all signed):
   by unzipping a local build. Inclusion proven with vsce 4.0.0's own
   minimatch pipeline (its semantics, not gitignore's).
 - Sizes, measured locally with vsce 4.0.0: universal `272.52 KB`
-  (36 files, no binary — the CLI-only fallback); linux-x64 `37.63 MB`
-  (37 files, the 195 MB binary inside). The other five platform sizes
-  are pending the first tag run; musl/Alpine is covered by the
+  (36 files, no binary — the CLI-only fallback); linux-x64 **`2.73 MB`**
+  (37 files, a `5.9 MB` release binary inside). The other five platform
+  sizes are pending the first tag run; musl/Alpine is covered by the
   universal VSIX, whose gnu-binary absence is the point.
+
+  **An earlier revision of this line recorded linux-x64 at `37.63 MB`
+  with "the 195 MB binary inside", and that number was measured against
+  a *debug* build.** `engine:build` defaults to debug, and
+  `vsce package` runs `vscode:prepublish`, which builds only the
+  TypeScript half and never rebuilds the addon — so it silently packages
+  whatever `.node` happens to be sitting in `engine/native/`. A debug
+  binary is `195 MB` against the release build's `5.9 MB`, i.e. a
+  fourteenfold difference in the packaged VSIX. CI is unaffected
+  (`native-build.yml` passes `--release`), so no published artifact was
+  ever wrong; the hazard is local packaging, and
+  `pnpm run build` is what removes it.
 - Gate: `vsce package` green for both shapes locally (which also runs
   `vscode:prepublish`), both workflows YAML-parsed; the six-remote CI
   matrix itself is proven on the first tag push, not here.
+
+#### Building the whole stack (`2026-09-23`)
+
+`pnpm run build` is the only command that builds both halves:
+
+```
+engine:build:release   ->  the addon for the host platform, --release
+engine:smoke           ->  it loads, and engineVersion() matches Cargo
+package                ->  typecheck, whole-tree lint, production bundle
+```
+
+Roughly 35 seconds from cold on this machine. **`pnpm run package` builds
+only the TypeScript half** — that is what it has always done, and it is
+the command `vsce package` reaches through `vscode:prepublish`, so
+neither of them ever rebuilds or validates the addon. Use `build` before
+packaging anything you intend to install or measure; use `package` when
+only TypeScript changed.
 
 #### Risks to decide before 16.5, not during
 

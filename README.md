@@ -55,9 +55,14 @@ Install it from your editor's registry:
 - **Open VSX Registry**, for VSCodium, Cursor, Gitpod, and Eclipse Theia —
   [open-vsx.org](https://open-vsx.org/extension/PlohnenSoftware/git-graph-libre).
 
-You can also build and install it yourself: `pnpm install`, package the bundled
-extension with `pnpm exec vsce package --no-dependencies`, then in VS Code run
-`Extensions: Install from VSIX...`.
+You can also build and install it yourself: `pnpm install`, then `pnpm run
+build` to build the whole stack — the Rust engine for your platform and the
+extension itself — then `pnpm exec vsce package --no-dependencies` and, in VS
+Code, `Extensions: Install from VSIX...`.
+
+`pnpm run build` needs a Rust toolchain. Without one, skip it: `vsce package`
+on its own still produces a working extension that runs entirely on the `git`
+CLI, which is also what the universal package on the registries contains.
 
 ## Configuration
 
