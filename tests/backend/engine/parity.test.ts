@@ -6,6 +6,7 @@ import { git, makeRepo } from "@tests/backend/helpers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { simpleGit } from "simple-git";
 import { loadEngineAddon } from "@/backend/engine/addon";
+import { parseEngineCommitFile } from "@/backend/engine/details";
 import {
   createRepoReader,
   didEngineServeRead,
@@ -13,6 +14,8 @@ import {
   type LoadCommitsArgs,
   resetEngineServedRead
 } from "@/backend/engine/index";
+import { commitComparison } from "@/backend/queries/commitComparison";
+import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadCommits } from "@/backend/queries/loadCommits";
 import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
 import type { GitCommitNode } from "@/backend/types";
@@ -381,7 +384,11 @@ describe("engine/CLI parity: loadCommits", () => {
     const tip = makeRepo();
     dirs.push(tip);
     git(
-      ["checkout", "-q", cp.execFileSync("git", ["rev-parse", "HEAD"], { cwd: tip, encoding: "utf8" }).trim()],
+      [
+        "checkout",
+        "-q",
+        cp.execFileSync("git", ["rev-parse", "HEAD"], { cwd: tip, encoding: "utf8" }).trim()
+      ],
       tip
     );
     const unborn = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-test-unborn-"));
@@ -466,7 +473,9 @@ describe("engine/CLI parity: loadCommits", () => {
     const expectedCommits = maskVolatile(
       collapseDuplicates ? collapseCliDuplicates(direct.commits) : direct.commits
     );
-    expect(maskVolatile(viaAuto.commits), `${fixture.name} ${label} commits`).toEqual(expectedCommits);
+    expect(maskVolatile(viaAuto.commits), `${fixture.name} ${label} commits`).toEqual(
+      expectedCommits
+    );
     expect(
       { head: viaAuto.head, more: viaAuto.moreCommitsAvailable, error: viaAuto.error },
       `${fixture.name} ${label} meta`
@@ -494,7 +503,12 @@ describe("engine/CLI parity: loadCommits", () => {
     await expectCommitsParity(branchy, "authors", { authors: ["Bob"] }, true, true);
     await expectCommitsParity(branchy, "showTags", { showTags: false }, true);
     await expectCommitsParity(branchy, "showTags", { showTags: false, tags: ["v1.0.0"] }, true);
-    await expectCommitsParity(branchy, "onlyFollowFirstParent", { onlyFollowFirstParent: true }, true);
+    await expectCommitsParity(
+      branchy,
+      "onlyFollowFirstParent",
+      { onlyFollowFirstParent: true },
+      true
+    );
   }, 180000);
 
   it("agrees with uncommitted changes and stashes on screen", async (context) => {
@@ -515,7 +529,12 @@ describe("engine/CLI parity: loadCommits", () => {
     await expectCommitsParity(fixtures.clone, "showStashes", { showStashes: true }, true);
     await expectCommitsParity(fixtures.clone, "maxCommits", { maxCommits: 2 }, true);
     await expectCommitsParity(fixtures.clone, "hiddenRemotes", { hiddenRemotes: ["origin"] }, true);
-    await expectCommitsParity(fixtures.clone, "showRemoteBranches", { showRemoteBranches: false }, true);
+    await expectCommitsParity(
+      fixtures.clone,
+      "showRemoteBranches",
+      { showRemoteBranches: false },
+      true
+    );
   }, 120000);
 
   it("keeps HEAD visible and honors unborn on the CLI", async (context) => {
@@ -537,10 +556,307 @@ describe("engine/CLI parity: loadCommits", () => {
       return;
     }
     for (const commitOrdering of ["date", "author-date"] as const) {
-      await expectCommitsParity(fixtures.roomy, `ordering=${commitOrdering}`, { commitOrdering }, true);
+      await expectCommitsParity(
+        fixtures.roomy,
+        `ordering=${commitOrdering}`,
+        { commitOrdering },
+        true
+      );
     }
     await expectCommitsParity(fixtures.roomy, "ordering=topo", { commitOrdering: "topo" }, false);
     await expectCommitsParity(fixtures.roomy, "maxCommits", { maxCommits: 15 }, true);
     await expectCommitsParity(fixtures.roomy, "authors", { authors: ["Bob"] }, true, true);
   }, 180000);
+});
+
+describe("engine/CLI parity: commit details, comparison and files", () => {
+  // The 16.6 parity table: renames, copies, binary files, a root commit, an
+  // unborn branch, and a file that is modified but unstaged. Every case
+  // drives the reader (engine) and the query (CLI) against the same real
+  // repository and asserts identical output — a divergence is an engine or
+  // mapping bug, never a test to relax. Two documented reroutes: merges
+  // diff differently in the engine (first parent only versus the CLI's
+  // `-m`), so they stay on the CLI; unborn errors in different words on
+  // each side, so only the error shape is pinned there.
+  type DetailsFixture = {
+    dir: string;
+    unborn: string;
+    root: string;
+    binary: string;
+    edit: string;
+    rename: string;
+    copy: string;
+    merge: string;
+  };
+
+  const fixture: { current?: DetailsFixture } = {};
+  const dirs: string[] = [];
+  const EPOCH = 1700000000;
+
+  function commitAt(dir: string, message: string, epoch: number): void {
+    cp.execFileSync("git", ["commit", "-m", message], {
+      cwd: dir,
+      stdio: "pipe",
+      env: {
+        ...process.env,
+        GIT_AUTHOR_DATE: `${epoch} +0000`,
+        GIT_COMMITTER_DATE: `${epoch} +0000`
+      }
+    });
+  }
+
+  function revParse(dir: string, rev: string): string {
+    return cp.execFileSync("git", ["rev-parse", rev], { cwd: dir, encoding: "utf8" }).trim();
+  }
+
+  beforeAll(() => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-test-details-"));
+    dirs.push(dir);
+    git(["init", "-b", "main"], dir);
+    git(["config", "user.email", "ada@x.com"], dir);
+    git(["config", "user.name", "Ada"], dir);
+    git(["config", "commit.gpgsign", "false"], dir);
+    let epoch = EPOCH;
+    const next = (): number => {
+      epoch += 600;
+      return epoch;
+    };
+
+    const rootLines = Array.from({ length: 10 }, (_, index) => `line ${index}`);
+    fs.writeFileSync(path.join(dir, "root.txt"), `${rootLines.join("\n")}\n`);
+    git(["add", "root.txt"], dir);
+    commitAt(dir, "root", next());
+    const root = revParse(dir, "HEAD");
+
+    fs.writeFileSync(
+      path.join(dir, "blob.bin"),
+      Buffer.from([0, 1, 2, 3, 0, 255, 254, 65, 66, 67])
+    );
+    git(["add", "blob.bin"], dir);
+    commitAt(dir, "binary", next());
+    const binary = revParse(dir, "HEAD");
+
+    fs.writeFileSync(
+      path.join(dir, "root.txt"),
+      `${[...rootLines.slice(0, 9), "changed"].join("\n")}\n`
+    );
+    git(["add", "root.txt"], dir);
+    commitAt(dir, "edit", next());
+    const edit = revParse(dir, "HEAD");
+
+    git(["mv", "root.txt", "renamed.txt"], dir);
+    fs.writeFileSync(
+      path.join(dir, "renamed.txt"),
+      `${[...rootLines.slice(0, 8), "line eight", "changed"].join("\n")}\n`
+    );
+    git(["add", "renamed.txt"], dir);
+    commitAt(dir, "rename", next());
+    const rename = revParse(dir, "HEAD");
+
+    fs.copyFileSync(path.join(dir, "renamed.txt"), path.join(dir, "copied.txt"));
+    git(["add", "copied.txt"], dir);
+    commitAt(dir, "copy", next());
+    const copy = revParse(dir, "HEAD");
+
+    git(["checkout", "-qb", "side"], dir);
+    fs.writeFileSync(path.join(dir, "side.txt"), "side\n");
+    git(["add", "side.txt"], dir);
+    commitAt(dir, "side work", next());
+    git(["checkout", "-q", "main"], dir);
+    cp.execFileSync("git", ["merge", "-q", "--no-ff", "side", "-m", "merge side"], {
+      cwd: dir,
+      stdio: "pipe",
+      env: {
+        ...process.env,
+        GIT_AUTHOR_DATE: `${next()} +0000`,
+        GIT_COMMITTER_DATE: `${epoch} +0000`
+      }
+    });
+    const merge = revParse(dir, "HEAD");
+
+    // Modified but unstaged: the worktree is dirty while every query below
+    // reads committed content, so nothing here may leak into the answers.
+    fs.appendFileSync(path.join(dir, "renamed.txt"), "dirty\n");
+
+    const unborn = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-test-details-unborn-"));
+    dirs.push(unborn);
+    git(["init", "-b", "main"], unborn);
+    git(["config", "user.email", "t@t.com"], unborn);
+
+    fixture.current = { dir, unborn, root, binary, edit, rename, copy, merge };
+  }, 180000);
+
+  afterAll(() => {
+    for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  function requireAddon(context: { skip: (message?: string) => never }) {
+    if (loadEngineAddon() === null) {
+      context.skip("Engine addon not built — run pnpm run engine:build for the engine half.");
+    }
+  }
+
+  async function expectDetailsParity(
+    dir: string,
+    commitHash: string,
+    label: string,
+    expectedServed: boolean
+  ): Promise<Awaited<ReturnType<typeof commitDetails>>> {
+    resetEngineServedRead();
+    const [viaAuto, direct] = await Promise.all([
+      createRepoReader({ preference: "auto", gitPath: "git" }).loadCommitDetails({
+        repoPath: dir,
+        git: simpleGit(dir),
+        commitHash,
+        dateType: "Commit Date"
+      }),
+      commitDetails(simpleGit(dir), { commitHash, dateType: "Commit Date", repo: dir })
+    ]);
+    expect(didEngineServeRead(), `${label} served`).toBe(expectedServed);
+    expect(viaAuto, `${label} result`).toEqual(direct);
+    return direct;
+  }
+
+  async function expectComparisonParity(
+    dir: string,
+    commitHash: string,
+    baseRef: string,
+    compareRef: string,
+    label: string
+  ): Promise<void> {
+    resetEngineServedRead();
+    const [viaAuto, direct] = await Promise.all([
+      createRepoReader({ preference: "auto", gitPath: "git" }).loadCommitComparison({
+        repoPath: dir,
+        git: simpleGit(dir),
+        commitHash,
+        baseRef,
+        compareRef,
+        dateType: "Commit Date"
+      }),
+      commitComparison(simpleGit(dir), {
+        commitHash,
+        baseRef,
+        compareRef,
+        dateType: "Commit Date",
+        repo: dir
+      })
+    ]);
+    expect(didEngineServeRead(), `${label} served`).toBe(true);
+    expect(viaAuto, `${label} result`).toEqual(direct);
+  }
+
+  it("agrees on root, binary, rename and copy commits with a dirty worktree", async (context) => {
+    requireAddon(context);
+    const current = fixture.current;
+    if (current === undefined) throw new Error("details fixture not built");
+    await expectDetailsParity(current.dir, current.root, "root", true);
+    const binaryResult = await expectDetailsParity(current.dir, current.binary, "binary", true);
+    const renameResult = await expectDetailsParity(current.dir, current.rename, "rename", true);
+    const copyResult = await expectDetailsParity(current.dir, current.copy, "copy", true);
+    await expectDetailsParity(current.dir, current.edit, "edit", true);
+    // The fixture must actually exercise the shapes it names: a rename row
+    // with settled counts, a copy reported as an addition (neither side
+    // passes `-C`), and null counts on the binary row.
+    expect(renameResult.commitDetails?.fileChanges).toContainEqual({
+      oldFilePath: "root.txt",
+      newFilePath: "renamed.txt",
+      type: "R",
+      additions: 1,
+      deletions: 1
+    });
+    expect(copyResult.commitDetails?.fileChanges).toContainEqual({
+      oldFilePath: "copied.txt",
+      newFilePath: "copied.txt",
+      type: "A",
+      additions: 10,
+      deletions: 0
+    });
+    expect(binaryResult.commitDetails?.fileChanges).toContainEqual({
+      oldFilePath: "blob.bin",
+      newFilePath: "blob.bin",
+      type: "A",
+      additions: null,
+      deletions: null
+    });
+  }, 120000);
+
+  it("keeps merges on the CLI and errors unborn on both sides", async (context) => {
+    requireAddon(context);
+    const current = fixture.current;
+    if (current === undefined) throw new Error("details fixture not built");
+    await expectDetailsParity(current.dir, current.merge, "merge", false);
+
+    resetEngineServedRead();
+    const [viaAuto, direct] = await Promise.all([
+      createRepoReader({ preference: "auto", gitPath: "git" }).loadCommitDetails({
+        repoPath: current.unborn,
+        git: simpleGit(current.unborn),
+        commitHash: "HEAD",
+        dateType: "Commit Date"
+      }),
+      commitDetails(simpleGit(current.unborn), {
+        commitHash: "HEAD",
+        dateType: "Commit Date",
+        repo: current.unborn
+      })
+    ]);
+    expect(didEngineServeRead(), "unborn served").toBe(false);
+    expect(viaAuto.commitDetails, "unborn engine details").toBeNull();
+    expect(direct.commitDetails, "unborn CLI details").toBeNull();
+    expect(viaAuto.error, "unborn engine error").not.toBeNull();
+    expect(direct.error, "unborn CLI error").not.toBeNull();
+  }, 120000);
+
+  it("agrees on rename and binary comparisons", async (context) => {
+    requireAddon(context);
+    const current = fixture.current;
+    if (current === undefined) throw new Error("details fixture not built");
+    await expectComparisonParity(
+      current.dir,
+      current.rename,
+      current.edit,
+      current.rename,
+      "rename"
+    );
+    await expectComparisonParity(current.dir, current.copy, current.rename, current.copy, "copy");
+    await expectComparisonParity(
+      current.dir,
+      current.binary,
+      current.root,
+      current.binary,
+      "binary"
+    );
+  }, 120000);
+
+  it("reads the same file bytes as git show, and fails the same missing ones", async (context) => {
+    requireAddon(context);
+    const current = fixture.current;
+    if (current === undefined) throw new Error("details fixture not built");
+    const addon = loadEngineAddon();
+    if (addon === null) throw new Error("details fixture addon missing");
+
+    const textCases = [
+      { hash: "HEAD", file: "renamed.txt" },
+      { hash: current.rename, file: "renamed.txt" },
+      { hash: current.root, file: "root.txt" },
+      { hash: current.copy, file: "copied.txt" }
+    ];
+    for (const { hash, file } of textCases) {
+      const parsed = parseEngineCommitFile(await addon.loadCommitFile(current.dir, hash, file));
+      const shown = cp.execFileSync("git", ["show", `${hash}:${file}`], { cwd: current.dir });
+      expect(parsed?.binary, `${hash}:${file} binary`).toBe(false);
+      expect(parsed?.contents, `${hash}:${file} contents`).toBe(shown.toString("utf8"));
+    }
+
+    const binary = parseEngineCommitFile(
+      await addon.loadCommitFile(current.dir, current.binary, "blob.bin")
+    );
+    expect(binary).toEqual({ contents: null, binary: true });
+
+    await expect(addon.loadCommitFile(current.dir, "HEAD", "nope.txt")).rejects.toThrow();
+    expect(() =>
+      cp.execFileSync("git", ["show", "HEAD:nope.txt"], { cwd: current.dir, stdio: "pipe" })
+    ).toThrow();
+  }, 120000);
 });
