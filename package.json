@@ -85,6 +85,7 @@
     "test": "vitest run --project backend && vitest run --project webview",
     "test:coverage": "vitest run --coverage --coverage.reporter=lcov --coverage.reportsDirectory=coverage",
     "test:ext": "pnpm run compile && pnpm run compile-tests && vscode-test",
+    "bench:backends": "node scripts/bench-backends.mjs",
     "compile-tests": "tsc -p tests/extension/tsconfig.json && tsc-alias -p tests/extension/tsconfig.json",
     "engine:check": "cargo check --manifest-path engine/Cargo.toml --workspace --all-targets",
     "engine:test": "cargo test --manifest-path engine/Cargo.toml --workspace",
