@@ -2504,6 +2504,39 @@ Individually small; take them in one slice with one parity table. Note
 `count_commits_before` declines reflog tips and `--glob=` patterns, and
 `config_list` declines a file carrying `include`/`includeIf` directives.
 
+Implementation record (`2026-09-23`, four subslice commits, all signed):
+
+- 16.7a the one viable wiring: the seam gains `configList` and the
+  repoInfo composition serves user identity from `config_list` (local
+  plus global). A declined, failed, or malformed fill — or a
+  resolvable-but-absent file on either scope, where the CLI errors and
+  the engine answers empty — rolls the composition back to the whole CLI
+  read, never a mixed half-engine shape (the parity table caught the
+  first revision mixing a CLI fill in and misattributing the served
+  flag). Path resolution mirrors the engine's global order and follows
+  `gitdir:` link files without a regex (the first scan caught an S8786
+  there, fixed and rescanned).
+- 16.7b parity table (against the built addon, `1.0.24`, the global
+  file controlled through `GIT_CONFIG_GLOBAL` on both sides): plain
+  repositories served from the engine, local and global include
+  directives declined to the CLI which resolves them, and a missing
+  global file staying CLI with the CLI's own error shape.
+- Declines, each with its reason — no code, no behavior change:
+  `search_history` (the engine matches message regex while the CLI
+  searches fixed strings plus author, hash, positions and ref filters);
+  `load_tag_details` (the engine reports signatures present but
+  unverified; verification is a permanent non-goal); `current_branch_*`
+  and `remote_names` (their consumers are `kind: "action"` write flows,
+  and every write stays on `runGitRaw`); `load_commit_subject` (its only
+  consumer is the amend action); `submodules` (the hand-written
+  `.gitmodules` parse carries documented quirks the engine would
+  change); `repo_root` (bare repositories diverge: `--show-toplevel`
+  fails where discovery succeeds); `load_config` (singular),
+  `load_commit_bodies`, `load_commit_summaries`, `count_commits_before`
+  (no TypeScript consumers at all — no `rev-list`, no batch message
+  reads anywhere in `src/`).
+- Gate: numbers in the 16.7c commit.
+
 #### Slice 16.8 — Handle lifetime and post-write freshness
 
 **The correctness risk that is easiest to miss, and it deserves its own
@@ -4805,9 +4838,13 @@ with the served flag). **16.6 (commit details, comparison, line counts) is
 done** (`2026-09-23`: eager whole-list counts fill, merges/`*`/blank/stash
 reroutes, file content through the provider with binary CLI fallback,
 parity over renames/copies/binary/root/unborn/dirty plus file bytes).
-**16.7 (the remaining reads) is next** — small reads, one slice, one
-parity table; note the `count_commits_before` and `config_list` declines
-before starting.
+**16.7 (the remaining reads) is done** (`2026-09-23`: the user-config
+fill from `config_list` with whole-read rollback, parity over plain,
+include-carrying and missing-global cases, every other candidate
+declined with its reason recorded). **16.8 (handle lifetime and
+post-write freshness) is next** — the correctness risk that is easiest
+to miss: establish empirically whether a warm handle sees external
+writes before designing the bust.
 
 Maintainer-set priority (`2026-08-25`): **the Immediate TODOs bug backlog above
 comes before every phase item below.** BUG-1 through BUG-6 were reported against
