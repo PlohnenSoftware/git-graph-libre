@@ -87,7 +87,7 @@ All settings use the `git-graph-libre` prefix.
 | `graphColors`                                  | 12 defaults     | Colors for graph lines                           |
 | `graphStyle`                                   | `"rounded"`     | `"rounded"` or `"angular"`                       |
 | `initialLoadCommits`                           | `300`           | Commits to load on open                          |
-| `loadMoreCommits`                              | `100`           | Commits to load on demand                        |
+| `loadMoreCommits`                              | `1000`          | Commits to load on demand                        |
 | `maxDepthOfRepoSearch`                         | `0`             | Folder depth for repo search                     |
 | `repository.boldCheckedOutCommit`              | `false`         | Bold the checked-out commit's message            |
 | `repository.fetchTagsByDefault`                | `true`          | Pre-check "Fetch all tags" in the Fetch dialog   |

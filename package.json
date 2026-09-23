@@ -491,7 +491,7 @@
         },
         "git-graph-libre.loadMoreCommits": {
           "type": "number",
-          "default": 100,
+          "default": 1000,
           "description": "%config.loadMoreCommits%"
         },
         "git-graph-libre.maxDepthOfRepoSearch": {
