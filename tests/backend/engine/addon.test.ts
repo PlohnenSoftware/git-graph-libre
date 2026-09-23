@@ -91,7 +91,6 @@ describe("engine addon loader", () => {
       configList: async () => "{}",
       authors: async () => "[]",
       loadConfig: async () => "{}",
-      currentBranchName: async () => null,
       searchCommits: async () => "[]",
       loadRefs: async () => "{}",
       closeRepository: () => {},

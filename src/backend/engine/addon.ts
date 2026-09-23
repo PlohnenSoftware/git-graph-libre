@@ -46,8 +46,8 @@ export type EngineAddon = {
   /**
    * `search_commits` encoded as JSON: the Find dialogue's hits, each carrying
    * its position in the graph walk. Options are the JSON built by
-   * `buildSearchOptions`. Distinct from the engine's own `search_history`,
-   * which is a regex over messages and is deliberately not used.
+   * `buildSearchOptions`. This replaced the engine's own `search_history`,
+   * a regex over messages whose semantics did not match this project's.
    */
   searchCommits(repoPath: string, optionsJson: string): Promise<string>;
   /**
@@ -101,8 +101,6 @@ export type EngineAddon = {
    * shows, including each remote's fetch and push URL.
    */
   loadConfig(repoPath: string): Promise<string>;
-  /** The checked-out branch's short name, or null when HEAD is detached. */
-  currentBranchName(repoPath: string): Promise<string | null>;
   /**
    * `load_refs` encoded as JSON. Only `head` is read here — the commit HEAD
    * resolves to, which `load_repo_info` does not carry (its `head` is the
@@ -268,7 +266,6 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     configList?: unknown;
     authors?: unknown;
     loadConfig?: unknown;
-    currentBranchName?: unknown;
     searchCommits?: unknown;
     loadRefs?: unknown;
     closeRepository?: unknown;
@@ -289,7 +286,6 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     typeof candidate.configList === "function" &&
     typeof candidate.authors === "function" &&
     typeof candidate.loadConfig === "function" &&
-    typeof candidate.currentBranchName === "function" &&
     typeof candidate.searchCommits === "function" &&
     typeof candidate.loadRefs === "function" &&
     typeof candidate.closeRepository === "function" &&

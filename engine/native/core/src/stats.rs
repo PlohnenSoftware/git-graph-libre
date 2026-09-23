@@ -14,7 +14,7 @@ use crate::log::{all_tips, stash_tip};
 use crate::repository::Repo;
 use crate::types::{GitActivityCell, GitAuthorStat};
 
-/// `all_tips` plus the stash tip (if any), deduplicated - the same merge `search_history`
+/// `all_tips` plus the stash tip (if any), deduplicated - the same merge `search_commits`
 /// performs, duplicated here rather than factored out so this module cannot change that
 /// already-tested walk's behaviour.
 fn all_tips_with_stash(repo: &Repo) -> Result<Vec<gix::ObjectId>> {

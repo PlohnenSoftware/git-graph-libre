@@ -19,7 +19,6 @@ gix = { version = "0.87", default-features = false, features = [
 ] }
 bstr = "1"
 thiserror.workspace = true
-regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 

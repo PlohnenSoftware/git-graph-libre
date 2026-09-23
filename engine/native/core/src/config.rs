@@ -73,42 +73,6 @@ pub fn remote_url(repo: &Repo, remote: &str) -> Result<Option<String>> {
         .string(format!("remote.{remote}.url").as_str())
         .map(|value| value.to_string()))
 }
-
-/// The upstream of the checked-out branch, short-spelled as `git rev-parse --abbrev-ref
-/// --symbolic-full-name @{upstream}` prints it (`origin/main`), or `None` when there is none.
-pub fn current_branch_upstream(repo: &Repo) -> Result<Option<String>> {
-    let git = repo.borrow();
-    let branch = git.head_name().ok().flatten().and_then(|name| {
-        name.as_bstr()
-            .strip_prefix(b"refs/heads/".as_slice())
-            .map(|branch| String::from_utf8_lossy(branch).into_owned())
-    });
-    let Some(branch) = branch else {
-        // Detached HEAD tracks nothing.
-        return Ok(None);
-    };
-
-    let config = git.config_snapshot();
-    let string = |key: String| config.string(key.as_str()).map(|value| value.to_string());
-    let remote = string(format!("branch.{branch}.remote"));
-    let merge = string(format!("branch.{branch}.merge"));
-    let (remote, merge) = match (remote, merge) {
-        (Some(remote), Some(merge)) => (remote, merge),
-        _ => return Ok(None),
-    };
-
-    // `remote = .` means the upstream is local: the merge ref itself is the branch followed.
-    let short = merge
-        .strip_prefix("refs/heads/")
-        .unwrap_or(&merge)
-        .to_string();
-    Ok(Some(if remote == "." {
-        short
-    } else {
-        format!("{remote}/{short}")
-    }))
-}
-
 /// The roots of the repository's initialised submodules, as the original extension gathered them
 /// from `.gitmodules`.
 ///
@@ -159,23 +123,6 @@ fn submodule_root(root: &Path, path: &str) -> Option<String> {
 }
 
 /* ---------- The remaining reads the settings panel and dialogs make ---------- */
-
-/// The names of the repository's remotes, as `git remote` lists them (alphabetical).
-pub fn remote_names(repo: &Repo) -> Result<Vec<String>> {
-    Ok(repo.remote_names())
-}
-
-/// The checked-out branch's short name, or `None` when HEAD is detached — the answer
-/// `git symbolic-ref --short HEAD` gives (an unborn branch still has its name).
-pub fn current_branch_name(repo: &Repo) -> Result<Option<String>> {
-    let git = repo.borrow();
-    Ok(git.head_name().ok().flatten().and_then(|name| {
-        name.as_bstr()
-            .strip_prefix(b"refs/heads/".as_slice())
-            .map(|branch| String::from_utf8_lossy(branch).into_owned())
-    }))
-}
-
 /// One location a configuration entry can live in, matching `git config --local` / `--global`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfigLocation {

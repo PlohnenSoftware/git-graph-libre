@@ -145,7 +145,6 @@ function fakeAddon(implementation: (repoPath: string) => Promise<string | null>)
     },
     authors: async () => "[]",
     loadConfig: async () => JSON.stringify({ remotes: [] }),
-    currentBranchName: async () => null,
     searchCommits: async () => "[]",
     loadRefs: async () => JSON.stringify({ head: null }),
     configList: async () => {
@@ -413,7 +412,6 @@ describe("createRepoReader repoInfo", () => {
           JSON.stringify({
             remotes: [{ name: "origin", url: "https://github.com/some/repo.git", pushUrl: null }]
           }),
-        currentBranchName: async () => null,
         searchCommits: async () => "[]",
         loadRefs: async () => JSON.stringify({ head: null }),
         configList: async (_repo: string, local: boolean) =>
@@ -466,7 +464,6 @@ describe("createRepoReader repoInfo", () => {
         },
         authors: async () => "[]",
         loadConfig: async () => JSON.stringify({ remotes: [] }),
-        currentBranchName: async () => null,
         searchCommits: async () => "[]",
         loadRefs: async () => JSON.stringify({ head: null }),
         configList: async () => {
@@ -521,7 +518,6 @@ describe("createRepoReader repoInfo", () => {
       },
       authors: async () => "[]",
       loadConfig: async () => JSON.stringify({ remotes: [] }),
-      currentBranchName: async () => null,
       searchCommits: async () => "[]",
       loadRefs: async () => JSON.stringify({ head: null }),
       configList: async () => {
@@ -575,7 +571,6 @@ describe("createRepoReader repoInfo", () => {
         },
         authors: async () => "[]",
         loadConfig: async () => JSON.stringify({ remotes: [] }),
-        currentBranchName: async () => null,
         searchCommits: async () => "[]",
         loadRefs: async () => JSON.stringify({ head: null }),
         configList: async () => {
@@ -630,7 +625,6 @@ describe("createRepoReader repoInfo", () => {
       },
       authors: async () => "[]",
       loadConfig: async () => JSON.stringify({ remotes: [] }),
-      currentBranchName: async () => null,
       searchCommits: async () => "[]",
       loadRefs: async () => JSON.stringify({ head: null }),
       configList: async () => {
@@ -789,7 +783,6 @@ describe("createRepoReader loadCommits", () => {
       loadCommitFile: unsupported,
       authors: unsupported,
       loadConfig: unsupported,
-      currentBranchName: unsupported,
       searchCommits: unsupported,
       loadRefs: unsupported,
       configList: unsupported,
@@ -917,7 +910,6 @@ describe("createRepoReader loadCommits", () => {
         },
         authors: async () => "[]",
         loadConfig: async () => JSON.stringify({ remotes: [] }),
-        currentBranchName: async () => null,
         searchCommits: async () => "[]",
         loadRefs: async () => JSON.stringify({ head: null }),
         configList: async () => {
@@ -1048,7 +1040,6 @@ describe("createRepoReader loadCommits", () => {
       },
       authors: async () => "[]",
       loadConfig: async () => JSON.stringify({ remotes: [] }),
-      currentBranchName: async () => null,
       searchCommits: async () => "[]",
       loadRefs: async () => JSON.stringify({ head: null }),
       configList: async () => {
@@ -1157,7 +1148,6 @@ describe("createRepoReader loadCommitDetails", () => {
       loadCommitFile: unsupported,
       authors: unsupported,
       loadConfig: unsupported,
-      currentBranchName: unsupported,
       searchCommits: unsupported,
       loadRefs: unsupported,
       configList: unsupported,
@@ -1434,7 +1424,6 @@ describe("createRepoReader loadCommitComparison", () => {
       loadCommitFile: unsupported,
       authors: unsupported,
       loadConfig: unsupported,
-      currentBranchName: unsupported,
       searchCommits: unsupported,
       loadRefs: unsupported,
       configList: unsupported,

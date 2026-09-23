@@ -359,17 +359,6 @@ pub struct GitActivityCell {
     pub count: usize,
 }
 
-/// One hit of a commit-message search, as the Find dialogue lists them.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GitHistoryMatch {
-    pub hash: String,
-    pub author: String,
-    pub date: i64,
-    /// The commit subject.
-    pub message: String,
-}
-
 /* ---------- Tag details ---------- */
 
 /// An annotated tag in full, or the fields a lightweight tag can fill in.

@@ -8,12 +8,12 @@
  *
  * ### Why this is not the engine's own `search_history`
  *
- * The engine ships a search already, and wiring *that* one would have changed
- * what users see: it matches a **regular expression** against messages only,
- * across every ref, ignoring the author filter, and numbers nothing. Slice
- * 16.7 declined it for exactly that reason. `search_commits` was added to the
- * engine instead, reproducing this project's semantics; the regex one is left
- * where it is, unused.
+ * The engine shipped a search already, and wiring *that* one would have
+ * changed what users see: it matched a **regular expression** against messages
+ * only, across every ref, ignoring the author filter, and numbered nothing.
+ * Slice 16.7 declined it for exactly that reason. `search_commits` was added
+ * to the engine instead, reproducing this project's semantics, and the regex
+ * one has since been removed.
  *
  * ### Declines
  *
