@@ -151,7 +151,7 @@ export function activate(context: vscode.ExtensionContext) {
     ...commandManager.registerAll(),
     vscode.workspace.registerTextDocumentContentProvider(
       DiffDocProvider.scheme,
-      new DiffDocProvider(gitClient.getInstance)
+      new DiffDocProvider(gitClient.getInstance, { backend: config.backend })
     ),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("git-graph-libre.showStatusBarItem")) {
