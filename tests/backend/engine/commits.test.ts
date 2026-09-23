@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   applySignedTagNames,
   buildLoadCommitsOptions,
+  type EngineCommit,
+  type EngineCommitData,
+  type EngineLoadCommitsInput,
   engineLoadCommitsRefs,
   insertRemoteHeadLabels,
   mapEngineCommitData,
@@ -10,10 +13,7 @@ import {
   parseRemoteHeadLabels,
   parseSignedTagNames,
   shortStashRef,
-  shouldServeLoadCommitsFromEngine,
-  type EngineCommit,
-  type EngineCommitData,
-  type EngineLoadCommitsInput
+  shouldServeLoadCommitsFromEngine
 } from "@/backend/engine/commits";
 import type { GitCommitNode } from "@/backend/types";
 
@@ -44,9 +44,10 @@ describe("engineLoadCommitsRefs", () => {
   it("combines branches, the legacy branch name and selected tags like the CLI", () => {
     expect(engineLoadCommitsRefs({ ...BASE, branches: ["main"] })).toEqual(["main"]);
     expect(engineLoadCommitsRefs({ ...BASE, branchName: "main" })).toEqual(["main"]);
-    expect(
-      engineLoadCommitsRefs({ ...BASE, branches: ["main"], tags: ["v1.0.0"] })
-    ).toEqual(["main", "refs/tags/v1.0.0"]);
+    expect(engineLoadCommitsRefs({ ...BASE, branches: ["main"], tags: ["v1.0.0"] })).toEqual([
+      "main",
+      "refs/tags/v1.0.0"
+    ]);
   });
 });
 
@@ -68,9 +69,7 @@ describe("shouldServeLoadCommitsFromEngine", () => {
   it("declines topo ordering, whose tie-breaks differ visibly from git", () => {
     expect(shouldServeLoadCommitsFromEngine({ ...BASE, commitOrdering: "topo" })).toBe(false);
     expect(shouldServeLoadCommitsFromEngine({ ...BASE, commitOrdering: "date" })).toBe(true);
-    expect(shouldServeLoadCommitsFromEngine({ ...BASE, commitOrdering: "author-date" })).toBe(
-      true
-    );
+    expect(shouldServeLoadCommitsFromEngine({ ...BASE, commitOrdering: "author-date" })).toBe(true);
   });
 
   it("declines reflog and unreachable discovery on show-all loads only", () => {
@@ -90,9 +89,9 @@ describe("shouldServeLoadCommitsFromEngine", () => {
   });
 
   it("declines `--glob=` patterns the engine cannot expand", () => {
-    expect(
-      shouldServeLoadCommitsFromEngine({ ...BASE, branches: ["--glob=feature/*"] })
-    ).toBe(false);
+    expect(shouldServeLoadCommitsFromEngine({ ...BASE, branches: ["--glob=feature/*"] })).toBe(
+      false
+    );
     expect(shouldServeLoadCommitsFromEngine({ ...BASE, branches: ["main"] })).toBe(true);
   });
 });
@@ -385,7 +384,7 @@ describe("mapEngineCommitData", () => {
     ]);
   });
 
-  it("mirrors the CLI root wart: no parents parses to [\"\"]", () => {
+  it('mirrors the CLI root wart: no parents parses to [""]', () => {
     const [node] = mapEngineCommitData({ ...PAGE, commits: [{ ...COMMIT, parents: [] }] }, true);
     expect(node?.parentHashes).toEqual([""]);
   });

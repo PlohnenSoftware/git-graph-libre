@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The graph opens roughly three and a half times faster.** Measured on a
+  2,000-commit repository: the work behind opening the view went from 67 ms to
+  19 ms, and reading the branch, tag, remote and stash lists from 59 ms to 8 ms.
 - **A built-in Git engine, so the graph stops waiting on `git` processes.**
   Reading a repository — opening the graph, loading a page of commits, opening
   commit details, comparing two commits, reading a file at a revision — now
@@ -19,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`backend`** (`"auto"` or `"git-cli"`, default `"auto"`) chooses between
   that engine and the previous behavior. `"git-cli"` is a complete opt-out:
   the engine is not even loaded.
+
+### Fixed
+
+- **The author filter lists everyone who has contributed**, not only the people
+  whose commits are reachable from the branch you have checked out. Anyone whose
+  work is on another branch — a remote branch you have fetched but not checked
+  out, say — was silently missing from the dropdown.
 
 ### Changed
 

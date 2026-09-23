@@ -686,14 +686,27 @@ pub fn count_commits_before(
 /// is parsed into: aggregated per (name, email), ordered by commit count (most first), then
 /// de-duplicated by name (the first, most-prolific spelling wins) and sorted by name.
 pub fn authors(repo: &Repo) -> Result<Vec<GitAuthor>> {
-    let git = repo.borrow();
-    let head = git
-        .head_id()
-        .map_err(|_| Error::not_found("The repository has no commits"))?;
+    // Every ref, not just HEAD. The view fills its author filter from this and
+    // the CLI fills it from `git log --format=%an --all`, so anything short of
+    // `--all`'s coverage silently drops authors: a contributor whose work is
+    // only on a remote-tracking branch, or on a branch that is not checked
+    // out, would not be offered as a filter at all. `--all` is every ref under
+    // `refs/` plus HEAD, which includes `refs/stash` — `all_tips` does not
+    // enumerate that one, so it is added the same way `stats.rs` adds it.
+    let mut tips = all_tips(repo, true, true)?;
+    if let Some(stash) = stash_tip(repo) {
+        if !tips.contains(&stash) {
+            tips.push(stash);
+        }
+    }
+    if tips.is_empty() {
+        return Err(Error::not_found("The repository has no commits"));
+    }
 
+    let git = repo.borrow();
     let mut counts: HashMap<(String, String), usize> = HashMap::new();
     for info in git
-        .rev_walk(std::iter::once(head))
+        .rev_walk(tips.iter().copied())
         .all()
         .git_ctx("Could not walk the commit graph")?
     {

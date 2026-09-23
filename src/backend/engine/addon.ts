@@ -85,6 +85,24 @@ export type EngineAddon = {
    */
   configList(repoPath: string, local: boolean): Promise<string>;
   /**
+   * `authors` encoded as JSON: `{ name, email }` for every author reachable
+   * from any ref, which is the coverage `git log --format=%an --all` has.
+   */
+  authors(repoPath: string): Promise<string>;
+  /**
+   * `load_config` encoded as JSON: the repository configuration the view
+   * shows, including each remote's fetch and push URL.
+   */
+  loadConfig(repoPath: string): Promise<string>;
+  /** The checked-out branch's short name, or null when HEAD is detached. */
+  currentBranchName(repoPath: string): Promise<string | null>;
+  /**
+   * `load_refs` encoded as JSON. Only `head` is read here — the commit HEAD
+   * resolves to, which `load_repo_info` does not carry (its `head` is the
+   * branch name).
+   */
+  loadRefs(repoPath: string, optionsJson: string): Promise<string>;
+  /**
    * Drop one repository handle, releasing its object cache and open pack
    * files. Handles reopen lazily on the next read.
    */
@@ -241,6 +259,10 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     compareCommits?: unknown;
     loadCommitFile?: unknown;
     configList?: unknown;
+    authors?: unknown;
+    loadConfig?: unknown;
+    currentBranchName?: unknown;
+    loadRefs?: unknown;
     closeRepository?: unknown;
     closeAllRepositories?: unknown;
     openRepositoryCount?: unknown;
@@ -257,6 +279,10 @@ function isEngineAddon(loaded: unknown): loaded is EngineAddon {
     typeof candidate.compareCommits === "function" &&
     typeof candidate.loadCommitFile === "function" &&
     typeof candidate.configList === "function" &&
+    typeof candidate.authors === "function" &&
+    typeof candidate.loadConfig === "function" &&
+    typeof candidate.currentBranchName === "function" &&
+    typeof candidate.loadRefs === "function" &&
     typeof candidate.closeRepository === "function" &&
     typeof candidate.closeAllRepositories === "function" &&
     typeof candidate.openRepositoryCount === "function"

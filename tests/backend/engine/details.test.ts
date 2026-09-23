@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   applyLineCounts,
+  type EngineCommitDetails,
+  type EngineCommitFile,
+  type EngineFileChange,
   findStashEntry,
   lineCountPaths,
   mapEngineFileChange,
@@ -9,10 +12,7 @@ import {
   parseEngineCommitFile,
   parseEngineLineCounts,
   parseEngineStashEntries,
-  stashEntryPayload,
-  type EngineCommitDetails,
-  type EngineCommitFile,
-  type EngineFileChange
+  stashEntryPayload
 } from "@/backend/engine/details";
 import type { GitFileChange } from "@/backend/types";
 

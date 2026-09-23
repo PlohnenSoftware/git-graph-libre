@@ -84,6 +84,14 @@ function generateRepository(): string {
   // Packed, because an unpacked object store measures loose-object IO rather
   // than either backend.
   cp.execFileSync("git", ["gc", "--quiet", "--aggressive"], { cwd: dir });
+  // A remote, because the fixture is otherwise unrepresentative in a way that
+  // silently distorts the result: simple-git adds ~50 ms to any git command
+  // that produces empty stdout, so a repository with no remotes makes
+  // `git remote -v` — and therefore the whole CLI repo-info read — look 50 ms
+  // slower than it is anywhere real.
+  cp.execFileSync("git", ["remote", "add", "origin", "https://example.invalid/bench.git"], {
+    cwd: dir
+  });
   return dir;
 }
 

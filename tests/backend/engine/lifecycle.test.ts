@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
-import { afterAll, describe, expect, it } from "vitest";
+import { makeRepo } from "@tests/backend/helpers";
 import { simpleGit } from "simple-git";
-
+import { afterAll, describe, expect, it } from "vitest";
 import { loadEngineAddon } from "@/backend/engine/addon";
 import {
   closeAllEngineRepositories,
@@ -9,8 +9,6 @@ import {
   createRepoReader,
   openEngineRepositoryCount
 } from "@/backend/engine/index";
-
-import { makeRepo } from "@tests/backend/helpers";
 
 /**
  * Handle lifetime against the built addon (`pnpm run engine:build`);

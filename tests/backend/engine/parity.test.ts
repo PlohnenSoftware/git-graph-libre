@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { git, makeRepo } from "@tests/backend/helpers";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { simpleGit } from "simple-git";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { loadEngineAddon } from "@/backend/engine/addon";
 import { parseEngineCommitFile } from "@/backend/engine/details";
 import {

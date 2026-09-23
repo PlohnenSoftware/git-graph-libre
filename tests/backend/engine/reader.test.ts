@@ -8,10 +8,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { EngineAddon } from "@/backend/engine/addon";
 import {
   type AddonProvider,
-  closeAllEngineRepositories,
-  closeEngineRepository,
   type CommitComparisonArgs,
   type CommitDetailsArgs,
+  closeAllEngineRepositories,
+  closeEngineRepository,
   createRepoReader,
   didEngineServeRead,
   isEngineFallbackError,
@@ -143,6 +143,10 @@ function fakeAddon(implementation: (repoPath: string) => Promise<string | null>)
     loadCommitFile: async () => {
       throw new Error("Unsupported: file not stubbed");
     },
+    authors: async () => "[]",
+    loadConfig: async () => JSON.stringify({ remotes: [] }),
+    currentBranchName: async () => null,
+    loadRefs: async () => JSON.stringify({ head: null }),
     configList: async () => {
       throw new Error("Unsupported: config not stubbed");
     },
@@ -398,6 +402,18 @@ describe("createRepoReader repoInfo", () => {
         loadCommitFile: async () => {
           throw new Error("Unsupported: file not stubbed");
         },
+        // makeRepo commits as "T"; the engine now supplies the author list,
+        // so this case pins that it yields what the CLI fill did.
+        authors: async () => JSON.stringify([{ name: "T", email: "t@t.com" }]),
+        // The remote the fixture repository has. An absent pushUrl means the
+        // push URL equals the fetch URL, which is what `git remote -v` prints,
+        // so this pins the mapping against the CLI shape.
+        loadConfig: async () =>
+          JSON.stringify({
+            remotes: [{ name: "origin", url: "https://github.com/some/repo.git", pushUrl: null }]
+          }),
+        currentBranchName: async () => null,
+        loadRefs: async () => JSON.stringify({ head: null }),
         configList: async (_repo: string, local: boolean) =>
           JSON.stringify(local ? { "user.name": "T", "user.email": "t@t.com" } : {}),
         closeRepository: () => {},
@@ -446,6 +462,10 @@ describe("createRepoReader repoInfo", () => {
         loadCommitFile: async () => {
           throw new Error("Unsupported: file not stubbed");
         },
+        authors: async () => "[]",
+        loadConfig: async () => JSON.stringify({ remotes: [] }),
+        currentBranchName: async () => null,
+        loadRefs: async () => JSON.stringify({ head: null }),
         configList: async () => {
           throw new Error("Unsupported: config not stubbed");
         },
@@ -496,6 +516,10 @@ describe("createRepoReader repoInfo", () => {
       loadCommitFile: async () => {
         throw new Error("Unsupported: file not stubbed");
       },
+      authors: async () => "[]",
+      loadConfig: async () => JSON.stringify({ remotes: [] }),
+      currentBranchName: async () => null,
+      loadRefs: async () => JSON.stringify({ head: null }),
       configList: async () => {
         throw new Error("Unsupported: config not stubbed");
       },
@@ -545,6 +569,10 @@ describe("createRepoReader repoInfo", () => {
         loadCommitFile: async () => {
           throw new Error("Unsupported: file not stubbed");
         },
+        authors: async () => "[]",
+        loadConfig: async () => JSON.stringify({ remotes: [] }),
+        currentBranchName: async () => null,
+        loadRefs: async () => JSON.stringify({ head: null }),
         configList: async () => {
           throw new Error("Unsupported: config not stubbed");
         },
@@ -595,6 +623,10 @@ describe("createRepoReader repoInfo", () => {
       loadCommitFile: async () => {
         throw new Error("Unsupported: file not stubbed");
       },
+      authors: async () => "[]",
+      loadConfig: async () => JSON.stringify({ remotes: [] }),
+      currentBranchName: async () => null,
+      loadRefs: async () => JSON.stringify({ head: null }),
       configList: async () => {
         throw new Error("Unsupported: config not stubbed");
       },
@@ -749,6 +781,10 @@ describe("createRepoReader loadCommits", () => {
       loadStashDetails: unsupported,
       compareCommits: unsupported,
       loadCommitFile: unsupported,
+      authors: unsupported,
+      loadConfig: unsupported,
+      currentBranchName: unsupported,
+      loadRefs: unsupported,
       configList: unsupported,
       closeRepository: unsupported,
       closeAllRepositories: unsupported,
@@ -872,6 +908,10 @@ describe("createRepoReader loadCommits", () => {
         loadCommitFile: async () => {
           throw new Error("Unsupported: file not stubbed");
         },
+        authors: async () => "[]",
+        loadConfig: async () => JSON.stringify({ remotes: [] }),
+        currentBranchName: async () => null,
+        loadRefs: async () => JSON.stringify({ head: null }),
         configList: async () => {
           throw new Error("Unsupported: config not stubbed");
         },
@@ -998,6 +1038,10 @@ describe("createRepoReader loadCommits", () => {
       loadCommitFile: async () => {
         throw new Error("Unsupported: file not stubbed");
       },
+      authors: async () => "[]",
+      loadConfig: async () => JSON.stringify({ remotes: [] }),
+      currentBranchName: async () => null,
+      loadRefs: async () => JSON.stringify({ head: null }),
       configList: async () => {
         throw new Error("Unsupported: config not stubbed");
       },
@@ -1102,6 +1146,10 @@ describe("createRepoReader loadCommitDetails", () => {
       loadStashDetails: impl.stashDetails ?? unsupported,
       compareCommits: unsupported,
       loadCommitFile: unsupported,
+      authors: unsupported,
+      loadConfig: unsupported,
+      currentBranchName: unsupported,
+      loadRefs: unsupported,
       configList: unsupported,
       closeRepository: unsupported,
       closeAllRepositories: unsupported,
@@ -1374,6 +1422,10 @@ describe("createRepoReader loadCommitComparison", () => {
       loadStashDetails: unsupported,
       compareCommits: impl.compare ?? unsupported,
       loadCommitFile: unsupported,
+      authors: unsupported,
+      loadConfig: unsupported,
+      currentBranchName: unsupported,
+      loadRefs: unsupported,
       configList: unsupported,
       closeRepository: unsupported,
       closeAllRepositories: unsupported,

@@ -20,8 +20,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { SimpleGit } from "simple-git";
-
-import type { GitRepoConfig, GitRepoInfo, GitStash, QueryResult } from "@/backend/types";
 import {
   loadAuthors,
   loadConfig,
@@ -30,6 +28,7 @@ import {
   uniqueSortedLines
 } from "@/backend/queries/loadRepoInfo";
 import { parseStashIndex } from "@/backend/queries/stashes";
+import type { GitRemote, GitRepoConfig, GitRepoInfo, GitStash, QueryResult } from "@/backend/types";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 
 import type { EngineAddon } from "./addon";
@@ -140,7 +139,7 @@ export type EngineRepoInfoFills = {
   repo: string;
   recordGitCommand?: GitCommandRecorder;
   /** The loaded addon: with it the config fill reads from the engine first. */
-  addon?: Pick<EngineAddon, "configList"> | null;
+  addon?: Pick<EngineAddon, "configList" | "loadConfig" | "authors" | "loadRefs"> | null;
 };
 
 /** One `config_list` location decoded: last value per lower-cased key. */
@@ -270,6 +269,114 @@ async function loadFillConfig(
 }
 
 /**
+ * The commit HEAD resolves to, from the engine's ref scan.
+ *
+ * `load_repo_info` carries `head` as the *branch* name, so the commit needs a
+ * second read. `load_refs` already computes it, and in process that costs a
+ * fraction of a millisecond against the `git rev-parse --verify HEAD` the CLI
+ * fill spawns. Null on an unborn branch, which is what the CLI returns there
+ * too.
+ */
+async function loadEngineHeadCommit(
+  addon: Pick<EngineAddon, "loadRefs">,
+  repo: string
+): Promise<string | null> {
+  try {
+    const parsed: unknown = JSON.parse(await addon.loadRefs(repo, "{}"));
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const head = (parsed as { head?: unknown }).head;
+    return typeof head === "string" && head !== "" ? head : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The repository's remotes, from the engine's configuration snapshot.
+ *
+ * Shaped to match what `git remote -v` parses into, because the webview and
+ * the CLI path both consume that shape: git prints a fetch line and a push
+ * line per remote and repeats the fetch URL on the push line when no
+ * `pushurl` is set, so an absent `pushUrl` here means push URLs equal fetch
+ * URLs — not an empty list.
+ */
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+/** One wire remote to the project shape, or null when the entry is unusable. */
+function mapEngineRemote(entry: unknown): GitRemote | null {
+  if (typeof entry !== "object" || entry === null) return null;
+  const { name, url, pushUrl } = entry as { name?: unknown; url?: unknown; pushUrl?: unknown };
+  const remoteName = nonEmptyString(name);
+  if (remoteName === null) return null;
+  const fetchUrl = nonEmptyString(url);
+  const push = nonEmptyString(pushUrl) ?? fetchUrl;
+  return {
+    name: remoteName,
+    fetchUrls: fetchUrl === null ? [] : [fetchUrl],
+    pushUrls: push === null ? [] : [push]
+  };
+}
+
+function mapEngineRemotes(parsed: unknown): GitRemote[] | null {
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const remotes = (parsed as { remotes?: unknown }).remotes;
+  if (!Array.isArray(remotes)) return null;
+  const mapped: GitRemote[] = [];
+  for (const entry of remotes) {
+    const remote = mapEngineRemote(entry);
+    if (remote === null) return null;
+    mapped.push(remote);
+  }
+  return mapped;
+}
+
+/**
+ * Author names for the filter dropdown, from the engine.
+ *
+ * The engine returns `{ name, email }` per author over every ref; the view
+ * wants the unique names in the same order `uniqueSortedLines` produces from
+ * `git log --format=%an --all`, so the same sort is applied rather than a
+ * second ordering rule.
+ */
+function mapEngineAuthors(parsed: unknown): string[] | null {
+  if (!Array.isArray(parsed)) return null;
+  const names: string[] = [];
+  for (const entry of parsed) {
+    if (typeof entry !== "object" || entry === null) return null;
+    const name = (entry as { name?: unknown }).name;
+    if (typeof name !== "string") return null;
+    names.push(name);
+  }
+  return uniqueSortedLines(names.join("\n"));
+}
+
+/** The engine's remotes, or null when it cannot answer and the CLI fill should. */
+async function engineRemotes(
+  addon: Pick<EngineAddon, "loadConfig">,
+  repo: string
+): Promise<GitRemote[] | null> {
+  try {
+    return mapEngineRemotes(JSON.parse(await addon.loadConfig(repo)));
+  } catch {
+    return null;
+  }
+}
+
+/** The engine's author names, or null when it cannot answer (an unborn branch). */
+async function engineAuthors(
+  addon: Pick<EngineAddon, "authors">,
+  repo: string
+): Promise<string[] | null> {
+  try {
+    return mapEngineAuthors(JSON.parse(await addon.authors(repo)));
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Compose the project shape from one engine payload plus the CLI fills.
  * Piece order and error precedence mirror the CLI implementation. Null
  * signals an unmappable stash or an engine config the CLI must serve:
@@ -280,11 +387,37 @@ export async function composeEngineRepoInfo(
   info: EngineRepoInfo
 ): Promise<QueryResult<"loadRepoInfo"> | null> {
   const context = { repo: fills.repo, record: fills.recordGitCommand };
+  const addon = fills.addon ?? null;
+  // With an addon present none of these spawn `git`: the engine answers the
+  // head commit, the remotes and the authors in process. Three `git` spawns on
+  // the graph-open path is what made the engine read cost the same as the CLI
+  // one, and removing them is the point of this composition.
+  //
+  // Each piece falls back to its own CLI fill rather than rolling the whole
+  // read back, because the engine legitimately cannot answer some of them:
+  // `authors` errors on an unborn branch, where the CLI fill returns the
+  // empty-with-error shape the view already handles. Rolling back instead
+  // would take the CLI path for every empty repository and lose the parity
+  // the CLI fill already has.
   const [headResult, remotesResult, configResult, authorsResult] = await Promise.all([
-    loadHead(fills.git, context),
-    loadRemotes(fills.git, context),
+    addon === null
+      ? loadHead(fills.git, context)
+      : loadEngineHeadCommit(addon, fills.repo).then((headCommit) =>
+          headCommit === null
+            ? loadHead(fills.git, context)
+            : { value: { head: info.head, headCommit }, error: null }
+        ),
+    addon === null
+      ? loadRemotes(fills.git, context)
+      : engineRemotes(addon, fills.repo).then((remotes) =>
+          remotes === null ? loadRemotes(fills.git, context) : { value: remotes, error: null }
+        ),
     loadFillConfig(fills),
-    loadAuthors(fills.git, context)
+    addon === null
+      ? loadAuthors(fills.git, context)
+      : engineAuthors(addon, fills.repo).then((authors) =>
+          authors === null ? loadAuthors(fills.git, context) : { value: authors, error: null }
+        )
   ]);
   if (configResult === null) return null;
 

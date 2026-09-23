@@ -132,6 +132,14 @@ line and permission notice the MIT license requires be included in all copies,
 the provenance of the import and its authorship, and the attribution owed for
 the Rust crates the engine links.
 
+**Changes made to the engine in this project are AGPL-3.0-or-later**, like
+every other change made here. The MIT notice above covers the engine *as
+incorporated* and continues to do so; it does not extend to work done on it
+afterwards. The boundary is the import recorded above — anything in the
+imported history is the MIT-licensed original, anything committed to
+`engine/` since is part of the AGPL whole. This is the same one-way rule the
+lineage section states, applied to a second incorporated work.
+
 **What was deliberately not incorporated, and may not be.** That project is
 also a Visual Studio Code extension, and by its own `LICENSE` its webview and
 extension-host layers (`src/`, `web/`, and the compiled `media/` and `out/`)

@@ -649,6 +649,59 @@ fn lists_the_global_configuration_and_declines_includes() {
 }
 
 #[test]
+fn collects_authors_from_every_ref_not_just_head() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    let base = repo.commit_file("a.txt", "1\n", "first");
+
+    // An author whose only commit is reachable from a remote-tracking branch
+    // and from nowhere else. `git log --format=%an --all` sees it, so the
+    // engine must too: the view fills its author filter from this, and
+    // walking HEAD alone silently drops every contributor whose work is not
+    // on the checked-out branch.
+    repo.git(&["checkout", "--quiet", "-b", "side"]);
+    repo.git(&[
+        "-c",
+        "user.name=Remote Only",
+        "-c",
+        "user.email=remote@example.com",
+        "commit",
+        "--quiet",
+        "--allow-empty",
+        "-m",
+        "only on a remote branch",
+    ]);
+    let tip = repo.git(&["rev-parse", "HEAD"]).trim().to_string();
+    repo.git(&["checkout", "--quiet", "main"]);
+    repo.git(&["branch", "--quiet", "-D", "side"]);
+    repo.update_ref("refs/remotes/origin/side", &tip);
+    assert_eq!(repo.git(&["rev-parse", "HEAD"]).trim(), base);
+
+    let engine = open(&repo);
+    let names: Vec<String> = log::authors(&engine)
+        .unwrap()
+        .into_iter()
+        .map(|author| author.name)
+        .collect();
+
+    let mut expected: Vec<String> = repo
+        .git(&["log", "--format=%an", "--all"])
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_string)
+        .collect();
+    expected.sort();
+    expected.dedup();
+
+    assert!(
+        names.contains(&"Remote Only".to_string()),
+        "an author reachable only from a remote-tracking branch was dropped: {names:?}"
+    );
+    assert_eq!(names, expected, "engine authors must match `git log --all`");
+}
+
+#[test]
 fn aggregates_authors_like_shortlog() {
     require_git!();
     let mut repo = TestRepo::new();

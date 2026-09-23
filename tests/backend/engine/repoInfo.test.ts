@@ -2,24 +2,22 @@ import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { git, makeRepo } from "@tests/backend/helpers";
 import { simpleGit } from "simple-git";
-
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   buildRepoInfoOptions,
   composeEngineRepoInfo,
+  type EngineRepoInfo,
+  type EngineStash,
   loadEngineConfig,
   mapEngineStash,
   parseEngineConfigList,
   parseEngineRepoInfo,
   resolveGlobalGitConfigPath,
-  resolveLocalGitConfigPath,
-  type EngineRepoInfo,
-  type EngineStash
+  resolveLocalGitConfigPath
 } from "@/backend/engine/repoInfo";
 import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
-
-import { git, makeRepo } from "@tests/backend/helpers";
 
 const STASH: EngineStash = {
   hash: "06277a53e3d25586becfb94aa7d5f37c308db94b",
@@ -248,7 +246,15 @@ describe("loadEngineConfig", () => {
       if (fail !== undefined) throw fail;
       return JSON.stringify(_local ? local : global);
     };
-    return { configList };
+    // The composition now reads head, remotes and authors from the engine
+    // too, so a fixture answering only `configList` would roll the whole
+    // read back to the CLI and hide what these cases check.
+    return {
+      configList,
+      loadRefs: async () => JSON.stringify({ head: null }),
+      loadConfig: async () => JSON.stringify({ remotes: [] }),
+      authors: async () => "[]"
+    };
   }
 
   it("serves mapped identity from both scopes without the CLI", async () => {
