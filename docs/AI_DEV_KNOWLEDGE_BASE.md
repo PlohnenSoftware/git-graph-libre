@@ -2076,7 +2076,8 @@ Test notes for future slices:
 
 ### Phase 16: Rust Engine Backend
 
-**Status: in progress (`2026-09-22`) — slices 16.1–16.4 done, 16.5 next.** The engine's source and its
+**Status: in progress (`2026-09-23`) — slices 16.1–16.9 all done, full gate
+green throughout; the first tag push still has to prove the CI matrix.** The engine's source and its
 52-commit history live on `rusty` under `engine/`; see "Evaluating the Rust
 engine of `vscode-git-graph-rs`" for what it is, what was excluded, and why it
 was not adopted wholesale. **Nothing in the extension reads it yet.** This
@@ -4867,7 +4868,8 @@ whatever unrelated slice was scanned next.
 
 **Current priority (`2026-09-22`): Phase 16, the Rust engine backend**, on the
 `rusty` branch, which is where `1.7.0` is being assembled. The engine's source
-and history are merged under `engine/` and nothing reads them yet; the phase
+and history are merged under `engine/`, and since 16.3 the extension reads
+through it wherever it is available and allowed to; the phase
 plan cuts the wiring into slices 16.1–16.9, and **16.1 (a gate for the Rust
 side) came first** — nothing else can be verified until `cargo check`,
 `cargo test`, `cargo clippy` and `cargo fmt` are part of the documented gate,

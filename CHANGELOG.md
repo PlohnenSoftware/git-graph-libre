@@ -7,12 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing user-facing yet. The version is on `1.7.0` because the Rust Git engine
-now lives in this repository under `engine/`, which opens a new analysis epoch
-even though no part of the extension reads it: every repository read still
-goes through the `git` CLI exactly as in 1.6.2, and `engine/` is excluded from
-the published VSIX. See [engine/NOTICE.md](engine/NOTICE.md) for what it is
-and where it came from.
+### Added
+
+- **A built-in Git engine, so the graph stops waiting on `git` processes.**
+  Reading a repository — opening the graph, loading a page of commits, opening
+  commit details, comparing two commits, reading a file at a revision — now
+  happens inside the editor process against the repository's object database,
+  instead of starting a `git` process and parsing what it prints. The
+  repository stays open for the session, so the cost that used to be paid on
+  every read is paid once.
+- **`backend`** (`"auto"` or `"git-cli"`, default `"auto"`) chooses between
+  that engine and the previous behavior. `"git-cli"` is a complete opt-out:
+  the engine is not even loaded.
+
+### Changed
+
+- **Everything that the engine cannot answer exactly is still answered by
+  `git`, and that is deliberate rather than temporary.** Recovered history
+  (`repository.includeReflog`, `repository.includeUnreachableCommits`),
+  commit signature status, custom branch glob patterns, Author Date, topo
+  ordering, and every operation that writes to the repository all keep the
+  behavior they had in 1.6.2 — the extension decides which side answers
+  before it asks, so these never silently change. Every read is implemented
+  twice and the two are tested against each other on real repositories.
+- **A platform without the engine loses nothing but the speed.** The engine
+  ships as a small compiled component for Windows, macOS and Linux on x64 and
+  arm64; anywhere else — Alpine and other musl systems above all — the
+  extension installs the same and runs entirely on `git`, as does any
+  installation where the component fails to load.
+- Releases now publish one package per platform plus a universal package
+  carrying no compiled component, which is what those other platforms get.
+
+See [engine/NOTICE.md](engine/NOTICE.md) for what the engine is, where it came
+from, and the license terms it arrived under.
 
 ## [1.6.2] - 2026-09-22
 
