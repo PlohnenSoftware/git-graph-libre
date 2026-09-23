@@ -79,13 +79,18 @@ pub fn read_refs(repo: &Repo, options: &RefReadOptions) -> Result<RefSnapshot> {
             Some(name) => bstr_to_string(name),
             None => continue,
         };
-        let Some(hash) = direct_target(&reference) else {
+        let Some(id) = direct_target_id(&reference) else {
             continue;
         };
+        let hash = id.to_string();
+        // The signature belongs to the tag object, so it is read once and carried by both
+        // records: the graph attaches the peeled one, but a caller matching by name sees either.
+        let signed = tag_signature_present(&git, id);
         ref_data.tags.push(GitTagRef {
             hash: hash.clone(),
             name: name.clone(),
             annotated: false,
+            signed,
         });
         tag_names.push(name.clone());
 
@@ -96,6 +101,7 @@ pub fn read_refs(repo: &Repo, options: &RefReadOptions) -> Result<RefSnapshot> {
                     hash: peeled,
                     name,
                     annotated: true,
+                    signed,
                 });
             }
         }
@@ -142,7 +148,7 @@ fn read_remote_refs(
     let mut remote_tags_to_peel: Vec<(usize, String)> = Vec::new();
 
     let platform = git.references().git_ctx("Could not read references")?;
-    for reference in platform
+    for mut reference in platform
         .prefixed("refs/remotes/")
         .git_ctx("Could not read remote branches")?
         .filter_map(std::result::Result::ok)
@@ -168,8 +174,16 @@ fn read_remote_refs(
         if remote_ref.contains("/changes/") {
             continue;
         }
-        let Some(hash) = direct_target(&reference) else {
-            continue;
+        // `refs/remotes/<remote>/HEAD` is symbolic, and `for-each-ref %(objectname)` reports the
+        // object it resolves to rather than skipping it — so it is resolved here too. Resolving
+        // costs one lookup and only ever applies to the handful of `/HEAD` refs a remote has; a
+        // symbolic ref that resolves to nothing is dropped, as the CLI drops an unborn one.
+        let hash = match reference.target() {
+            gix::refs::TargetRef::Object(id) => id.to_string(),
+            gix::refs::TargetRef::Symbolic(_) => match reference.peel_to_id() {
+                Ok(id) => id.detach().to_string(),
+                Err(_) => continue,
+            },
         };
 
         if let Some(tags_index) = remote_ref.find("/tags/") {
@@ -184,6 +198,7 @@ fn read_remote_refs(
                 hash,
                 name,
                 annotated: false,
+                signed: false,
             });
         } else {
             ref_data.remotes.push(GitRef {
@@ -199,16 +214,23 @@ fn read_remote_refs(
         let Ok(Some(mut reference)) = git.try_find_reference(full_name.as_str()) else {
             continue;
         };
+        // The ref's own target, captured before the peel rewrites it: that is the tag object,
+        // and the signature belongs to it rather than to the commit it peels to.
+        let tag_object = direct_target_id(&reference);
         let Ok(peeled) = reference.peel_to_id() else {
             continue;
         };
         let peeled = peeled.detach().to_string();
         if peeled != ref_data.tags[index].hash {
             let name = ref_data.tags[index].name.clone();
+            // Recorded on the unpeeled record too, so both records of one tag agree.
+            let signed = tag_object.is_some_and(|id| tag_signature_present(git, id));
+            ref_data.tags[index].signed = signed;
             ref_data.tags.push(GitTagRef {
                 hash: peeled,
                 name,
                 annotated: true,
+                signed,
             });
         }
     }
@@ -222,10 +244,37 @@ fn read_remote_refs(
 /// them only for the sake of the label, and the branch they alias is already listed in its own
 /// right.
 fn direct_target(reference: &gix::Reference<'_>) -> Option<String> {
+    direct_target_id(reference).map(|id| id.to_string())
+}
+
+/// The same, as an id, for callers that go on to read the object.
+fn direct_target_id(reference: &gix::Reference<'_>) -> Option<gix::ObjectId> {
     match reference.target() {
-        gix::refs::TargetRef::Object(id) => Some(id.to_string()),
+        gix::refs::TargetRef::Object(id) => Some(id.to_owned()),
         gix::refs::TargetRef::Symbolic(_) => None,
     }
+}
+
+/// Whether a tag ref's own target is a tag object carrying a signature.
+///
+/// This is `for-each-ref`'s `%(contents:signature)`, which is non-empty only for an annotated
+/// tag that was signed: a lightweight tag reports nothing even when the commit it points at is
+/// itself signed (verified against git directly, not assumed).
+///
+/// The header settles the object kind before anything is decoded, so a lightweight tag costs a
+/// header lookup rather than a commit read.
+fn tag_signature_present(git: &gix::Repository, id: gix::ObjectId) -> bool {
+    match git.find_header(id) {
+        Ok(header) if header.kind() == gix::object::Kind::Tag => {}
+        _ => return false,
+    }
+    let Ok(object) = git.find_object(id) else {
+        return false;
+    };
+    let Ok(tag) = object.try_into_tag() else {
+        return false;
+    };
+    matches!(tag.decode(), Ok(decoded) if decoded.signature.is_some())
 }
 
 fn bstr_to_string(bytes: &[u8]) -> String {

@@ -6,8 +6,9 @@
 
 #![allow(dead_code)]
 
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use tempfile::TempDir;
 
@@ -70,6 +71,37 @@ impl TestRepo {
             .env("HOME", self.path())
             .output()
             .unwrap_or_else(|e| panic!("could not run `git {}`: {e}", args.join(" ")));
+        assert!(
+            output.status.success(),
+            "`git {}` failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8_lossy(&output.stdout).into_owned()
+    }
+
+    /// Run a git command with something on stdin, for the plumbing that reads objects there.
+    pub fn git_stdin(&self, args: &[&str], input: &str) -> String {
+        let mut child = Command::new("git")
+            .args(args)
+            .current_dir(self.path())
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .env("HOME", self.path())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap_or_else(|e| panic!("could not run `git {}`: {e}", args.join(" ")));
+        child
+            .stdin
+            .take()
+            .expect("stdin was not piped")
+            .write_all(input.as_bytes())
+            .expect("could not write to git");
+        let output = child
+            .wait_with_output()
+            .unwrap_or_else(|e| panic!("could not wait for `git {}`: {e}", args.join(" ")));
         assert!(
             output.status.success(),
             "`git {}` failed: {}",

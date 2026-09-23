@@ -2402,6 +2402,9 @@ Implementation record (`2026-09-22`, twelve subslice commits, all signed):
   pay no spawn: symbolic remote HEADs (`origin/HEAD`) attached in CLI
   order, and signed-tag badges flipped reusing the loader's own signature
   atom (probed end to end against a crafted PGP-signed tag).
+  **Both were removed on `2026-09-23`** — the engine now carries the two
+  fields itself and the `loadCommits` engine path spawns nothing. See "The
+  two ref fills, removed from the engine rather than optimised".
 - 16.5d4 post-call reroutes: unborn stays on the CLI, which owns the
   empty-graph error shape; unfiltered show-all pages that lost HEAD go back
   to the whole CLI read, mirroring the move-HEAD-onto-page contract.
@@ -2793,9 +2796,134 @@ plus the stash, mirroring what `stats.rs` already did and what `--all`
 actually covers. `collects_authors_from_every_ref_not_just_head` pins it, and
 a mutation back to head-only fails it.
 
-**`loadCommits` is still slower than the CLI** — `0.9x` at a 300-commit page,
-`0.7x` at 1000 — and is untouched by any of the above. That is the remaining
-item, and it is the hot path this phase exists for.
+**`loadCommits` was still slower than the CLI** — `0.9x` at a 300-commit page,
+`0.7x` at 1000 — and was untouched by any of the above. That is the next
+subsection.
+
+#### The two ref fills, removed from the engine rather than optimised (`2026-09-23`)
+
+`loadCommits` was the one read where the engine *lost*: `12.9 ms` against the
+CLI's `10.8 ms` on a real 1,036-commit repository. The engine call itself was
+`7.1 ms` — comfortably ahead. The loss was entirely in what ran afterwards.
+
+Two CLI fills (16.5d3/d5) ran `for-each-ref` on the engine path, sequentially,
+to put back two facts the engine's types did not carry:
+
+| fill | spawn | the missing field |
+| --- | --- | --- |
+| `attachRemoteHeadLabels` | `for-each-ref refs/remotes` | symbolic `origin/HEAD` |
+| `attachSignedTagNames` | `for-each-ref refs/tags` | tag signature presence |
+
+This is the same defect as the `repoInfo` one above, one layer down: ask the
+engine, then spawn `git` anyway. The fix is the same shape — teach the engine
+the field and delete the fill, rather than make the spawn cheaper.
+
+**`GitTagRef.signed` and `GitCommitTag.signed`.** `refs.rs` reads the tag
+object's signature while it is peeling the tag it would peel regardless, and
+records the flag on *both* records of an annotated tag — the signature belongs
+to the tag, not to either hash, and the graph attaches the peeled one. A
+`find_header` call settles the object kind first, so a lightweight tag costs a
+header lookup rather than a commit read.
+
+The semantics were verified against git rather than assumed. `for-each-ref`'s
+`%(contents:signature)` is non-empty **only** for an annotated tag object that
+was signed — a lightweight tag over a *signed commit* reports nothing:
+
+| tag | object type | `%(contents:signature)` |
+| --- | --- | ---: |
+| annotated, signed | `tag` | `1` |
+| annotated, unsigned | `tag` | `0` |
+| lightweight, on a signed commit | `commit` | `0` |
+| lightweight, on an unsigned commit | `commit` | `0` |
+
+That third row is the one worth pinning: the commit was genuinely signed
+(`%G?` = `G`) and the tag still reports unsigned. The engine matches by
+construction — it reads the tag object, and a lightweight tag has none.
+
+**Symbolic remote HEADs, resolved instead of dropped.** `direct_target`
+returns `None` for a symbolic ref, so `refs/remotes/origin/HEAD` — what every
+`git clone` writes — never reached the graph. `for-each-ref %(objectname)`
+reports the object such a ref resolves to, so `read_remote_refs` now does the
+same. Only a remote's handful of `/HEAD` refs are ever symbolic, so this costs
+one lookup each and nothing in the common case.
+
+**Verification.** A clone carrying all four tag shapes *and* a symbolic
+`origin/HEAD` was read through `createRepoReader` on both backends, and the ref
+labels compared:
+
+```
+engine served the read: true
+  ccaf060 remote origin/HEAD
+  ccaf060 tag    annotated-signed   signed=true
+  ccaf060 tag    light-on-signed    signed=false
+IDENTICAL: true
+```
+
+Spawn counts on that repository, through `recordGitCommand`:
+
+| backend | git spawns |
+| --- | ---: |
+| `git-cli` | 3 (`refs`, `head`, `log`) |
+| `auto` (engine) | **0** (was 2) |
+
+| operation | CLI | engine before | engine after | |
+| --- | ---: | ---: | ---: | ---: |
+| `loadCommits` (300) | `11.5 ms` | `12.9 ms` | **`7.7 ms`** | `1.5x` |
+| `loadCommits` (1000) | `17.1 ms` | `19.3 ms` | **`13.6 ms`** | `1.3x` |
+| view load | `68.7 ms` | — | **`15.7 ms`** | `4.4x` |
+
+`reports_tag_signature_presence_the_way_for_each_ref_does` and
+`resolves_a_symbolic_remote_head_rather_than_dropping_it` pin both changes;
+each was mutation-checked and kills only its own test. The signed-tag fixture
+writes the tag object by hand through `git hash-object -t tag -w`, so it needs
+no keyring and stays deterministic on CI — the engine reports signature
+*presence*, so a fabricated block exercises the identical path.
+
+`attachRemoteHeadLabels`, `attachSignedTagNames`, their parsers, their
+appliers and their tests are deleted. Nothing in the engine's `loadCommits`
+path spawns a process any more.
+
+**A measurement trap worth recording.** The first benchmark after this change
+showed the engine *five times slower*, because `pnpm run engine:build` builds
+the **debug** profile (186 MB, unoptimised) while the benchmark numbers above
+are all release (5.9 MB). Always `pnpm run engine:build:release` before
+benchmarking; a debug addon is not a slow engine, it is a different one.
+
+#### What the page-size defaults are actually worth (`2026-09-23`)
+
+Asked why `initialLoadCommits` is `300` when 1,000 costs only milliseconds
+more. Three separate costs were measured, and the answer is that two of them
+are now negligible and the third was never measured here.
+
+**Where the number came from.** It is inherited, not chosen:
+`git show upstream/main:package.json` gives `initialLoadCommits: 300`, and the
+only commits that ever touched it in this fork are `3ba4217 Initial
+implementation of Git Graph` and an i18n pass. It is mhutchie's number, picked
+when every read was a `git` spawn.
+
+| | 300 | 1,000 | 10,000 |
+| --- | ---: | ---: | ---: |
+| backend read (CLI) | `11.5 ms` | `17.1 ms` | — |
+| backend read (engine) | `7.7 ms` | `13.6 ms` | — |
+| graph layout (jsdom) | `0.2 ms` | `0.4 ms` | `1.1 ms` |
+
+700 extra commits cost about `6 ms` of git and essentially nothing to lay out.
+
+**What was not measured, and why the default therefore stands.** DOM row
+insertion — building and inserting the table rows and SVG paths — was not
+measured, because jsdom is not representative of a real browser there. That is
+the one cost that could still justify a cap, and it is the only one left. **Do
+not raise `initialLoadCommits` on the evidence above alone**; measure row
+insertion in a real webview first.
+
+**A defaults drift found while answering.** `loadMoreCommits` is declared
+`100` in the manifest and documented as `100` in the README, but
+`src/config.ts` fell back to `75`, and `tests/backend/config.test.ts` pinned
+the `75` — a wrong value frozen by the test meant to protect it. The fallback
+never fires in a real install, because VS Code returns the manifest default for
+an unset key, so nothing user-visible was wrong; it is now `100` in all four
+places. The accessor table in that test mirrors manifest defaults by hand, so
+it can drift again.
 
 #### Benchmarking the two backends (`2026-09-23`)
 
@@ -5227,7 +5355,9 @@ fills, parity byte-for-byte, `loadBranches` untouched).
 **16.5 (`loadCommits`) is done** (`2026-09-22`: pre-call declines plus
 post-call HEAD/unborn reroutes, seam mapping with two gated CLI fills,
 `topo` declined over a measured tie-break difference, byte-for-byte parity
-with the served flag). **16.6 (commit details, comparison, line counts) is
+with the served flag; the two fills were deleted on `2026-09-23` once the
+engine carried tag signatures and symbolic remote HEADs itself, taking
+`loadCommits` from `0.8x` to `1.5x`). **16.6 (commit details, comparison, line counts) is
 done** (`2026-09-23`: eager whole-list counts fill, merges/`*`/blank/stash
 reroutes, file content through the provider with binary CLI fallback,
 parity over renames/copies/binary/root/unborn/dirty plus file bytes).

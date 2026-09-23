@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **The graph opens roughly three and a half times faster.** Measured on a
-  2,000-commit repository: the work behind opening the view went from 67 ms to
-  19 ms, and reading the branch, tag, remote and stash lists from 59 ms to 8 ms.
+- **The graph opens roughly four times faster.** Measured on a real
+  1,036-commit repository: the work behind opening the view went from 69 ms to
+  16 ms, reading the branch, tag, remote and stash lists from 60 ms to 8 ms,
+  and loading a page of commits from 12 ms to 8 ms. Loading commits no longer
+  starts a `git` process at all.
 - **A built-in Git engine, so the graph stops waiting on `git` processes.**
   Reading a repository — opening the graph, loading a page of commits, opening
   commit details, comparing two commits, reading a file at a revision — now
@@ -25,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Signed tags keep their badge, and `origin/HEAD` keeps its label**, without
+  the extension running extra `git` commands to find either out. Both are now
+  read directly from the repository along with everything else on the row. A
+  lightweight tag pointing at a signed commit is correctly *not* marked as a
+  signed tag, matching `git` itself.
 - **The author filter lists everyone who has contributed**, not only the people
   whose commits are reachable from the branch you have checked out. Anyone whose
   work is on another branch — a remote branch you have fetched but not checked

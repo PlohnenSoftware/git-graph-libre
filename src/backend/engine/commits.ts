@@ -30,13 +30,9 @@
  *   topo loads stay on the CLI (pinned by the parity table).
  */
 
-import type { SimpleGit } from "simple-git";
-
-import { gitRefSignatureAtom } from "@/backend/queries/loadCommits";
 import type { CommitOrdering, DateType, GitCommitNode, GitRef } from "@/backend/types";
-import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
 import { selectedLogRefs, uniqueNonEmpty } from "@/backend/utils/logFilters";
-import { isHiddenRemoteRef, normalizeHiddenRemotes } from "@/backend/utils/remoteRefs";
+import { normalizeHiddenRemotes } from "@/backend/utils/remoteRefs";
 
 /** The route fields the engine decision, options and (16.5b) mapping need. */
 export type EngineLoadCommitsInput = {
@@ -103,6 +99,8 @@ export function shouldServeLoadCommitsFromEngine(input: EngineLoadCommitsInput):
 export type EngineCommitTag = {
   name: string;
   annotated: boolean;
+  /** Whether the tag object carries a signature. Lightweight tags are never signed. */
+  signed: boolean;
 };
 
 /** One remote label as the engine encodes it. `remote` names the owning remote, if known. */
@@ -155,7 +153,8 @@ function isEngineCommitTag(value: unknown): value is EngineCommitTag {
     typeof value === "object" &&
     value !== null &&
     typeof (value as { name?: unknown }).name === "string" &&
-    typeof (value as { annotated?: unknown }).annotated === "boolean"
+    typeof (value as { annotated?: unknown }).annotated === "boolean" &&
+    typeof (value as { signed?: unknown }).signed === "boolean"
   );
 }
 
@@ -297,11 +296,9 @@ function fullRefName(ref: GitRef): string {
  * pins to null; in-place stash marks are always stripped because the CLI
  * never marks — it only injects rows.
  *
- * Two CLI parse artifacts are mirrored deliberately, so the parity table
- * stays a strict `toEqual` and any future CLI change fails loudly instead of
- * drifting silently: a root commit's parents are `[""]` (`"".split(" ")`),
- * and tag `signed` is provisionally false (the engine reports presence
- * nowhere — 16.5d decides between a CLI fill and a recorded deviation).
+ * One CLI parse artifact is mirrored deliberately, so the parity table stays
+ * a strict `toEqual` and any future CLI change fails loudly instead of
+ * drifting silently: a root commit's parents are `[""]` (`"".split(" ")`).
  */
 export function mapEngineCommitData(data: EngineCommitData, showStashes: boolean): GitCommitNode[] {
   const nodes: GitCommitNode[] = [];
@@ -325,7 +322,7 @@ export function mapEngineCommitData(data: EngineCommitData, showStashes: boolean
     const refs: GitRef[] = [
       ...commit.heads.map((name): GitRef => ({ hash: commit.hash, name, type: "head" })),
       ...commit.tags.map(
-        (tag): GitRef => ({ hash: commit.hash, name: tag.name, type: "tag", signed: false })
+        (tag): GitRef => ({ hash: commit.hash, name: tag.name, type: "tag", signed: tag.signed })
       ),
       ...commit.remotes.map(
         (remote): GitRef => ({ hash: commit.hash, name: remote.name, type: "remote" })
@@ -347,169 +344,14 @@ export function mapEngineCommitData(data: EngineCommitData, showStashes: boolean
   return nodes;
 }
 
-/** One remote `HEAD` symref target as the fill reads it. */
-export type RemoteHeadLabel = {
-  hash: string;
-  name: string;
-};
-
-const remoteHeadLineEndings = /\r\n|\r|\n/;
-
-/**
- * Parse a `for-each-ref` symref scan over `refs/remotes`. Only symrefs carry
- * a target, so a line with an empty third field is a plain ref the engine
- * already recorded. Nothing here reimplements a CLI parse: the shape mirrors
- * the loader's own ref records, narrowed to the symbolic labels.
- */
-export function parseRemoteHeadLabels(stdout: string): RemoteHeadLabel[] {
-  const labels: RemoteHeadLabel[] = [];
-  for (const line of stdout.split(remoteHeadLineEndings)) {
-    if (line === "") continue;
-    const [hash = "", refName = "", symref = ""] = line.split("\0");
-    if (hash === "" || symref === "" || !refName.startsWith("refs/remotes/")) continue;
-    labels.push({ hash, name: refName.slice("refs/remotes/".length) });
-  }
-  return labels;
-}
-
-/**
- * Attach remote `HEAD` symref labels to the nodes at their targets, in
- * `for-each-ref` byte order among the node's remote labels. Hidden remotes
- * stay hidden via the CLI's own predicate; labels whose target is off-page
- * or already recorded are skipped.
- */
-export function insertRemoteHeadLabels(
-  nodes: GitCommitNode[],
-  labels: RemoteHeadLabel[],
-  hiddenRemotes?: string[]
-): void {
-  if (labels.length === 0) return;
-  const byHash = new Map<string, GitCommitNode>();
-  for (const node of nodes) {
-    if (!byHash.has(node.hash)) byHash.set(node.hash, node);
-  }
-  for (const label of labels) {
-    insertOneRemoteHeadLabel(byHash, label, hiddenRemotes);
-  }
-}
-
-function insertOneRemoteHeadLabel(
-  byHash: Map<string, GitCommitNode>,
-  label: RemoteHeadLabel,
-  hiddenRemotes?: string[]
-): void {
-  if (isHiddenRemoteRef(label.name, hiddenRemotes)) return;
-  const node = byHash.get(label.hash);
-  if (node === undefined) return;
-  if (node.refs.some((ref) => ref.type === "remote" && ref.name === label.name)) return;
-  const ref: GitRef = { hash: label.hash, name: label.name, type: "remote" };
-  node.refs.splice(remoteHeadInsertIndex(node.refs, remoteRefName(label.name)), 0, ref);
-}
-
-function remoteHeadInsertIndex(refs: GitRef[], fullName: string): number {
-  for (let index = 0; index < refs.length; index++) {
-    const existing = refs[index];
-    if (
-      refSortRank(existing) > 1 ||
-      (refSortRank(existing) === 1 && compareRefNames(fullRefName(existing), fullName) > 0)
-    ) {
-      return index;
-    }
-  }
-  return refs.length;
-}
-
-export type RemoteHeadFills = {
-  git: SimpleGit;
-  repo: string;
-  recordGitCommand?: GitCommandRecorder;
-};
-
-/**
- * One narrow `for-each-ref` over `refs/remotes` for the symbolic `HEAD`
- * labels the engine never records, attached in CLI order. A failed scan
- * resolves to no labels rather than a failed graph — the same trade the
- * stash rows make: the engine served the page, and losing it over pendant
- * labels would be the wrong trade.
- */
-export async function attachRemoteHeadLabels(
-  fills: RemoteHeadFills,
-  nodes: GitCommitNode[],
-  hiddenRemotes?: string[]
-): Promise<void> {
-  let stdout: string;
-  try {
-    stdout = await runGitRaw(fills.git, {
-      label: "loadCommits.remoteHeads",
-      args: ["for-each-ref", "--format=%(objectname)%00%(refname)%00%(symref)", "refs/remotes"],
-      repo: fills.repo,
-      record: fills.recordGitCommand
-    });
-  } catch {
-    return;
-  }
-  insertRemoteHeadLabels(nodes, parseRemoteHeadLabels(stdout), hiddenRemotes);
-}
-
-/**
- * Tag names carrying a signature block, as the fill reads them. Only
- * annotated tags can carry one, so every name here flips a badge the CLI
- * would also show.
- */
-export function parseSignedTagNames(stdout: string): string[] {
-  const signed: string[] = [];
-  for (const line of stdout.split(remoteHeadLineEndings)) {
-    if (line === "") continue;
-    const [refName = "", hasSignature = ""] = line.split("\0");
-    if (hasSignature !== "1" || !refName.startsWith("refs/tags/")) continue;
-    signed.push(refName.slice("refs/tags/".length));
-  }
-  return signed;
-}
-
-/** Flip the signed badge on the named tag labels. Unknown names are ignored. */
-export function applySignedTagNames(nodes: GitCommitNode[], signed: string[]): void {
-  if (signed.length === 0) return;
-  const names = new Set(signed);
-  for (const node of nodes) {
-    for (const ref of node.refs) {
-      if (ref.type === "tag" && names.has(ref.name)) ref.signed = true;
-    }
-  }
-}
-
-/**
- * One narrow `for-each-ref` over `refs/tags` for the signature presence the
- * engine never reports, reusing the loader's own signature atom so both
- * scans classify identically. Same failure trade as the other fills: a
- * failed scan keeps the page rather than failing the graph.
- */
-export async function attachSignedTagNames(
-  fills: RemoteHeadFills,
-  nodes: GitCommitNode[]
-): Promise<void> {
-  let stdout: string;
-  try {
-    stdout = await runGitRaw(fills.git, {
-      label: "loadCommits.signedTags",
-      args: ["for-each-ref", `--format=%(refname)%00${gitRefSignatureAtom}`, "refs/tags"],
-      repo: fills.repo,
-      record: fills.recordGitCommand
-    });
-  } catch {
-    return;
-  }
-  applySignedTagNames(nodes, parseSignedTagNames(stdout));
-}
-
 /**
  * The `load_commits` options JSON. Every field is threaded from the route
  * input the CLI consumes, or pinned to the CLI-equivalent constant where the
  * CLI has no such knob:
  *
- * - `showRemoteHeads: true`: the CLI's `for-each-ref` lists non-symbolic
- *   `/HEAD` refs, which the engine only includes with the flag on (symbolic
- *   remote HEADs stay an engine gap — probed in 16.5d);
+ * - `showRemoteHeads: true`: the CLI's `for-each-ref` lists every `/HEAD` ref,
+ *   which the engine only includes with the flag on — symbolic ones included,
+ *   since the engine resolves those the way `%(objectname)` reports them;
  * - `showUntrackedFiles: true`: the CLI counts every `status.files` entry,
  *   untracked files included;
  * - `showTags` covers tags shown *or* selected as filters (the CLI scans
