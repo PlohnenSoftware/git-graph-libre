@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   16 ms, reading the branch, tag, remote and stash lists from 60 ms to 8 ms,
   and loading a page of commits from 12 ms to 8 ms. Loading commits no longer
   starts a `git` process at all.
+- **The engine is about 1.4 MB smaller per platform**, after removing code
+  that could never be reached — around 10 MB off the download.
 - **A built-in Git engine, so the graph stops waiting on `git` processes.**
   Reading a repository — opening the graph, loading a page of commits, opening
   commit details, comparing two commits, reading a file at a revision — now

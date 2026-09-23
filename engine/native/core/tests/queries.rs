@@ -47,27 +47,6 @@ fn commit_bodies_fail_on_an_unknown_hash() {
 }
 
 #[test]
-fn reads_a_folded_subject_as_git_folds_it() {
-    require_git!();
-    let mut repo = TestRepo::new();
-    let hash = repo.commit_file(
-        "a.txt",
-        "1\n",
-        "a subject that spans\nseveral lines\n\nthe body is separate",
-    );
-
-    let expected = repo
-        .git(&["log", "--format=%s", "-n", "1", &hash])
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
-
-    let engine = open(&repo);
-    assert_eq!(details::commit_subject(&engine, &hash).unwrap(), expected);
-    assert_eq!(expected, "a subject that spans several lines");
-}
-
-#[test]
 fn reads_commit_summaries_with_the_author_date() {
     require_git!();
     let mut repo = TestRepo::new();
@@ -85,61 +64,6 @@ fn reads_commit_summaries_with_the_author_date() {
     // `%at` is the author date, which the fixture clock pins for determinism.
     let git_date = repo.git(&["show", "--quiet", "--format=%at", &hash]);
     assert_eq!(summary.date.to_string(), git_date.trim());
-}
-
-#[test]
-fn searches_history_like_git_log_grep() {
-    require_git!();
-    let mut repo = TestRepo::new();
-    let alpha = repo.commit_file("a.txt", "1\n", "add the alpha feature");
-    repo.commit_file("b.txt", "2\n", "an unrelated change");
-    let gamma = repo.commit_file("c.txt", "3\n", "polish the gamma FEATURE");
-    repo.git(&["checkout", "--quiet", "-b", "side"]);
-    let delta = repo.commit_file("d.txt", "4\n", "the delta feature lands");
-
-    // A stash is reachable from `--all` through refs/stash; its message must be searchable too.
-    repo.write("a.txt", "stashed\n");
-    repo.git(&["stash", "push", "--quiet", "-m", "the stashed feature work"]);
-    let stash = repo.rev_parse("refs/stash");
-
-    let expected = repo.log_hashes(&["--all", "-i", "--grep=feature"]);
-
-    let engine = open(&repo);
-    let matches = log::search_history(&engine, "feature").unwrap();
-    let hashes: Vec<&String> = matches.iter().map(|m| &m.hash).collect();
-
-    assert_eq!(hashes, expected.iter().collect::<Vec<_>>());
-    assert!(hashes.contains(&&gamma));
-    assert!(hashes.contains(&&stash), "the stash ref is part of --all");
-    assert!(
-        hashes.contains(&&alpha),
-        "the alpha commit's message matches too"
-    );
-
-    // Subjects and authors come back with the hash.
-    for m in &matches {
-        if m.hash == delta {
-            assert_eq!(m.message, "the delta feature lands");
-            assert_eq!(m.author, "Test User");
-        }
-    }
-
-    // A pattern that matches nothing matches nothing.
-    assert!(log::search_history(&engine, "no-such-thing-at-all")
-        .unwrap()
-        .is_empty());
-}
-
-#[test]
-fn search_rejects_a_pattern_that_is_not_a_regex() {
-    require_git!();
-    let mut repo = TestRepo::new();
-    repo.commit_file("a.txt", "1\n", "first");
-
-    let engine = open(&repo);
-    let error = log::search_history(&engine, "(unclosed").unwrap_err();
-
-    assert_eq!(error.kind, ErrorKind::InvalidArgument);
 }
 
 #[test]
@@ -213,43 +137,6 @@ fn reads_a_remote_url_and_reports_an_absent_one() {
         Some("https://example.invalid/one.git")
     );
     assert_eq!(config::remote_url(&engine, "no-such-remote").unwrap(), None);
-}
-
-#[test]
-fn reads_the_upstream_of_the_checked_out_branch() {
-    require_git!();
-    let mut repo = TestRepo::new();
-    repo.commit_file("a.txt", "1\n", "first");
-    repo.add_fake_remote("origin", "main", &repo.head());
-    repo.git(&["config", "branch.main.remote", "origin"]);
-    repo.git(&["config", "branch.main.merge", "refs/heads/main"]);
-
-    let expected = repo
-        .git(&[
-            "rev-parse",
-            "--abbrev-ref",
-            "--symbolic-full-name",
-            "@{upstream}",
-        ])
-        .trim()
-        .to_string();
-
-    let engine = open(&repo);
-    assert_eq!(
-        config::current_branch_upstream(&engine).unwrap().as_deref(),
-        Some(expected.as_str())
-    );
-    assert_eq!(expected, "origin/main");
-}
-
-#[test]
-fn a_branch_without_an_upstream_has_none() {
-    require_git!();
-    let mut repo = TestRepo::new();
-    repo.commit_file("a.txt", "1\n", "first");
-
-    let engine = open(&repo);
-    assert_eq!(config::current_branch_upstream(&engine).unwrap(), None);
 }
 
 #[test]
@@ -422,7 +309,7 @@ fn rejects_tag_names_git_would_reject() {
 }
 
 #[test]
-fn a_bare_repository_has_no_upstream_and_no_submodules() {
+fn a_bare_repository_has_no_submodules_and_still_reads_objects() {
     require_git!();
     let mut repo = TestRepo::new();
     let hash = repo.commit_file("a.txt", "1\n", "the subject\n\nand a body");
@@ -442,50 +329,12 @@ fn a_bare_repository_has_no_upstream_and_no_submodules() {
     );
 
     let engine = Repo::open(bare.path()).expect("could not open the bare repository");
-    assert_eq!(config::current_branch_upstream(&engine).unwrap(), None);
     assert!(config::submodules(&engine).unwrap().is_empty());
 
     // The object database is all a bare repository has, and it is enough for every object read.
     assert_eq!(
-        details::commit_subject(&engine, &hash).unwrap(),
-        "the subject"
-    );
-    assert_eq!(
         details::commit_bodies(&engine, std::slice::from_ref(&hash)).unwrap()[&hash],
         "the subject\n\nand a body"
-    );
-}
-
-#[test]
-fn a_detached_head_has_no_upstream() {
-    require_git!();
-    let mut repo = TestRepo::new();
-    let first = repo.commit_file("a.txt", "1\n", "first");
-    repo.commit_file("b.txt", "2\n", "second");
-    repo.git(&["checkout", "--quiet", "--detach", &first]);
-
-    let engine = open(&repo);
-    assert_eq!(config::current_branch_upstream(&engine).unwrap(), None);
-}
-
-#[test]
-fn searching_a_repository_without_commits_matches_nothing() {
-    require_git!();
-    let repo = TestRepo::new();
-
-    let engine = open(&repo);
-    assert!(log::search_history(&engine, "anything").unwrap().is_empty());
-    assert_eq!(
-        log::count_commits_before(
-            &engine,
-            None,
-            "0123456789012345678901234567890123456789",
-            true,
-            false
-        )
-        .unwrap_err()
-        .kind,
-        ErrorKind::NotFound
     );
 }
 
@@ -760,48 +609,4 @@ fn aggregates_authors_like_shortlog() {
     );
     // The same walk git's shortlog makes: three Test User commits against one Second Author.
     assert!(expected.contains("Second Author"), "shortlog: {expected}");
-}
-
-#[test]
-fn reads_the_checked_out_branch_name() {
-    require_git!();
-    let mut repo = TestRepo::new();
-    repo.commit_file("a.txt", "1\n", "first");
-
-    let engine = open(&repo);
-    assert_eq!(
-        config::current_branch_name(&engine).unwrap().as_deref(),
-        Some("main")
-    );
-
-    repo.git(&["checkout", "--quiet", "--detach", "HEAD"]);
-    assert_eq!(config::current_branch_name(&engine).unwrap(), None);
-}
-
-#[test]
-fn an_unborn_head_still_names_its_branch() {
-    require_git!();
-    let repo = TestRepo::new();
-
-    let engine = open(&repo);
-    // `git symbolic-ref --short HEAD` prints the branch even before the first commit exists.
-    assert_eq!(
-        config::current_branch_name(&engine).unwrap().as_deref(),
-        Some("main")
-    );
-}
-
-#[test]
-fn lists_remote_names_alphabetically() {
-    require_git!();
-    let mut repo = TestRepo::new();
-    repo.commit_file("a.txt", "1\n", "first");
-    repo.git(&["remote", "add", "zeta", "https://example.invalid/z.git"]);
-    repo.git(&["remote", "add", "alpha", "https://example.invalid/a.git"]);
-
-    let engine = open(&repo);
-    assert_eq!(
-        config::remote_names(&engine).unwrap(),
-        vec!["alpha", "zeta"]
-    );
 }

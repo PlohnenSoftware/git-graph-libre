@@ -19,7 +19,7 @@ use gix::ObjectId;
 
 use crate::error::{Error, Result, ResultExt};
 use crate::repository::Repo;
-use crate::types::{CommitOrdering, CommitRecord, GitAuthor, GitHistoryMatch};
+use crate::types::{CommitOrdering, CommitRecord, GitAuthor};
 
 /// How many commits are read for every commit displayed, so that the topological re-ordering has
 /// enough of the graph to be exact over the page it returns.
@@ -507,80 +507,6 @@ pub fn all_tips(repo: &Repo, include_tags: bool, include_remotes: bool) -> Resul
 }
 
 /* ---------- History search ---------- */
-
-/// How many hits the Find dialogue shows, matching the original's `--max-count=100`.
-const SEARCH_LIMIT: usize = 100;
-
-/// Search every commit message for a pattern, newest first, as `git log --all -E -i --grep`.
-///
-/// The tips are everything `git log --all` walks from — local branches, tags, remote-tracking
-/// branches, HEAD, and the stash, whose ref lives in `refs/` even though the graph never shows it.
-/// The walk is commit-date ordered (git's default for `--grep`), not topologically constrained, so
-/// it needs none of the windowed re-ordering the graph does.
-pub fn search_history(repo: &Repo, query: &str) -> Result<Vec<GitHistoryMatch>> {
-    let matcher = regex::RegexBuilder::new(query)
-        .case_insensitive(true)
-        .build()
-        .map_err(|e| Error::invalid_argument(format!("Invalid search query: {e}")))?;
-
-    // A repository with no refs at all has nothing to search; git's `--all` simply matches nothing.
-    let mut tips = all_tips(repo, true, true).unwrap_or_default();
-    if let Some(stash) = stash_tip(repo) {
-        if !tips.contains(&stash) {
-            tips.push(stash);
-        }
-    }
-    if tips.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let git = repo.borrow();
-    let walk = git
-        .rev_walk(tips.iter().copied())
-        .sorting(gix::revision::walk::Sorting::ByCommitTime(
-            gix::traverse::commit::simple::CommitTimeOrder::NewestFirst,
-        ))
-        .all()
-        .git_ctx("Could not walk the commit graph")?;
-
-    let mut matches: Vec<GitHistoryMatch> = Vec::new();
-    for info in walk {
-        let info = match info {
-            Ok(info) => info,
-            // A missing object truncates the search rather than failing it, as it truncates the
-            // graph walk.
-            Err(_) => break,
-        };
-        let commit = match git.find_commit(info.id) {
-            Ok(commit) => commit,
-            Err(_) => continue,
-        };
-        let raw = commit
-            .message_raw()
-            .git_ctx("Could not decode the commit message")?
-            .to_string();
-        if !matcher.is_match(&raw) {
-            continue;
-        }
-        let author = commit
-            .author()
-            .git_ctx("Could not decode the commit author")?;
-        matches.push(GitHistoryMatch {
-            hash: commit.id().detach().to_string(),
-            author: author.name.to_string(),
-            date: author.time().map(|time| time.seconds).unwrap_or(0),
-            message: commit
-                .message()
-                .git_ctx("Could not decode the commit message")?
-                .summary()
-                .to_string(),
-        });
-        if matches.len() >= SEARCH_LIMIT {
-            break;
-        }
-    }
-    Ok(matches)
-}
 
 /// The commit `refs/stash` points at, if a stash exists.
 pub(crate) fn stash_tip(repo: &Repo) -> Option<ObjectId> {

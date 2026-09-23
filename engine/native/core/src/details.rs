@@ -153,19 +153,6 @@ pub fn commit_bodies(repo: &Repo, hashes: &[String]) -> Result<BTreeMap<String, 
     }
     Ok(bodies)
 }
-
-/// The subject of one commit, whitespace-normalised the way the original extension normalised
-/// `git log --format=%s` output (trimmed, runs of whitespace collapsed to one space).
-pub fn commit_subject(repo: &Repo, hash: &str) -> Result<String> {
-    let git = repo.borrow();
-    let id = crate::repository::resolve_commit_in(&git, hash)?;
-    let commit = git.find_commit(id).git_ctx("Could not read the commit")?;
-    let message = commit
-        .message()
-        .git_ctx("Could not decode the commit message")?;
-    Ok(collapse_whitespace(message.summary().to_string()))
-}
-
 /// The summary of each of the given commits (author, email, author date, full message), keyed by
 /// hash — what the Commit Comparison View titles its two sides with.
 pub fn commit_summaries(
@@ -332,9 +319,4 @@ fn strip_trailing_blank_lines(message: String) -> String {
         lines.pop();
     }
     lines.join("\n")
-}
-
-/// Trim and collapse every run of whitespace into a single space.
-fn collapse_whitespace(text: String) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }

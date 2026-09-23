@@ -230,17 +230,6 @@ pub async fn load_commit_bodies(path: String, hashes: Vec<String>) -> Result<Str
     })
     .await
 }
-
-/// The subject of one commit.
-#[napi]
-pub async fn load_commit_subject(path: String, hash: String) -> Result<String> {
-    run(move || {
-        let repo = RepoManager::global().get(&path)?;
-        details::commit_subject(&repo, &hash)
-    })
-    .await
-}
-
 /// The summary of each of the given commits, keyed by hash, as a JSON object.
 #[napi]
 pub async fn load_commit_summaries(path: String, hashes: Vec<String>) -> Result<String> {
@@ -250,17 +239,6 @@ pub async fn load_commit_summaries(path: String, hashes: Vec<String>) -> Result<
     })
     .await
 }
-
-/// The commits whose message matches a pattern, newest first, as a JSON array.
-#[napi]
-pub async fn search_history(path: String, query: String) -> Result<String> {
-    run(move || {
-        let repo = RepoManager::global().get(&path)?;
-        encode(&log::search_history(&repo, &query)?)
-    })
-    .await
-}
-
 /// A tag in full (tagger, message, signature presence), as a JSON object.
 #[napi]
 pub async fn load_tag_details(path: String, tag_name: String) -> Result<String> {
@@ -304,17 +282,6 @@ pub async fn submodules(path: String) -> Result<Vec<String>> {
     })
     .await
 }
-
-/// The upstream of the checked-out branch (`origin/main`), or NULL when there is none.
-#[napi]
-pub async fn current_branch_upstream(path: String) -> Result<Option<String>> {
-    run(move || {
-        let repo = RepoManager::global().get(&path)?;
-        config::current_branch_upstream(&repo)
-    })
-    .await
-}
-
 /// How many commits are reachable from the shown refs but not from `hash` — `git rev-list --count`.
 #[napi]
 pub async fn count_commits_before(
@@ -342,17 +309,6 @@ pub async fn count_commits_before(
 pub async fn repo_root(path: String) -> Result<String> {
     run(move || git_graph_core::repository::repo_root(&path)).await
 }
-
-/// The names of the repository's remotes.
-#[napi]
-pub async fn remote_names(path: String) -> Result<Vec<String>> {
-    run(move || {
-        let repo = RepoManager::global().get(&path)?;
-        config::remote_names(&repo)
-    })
-    .await
-}
-
 /// The distinct commit authors of the current branch's history, as a JSON array.
 #[napi]
 pub async fn authors(path: String) -> Result<String> {
@@ -401,17 +357,6 @@ pub async fn config_list(path: String, local: bool) -> Result<String> {
     })
     .await
 }
-
-/// The checked-out branch's short name, or NULL when HEAD is detached.
-#[napi]
-pub async fn current_branch_name(path: String) -> Result<Option<String>> {
-    run(move || {
-        let repo = RepoManager::global().get(&path)?;
-        config::current_branch_name(&repo)
-    })
-    .await
-}
-
 /// The engine's version, so the extension can report which backend it is running.
 #[napi]
 pub fn engine_version() -> String {

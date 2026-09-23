@@ -41,7 +41,8 @@ fn the_engine_facade_covers_the_host_workflow() {
     let info = engine.info(&GraphOptions::default()).unwrap();
     assert_eq!(info.branches, ["main"]);
     assert_eq!(info.tags, ["v1"]);
-    assert_eq!(engine.current_branch().unwrap().as_deref(), Some("main"));
+    // The checked-out branch, which the repo info already carries.
+    assert_eq!(info.head.as_deref(), Some("main"));
 
     // Commit details and the files it touched.
     let details = engine.commit(&second).unwrap();
@@ -81,12 +82,9 @@ fn the_engine_facade_covers_the_host_workflow() {
     let new = status.iter().find(|c| c.path == "new.txt").unwrap();
     assert!(new.untracked);
 
-    // Diffs between revisions, and history search.
+    // Diffs between revisions.
     let changes = engine.diff(&first, &second).unwrap();
     assert_eq!(changes[0].new_file_path, "a.txt");
-    let hits = engine.search_history("second").unwrap();
-    assert_eq!(hits.len(), 1);
-    assert_eq!(engine.commit_subject(&first).unwrap(), "first commit");
     assert_eq!(engine.authors().unwrap()[0].name, "Test User");
 
     engine.close();

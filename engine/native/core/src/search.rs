@@ -1,10 +1,10 @@
 //! The Find dialogue's commit search, reproducing what the `git` CLI backend does.
 //!
-//! This is deliberately *not* the engine's original `log::search_history`, which matches a regular
+//! This is deliberately *not* the engine's original `log::search_history`, which matched a regular
 //! expression against commit messages across every ref. This project's search is a different
-//! question, and wiring the regex one would have changed what users see:
+//! question, and wiring the regex one would have changed what users see, so it was removed instead:
 //!
-//! | | this search | `log::search_history` |
+//! | | this search | `log::search_history` (removed) |
 //! | --- | --- | --- |
 //! | message match | literal substring, case-insensitive | regular expression |
 //! | author match | yes, literal substring | no |

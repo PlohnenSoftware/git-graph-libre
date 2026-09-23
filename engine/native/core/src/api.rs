@@ -37,8 +37,8 @@ use crate::repository::{Repo, RepoManager};
 use crate::status::ScmChange;
 use crate::types::{
     CommitFile, CommitOrdering, ConfigSnapshot, GitActivityCell, GitAuthor, GitAuthorStat,
-    GitCommitData, GitCommitDetails, GitFileChange, GitHistoryMatch, GitRepoInfo, GitStash,
-    GitTagDetails, LogOptions, RefReadOptions, RefSnapshot,
+    GitCommitData, GitCommitDetails, GitFileChange, GitRepoInfo, GitStash, GitTagDetails,
+    LogOptions, RefReadOptions, RefSnapshot,
 };
 
 /// How a graph page is loaded. `Default` is the view's own default request: every local
@@ -180,12 +180,6 @@ impl Engine {
     pub fn stashes(&self) -> Result<Vec<GitStash>> {
         crate::stash::read_stashes(&self.repo)
     }
-
-    /// Search commit messages, newest first (`git log --all -E -i --grep`).
-    pub fn search_history(&self, query: &str) -> Result<Vec<GitHistoryMatch>> {
-        crate::log::search_history(&self.repo, query)
-    }
-
     /* ---------- Commits ---------- */
 
     /// A commit in full: message, author, signature, parents and the files it changed.
@@ -197,11 +191,6 @@ impl Engine {
     pub fn commit_bodies(&self, hashes: &[String]) -> Result<BTreeMap<String, String>> {
         crate::details::commit_bodies(&self.repo, hashes)
     }
-
-    pub fn commit_subject(&self, hash: &str) -> Result<String> {
-        crate::details::commit_subject(&self.repo, hash)
-    }
-
     pub fn tag(&self, name: &str) -> Result<GitTagDetails> {
         crate::details::tag_details(&self.repo, name)
     }
@@ -264,15 +253,6 @@ impl Engine {
     pub fn config(&self) -> Result<ConfigSnapshot> {
         crate::config::read_config(&self.repo)
     }
-
-    pub fn current_branch(&self) -> Result<Option<String>> {
-        crate::config::current_branch_name(&self.repo)
-    }
-
-    pub fn upstream_of_current_branch(&self) -> Result<Option<String>> {
-        crate::config::current_branch_upstream(&self.repo)
-    }
-
     pub fn remote_url(&self, remote: &str) -> Result<Option<String>> {
         crate::config::remote_url(&self.repo, remote)
     }
