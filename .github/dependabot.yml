@@ -1,6 +1,44 @@
 version: 2
 updates:
+  # One PR for all actions, so upload-artifact and download-artifact always
+  # move together.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # The extension's packages. engine/package.json declares none of its own.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # pnpm refuses anything published less than a day ago (minimumReleaseAge),
+    # so give a release a few days before proposing it.
+    cooldown:
+      default-days: 3
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # Must not run ahead of engines.vscode, or vsce refuses to package.
+      # Raise both together, by hand, when the minimum VS Code moves.
+      - dependency-name: "@types/vscode"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  # The Rust engine. rust-toolchain.toml is left out on purpose: raising the
+  # channel is a deliberate act (see that file).
+  - package-ecosystem: "cargo"
+    directory: "/engine"
+    schedule:
+      interval: "weekly"
+    groups:
+      # The napi crates move in lockstep, majors included.
+      napi:
+        patterns: ["napi", "napi-derive", "napi-build"]
+      # gix is pre-1.0, so its "minor" bumps break; keep them in their own PR.
+      cargo-minor-patch:
+        update-types: ["minor", "patch"]
+        exclude-patterns: ["gix"]
