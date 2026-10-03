@@ -38,7 +38,7 @@ jobs:
       # cost is deliberate — every install carries seven binaries it cannot
       # load — and buys one file to download instead of nine.
       - name: Download engine binaries
-        uses: actions/download-artifact@v4.0.0
+        uses: actions/download-artifact@v8.0.1
         with:
           name: native-all
           path: engine/native/
@@ -71,7 +71,7 @@ jobs:
           echo "Packaged $vsix ($(du -h "$vsix" | cut -f1))"
 
       - name: Upload VSIX
-        uses: actions/upload-artifact@v4.0.0
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: vsix
           path: ${{ steps.package.outputs.vsix }}
@@ -92,7 +92,7 @@ jobs:
       - run: corepack enable && pnpm install --frozen-lockfile
 
       - name: Download VSIX
-        uses: actions/download-artifact@v4.0.0
+        uses: actions/download-artifact@v8.0.1
         with:
           name: vsix
           path: dist/
