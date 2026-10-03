@@ -78,7 +78,7 @@ jobs:
       # job restores them in one step and the layout it gets is the layout
       # `.vscodeignore` whitelists and the loader reads.
       - name: Upload engine binaries
-        uses: actions/upload-artifact@v4.0.0
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: native-all
           path: engine/native/*/git-graph.node
