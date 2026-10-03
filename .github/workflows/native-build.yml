@@ -61,7 +61,7 @@ jobs:
       # workspace's own artifacts, which is what keeps this from growing past
       # the repository cache budget.
       - name: Cache the cargo build
-        uses: Swatinem/rust-cache@v2.8.0
+        uses: Swatinem/rust-cache@v2.9.2
         with:
           workspaces: engine
           key: native-all
