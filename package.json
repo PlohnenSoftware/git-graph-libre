@@ -118,7 +118,7 @@
     "icons:generate": "node ./scripts/generate-octicons.js && biome format --write src/octicons.ts"
   },
   "dependencies": {
-    "simple-git": "^3.36.0"
+    "simple-git": "^4.0.2"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
