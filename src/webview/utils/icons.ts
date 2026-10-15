@@ -5,6 +5,7 @@ import { octicon } from "@/octicons";
 // the sync octicon and is animated by CSS (octicons has no spinner icon).
 export const svgIcons = {
   alert: octicon("alert"),
+  check: octicon("check"),
   branch: octicon("git-branch"),
   stash: octicon("inbox"),
   copy: octicon("copy", "fileActionIcon copyIcon"),

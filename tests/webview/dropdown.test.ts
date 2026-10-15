@@ -307,6 +307,8 @@ describe("Dropdown", () => {
     const toggle = document.querySelector<HTMLButtonElement>(".dropdownFilterToggle");
     if (filterInput === null || toggle === null) throw new Error("Missing filter controls");
     expect(toggle.getAttribute("aria-label")).toBe("Invert selection");
+    expect(toggle.querySelector("svg")).not.toBeNull();
+    expect(toggle.textContent).toBe("");
 
     filterInput.value = "feature";
     filterInput.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));

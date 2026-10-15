@@ -169,24 +169,31 @@
 .dropdownFilterInput::placeholder {
   color: var(--vscode-input-placeholderForeground);
 }
-.dropdownFilterInput:focus,
-.dropdownFilterToggle:focus {
+.dropdownFilterInput:focus {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 0;
 }
 .dropdownFilterToggle {
   flex: none;
-  width: 22px;
-  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
   padding: 0;
   border: 1px solid var(--vscode-input-border, var(--ngg-neutral-border));
   border-radius: 4px;
+  outline: none;
   background-color: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
-  font-size: 12px;
-  line-height: 20px;
-  font-family: inherit;
   cursor: pointer;
+}
+.dropdownFilterToggle:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 0;
+}
+.dropdownFilterToggle svg {
+  display: block;
 }
 
 .dropdownNoResults {

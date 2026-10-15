@@ -109,7 +109,7 @@ export class Dropdown {
     button.className = "dropdownFilterToggle";
     button.title = l10n.toggleFiltered;
     button.setAttribute("aria-label", l10n.toggleFiltered);
-    button.textContent = "\u2713";
+    button.innerHTML = svgIcons.check;
     button.addEventListener("click", () => this.toggleFilteredOptions());
     return button;
   }

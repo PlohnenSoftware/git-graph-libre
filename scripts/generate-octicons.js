@@ -9,6 +9,7 @@ const ICON_NAMES = [
   "alert",
   "arrow-down",
   "arrow-up",
+  "check",
   "copy",
   "crosshairs",
   "download",
