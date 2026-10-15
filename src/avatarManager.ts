@@ -35,9 +35,9 @@ export class AvatarManager {
       if (this.interval !== null) return;
       this.interval = setInterval(() => {
         // Fetch avatars every 10 seconds
-        this.fetchAvatarsInterval();
+        void this.fetchAvatarsInterval();
       }, 10000);
-      this.fetchAvatarsInterval();
+      void this.fetchAvatarsInterval();
     });
   }
 
@@ -98,7 +98,7 @@ export class AvatarManager {
           this.fetchFromGitLab(avatarRequest);
           break;
         default:
-          this.fetchFromGravatar(avatarRequest);
+          await this.fetchFromGravatar(avatarRequest);
       }
     } else if (this.interval !== null) {
       // Stop the interval if there are no items remaining in the queue
@@ -146,7 +146,7 @@ export class AvatarManager {
     if (t < this.githubTimeout) {
       // Defer request until after timeout
       this.queue.addItem(avatarRequest, this.githubTimeout, false);
-      this.fetchAvatarsInterval();
+      void this.fetchAvatarsInterval();
       return;
     }
     const commitIndex =
@@ -204,7 +204,7 @@ export class AvatarManager {
               this.queue.addItem(avatarRequest, this.githubTimeout, false);
               return;
             }
-            this.fetchFromGravatar(avatarRequest); // Fallback to Gravatar
+            await this.fetchFromGravatar(avatarRequest); // Fallback to Gravatar
           });
         }
       )
@@ -220,7 +220,7 @@ export class AvatarManager {
     if (t < this.gitLabTimeout) {
       // Defer request until after timeout
       this.queue.addItem(avatarRequest, this.gitLabTimeout, false);
-      this.fetchAvatarsInterval();
+      void this.fetchAvatarsInterval();
       return;
     }
     https
@@ -266,7 +266,7 @@ export class AvatarManager {
               this.queue.addItem(avatarRequest, this.gitLabTimeout, false);
               return;
             }
-            this.fetchFromGravatar(avatarRequest); // Fallback to Gravatar
+            await this.fetchFromGravatar(avatarRequest); // Fallback to Gravatar
           });
         }
       )
@@ -314,11 +314,15 @@ export class AvatarManager {
             res.on("data", (chunk: Buffer) => {
               imageBufferArray.push(chunk);
             });
-            res.on("end", () => {
+            res.on("end", async () => {
               if (res.statusCode === 200) {
                 // If success response, save the image to the avatar folder
-                this.saveDownloadedAvatar(hash, res.headers["content-type"], imageBufferArray).then(
-                  resolve
+                resolve(
+                  await this.saveDownloadedAvatar(
+                    hash,
+                    res.headers["content-type"],
+                    imageBufferArray
+                  )
                 );
                 return;
               }
