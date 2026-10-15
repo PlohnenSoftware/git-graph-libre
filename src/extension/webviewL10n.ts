@@ -50,6 +50,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     createFirstCommit: translate("ui.createFirstCommit"),
     showAll: translate("ui.showAll"),
     filterPlaceholder: translate("ui.filterPlaceholder"),
+    toggleFiltered: translate("ui.toggleFiltered"),
     noResultsFound: translate("ui.noResultsFound"),
     graph: translate("ui.graph"),
     description: translate("ui.description"),

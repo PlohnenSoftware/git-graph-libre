@@ -48,6 +48,7 @@
   "ui.createFirstCommit": "Maak je eerste commit om de graaf hier te zien",
   "ui.showAll": "Alles weergeven",
   "ui.filterPlaceholder": "{0} filteren...",
+  "ui.toggleFiltered": "Selectie omkeren",
   "ui.noResultsFound": "Geen resultaten gevonden.",
   "ui.graph": "Graaf",
   "ui.description": "Beschrijving",

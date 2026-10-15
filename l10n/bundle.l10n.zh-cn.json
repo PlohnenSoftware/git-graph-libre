@@ -48,6 +48,7 @@
   "ui.createFirstCommit": "创建第一个提交以在此查看提交图",
   "ui.showAll": "显示全部",
   "ui.filterPlaceholder": "筛选{0}...",
+  "ui.toggleFiltered": "反选",
   "ui.noResultsFound": "未找到结果。",
   "ui.graph": "分支图",
   "ui.description": "描述",

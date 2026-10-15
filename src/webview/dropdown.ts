@@ -70,6 +70,7 @@ export class Dropdown {
     this.filterInput.className = "dropdownFilterInput";
     this.filterInput.placeholder = l10n.filterPlaceholder.replace("{0}", dropdownType);
     filter.appendChild(this.filterInput);
+    if (this.multiple) filter.appendChild(this.createFilterToggle());
     this.menuElem = document.createElement("div");
     this.menuElem.className = "dropdownMenu";
     this.menuElem.appendChild(filter);
@@ -94,7 +95,23 @@ export class Dropdown {
       },
       true
     );
+    this.filterInput.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" || e.isComposing) return;
+      e.preventDefault();
+      this.toggleFilteredOptions();
+    });
     this.filterInput.addEventListener("keyup", () => this.filter());
+  }
+
+  private createFilterToggle() {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "dropdownFilterToggle";
+    button.title = l10n.toggleFiltered;
+    button.setAttribute("aria-label", l10n.toggleFiltered);
+    button.textContent = "\u2713";
+    button.addEventListener("click", () => this.toggleFilteredOptions());
+    return button;
   }
 
   private handleDocumentClick(e: Event) {
@@ -375,15 +392,36 @@ export class Dropdown {
   }
 
   private filter() {
-    const val = this.filterInput.value.toLowerCase();
     let matches = false;
     for (let i = 0; i < this.options.length; i++) {
-      const match = this.options[i].name.toLowerCase().includes(val);
+      const match = this.optionMatchesFilter(i);
       (<HTMLElement>this.optionsElem.children[i]).style.display = match ? "block" : "none";
       if (match) matches = true;
     }
     this.filterInput.style.display = "block";
     this.noResultsElem.style.display = matches ? "none" : "block";
+  }
+
+  private optionMatchesFilter(index: number) {
+    const val = this.filterInput.value.toLowerCase();
+    return this.options[index].name.toLowerCase().includes(val);
+  }
+
+  private toggleFilteredOptions() {
+    if (!this.multiple) return;
+    const indexes: number[] = [];
+    for (let i = 1; i < this.options.length; i++) {
+      if (this.optionMatchesFilter(i)) indexes.push(i);
+    }
+    if (indexes.length === 0) return;
+
+    this.selectedOptions.delete(0);
+    for (const index of indexes) {
+      if (!this.selectedOptions.delete(index)) this.selectedOptions.add(index);
+    }
+    if (this.selectedOptions.size === 0) this.selectedOptions.add(0);
+    this.render();
+    this.emitMultiValue();
   }
 
   public close() {

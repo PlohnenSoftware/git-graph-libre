@@ -48,6 +48,7 @@
   "ui.createFirstCommit": "Create your first commit to see the graph here",
   "ui.showAll": "Show All",
   "ui.filterPlaceholder": "Filter {0}...",
+  "ui.toggleFiltered": "Invert selection",
   "ui.noResultsFound": "No results found.",
   "ui.graph": "Graph",
   "ui.description": "Description",
