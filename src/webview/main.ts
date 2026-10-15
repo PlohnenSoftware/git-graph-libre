@@ -7120,7 +7120,18 @@ document.addEventListener("keyup", (e) => {
   if (e.key === "Escape") hideDialogAndContextMenu();
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement)) confirmDialog();
+  if (e.key !== "Enter") return;
+  if (e.isComposing || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!dialog.classList.contains("active")) return;
+  // Textareas keep Enter for line breaks; selects and buttons already
+  // consume Enter natively, so confirming here would double-trigger.
+  if (
+    e.target instanceof HTMLTextAreaElement ||
+    e.target instanceof HTMLSelectElement ||
+    e.target instanceof HTMLButtonElement
+  )
+    return;
+  confirmDialog();
 });
 document.addEventListener("click", hideContextMenuListener);
 document.addEventListener("contextmenu", hideContextMenuListener);

@@ -3855,6 +3855,43 @@ describe("webview rendering", () => {
     });
   });
 
+  it("ignores composed, repeated, modified, and control-owned Enter in dialogs", () => {
+    openHeadCommitContextMenu();
+    clickContextMenuItem("Create Branch");
+    setDialogInput("feature/guarded-enter");
+    const input = document.getElementById("dialogInput0");
+    if (input === null) throw new Error("Missing branch name input");
+    const dialog = document.getElementById("dialog");
+    const sentBefore = vscodeMock.sentMessages.length;
+
+    for (const init of [
+      { isComposing: true },
+      { repeat: true },
+      { ctrlKey: true },
+      { metaKey: true },
+      { altKey: true }
+    ]) {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, ...init }));
+      expect(vscodeMock.sentMessages.length).toBe(sentBefore);
+      expect(dialog?.classList.contains("active")).toBe(true);
+    }
+
+    const select = document.createElement("select");
+    document.body.appendChild(select);
+    select.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(vscodeMock.sentMessages.length).toBe(sentBefore);
+    select.remove();
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "createBranch",
+      repo: REPO,
+      branchName: "feature/guarded-enter",
+      commitHash: "abc123",
+      checkout: true
+    });
+  });
+
   it("creates branches without checking out when the option is cleared", () => {
     openHeadCommitContextMenu();
     clickContextMenuItem("Create Branch");
