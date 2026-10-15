@@ -72,6 +72,7 @@ export async function cherrypickCommit(
 ): Promise<void> {
   requireValue(input.commitHash, "Commit hash");
   const args = ["cherry-pick"];
+  if (input.noCommit) args.push("--no-commit");
   if (input.parentIndex > 0) args.push("-m", String(input.parentIndex));
   args.push(input.commitHash);
   await runGitRaw(git, {
@@ -90,6 +91,7 @@ export async function revertCommit(
 ): Promise<void> {
   requireValue(input.commitHash, "Commit hash");
   const args = ["revert", "--no-edit"];
+  if (input.noCommit) args.push("--no-commit");
   if (input.parentIndex > 0) args.push("-m", String(input.parentIndex));
   args.push(input.commitHash);
   await runGitRaw(git, {

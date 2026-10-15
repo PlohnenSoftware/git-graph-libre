@@ -144,12 +144,16 @@
 }
 
 .dropdownFilter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   position: relative;
   padding: 4px;
   user-select: none;
 }
 .dropdownFilterInput {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   box-sizing: border-box;
   background-color: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
@@ -168,6 +172,28 @@
 .dropdownFilterInput:focus {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 0;
+}
+.dropdownFilterToggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  border: 1px solid var(--vscode-input-border, var(--ngg-neutral-border));
+  border-radius: 4px;
+  outline: none;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  cursor: pointer;
+}
+.dropdownFilterToggle:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 0;
+}
+.dropdownFilterToggle svg {
+  display: block;
 }
 
 .dropdownNoResults {

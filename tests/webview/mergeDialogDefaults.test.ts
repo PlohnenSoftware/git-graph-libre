@@ -269,6 +269,7 @@ describe("merge and pull dialog no-fast-forward defaults", () => {
         branchName: "other",
         createNewCommit: pullBranchNoFastForward,
         squash: false,
+        noCommit: false,
         noVerify: false
       });
     }

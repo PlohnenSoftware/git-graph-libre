@@ -278,4 +278,51 @@ describe("Dropdown", () => {
     expect(selectedValues.at(-1)).toEqual([""]);
     expect(dropdown.isShowAllSelected()).toBe(true);
   });
+
+  it("flips each filtered multi-select row from Enter and the filter button", () => {
+    const selectedValues: string[][] = [];
+    const dropdown = new Dropdown(
+      "repoSelect",
+      false,
+      "branches",
+      (values) => {
+        selectedValues.push(values);
+      },
+      true
+    );
+    dropdown.setOptions(
+      [
+        { name: "Show All", value: "" },
+        { name: "main", value: "main" },
+        { name: "feature/menu", value: "feature/menu" },
+        { name: "feature/filter", value: "feature/filter" }
+      ],
+      ["main", "feature/menu"]
+    );
+
+    document
+      .querySelector<HTMLElement>(".dropdownCurrentValue")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const filterInput = document.querySelector<HTMLInputElement>(".dropdownFilterInput");
+    const toggle = document.querySelector<HTMLButtonElement>(".dropdownFilterToggle");
+    if (filterInput === null || toggle === null) throw new Error("Missing filter controls");
+    expect(toggle.getAttribute("aria-label")).toBe("Invert selection");
+    expect(toggle.querySelector("svg")).not.toBeNull();
+    expect(toggle.textContent).toBe("");
+
+    filterInput.value = "feature";
+    filterInput.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+    filterInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(selectedValues.at(-1)).toEqual(["main", "feature/filter"]);
+
+    toggle.click();
+    expect(selectedValues.at(-1)).toEqual(["main", "feature/menu"]);
+
+    filterInput.value = "";
+    filterInput.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+    dropdown.selectOption("feature/filter");
+    filterInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(selectedValues.at(-1)).toEqual([""]);
+    expect(dropdown.isShowAllSelected()).toBe(true);
+  });
 });

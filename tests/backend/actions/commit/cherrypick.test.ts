@@ -32,7 +32,8 @@ describe("cherrypickCommit", () => {
   it("cherry-picks a commit onto the current branch", async () => {
     await cherrypickCommit(simpleGit(repo), {
       commitHash: cherrypickHash,
-      parentIndex: 0
+      parentIndex: 0,
+      noCommit: false
     });
     expect(fs.existsSync(path.join(repo, "g"))).toBe(true);
   });
@@ -45,7 +46,8 @@ describe("cherrypickCommit", () => {
     git(["commit", "-m", "orphan base"], repo);
     await cherrypickCommit(simpleGit(repo), {
       commitHash: rootHash,
-      parentIndex: 0
+      parentIndex: 0,
+      noCommit: false
     });
     expect(fs.existsSync(path.join(repo, "f"))).toBe(true);
   });
@@ -54,8 +56,32 @@ describe("cherrypickCommit", () => {
     await expect(
       cherrypickCommit(simpleGit(repo), {
         commitHash: "0000000000000000000000000000000000000000",
-        parentIndex: 0
+        parentIndex: 0,
+        noCommit: false
       })
     ).rejects.toThrow();
+  });
+
+  it("stages the cherry-pick without creating a commit when noCommit is set", async () => {
+    const head = cp.execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo }).toString().trim();
+    git(["checkout", "-b", "nocommit-source"], repo);
+    fs.writeFileSync(path.join(repo, "nocommit-file"), "n");
+    git(["add", "nocommit-file"], repo);
+    git(["commit", "-m", "nocommit source"], repo);
+    const source = cp.execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo }).toString().trim();
+    git(["checkout", head], repo);
+    await cherrypickCommit(simpleGit(repo), {
+      commitHash: source,
+      parentIndex: 0,
+      noCommit: true
+    });
+    expect(cp.execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo }).toString().trim()).toBe(
+      head
+    );
+    expect(fs.readFileSync(path.join(repo, "nocommit-file"), "utf8")).toBe("n");
+    expect(
+      cp.execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: repo }).toString()
+    ).toContain("nocommit-file");
+    git(["reset", "--hard", "HEAD"], repo);
   });
 });

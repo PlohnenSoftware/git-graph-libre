@@ -16,7 +16,7 @@ type ActionPayloads = {
   branchFromStash: { selector: string; branchName: string };
   checkoutBranch: { branchName: string; remoteBranch: string | null };
   checkoutCommit: { commitHash: string };
-  cherrypickCommit: { commitHash: string; parentIndex: number };
+  cherrypickCommit: { commitHash: string; parentIndex: number; noCommit: boolean };
   cleanUntrackedFiles: { includeDirectories: boolean };
   createArchive: { ref: string };
   createBranch: { commitHash: string; branchName: string; checkout?: boolean };
@@ -79,6 +79,7 @@ type ActionPayloads = {
     remote: string;
     createNewCommit: boolean;
     squash: boolean;
+    noCommit: boolean;
     noVerify: boolean;
   };
   pushAllTags: {
@@ -111,7 +112,7 @@ type ActionPayloads = {
     interactive: boolean;
   };
   updateBranchFromUpstream: { branchName: string; force: boolean };
-  revertCommit: { commitHash: string; parentIndex: number };
+  revertCommit: { commitHash: string; parentIndex: number; noCommit: boolean };
   squashCommitSelection: { commitHashes: string[]; message: string; noVerify: boolean };
   stageFiles: { filePaths: string[] };
   unstageFiles: { filePaths: string[] };
