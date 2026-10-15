@@ -3819,6 +3819,34 @@ describe("webview rendering", () => {
     receiveLoadedCommits(twoCommits, "abc123");
   });
 
+  it("keeps a context menu inside a window shorter than the menu", () => {
+    receiveLoadedCommits(twoCommits, "abc123");
+    const menu = document.getElementById("contextMenu");
+    if (menu === null) throw new Error("Missing context menu");
+    const bounds = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      if (this.id === "contextMenu") {
+        const maxHeight = Number.parseFloat(this.style.maxHeight);
+        const height = Number.isFinite(maxHeight) ? Math.min(400, maxHeight) : 400;
+        return new DOMRect(0, 0, 180, height);
+      }
+      return bounds.call(this);
+    };
+    const previousHeight = window.innerHeight;
+    Object.defineProperty(window, "innerHeight", { value: 120, configurable: true });
+    try {
+      const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
+      headRow?.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, clientY: 90 })
+      );
+      expect(menu.style.maxHeight).toBe("120px");
+      expect(Number.parseFloat(menu.style.top)).toBe(0);
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = bounds;
+      Object.defineProperty(window, "innerHeight", { value: previousHeight, configurable: true });
+    }
+  });
+
   it("creates branches and renames local refs from context menus", () => {
     openHeadCommitContextMenu();
     clickContextMenuItem("Create Branch");
