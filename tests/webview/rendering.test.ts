@@ -2912,7 +2912,7 @@ describe("webview rendering", () => {
     message.value = "New subject\n\nBody";
     const sentBeforeEnter = vscodeMock.sentMessages.length;
     message.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    expect(vscodeMock.sentMessages.length).toBe(sentBeforeEnter);
+    expect(vscodeMock.sentMessages).toHaveLength(sentBeforeEnter);
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
       command: "editHeadCommitMessage",
@@ -3912,14 +3912,14 @@ describe("webview rendering", () => {
       { altKey: true }
     ]) {
       input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, ...init }));
-      expect(vscodeMock.sentMessages.length).toBe(sentBefore);
+      expect(vscodeMock.sentMessages).toHaveLength(sentBefore);
       expect(dialog?.classList.contains("active")).toBe(true);
     }
 
     const select = document.createElement("select");
     document.body.appendChild(select);
     select.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    expect(vscodeMock.sentMessages.length).toBe(sentBefore);
+    expect(vscodeMock.sentMessages).toHaveLength(sentBefore);
     select.remove();
 
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
