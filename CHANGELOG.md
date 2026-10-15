@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A context menu taller than the window stays inside it and scrolls.**
+
 ### Added
 
 - **Cherry Pick, Revert, and Pull can stage the changes without committing.**

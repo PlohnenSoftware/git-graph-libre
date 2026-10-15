@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7.0.0
+        uses: actions/setup-node@v7.1.0
         with:
           node-version: 24
 
@@ -78,7 +78,7 @@ jobs:
       # job restores them in one step and the layout it gets is the layout
       # `.vscodeignore` whitelists and the loader reads.
       - name: Upload engine binaries
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: native-all
           path: engine/native/*/git-graph.node

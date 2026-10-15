@@ -6678,6 +6678,7 @@ function showContextMenu(
   hideContextMenuListener();
   contextMenu.style.opacity = "0";
   contextMenu.className = "active";
+  contextMenu.style.maxHeight = `${window.innerHeight}px`;
   contextMenu.innerHTML = html;
   const bounds = contextMenu.getBoundingClientRect();
   contextMenu.style.left = `${
@@ -6685,11 +6686,10 @@ function showContextMenu(
       ? event.pageX - 2
       : event.pageX - bounds.width + 2
   }px`;
-  contextMenu.style.top = `${
-    event.pageY - window.pageYOffset + bounds.height < window.innerHeight
-      ? event.pageY - 2
-      : event.pageY - bounds.height + 2
-  }px`;
+  const clientY = event.pageY - window.pageYOffset;
+  const preferredTop =
+    clientY - 2 + bounds.height < window.innerHeight ? clientY - 2 : clientY - bounds.height + 2;
+  contextMenu.style.top = `${Math.max(0, preferredTop) + window.pageYOffset}px`;
   contextMenu.style.opacity = "1";
 
   addListenerToClass("contextMenuItem", "click", (ev) => {
@@ -6731,6 +6731,7 @@ function hideContextMenu() {
   contextMenu.innerHTML = "";
   contextMenu.style.left = "0px";
   contextMenu.style.top = "0px";
+  contextMenu.style.maxHeight = "";
   if (contextMenuSource !== null) {
     contextMenuSource.classList.remove("contextMenuActive");
     contextMenuSource = null;

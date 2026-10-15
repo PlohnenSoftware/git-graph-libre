@@ -236,6 +236,8 @@ describe("dialog styles", () => {
     expect(menu).toContain("var(--vscode-menu-background)");
     expect(menu).toContain("var(--vscode-menu-border");
     expect(menu).toContain("border-radius: 5px;");
+    expect(menu).toContain("box-sizing: border-box;");
+    expect(menu).toContain("overflow-y: auto;");
     expect(ruleFor(css, "#contextMenu li.contextMenuItem")).toContain("border-radius: 3px;");
     expect(ruleFor(css, "#contextMenu li.contextMenuDivider")).toContain(
       "var(--vscode-menu-separatorBackground"
