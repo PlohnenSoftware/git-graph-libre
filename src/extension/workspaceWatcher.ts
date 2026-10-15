@@ -51,7 +51,7 @@ export function createRepoWatcher(
     if (changes) repoManager.sendRepos();
   }
 
-  async function onWatcherCreate(uri: vscode.Uri) {
+  function onWatcherCreate(uri: vscode.Uri) {
     let path = getPathFromUri(uri);
     if (path.includes("/.git/")) return;
     if (path.endsWith("/.git")) path = path.slice(0, -5);

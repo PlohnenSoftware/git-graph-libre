@@ -225,7 +225,7 @@ export type GitInputOptions = GitCommandOptions & {
  * consistent.
  */
 export function runGitWithInput(_git: SimpleGit, options: GitInputOptions): Promise<string> {
-  return runGitCommand(async () => {
+  return runGitCommand(() => {
     const result = spawnSync(options.binary, options.args, {
       cwd: options.repo ?? undefined,
       input: options.input,
@@ -238,6 +238,6 @@ export function runGitWithInput(_git: SimpleGit, options: GitInputOptions): Prom
         `git ${options.args.join(" ")} exited with ${result.status}: ${result.stderr ?? ""}`
       );
     }
-    return result.stdout;
+    return Promise.resolve(result.stdout);
   }, options);
 }

@@ -629,7 +629,7 @@ export function registerMessageHandlers(
     });
   });
 
-  bridge.onMessage("loadExtensionSettings", async (msg) => {
+  bridge.onMessage("loadExtensionSettings", (msg) => {
     let status: string | null = null;
     let settings: ExtensionSetting[] = [];
     try {
