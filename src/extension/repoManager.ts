@@ -107,23 +107,20 @@ export function createRepoManager(
     }
   }
 
-  function checkReposExist() {
-    return new Promise<boolean>((resolve) => {
-      const repoPaths = Object.keys(repos);
-      let changes = false;
-      evalPromises(repoPaths, 3, (path) => isGitRepository(path, config.gitPath())).then(
-        (results) => {
-          for (let i = 0; i < repoPaths.length; i++) {
-            if (!results[i]) {
-              removeRepo(repoPaths[i]);
-              changes = true;
-            }
-          }
-          if (changes) sendRepos();
-          resolve(changes);
-        }
-      );
-    });
+  async function checkReposExist() {
+    const repoPaths = Object.keys(repos);
+    let changes = false;
+    const results = await evalPromises(repoPaths, 3, (path) =>
+      isGitRepository(path, config.gitPath())
+    );
+    for (let i = 0; i < repoPaths.length; i++) {
+      if (!results[i]) {
+        removeRepo(repoPaths[i]);
+        changes = true;
+      }
+    }
+    if (changes) sendRepos();
+    return changes;
   }
 
   return {
