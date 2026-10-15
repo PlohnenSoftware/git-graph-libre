@@ -259,6 +259,24 @@ describe("dialog styles", () => {
     expect(dropdownCss).toContain("var(--vscode-focusBorder)");
   });
 
+  it("keeps the dropdown filter row fixed while only the option list scrolls", () => {
+    const menu = ruleFor(dropdownCss, ".dropdownMenu");
+    // The menu is the frame, not the scroll region: if it scrolls, the
+    // filter input and the invert-selection button scroll away with it.
+    expect(menu).toContain("flex-direction: column;");
+    expect(menu).toContain("overflow: hidden;");
+    expect(menu).not.toContain("overflow-y: auto;");
+    expect(ruleFor(dropdownCss, ".dropdown.dropdownOpen .dropdownMenu")).toContain(
+      "display: flex;"
+    );
+    expect(ruleFor(dropdownCss, ".dropdownFilter")).toContain("flex: none;");
+    const options = ruleFor(dropdownCss, ".dropdownOptions");
+    expect(options).toContain("overflow-y: auto;");
+    // Without this a flex item refuses to shrink below its content and
+    // the list pushes past the menu's max-height instead of scrolling.
+    expect(options).toContain("min-height: 0;");
+  });
+
   it("keeps the details row free of the legacy bottom separator", () => {
     expect(css).not.toContain("#commitDetails td:after");
   });

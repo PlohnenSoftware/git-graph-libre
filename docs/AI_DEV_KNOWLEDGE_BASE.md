@@ -649,7 +649,12 @@ may not define the token):
   menu radius, 3px item radius, 4px menu padding.
 - Dropdown widget: control on `--vscode-dropdown-*`, option list on
   `--vscode-dropdown-listBackground` plus `--vscode-list-*` hover/selection
-  tokens, filter input on the input tokens above.
+  tokens, filter input on the input tokens above. The open menu is a flex
+  column in which the filter row — the input plus, in multi-selects, the
+  invert-selection button — is a fixed header (`flex: none`) and only
+  `.dropdownOptions` scrolls; never put `overflow-y: auto` back on
+  `.dropdownMenu`, which scrolls the header away together with the list
+  (maintainer fix, `2026-10-16`; pinned in `dialogStyles.test.ts`).
 - **Forced settings use a locked control, never prose and never a missing
   control.** When the git command behind a dialog does not let the user choose
   a value, show the **same control in the same place**, in its forced state,
