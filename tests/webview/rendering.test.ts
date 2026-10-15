@@ -2908,6 +2908,9 @@ describe("webview rendering", () => {
     const message = document.getElementById("dialogInput0") as HTMLTextAreaElement | null;
     if (message === null) throw new Error("Missing edit message textarea");
     message.value = "New subject\n\nBody";
+    const sentBeforeEnter = vscodeMock.sentMessages.length;
+    message.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(vscodeMock.sentMessages.length).toBe(sentBeforeEnter);
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
       command: "editHeadCommitMessage",
@@ -2918,7 +2921,7 @@ describe("webview rendering", () => {
 
     openHeadCommitContextMenu();
     clickContextMenuItem("Drop Commit");
-    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
       command: "dropCommit",
       repo: REPO,
@@ -3826,7 +3829,9 @@ describe("webview rendering", () => {
       true
     );
     setDialogInput("feature/sonar-cleanup");
-    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    document
+      .getElementById("dialogInput0")
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
       command: "createBranch",

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Enter confirms a dialog.** In any dialog with a primary action, such as
+  Create Branch, pressing Enter does the same thing as clicking that button.
+  Enter inside a message box still inserts a line break.
 - **Searching history is about eight times faster**, and no longer starts four
   `git` processes for one search. Measured on a real 1,036-commit repository:
   62 ms to 8 ms. What it matches is unchanged — the same literal text search

@@ -7111,10 +7111,16 @@ function hideDialogAndContextMenu() {
   if (dialog.classList.contains("active")) hideDialog();
   if (contextMenu.classList.contains("active")) hideContextMenu();
 }
+function confirmDialog() {
+  document.getElementById("dialogAction")?.click();
+}
 
 /* Global Listeners */
 document.addEventListener("keyup", (e) => {
   if (e.key === "Escape") hideDialogAndContextMenu();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement)) confirmDialog();
 });
 document.addEventListener("click", hideContextMenuListener);
 document.addEventListener("contextmenu", hideContextMenuListener);
