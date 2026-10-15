@@ -4,6 +4,8 @@
 #contextMenu {
   display: none;
   position: absolute;
+  box-sizing: border-box;
+  overflow-y: auto;
   background-color: var(--vscode-menu-background);
   box-shadow: 0 2px 8px var(--vscode-widget-shadow);
   color: var(--vscode-menu-foreground);
