@@ -69,7 +69,7 @@ export function createRepoSearch(repoManager: RepoManager, config: Config, logge
       const newDepth = config.maxDepthOfRepoSearch();
       if (newDepth > maxDepthOfRepoSearch) {
         maxDepthOfRepoSearch = newDepth;
-        searchWorkspaceForRepos();
+        void searchWorkspaceForRepos();
       } else {
         maxDepthOfRepoSearch = newDepth;
       }
