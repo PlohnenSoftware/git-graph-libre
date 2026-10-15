@@ -410,6 +410,82 @@ The extension is already split into clean layers:
   baseline, and the `1.5.0` analysis behind it measures only what changed after
   it. Two analyses, one release — check the window (`period.parameter`) before
   quoting a `new_coverage` number from either.
+- On `2026-10-16` both versions advanced `1.7.0` → `1.8.0` at the maintainer's
+  request. **`1.7.0` was analyzed but never tagged or published** — the last
+  release tag stays `v1.6.2` until `v1.8.0` is cut — so this is the third
+  folded version number after `1.4.3` and `1.5.1`: the whole Rust engine line
+  (Phase 16), the dialog Enter-to-confirm, the multi-select quick toggle, the
+  `--no-commit` dialog options, and the context-menu overflow fix ship as one
+  `1.8.0` section in the changelog, and there is no `[1.7.0]` heading or
+  compare link. Advancing `sonar.projectVersion` with the package version
+  closes the `Previous Version` window that measured the engine line against
+  `1.6.2` and starts the next epoch at the `1.8.0` line; the first `1.8.0`
+  analysis therefore measures only what changes after it, so check
+  `period.parameter` before quoting a `new_coverage` number from either side
+  of the advance. The `1.6.0`/`1.6.1`/`1.6.2` and `1.7.0`-line advances are
+  recorded in their release and slice notes rather than in this list.
+  Gate over the bumped tree (`2026-10-16`): strict Biome clean on the touched
+  files, `pnpm run package` clean (258 files linted; one `info` that the
+  `biome.jsonc` `$schema` still names `2.5.13` against CLI `2.5.15`),
+  `pnpm run test` green (`69`/`704` backend plus `48`/`503` webview),
+  `pnpm run l10n:check` `100%` for all four locales, fresh
+  `pnpm run test:coverage` `117` files / `1207` tests at `93.0%` lines
+  (`6558/7054` in the generated `lcov.info`). The Rust arm was skipped under
+  its own rule: the bump touches no `engine/**` file.
+  The first `pnpm run sonar:scan` attempt that day failed during bootstrap
+  (`Failed to parse the entry in the bootstrap index`): the configured host
+  was answering every path with a Cloudflare `307` to a GitHub organization
+  page, so the scanner downloaded markup where it expects its engine index,
+  and nothing listened on `127.0.0.1:9000` either. After the maintainer
+  restored the instance the same day — it came back as `26.10` and sat at
+  `DB_MIGRATION_NEEDED` until its migration ran, then `UP` — the whole gate
+  was rerun in order with fresh coverage, and the scan completed: task
+  `a383aee0-9cd1-4be8-bff5-7cd52d491360`, analysis
+  `55b3f62f-40b1-4af0-9836-a8a79c388e47`, window `PREVIOUS_VERSION 1.7.0`
+  as expected for the first `1.8.0` analysis. **That first verdict was
+  `ERROR`, on exactly one of its seven reported conditions**: the
+  project-wide `software_quality_reliability_issues = 0` read `13`. Every
+  new-code condition passed (`new_coverage` `88.8` against `85`,
+  `new_violations` `3` against `5`, `new_duplicated_lines_density` `0.0`,
+  `new_software_quality_high_issues` `0`), as did the maintainability-rating
+  and security project-wide conditions. The `13` were all inherited, none of
+  them in code this bump — or the whole `1.7.0` line — added: ten
+  `typescript:S9383` floating-promise findings (eight in
+  `src/avatarManager.ts`, one each in `src/extension/repoManager.ts` and
+  `src/extension/workspaceSearch.ts`) and three `typescript:S7503`
+  async-without-await findings that now carry a `RELIABILITY` impact
+  (`src/backend/utils/gitRunner.ts`, `src/extension/messageHandler.ts`,
+  `src/extension/workspaceWatcher.ts`). They surfaced because the server
+  was upgraded (`26.9` → `26.10`) between the last green scan and this one;
+  this is the project-wide-condition trap the gate notes above describe,
+  arriving via a rule-set change rather than via code. The `3`
+  new-code violations under the threshold were all `typescript:S5906`
+  assertion-style findings in `tests/webview/rendering.test.ts` from the
+  merged feature branches.
+  The maintainer directed fixing them rather than accepting them in the UI,
+  in small signed commits on this branch: the eight `avatarManager`
+  floating promises settled or explicitly `void`ed, `checkReposExist`
+  rewritten as plain `async`/`await` (its promise-constructor wrapper would
+  have hung forever on a rejection, though `isGitRepository` cannot reject),
+  the depth-change rescan marked `void` like its `extension.ts` twin, the
+  three needless `async`s dropped where each contract already allowed it
+  (`runGitCommand` awaits its operation inside `try`/`catch`; the bridge
+  handler type is `void | Promise<void>`; the watcher matches its
+  non-async sibling), and the three `S5906` assertions switched to
+  `toHaveLength` instead of sheltering under the threshold of `5`. Each
+  commit ran strict Biome on its staged files, the full typecheck, and its
+  focused suites. The whole gate then reran in order — `package`, `test`
+  (`69`/`704` plus `48`/`503`), `l10n:check` `100%`, fresh `test:coverage`
+  (`117`/`1207`, `93.0%` lines in `lcov.info`) — and the rescan returned
+  **`OK` on all seven conditions**: task
+  `69732471-f01e-40f6-9d16-b34d5979f2dc`, analysis
+  `e48941f4-7920-4689-8f8f-20b352682e4c`, window `PREVIOUS_VERSION 1.7.0`,
+  `software_quality_reliability_issues` `0`, `new_violations` `0`,
+  `new_coverage` `87.0`, duplication `0.0`, high issues `0`. An independent
+  re-read of the API after that analysis agrees: reliability-impact open
+  issues `0`, new-period open issues `0`, new-period `TO_REVIEW` hotspots
+  `0` (26.10's hotspots search wants `project=`, not `projectKey=`). Only
+  with that `OK` on record was the bump itself committed.
 - The project uses the maintainer's `ZAM` quality gate, and **not all of its
   conditions are scoped to new code**. As of `2026-07-29` it has six conditions:
   `new_duplicated_lines_density` at most `1` and `new_violations` at most `3` on
@@ -444,7 +520,8 @@ The extension is already split into clean layers:
   listing seven `OK` conditions is not evidence the eighth is gone — read
   `/api/qualitygates/show?name=ZAM` for the conditions and
   `/api/hotspots/search?...&inNewCodePeriod=true&status=TO_REVIEW` for what
-  would trip it. The server is Community Edition (`26.9.0`), so there is no
+  would trip it. The server is Community Edition (`26.10.0.133078` as of
+  `2026-10-16`; it was `26.9.0` when the eight conditions above were read), so there is no
   branch or pull-request analysis: every scan lands on the project's single
   branch, which is why the pre-commit working-tree workflow is the only one
   available and why reviewing a branch means scanning its checked-out tree.

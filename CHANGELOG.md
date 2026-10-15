@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-16
+
+There is no 1.7.0 release. That version number opened the Rust engine line
+and was analyzed during development but never tagged or published, so its
+work ships here as 1.8.0 — the same call as 1.4.3 and 1.5.1 before it. The
+sequence is v1.6.2 → v1.8.0.
+
 ### Fixed
 
 - **A context menu taller than the window stays inside it and scrolls.**
@@ -770,7 +777,8 @@ system. Includes everything prepared for 1.5.1, which was never released.
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.2...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.2...v1.8.0
 [1.6.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.5.0...v1.6.0
