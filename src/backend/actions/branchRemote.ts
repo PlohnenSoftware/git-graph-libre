@@ -227,10 +227,13 @@ export async function pullBranch(
   const args = ["pull", input.remote, input.branchName];
   if (input.squash) {
     args.push("--squash");
-  } else if (input.createNewCommit) {
+  } else if (input.createNewCommit || input.noCommit) {
     args.push("--no-ff");
   }
-  if (input.noCommit) args.push("--no-commit");
+  // Git silently ignores --no-commit when the pull fast-forwards or
+  // rebases, so pin a no-commit pull to a real merge: --no-ff above
+  // rules out the fast-forward, --no-rebase the pull.rebase config.
+  if (input.noCommit) args.push("--no-rebase", "--no-commit");
   if (input.noVerify) args.push("--no-verify");
 
   await runGitRaw(git, {
