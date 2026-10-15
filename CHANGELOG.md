@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Cherry Pick, Revert, and Pull can stage the changes without committing.**
+  The dialog has the same option the merge dialog uses.
 - **Searching history is about eight times faster**, and no longer starts four
   `git` processes for one search. Measured on a real 1,036-commit repository:
   62 ms to 8 ms. What it matches is unchanged — the same literal text search

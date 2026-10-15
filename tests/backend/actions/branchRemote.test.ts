@@ -157,6 +157,7 @@ describe("branch remote actions", () => {
       branchName: "release",
       createNewCommit: true,
       squash: false,
+      noCommit: false,
       noVerify: false
     });
     await pullBranch(git, {
@@ -165,6 +166,7 @@ describe("branch remote actions", () => {
       branchName: "release",
       createNewCommit: true,
       squash: true,
+      noCommit: true,
       noVerify: true
     });
 
@@ -174,6 +176,7 @@ describe("branch remote actions", () => {
       "origin",
       "release",
       "--squash",
+      "--no-commit",
       "--no-verify"
     ]);
   });

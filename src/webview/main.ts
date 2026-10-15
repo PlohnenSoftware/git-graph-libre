@@ -3031,23 +3031,25 @@ class GitGraphView {
       this.visibleContextMenuItem("commit", "cherryPick", {
         title: l10n.cherryPick + ELLIPSIS,
         onClick: () =>
-          this.showParentCommitActionDialog(
+          this.showNoCommitParentDialog(
             hash,
             sourceElem,
             "cherrypickCommit",
             l10n.dialogCherryPickConfirm,
-            l10n.dialogYesCherryPick
+            l10n.dialogYesCherryPick,
+            l10n.dialogCherryPickNoCommit
           )
       }),
       this.visibleContextMenuItem("commit", "revert", {
         title: l10n.revert + ELLIPSIS,
         onClick: () =>
-          this.showParentCommitActionDialog(
+          this.showNoCommitParentDialog(
             hash,
             sourceElem,
             "revertCommit",
             l10n.dialogRevertConfirm,
-            l10n.dialogYesRevert
+            l10n.dialogYesRevert,
+            l10n.dialogRevertNoCommit
           )
       })
     ];
@@ -3307,36 +3309,65 @@ class GitGraphView {
       sourceElem
     );
   }
-  private showParentCommitActionDialog(
+  private showNoCommitParentDialog(
     hash: string,
     sourceElem: HTMLElement,
     command: "cherrypickCommit" | "revertCommit",
     titleTemplate: string,
-    actionName: string
+    actionName: string,
+    noCommitLabel: string
   ) {
     const title = titleTemplate.replace("{0}", `<b><i>${this.displayHash(hash)}</i></b>`);
     const parentHashes = this.commits[this.commitLookup[hash]].parentHashes;
-    // Root commits (zero parents) take the same plain path as single-parent
-    // commits: parentIndex 0 sends no `-m` mainline flag, and git handles a
-    // root natively in plain `git cherry-pick <hash>` / `git revert <hash>`.
-    // Only merges (2+ parents) need the parent-selection dialog.
+    const noCommit = { type: "checkbox" as const, name: noCommitLabel, value: false };
+    // Root commits (zero parents) take the same path as single-parent commits:
+    // parentIndex 0 sends no `-m` mainline flag. Only merges need the parent list.
     if (parentHashes.length < 2) {
-      showConfirmationDialog(
+      showFormDialog(
         title,
-        () => this.sendParentCommitAction(command, hash, 0),
+        [noCommit],
+        actionName,
+        (values) => this.sendNoCommitParentAction(command, hash, 0, values[0] === "checked"),
         sourceElem
       );
       return;
     }
 
-    showSelectDialog(
+    showFormDialog(
       title,
-      "1",
-      this.buildParentCommitOptions(parentHashes),
+      [
+        {
+          type: "select",
+          name: "",
+          options: this.buildParentCommitOptions(parentHashes),
+          default: "1"
+        },
+        noCommit
+      ],
       actionName,
-      (parentIndex) => this.sendParentCommitAction(command, hash, Number.parseInt(parentIndex, 10)),
+      (values) =>
+        this.sendNoCommitParentAction(
+          command,
+          hash,
+          Number.parseInt(values[0], 10),
+          values[1] === "checked"
+        ),
       sourceElem
     );
+  }
+  private sendNoCommitParentAction(
+    command: "cherrypickCommit" | "revertCommit",
+    hash: string,
+    parentIndex: number,
+    noCommit: boolean
+  ) {
+    sendMessage({
+      command,
+      repo: this.currentRepo,
+      commitHash: hash,
+      parentIndex,
+      noCommit
+    });
   }
   private buildParentCommitOptions(parentHashes: string[]) {
     return parentHashes.map((parentHash, index) => ({
@@ -3347,18 +3378,6 @@ class GitGraphView {
           : ""),
       value: (index + 1).toString()
     }));
-  }
-  private sendParentCommitAction(
-    command: "cherrypickCommit" | "revertCommit",
-    hash: string,
-    parentIndex: number
-  ) {
-    sendMessage({
-      command,
-      repo: this.currentRepo,
-      commitHash: hash,
-      parentIndex
-    });
   }
   private showMergeCommitDialog(hash: string, sourceElem: HTMLElement) {
     showFormDialog(
@@ -4400,6 +4419,7 @@ class GitGraphView {
           value: this.config.pullBranchNoFastForward
         },
         { type: "checkbox", name: l10n.dialogPullBranchSquash, value: false },
+        { type: "checkbox", name: l10n.dialogPullBranchNoCommit, value: false },
         { type: "checkbox", name: l10n.dialogBypassGitHooks, value: false }
       ],
       l10n.dialogPullBranchSubmit,
@@ -4411,7 +4431,8 @@ class GitGraphView {
           branchName,
           createNewCommit: values[0] === "checked",
           squash: values[1] === "checked",
-          noVerify: values[2] === "checked"
+          noCommit: values[2] === "checked",
+          noVerify: values[3] === "checked"
         });
         showActionRunningDialog(l10n.statusPullingBranch);
       },

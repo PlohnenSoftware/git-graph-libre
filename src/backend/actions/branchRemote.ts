@@ -230,6 +230,7 @@ export async function pullBranch(
   } else if (input.createNewCommit) {
     args.push("--no-ff");
   }
+  if (input.noCommit) args.push("--no-commit");
   if (input.noVerify) args.push("--no-verify");
 
   await runGitRaw(git, {
