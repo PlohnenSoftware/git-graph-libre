@@ -6667,9 +6667,7 @@ function showContextMenu(
   }px`;
   const clientY = event.pageY - window.pageYOffset;
   const preferredTop =
-    clientY - 2 + bounds.height < window.innerHeight
-      ? clientY - 2
-      : clientY - bounds.height + 2;
+    clientY - 2 + bounds.height < window.innerHeight ? clientY - 2 : clientY - bounds.height + 2;
   contextMenu.style.top = `${Math.max(0, preferredTop) + window.pageYOffset}px`;
   contextMenu.style.opacity = "1";
 

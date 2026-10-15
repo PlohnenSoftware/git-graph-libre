@@ -3837,7 +3837,7 @@ describe("webview rendering", () => {
     try {
       const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
       headRow?.dispatchEvent(
-        new MouseEvent("contextmenu", { bubbles: true, clientY: 90, pageY: 90 })
+        new MouseEvent("contextmenu", { bubbles: true, clientY: 90 })
       );
       expect(menu.style.maxHeight).toBe("120px");
       expect(Number.parseFloat(menu.style.top)).toBe(0);
