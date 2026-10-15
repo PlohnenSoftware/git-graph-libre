@@ -157,6 +157,7 @@ describe("branch remote actions", () => {
       branchName: "release",
       createNewCommit: true,
       squash: false,
+      noCommit: false,
       noVerify: false
     });
     await pullBranch(git, {
@@ -165,7 +166,17 @@ describe("branch remote actions", () => {
       branchName: "release",
       createNewCommit: true,
       squash: true,
+      noCommit: true,
       noVerify: true
+    });
+    await pullBranch(git, {
+      repo: "/repo",
+      remote: "origin",
+      branchName: "release",
+      createNewCommit: false,
+      squash: false,
+      noCommit: true,
+      noVerify: false
     });
 
     expect(git.raw).toHaveBeenNthCalledWith(1, ["pull", "origin", "release", "--no-ff"]);
@@ -174,7 +185,18 @@ describe("branch remote actions", () => {
       "origin",
       "release",
       "--squash",
+      "--no-rebase",
+      "--no-commit",
       "--no-verify"
+    ]);
+    // A no-commit pull must not fast-forward or rebase past the flag.
+    expect(git.raw).toHaveBeenNthCalledWith(3, [
+      "pull",
+      "origin",
+      "release",
+      "--no-ff",
+      "--no-rebase",
+      "--no-commit"
     ]);
   });
 

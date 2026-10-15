@@ -2790,7 +2790,8 @@ describe("webview rendering", () => {
       command: "cherrypickCommit",
       repo: REPO,
       commitHash: "abc123",
-      parentIndex: 0
+      parentIndex: 0,
+      noCommit: false
     });
 
     openHeadCommitContextMenu();
@@ -2800,7 +2801,8 @@ describe("webview rendering", () => {
       command: "revertCommit",
       repo: REPO,
       commitHash: "abc123",
-      parentIndex: 0
+      parentIndex: 0,
+      noCommit: false
     });
 
     openHeadCommitContextMenu();
@@ -3112,54 +3114,61 @@ describe("webview rendering", () => {
       command: "cherrypickCommit",
       repo: REPO,
       commitHash: "merge123",
-      parentIndex: 2
+      parentIndex: 2,
+      noCommit: false
     });
 
     receiveLoadedCommits(twoCommits, "abc123");
   });
 
-  it("cherry-picks and reverts a root commit through the plain confirmation dialog", () => {
+  it("cherry-picks and reverts a root commit with the stage-without-committing checkbox", () => {
     const rootRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="def456"]');
     expect(rootRow).not.toBeNull();
     rootRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
     expect(contextMenuItem("Drop Commit")).toBeUndefined();
     clickContextMenuItem("Cherry Pick");
-    expect(document.getElementById("dialogInput0")).toBeNull();
+    const noCommit = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    expect(noCommit?.type).toBe("checkbox");
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
 
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
       command: "cherrypickCommit",
       repo: REPO,
       commitHash: "def456",
-      parentIndex: 0
+      parentIndex: 0,
+      noCommit: false
     });
     dismissDialog();
 
     rootRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
     clickContextMenuItem("Revert");
-    expect(document.getElementById("dialogInput0")).toBeNull();
+    const revertNoCommit = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    expect(revertNoCommit?.type).toBe("checkbox");
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
 
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
       command: "revertCommit",
       repo: REPO,
       commitHash: "def456",
-      parentIndex: 0
+      parentIndex: 0,
+      noCommit: false
     });
     dismissDialog();
   });
 
-  it("keeps the single-parent cherry-pick on the plain confirmation path", () => {
+  it("keeps the single-parent cherry-pick checkbox unchecked by default", () => {
     openHeadCommitContextMenu();
     clickContextMenuItem("Cherry Pick");
-    expect(document.getElementById("dialogInput0")).toBeNull();
+    const noCommit = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    expect(noCommit?.checked).toBe(false);
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
 
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
       command: "cherrypickCommit",
       repo: REPO,
       commitHash: "abc123",
-      parentIndex: 0
+      parentIndex: 0,
+      noCommit: false
     });
     dismissDialog();
   });
@@ -3775,9 +3784,11 @@ describe("webview rendering", () => {
     clickContextMenuItem("Pull Branch");
     const noFastForward = document.getElementById("dialogInput0") as HTMLInputElement | null;
     const squash = document.getElementById("dialogInput1") as HTMLInputElement | null;
-    const bypassHooks = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    const noCommit = document.getElementById("dialogInput2") as HTMLInputElement | null;
+    const bypassHooks = document.getElementById("dialogInput3") as HTMLInputElement | null;
     expect(noFastForward).not.toBeNull();
     expect(squash).not.toBeNull();
+    expect(noCommit).not.toBeNull();
     expect(bypassHooks).not.toBeNull();
     if (noFastForward !== null) noFastForward.checked = true;
     if (squash !== null) squash.checked = true;
@@ -3790,6 +3801,7 @@ describe("webview rendering", () => {
       branchName: "feature/menu",
       createNewCommit: true,
       squash: true,
+      noCommit: false,
       noVerify: true
     });
 
@@ -3817,6 +3829,34 @@ describe("webview rendering", () => {
     });
 
     receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("keeps a context menu inside a window shorter than the menu", () => {
+    receiveLoadedCommits(twoCommits, "abc123");
+    const menu = document.getElementById("contextMenu");
+    if (menu === null) throw new Error("Missing context menu");
+    const bounds = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      if (this.id === "contextMenu") {
+        const maxHeight = Number.parseFloat(this.style.maxHeight);
+        const height = Number.isFinite(maxHeight) ? Math.min(400, maxHeight) : 400;
+        return new DOMRect(0, 0, 180, height);
+      }
+      return bounds.call(this);
+    };
+    const previousHeight = window.innerHeight;
+    Object.defineProperty(window, "innerHeight", { value: 120, configurable: true });
+    try {
+      const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
+      headRow?.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, clientY: 90 })
+      );
+      expect(menu.style.maxHeight).toBe("120px");
+      expect(Number.parseFloat(menu.style.top)).toBe(0);
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = bounds;
+      Object.defineProperty(window, "innerHeight", { value: previousHeight, configurable: true });
+    }
   });
 
   it("creates branches and renames local refs from context menus", () => {
