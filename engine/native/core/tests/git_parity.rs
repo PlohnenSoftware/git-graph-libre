@@ -17,7 +17,7 @@ use std::process::Command;
 use git_graph_core::repository::Repo;
 use git_graph_core::search::search_commits;
 use git_graph_core::types::{GitFileStatus, SearchOptions};
-use git_graph_core::{details, diff, log};
+use git_graph_core::{details, diff, log, status};
 
 use common::TestRepo;
 
@@ -151,4 +151,68 @@ fn a_shallow_boundary_commit_has_no_parents_and_opens_its_details() {
     .unwrap();
     let hit = hits.iter().find(|hit| hit.hash == boundary).unwrap();
     assert!(hit.parents.is_empty(), "{:?}", hit.parents);
+}
+
+/* ---------- Working-tree status ---------- */
+
+/// How many lines `git status --porcelain` prints — what "Uncommitted Changes (N)" counts.
+fn porcelain_lines(repo: &TestRepo) -> usize {
+    repo.git(&["status", "--porcelain", "--untracked-files=all"])
+        .lines()
+        .filter(|line| !line.is_empty())
+        .count()
+}
+
+#[test]
+fn an_intent_to_add_file_is_an_uncommitted_change() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    repo.commit_file("a.txt", "1\n", "one");
+    repo.write("new.txt", "new\n");
+    repo.git(&["add", "-N", "new.txt"]);
+
+    let engine = open(&repo);
+    // git: ` A new.txt`. Missing it, the engine dropped the row entirely.
+    assert_eq!(porcelain_lines(&repo), 1);
+    assert_eq!(status::count_changes(&engine, true).unwrap(), 1);
+}
+
+#[test]
+fn a_file_removed_from_the_index_but_kept_on_disk_is_two_changes() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    repo.commit_file("a.txt", "1\n", "one");
+    repo.git(&["rm", "--quiet", "--cached", "a.txt"]);
+
+    let engine = open(&repo);
+    // git: `D  a.txt` and `?? a.txt`.
+    assert_eq!(porcelain_lines(&repo), 2);
+    assert_eq!(status::count_changes(&engine, true).unwrap(), 2);
+    // Without untracked files only the staged deletion remains.
+    assert_eq!(status::count_changes(&engine, false).unwrap(), 1);
+}
+
+#[test]
+fn a_staged_rename_counts_as_git_status_lists_it() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    repo.commit_file("a.txt", &"x\n".repeat(20), "one");
+    repo.git(&["mv", "a.txt", "b.txt"]);
+
+    let engine = open(&repo);
+    // Renames on (git's default): one `R` line.
+    assert_eq!(porcelain_lines(&repo), 1);
+    assert_eq!(status::count_changes(&engine, true).unwrap(), 1);
+
+    // `status.renames=false`: `D  a.txt` and `A  b.txt`, two lines.
+    repo.git(&["config", "status.renames", "false"]);
+    let engine = open(&repo);
+    assert_eq!(porcelain_lines(&repo), 2);
+    assert_eq!(status::count_changes(&engine, true).unwrap(), 2);
+
+    // The full change list still pairs the rename, as `git diff --find-renames` does.
+    let changes = status::uncommitted_changes(&engine).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(changes[0].kind, GitFileStatus::Renamed);
+    assert_eq!(changes[0].old_file_path, "a.txt");
 }

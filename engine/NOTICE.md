@@ -51,6 +51,10 @@ in terms of git, since that layer is not incorporated. The parts taken:
 - `repository::Shallow` reports a shallow clone's boundary commits without
   parents, as git does. The graph walk, commit details, diffs and line counts
   read parents through it, and so does this project's own `search_commits`.
+- `status::count_changes` counts what `git status --porcelain` prints: a
+  `git add -N` path, both lines of a path removed from the index but kept on
+  disk, and both halves of a staged rename when `status.renames` (or
+  `diff.renames`) is off.
 
 `native/core/tests/git_parity.rs` adapts the matching tests from the same
 commit. Everything else in `ff4aafe` was left out: single-file diff headers,
