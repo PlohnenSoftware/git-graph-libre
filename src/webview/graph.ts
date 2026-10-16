@@ -417,16 +417,7 @@ export class Graph {
     for (let i = 0; i < commits.length; i++) {
       this.vertices.push(new Vertex(i));
     }
-    for (const [i, commit] of commits.entries()) {
-      for (const parentHash of commit.parentHashes) {
-        if (typeof commitLookup[parentHash] === "number") {
-          this.vertices[i].addParent(this.vertices[commitLookup[parentHash]]);
-        } else if (parentHash !== "") {
-          this.vertices[i].setParentBeyondGraph();
-        }
-      }
-      if (commit.stash !== undefined) this.vertices[i].setStashRow();
-    }
+    this.linkVertices(commits, commitLookup);
 
     if (commits.length > 0) {
       if (commits[0].hash === "*") {
@@ -441,6 +432,24 @@ export class Graph {
     while (start !== -1) {
       this.determinePath(start);
       start = this.findStart();
+    }
+  }
+
+  /**
+   * Connects each vertex to the parents that are on this page and marks stash
+   * rows. A parent beyond the loaded page is only recorded as existing, which
+   * keeps the root square for commits that have no parents at all (`[""]`).
+   */
+  private linkVertices(commits: GitCommitNode[], commitLookup: { [hash: string]: number }) {
+    for (const [i, commit] of commits.entries()) {
+      for (const parentHash of commit.parentHashes) {
+        if (typeof commitLookup[parentHash] === "number") {
+          this.vertices[i].addParent(this.vertices[commitLookup[parentHash]]);
+        } else if (parentHash !== "") {
+          this.vertices[i].setParentBeyondGraph();
+        }
+      }
+      if (commit.stash !== undefined) this.vertices[i].setStashRow();
     }
   }
 
