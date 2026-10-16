@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 
 import { AvatarManager } from "./avatarManager";
 import { closeAllEngineRepositories } from "./backend/engine/index";
+import { pruneInstalledEngineBinaries } from "./backend/engine/prune";
 import { gitClientFactory } from "./backend/gitClient";
 import { buildExtensionUri } from "./backend/utils/path";
 import { config } from "./config";
@@ -28,6 +29,19 @@ import { buildLanguagePayload, listBundleLanguages } from "./telemetry/language"
 export function activate(context: vscode.ExtensionContext) {
   initL10n(context.extensionPath);
   const logger = createLogger(l10n.t("outputChannel.text"));
+  // The universal VSIX carries every platform's engine binary; drop the ones
+  // this host can never load. Production installs only — a development host
+  // runs from the repository, whose built binaries are the developer's own.
+  // Best effort and off the activation path: it must never delay or fail it.
+  if (context.extensionMode === vscode.ExtensionMode.Production) {
+    void pruneInstalledEngineBinaries(context.extensionPath).then(({ removed, freedBytes }) => {
+      if (removed.length > 0) {
+        logger.log(
+          `[engine] removed ${removed.length} unused platform binaries (${(freedBytes / 1_000_000).toFixed(1)} MB): ${removed.join(", ")}`
+        );
+      }
+    });
+  }
   const extensionState = new ExtensionState(context);
   const avatarManager = new AvatarManager(config.gitPath, extensionState, config.backend);
   const statusBarItem = new StatusBarItem(context, config, logger);

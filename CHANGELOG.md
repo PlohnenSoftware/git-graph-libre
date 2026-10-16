@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The installed extension drops engine binaries for other platforms.**
+  The one published package carries the Rust engine for every platform
+  (about 50 MB of binaries once installed); on first activation the
+  extension now deletes the ones your machine can never load, keeping
+  only your platform's (on Linux, both the glibc and musl builds of your
+  architecture). Nothing changes about what you download or how updates
+  arrive — a new version simply prunes itself again.
 - **A switched-off engine now shows on the status strip.** With
   `git-graph-libre.backend: "git-cli"` the strip used to read plain
   "Ready" with the same filled green dot as a running engine, and only

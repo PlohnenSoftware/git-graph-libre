@@ -160,6 +160,21 @@ const LINUX_PLATFORM_DIRECTORIES: Record<string, readonly [string, string] | und
   arm64: ["linux-arm64-gnu", "linux-arm64-musl"]
 };
 
+/** The binary's file name inside every platform directory. */
+export const ENGINE_BINARY_NAME = "git-graph.node";
+
+/**
+ * Every `engine/native` directory this project ships a binary in. The
+ * activation prune deletes by this list and no other name, so nothing else
+ * that ever lands under `engine/native` is its business.
+ */
+export const ENGINE_PLATFORM_DIRECTORIES: readonly string[] = [
+  ...Object.values(FIXED_PLATFORM_DIRECTORIES).filter((dir) => dir !== undefined),
+  ...Object.values(LINUX_PLATFORM_DIRECTORIES)
+    .filter((pair) => pair !== undefined)
+    .flatMap((pair) => [...pair])
+];
+
 /**
  * The `engine/native` directories that may hold this platform's binary, in
  * the order to try them, or empty when there is no prebuilt target at all
@@ -201,8 +216,8 @@ function platformDirectories(): string[] {
  */
 function candidateAddonFiles(directory: string): string[] {
   return [
-    path.join(__dirname, "..", "engine", "native", directory, "git-graph.node"),
-    path.join(__dirname, "..", "..", "..", "engine", "native", directory, "git-graph.node")
+    path.join(__dirname, "..", "engine", "native", directory, ENGINE_BINARY_NAME),
+    path.join(__dirname, "..", "..", "..", "engine", "native", directory, ENGINE_BINARY_NAME)
   ];
 }
 

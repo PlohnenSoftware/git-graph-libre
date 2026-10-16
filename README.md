@@ -76,7 +76,9 @@ entirely on the `git` CLI.
 than just yours — Windows, macOS and Linux on x64 and arm64, including musl
 systems such as Alpine — which is what the published package contains. It
 cross-compiles all of them from whichever machine you run it on, so releasing
-never depends on a particular CI service.
+never depends on a particular CI service. The installed copy removes the
+binaries for other platforms the first time it runs, so keeping every
+platform in the one package costs the download, not your disk.
 
 ## Configuration
 

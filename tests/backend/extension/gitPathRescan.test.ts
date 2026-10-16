@@ -50,7 +50,8 @@ vi.mock("vscode", () => ({
     registerCommand: () => ({ dispose: () => {} })
   },
   env: { language: "en" },
-  ViewColumn: { One: 1 }
+  ViewColumn: { One: 1 },
+  ExtensionMode: { Production: 1, Development: 2, Test: 3 }
 }));
 
 vi.mock("@/avatarManager", () => ({
