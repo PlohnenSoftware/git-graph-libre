@@ -23,6 +23,10 @@
   whole folders, by dragging them between the staged and unstaged panes;
   right-click the row to switch between the folder tree and a flat path list
 - **Avatar support**: Optional avatars from GitHub, GitLab, or Gravatar
+- **Status at a glance**: Rest the pointer on the status dot above the toolbar
+  to see the Git version, whether the built-in Rust engine is running, and
+  which of the two loaded the graph; an amber dot reading "Ready (Rust engine
+  unavailable)" means everything works through Git, only slower
 - **Multi-repo**: Work with multiple repositories and declared Git submodules in
   one workspace; reload the extension after changing `.gitmodules`
 - **Devcontainer ready**: Works in remote and container environments

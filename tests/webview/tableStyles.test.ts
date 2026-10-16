@@ -309,6 +309,36 @@ describe("commit table styles", () => {
     expect(css.match(/^\.statusStrip \{[^}]+\}/m)?.[0] ?? "").toContain("cursor: default;");
   });
 
+  it("marks a ready strip over an unavailable engine in amber, and says so", () => {
+    const amber =
+      css.match(
+        /^\.statusStrip\[data-state="ready"\]\[data-engine="unavailable"\] \.statusIndicator \{[^}]+\}/m
+      )?.[0] ?? "";
+    expect(amber).toContain("var(--vscode-editorWarning-foreground, var(--ngg-warning))");
+    expect(css.match(/--ngg-warning:\s*([^;]+);/)?.[1]).toMatch(/^oklch\(/);
+    // The note qualifies "Ready" only: busy and error states keep their own text.
+    expect(css.match(/^\.statusEngineNote \{[^}]+\}/m)?.[0] ?? "").toContain("display: none;");
+    expect(css).toMatch(
+      /^\.statusStrip\[data-state="ready"\]\[data-engine="unavailable"\] \.statusEngineNote \{\s*display: inline;/m
+    );
+    // An engine switched off by the backend setting is a choice, not a fault.
+    expect(css).not.toContain('[data-engine="off"]');
+  });
+
+  it("styles the component popup as an editor hover, outside the clipped strip", () => {
+    const popup = css.match(/^\.componentStatusPopup \{[^}]+\}/m)?.[0] ?? "";
+    expect(popup).toContain("position: fixed;");
+    expect(popup).toContain("var(--vscode-editorHoverWidget-background");
+    expect(popup).toContain("var(--vscode-editorHoverWidget-border");
+    expect(css).toMatch(/^\.componentStatusPopup\[hidden\] \{\s*display: none;/m);
+    expect(
+      css.match(/^\.componentStatusRow\[data-tone="warning"\] \.componentStatusDot \{[^}]+\}/m)?.[0]
+    ).toContain("var(--ngg-warning)");
+    expect(css.match(/^\.statusSummary:focus-visible \{[^}]+\}/m)?.[0] ?? "").toContain(
+      "var(--vscode-focusBorder)"
+    );
+  });
+
   it("styles the staged and unstaged panes with drag affordances", () => {
     expect(css).toContain(".uncommittedFile {");
     expect(css.match(/^\.uncommittedFile \{[^}]+\}/m)?.[0] ?? "").toContain("cursor: grab;");

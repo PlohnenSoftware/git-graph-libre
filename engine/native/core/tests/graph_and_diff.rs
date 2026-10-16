@@ -51,6 +51,53 @@ fn assembles_a_graph_with_its_branch_and_tag_labels() {
 }
 
 #[test]
+fn reports_the_author_date_only_when_asked() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    let first = repo.commit_file("a.txt", "1", "first");
+    // An amend with `--date` rewrites the author date only, so the two dates of this commit
+    // differ the way they do after any rebase or cherry-pick.
+    repo.commit_file("b.txt", "2", "second");
+    repo.git(&[
+        "commit",
+        "--quiet",
+        "--amend",
+        "--no-edit",
+        "--date=1500000000 +0000",
+    ]);
+    let second = repo.head();
+    let git_date = |format: &str| -> i64 {
+        repo.git(&["show", "--quiet", &format!("--format={format}"), &second])
+            .trim()
+            .parse()
+            .unwrap()
+    };
+    let (author_date, committer_date) = (git_date("%at"), git_date("%ct"));
+    assert_eq!(author_date, 1_500_000_000);
+    assert_ne!(author_date, committer_date);
+
+    let engine = open(&repo);
+    let date_of = |options: &LogOptions, hash: &str| -> i64 {
+        let data = graph::load_commits(&engine, options).unwrap();
+        data.commits.iter().find(|c| c.hash == hash).unwrap().date
+    };
+
+    // The default is git's: the committer date, as `%ct` reports it.
+    assert_eq!(date_of(&view_options(100), &second), committer_date);
+    let author_options = LogOptions {
+        use_author_date: true,
+        ..view_options(100)
+    };
+    // `dateType: "Author Date"` is what the CLI backend formats as `%at`.
+    assert_eq!(date_of(&author_options, &second), author_date);
+    // A commit whose two dates agree reads the same either way.
+    assert_eq!(
+        date_of(&author_options, &first),
+        date_of(&view_options(100), &first)
+    );
+}
+
+#[test]
 fn reports_when_more_commits_are_available() {
     require_git!();
     let mut repo = TestRepo::new();

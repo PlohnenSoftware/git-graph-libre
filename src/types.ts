@@ -157,6 +157,74 @@ export type StashDisplay = "table" | "graph" | "both";
  */
 export type EngineBackend = "auto" | "git-cli";
 
+/**
+ * Why the Rust engine is not serving reads although the backend setting
+ * allows it. Every one of these leaves the extension fully working on the Git
+ * command line:
+ *
+ * - `unsupportedPlatform`: this build ships no engine for the platform;
+ * - `missing`: the install carries no binary for it (a build without Rust);
+ * - `loadFailed`: the binary is there, and the operating system refused it;
+ * - `versionMismatch`: the binary is from a different build than the extension;
+ * - `incompatible`: the binary lacks a function the extension calls.
+ */
+export type EngineUnavailableReason =
+  | "unsupportedPlatform"
+  | "missing"
+  | "loadFailed"
+  | "versionMismatch"
+  | "incompatible";
+
+/**
+ * The Rust engine as the status strip reports it. `platform` names the build
+ * target (`linux-x64-gnu`), or the raw `platform-arch` pair when no target
+ * exists; `detail` is the loader's own explanation, shown verbatim.
+ */
+export type EngineComponentStatus =
+  | { state: "active"; version: string; platform: string }
+  | { state: "off" }
+  | {
+      state: "unavailable";
+      reason: EngineUnavailableReason;
+      platform: string;
+      detail: string | null;
+    };
+
+/** `git --version` through the configured binary: the version line, or why it failed. */
+export type GitComponentStatus =
+  | { state: "ok"; path: string; version: string }
+  | { state: "failed"; path: string; detail: string };
+
+/**
+ * The pre-call declines: graph loads whose shape the engine cannot serve, so
+ * they go straight to the Git command line by design.
+ */
+export type GraphLoadDecline =
+  | "signatureColumn"
+  | "topoOrdering"
+  | "reflog"
+  | "unreachableCommits"
+  | "globPattern";
+
+/**
+ * Which backend answered the most recent graph load, and why the command line
+ * did when it did: `setting` is the `git-cli` backend preference,
+ * `unavailable` an engine that could not be loaded, and `handedBack` a load
+ * the engine passed back at run time (an unborn branch, HEAD beyond the page,
+ * a shape it declined).
+ */
+export type GraphLoadRoute = "engine" | "setting" | "unavailable" | "handedBack" | GraphLoadDecline;
+
+/**
+ * What the status indicator's popup lists. `git` is null when the binary was
+ * not probed; `graphLoad` is null until the first graph load of the session.
+ */
+export type ComponentStatus = {
+  git: GitComponentStatus | null;
+  engine: EngineComponentStatus;
+  graphLoad: GraphLoadRoute | null;
+};
+
 export type GitGraphViewState = {
   autoCenterCommitDetailsView: boolean;
   commitDetailsCompactFolders: boolean;
@@ -419,6 +487,21 @@ export type RequestSetTemporaryLanguage = {
   language: string;
 };
 
+/**
+ * Asked by the status indicator when a hover over it begins, so the popup
+ * opens on fresh answers. The host also pushes the response unasked when the
+ * backend setting or `git.path` changes, which keeps the indicator's color
+ * honest without a reload.
+ */
+export type RequestComponentStatus = {
+  command: "componentStatus";
+};
+export type ResponseComponentStatus = {
+  command: "componentStatus";
+  /** Not `status`: on a response, that name means a git action's outcome. */
+  components: ComponentStatus;
+};
+
 export type RequestMessage =
   | ActionRequest
   | QueryRequest
@@ -438,6 +521,7 @@ export type RequestMessage =
   | RequestUpdateExtensionSetting
   | RequestExportExtensionSettings
   | RequestImportExtensionSettings
+  | RequestComponentStatus
   | RequestSetTemporaryLanguage
   | RequestShowTelemetryConsent
   | RequestWebviewDiagnostic;
@@ -460,5 +544,6 @@ export type ResponseMessage =
   | ResponseUpdateExtensionSetting
   | ResponseExportExtensionSettings
   | ResponseImportExtensionSettings
+  | ResponseComponentStatus
   | ResponseRefresh
   | ResponseStartHistorySearch;

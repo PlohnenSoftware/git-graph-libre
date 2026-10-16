@@ -99,6 +99,7 @@ impl GraphOptions {
             show_untracked_files: true,
             show_commits_only_referenced_by_tags: true,
             use_mailmap: false,
+            use_author_date: false,
         }
     }
 

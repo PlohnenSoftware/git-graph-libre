@@ -8,19 +8,43 @@ import type { WebviewBridge } from "@/extension/webviewBridge";
 import { createWebviewPanel } from "@/extension/webviewPanel";
 import type { ExtensionState } from "@/extensionState";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
-import type { GitRepoSet, TelemetryConsent } from "@/types";
+import type {
+  ComponentStatus,
+  EngineComponentStatus,
+  GitRepoSet,
+  TelemetryConsent
+} from "@/types";
+
+const ACTIVE_ENGINE: EngineComponentStatus = {
+  state: "active",
+  version: "1.0.25",
+  platform: "linux-x64-gnu"
+};
 
 const mocks = vi.hoisted(() => ({
   buildWebviewHtml: vi.fn((_opts: { language?: string }): {
     html: string;
     isGraphLoaded: boolean;
+    engine: EngineComponentStatus | null;
   } => ({
     html: "<html>graph</html>",
-    isGraphLoaded: true
-  }))
+    isGraphLoaded: true,
+    engine: null
+  })),
+  buildComponentStatus: vi.fn(
+    async (_deps: unknown): Promise<ComponentStatus> => ({
+      git: { state: "ok", path: "git", version: "git version 2.51.0" },
+      engine: { state: "off" },
+      graphLoad: null
+    })
+  )
 }));
 
 vi.mock("@/extension/webviewHtml", () => ({ buildWebviewHtml: mocks.buildWebviewHtml }));
+vi.mock("@/extension/componentStatus", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/extension/componentStatus")>()),
+  buildComponentStatus: mocks.buildComponentStatus
+}));
 
 type ViewStateHandler = () => void;
 type RepoCallback = (repos: GitRepoSet, numRepos: number) => void;
@@ -31,7 +55,8 @@ function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: Teleme
   let consent: TelemetryConsent = opts?.consent ?? "enabled";
   mocks.buildWebviewHtml.mockImplementationOnce(() => ({
     html: initialIsGraphLoaded ? "<html>graph</html>" : "<html>placeholder</html>",
-    isGraphLoaded: initialIsGraphLoaded
+    isGraphLoaded: initialIsGraphLoaded,
+    engine: initialIsGraphLoaded ? ACTIVE_ENGINE : null
   }));
 
   let viewStateHandler: ViewStateHandler | undefined;
@@ -73,6 +98,7 @@ function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: Teleme
   const extensionState = { getLastActiveRepo: vi.fn(() => "/repo") };
   const onDispose = vi.fn();
   const onPanelShown = vi.fn();
+  const outputChannel = { appendLine: vi.fn() };
   const telemetryEvents: Array<{ feature: string; ok: boolean }> = [];
 
   const webviewPanel = createWebviewPanel({
@@ -80,7 +106,9 @@ function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: Teleme
     bridge: bridge as unknown as WebviewBridge,
     config: {
       tabIconColorTheme: () => "color",
-      telemetryConsent: () => consent
+      telemetryConsent: () => consent,
+      backend: () => "git-cli",
+      gitPath: () => "/opt/git"
     } as unknown as Config,
     repoFileWatcher: repoFileWatcher as unknown as RepoFileWatcher,
     extensionPath: process.cwd(),
@@ -88,7 +116,7 @@ function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: Teleme
     avatarManager: avatarManager as unknown as AvatarManager,
     repoManager: repoManager as unknown as RepoManager,
     extensionVersion: "1.2.3",
-    outputChannel: { appendLine: vi.fn() },
+    outputChannel,
     telemetry: {
       logFeature: (feature: string, ok: boolean) => {
         telemetryEvents.push({ feature, ok });
@@ -113,6 +141,7 @@ function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: Teleme
     },
     onDispose,
     onPanelShown,
+    outputChannel,
     panel,
     repoCallback: () => repoCallback,
     repoFileWatcher,
@@ -318,5 +347,49 @@ describe("createWebviewPanel", () => {
     const { panel, webviewPanel } = createHarness();
     webviewPanel.reveal(3 as unknown as vscode.ViewColumn);
     expect(panel.reveal).toHaveBeenCalledWith(3);
+  });
+
+  it("logs the engine state when it builds the graph document, and not for a placeholder", () => {
+    const graph = createHarness();
+    expect(graph.outputChannel.appendLine).toHaveBeenCalledWith(
+      "[engine] Rust engine 1.0.25 active (linux-x64-gnu)"
+    );
+
+    const placeholder = createHarness({ initialIsGraphLoaded: false });
+    const engineLines = placeholder.outputChannel.appendLine.mock.calls.filter(([line]) =>
+      String(line).startsWith("[engine]")
+    );
+    expect(engineLines).toHaveLength(0);
+  });
+
+  it("pushes fresh component status to a mounted graph, with the live settings", async () => {
+    const { bridge, outputChannel, webviewPanel } = createHarness();
+
+    await webviewPanel.refreshComponentStatus();
+
+    expect(mocks.buildComponentStatus).toHaveBeenCalledWith({
+      preference: "git-cli",
+      gitPath: "/opt/git"
+    });
+    expect(bridge.post).toHaveBeenCalledWith({
+      command: "componentStatus",
+      components: {
+        git: { state: "ok", path: "git", version: "git version 2.51.0" },
+        engine: { state: "off" },
+        graphLoad: null
+      }
+    });
+    expect(outputChannel.appendLine).toHaveBeenLastCalledWith(
+      "[engine] Rust engine off: the backend setting is git-cli, so every read uses the git CLI"
+    );
+  });
+
+  it("skips the push while a placeholder, which cannot receive it, is mounted", async () => {
+    const { bridge, webviewPanel } = createHarness({ initialIsGraphLoaded: false });
+
+    await webviewPanel.refreshComponentStatus();
+
+    expect(mocks.buildComponentStatus).not.toHaveBeenCalled();
+    expect(bridge.post).not.toHaveBeenCalled();
   });
 });

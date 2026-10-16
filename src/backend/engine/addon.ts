@@ -10,13 +10,20 @@
 import { createRequire } from "node:module";
 import * as path from "node:path";
 
+import type { EngineComponentStatus, EngineUnavailableReason } from "@/types";
+
 /**
  * The engine version the TypeScript side was built against. Mirrors
  * `[workspace.package] version` in `engine/Cargo.toml`; a test pins the two
  * together, so bumping the workspace version without updating this constant
  * fails the suite instead of shipping a skewed pair.
+ *
+ * Bump it whenever the TypeScript starts relying on engine behavior an older
+ * binary would silently lack: `1.0.25` taught `load_commits` the
+ * `useAuthorDate` option, which a `1.0.24` binary would ignore and answer
+ * with committer dates.
  */
-export const EXPECTED_ENGINE_VERSION = "1.0.24";
+export const EXPECTED_ENGINE_VERSION = "1.0.25";
 
 /**
  * The napi surface slice 16.3 uses. Extended read by read in later slices —
@@ -199,7 +206,20 @@ function candidateAddonFiles(directory: string): string[] {
   ];
 }
 
-let cachedAddon: EngineAddon | null | undefined;
+type ActiveStatus = Extract<EngineComponentStatus, { state: "active" }>;
+type UnavailableStatus = Extract<EngineComponentStatus, { state: "unavailable" }>;
+
+/** What the one load attempt of the session found: the addon, or why there is none. */
+export type EngineLoad =
+  | { addon: EngineAddon; status: ActiveStatus }
+  | { addon: null; status: UnavailableStatus };
+
+/** One candidate file's outcome: accepted, or refused with a reason. */
+export type AddonAttempt =
+  | { addon: EngineAddon }
+  | { reason: EngineUnavailableReason; detail: string | null };
+
+let cachedLoad: EngineLoad | undefined;
 
 /**
  * Load the engine addon for the host platform, or null when there is nothing
@@ -209,45 +229,141 @@ let cachedAddon: EngineAddon | null | undefined;
  * on exactly the CLI behavior.
  */
 export function loadEngineAddon(): EngineAddon | null {
-  if (cachedAddon !== undefined) return cachedAddon;
-  cachedAddon = tryLoadEngineAddon();
-  return cachedAddon;
+  return engineLoad().addon;
 }
 
-function tryLoadEngineAddon(): EngineAddon | null {
+/**
+ * The same attempt as `loadEngineAddon`, described: the version and build
+ * target that loaded, or the reason nothing did. Calling it loads the addon
+ * if nothing has yet, so callers honoring the `git-cli` preference must not
+ * reach it — that path never loads the engine at all.
+ */
+export function engineLoadStatus(): EngineLoad["status"] {
+  return engineLoad().status;
+}
+
+function engineLoad(): EngineLoad {
+  cachedLoad ??= tryLoadEngineAddon();
+  return cachedLoad;
+}
+
+function tryLoadEngineAddon(): EngineLoad {
   const directories = platformDirectories();
   // Absolute paths: esbuild leaves this require alone at bundle time, so
   // the `.node` binary is loaded from beside the bundle, never packed into
   // it. The require base is the candidate file itself — absolute requires
   // ignore the base, and `createRequire` never validates it, so this adds
-  // no filesystem assumption beyond the candidates. Every stage guards
-  // itself (the require, the shape check, the version read), so there is no
-  // outer catch left to cover.
+  // no filesystem assumption beyond the candidates.
+  return resolveEngineLoad(
+    directories,
+    candidateAddonFiles,
+    (addonFile) => createRequire(addonFile)(addonFile) as unknown,
+    `${process.platform}-${process.arch}`
+  );
+}
+
+/**
+ * How much a refusal says about what went wrong, so the reported reason is
+ * the most telling one across every candidate: a binary that loaded but was
+ * refused beats one the operating system would not load, which beats no
+ * file at all. Without the ranking, a Linux host whose glibc binary failed
+ * to load would report the musl fallback's absence instead.
+ */
+const REASON_RANK: Record<EngineUnavailableReason, number> = {
+  unsupportedPlatform: 0,
+  missing: 1,
+  loadFailed: 2,
+  incompatible: 3,
+  versionMismatch: 4
+};
+
+/**
+ * The loader's decision, pure in its arguments so every outcome is
+ * unit-testable without a binary. The first accepted candidate wins; with
+ * none, the most telling refusal is reported against the directory it came
+ * from. Every stage guards itself (the require, the shape check, the version
+ * read), so nothing escapes as a throw.
+ */
+export function resolveEngineLoad(
+  directories: readonly string[],
+  candidates: (directory: string) => readonly string[],
+  requireFile: (file: string) => unknown,
+  hostPlatform: string
+): EngineLoad {
+  if (directories.length === 0) {
+    return { addon: null, status: unavailable("unsupportedPlatform", hostPlatform, null) };
+  }
+  let refusal = unavailable("missing", directories[0], null);
   for (const directory of directories) {
-    for (const addonFile of candidateAddonFiles(directory)) {
-      let loaded: unknown;
-      try {
-        loaded = createRequire(addonFile)(addonFile) as unknown;
-      } catch {
-        continue;
+    for (const addonFile of candidates(directory)) {
+      const attempt = attemptAddon(addonFile, requireFile);
+      if ("addon" in attempt) {
+        return {
+          addon: attempt.addon,
+          status: { state: "active", version: EXPECTED_ENGINE_VERSION, platform: directory }
+        };
       }
-      const validated = validateLoadedAddon(loaded);
-      if (validated !== null) return validated;
+      if (REASON_RANK[attempt.reason] > REASON_RANK[refusal.reason]) {
+        refusal = unavailable(attempt.reason, directory, attempt.detail);
+      }
     }
   }
-  return null;
+  return { addon: null, status: refusal };
+}
+
+function unavailable(
+  reason: EngineUnavailableReason,
+  platform: string,
+  detail: string | null
+): UnavailableStatus {
+  return { state: "unavailable", reason, platform, detail };
+}
+
+function attemptAddon(addonFile: string, requireFile: (file: string) => unknown): AddonAttempt {
+  let loaded: unknown;
+  try {
+    loaded = requireFile(addonFile);
+  } catch (error: unknown) {
+    // Node's own code for a path with nothing at it; anything else came from
+    // a file that exists — a wrong C library, a damaged or foreign binary.
+    if ((error as { code?: unknown } | null)?.code === "MODULE_NOT_FOUND") {
+      return { reason: "missing", detail: null };
+    }
+    return { reason: "loadFailed", detail: firstLine(error) };
+  }
+  return classifyLoadedAddon(loaded);
+}
+
+function firstLine(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.split("\n", 1)[0] ?? message;
+}
+
+/**
+ * Accept a loaded module as the engine addon, or refuse it with the reason.
+ * A missing export or a version from a different build than this TypeScript
+ * must both land the caller on the CLI path.
+ */
+export function classifyLoadedAddon(loaded: unknown): AddonAttempt {
+  if (!isEngineAddon(loaded)) return { reason: "incompatible", detail: null };
+  const version = safeEngineVersion(loaded);
+  if (version !== EXPECTED_ENGINE_VERSION) {
+    return {
+      reason: "versionMismatch",
+      detail: `found ${version ?? "no version"}, expected ${EXPECTED_ENGINE_VERSION}`
+    };
+  }
+  return { addon: loaded };
 }
 
 /**
  * Accept a loaded module as the engine addon, or refuse it into null.
  * Separated from the loader so the contract is unit-testable without a
- * binary: a missing export or a version from a different build than this
- * TypeScript must both land the caller on the CLI path.
+ * binary.
  */
 export function validateLoadedAddon(loaded: unknown): EngineAddon | null {
-  if (!isEngineAddon(loaded)) return null;
-  if (safeEngineVersion(loaded) !== EXPECTED_ENGINE_VERSION) return null;
-  return loaded;
+  const attempt = classifyLoadedAddon(loaded);
+  return "addon" in attempt ? attempt.addon : null;
 }
 
 function isEngineAddon(loaded: unknown): loaded is EngineAddon {

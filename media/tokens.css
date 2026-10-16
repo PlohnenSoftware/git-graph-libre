@@ -17,6 +17,9 @@
   --ngg-neutral-border-strong: oklch(60% 0 0 / 0.5);
   --ngg-neutral-border-heavy: oklch(60% 0 0 / 0.75);
   --ngg-success: oklch(74% 0.12 152);
+  /* Degraded but working — the status indicator over an unavailable engine.
+     Same value as the warning-glyph fallback in table.css. */
+  --ngg-warning: oklch(78% 0.15 85);
   --ngg-signed-ref: var(
     --vscode-testing-iconPassed,
     var(--vscode-charts-green, var(--ngg-success))

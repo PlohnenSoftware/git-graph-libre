@@ -15,8 +15,6 @@
  *   per-commit signatures, and the CLI's `%G?` plus batched `gpgsig` probe
  *   (the 1.2.0 work separating genuinely unsigned from SSH-signed-but-
  *   unverifiable) has no engine counterpart;
- * - `Author Date`: the engine's wire date is always the committer date, while
- *   the CLI formats `%at` here;
  * - reflog tips or unreachable-commit discovery on a show-all load: the CLI
  *   adds `--reflog` / runs `git fsck --unreachable`, and the engine has no
  *   equivalent for either. With explicit refs the CLI ignores both flags
@@ -28,11 +26,15 @@
  *   depth-first while git interleaves branch lines by date within the same
  *   topological constraint — both valid, visibly different row orders, so
  *   topo loads stay on the CLI (pinned by the parity table).
+ *
+ * `Author Date` was a decline until engine `1.0.25`, whose `load_commits`
+ * takes `useAuthorDate` and answers with the date the CLI formats as `%at`.
  */
 
 import type { CommitOrdering, DateType, GitCommitNode, GitRef } from "@/backend/types";
 import { selectedLogRefs, uniqueNonEmpty } from "@/backend/utils/logFilters";
 import { normalizeHiddenRemotes } from "@/backend/utils/remoteRefs";
+import type { GraphLoadDecline } from "@/types";
 
 /** The route fields the engine decision, options and (16.5b) mapping need. */
 export type EngineLoadCommitsInput = {
@@ -73,26 +75,25 @@ export function engineLoadCommitsRefs(input: EngineLoadCommitsInput): string[] |
 }
 
 /**
- * Whether the engine may serve this load. Every false is a *decline*, not a
- * bug: the caller routes those loads straight to the CLI, unchanged.
+ * Why the engine may not serve this load, or null when it may. Every reason
+ * is a *decline*, not a bug: the caller routes those loads straight to the
+ * CLI, unchanged, and the status indicator names the reason.
  */
-export function shouldServeLoadCommitsFromEngine(input: EngineLoadCommitsInput): boolean {
+export function loadCommitsDecline(input: EngineLoadCommitsInput): GraphLoadDecline | null {
   // The signature column needs the CLI's `%G?` + `gpgsig` probe per commit.
-  if (input.showSignature === true) return false;
-  // The engine's wire date is always the committer date.
-  if (input.dateType === "Author Date") return false;
+  if (input.showSignature === true) return "signatureColumn";
   // The engine's topo tie-breaks differ visibly from git's (see above).
-  if (input.commitOrdering === "topo") return false;
+  if (input.commitOrdering === "topo") return "topoOrdering";
   const refs = engineLoadCommitsRefs(input);
   // `--glob=` is not understood by the engine's tip resolution.
-  if (refs?.some((ref) => ref.startsWith("--glob="))) return false;
-  if (refs !== null) return true;
+  if (refs?.some((ref) => ref.startsWith("--glob="))) return "globPattern";
+  if (refs !== null) return null;
   // On a show-all load the CLI adds `--reflog` / `git fsck --unreachable`,
   // which have no engine equivalent at all. With explicit refs the CLI
   // ignores both flags, so those loads stay on the engine.
-  if (input.includeReflog === true) return false;
-  if (input.includeUnreachableCommits === true) return false;
-  return true;
+  if (input.includeReflog === true) return "reflog";
+  if (input.includeUnreachableCommits === true) return "unreachableCommits";
+  return null;
 }
 
 /** One tag label as the engine encodes it. `annotated` marks the peeled record. */
@@ -209,16 +210,14 @@ export function parseEngineCommitData(text: string): EngineCommitData | null {
     return null;
   }
   if (typeof parsed !== "object" || parsed === null) return null;
-  const { commits, head, tags, branches, moreCommitsAvailable, error } =
-    parsed as Record<string, unknown>;
+  const { commits, head, tags, branches, moreCommitsAvailable, error } = parsed as Record<
+    string,
+    unknown
+  >;
   if (!Array.isArray(commits) || !(commits as unknown[]).every(isEngineCommit)) return null;
   if (head !== null && typeof head !== "string") return null;
   if (!isStringList(tags)) return null;
-  if (
-    branches !== undefined &&
-    branches !== null &&
-    !isStringList(branches as unknown)
-  ) {
+  if (branches !== undefined && branches !== null && !isStringList(branches as unknown)) {
     return null;
   }
   if (typeof moreCommitsAvailable !== "boolean") return null;
@@ -359,7 +358,9 @@ export function mapEngineCommitData(data: EngineCommitData, showStashes: boolean
  *   the shown flag alone, reproducing the CLI's `--tags` walk tips;
  * - `filterPaths`, `deferRemoteRefs`, `deferUncommittedChanges`, `useMailmap`
  *   are all false/empty: this fork's `loadCommits` route sends none of them
- *   and the CLI honors none of them.
+ *   and the CLI honors none of them;
+ * - `useAuthorDate` follows `dateType`: the CLI formats `%at` for
+ *   `Author Date` and `%ct` otherwise.
  */
 export function buildLoadCommitsOptions(input: EngineLoadCommitsInput): string {
   // The CLI scans `refs/tags` when tags are shown OR selected as filters,
@@ -383,6 +384,7 @@ export function buildLoadCommitsOptions(input: EngineLoadCommitsInput): string {
     showUncommittedChanges: input.showUncommittedChanges,
     showUntrackedFiles: true,
     showCommitsOnlyReferencedByTags: input.showTags !== false,
-    useMailmap: false
+    useMailmap: false,
+    useAuthorDate: input.dateType === "Author Date"
   });
 }

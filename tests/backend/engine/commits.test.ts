@@ -6,10 +6,10 @@ import {
   type EngineCommitData,
   type EngineLoadCommitsInput,
   engineLoadCommitsRefs,
+  loadCommitsDecline,
   mapEngineCommitData,
   parseEngineCommitData,
-  shortStashRef,
-  shouldServeLoadCommitsFromEngine
+  shortStashRef
 } from "@/backend/engine/commits";
 
 const BASE: EngineLoadCommitsInput = {
@@ -46,48 +46,58 @@ describe("engineLoadCommitsRefs", () => {
   });
 });
 
-describe("shouldServeLoadCommitsFromEngine", () => {
+describe("loadCommitsDecline", () => {
   it("serves a plain show-all load", () => {
-    expect(shouldServeLoadCommitsFromEngine(BASE)).toBe(true);
+    expect(loadCommitsDecline(BASE)).toBeNull();
   });
 
   it("declines the moment the signature column is on", () => {
-    expect(shouldServeLoadCommitsFromEngine({ ...BASE, showSignature: true })).toBe(false);
+    expect(loadCommitsDecline({ ...BASE, showSignature: true })).toBe("signatureColumn");
     // The column being off again restores the engine path.
-    expect(shouldServeLoadCommitsFromEngine({ ...BASE, showSignature: false })).toBe(true);
+    expect(loadCommitsDecline({ ...BASE, showSignature: false })).toBeNull();
   });
 
-  it("declines Author Date, whose `%at` has no engine equivalent", () => {
-    expect(shouldServeLoadCommitsFromEngine({ ...BASE, dateType: "Author Date" })).toBe(false);
+  it("serves Author Date, which the engine answers through `useAuthorDate`", () => {
+    expect(loadCommitsDecline({ ...BASE, dateType: "Author Date" })).toBeNull();
   });
 
   it("declines topo ordering, whose tie-breaks differ visibly from git", () => {
-    expect(shouldServeLoadCommitsFromEngine({ ...BASE, commitOrdering: "topo" })).toBe(false);
-    expect(shouldServeLoadCommitsFromEngine({ ...BASE, commitOrdering: "date" })).toBe(true);
-    expect(shouldServeLoadCommitsFromEngine({ ...BASE, commitOrdering: "author-date" })).toBe(true);
+    expect(loadCommitsDecline({ ...BASE, commitOrdering: "topo" })).toBe("topoOrdering");
+    expect(loadCommitsDecline({ ...BASE, commitOrdering: "date" })).toBeNull();
+    expect(loadCommitsDecline({ ...BASE, commitOrdering: "author-date" })).toBeNull();
   });
 
   it("declines reflog and unreachable discovery on show-all loads only", () => {
-    expect(shouldServeLoadCommitsFromEngine({ ...BASE, includeReflog: true })).toBe(false);
-    expect(shouldServeLoadCommitsFromEngine({ ...BASE, includeUnreachableCommits: true })).toBe(
-      false
+    expect(loadCommitsDecline({ ...BASE, includeReflog: true })).toBe("reflog");
+    expect(loadCommitsDecline({ ...BASE, includeUnreachableCommits: true })).toBe(
+      "unreachableCommits"
     );
     // With explicit refs the CLI ignores both flags, so the engine serves.
     const filtered = { ...BASE, branches: ["main"] };
     expect(
-      shouldServeLoadCommitsFromEngine({
+      loadCommitsDecline({
         ...filtered,
         includeReflog: true,
         includeUnreachableCommits: true
       })
-    ).toBe(true);
+    ).toBeNull();
   });
 
   it("declines `--glob=` patterns the engine cannot expand", () => {
-    expect(shouldServeLoadCommitsFromEngine({ ...BASE, branches: ["--glob=feature/*"] })).toBe(
-      false
-    );
-    expect(shouldServeLoadCommitsFromEngine({ ...BASE, branches: ["main"] })).toBe(true);
+    expect(loadCommitsDecline({ ...BASE, branches: ["--glob=feature/*"] })).toBe("globPattern");
+    expect(loadCommitsDecline({ ...BASE, branches: ["main"] })).toBeNull();
+  });
+
+  it("names the signature column first when several declines apply", () => {
+    // The order is the predicate's: the reason shown is the first that holds.
+    expect(
+      loadCommitsDecline({
+        ...BASE,
+        showSignature: true,
+        commitOrdering: "topo",
+        includeReflog: true
+      })
+    ).toBe("signatureColumn");
   });
 });
 
@@ -111,8 +121,19 @@ describe("buildLoadCommitsOptions", () => {
       showUncommittedChanges: true,
       showUntrackedFiles: true,
       showCommitsOnlyReferencedByTags: true,
-      useMailmap: false
+      useMailmap: false,
+      useAuthorDate: false
     });
+  });
+
+  it("asks for the author date exactly when the view shows Author Date", () => {
+    // The CLI formats `%at` for Author Date and `%ct` otherwise.
+    expect(
+      JSON.parse(buildLoadCommitsOptions({ ...BASE, dateType: "Author Date" })).useAuthorDate
+    ).toBe(true);
+    expect(
+      JSON.parse(buildLoadCommitsOptions({ ...BASE, dateType: "Commit Date" })).useAuthorDate
+    ).toBe(false);
   });
 
   it("mirrors the CLI defaults and normalization", () => {

@@ -4,12 +4,39 @@ import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  classifyLoadedAddon,
   EXPECTED_ENGINE_VERSION,
+  engineLoadStatus,
   isMuslRuntime,
   loadEngineAddon,
   platformDirectoriesFor,
+  resolveEngineLoad,
   validateLoadedAddon
 } from "@/backend/engine/addon";
+
+/** A module carrying every export the loader requires, at the expected version. */
+function completeAddon() {
+  return {
+    engineVersion: () => EXPECTED_ENGINE_VERSION,
+    remoteUrl: async () => null,
+    loadRepoInfo: async () => "{}",
+    loadCommits: async () => "{}",
+    loadCommitDetails: async () => "{}",
+    loadLineCounts: async () => "{}",
+    loadStashes: async () => "[]",
+    loadStashDetails: async () => "{}",
+    compareCommits: async () => "[]",
+    loadCommitFile: async () => "{}",
+    configList: async () => "{}",
+    authors: async () => "[]",
+    loadConfig: async () => "{}",
+    searchCommits: async () => "[]",
+    loadRefs: async () => "{}",
+    closeRepository: () => {},
+    closeAllRepositories: () => {},
+    openRepositoryCount: () => 0
+  };
+}
 
 function workspaceVersion(): string {
   const manifest = fs.readFileSync(path.resolve(__dirname, "../../../engine/Cargo.toml"), "utf8");
@@ -77,26 +104,7 @@ describe("engine addon loader", () => {
   });
 
   it("accepts a module with the expected version", () => {
-    const loaded = {
-      engineVersion: () => EXPECTED_ENGINE_VERSION,
-      remoteUrl: async () => null,
-      loadRepoInfo: async () => "{}",
-      loadCommits: async () => "{}",
-      loadCommitDetails: async () => "{}",
-      loadLineCounts: async () => "{}",
-      loadStashes: async () => "[]",
-      loadStashDetails: async () => "{}",
-      compareCommits: async () => "[]",
-      loadCommitFile: async () => "{}",
-      configList: async () => "{}",
-      authors: async () => "[]",
-      loadConfig: async () => "{}",
-      searchCommits: async () => "[]",
-      loadRefs: async () => "{}",
-      closeRepository: () => {},
-      closeAllRepositories: () => {},
-      openRepositoryCount: () => 0
-    };
+    const loaded = completeAddon();
     expect(validateLoadedAddon(loaded)).toBe(loaded);
   });
 
@@ -269,5 +277,115 @@ describe("engine addon loader", () => {
   ];
   it.each(refusals)("refuses %s into null", (_name, loaded) => {
     expect(validateLoadedAddon(loaded)).toBeNull();
+  });
+});
+
+describe("engine load status", () => {
+  const GNU = "linux-x64-gnu";
+  const MUSL = "linux-x64-musl";
+  const candidates = (directory: string) => [`/a/${directory}.node`, `/b/${directory}.node`];
+
+  function notFound(): never {
+    throw Object.assign(new Error("Cannot find module"), { code: "MODULE_NOT_FOUND" });
+  }
+
+  it("reports a platform with no build target by its raw platform pair", () => {
+    const load = resolveEngineLoad([], candidates, notFound, "linux-arm");
+    expect(load.addon).toBeNull();
+    expect(load.status).toEqual({
+      state: "unavailable",
+      reason: "unsupportedPlatform",
+      platform: "linux-arm",
+      detail: null
+    });
+  });
+
+  it("reports a missing binary against the directory tried first", () => {
+    const load = resolveEngineLoad([GNU, MUSL], candidates, notFound, "linux-x64");
+    expect(load.status).toEqual({
+      state: "unavailable",
+      reason: "missing",
+      platform: GNU,
+      detail: null
+    });
+  });
+
+  it("names a binary the OS refused over the fallback that does not exist", () => {
+    // The Alpine shape in reverse: the glibc binary is there and cannot load,
+    // the musl one is absent. The refusal is what the user needs to read.
+    const load = resolveEngineLoad(
+      [GNU, MUSL],
+      candidates,
+      (file) => {
+        if (file === `/a/${GNU}.node`) {
+          throw Object.assign(new Error("libc.so.6: cannot open shared object file\nat dlopen"), {
+            code: "ERR_DLOPEN_FAILED"
+          });
+        }
+        return notFound();
+      },
+      "linux-x64"
+    );
+    expect(load.status).toEqual({
+      state: "unavailable",
+      reason: "loadFailed",
+      platform: GNU,
+      detail: "libc.so.6: cannot open shared object file"
+    });
+  });
+
+  it("names a binary from a different build, with both versions", () => {
+    const stale = { ...completeAddon(), engineVersion: () => "1.0.0" };
+    const load = resolveEngineLoad([GNU], candidates, () => stale, "linux-x64");
+    expect(load.status).toEqual({
+      state: "unavailable",
+      reason: "versionMismatch",
+      platform: GNU,
+      detail: `found 1.0.0, expected ${EXPECTED_ENGINE_VERSION}`
+    });
+  });
+
+  it("names a binary missing a function the extension calls", () => {
+    const { searchCommits: _dropped, ...partial } = completeAddon();
+    const load = resolveEngineLoad([GNU], candidates, () => partial, "linux-x64");
+    expect(load.status).toMatchObject({ state: "unavailable", reason: "incompatible" });
+  });
+
+  it("loads from the fallback directory and reports the target that loaded", () => {
+    const addon = completeAddon();
+    const load = resolveEngineLoad(
+      [GNU, MUSL],
+      candidates,
+      (file) => (file === `/b/${MUSL}.node` ? addon : notFound()),
+      "linux-x64"
+    );
+    expect(load.addon).toBe(addon);
+    expect(load.status).toEqual({
+      state: "active",
+      version: EXPECTED_ENGINE_VERSION,
+      platform: MUSL
+    });
+  });
+
+  it("classifies a version that cannot be read as a mismatch", () => {
+    const unreadable = {
+      ...completeAddon(),
+      engineVersion: () => {
+        throw new Error("boom");
+      }
+    };
+    expect(classifyLoadedAddon(unreadable)).toEqual({
+      reason: "versionMismatch",
+      detail: `found no version, expected ${EXPECTED_ENGINE_VERSION}`
+    });
+  });
+
+  it("describes the session's real load the same way the loader decided it", () => {
+    const status = engineLoadStatus();
+    if (loadEngineAddon() === null) {
+      expect(status.state).toBe("unavailable");
+      return;
+    }
+    expect(status).toMatchObject({ state: "active", version: EXPECTED_ENGINE_VERSION });
   });
 });

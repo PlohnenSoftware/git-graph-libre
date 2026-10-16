@@ -16,37 +16,30 @@
  */
 
 import type { SimpleGit } from "simple-git";
-
-import { commitDetails } from "@/backend/queries/commitDetails";
 import { commitComparison } from "@/backend/queries/commitComparison";
+import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadCommits } from "@/backend/queries/loadCommits";
-import { normalizeMaxResults, searchCommits } from "@/backend/queries/searchCommits";
 import { emptyRepoInfo, loadRepoInfo } from "@/backend/queries/loadRepoInfo";
+import { normalizeMaxResults, searchCommits } from "@/backend/queries/searchCommits";
 import type { DateType, GitCommitDetails, GitFileChange, QueryResult } from "@/backend/types";
 import { getRemoteUrl } from "@/backend/utils/git";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { uniqueNonEmpty } from "@/backend/utils/logFilters";
 import { toGitQueryError } from "@/backend/utils/queryError";
-import type { EngineBackend } from "@/types";
+import type { EngineBackend, EngineComponentStatus, GraphLoadRoute } from "@/types";
 
-import { type EngineAddon, loadEngineAddon } from "./addon";
-import {
-  buildSearchOptions,
-  type EngineSearchInput,
-  mapEngineSearchResults,
-  parseEngineSearchResults,
-  shouldServeSearchFromEngine
-} from "./search";
+import { type EngineAddon, engineLoadStatus, loadEngineAddon } from "./addon";
 import {
   buildLoadCommitsOptions,
-  engineLoadCommitsRefs,
   type EngineLoadCommitsInput,
+  engineLoadCommitsRefs,
+  loadCommitsDecline,
   mapEngineCommitData,
-  parseEngineCommitData,
-  shouldServeLoadCommitsFromEngine
+  parseEngineCommitData
 } from "./commits";
 import {
   applyLineCounts,
+  type EngineCommitDetails,
   findStashEntry,
   lineCountPaths,
   mapEngineFileChange,
@@ -54,10 +47,16 @@ import {
   parseEngineFileChanges,
   parseEngineLineCounts,
   parseEngineStashEntries,
-  stashEntryPayload,
-  type EngineCommitDetails
+  stashEntryPayload
 } from "./details";
 import { buildRepoInfoOptions, composeEngineRepoInfo, parseEngineRepoInfo } from "./repoInfo";
+import {
+  buildSearchOptions,
+  type EngineSearchInput,
+  mapEngineSearchResults,
+  parseEngineSearchResults,
+  shouldServeSearchFromEngine
+} from "./search";
 
 /** How the reader loads the addon. The default is the real loader; tests inject fakes. */
 export type AddonProvider = () => EngineAddon | null;
@@ -152,6 +151,31 @@ export function didEngineServeRead(): boolean {
 /** Test seam: the flag is session-scoped, so cases reset it between runs. */
 export function resetEngineServedRead(): void {
   engineServedRead = false;
+}
+
+let lastGraphLoad: GraphLoadRoute | null = null;
+
+/**
+ * Which backend answered the most recent graph load, and why the CLI did if
+ * it did — what the status indicator reports, so "is the engine actually
+ * working" has an answer short of reading the command log. Null until the
+ * first load of the session. Unlike `didEngineServeRead()` this is not
+ * telemetry: it never leaves the extension.
+ */
+export function lastGraphLoadRoute(): GraphLoadRoute | null {
+  return lastGraphLoad;
+}
+
+/**
+ * The engine as the given preference sees it. `git-cli` answers `off`
+ * without touching the loader — that path never loads the addon at all —
+ * while `auto` reports the session's one load attempt.
+ */
+export function engineComponentStatus(
+  preference: EngineBackend,
+  status: () => EngineComponentStatus = engineLoadStatus
+): EngineComponentStatus {
+  return preference === "git-cli" ? { state: "off" } : status();
 }
 
 /**
@@ -290,8 +314,9 @@ async function readCommits(
   provider: AddonProvider,
   args: LoadCommitsArgs
 ): Promise<QueryResult<"loadCommits">> {
-  const cliRead = (): Promise<QueryResult<"loadCommits">> =>
-    loadCommits(args.git, {
+  const cliRead = (route: GraphLoadRoute): Promise<QueryResult<"loadCommits">> => {
+    lastGraphLoad = route;
+    return loadCommits(args.git, {
       branchName: args.branchName,
       branches: args.branches,
       authors: args.authors,
@@ -313,14 +338,18 @@ async function readCommits(
       gitPath,
       recordGitCommand: args.recordGitCommand
     });
+  };
   // The total no-op path: the addon is not even loaded.
-  if (preference === "git-cli") return cliRead();
+  if (preference === "git-cli") return cliRead("setting");
   // The pre-call declines: shapes the engine cannot serve go straight to
   // the CLI, decided here and never by catching a failure.
-  if (!shouldServeLoadCommitsFromEngine(args)) return cliRead();
+  const decline = loadCommitsDecline(args);
+  if (decline !== null) return cliRead(decline);
   const addon = provider();
-  if (addon === null) return cliRead();
+  if (addon === null) return cliRead("unavailable");
   const showStashes = args.showStashes === true;
+  // From here the engine answers, and every reroute below records itself.
+  lastGraphLoad = "engine";
   try {
     const data = parseEngineCommitData(
       await addon.loadCommits(args.repoPath, buildLoadCommitsOptions(args))
@@ -339,11 +368,11 @@ async function readCommits(
     }
     // The partial-error field is reserved (always null today): stay on the
     // CLI behavior rather than guessing which half to trust.
-    if (data.error !== null) return cliRead();
+    if (data.error !== null) return cliRead("handedBack");
     const nodes = mapEngineCommitData(data, showStashes);
     // An unborn repository has no page to serve: the CLI owns the
     // empty-graph error shape, so those loads stay on it exactly.
-    if (data.head === null) return cliRead();
+    if (data.head === null) return cliRead("handedBack");
     // An unfiltered show-all load always shows HEAD: the CLI pulls it onto
     // the page when it falls beyond it, and rows the uncommitted changes
     // beneath it. An engine page without HEAD is not a valid substitute, so
@@ -354,7 +383,7 @@ async function readCommits(
       uniqueNonEmpty(args.authors) === null &&
       !nodes.some((node) => node.hash === data.head)
     ) {
-      return cliRead();
+      return cliRead("handedBack");
     }
     engineServedRead = true;
     return {
@@ -374,7 +403,7 @@ async function readCommits(
         error: toGitQueryError(error, "Unable to load commits")
       };
     }
-    return cliRead();
+    return cliRead("handedBack");
   }
 }
 

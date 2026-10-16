@@ -221,6 +221,28 @@ describe("registerMessageHandlers", () => {
     expect(telemetryEvents).toEqual([]);
   });
 
+  // The status indicator's popup asks when a hover begins. The answer reads
+  // the live settings — git-cli here, so the engine is off without loading.
+  it("answers the status indicator with the live component status", async () => {
+    const { handlers, posts, telemetryEvents } = registerHandlersForTest();
+
+    await handlers.get("componentStatus")?.({ command: "componentStatus" } as RequestMessage);
+
+    const version = cp.execFileSync("git", ["--version"], { encoding: "utf8" }).trim();
+    expect(posts).toEqual([
+      {
+        command: "componentStatus",
+        components: {
+          git: { state: "ok", path: "git", version },
+          engine: { state: "off" },
+          graphLoad: expect.toBeOneOf([null, expect.any(String)])
+        }
+      }
+    ]);
+    // A read of the extension's own state: no git action to report.
+    expect(telemetryEvents).toEqual([]);
+  });
+
   // The action chokepoint above cannot see features that consist of something
   // being shown, so the commit-load route reports those separately.
   describe("read-side features", () => {

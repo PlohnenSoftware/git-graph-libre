@@ -345,6 +345,41 @@ describe("engine/CLI parity: loadCommits", () => {
     return dir;
   }
 
+  /**
+   * Author dates that disagree with committer dates in both directions: a
+   * rebased branch (authored early, committed late) and a commit authored
+   * after it was committed. Every other fixture writes the two dates equal,
+   * so only this one can tell `%at` from `%ct` — and the two orderings apart.
+   */
+  function makeSkewed(): string {
+    const dir = initBare();
+    const commitDated = (file: string, message: string, authored: number, committed: number) => {
+      fs.writeFileSync(path.join(dir, file), message);
+      git(["add", file], dir);
+      cp.execFileSync("git", ["commit", "-m", message], {
+        cwd: dir,
+        stdio: "pipe",
+        env: {
+          ...process.env,
+          GIT_AUTHOR_DATE: `${authored} +0000`,
+          GIT_COMMITTER_DATE: `${committed} +0000`
+        }
+      });
+    };
+    commitDated("a.txt", "base", EPOCH, EPOCH);
+    git(["checkout", "-qb", "feature"], dir);
+    commitDated("f.txt", "rebased one", EPOCH + 100, EPOCH + 5000);
+    commitDated("g.txt", "rebased two", EPOCH + 200, EPOCH + 5100);
+    git(["checkout", "-q", "main"], dir);
+    commitDated("m.txt", "authored later", EPOCH + 9000, EPOCH + 3000);
+    mergeAt(dir, "feature", "merge feature", EPOCH + 6000);
+    fs.writeFileSync(path.join(dir, "s.txt"), "stashme");
+    git(["add", "s.txt"], dir);
+    git(["stash", "push", "-m", "wip"], dir);
+    fs.appendFileSync(path.join(dir, "a.txt"), "dirty");
+    return dir;
+  }
+
   /** Three branches with interleaved dates and merges, for ordering exactness. */
   function makeRoomy(): string {
     const dir = initBare();
@@ -403,7 +438,8 @@ describe("engine/CLI parity: loadCommits", () => {
       deep: { name: "detached below the page", dir: deep },
       tip: { name: "detached at the tip", dir: tip },
       unborn: { name: "unborn", dir: unborn },
-      roomy: { name: "roomy", dir: makeRoomy() }
+      roomy: { name: "roomy", dir: makeRoomy() },
+      skewed: { name: "skewed author dates", dir: makeSkewed() }
     });
   }, 180000);
 
@@ -567,6 +603,52 @@ describe("engine/CLI parity: loadCommits", () => {
     await expectCommitsParity(fixtures.roomy, "ordering=topo", { commitOrdering: "topo" }, false);
     await expectCommitsParity(fixtures.roomy, "maxCommits", { maxCommits: 15 }, true);
     await expectCommitsParity(fixtures.roomy, "authors", { authors: ["Bob"] }, true, true);
+  }, 180000);
+
+  it("agrees on Author Date, where author and committer dates differ", async (context) => {
+    if (loadEngineAddon() === null) {
+      context.skip("Engine addon not built — run pnpm run engine:build for the engine half.");
+      return;
+    }
+    const skewed = fixtures.skewed;
+    // The fixture has to disagree with itself, or every case below would
+    // pass with the engine still answering committer dates.
+    async function cliDates(dateType: "Author Date" | "Commit Date"): Promise<number[]> {
+      const { repoPath, git: _git, ...input } = { ...baseArgs(skewed.dir), dateType };
+      const result = await loadCommits(simpleGit(skewed.dir), { ...input, repo: repoPath });
+      return result.commits.filter((node) => node.hash !== "*").map((node) => node.date);
+    }
+    expect(await cliDates("Author Date")).not.toEqual(await cliDates("Commit Date"));
+
+    for (const dateType of ["Author Date", "Commit Date"] as const) {
+      for (const commitOrdering of ["date", "author-date"] as const) {
+        await expectCommitsParity(
+          skewed,
+          `${dateType} ordering=${commitOrdering}`,
+          { dateType, commitOrdering },
+          true
+        );
+      }
+    }
+    // Stash rows keep their committer date under either setting, on both sides.
+    await expectCommitsParity(
+      skewed,
+      "Author Date showStashes",
+      { dateType: "Author Date", showStashes: true },
+      true
+    );
+    await expectCommitsParity(
+      skewed,
+      "Author Date maxCommits",
+      { dateType: "Author Date", maxCommits: 2 },
+      true
+    );
+    await expectCommitsParity(
+      skewed,
+      "Author Date branches",
+      { dateType: "Author Date", branches: ["feature"] },
+      true
+    );
   }, 180000);
 });
 
@@ -987,8 +1069,15 @@ describe("engine/CLI parity: searchCommits", () => {
     fs.writeFileSync(path.join(dir, "d.txt"), "4");
     git(["add", "-A"], dir);
     git(
-      ["-c", "user.name=Ada Lovelace", "-c", "user.email=ada@example.invalid",
-       "commit", "-m", "an unrelated subject"],
+      [
+        "-c",
+        "user.name=Ada Lovelace",
+        "-c",
+        "user.email=ada@example.invalid",
+        "commit",
+        "-m",
+        "an unrelated subject"
+      ],
       dir
     );
     fs.writeFileSync(path.join(dir, "e.txt"), "5");

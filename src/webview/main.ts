@@ -32,6 +32,7 @@ import {
   renderCommitDetailsRowHtml
 } from "./commitDetailsView";
 import { findCommitIndexes, formatFindMatchCount } from "./commitFind";
+import { applyComponentStatus, initComponentStatus } from "./componentStatus";
 import { Dropdown, type DropdownOption } from "./dropdown";
 import { Graph } from "./graph";
 import { resolveGlobalShortcut } from "./keyboardShortcuts";
@@ -6423,6 +6424,7 @@ type ResponseHandlerMap = {
 const responseHandlers: ResponseHandlerMap = {
   commitComparison: handleCommitComparisonResponse,
   commitDetails: handleCommitDetailsResponse,
+  componentStatus: (msg) => applyComponentStatus(msg.components),
   copyToClipboard: handleCopyToClipboardResponse,
   createArchive: handleCreateArchiveResponse,
   fetchAvatar: (msg) => gitGraph.loadAvatar(msg.email, msg.image),
@@ -6465,6 +6467,7 @@ const responseHandlers: ResponseHandlerMap = {
 };
 
 window.addEventListener("message", handleMessageEvent);
+initComponentStatus(() => sendMessage({ command: "componentStatus" }));
 
 function handleMessageEvent(event: MessageEvent) {
   if (event.origin !== globalThis.location.origin) return;

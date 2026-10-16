@@ -9,6 +9,7 @@ import type { TelemetryReporter } from "@/telemetry";
 import { isConsentPending } from "@/telemetry/consentPrompt";
 import type { GitRepoSet } from "@/types";
 
+import { buildComponentStatus, describeEngineStatus } from "./componentStatus";
 import type { RepoManager } from "./repoManager";
 import type { WebviewBridge } from "./webviewBridge";
 import { buildWebviewHtml } from "./webviewHtml";
@@ -86,6 +87,11 @@ export function createWebviewPanel(opts: {
     outputChannel?.appendLine(
       `[panel] render repos=${Object.keys(repoManager.getRepos()).length} graph=${result.isGraphLoaded}`
     );
+    // "Did the engine start?" answered in the log, at the moment the graph
+    // that would use it is built.
+    if (result.engine !== null) {
+      outputChannel?.appendLine(`[engine] ${describeEngineStatus(result.engine)}`);
+    }
     panel.webview.html = result.html;
     isGraphViewLoaded = result.isGraphLoaded;
   }
@@ -174,6 +180,21 @@ export function createWebviewPanel(opts: {
     },
     startHistorySearch() {
       bridge.post({ command: "startHistorySearch" });
+    },
+    /**
+     * Pushes fresh component status to the graph unasked. Called when the
+     * backend setting or `git.path` changes, so the status indicator follows
+     * them without a reload. A placeholder document cannot receive messages
+     * and shows no indicator, so it is skipped.
+     */
+    async refreshComponentStatus() {
+      if (!isGraphViewLoaded) return;
+      const components = await buildComponentStatus({
+        preference: config.backend(),
+        gitPath: config.gitPath()
+      });
+      outputChannel?.appendLine(`[engine] ${describeEngineStatus(components.engine)}`);
+      bridge.post({ command: "componentStatus", components });
     },
     /**
      * Swaps between the consent screen and the graph when the answer changes.

@@ -219,11 +219,119 @@
 .statusStrip[data-state="error"] .statusIndicator {
   background-color: var(--vscode-errorForeground);
 }
+/* The indicator and the status text are one hover and focus target: resting
+   on it opens the component popup. */
+.statusSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  border-radius: 3px;
+}
+.statusSummary:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+/* Ready, but every read goes through the Git command line because the
+   engine could not be loaded: amber rather than green, and said in words.
+   Busy and error states keep their own look — the note only qualifies
+   "Ready". An engine switched off by the backend setting is a choice, not
+   a degradation, so it stays green. */
+.statusEngineNote {
+  display: none;
+}
+.statusStrip[data-state="ready"][data-engine="unavailable"] .statusEngineNote {
+  display: inline;
+}
+.statusStrip[data-state="ready"][data-engine="unavailable"] .statusIndicator {
+  background-color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
+}
 .statusVersion {
   margin-left: auto;
   flex: 0 0 auto;
   opacity: 0.7;
   font-variant-numeric: tabular-nums;
+}
+/* The component popup. Fixed to the viewport and parented on body, because
+   the strip clips its overflow so it can collapse while scrolling. The
+   surface matches the editor's own hovers, like the dialog lock hint. */
+.componentStatusPopup {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(480px, calc(100vw - 12px));
+  padding: 8px 10px;
+  background-color: var(--vscode-editorHoverWidget-background, var(--vscode-menu-background));
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-menu-foreground));
+  border: 1px solid var(--vscode-editorHoverWidget-border, var(--ngg-neutral-border-strong));
+  border-radius: 4px;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+  font-size: 12px;
+  line-height: 18px;
+  cursor: default;
+}
+.componentStatusPopup[hidden] {
+  display: none;
+}
+.componentStatusTitle {
+  margin-bottom: 4px;
+  color: var(--vscode-descriptionForeground);
+}
+.componentStatusList {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 12px;
+  margin: 0;
+}
+/* Each row's own grid items join the list's two columns. */
+.componentStatusRow {
+  display: contents;
+}
+/* Top-aligned, so a label stays on the first line of a value that wraps. */
+.componentStatusRow dt {
+  display: flex;
+  align-self: start;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.componentStatusRow dd {
+  grid-column: 2;
+  margin: 0;
+  overflow-wrap: break-word;
+  user-select: text;
+}
+.componentStatusDetail {
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+}
+.componentStatusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background-color: var(--vscode-descriptionForeground);
+}
+.componentStatusRow[data-tone="ok"] .componentStatusDot {
+  background-color: var(--vscode-testing-iconPassed, var(--ngg-success));
+}
+.componentStatusRow[data-tone="warning"] .componentStatusDot {
+  background-color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
+}
+.componentStatusRow[data-tone="error"] .componentStatusDot {
+  background-color: var(--vscode-errorForeground, var(--ngg-error));
+}
+.componentStatusNote {
+  margin: 6px 0 0;
+  color: var(--vscode-descriptionForeground);
+}
+@media (forced-colors: active) {
+  .componentStatusDot,
+  .statusIndicator {
+    forced-color-adjust: none;
+  }
 }
 @keyframes statusStripPulse {
   0%,

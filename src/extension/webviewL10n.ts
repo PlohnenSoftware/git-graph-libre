@@ -462,6 +462,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
 
     // Status
     statusReady: translate("status.ready"),
+    statusEngineUnavailable: translate("status.engineUnavailable"),
     statusLoadingGraph: translate("status.loadingGraph"),
     statusRefreshingGraph: translate("status.refreshingGraph"),
     statusLoadingMore: translate("status.loadingMore"),
@@ -565,7 +566,37 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     tooltipAddition: translate("tooltip.addition"),
     tooltipAdditions: translate("tooltip.additions"),
     tooltipDeletion: translate("tooltip.deletion"),
-    tooltipDeletions: translate("tooltip.deletions")
+    tooltipDeletions: translate("tooltip.deletions"),
+
+    // Status indicator popup
+    componentStatusTitle: translate("componentStatus.title"),
+    componentStatusGit: translate("componentStatus.git"),
+    componentStatusEngine: translate("componentStatus.engine"),
+    componentStatusGraphLoad: translate("componentStatus.graphLoad"),
+    componentStatusChecking: translate("componentStatus.checking"),
+    componentStatusGitFailed: translate("componentStatus.gitFailed"),
+    componentStatusEngineActive: translate("componentStatus.engineActive"),
+    componentStatusEngineOff: translate("componentStatus.engineOff"),
+    componentStatusEngineUnavailable: translate("componentStatus.engineUnavailable"),
+    componentStatusReasonUnsupportedPlatform: translate(
+      "componentStatus.reason.unsupportedPlatform"
+    ),
+    componentStatusReasonMissing: translate("componentStatus.reason.missing"),
+    componentStatusReasonLoadFailed: translate("componentStatus.reason.loadFailed"),
+    componentStatusReasonVersionMismatch: translate("componentStatus.reason.versionMismatch"),
+    componentStatusReasonIncompatible: translate("componentStatus.reason.incompatible"),
+    componentStatusCliFallback: translate("componentStatus.cliFallback"),
+    componentStatusGraphLoadNone: translate("componentStatus.graphLoadNone"),
+    componentStatusRouteEngine: translate("componentStatus.route.engine"),
+    componentStatusRouteCli: translate("componentStatus.route.cli"),
+    componentStatusRouteSetting: translate("componentStatus.route.setting"),
+    componentStatusRouteUnavailable: translate("componentStatus.route.unavailable"),
+    componentStatusRouteHandedBack: translate("componentStatus.route.handedBack"),
+    componentStatusRouteSignatureColumn: translate("componentStatus.route.signatureColumn"),
+    componentStatusRouteTopoOrdering: translate("componentStatus.route.topoOrdering"),
+    componentStatusRouteReflog: translate("componentStatus.route.reflog"),
+    componentStatusRouteUnreachableCommits: translate("componentStatus.route.unreachableCommits"),
+    componentStatusRouteGlobPattern: translate("componentStatus.route.globPattern")
   };
 }
 

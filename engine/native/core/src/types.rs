@@ -433,6 +433,12 @@ pub struct LogOptions {
     /// is set and the work tree carries a `.mailmap`, the load is declined (`Unsupported`) so the
     /// CLI backend serves the mapped names.
     pub use_mailmap: bool,
+    /// Report the author date rather than the committer date, for `dateType: "Author Date"` —
+    /// the CLI backend formats `%at` there and `%ct` otherwise. Only the date each commit row
+    /// carries changes: the walk still ranks by `commit_ordering`, as `git log --date-order` does
+    /// whatever it prints, and stash rows keep their committer date, which is what the CLI's
+    /// `git stash list --format=%ct` gives them under either setting.
+    pub use_author_date: bool,
 }
 
 /// The serde default of `LogOptions::show_tags`.

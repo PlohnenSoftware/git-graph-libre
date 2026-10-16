@@ -172,6 +172,8 @@ function makeConfig(consent: TelemetryConsent): Config {
     showUncommittedChanges: () => true,
     telemetryConsent: () => consent,
     tabIconColorTheme: () => "color",
-    gitPath: () => "git"
+    gitPath: () => "git",
+    // `git-cli` keeps the document build from loading the real addon.
+    backend: () => "git-cli"
   } as unknown as Config;
 }

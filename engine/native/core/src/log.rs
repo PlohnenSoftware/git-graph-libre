@@ -162,7 +162,8 @@ pub fn read_commit(commit: &gix::Commit<'_>) -> Result<CommitRecord> {
             .collect(),
         author: author.name.to_string(),
         email: author.email.to_string(),
-        // The graph's date column follows git's default and shows the *committer* date.
+        // The graph's date column follows git's default and shows the *committer* date, unless
+        // the view asks for the author date (`LogOptions::use_author_date`).
         date: committer.time().map(|time| time.seconds).unwrap_or(0),
         author_date: author.time().map(|time| time.seconds).unwrap_or(0),
         message: message.summary().to_string(),

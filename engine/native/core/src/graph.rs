@@ -115,7 +115,11 @@ pub fn load_commits(repo: &Repo, options: &LogOptions) -> Result<GitCommitData> 
             parents: record.parents,
             author: record.author,
             email: record.email,
-            date: record.date,
+            date: if options.use_author_date {
+                record.author_date
+            } else {
+                record.date
+            },
             message: record.message,
             heads: Vec::new(),
             tags: Vec::new(),

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 
+import { engineComponentStatus } from "@/backend/engine/index";
 import { getNonce } from "@/backend/utils/nonce";
 import { buildExtensionUri } from "@/backend/utils/path";
 import type { Config } from "@/config";
@@ -7,7 +8,7 @@ import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
 import { isConsentPending } from "@/telemetry/consentPrompt";
 import { resolveBundleLanguage } from "@/telemetry/language";
-import type { GitGraphViewState } from "@/types";
+import type { EngineComponentStatus, GitGraphViewState } from "@/types";
 
 import type { RepoManager } from "./repoManager";
 import { buildTelemetryConsentScreen } from "./webviewConsentScreen";
@@ -36,7 +37,7 @@ export function buildWebviewHtml(opts: {
   extensionVersion: string;
   /** Temporary override; absent means the editor's display language. */
   language?: string;
-}): { html: string; isGraphLoaded: boolean } {
+}): { html: string; isGraphLoaded: boolean; engine: EngineComponentStatus | null } {
   const { webview, config, extensionPath, extensionState, repoManager, extensionVersion } = opts;
   const nonce = getNonce();
   const languages = listWebviewLanguages(extensionPath);
@@ -107,12 +108,16 @@ export function buildWebviewHtml(opts: {
   const consentGate = numRepos > 0 && isConsentPending(config.telemetryConsent());
 
   let body: string;
+  // Read only for the graph document, the one that shows it: a placeholder
+  // has nothing to read with, so it has no reason to load the addon.
+  let engine: EngineComponentStatus | null = null;
   if (consentGate) {
     body = buildTelemetryConsentScreen(l10nStrings, nonce, styleVars);
   } else if (numRepos > 0) {
+    engine = engineComponentStatus(config.backend());
     body = `<body style="${styleVars}">
 		<div id="topBar">
-		${buildWebviewStatusStrip(l10nStrings, extensionVersion)}
+		${buildWebviewStatusStrip(l10nStrings, extensionVersion, engine.state)}
 		<div id="stashListSlot"></div>
 		${buildWebviewToolbar(l10nStrings)}
 		</div>
@@ -160,5 +165,5 @@ export function buildWebviewHtml(opts: {
 		${body}
 	</html>`;
 
-  return { html, isGraphLoaded: numRepos > 0 && !consentGate };
+  return { html, isGraphLoaded: numRepos > 0 && !consentGate, engine };
 }

@@ -66,6 +66,7 @@ import type { TelemetryReporter } from "@/telemetry";
 import { createViewFeatureReporter } from "@/telemetry/viewFeatures";
 import type { ExtensionSetting, GitRepoState, RequestMessage, ResponseMessage } from "@/types";
 
+import { buildComponentStatus } from "./componentStatus";
 import { loadExtensionSettings, updateExtensionSetting } from "./extensionSettings";
 import { exportExtensionSettingsFile, importExtensionSettingsFile } from "./extensionSettingsFile";
 import { buildPullRequestUrl } from "./pullRequest";
@@ -525,6 +526,19 @@ export function registerMessageHandlers(
   // it re-opens is unanswered.
   bridge.onMessage("showTelemetryConsent", async () => {
     await telemetryConsentPrompt?.promptIfUnset();
+  });
+
+  // The status indicator's popup asks when a hover over it begins. Outside
+  // registerAction for the same reason as above: a read of the extension's
+  // own state, with no git outcome to record.
+  bridge.onMessage("componentStatus", async () => {
+    bridge.post({
+      command: "componentStatus",
+      components: await buildComponentStatus({
+        preference: config.backend(),
+        gitPath: config.gitPath()
+      })
+    });
   });
 
   // --- Query handlers ---

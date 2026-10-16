@@ -2,10 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
 import { buildWebviewStatusStrip } from "@/extension/webviewStatusStrip";
-import { setStatusStrip } from "@/webview/statusStrip";
+import type { EngineComponentStatus } from "@/types";
+import { setEngineState, setStatusStrip } from "@/webview/statusStrip";
 
-function renderStatusStrip(strings = getWebviewLocalizedStrings(), version = "1.2.0") {
-  document.body.innerHTML = buildWebviewStatusStrip(strings, version);
+function renderStatusStrip(
+  strings = getWebviewLocalizedStrings(),
+  version = "1.2.0",
+  engine: EngineComponentStatus["state"] = "active"
+) {
+  document.body.innerHTML = buildWebviewStatusStrip(strings, version, engine);
 }
 
 describe("webview status strip", () => {
@@ -67,5 +72,45 @@ describe("webview status strip", () => {
     expect(document.getElementById("statusVersion")?.textContent).toBe(
       "v1.2.0<img src=x onerror=alert(1)>"
     );
+  });
+
+  it("bakes the engine state in, so the first paint already shows it", () => {
+    for (const engine of ["active", "off", "unavailable"] as const) {
+      renderStatusStrip(getWebviewLocalizedStrings(), "1.2.0", engine);
+      expect(document.getElementById("statusStrip")?.dataset.engine).toBe(engine);
+    }
+  });
+
+  it("groups the indicator and the status text into one focusable hover target", () => {
+    renderStatusStrip();
+
+    const summary = document.getElementById("statusSummary");
+    expect(summary?.getAttribute("tabindex")).toBe("0");
+    expect(summary?.querySelector("#statusIndicator")).not.toBeNull();
+    expect(summary?.querySelector("#statusText")).not.toBeNull();
+    // The version stays outside: it has its own title and its own hidden menu.
+    expect(summary?.querySelector("#statusVersion")).toBeNull();
+  });
+
+  it("carries the unavailable-engine note, escaped, for CSS to reveal", () => {
+    renderStatusStrip({
+      ...getWebviewLocalizedStrings(),
+      statusEngineUnavailable: "(engine <b>gone</b>)"
+    });
+
+    const note = document.getElementById("statusEngineNote");
+    expect(note?.textContent).toBe("(engine <b>gone</b>)");
+    expect(note?.querySelector("b")).toBeNull();
+    expect(getWebviewLocalizedStrings().statusEngineUnavailable).toBe("(Rust engine unavailable)");
+  });
+
+  it("updates the engine state without touching the readiness text", () => {
+    renderStatusStrip();
+
+    setEngineState("unavailable");
+    expect(document.getElementById("statusStrip")?.dataset.engine).toBe("unavailable");
+    expect(document.getElementById("statusText")?.textContent).toBe("Ready");
+    setEngineState("off");
+    expect(document.getElementById("statusStrip")?.dataset.engine).toBe("off");
   });
 });

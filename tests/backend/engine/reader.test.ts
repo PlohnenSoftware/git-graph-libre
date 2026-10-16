@@ -14,8 +14,10 @@ import {
   closeEngineRepository,
   createRepoReader,
   didEngineServeRead,
+  engineComponentStatus,
   isEngineFallbackError,
   type LoadCommitsArgs,
+  lastGraphLoadRoute,
   openEngineRepositoryCount,
   resetEngineServedRead
 } from "@/backend/engine/index";
@@ -229,6 +231,24 @@ describe("engine handle lifecycle", () => {
       closeAllEngineRepositories(() => ({ closeAllRepositories: failing }))
     ).not.toThrow();
     expect(openEngineRepositoryCount(() => ({ openRepositoryCount: failing }))).toBe(0);
+  });
+});
+
+describe("engineComponentStatus", () => {
+  it("answers off for git-cli without touching the loader", () => {
+    const status = vi.fn(() => ({ state: "active" as const, version: "x", platform: "y" }));
+    expect(engineComponentStatus("git-cli", status)).toEqual({ state: "off" });
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it("reports the session's load attempt on auto", () => {
+    const unavailable = {
+      state: "unavailable" as const,
+      reason: "missing" as const,
+      platform: "linux-x64-gnu",
+      detail: null
+    };
+    expect(engineComponentStatus("auto", () => unavailable)).toBe(unavailable);
   });
 });
 
@@ -805,6 +825,7 @@ describe("createRepoReader loadCommits", () => {
     expect(viaReader).toEqual(direct);
     expect(commitReads.count).toBe(2);
     expect(didEngineServeRead()).toBe(false);
+    expect(lastGraphLoadRoute()).toBe("setting");
   });
 
   it("uses the CLI when no addon is available", async () => {
@@ -814,6 +835,7 @@ describe("createRepoReader loadCommits", () => {
     expect(result.commits).toHaveLength(1);
     expect(commitReads.count).toBe(1);
     expect(didEngineServeRead()).toBe(false);
+    expect(lastGraphLoadRoute()).toBe("unavailable");
   });
 
   it("serves an engine page without touching the CLI", async () => {
@@ -828,6 +850,32 @@ describe("createRepoReader loadCommits", () => {
     });
     expect(commitReads.count).toBe(0);
     expect(didEngineServeRead()).toBe(true);
+    expect(lastGraphLoadRoute()).toBe("engine");
+  });
+
+  it("serves Author Date from the engine, asking it for the author date", async () => {
+    const options: unknown[] = [];
+    const base = engineProvider(headedPage);
+    const provider: AddonProvider = () => {
+      const addon = base();
+      if (addon === null) return null;
+      return {
+        ...addon,
+        loadCommits: async (_repoPath: string, optionsJson: string) => {
+          options.push(JSON.parse(optionsJson));
+          return headedPage;
+        }
+      };
+    };
+
+    const result = await commitsReader("auto", provider, { dateType: "Author Date" });
+
+    expect(result.error).toBeNull();
+    expect(result.commits).toEqual(headedNodes);
+    expect(options).toEqual([expect.objectContaining({ useAuthorDate: true })]);
+    expect(commitReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(true);
+    expect(lastGraphLoadRoute()).toBe("engine");
   });
 
   it("moves the load from engine to CLI the moment the signature column is on", async () => {
@@ -845,18 +893,23 @@ describe("createRepoReader loadCommits", () => {
     expect(provider).toHaveBeenCalledTimes(1);
     expect(commitReads.count).toBe(1);
     expect(didEngineServeRead()).toBe(false);
+    expect(lastGraphLoadRoute()).toBe("signatureColumn");
   });
 
   it.each([
-    ["Author Date", { dateType: "Author Date" } as Partial<LoadCommitsArgs>],
-    ["reflog on a show-all load", { includeReflog: true } as Partial<LoadCommitsArgs>],
+    ["reflog on a show-all load", { includeReflog: true } as Partial<LoadCommitsArgs>, "reflog"],
     [
       "unreachable discovery on a show-all load",
-      { includeUnreachableCommits: true } as Partial<LoadCommitsArgs>
+      { includeUnreachableCommits: true } as Partial<LoadCommitsArgs>,
+      "unreachableCommits"
     ],
-    ["a --glob= pattern", { branches: ["--glob=feature/*"] } as Partial<LoadCommitsArgs>],
-    ["topo ordering", { commitOrdering: "topo" } as Partial<LoadCommitsArgs>]
-  ])("declines %s to the CLI without loading the addon", async (_name, overrides) => {
+    [
+      "a --glob= pattern",
+      { branches: ["--glob=feature/*"] } as Partial<LoadCommitsArgs>,
+      "globPattern"
+    ],
+    ["topo ordering", { commitOrdering: "topo" } as Partial<LoadCommitsArgs>, "topoOrdering"]
+  ])("declines %s to the CLI without loading the addon", async (_name, overrides, route) => {
     const provider = vi.fn(engineProvider(emptyPage));
     const result = await commitsReader("auto", provider, overrides);
 
@@ -864,6 +917,7 @@ describe("createRepoReader loadCommits", () => {
     expect(provider).not.toHaveBeenCalled();
     expect(commitReads.count).toBe(1);
     expect(didEngineServeRead()).toBe(false);
+    expect(lastGraphLoadRoute()).toBe(route);
   });
 
   it("keeps reflog and unreachable flags on the engine with explicit refs", async () => {
@@ -930,6 +984,7 @@ describe("createRepoReader loadCommits", () => {
       expect(viaReader).toEqual(direct);
       expect(commitReads.count).toBe(2);
       expect(didEngineServeRead()).toBe(false);
+      expect(lastGraphLoadRoute()).toBe("handedBack");
     }
   );
 
@@ -943,6 +998,7 @@ describe("createRepoReader loadCommits", () => {
     expect(result.commits).toHaveLength(1);
     expect(commitReads.count).toBe(1);
     expect(didEngineServeRead()).toBe(false);
+    expect(lastGraphLoadRoute()).toBe("handedBack");
   });
 
   it("leaves unborn repositories on the CLI, which owns the empty-graph shape", async () => {
@@ -952,6 +1008,7 @@ describe("createRepoReader loadCommits", () => {
     expect(result.commits).toHaveLength(1);
     expect(commitReads.count).toBe(1);
     expect(didEngineServeRead()).toBe(false);
+    expect(lastGraphLoadRoute()).toBe("handedBack");
   });
 
   it("reroutes a show-all page that lost HEAD back to the whole CLI read", async () => {
@@ -981,6 +1038,7 @@ describe("createRepoReader loadCommits", () => {
     expect(result.commits).toHaveLength(1);
     expect(commitReads.count).toBe(1);
     expect(didEngineServeRead()).toBe(false);
+    expect(lastGraphLoadRoute()).toBe("handedBack");
   });
 
   it("serves a filtered page without HEAD from the engine", async () => {
@@ -996,6 +1054,7 @@ describe("createRepoReader loadCommits", () => {
     expect(result.error).toBeNull();
     expect(commitReads.count).toBe(0);
     expect(didEngineServeRead()).toBe(true);
+    expect(lastGraphLoadRoute()).toBe("engine");
   });
 
   it.each(["not json", "[1]", JSON.stringify({ ...JSON.parse(emptyPage), tags: [42] })])(

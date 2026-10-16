@@ -159,6 +159,10 @@ export function activate(context: vscode.ExtensionContext) {
         statusBarItem.refresh();
       } else if (e.affectsConfiguration("git-graph-libre.maxDepthOfRepoSearch")) {
         repoSearch.maxDepthChanged();
+      } else if (e.affectsConfiguration("git-graph-libre.backend")) {
+        // Readers take the preference live, so only the status indicator
+        // has to be told: it would otherwise keep the old engine state.
+        void currentPanel?.refreshComponentStatus();
       } else if (e.affectsConfiguration("git-graph-libre.telemetry.enabled")) {
         // Answering the prompt writes this setting, so this is what swaps the
         // consent screen for the graph the moment the user chooses.
@@ -170,6 +174,7 @@ export function activate(context: vscode.ExtensionContext) {
         gitClient.setGitPath(config.gitPath());
         logger.log("[config] git.path changed; rescanning workspace repositories");
         void repoSearch.searchWorkspaceForRepos();
+        void currentPanel?.refreshComponentStatus();
       }
     }),
     repoWatcher
