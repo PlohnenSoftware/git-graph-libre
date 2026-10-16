@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-16
+
+### Added
+
+- **The status indicator says what is working.** Rest the pointer on the
+  status dot and its text for a moment, or focus it with the keyboard, and a
+  popup lists the Git command line (with its version), the built-in Rust
+  engine (its version and build, or why it is not running), and which of the
+  two answered the last graph load — and if it was the command line, why.
+- **A platform where the engine cannot start says so.** When the engine is
+  missing, fails to load, or comes from a different build, the indicator turns
+  amber and reads "Ready (Rust engine unavailable)". The extension keeps
+  working fully through the Git command line, as before; only the speed
+  differs. Choosing `"git-cli"` for `backend` is a choice rather than a fault,
+  so it stays green.
+- **The output channel records whether the engine started.** Each time the
+  graph is built, Git Graph Libre's output names the engine's version and
+  build, or the reason it is unavailable.
+
+### Changed
+
+- **Author Date no longer sends the graph to the Git command line.** With
+  `dateType` at its default, `"Author Date"`, every graph load used to skip
+  the engine; the engine now reports author dates itself, so the default
+  configuration gets the faster path. The dates shown are the same ones as
+  before, which is checked against `git` on a history whose author and commit
+  dates disagree.
+
 ## [1.8.0] - 2026-10-16
 
 There is no 1.7.0 release. That version number opened the Rust engine line
@@ -777,7 +805,8 @@ system. Includes everything prepared for 1.5.1, which was never released.
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.2...v1.8.0
 [1.6.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.0...v1.6.1
