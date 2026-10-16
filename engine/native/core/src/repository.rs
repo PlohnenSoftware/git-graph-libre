@@ -5,7 +5,7 @@
 //! Here a repository is opened once and kept open for the whole editor session, so the pack
 //! indexes and the object cache stay resident between requests.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::SystemTime;
@@ -241,6 +241,35 @@ pub fn resolve_commit_in(repo: &gix::Repository, rev: &str) -> Result<gix::Objec
         .peel_to_kind(gix::object::Kind::Commit)
         .map_err(|e| Error::not_found(format!("'{rev}' is not a commit: {e}")))?;
     Ok(commit.id)
+}
+
+/// The commits on a shallow clone's boundary (`.git/shallow`), whose parents git treats as absent.
+///
+/// gix hands out a boundary commit's parent ids as the commit object records them, but those
+/// parents were never fetched: git shows the commit as a root (`git log --format=%P` prints nothing
+/// for it) and diffs it against the empty tree. Every parent the engine reports, or diffs against,
+/// goes through [`Shallow::parents`] so the two agree — otherwise the graph draws a line to a
+/// commit that does not exist, and commit details fail on the missing parent instead of showing
+/// the commit's files as added. Read once per operation: the boundary is a small file, and in a
+/// repository that is not shallow its absence costs one failed open.
+#[derive(Debug, Default)]
+pub struct Shallow(HashSet<gix::ObjectId>);
+
+impl Shallow {
+    pub fn of(git: &gix::Repository) -> Shallow {
+        match git.shallow_commits() {
+            Ok(Some(commits)) => Shallow(commits.iter().copied().collect()),
+            _ => Shallow::default(),
+        }
+    }
+
+    /// A commit's parents as git reports them: none for a commit on the shallow boundary.
+    pub fn parents(&self, commit: &gix::Commit<'_>) -> Vec<gix::ObjectId> {
+        if self.0.contains(&commit.id) {
+            return Vec::new();
+        }
+        commit.parent_ids().map(|parent| parent.detach()).collect()
+    }
 }
 
 /// The set of repositories the extension has open.

@@ -12,8 +12,12 @@
 #[macro_use]
 mod common;
 
-use git_graph_core::log;
+use std::process::Command;
+
 use git_graph_core::repository::Repo;
+use git_graph_core::search::search_commits;
+use git_graph_core::types::{GitFileStatus, SearchOptions};
+use git_graph_core::{details, diff, log};
 
 use common::TestRepo;
 
@@ -63,4 +67,88 @@ fn a_tag_of_a_blob_or_a_tree_does_not_cut_history_reads_short() {
     let id = |hex: &str| gix::ObjectId::from_hex(hex.as_bytes()).unwrap();
     assert!(!tips.contains(&id(&blob)));
     assert!(!tips.contains(&id(&tree)));
+}
+
+/* ---------- Shallow clones ---------- */
+
+#[test]
+fn a_shallow_boundary_commit_has_no_parents_and_opens_its_details() {
+    require_git!();
+    let mut source = TestRepo::new();
+    for n in 1..=4 {
+        source.commit_file("a.txt", &format!("{n}\n"), &format!("commit {n}"));
+    }
+    let clone_dir = tempfile::tempdir().unwrap();
+    let url = format!("file://{}", source.path().display()).replace('\\', "/");
+    let clone_path = clone_dir.path().join("clone");
+    let output = Command::new("git")
+        .args(["clone", "--quiet", "--depth", "2", &url])
+        .arg(&clone_path)
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let git_in_clone = |args: &[&str]| {
+        String::from_utf8(
+            Command::new("git")
+                .args(args)
+                .current_dir(&clone_path)
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .unwrap()
+    };
+    let boundary = git_in_clone(&["rev-parse", "HEAD~1"]).trim().to_string();
+    // git: `%P` is empty for the boundary commit.
+    assert_eq!(
+        git_in_clone(&["log", "-1", "--format=%P", &boundary]).trim(),
+        ""
+    );
+
+    let engine = Repo::discover(&clone_path).unwrap();
+    let tips = log::all_tips(&engine, true, true).unwrap();
+    let records = log::walk(
+        &engine,
+        &tips,
+        &log::WalkOptions {
+            limit: 10,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let record = records
+        .iter()
+        .find(|record| record.hash == boundary)
+        .unwrap();
+    assert!(record.parents.is_empty(), "{:?}", record.parents);
+
+    // Its details diff against the empty tree, as `git show` does, instead of failing on the
+    // parent that was never fetched.
+    let details = details::commit_details(&engine, &boundary).unwrap();
+    assert!(details.parents.is_empty());
+    assert_eq!(details.file_changes.len(), 1);
+    assert_eq!(details.file_changes[0].kind, GitFileStatus::Added);
+    let counts = diff::line_counts(&engine, None, &boundary, &["a.txt".to_string()]).unwrap();
+    assert_eq!(counts["a.txt"].additions, Some(1));
+    assert_eq!(counts["a.txt"].deletions, Some(0));
+
+    // The Find dialogue reports the same parents the graph draws.
+    let hits = search_commits(
+        &engine,
+        &SearchOptions {
+            query: "commit 3".to_string(),
+            max_results: 10,
+            show_tags: true,
+            show_remote_branches: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let hit = hits.iter().find(|hit| hit.hash == boundary).unwrap();
+    assert!(hit.parents.is_empty(), "{:?}", hit.parents);
 }

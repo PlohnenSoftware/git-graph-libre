@@ -57,12 +57,16 @@ pub fn new_path_of_renamed_file(
 /// The file changes a commit introduced, compared against its first parent.
 ///
 /// A root commit is compared against the empty tree, which is how the commit that created a
-/// repository shows its files as added rather than showing nothing at all.
+/// repository shows its files as added rather than showing nothing at all. So is a shallow clone's
+/// boundary commit, whose parent was never fetched — exactly as `git show` treats it.
 pub fn diff_commit(repo: &Repo, hash: &str) -> Result<Vec<GitFileChange>> {
     let id = repo.resolve_commit(hash)?;
     let git = repo.borrow();
     let commit = git.find_commit(id).git_ctx("Could not read the commit")?;
-    let parent = commit.parent_ids().next().map(|parent| parent.detach());
+    let parent = crate::repository::Shallow::of(&git)
+        .parents(&commit)
+        .first()
+        .copied();
     diff_commits(repo, parent, id)
 }
 
@@ -227,13 +231,15 @@ pub fn line_counts(
                 .tree()
                 .git_ctx("Could not read the parent tree")?
         }
-        // `None` is the commit's first parent — or the empty tree for a root commit, so that a
-        // repository's initial commit reports its files as added rather than as unaccounted for.
-        None => match git
-            .find_commit(to_id)
-            .git_ctx("Could not read the commit")?
-            .parent_ids()
-            .next()
+        // `None` is the commit's first parent — or the empty tree for a root commit (or a shallow
+        // boundary commit), so that its files report as added rather than as unaccounted for.
+        None => match crate::repository::Shallow::of(&git)
+            .parents(
+                &git.find_commit(to_id)
+                    .git_ctx("Could not read the commit")?,
+            )
+            .first()
+            .copied()
         {
             Some(parent) => git
                 .find_commit(parent)

@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use crate::error::{Result, ResultExt};
 use crate::log;
 use crate::refs::read_refs;
-use crate::repository::Repo;
+use crate::repository::{Repo, Shallow};
 use crate::types::{GitSearchResult, RefReadOptions, SearchOptions};
 
 /// A query that could be an abbreviated object id. Mirrors the CLI's `/^[0-9a-f]{4,40}$/i`, which
@@ -88,6 +88,7 @@ fn author_contains(author: &gix::actor::SignatureRef<'_>, needle_lower: &str) ->
 /// One commit rendered into the result shape, at the position the walk gave it.
 fn to_result(
     commit: &gix::Commit<'_>,
+    shallow: &Shallow,
     load_count: u32,
     use_author_date: bool,
 ) -> Result<GitSearchResult> {
@@ -106,9 +107,10 @@ fn to_result(
     };
     Ok(GitSearchResult {
         hash: commit.id().detach().to_string(),
-        parents: commit
-            .parent_ids()
-            .map(|id| id.detach().to_string())
+        parents: shallow
+            .parents(commit)
+            .iter()
+            .map(ToString::to_string)
             .collect(),
         author: author.name.to_string(),
         email: author.email.to_string(),
@@ -139,6 +141,7 @@ pub fn search_commits(repo: &Repo, options: &SearchOptions) -> Result<Vec<GitSea
     }
 
     let git = repo.borrow();
+    let shallow = Shallow::of(&git);
     let walk = git
         .rev_walk(tips.iter().copied())
         .sorting(gix::revision::walk::Sorting::ByCommitTime(
@@ -190,7 +193,12 @@ pub fn search_commits(repo: &Repo, options: &SearchOptions) -> Result<Vec<GitSea
                 .to_lowercase()
                 .contains(&needle);
         if full_message_matches {
-            message_hits.push(to_result(&commit, load_count, options.use_author_date)?);
+            message_hits.push(to_result(
+                &commit,
+                &shallow,
+                load_count,
+                options.use_author_date,
+            )?);
         }
 
         if author_hits.len() < limit {
@@ -198,7 +206,12 @@ pub fn search_commits(repo: &Repo, options: &SearchOptions) -> Result<Vec<GitSea
                 .author()
                 .git_ctx("Could not decode the commit author")?;
             if author_contains(&author, &needle) {
-                author_hits.push(to_result(&commit, load_count, options.use_author_date)?);
+                author_hits.push(to_result(
+                    &commit,
+                    &shallow,
+                    load_count,
+                    options.use_author_date,
+                )?);
             }
         }
     }
@@ -215,7 +228,12 @@ pub fn search_commits(repo: &Repo, options: &SearchOptions) -> Result<Vec<GitSea
         {
             let hash = found.id().detach().to_string();
             if let Some(&load_count) = positions.get(&hash) {
-                results.push(to_result(&found, load_count, options.use_author_date)?);
+                results.push(to_result(
+                    &found,
+                    &shallow,
+                    load_count,
+                    options.use_author_date,
+                )?);
             }
         }
     }

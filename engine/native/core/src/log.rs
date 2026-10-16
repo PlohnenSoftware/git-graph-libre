@@ -18,7 +18,7 @@ use std::collections::{BinaryHeap, HashMap, HashSet};
 use gix::ObjectId;
 
 use crate::error::{Error, Result, ResultExt};
-use crate::repository::Repo;
+use crate::repository::{Repo, Shallow};
 use crate::types::{CommitOrdering, CommitRecord, GitAuthor};
 
 /// How many commits are read for every commit displayed, so that the topological re-ordering has
@@ -76,6 +76,7 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
         platform = platform.first_parent_only();
     }
     let walk = platform.all().git_ctx("Could not walk the commit graph")?;
+    let shallow = Shallow::of(&git);
 
     let mut records: Vec<CommitRecord> = Vec::new();
     // While filtering, the parents of every commit the walk *reads* are kept, not just of the
@@ -112,21 +113,22 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
             if filtering {
                 visited_parents.push((
                     commit.id().detach().to_string(),
-                    commit
-                        .parent_ids()
-                        .map(|id| id.detach().to_string())
+                    shallow
+                        .parents(&commit)
+                        .iter()
+                        .map(ToString::to_string)
                         .collect(),
                 ));
             }
             if !author_ok {
                 continue;
             }
-            if filtering && !touches_paths(&git, &commit, &options.filter_paths)? {
+            if filtering && !touches_paths(&git, &commit, &shallow, &options.filter_paths)? {
                 continue;
             }
         }
 
-        records.push(read_commit(&commit)?);
+        records.push(read_commit(&commit, &shallow)?);
         if searching && records.len() >= options.limit {
             break;
         }
@@ -143,7 +145,10 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
 }
 
 /// Read the fields the graph renders out of a commit object.
-pub fn read_commit(commit: &gix::Commit<'_>) -> Result<CommitRecord> {
+///
+/// `shallow` is the repository's shallow boundary: a boundary commit is reported without parents,
+/// as git reports it, rather than with parents that were never fetched.
+pub fn read_commit(commit: &gix::Commit<'_>, shallow: &Shallow) -> Result<CommitRecord> {
     let author = commit
         .author()
         .git_ctx("Could not decode the commit author")?;
@@ -156,9 +161,10 @@ pub fn read_commit(commit: &gix::Commit<'_>) -> Result<CommitRecord> {
 
     Ok(CommitRecord {
         hash: commit.id().detach().to_string(),
-        parents: commit
-            .parent_ids()
-            .map(|id| id.detach().to_string())
+        parents: shallow
+            .parents(commit)
+            .iter()
+            .map(ToString::to_string)
             .collect(),
         author: author.name.to_string(),
         email: author.email.to_string(),
@@ -197,10 +203,11 @@ pub(crate) fn commit_matches_author(commit: &gix::Commit<'_>, authors: &[String]
 fn touches_paths(
     git: &gix::Repository,
     commit: &gix::Commit<'_>,
+    shallow: &Shallow,
     paths: &[String],
 ) -> Result<bool> {
     let tree = commit.tree().git_ctx("Could not read the commit tree")?;
-    let parents: Vec<_> = commit.parent_ids().map(|id| id.detach()).collect();
+    let parents = shallow.parents(commit);
     if parents.is_empty() {
         return changes_paths(git, None, &tree, paths);
     }

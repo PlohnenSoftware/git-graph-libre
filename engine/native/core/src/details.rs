@@ -40,9 +40,11 @@ pub fn commit_details_base(repo: &Repo, hash: &str) -> Result<GitCommitDetails> 
 
     Ok(GitCommitDetails {
         hash: commit.id().detach().to_string(),
-        parents: commit
-            .parent_ids()
-            .map(|parent| parent.detach().to_string())
+        // A shallow boundary commit has no parents, as `git show` reports it.
+        parents: crate::repository::Shallow::of(&git)
+            .parents(&commit)
+            .iter()
+            .map(ToString::to_string)
             .collect(),
         author: author.name.to_string(),
         author_email: author.email.to_string(),

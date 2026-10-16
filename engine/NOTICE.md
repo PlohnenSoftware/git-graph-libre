@@ -48,6 +48,9 @@ in terms of git, since that layer is not incorporated. The parts taken:
 
 - `log::all_tips` skips tags that name a tree or a blob, which `git log --all`
   passes over, instead of letting them end the walk early.
+- `repository::Shallow` reports a shallow clone's boundary commits without
+  parents, as git does. The graph walk, commit details, diffs and line counts
+  read parents through it, and so does this project's own `search_commits`.
 
 `native/core/tests/git_parity.rs` adapts the matching tests from the same
 commit. Everything else in `ff4aafe` was left out: single-file diff headers,
