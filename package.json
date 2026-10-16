@@ -564,6 +564,7 @@
     }
   },
   "activationEvents": [
+    "onWebviewPanel:git-graph-libre",
     "onStartupFinished",
     "workspaceContains:.git"
   ],

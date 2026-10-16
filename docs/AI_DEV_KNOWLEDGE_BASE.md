@@ -57,6 +57,7 @@ the same change.
 
 **Ongoing work**: what is in progress now.
 
+- **Active handoff: Git trust, repository recovery, and diagnostics (`2026-10-17`)** — Uncommitted implementation in this working tree; incomplete. Read this section first when continuing. It records the user's complete request, current changes, failing checks, and the next verification slices.
 - L1559 **Near-Term Work Order** (*always read*) — Next (`2026-10-16`, awaiting the maintainer): the upstream engine review's ranked candidates, config staleness first; earlier: the Phase 16 Rust engine, slices 16.1–16.9 done; then older priorities and the partial Phases 2 and 7–10.
 - L1645 **Implementation Roadmap** (*always read*) — Status table for every phase (audited `2026-07-03`, kept in sync with each phase's `Status:` line), then Phase 16, the active phase; open and completed phases have their own sections.
   - L1672 **Phase 16: Rust Engine Backend** — In progress as of `2026-10-16`: slices 16.1–16.9 shipped in `v1.8.0`, Author Date and the status indicator in `1.8.1`, upstream candidates open. Wires the `engine/` Rust addon into the hot reads with CLI fallback; goal and speed numbers.
@@ -1557,6 +1558,157 @@ back to English, then to the key, which is the same order `l10n.t()` degrades
 in — a switched webview never looks more broken than an unswitched one.
 
 ## Near-Term Work Order
+
+### Active handoff: Git trust, repository recovery, and diagnostics (`2026-10-17`)
+
+**Status: IN PROGRESS, not ready to commit or release.** Last checkpoint:
+`2026-10-17`, after the first implementation pass. The maintainer requested
+regular updates here because the agent session may be interrupted. Preserve
+the uncommitted working tree; no commit or push has been made for this task.
+The branch is `main`; a remote fetch was started and must be checked before
+any later commit. Prior Sonar profile/configuration work is already in HEAD.
+
+**Requested outcome (all required):**
+
+1. Recognize Git's ownership / `safe.directory` trust rejection separately
+   from VS Code Workspace Trust and from a missing Git executable.
+2. Offer a per-repository trust action with an explicit confirmation. Add only
+   the validated root to global `safe.directory`, never `*` or a recursive
+   wildcard; never bypass trust by trying the native engine after Git rejects
+   ownership.
+3. Recover in the existing GGL tab after trust is granted in GGL or externally,
+   without restarting the extension host or closing the tab. Restore existing
+   tabs correctly if the host is restarted.
+4. Replace the generic no-Git/no-repository message with observed states:
+   Git executable/version/error, repository presence/absence/unknown, and
+   Rust-engine discovery even when Git is unavailable. A Rust-confirmed repo
+   does not imply CLI-dependent operations can work without Git.
+5. Show the same component details as the Ready hover on the startup screen.
+6. Log actual CLI/native operations, routing/fallback reasons, request IDs,
+   duration and success/failure. Correlate concurrent requests correctly;
+   keep diagnostics local and retain existing credential redaction.
+7. Follow-up: count each distinct failure-screen appearance in telemetry,
+   through the existing consent-gated `logFeature` channel. No paths, arbitrary
+   error text or request contents in telemetry; retries must not inflate counts.
+8. Follow-up: the ordinary no-repository screen is an empty state, not a
+   failure. Add an inline search-depth adjustment and rescan, workspace scoped.
+9. Add meaningful regression tests, finish localization/docs and render the
+   visual change headlessly; pass the repository gates before completion.
+
+**Root causes confirmed in the original code:**
+
+- `backend/utils/git.ts:isGitRepository` returned false for every Git error.
+  Discovery discarded unsafe repos and cached-repo validation removed them.
+- `webviewHtml.ts` emitted a scriptless empty placeholder, with both generic
+  explanations and no evidence, component status, trust action or retry.
+- External changes to global Git trust did not trigger workspace discovery.
+- No `WebviewPanelSerializer` existed, so an already-open tab could not be
+  properly rebound to a new extension host.
+- CLI commands had logs but engine calls and request correlation were absent.
+
+**Current working implementation (not yet regression-verified):**
+
+- New `backend/utils/repositoryProbe.ts`: bounded `git -C ... rev-parse`,
+  typed presence/access results, `repoRoot` native fallback on CLI errors,
+  exact-path trust write with revalidation. Existing engine exports already
+  contain `repoRoot`; no Rust source/ABI or version was changed.
+- `repoSearch.ts` accepts an injectable probe; `workspaceSearch.ts` stores
+  diagnostics, rescans known paths, coalesces concurrent workspace scans and
+  publishes empty results. `repoManager.ts` hides temporarily unavailable
+  repos without deleting their stored UI settings.
+- New `extension/repositoryRecovery.ts` registers diagnostics, trust, settings,
+  output, depth and screen-telemetry messages. It validates trust requests
+  against discovered blocked roots and confirms through VS Code. Telemetry
+  names are `view.failure.{gitUntrusted,gitUnavailable,repositoryError,graphLoadError}`
+  and `view.empty.{noWorkspace,noRepository}`; host validates the allowlist and
+  suppresses repeats until the screen changes or the graph recovers.
+- New `extension/webviewStartupScreen.ts` and `webview/startup.ts`: standalone
+  startup bundle, safe text rendering, shared component rows, retry, visible
+  five-second recovery polling, and depth form (0–20, workspace scoped).
+  `esbuild.js` now builds both `web.min.js` and `startup.min.js`.
+- `webviewPanel.ts` handles transitions in both directions without rebuilding
+  a retained graph unnecessarily. `extension.ts` registers tab serialization
+  and window-focus rescans; `package.json` adds the webview activation event.
+  `selectRepo` now rebinds even if the path string is unchanged.
+- New `backend/utils/operationLog.ts` uses `AsyncLocalStorage` to correlate
+  host requests and backend operations. Native addon calls are wrapped once
+  through `withEngineLogging`; Git runners log actual CLI operations.
+  Graph fallback reasons and existing command records include correlation.
+  Branch create/rename/checkout and remote URL reads now use logged runners.
+- `loadBranches.ts` and `loadRepoInfo.ts` preserve access errors instead of
+  converting every failure to absence. `webview/main.ts` reports graph-error
+  screen visibility and clears it after a successful commit load.
+- New strings are **English only so far** in `l10n/bundle.l10n.json` and mapped
+  in `webviewL10n.ts`. CSS was added to `media/base.css`. Localization, visual
+  polish, README/telemetry disclosure and `telemetry.json` remain unfinished.
+
+**Verification so far:**
+
+- Continuation checkpoint (`2026-10-17`, Muse session): fetch completed —
+  `main` is ahead 14, not behind. `pnpm run typecheck` clean over all three
+  projects in this environment. The three `workspaceSearch.test.ts` failures
+  reproduce exactly as recorded (`repoManager.getKnownRepos is not a
+  function`). The real linux-x64 binary exports `repoRoot` (function,
+  `engineVersion()` `1.0.25`), closing that review risk. The staged diff
+  (32 files, +844/−88) was read end to end; R1 is next.
+- Direct TypeScript checks passed for `src`, `src/webview`, and `tests` before
+  the last small branch-runner/query changes; the latest `src` check passed.
+- `pnpm run typecheck` in the sandbox failed before execution because pnpm's
+  engine store operation lock is read-only. Direct binaries work:
+  `node node_modules/typescript/bin/tsc -p src --noEmit` (repeat for
+  `src/webview` and `tests`). Use escalation for pnpm/full gates when needed.
+- Focused backend run wrote `/tmp/ggl-focused-backend.log`. It is **failed**:
+  real Git fixtures cannot spawn `git` inside the sandbox (`EPERM`); rerun
+  with escalated execution. Three `workspaceSearch.test.ts` cases also fail
+  because old mocks lack `getKnownRepos`, backend preference and the new probe
+  callback. Rewrite these to cover recovery instead of preserving old silence.
+- No new regression tests have been written yet. No passing full test, lint,
+  coverage, package, localization or Sonar gate exists for this change.
+
+**Next slices, in order:**
+
+- **R1 — Probe/trust tests:** temporary real repos, simulated foreign ownership
+  (`GIT_TEST_ASSUME_DIFFERENT_OWNER`), isolated `GIT_CONFIG_GLOBAL` and system
+  config; assert rejection, exact trust entry, recovery, no engine bypass,
+  missing executable + real native discovery, malformed/non-repo paths,
+  symlinks/worktrees/submodules. Never alter the real user's trust list in tests.
+- **R2 — Recovery lifecycle tests:** repair workspace-search fixtures; test
+  blocked→ready and ready→blocked transitions, cached settings preservation,
+  external trust + retained tab, hidden/show/reveal, concurrent scans and
+  serializer rebinding. Inspect async stale-scan/response races and disposal.
+- **R3 — Startup UI/telemetry/depth tests:** DOM tests for all categories,
+  components, safe rendering, Retry/trust/cancel/error, depth validation and
+  workspace persistence, visible-only telemetry, duplicate suppression and
+  renewed appearances after recovery. Add graph error/success tests and
+  existing-consent gating coverage. Avoid counting initial "checking".
+- **R4 — Logging tests/review:** exercise actual engine-only, CLI-only, mixed,
+  declined and failed calls; verify request IDs survive concurrent async calls
+  and redaction remains intact. Review all touched call paths for unlogged IO.
+- **R5 — Cleanup/documentation/visuals:** strict Biome format/lint on touched
+  files, fix all compiler/test regressions and stale comments; translate new
+  keys into shipped locales; update README and telemetry declaration. Render
+  startup screens with real CSS using the documented QtWebEngine method.
+- **R6 — Required full gate:** strict touched-file Biome → package/typecheck/
+  lint → full tests → localization → fresh coverage → Sonar scan and explicit
+  server quality-gate poll. No Rust source changed, so a native rebuild is not
+  inherently required, but real-addon discovery verification is. Inspect
+  findings without weakening the quality profile. Update this checkpoint with
+  exact results and only then consider signed commit/push per standing rules.
+
+**Review risks to resolve, not accepted limitations:** startup listener cleanup,
+request origin checking, polling after a failed refresh, trust races, retained
+panel state, localization completeness, probe handling of unsupported/corrupt
+repositories, and whether graph errors actually trigger rediscovery. The new
+optional `repoRoot` addon member is for existing fake addons/compatibility;
+verify that the real binary exports it before claiming native discovery.
+
+**Sonar state established earlier in this thread:** Git Graph Libre now scans
+`engine/native`, including 19 source and 10 test Rust files, with
+`sonar.rust.cargo.manifestPaths=engine/Cargo.toml`. Both TypeScript and Rust use
+custom **Zam** profiles extending **Sonar way comprehensive**. Both S3776
+thresholds are **16**. This supersedes older statements below that Sonar never
+sees Rust. The previous scan succeeded but its gate flagged one new high issue;
+that is not evidence of this uncommitted work passing.
 
 **Next (`2026-10-16`), awaiting the maintainer:** what remains of the
 upstream engine review's ranked candidates. Landed the same day, each in

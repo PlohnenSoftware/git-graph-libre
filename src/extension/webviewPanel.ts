@@ -14,6 +14,8 @@ import type { RepoManager } from "./repoManager";
 import type { WebviewBridge } from "./webviewBridge";
 import { buildWebviewHtml } from "./webviewHtml";
 import { listWebviewLanguages } from "./webviewLanguages";
+import { registerRepositoryRecovery } from "./repositoryRecovery";
+import type { RepoSearch } from "./workspaceSearch";
 
 export function createWebviewPanel(opts: {
   panel: vscode.WebviewPanel;
@@ -24,8 +26,9 @@ export function createWebviewPanel(opts: {
   extensionState: ExtensionState;
   avatarManager: AvatarManager;
   repoManager: RepoManager;
+  repoSearch?: RepoSearch;
   extensionVersion: string;
-  outputChannel?: Pick<vscode.OutputChannel, "appendLine">;
+  outputChannel?: Pick<vscode.OutputChannel, "appendLine"> & Partial<Pick<vscode.OutputChannel, "show">>;
   telemetry?: Pick<TelemetryReporter, "logFeature">;
   onDispose: () => void;
   onPanelShown: () => void;
@@ -64,6 +67,12 @@ export function createWebviewPanel(opts: {
    */
   let temporaryLanguage: string | undefined;
   let isPanelVisible = true;
+  let hadRepositories = Object.keys(repoManager.getRepos()).length > 0;
+  let disposed = false;
+  const recovery = opts.repoSearch ? registerRepositoryRecovery(bridge, {
+    config, repoSearch: opts.repoSearch, outputChannel, telemetry,
+    visible: () => !disposed && panel.visible
+  }) : undefined;
 
   // Both tab icon variants ship a light/dark pair: the grey one has to invert to
   // stay legible, and the color one keeps its graph hues but greys the bird to
@@ -94,6 +103,8 @@ export function createWebviewPanel(opts: {
     }
     panel.webview.html = result.html;
     isGraphViewLoaded = result.isGraphLoaded;
+    hadRepositories = Object.keys(repoManager.getRepos()).length > 0;
+    if (isGraphViewLoaded) recovery?.clearFailure();
   }
 
   // Bring a re-shown panel up to date without disturbing the retained
@@ -103,7 +114,8 @@ export function createWebviewPanel(opts: {
   // receive messages.
   function syncRetainedView() {
     if (!isGraphViewLoaded) {
-      update();
+      if (hadRepositories !== (Object.keys(repoManager.getRepos()).length > 0)) update();
+      else if (!hadRepositories) void recovery?.refresh();
       return;
     }
     bridge.post({
@@ -115,6 +127,8 @@ export function createWebviewPanel(opts: {
   }
 
   function dispose() {
+    if (disposed) return;
+    disposed = true;
     onDispose();
     panel.dispose();
     avatarManager.deregisterBridge();
@@ -157,12 +171,13 @@ export function createWebviewPanel(opts: {
   repoManager.registerViewCallback((repos: GitRepoSet, numRepos: number) => {
     if (!panel.visible) return;
     outputChannel?.appendLine(`[panel] repos update repos=${numRepos} graph=${isGraphViewLoaded}`);
-    if (!isGraphViewLoaded && numRepos > 0) {
+    if (hadRepositories !== (numRepos > 0)) {
       // The placeholder document cannot receive loadRepos, so the first
       // discovered repository requires a document swap to mount the graph.
       update();
       return;
     }
+    if (!isGraphViewLoaded) return;
     bridge.post({
       command: "loadRepos",
       repos,
@@ -177,6 +192,7 @@ export function createWebviewPanel(opts: {
     },
     reveal(column?: vscode.ViewColumn) {
       panel.reveal(column);
+      if (!isGraphViewLoaded && !hadRepositories) void recovery?.refresh();
     },
     startHistorySearch() {
       bridge.post({ command: "startHistorySearch" });
@@ -188,7 +204,10 @@ export function createWebviewPanel(opts: {
      * and shows no indicator, so it is skipped.
      */
     async refreshComponentStatus() {
-      if (!isGraphViewLoaded) return;
+      if (!isGraphViewLoaded) {
+        if (!hadRepositories) await recovery?.refresh();
+        return;
+      }
       const components = await buildComponentStatus({
         preference: config.backend(),
         gitPath: config.gitPath()

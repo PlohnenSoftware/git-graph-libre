@@ -3,9 +3,9 @@ import * as GGL from "@/types";
 
 declare global {
   function acquireVsCodeApi(): {
-    getState(): WebViewState | null | undefined;
+    getState(): WebViewState | { startup: true } | null | undefined;
     postMessage(message: GGL.RequestMessage): void;
-    setState(state: WebViewState): void;
+    setState(state: WebViewState | { startup: true }): void;
   };
 
   const viewState: GGL.GitGraphViewState;

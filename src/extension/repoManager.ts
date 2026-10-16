@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 import { closeEngineRepository } from "@/backend/engine/index";
-import { isGitRepository } from "@/backend/utils/git";
+import { inspectRepository } from "@/backend/utils/repositoryProbe";
 import { getPathFromUri } from "@/backend/utils/path";
 import { evalPromises } from "@/backend/utils/promise";
 import type { Config } from "@/config";
@@ -24,10 +24,11 @@ export function createRepoManager(
   config: Config
 ) {
   const repos = extensionState.getRepos();
+  const unavailable = new Set<string>();
   let viewCallback: ((repos: GitRepoSet, numRepos: number) => void) | null = null;
 
   function getRepos() {
-    return sortRepos(repos);
+    return sortRepos(Object.fromEntries(Object.entries(repos).filter(([repo]) => !unavailable.has(repo))));
   }
 
   function sendRepos() {
@@ -39,6 +40,7 @@ export function createRepoManager(
 
   function removeRepo(repo: string) {
     delete repos[repo];
+    unavailable.delete(repo);
     extensionState.saveRepos(repos);
     // Every removal path funnels through here, so the engine handle is
     // dropped in exactly one place. Best effort: removal must succeed
@@ -63,6 +65,8 @@ export function createRepoManager(
   }
 
   function addRepo(repo: string) {
+    unavailable.delete(repo);
+    if (repos[repo]) return;
     repos[repo] = { columnWidths: null };
     extensionState.saveRepos(repos);
   }
@@ -111,11 +115,17 @@ export function createRepoManager(
     const repoPaths = Object.keys(repos);
     let changes = false;
     const results = await evalPromises(repoPaths, 3, (path) =>
-      isGitRepository(path, config.gitPath())
+      inspectRepository(path, { gitPath: config.gitPath(), useEngine: config.backend() === "auto" })
     );
     for (let i = 0; i < repoPaths.length; i++) {
-      if (!results[i]) {
+      if (results[i].state === "notRepository") {
         removeRepo(repoPaths[i]);
+        changes = true;
+      } else if (results[i].state !== "ready") {
+        unavailable.add(repoPaths[i]);
+        closeEngineRepository(repoPaths[i]);
+        changes = true;
+      } else if (unavailable.delete(repoPaths[i])) {
         changes = true;
       }
     }
@@ -127,6 +137,11 @@ export function createRepoManager(
     registerViewCallback,
     deregisterViewCallback,
     getRepos,
+    getKnownRepos: () => sortRepos(repos),
+    setRepoUnavailable(repo: string) {
+      unavailable.add(repo);
+      closeEngineRepository(repo);
+    },
     isDirectoryWithinRepos,
     sendRepos,
     addRepo,

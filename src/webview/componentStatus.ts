@@ -169,7 +169,7 @@ function positionPopup(popup: HTMLElement, anchor: HTMLElement): void {
   popup.style.left = `${Math.round(Math.max(EDGE_GAP_PX, Math.min(rect.left, maxLeft)))}px`;
 }
 
-function renderPopup(popup: HTMLElement, status: ComponentStatus | null): void {
+export function renderComponentDetails(popup: HTMLElement, status: ComponentStatus | null): void {
   const title = document.createElement("div");
   title.className = "componentStatusTitle";
   title.textContent = l10n.componentStatusTitle;
@@ -187,6 +187,8 @@ function renderPopup(popup: HTMLElement, status: ComponentStatus | null): void {
   }
   popup.replaceChildren(...children);
 }
+
+const renderPopup = renderComponentDetails;
 
 function renderRow(row: Row): HTMLElement {
   const group = document.createElement("div");

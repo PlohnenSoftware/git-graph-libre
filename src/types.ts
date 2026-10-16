@@ -8,6 +8,31 @@ import type {
 } from "@/backend/types";
 
 export type GitRepoSet = { [repo: string]: GitRepoState };
+export type RepositoryProbe = {
+  path: string;
+  state: "ready" | "untrusted" | "gitUnavailable" | "notRepository" | "error";
+  repository: boolean | null;
+  detectedBy: "git" | "engine" | "filesystem" | null;
+  detail: string | null;
+  engineDetail?: string;
+};
+export type StartupStatus = {
+  searchDepth: number;
+  roots: string[];
+  repositories: RepositoryProbe[];
+  components: ComponentStatus;
+  error: string | null;
+};
+export const FAILURE_SCREENS = ["noWorkspace", "gitUntrusted", "gitUnavailable", "noRepository", "repositoryError", "graphLoadError"] as const;
+export type FailureScreen = (typeof FAILURE_SCREENS)[number];
+export type RequestRepositoryRecovery =
+  | { command: "repositoryStatus" }
+  | { command: "trustRepository"; repo: string }
+  | { command: "openGitSettings" }
+  | { command: "showOutput" }
+  | { command: "setRepoSearchDepth"; depth: number }
+  | { command: "failureScreenShown"; screen: FailureScreen | null };
+export type ResponseRepositoryStatus = { command: "repositoryStatus"; startup: StartupStatus };
 /** A language the webview can be switched to; label is English by design. */
 export type WebviewLanguage = { id: string; label: string };
 /**
@@ -505,6 +530,7 @@ export type ResponseComponentStatus = {
 };
 
 export type RequestMessage =
+  | RequestRepositoryRecovery
   | ActionRequest
   | QueryRequest
   | RequestFetchAvatar
@@ -529,6 +555,7 @@ export type RequestMessage =
   | RequestWebviewDiagnostic;
 
 export type ResponseMessage =
+  | ResponseRepositoryStatus
   | ActionResponse
   | QueryResponse
   | ResponseFetchAvatar

@@ -131,8 +131,10 @@ async function isInsideWorkTree(git: SimpleGit, context: GitQueryContext): Promi
       record: context.record
     });
     return stdout.trim() === "true";
-  } catch {
-    return false;
+  } catch (error) {
+    const queryError = toGitQueryError(error, "Unable to access repository");
+    if (queryError.message.includes("not a git repository")) return false;
+    throw error;
   }
 }
 
@@ -272,7 +274,12 @@ export async function loadRepoInfo(
 ): Promise<QueryResult<"loadRepoInfo">> {
   const context = { repo: input.repo ?? null, record: input.recordGitCommand };
   const showStashes = input.showStashes !== false;
-  const isRepo = await isInsideWorkTree(git, context);
+  let isRepo: boolean;
+  try {
+    isRepo = await isInsideWorkTree(git, context);
+  } catch (error) {
+    return { repoInfo: emptyRepoInfo(true), error: toGitQueryError(error, "Unable to access repository") };
+  }
   if (!isRepo) return { repoInfo: emptyRepoInfo(false), error: null };
 
   const [headResult, remotesResult, stashesResult, configResult, authorsResult, tagsResult] =

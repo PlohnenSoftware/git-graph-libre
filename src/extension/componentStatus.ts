@@ -7,6 +7,7 @@
  */
 
 import { execFile } from "node:child_process";
+import { traceBackend } from "@/backend/utils/operationLog";
 
 import { engineComponentStatus, lastGraphLoadRoute } from "@/backend/engine/index";
 import type {
@@ -26,7 +27,7 @@ const GIT_PROBE_TIMEOUT_MS = 5000;
  * `failed` status carrying the first line of the reason.
  */
 export function probeGit(gitPath: string): Promise<GitComponentStatus> {
-  return new Promise((resolve) => {
+  return traceBackend("cli", "gitVersion", null, () => new Promise((resolve) => {
     execFile(
       gitPath,
       ["--version"],
@@ -41,7 +42,7 @@ export function probeGit(gitPath: string): Promise<GitComponentStatus> {
         resolve({ state: "failed", path: gitPath, detail: reason.split("\n", 1)[0] ?? reason });
       }
     );
-  });
+  }));
 }
 
 export type ComponentStatusDeps = {

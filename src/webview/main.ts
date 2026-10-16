@@ -839,6 +839,7 @@ class GitGraphView {
       this.triggerLoadCommitsCallback(false);
       return;
     }
+    sendMessage({ command: "failureScreenShown", screen: null });
     // Before the comparison below, so a refresh of an unchanged page stays
     // unchanged rather than dropping every signature back to pending.
     const page = this.withKnownSignatures(commits);
@@ -5184,6 +5185,7 @@ class GitGraphView {
     this.clearStashSection();
   }
   private renderShowError(message: string, reason: string | null) {
+    sendMessage({ command: "failureScreenShown", screen: "graphLoadError" });
     hideDialogAndContextMenu();
     document.body.classList.add("unableToLoad");
     this.graph.clear();
@@ -6405,6 +6407,7 @@ let contextMenuSource: HTMLElement | null = null;
 const dialog = requireElement("dialog");
 const dialogBacking = requireElement("dialogBacking");
 let dialogMenuSource: HTMLElement | null = null;
+const restoredState = vscode.getState();
 const gitGraph = new GitGraphView(
   viewState.repos,
   viewState.lastActiveRepo,
@@ -6442,7 +6445,7 @@ const gitGraph = new GitGraphView(
     showTags: viewState.showTags,
     shortHashLength: viewState.shortHashLength
   },
-  vscode.getState() ?? null
+  restoredState && "gitRepos" in restoredState ? restoredState : null
 );
 postWebviewDiagnostic("boot.ready", {
   repo: viewState.lastActiveRepo ?? undefined,

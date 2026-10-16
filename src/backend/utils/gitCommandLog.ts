@@ -1,4 +1,5 @@
 import type { GitCommandRecord } from "./gitRunner";
+import { operationContext } from "./operationLog";
 
 export function formatGitCommandRecord(record: GitCommandRecord): string {
   const status = record.success ? "ok" : "failed";
@@ -10,5 +11,5 @@ export function formatGitCommandRecord(record: GitCommandRecord): string {
       ? ""
       : ` message=${JSON.stringify(error.message)} exit=${error.exitCode ?? "(unknown)"}`;
 
-  return `[git:${record.kind}] ${record.label} ${status} ${record.durationMs}ms repo=${JSON.stringify(repo)} args=[${args}]${errorDetails}`;
+  return `[git:${record.kind}] ${record.label} ${status} ${record.durationMs}ms backend=cli ${operationContext()} repo=${JSON.stringify(repo)} args=[${args}]${errorDetails}`;
 }

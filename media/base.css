@@ -65,3 +65,37 @@ body.unableToLoad p {
 #content {
   position: relative;
 }
+
+body.repositoryStartup {
+  text-align: left;
+  overflow: auto;
+}
+.repositoryStartup main {
+  max-width: 760px;
+  margin: 32px auto;
+  padding: 0 24px;
+}
+.repositoryStartup h2,
+.repositoryStartup p {
+  text-align: left;
+}
+.startupRepository {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid var(--vscode-panel-border);
+}
+.startupRepository code,
+.startupRepository pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.startupActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0;
+}
+.startupComponents {
+  padding: 16px;
+  border: 1px solid var(--vscode-panel-border);
+}

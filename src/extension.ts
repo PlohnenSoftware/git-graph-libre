@@ -5,6 +5,7 @@ import { closeAllEngineRepositories } from "./backend/engine/index";
 import { pruneInstalledEngineBinaries } from "./backend/engine/prune";
 import { gitClientFactory } from "./backend/gitClient";
 import { buildExtensionUri } from "./backend/utils/path";
+import { setOperationLog } from "./backend/utils/operationLog";
 import { config } from "./config";
 import { DiffDocProvider } from "./diffDocProvider";
 import { createCommandManager } from "./extension/commandManager";
@@ -29,6 +30,7 @@ import { buildLanguagePayload, listBundleLanguages } from "./telemetry/language"
 export function activate(context: vscode.ExtensionContext) {
   initL10n(context.extensionPath);
   const logger = createLogger(l10n.t("outputChannel.text"));
+  context.subscriptions.push(setOperationLog(logger.log));
   // The universal VSIX carries every platform's engine binary; drop the ones
   // this host can never load. Production installs only — a development host
   // runs from the repository, whose built binaries are the developer's own.
@@ -59,7 +61,7 @@ export function activate(context: vscode.ExtensionContext) {
   const repoWatcher = createRepoWatcher(repoManager, config, repoSearch);
   let currentPanel: WebviewPanel | undefined;
 
-  function openGraphView(targetRepo?: string) {
+  function openGraphView(targetRepo?: string, restoredPanel?: vscode.WebviewPanel) {
     logger.log(`[panel] open target=${JSON.stringify(targetRepo ?? null)}`);
     void consentPrompt.promptIfUnset();
     if (targetRepo) extensionState.setLastActiveRepo(targetRepo);
@@ -69,7 +71,7 @@ export function activate(context: vscode.ExtensionContext) {
       currentPanel.reveal(column);
       return;
     }
-    const panel = vscode.window.createWebviewPanel(
+    const panel = restoredPanel ?? vscode.window.createWebviewPanel(
       "git-graph-libre",
       l10n.t("outputChannel.text"),
       column ?? vscode.ViewColumn.One,
@@ -82,6 +84,10 @@ export function activate(context: vscode.ExtensionContext) {
         ]
       }
     );
+    panel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [buildExtensionUri(context.extensionPath, "media"), buildExtensionUri(context.extensionPath, "out")]
+    };
     let bridge!: WebviewBridge;
     const repoFileWatcher = new RepoFileWatcher(() => {
       if (panel.visible) bridge.post({ command: "refresh" });
@@ -92,6 +98,7 @@ export function activate(context: vscode.ExtensionContext) {
       config,
       gitClient,
       repoManager,
+      repoSearch,
       extensionState,
       avatarManager,
       repoFileWatcher,
@@ -110,6 +117,7 @@ export function activate(context: vscode.ExtensionContext) {
       extensionState,
       avatarManager,
       repoManager,
+      repoSearch,
       extensionVersion: String(context.extension.packageJSON.version ?? "unknown"),
       outputChannel: logger,
       telemetry,
@@ -162,6 +170,15 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     logger.channel,
+    vscode.window.registerWebviewPanelSerializer("git-graph-libre", {
+      async deserializeWebviewPanel(panel) {
+        openGraphView(undefined, panel);
+        await repoSearch.searchWorkspaceForRepos();
+      }
+    }),
+    vscode.window.onDidChangeWindowState(state => {
+      if (state.focused) void repoSearch.searchWorkspaceForRepos();
+    }),
     telemetry,
     ...commandManager.registerAll(),
     vscode.workspace.registerTextDocumentContentProvider(

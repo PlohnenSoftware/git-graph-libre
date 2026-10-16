@@ -48,14 +48,14 @@ async function main() {
   });
 
   const webview = await esbuild.context({
-    entryPoints: ["src/webview/main.ts"],
+    entryPoints: { "web.min": "src/webview/main.ts", "startup.min": "src/webview/startup.ts" },
     bundle: true,
     format: "iife",
     minify: production,
     sourcemap: !production,
     sourcesContent: false,
     target: "es6",
-    outfile: "out/web.min.js",
+    outdir: "out",
     logLevel: "silent",
     plugins: [aliasPlugin, esbuildProblemMatcherPlugin]
   });

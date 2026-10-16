@@ -80,6 +80,7 @@ import { buildPullRequestUrl } from "./pullRequest";
 import { exportRepoConfigFile, importRepoConfigFile } from "./repoConfigFile";
 import type { RepoManager } from "./repoManager";
 import type { WebviewBridge } from "./webviewBridge";
+import type { RepoSearch } from "./workspaceSearch";
 
 type ViewDiffInput = {
   repo: string;
@@ -303,6 +304,7 @@ export function registerMessageHandlers(
     config: Config;
     gitClient: GitClient;
     repoManager: RepoManager;
+    repoSearch?: RepoSearch;
     extensionState: ExtensionState;
     avatarManager: AvatarManager;
     repoFileWatcher: RepoFileWatcher;
@@ -390,7 +392,7 @@ export function registerMessageHandlers(
     fetchRemotes(gitClient.getInstance(), msg, recordGitCommand)
   );
   registerAction("fetchTags", (msg) => fetchTags(gitClient.getInstance(), msg, recordGitCommand));
-  registerAction("createBranch", (msg) => createBranch(gitClient.getInstance(), msg));
+  registerAction("createBranch", (msg) => createBranch(gitClient.getInstance(), msg, recordGitCommand));
   registerAction("createPullRequest", async (msg) => {
     if (msg.pushBeforeCreate) {
       await pushBranch(
@@ -436,8 +438,8 @@ export function registerMessageHandlers(
   registerAction("updateBranchFromUpstream", (msg) =>
     updateBranchFromUpstream(gitClient.getInstance(), msg, recordGitCommand)
   );
-  registerAction("renameBranch", (msg) => renameBranch(gitClient.getInstance(), msg));
-  registerAction("checkoutBranch", (msg) => checkoutBranch(gitClient.getInstance(), msg));
+  registerAction("renameBranch", (msg) => renameBranch(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("checkoutBranch", (msg) => checkoutBranch(gitClient.getInstance(), msg, recordGitCommand));
   registerAction("checkoutCommit", (msg) =>
     checkoutCommit(gitClient.getInstance(), msg, recordGitCommand)
   );
@@ -793,7 +795,6 @@ export function registerMessageHandlers(
   // --- Infrastructure handlers ---
 
   bridge.onMessage("selectRepo", (msg) => {
-    if (msg.repo === currentRepo) return;
     currentRepo = msg.repo;
     gitClient.setRepo(msg.repo);
     extensionState.setLastActiveRepo(msg.repo);
@@ -801,6 +802,10 @@ export function registerMessageHandlers(
   });
 
   bridge.onMessage("loadRepos", async (msg) => {
+    if (msg.check && deps.repoSearch) {
+      await deps.repoSearch.searchWorkspaceForRepos();
+      return;
+    }
     if (!msg.check || !(await repoManager.checkReposExist())) {
       bridge.post({
         command: "loadRepos",

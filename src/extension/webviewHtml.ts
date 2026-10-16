@@ -16,6 +16,7 @@ import { getWebviewLocalizedStrings } from "./webviewL10n";
 import { createBundleTranslator, listWebviewLanguages } from "./webviewLanguages";
 import { buildWebviewStatusStrip } from "./webviewStatusStrip";
 import { buildWebviewToolbar } from "./webviewToolbar";
+import { buildStartupScreen } from "./webviewStartupScreen";
 
 /**
  * Safely escape JSON for embedding in HTML script tags.
@@ -136,11 +137,9 @@ export function buildWebviewHtml(opts: {
 		<script src="${compiledOutputUri("web.min.js")}"></script>
 		</body>`;
   } else {
-    body = `<body class="unableToLoad" style="${styleVars}">
-		<h2>${l10nStrings.unableToLoadGitGraph}</h2>
-		<p>${l10nStrings.noGitRepository}</p>
-		<p>${l10nStrings.noGit}</p>
-		</body>`;
+    body = buildStartupScreen(l10nStrings, styleVars).replace("</body>", `
+      <script nonce="${nonce}">const l10n = ${escapeJsonForHtml(l10nStrings)};</script>
+      <script src="${compiledOutputUri("startup.min.js")}"></script></body>`);
   }
 
   const html = `<!DOCTYPE html>

@@ -51,5 +51,5 @@ export async function loadBranches(
 
   const isRepo = failure === null ? true : await isGitRepository(currentRepo, gitPath);
 
-  return { branches, head, hard, isRepo, error: isRepo ? failure : null };
+  return { branches, head, hard, isRepo, error: failure };
 }

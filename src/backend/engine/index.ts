@@ -33,7 +33,8 @@ import type {
   GraphLoadRoute
 } from "@/types";
 
-import { type EngineAddon, engineLoadStatus, loadEngineAddon } from "./addon";
+import { type EngineAddon, engineLoadStatus, loadEngineAddon, withEngineLogging } from "./addon";
+import { logBackendRoute } from "@/backend/utils/operationLog";
 import {
   buildLoadCommitsOptions,
   type EngineLoadCommitsInput,
@@ -191,6 +192,7 @@ function noteEngineThrow(error: unknown): boolean {
   const declined = isEngineFallbackError(error);
   if (declined) {
     engineDeclinedRead = true;
+    logBackendRoute("fallback", "backend=cli reason=engineDeclined");
   } else {
     engineFailedRead = true;
   }
@@ -275,7 +277,12 @@ export function openEngineRepositoryCount(
 }
 
 export function createRepoReader(deps: RepoReaderDeps): RepoReader {
-  const provider = deps.addonProvider ?? loadEngineAddon;
+  const provider = () => {
+    const addon = (deps.addonProvider ?? loadEngineAddon)();
+    if (!addon) logBackendRoute("fallback", "backend=cli reason=engineUnavailable");
+    return addon ? withEngineLogging(addon) : null;
+  };
+  if (deps.preference === "git-cli" || deps.forceCli) logBackendRoute("reader", `backend=cli reason=${deps.forceCli ? "forced" : "setting"}`);
   return {
     getRemoteUrl: (repoPath: string) =>
       readRemoteUrl(deps.preference, deps.gitPath, provider, repoPath),
@@ -372,6 +379,7 @@ async function readCommits(
 ): Promise<QueryResult<"loadCommits">> {
   const cliRead = (route: GraphLoadRoute): Promise<QueryResult<"loadCommits">> => {
     lastGraphLoad = route;
+    logBackendRoute("loadCommits", `backend=cli reason=${route}`);
     return loadCommits(args.git, {
       branchName: args.branchName,
       branches: args.branches,

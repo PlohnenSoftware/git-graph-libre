@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import type { SimpleGit } from "simple-git";
+import { traceBackend } from "./operationLog";
 
 export type GitCommandKind = "query" | "action";
 
@@ -178,7 +179,7 @@ export async function runGitCommand<T>(
   };
 
   try {
-    const value = await operation();
+    const value = await traceBackend("cli", options.label, options.repo ?? null, operation);
     options.record?.({
       ...baseRecord,
       durationMs: Math.max(0, Date.now() - startedAt),

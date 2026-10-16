@@ -67,7 +67,8 @@ async function searchSubmodules(
   repoPath: string,
   maxDepth: number,
   gitPath: string,
-  knownRepoPaths: string[]
+  knownRepoPaths: string[],
+  probe: (directory: string) => Promise<boolean> = (directory) => isGitRepository(directory, gitPath)
 ): Promise<string[]> {
   const found = new Set<string>();
   const unrelatedKnownRepoPaths = knownRepoPaths.filter(
@@ -82,13 +83,13 @@ async function searchSubmodules(
     ) {
       continue;
     }
-    if (await isGitRepository(submodulePath, gitPath)) {
+    if (await probe(submodulePath)) {
       found.add(submodulePath);
       if (maxDepth > 0) {
         const nested = await searchDirectoryForRepos(submodulePath, maxDepth - 1, gitPath, [
           ...knownRepoPaths,
           repoPath
-        ]);
+        ], probe);
         for (const nestedRepo of nested) found.add(nestedRepo);
       }
     }
@@ -100,23 +101,25 @@ export async function searchDirectoryForRepos(
   directory: string,
   maxDepth: number,
   gitPath: string,
-  knownRepoPaths: string[]
+  knownRepoPaths: string[],
+  probe: (directory: string) => Promise<boolean> = (directory) => isGitRepository(directory, gitPath)
 ): Promise<string[]> {
   if (knownRepoPaths.includes(directory)) {
-    return searchSubmodules(directory, maxDepth, gitPath, knownRepoPaths);
+    return searchSubmodules(directory, maxDepth, gitPath, knownRepoPaths, probe);
   }
   if (knownRepoPaths.some((repoPath) => directory.startsWith(`${repoPath}/`))) {
     return [];
   }
 
-  const isRepo = await isGitRepository(directory, gitPath);
+  const isRepo = await probe(directory);
   if (isRepo) {
     const found = new Set<string>([directory]);
     for (const submodulePath of await searchSubmodules(
       directory,
       maxDepth,
       gitPath,
-      knownRepoPaths
+      knownRepoPaths,
+      probe
     )) {
       found.add(submodulePath);
     }
@@ -140,7 +143,7 @@ export async function searchDirectoryForRepos(
   }
 
   const results = await evalPromises(dirs, 2, (dir) =>
-    searchDirectoryForRepos(dir, maxDepth - 1, gitPath, knownRepoPaths)
+    searchDirectoryForRepos(dir, maxDepth - 1, gitPath, knownRepoPaths, probe)
   );
   return results.flat();
 }

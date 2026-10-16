@@ -11,6 +11,7 @@ import { createRequire } from "node:module";
 import * as path from "node:path";
 
 import type { EngineComponentStatus, EngineUnavailableReason } from "@/types";
+import { traceBackend } from "@/backend/utils/operationLog";
 
 /**
  * The engine version the TypeScript side was built against. Mirrors
@@ -30,6 +31,8 @@ export const EXPECTED_ENGINE_VERSION = "1.0.25";
  * never the engine's own wire shapes (see the Phase 16 design rules).
  */
 export type EngineAddon = {
+  /** Discovery without keeping a handle open, available since the first engine release. */
+  repoRoot?(repoPath: string): Promise<string>;
   /** The engine's own version (`CARGO_PKG_VERSION`), for skew detection. */
   engineVersion(): string;
   /**
@@ -212,7 +215,25 @@ let cachedLoad: EngineLoad | undefined;
  * on exactly the CLI behavior.
  */
 export function loadEngineAddon(): EngineAddon | null {
-  return engineLoad().addon;
+  const addon = engineLoad().addon;
+  return addon ? withEngineLogging(addon) : null;
+}
+
+const loggedAddons = new WeakMap<EngineAddon, EngineAddon>();
+/** Trace native calls, including the engine fills within an otherwise mixed read. */
+export function withEngineLogging(addon: EngineAddon): EngineAddon {
+  const existing = loggedAddons.get(addon);
+  if (existing) return existing;
+  const wrapped = new Proxy(addon, {
+    get(target, property) {
+      const method: unknown = Reflect.get(target, property);
+      if (typeof method !== "function" || ["engineVersion", "closeRepository", "closeAllRepositories", "openRepositoryCount"].includes(String(property))) return method;
+      return (...args: unknown[]) => traceBackend("engine", String(property), typeof args[0] === "string" ? args[0] : null, async () => Reflect.apply(method, target, args));
+    }
+  });
+  loggedAddons.set(addon, wrapped);
+  loggedAddons.set(wrapped, wrapped);
+  return wrapped;
 }
 
 /**

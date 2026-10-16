@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 
 import { simpleGit } from "simple-git";
+import { runGitRaw } from "./gitRunner";
 
 /** A leading Windows drive letter, as in the `C:` of `C:/src/repo`. */
 const WINDOWS_DRIVE_LETTER = /^[a-zA-Z]:/;
@@ -99,11 +100,9 @@ export async function isGitRepository(repoPath: string, gitPath: string): Promis
 
 export async function getRemoteUrl(repoPath: string, gitPath: string): Promise<string | null> {
   try {
-    const url = await simpleGit({ baseDir: repoPath, binary: gitPath }).raw([
-      "config",
-      "--get",
-      "remote.origin.url"
-    ]);
+    const url = await runGitRaw(simpleGit({ baseDir: repoPath, binary: gitPath }), {
+      label: "getRemoteUrl", args: ["config", "--get", "remote.origin.url"], repo: repoPath
+    });
     return url.trim() || null;
   } catch {
     return null;
