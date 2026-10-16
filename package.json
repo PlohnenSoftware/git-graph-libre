@@ -109,6 +109,7 @@
     "lint:staged": "biome lint --staged --no-errors-on-unmatched .",
     "lint:strict:changed": "biome lint --config-path biome.strict.jsonc --changed --no-errors-on-unmatched --error-on-warnings .",
     "lint:strict:staged": "biome lint --config-path biome.strict.jsonc --staged --no-errors-on-unmatched --error-on-warnings .",
+    "biome-migrate": "biome migrate --write",
     "sonar:auth": "sonar auth login -s http://127.0.0.1:9000",
     "sonar:auth:status": "sonar auth status",
     "sonar:scan": "sonar-scanner",
@@ -125,7 +126,7 @@
     "@napi-rs/cli": "^3.10.8",
     "@primer/octicons": "^19.40.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.5",
     "@types/vscode": "~1.98.0",
     "@vitest/coverage-v8": "5.0.3",
     "@vscode/l10n-dev": "^0.0.35",
@@ -133,11 +134,11 @@
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^4.0.0",
     "esbuild": "^0.28.2",
-    "jsdom": "^30.1.2",
+    "jsdom": "^30.1.3",
     "ovsx": "^1.2.0",
     "tsc-alias": "^1.9.7",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   },
   "l10n": "./l10n",
   "contributes": {
