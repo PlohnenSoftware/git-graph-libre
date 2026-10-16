@@ -273,9 +273,9 @@ function engineRow(engine: EngineComponentStatus): Row {
 
 const CLI_ROUTES: Record<Exclude<GraphLoadRoute, "engine">, () => string> = {
   setting: () => l10n.componentStatusRouteSetting,
+  forced: () => l10n.componentStatusRouteForced,
   unavailable: () => l10n.componentStatusRouteUnavailable,
   handedBack: () => l10n.componentStatusRouteHandedBack,
-  signatureColumn: () => l10n.componentStatusRouteSignatureColumn,
   topoOrdering: () => l10n.componentStatusRouteTopoOrdering,
   reflog: () => l10n.componentStatusRouteReflog,
   unreachableCommits: () => l10n.componentStatusRouteUnreachableCommits,

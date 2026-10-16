@@ -25,7 +25,6 @@ const BASE: EngineLoadCommitsInput = {
   includeUnreachableCommits: false,
   onlyFollowFirstParent: false,
   commitOrdering: "date",
-  showSignature: false,
   showStashes: false,
   dateType: "Commit Date",
   showUncommittedChanges: true
@@ -49,12 +48,6 @@ describe("engineLoadCommitsRefs", () => {
 describe("loadCommitsDecline", () => {
   it("serves a plain show-all load", () => {
     expect(loadCommitsDecline(BASE)).toBeNull();
-  });
-
-  it("declines the moment the signature column is on", () => {
-    expect(loadCommitsDecline({ ...BASE, showSignature: true })).toBe("signatureColumn");
-    // The column being off again restores the engine path.
-    expect(loadCommitsDecline({ ...BASE, showSignature: false })).toBeNull();
   });
 
   it("serves Author Date, which the engine answers through `useAuthorDate`", () => {
@@ -88,16 +81,11 @@ describe("loadCommitsDecline", () => {
     expect(loadCommitsDecline({ ...BASE, branches: ["main"] })).toBeNull();
   });
 
-  it("names the signature column first when several declines apply", () => {
+  it("names the first decline that holds when several apply", () => {
     // The order is the predicate's: the reason shown is the first that holds.
-    expect(
-      loadCommitsDecline({
-        ...BASE,
-        showSignature: true,
-        commitOrdering: "topo",
-        includeReflog: true
-      })
-    ).toBe("signatureColumn");
+    expect(loadCommitsDecline({ ...BASE, commitOrdering: "topo", includeReflog: true })).toBe(
+      "topoOrdering"
+    );
   });
 });
 

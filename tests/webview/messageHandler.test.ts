@@ -265,7 +265,6 @@ describe("registerMessageHandlers", () => {
       includeUnreachableCommits: false,
       onlyFollowFirstParent: false,
       commitOrdering: "date" as const,
-      showSignature: false,
       hard: true,
       repo
     });

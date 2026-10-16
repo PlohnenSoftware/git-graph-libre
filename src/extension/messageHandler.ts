@@ -46,8 +46,15 @@ import {
 } from "@/backend/actions/stash";
 import { addTag, deleteTag, pushAllTags, pushTag } from "@/backend/actions/tag";
 import { deleteUserDetails, editUserDetails } from "@/backend/actions/userConfig";
-import { createRepoReader, didEngineServeRead } from "@/backend/engine/index";
+import {
+  createRepoReader,
+  didEngineDeclineRead,
+  didEngineFailRead,
+  didEngineServeRead,
+  engineUnavailableReason
+} from "@/backend/engine/index";
 import type { GitClient } from "@/backend/gitClient";
+import { commitSignatures } from "@/backend/queries/commitSignatures";
 import { loadBranches } from "@/backend/queries/loadBranches";
 import { tagDetails } from "@/backend/queries/tagDetails";
 import { uncommittedDetails } from "@/backend/queries/uncommittedDetails";
@@ -547,9 +554,12 @@ export function registerMessageHandlers(
     // The preference is read live on every load, so flipping
     // git-graph-libre.backend needs no reload. The reader serves from the
     // engine where it can and the CLI elsewhere, with an identical shape.
+    // `forceCli` is the hidden menu's one-off Git CLI reload.
+    const preference = config.backend();
     const reader = createRepoReader({
-      preference: config.backend(),
-      gitPath: config.gitPath()
+      preference,
+      gitPath: config.gitPath(),
+      forceCli: msg.forceCli === true
     });
     const result = await reader.loadCommits({
       branchName: msg.branchName,
@@ -564,7 +574,6 @@ export function registerMessageHandlers(
       includeUnreachableCommits: msg.includeUnreachableCommits,
       onlyFollowFirstParent: msg.onlyFollowFirstParent,
       commitOrdering: msg.commitOrdering,
-      showSignature: msg.showSignature,
       showStashes: msg.showStashes === true,
       hard: msg.hard,
       dateType: config.dateType(),
@@ -598,13 +607,37 @@ export function registerMessageHandlers(
       repo: msg.repo,
       // The reader's session flag: true only when the engine actually served
       // a read, so the signal means "installed and in effect", never a count.
-      engineServed: didEngineServeRead()
+      engineServed: didEngineServeRead(),
+      // How the engine fared, for the failure signals: the reason it could
+      // not start (git-cli never tries, and reads as null), and whether any
+      // read so far failed outright or was handed back to the CLI.
+      engineUnavailable: engineUnavailableReason(preference),
+      engineFailed: didEngineFailRead(),
+      engineDeclined: didEngineDeclineRead(),
+      forcedCli: msg.forceCli === true
     });
 
     bridge.post({
       command: "loadCommits",
       requestId: msg.requestId,
       ...result
+    });
+  });
+
+  // Signature status for the commits the graph shows, read after the page has
+  // rendered: the graph load never verifies signatures, so it never waits on
+  // GPG. Always the CLI — verification is a permanent non-goal of the engine.
+  bridge.onMessage("commitSignatures", async (msg) => {
+    bridge.post({
+      command: "commitSignatures",
+      requestId: msg.requestId,
+      repo: msg.repo,
+      ...(await commitSignatures(gitClient.getInstance(), {
+        hashes: msg.hashes,
+        repo: msg.repo,
+        gitPath: config.gitPath(),
+        recordGitCommand
+      }))
     });
   });
 
@@ -629,7 +662,8 @@ export function registerMessageHandlers(
     // engine where it can and the CLI elsewhere, with an identical shape.
     const reader = createRepoReader({
       preference: config.backend(),
-      gitPath: config.gitPath()
+      gitPath: config.gitPath(),
+      forceCli: msg.forceCli === true
     });
     bridge.post({
       command: "loadRepoInfo",

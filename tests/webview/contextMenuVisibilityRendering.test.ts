@@ -145,7 +145,8 @@ describe("context menu visibility rendering", () => {
   it("uses the permanent signature default and restores a temporary header override", async () => {
     const viewState = { ...defaultViewState, showSignatureColumn: true };
     const vscodeMock = await bootWebview(viewState);
-    expect(latestRequest(vscodeMock.sentMessages, "loadCommits").showSignature).toBe(true);
+    // The page arrives without signatures; the visible column asks for them.
+    expect(latestRequest(vscodeMock.sentMessages, "commitSignatures").hashes).toEqual(["abc123"]);
     expect(document.getElementById("commitTable")?.classList.contains("hideSignatureCol")).toBe(
       false
     );

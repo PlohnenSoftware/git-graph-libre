@@ -4,7 +4,6 @@ import type {
   CommitOrdering,
   DateType,
   GitCommitNode,
-  GitCommitSignature,
   GitLogEntry,
   GitQueryError,
   GitRef,
@@ -12,12 +11,7 @@ import type {
   GitStash,
   QueryResult
 } from "@/backend/types";
-import {
-  type GitCommandRecorder,
-  runGitCommand,
-  runGitRaw,
-  runGitWithInput
-} from "@/backend/utils/gitRunner";
+import { type GitCommandRecorder, runGitCommand, runGitRaw } from "@/backend/utils/gitRunner";
 import { authorArgs, selectedLogRefs } from "@/backend/utils/logFilters";
 import { toGitQueryError } from "@/backend/utils/queryError";
 import { isHiddenRemoteRef, remoteExcludeArgs } from "@/backend/utils/remoteRefs";
@@ -28,7 +22,6 @@ const eolRegex = /\r\n|\r|\n/g;
 const gitLogFormatFieldSeparator = "%x00";
 const gitLogOutputFieldSeparator = "\0";
 const gitLogBaseFieldCount = 6;
-const gitLogSignatureFieldCount = 3;
 const gitRefFormatFieldSeparator = "%00";
 const gitRefOutputFieldSeparator = "\0";
 const gitRefFieldCount = 5;
@@ -39,16 +32,6 @@ export const gitRefSignedMarker = "1";
  * seam's signed-tag fill, so both scans classify signatures identically.
  */
 export const gitRefSignatureAtom = `%(if)%(contents:signature)%(then)${gitRefSignedMarker}%(else)0%(end)`;
-const gitCommitSignatureStatuses: Readonly<Record<string, GitCommitSignature["status"]>> = {
-  G: "valid",
-  U: "valid-untrusted",
-  B: "bad",
-  X: "expired",
-  Y: "expired-key",
-  R: "revoked-key",
-  E: "unverifiable"
-};
-
 type LoadCommitsInput = {
   branchName: string;
   branches?: string[] | null;
@@ -62,7 +45,6 @@ type LoadCommitsInput = {
   includeUnreachableCommits?: boolean;
   onlyFollowFirstParent?: boolean;
   commitOrdering?: CommitOrdering;
-  showSignature?: boolean;
   /** Opt-in per call; absent means no stash rows (existing callers unchanged). */
   showStashes?: boolean;
   hard: boolean;
@@ -92,7 +74,6 @@ type GitLogOptions = {
   onlyFollowFirstParent: boolean;
   dateType: DateType;
   commitOrdering: CommitOrdering;
-  showSignature: boolean;
   context: GitQueryContext;
 };
 
@@ -111,51 +92,6 @@ function parseRefRecord(line: string) {
     objectType: fields[3] ?? "",
     hasSignature: fields[4] === gitRefSignedMarker
   };
-}
-
-export function parseCommitSignature(
-  status: string,
-  signer: string,
-  key: string
-): GitCommitSignature | null {
-  if (status === "" || status === "N") return null;
-
-  return {
-    status: gitCommitSignatureStatuses[status] ?? "unknown",
-    signer: signer || null,
-    key: key || null
-  };
-}
-
-const commitHeaderRegex = /^([0-9a-f]{40}) commit \d+$/;
-const gpgsigPrefix = "gpgsig ";
-
-/**
- * Parses `git cat-file --batch` output and returns the hashes whose commit
- * object carries a `gpgsig` header.
- *
- * Git emits `%G?` = `N` for both truly unsigned commits AND signed commits that
- * could not be verified (notably SSH-signed commits when no
- * `gpg.ssh.allowedSignersFile` is configured). The `gpgsig` header is the only
- * reliable, signature-type-agnostic signal that a commit *is* signed. This lets
- * the caller reclassify those `N` commits as signed-but-unverifiable instead of
- * unsigned. Non-commit objects (blobs/tags) are ignored.
- */
-export function parseGpgsigPresence(stdout: string): Set<string> {
-  const signed = new Set<string>();
-  let currentHash: string | null = null;
-  for (const line of stdout.split(eolRegex)) {
-    const header = commitHeaderRegex.exec(line);
-    if (header !== null) {
-      currentHash = header[1];
-      continue;
-    }
-    if (currentHash !== null && line.startsWith(gpgsigPrefix)) {
-      signed.add(currentHash);
-      currentHash = null;
-    }
-  }
-  return signed;
 }
 
 function buildRefFormat() {
@@ -245,10 +181,14 @@ async function getRefs(
   }
 }
 
-function buildLogFormat(dateType: DateType, showSignature: boolean): string {
+/**
+ * The fields of a graph row. Signature status (`%G?`) is deliberately not one
+ * of them: verifying runs GPG per signed commit, so it is read separately by
+ * `commitSignatures` and the page renders without waiting for it.
+ */
+function buildLogFormat(dateType: DateType): string {
   const dateField = dateType === "Author Date" ? "%at" : "%ct";
   const formatFields = ["%H", "%P", "%an", "%ae", dateField, "%s"];
-  if (showSignature) formatFields.push("%G?", "%GS", "%GK");
   return formatFields.join(gitLogFormatFieldSeparator);
 }
 
@@ -263,14 +203,13 @@ function buildLogArgs({
   additionalRefs,
   onlyFollowFirstParent,
   dateType,
-  commitOrdering,
-  showSignature
+  commitOrdering
 }: GitLogOptions): string[] {
   const args = [
     "log",
     "-z",
     `--max-count=${maxCommits}`,
-    `--format=${buildLogFormat(dateType, showSignature)}`,
+    `--format=${buildLogFormat(dateType)}`,
     `--${commitOrdering}-order`
   ];
   if (onlyFollowFirstParent) args.push("--first-parent");
@@ -325,30 +264,19 @@ async function getUnreachableCommitHashes(
   }
 }
 
-function parseLogEntries(stdout: string, showSignature: boolean): GitLogEntry[] {
+function parseLogEntries(stdout: string): GitLogEntry[] {
   const fields = stdout.split(gitLogOutputFieldSeparator);
   if (fields.at(-1) === "") fields.pop();
-  const fieldCount = gitLogBaseFieldCount + (showSignature ? gitLogSignatureFieldCount : 0);
   const commits: GitLogEntry[] = [];
-  for (let i = 0; i + fieldCount - 1 < fields.length; i += fieldCount) {
-    const commit: GitLogEntry = {
+  for (let i = 0; i + gitLogBaseFieldCount - 1 < fields.length; i += gitLogBaseFieldCount) {
+    commits.push({
       hash: fields[i],
       parentHashes: fields[i + 1].split(" "),
       author: fields[i + 2],
       email: fields[i + 3],
       date: Number.parseInt(fields[i + 4], 10),
       message: fields[i + 5]
-    };
-    if (showSignature) {
-      const rawStatus = fields[i + gitLogBaseFieldCount];
-      commit.signatureStatusRaw = rawStatus;
-      commit.signature = parseCommitSignature(
-        rawStatus,
-        fields[i + gitLogBaseFieldCount + 1],
-        fields[i + gitLogBaseFieldCount + 2]
-      );
-    }
-    commits.push(commit);
+    });
   }
   return commits;
 }
@@ -361,7 +289,7 @@ async function getLog(git: SimpleGit, options: GitLogOptions): Promise<QueryValu
       repo: options.context.repo,
       record: options.context.record
     });
-    return { value: parseLogEntries(stdout, options.showSignature), error: null };
+    return { value: parseLogEntries(stdout), error: null };
   } catch (error: unknown) {
     return { value: [], error: toGitQueryError(error, "Unable to load commits") };
   }
@@ -416,63 +344,6 @@ async function addUnsavedChangesCommit(
   });
 }
 
-/**
- * Reclassifies commits that git reported as `%G?` = `N` (no signature) but that
- * actually carry a `gpgsig` header. This happens for SSH-signed commits when no
- * `gpg.ssh.allowedSignersFile` is configured: git cannot even attempt
- * verification, so it reports `N` even though the commit is genuinely signed.
- *
- * Only the ambiguous `N` commits are probed (a single batched
- * `git cat-file --batch` over their hashes). Any that carry a `gpgsig` header
- * become `unverifiable` (signed but cannot be verified); truly unsigned commits
- * stay `null`. Failures are swallowed so the worst case is the pre-fix behavior.
- */
-async function reclassifyUnverifiedSignatures(
-  git: SimpleGit,
-  commits: GitLogEntry[],
-  binary: string | undefined,
-  context: GitQueryContext
-): Promise<void> {
-  if (binary === undefined || binary === "") return;
-  const ambiguousHashes = uniqueHashes(
-    commits.filter((commit) => commit.signatureStatusRaw === "N").map((commit) => commit.hash)
-  );
-  if (ambiguousHashes.length === 0) return;
-
-  let signedHashes: Set<string>;
-  try {
-    const stdout = await runGitWithInput(git, {
-      label: "loadCommits.signaturePresence",
-      args: ["cat-file", "--batch"],
-      input: `${ambiguousHashes.join("\n")}\n`,
-      binary,
-      repo: context.repo,
-      record: context.record
-    });
-    signedHashes = parseGpgsigPresence(stdout);
-  } catch {
-    return;
-  }
-
-  for (const commit of commits) {
-    if (commit.signatureStatusRaw === "N" && signedHashes.has(commit.hash)) {
-      commit.signature = { status: "unverifiable", signer: null, key: null };
-    }
-  }
-}
-
-function uniqueHashes(hashes: string[]): string[] {
-  const seen = new Set<string>();
-  const unique: string[] = [];
-  for (const hash of hashes) {
-    if (hash !== "" && !seen.has(hash)) {
-      seen.add(hash);
-      unique.push(hash);
-    }
-  }
-  return unique;
-}
-
 function createCommitNodes(commits: GitLogEntry[], refData: GitRefData) {
   const commitNodes: GitCommitNode[] = [];
   const commitLookup: Record<string, number> = {};
@@ -486,8 +357,7 @@ function createCommitNodes(commits: GitLogEntry[], refData: GitRefData) {
       email: commits[i].email,
       date: commits[i].date,
       message: commits[i].message,
-      refs: [],
-      ...(commits[i].signature === undefined ? {} : { signature: commits[i].signature })
+      refs: []
     });
   }
 
@@ -518,7 +388,6 @@ export async function loadCommits(
   const includeUnreachableCommits = input.includeUnreachableCommits === true;
   const onlyFollowFirstParent = input.onlyFollowFirstParent === true;
   const commitOrdering = input.commitOrdering ?? "date";
-  const showSignature = input.showSignature === true;
   const context = { repo: input.repo ?? null, record: input.recordGitCommand };
 
   const refsPromise = getRefs(
@@ -543,7 +412,6 @@ export async function loadCommits(
     onlyFollowFirstParent,
     dateType,
     commitOrdering,
-    showSignature,
     context
   };
   const [logResult, refsResult] = await Promise.all([
@@ -581,7 +449,6 @@ export async function loadCommits(
   if (moreCommitsAvailable) commits = commits.slice(0, maxCommits);
 
   await addUnsavedChangesCommit(git, commits, refData, showUncommittedChanges, context);
-  await reclassifyUnverifiedSignatures(git, commits, input.gitPath, context);
   const commitNodes = createCommitNodes(commits, refData);
   const stashNodes = await loadStashGraphNodes(git, input, context);
   const nodesWithStashes = insertStashNodes(commitNodes, stashNodes);

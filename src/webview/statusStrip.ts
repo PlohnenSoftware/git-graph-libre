@@ -13,6 +13,16 @@ export function setStatusStrip(state: StatusStripState, message: string): void {
 }
 
 /**
+ * Whether the strip still shows this state and message — so work that set it
+ * can put "Ready" back without overwriting whatever started in between.
+ */
+export function statusStripShows(state: StatusStripState, message: string): boolean {
+  const strip = document.getElementById("statusStrip");
+  const text = document.getElementById("statusText");
+  return strip?.dataset.state === state && text?.textContent === message;
+}
+
+/**
  * Record the engine's state on the strip. Styling keys off it: a ready strip
  * over an unavailable engine shows the amber indicator and the "Rust engine
  * unavailable" note, while every busy and error state keeps its own look.

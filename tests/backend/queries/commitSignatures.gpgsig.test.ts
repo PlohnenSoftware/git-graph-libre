@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseGpgsigPresence } from "@/backend/queries/loadCommits";
+import { parseGpgsigPresence } from "@/backend/queries/commitSignatures";
 
 /**
  * Canned `git cat-file --batch` output. Each object is a header line

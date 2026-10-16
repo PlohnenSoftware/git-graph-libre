@@ -23,6 +23,7 @@
  */
 
 import type { GitCommitNode } from "@/backend/types";
+import type { EngineUnavailableReason } from "@/types";
 
 import type { TelemetryReporter } from "./index";
 
@@ -46,6 +47,27 @@ export const VIEW_FEATURE_STASH_ROWS = "view.stashRows";
  * payload — never a path, never a per-load count.
  */
 export const VIEW_FEATURE_ENGINE_BACKEND = "view.engineBackend";
+/**
+ * The engine could not start although the backend setting allowed it, one id
+ * per reason (`view.engineUnavailable.loadFailed`, …). Read beside the
+ * `common.os` / `common.nodearch` every event carries, this is how a broken
+ * platform binary shows up: an install that cannot load its engine works on
+ * the CLI and looks merely slow, so nothing else would ever report it.
+ */
+export const VIEW_FEATURE_ENGINE_UNAVAILABLE_PREFIX = "view.engineUnavailable.";
+/**
+ * The engine failed a read outright this session: an error the user saw as
+ * the read's error, or a payload the extension's guards refused.
+ */
+export const VIEW_FEATURE_ENGINE_FAILED = "view.engineFailed";
+/**
+ * The engine handed a read back to the CLI at run time this session. The read
+ * still succeeded; this measures how often the engine cannot serve a shape it
+ * was asked for, not a fault.
+ */
+export const VIEW_FEATURE_ENGINE_DECLINED = "view.engineDeclined";
+/** The hidden menu's "Reload once with Git CLI" was used this session. */
+export const VIEW_FEATURE_FORCE_CLI_RELOAD = "view.forceCliReload";
 /**
  * The staging panel actually grouped changes into folders — the tree mode is
  * selected *and* at least one change sits in a subdirectory, so a folder row
@@ -79,6 +101,18 @@ export type CommitLoadFacts = {
    * false reports nothing — the CLI path is the default, not a feature.
    */
   engineServed: boolean;
+  /**
+   * Why the engine could not start, when the backend setting allowed it and it
+   * did not — null when it started, and when the setting is `git-cli`, which
+   * never tries.
+   */
+  engineUnavailable: EngineUnavailableReason | null;
+  /** The reader's session flag: the engine failed a read outright. */
+  engineFailed: boolean;
+  /** The reader's session flag: the engine handed a read back to the CLI. */
+  engineDeclined: boolean;
+  /** This load was the hidden menu's one-off Git CLI reload. */
+  forcedCli: boolean;
   /**
    * Every repository currently in the dropdown, and the one this load is for.
    *
@@ -151,6 +185,18 @@ export function createViewFeatureReporter(
     telemetry?.logFeature(feature, true);
   }
 
+  function reportEngineSignals(facts: CommitLoadFacts) {
+    if (facts.engineServed) reportOnce(VIEW_FEATURE_ENGINE_BACKEND);
+    // The fixed reason name completes the id; nothing else about the
+    // machine, the path or the binary is ever part of it.
+    if (facts.engineUnavailable !== null) {
+      reportOnce(`${VIEW_FEATURE_ENGINE_UNAVAILABLE_PREFIX}${facts.engineUnavailable}`);
+    }
+    if (facts.engineFailed) reportOnce(VIEW_FEATURE_ENGINE_FAILED);
+    if (facts.engineDeclined) reportOnce(VIEW_FEATURE_ENGINE_DECLINED);
+    if (facts.forcedCli) reportOnce(VIEW_FEATURE_FORCE_CLI_RELOAD);
+  }
+
   return {
     recordCommitLoad(facts) {
       if (facts.includeReflog) reportOnce(VIEW_FEATURE_REFLOG);
@@ -168,7 +214,7 @@ export function createViewFeatureReporter(
       if (!reported.has(VIEW_FEATURE_STASH_ROWS) && hasStashRows(facts.commits)) {
         reportOnce(VIEW_FEATURE_STASH_ROWS);
       }
-      if (facts.engineServed) reportOnce(VIEW_FEATURE_ENGINE_BACKEND);
+      reportEngineSignals(facts);
       // Submodules are a shown feature as well: discovery puts them in the
       // repository dropdown as indented entries and there is no command
       // behind them, so neither action chokepoint can see them. Two signals

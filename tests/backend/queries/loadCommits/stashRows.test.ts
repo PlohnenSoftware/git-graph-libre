@@ -18,7 +18,6 @@ function loadOptions(extra: { maxCommits?: number; showStashes?: boolean } = {})
     branchName: "",
     maxCommits: 300,
     showRemoteBranches: false,
-    showSignature: false,
     showUncommittedChanges: false,
     hard: true,
     dateType: "Author Date",

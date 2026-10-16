@@ -5,6 +5,10 @@ import {
   createViewFeatureReporter,
   INGEST_FEATURE_NAME_PATTERN,
   VIEW_FEATURE_ENGINE_BACKEND,
+  VIEW_FEATURE_ENGINE_DECLINED,
+  VIEW_FEATURE_ENGINE_FAILED,
+  VIEW_FEATURE_ENGINE_UNAVAILABLE_PREFIX,
+  VIEW_FEATURE_FORCE_CLI_RELOAD,
   VIEW_FEATURE_REFLOG,
   VIEW_FEATURE_SIGNED_TAG,
   VIEW_FEATURE_STASH_ROWS,
@@ -44,7 +48,11 @@ const quietLoad = {
   commits: [commitWith(branch)],
   repoPaths: [PARENT_REPO],
   repo: PARENT_REPO,
-  engineServed: false
+  engineServed: false,
+  engineUnavailable: null,
+  engineFailed: false,
+  engineDeclined: false,
+  forcedCli: false
 };
 
 describe("view feature reporting", () => {
@@ -154,6 +162,43 @@ describe("view feature reporting", () => {
     expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_ENGINE_BACKEND, ok: true }]);
   });
 
+  // How often the engine fails, measured the way every signal here is: as the
+  // share of sessions in which it happened, never as a per-load count.
+  it("reports why the engine could not start, once per session, by reason alone", () => {
+    const spy = createTelemetrySpy();
+    const reporter = createViewFeatureReporter(spy.telemetry);
+
+    reporter.recordCommitLoad({ ...quietLoad, engineUnavailable: "loadFailed" });
+    reporter.recordCommitLoad({ ...quietLoad, engineUnavailable: "loadFailed" });
+
+    expect(spy.sent).toEqual([{ feature: "view.engineUnavailable.loadFailed", ok: true }]);
+  });
+
+  it("reports engine failures and declines separately, each once per session", () => {
+    const spy = createTelemetrySpy();
+    const reporter = createViewFeatureReporter(spy.telemetry);
+
+    reporter.recordCommitLoad({ ...quietLoad, engineFailed: true });
+    reporter.recordCommitLoad({ ...quietLoad, engineFailed: true, engineDeclined: true });
+    reporter.recordCommitLoad({ ...quietLoad, engineFailed: true, engineDeclined: true });
+
+    expect(spy.sent).toEqual([
+      { feature: VIEW_FEATURE_ENGINE_FAILED, ok: true },
+      { feature: VIEW_FEATURE_ENGINE_DECLINED, ok: true }
+    ]);
+  });
+
+  it("reports the hidden menu's one-off Git CLI reload once per session", () => {
+    const spy = createTelemetrySpy();
+    const reporter = createViewFeatureReporter(spy.telemetry);
+
+    reporter.recordCommitLoad(quietLoad);
+    reporter.recordCommitLoad({ ...quietLoad, forcedCli: true });
+    reporter.recordCommitLoad({ ...quietLoad, forcedCli: true });
+
+    expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_FORCE_CLI_RELOAD, ok: true }]);
+  });
+
   it("reports an offered submodule without reporting an active one", () => {
     const spy = createTelemetrySpy();
 
@@ -242,7 +287,11 @@ describe("view feature reporting", () => {
       commits: [commitWith(signedTag)],
       repoPaths: [PARENT_REPO, SUBMODULE_REPO],
       repo: SUBMODULE_REPO,
-      engineServed: false
+      engineServed: false,
+      engineUnavailable: null,
+      engineFailed: false,
+      engineDeclined: false,
+      forcedCli: false
     };
 
     reporter.recordCommitLoad(busyLoad);
@@ -313,6 +362,10 @@ describe("view feature reporting", () => {
         includeReflog: true,
         includeUnreachableCommits: true,
         engineServed: false,
+        engineUnavailable: null,
+        engineFailed: false,
+        engineDeclined: false,
+        forcedCli: false,
         showsAllRefs: true,
         commits: [commitWith(signedTag)],
         repoPaths: [PARENT_REPO, SUBMODULE_REPO],
@@ -333,7 +386,13 @@ describe("view feature reporting", () => {
     VIEW_FEATURE_SUBMODULE_REPO,
     VIEW_FEATURE_SUBMODULE_ACTIVE,
     VIEW_FEATURE_UNCOMMITTED_PANEL,
-    VIEW_FEATURE_STASH_ROWS
+    VIEW_FEATURE_STASH_ROWS,
+    VIEW_FEATURE_ENGINE_FAILED,
+    VIEW_FEATURE_ENGINE_DECLINED,
+    VIEW_FEATURE_FORCE_CLI_RELOAD,
+    ...(
+      ["unsupportedPlatform", "missing", "loadFailed", "versionMismatch", "incompatible"] as const
+    ).map((reason) => `${VIEW_FEATURE_ENGINE_UNAVAILABLE_PREFIX}${reason}`)
   ])("%s matches the id pattern the ingest enforces", (feature) => {
     expect(INGEST_FEATURE_NAME_PATTERN.test(feature)).toBe(true);
   });

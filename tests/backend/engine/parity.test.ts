@@ -479,7 +479,6 @@ describe("engine/CLI parity: loadCommits", () => {
       includeUnreachableCommits: false,
       onlyFollowFirstParent: false,
       commitOrdering: "date",
-      showSignature: false,
       showStashes: false,
       dateType: "Commit Date",
       showUncommittedChanges: true,

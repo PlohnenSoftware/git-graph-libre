@@ -414,7 +414,6 @@ describe("webview rendering", () => {
       error: null
     });
     const loadCommitsRequest = latestLoadCommitsRequest();
-    expect(loadCommitsRequest.showSignature).toBe(false);
     receive({
       command: "loadCommits",
       requestId: loadCommitsRequest.requestId,
@@ -2022,26 +2021,26 @@ describe("webview rendering", () => {
       false
     );
     expect(vscodeMock.getState()?.hiddenColumns).toEqual([]);
-    expect(sentLoadCommitsCount()).toBe(loadsBeforeDateToggle + 1);
-    const signatureRequest = latestLoadCommitsRequest();
-    expect(signatureRequest).toMatchObject({ showSignature: true, hard: true });
+    // The page stays loaded: showing the column reads only the signatures.
+    expect(sentLoadCommitsCount()).toBe(loadsBeforeDateToggle);
+    const signatureRequest = vscodeMock.sentMessages.findLast(
+      (msg): msg is Extract<GGL.RequestMessage, { command: "commitSignatures" }> =>
+        msg.command === "commitSignatures"
+    );
+    // Every commit on the page, whatever earlier tests loaded into it.
+    expect(signatureRequest?.hashes).toEqual(expect.arrayContaining(["abc123", "def456"]));
     expect(
       document.querySelector('tr.commit[data-hash="abc123"] .commitSignature-pending')?.textContent
     ).toBe("…");
 
     receive({
-      command: "loadCommits",
-      requestId: signatureRequest.requestId,
-      commits: [
-        {
-          ...twoCommits[0],
-          signature: { status: "valid", signer: "Alice", key: "ABC123" }
-        },
-        { ...twoCommits[1], signature: null }
-      ],
-      head: "abc123",
-      moreCommitsAvailable: true,
-      hard: true,
+      command: "commitSignatures",
+      requestId: signatureRequest?.requestId ?? -1,
+      repo: signatureRequest?.repo ?? "",
+      signatures: {
+        abc123: { status: "valid", signer: "Alice", key: "ABC123" },
+        def456: null
+      },
       error: null
     });
 
@@ -3851,9 +3850,7 @@ describe("webview rendering", () => {
     Object.defineProperty(window, "innerHeight", { value: 120, configurable: true });
     try {
       const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
-      headRow?.dispatchEvent(
-        new MouseEvent("contextmenu", { bubbles: true, clientY: 90 })
-      );
+      headRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientY: 90 }));
       expect(menu.style.maxHeight).toBe("120px");
       expect(Number.parseFloat(menu.style.top)).toBe(0);
     } finally {

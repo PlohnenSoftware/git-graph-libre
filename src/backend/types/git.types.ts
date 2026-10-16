@@ -42,7 +42,12 @@ export type GitCommitNode = {
   date: number;
   message: string;
   refs: GitRef[];
-  /** Undefined until signature verification has been requested for this commit. */
+  /**
+   * Undefined until the webview has read it through the `commitSignatures`
+   * query — the graph load never verifies signatures, so the page renders
+   * without waiting for GPG. Null for an unsigned commit, and for stash rows,
+   * which are never verified.
+   */
   signature?: GitCommitSignature | null;
   /**
    * Present only on synthetic stash rows injected beside their base commit.
@@ -60,15 +65,6 @@ export type GitLogEntry = {
   email: string;
   date: number;
   message: string;
-  /** Undefined when the log query intentionally skipped signature verification. */
-  signature?: GitCommitSignature | null;
-  /**
-   * The raw `git log %G?` letter (e.g. `G`, `N`, `B`), kept so the loader can
-   * reclassify `N` commits that actually carry a signature (SSH-signed commits
-   * report `N` when verification is unavailable). Omitted when signature
-   * verification was not requested.
-   */
-  signatureStatusRaw?: string;
 };
 
 export type GitCommitSearchResult = GitLogEntry & {

@@ -4,6 +4,7 @@ import type {
   GitCommitDetails,
   GitCommitNode,
   GitCommitSearchResult,
+  GitCommitSignature,
   GitFileChange,
   GitPushBranchMode,
   GitQueryError,
@@ -47,7 +48,7 @@ import {
   renderSettingsWidget,
   resolveRepoBooleanOverride
 } from "./settingsWidget";
-import { setStatusStrip } from "./statusStrip";
+import { setStatusStrip, statusStripShows } from "./statusStrip";
 import {
   getStagingDropAction,
   isUncommittedSection,
@@ -186,8 +187,11 @@ const HIDDEN_MENU_CLICK_WINDOW_MS = 500;
  */
 const HIDDEN_MENU_HEADER: ContextMenuHeader = {
   title: "Hidden menu",
-  caption: "Temporary language · this tab only"
+  caption: "Temporary language, one-off reload · this tab only"
 };
+
+/** The hidden menu's one-off reload; English like the rest of the menu. */
+const HIDDEN_MENU_RELOAD_WITH_CLI = "Reload once with Git CLI";
 
 function requireElement<T extends HTMLElement = HTMLElement>(id: string): T {
   const elem = document.getElementById(id);
@@ -257,6 +261,24 @@ class GitGraphView {
   private commits: GitCommitNode[] = [];
   private commitHead: string | null = null;
   private commitLookup: { [hash: string]: number } = {};
+  /**
+   * Signature status by commit hash, for `signaturesRepo` only. The graph load
+   * never verifies signatures, so this is what fills the column: a commit
+   * answered once keeps its status across refreshes and "Load More" pages
+   * instead of going back to pending. The toolbar's refresh button empties it,
+   * so newly imported or trusted keys are picked up on request.
+   */
+  private readonly signatures = new Map<string, GitCommitSignature | null>();
+  private signaturesRepo = "";
+  /** The hashes each unanswered `commitSignatures` request asked for. */
+  private readonly signatureRequests = new Map<number, string[]>();
+  /**
+   * Set by the hidden menu's "Reload once with Git CLI": the next repository
+   * info and commit loads ask the host to use the Git CLI whatever the backend
+   * setting says. Cleared once the commit load has been asked for, so exactly
+   * one reload is affected.
+   */
+  private forceCliOnce = false;
   private avatars: AvatarImageCollection = {};
   private currentBranch: string | null = null;
   private currentBranches: string[] | null = null;
@@ -480,6 +502,7 @@ class GitGraphView {
       this.closeSettingsWidget();
     });
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
+      this.forgetSignatures();
       this.refresh(true);
     });
     document.getElementById("blinkHeadBtn")?.addEventListener("click", () => {
@@ -816,15 +839,19 @@ class GitGraphView {
       this.triggerLoadCommitsCallback(false);
       return;
     }
-    if (!hard && this.isCommitListUnchanged(commits, commitHead, moreAvailable)) {
-      this.refreshUncommittedChangesCommit(commits);
+    // Before the comparison below, so a refresh of an unchanged page stays
+    // unchanged rather than dropping every signature back to pending.
+    const page = this.withKnownSignatures(commits);
+    if (!hard && this.isCommitListUnchanged(page, commitHead, moreAvailable)) {
+      this.refreshUncommittedChangesCommit(page);
       this.triggerLoadCommitsCallback(false);
+      this.requestMissingSignatures();
       return;
     }
 
     const activeFindHash = this.getActiveFindHash();
     this.moreCommitsAvailable = moreAvailable;
-    this.commits = commits;
+    this.commits = page;
     this.commitHead = commitHead;
     if (this.commits.length > 0 && this.commits[0].hash === "*") {
       const match = /\((\d+)\)$/.exec(this.commits[0].message);
@@ -848,6 +875,86 @@ class GitGraphView {
 
     this.triggerLoadCommitsCallback(true);
     this.fetchAvatars(avatarsNeeded);
+    this.requestMissingSignatures();
+  }
+  /**
+   * A freshly loaded page with the signatures already read for this
+   * repository filled in. A copy: the message the page arrived in is not
+   * this view's to change.
+   */
+  private withKnownSignatures(commits: GitCommitNode[]): GitCommitNode[] {
+    this.syncSignaturesRepo();
+    return commits.map((commit) => {
+      if (commit.hash === "*" || commit.signature !== undefined) return commit;
+      const known = this.signatures.get(commit.hash);
+      return known === undefined ? commit : { ...commit, signature: known };
+    });
+  }
+  private syncSignaturesRepo() {
+    if (this.signaturesRepo === this.currentRepo) return;
+    this.signaturesRepo = this.currentRepo;
+    this.forgetSignatures();
+  }
+  private forgetSignatures() {
+    this.signatures.clear();
+    this.signatureRequests.clear();
+  }
+  /**
+   * Ask for the signatures of the shown commits that have none yet. The page is
+   * already on screen with those cells pending; verification is the slow part,
+   * so it is the only part that waits. Nothing is asked while the column is
+   * hidden, or for a commit an unanswered request already covers.
+   */
+  private requestMissingSignatures() {
+    if (this.hiddenColumns.has("signature")) return;
+    this.syncSignaturesRepo();
+    const requested = new Set([...this.signatureRequests.values()].flat());
+    const hashes = this.commits
+      .filter(
+        (commit) =>
+          commit.hash !== "*" && commit.signature === undefined && !requested.has(commit.hash)
+      )
+      .map((commit) => commit.hash);
+    if (hashes.length === 0) return;
+    const requestId = this.createRequestId();
+    this.signatureRequests.set(requestId, hashes);
+    setStatusStrip("loading", l10n.signatureLoading);
+    sendMessage({ command: "commitSignatures", requestId, repo: this.currentRepo, hashes });
+  }
+  /** Take a `commitSignatures` answer: record it, and fill the cells it covers in place. */
+  public loadCommitSignatures(
+    requestId: number,
+    repo: string,
+    signatures: Record<string, GitCommitSignature | null>,
+    errorReason: string | null
+  ) {
+    const hashes = this.signatureRequests.get(requestId);
+    // An answer for a repository no longer shown, or from before a refresh
+    // emptied the cache, describes nothing on screen.
+    if (hashes === undefined || repo !== this.signaturesRepo) return;
+    this.signatureRequests.delete(requestId);
+    const settled = this.signatureRequests.size === 0;
+    if (errorReason !== null) {
+      if (statusStripShows("loading", l10n.signatureLoading)) {
+        setStatusStrip("error", l10n.unableToLoadSignatures);
+      }
+      return;
+    }
+    for (const hash of hashes) {
+      const signature = signatures[hash];
+      if (signature === undefined) continue;
+      this.signatures.set(hash, signature);
+      const index = this.commitLookup[hash];
+      const commit = index === undefined ? undefined : this.commits[index];
+      if (commit?.hash !== hash) continue;
+      commit.signature = signature;
+      const cell = this.tableElem.querySelector(`tr[data-id="${index}"] > td.signatureCol`);
+      if (cell !== null) cell.innerHTML = this.renderCommitSignature(signature);
+    }
+    this.saveState();
+    if (settled && statusStripShows("loading", l10n.signatureLoading)) {
+      setStatusStrip("ready", l10n.statusReady);
+    }
   }
   private isCommitListUnchanged(
     commits: GitCommitNode[],
@@ -964,7 +1071,8 @@ class GitGraphView {
       command: "loadRepoInfo",
       requestId,
       repo: this.currentRepo,
-      showStashes: this.getShowStashes()
+      showStashes: this.getShowStashes(),
+      ...(this.forceCliOnce ? { forceCli: true } : {})
     });
   }
   private requestLoadExtensionSettings() {
@@ -1047,10 +1155,11 @@ class GitGraphView {
       includeUnreachableCommits: this.getIncludeUnreachableCommits(),
       onlyFollowFirstParent: this.getOnlyFollowFirstParent(),
       commitOrdering: this.getCommitOrdering(),
-      showSignature: !this.hiddenColumns.has("signature"),
       showStashes: this.getShowStashes() && this.config.stashDisplay !== "table",
-      hard: hard
+      hard: hard,
+      ...(this.forceCliOnce ? { forceCli: true } : {})
     });
+    this.forceCliOnce = false;
   }
   private requestLoadBranchesAndCommits(hard: boolean) {
     postWebviewDiagnostic("load.start", {
@@ -2980,13 +3089,27 @@ class GitGraphView {
    * it exists to open.
    */
   private buildHiddenMenu(): ContextMenuElement[] {
-    return viewState.languages.map((language) => ({
+    const languages: ContextMenuElement[] = viewState.languages.map((language) => ({
       title: language.label,
       checked: language.id === viewState.language,
       onClick: () => {
         sendMessage({ command: "setTemporaryLanguage", language: language.id });
       }
     }));
+    return [
+      ...languages,
+      null,
+      {
+        // One full reload — repository info, branches, commits — served by
+        // the Git CLI whatever the backend setting says, for when the engine's
+        // answer is in doubt. The setting itself is left alone.
+        title: HIDDEN_MENU_RELOAD_WITH_CLI,
+        onClick: () => {
+          this.forceCliOnce = true;
+          this.refresh(true);
+        }
+      }
+    ];
   }
   private buildCommitContextMenu(hash: string, sourceElem: HTMLElement): ContextMenuElement[] {
     if (this.shouldShowSelectedCommitContextMenu(hash)) {
@@ -5126,14 +5249,9 @@ class GitGraphView {
     this.saveState();
     this.renderTable();
     this.renderGraph();
-    if (
-      column === "signature" &&
-      wasHidden &&
-      this.commits.some((commit) => commit.hash !== "*" && commit.signature === undefined)
-    ) {
-      setStatusStrip("loading", l10n.signatureLoading);
-      this.requestLoadCommits(true, () => {});
-    }
+    // Showing the column reads just the missing signatures; the page itself
+    // is already loaded and stays on screen while they arrive.
+    if (column === "signature" && wasHidden) this.requestMissingSignatures();
   }
   private buildColumnVisibilityMenu(): ContextMenuElement[] {
     const commitOrdering = this.getCommitOrdering();
@@ -6424,6 +6542,13 @@ type ResponseHandlerMap = {
 const responseHandlers: ResponseHandlerMap = {
   commitComparison: handleCommitComparisonResponse,
   commitDetails: handleCommitDetailsResponse,
+  commitSignatures: (msg) =>
+    gitGraph.loadCommitSignatures(
+      msg.requestId,
+      msg.repo,
+      msg.signatures,
+      msg.error === null ? null : formatQueryError(msg.error)
+    ),
   componentStatus: (msg) => applyComponentStatus(msg.components),
   copyToClipboard: handleCopyToClipboardResponse,
   createArchive: handleCreateArchiveResponse,

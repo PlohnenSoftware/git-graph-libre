@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import type * as GGL from "@/types";
 
-import { createVscodeMock, setupHtml } from "./setup";
+import { createVscodeMock, receive, setupHtml } from "./setup";
 import { readWebviewCss } from "./utils/webviewCss";
 
 /**
@@ -105,7 +105,71 @@ describe("hidden menu", () => {
     rightClick(version);
 
     const items = [...menu.querySelectorAll(".contextMenuItem")].map((item) => item.textContent);
-    expect(items).toEqual(["English", "Dutch", "✓Polish"]);
+    expect(items).toEqual(["English", "Dutch", "✓Polish", "Reload once with Git CLI"]);
+  });
+
+  // An escape hatch for when the engine's answer is in doubt: one full reload
+  // through the Git CLI, leaving the backend setting alone.
+  it("reloads once through the Git CLI, and only once", async () => {
+    const { version, menu, sent } = await mount();
+
+    rightClick(version);
+    rightClick(version);
+    const reload = [...menu.querySelectorAll(".contextMenuItem")].find(
+      (item) => item.textContent === "Reload once with Git CLI"
+    ) as HTMLElement;
+    const before = sent.length;
+    reload.click();
+
+    const repoInfo = sent
+      .slice(before)
+      .find(
+        (msg): msg is Extract<GGL.RequestMessage, { command: "loadRepoInfo" }> =>
+          msg.command === "loadRepoInfo"
+      );
+    expect(repoInfo?.forceCli).toBe(true);
+    const branches = sent
+      .slice(before)
+      .find(
+        (msg): msg is Extract<GGL.RequestMessage, { command: "loadBranches" }> =>
+          msg.command === "loadBranches"
+      );
+    receive({
+      command: "loadBranches",
+      requestId: branches?.requestId ?? -1,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    const loads = sent.filter(
+      (msg): msg is Extract<GGL.RequestMessage, { command: "loadCommits" }> =>
+        msg.command === "loadCommits"
+    );
+    expect(loads.at(-1)?.forceCli).toBe(true);
+
+    // The next ordinary refresh is back on the configured backend.
+    receive({ command: "refresh" });
+    receive({
+      command: "loadBranches",
+      requestId:
+        sent.findLast(
+          (msg): msg is Extract<GGL.RequestMessage, { command: "loadBranches" }> =>
+            msg.command === "loadBranches"
+        )?.requestId ?? -1,
+      branches: ["main"],
+      head: "main",
+      hard: false,
+      isRepo: true,
+      error: null
+    });
+    const next = sent.findLast(
+      (msg): msg is Extract<GGL.RequestMessage, { command: "loadCommits" }> =>
+        msg.command === "loadCommits"
+    );
+    expect(next).not.toBe(loads.at(-1));
+    expect(next?.forceCli).toBeUndefined();
   });
 
   it("asks the extension host for the language it was given", async () => {

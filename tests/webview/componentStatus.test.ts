@@ -193,8 +193,8 @@ describe("componentRows", () => {
 
   it.each([
     ["setting", "Git CLI (backend setting is git-cli)"],
+    ["forced", "Git CLI (reloaded once from the Hidden menu)"],
     ["handedBack", "Git CLI (handed back by the Rust engine)"],
-    ["signatureColumn", "Git CLI (signature column is shown)"],
     ["topoOrdering", "Git CLI (topological order is selected)"],
     ["reflog", "Git CLI (reflog commits are included)"],
     ["unreachableCommits", "Git CLI (unreachable commits are included)"],

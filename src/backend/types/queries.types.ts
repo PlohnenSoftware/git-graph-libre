@@ -2,6 +2,7 @@ import type {
   GitCommitDetails,
   GitCommitNode,
   GitCommitSearchResult,
+  GitCommitSignature,
   GitRepoInfo,
   GitTagDetails,
   GitUncommittedChanges
@@ -38,6 +39,12 @@ type LoadCommitsResult = {
   error: GitQueryError | null;
 };
 
+type CommitSignaturesResult = {
+  /** Keyed by commit hash: the signature, or null for an unsigned commit. */
+  signatures: Record<string, GitCommitSignature | null>;
+  error: GitQueryError | null;
+};
+
 type LoadRepoInfoResult = {
   repoInfo: GitRepoInfo;
   error: GitQueryError | null;
@@ -64,6 +71,12 @@ type QueryPayloads = {
     request: { repo: string; commitHash: string };
     result: CommitDetailsResult;
     response: CommitDetailsResult;
+  };
+  commitSignatures: {
+    request: { requestId: number; repo: string; hashes: string[] };
+    result: CommitSignaturesResult;
+    /** `repo` comes back so an answer for a repository no longer shown is dropped. */
+    response: { requestId: number; repo: string } & CommitSignaturesResult;
   };
   commitComparison: {
     request: { repo: string; commitHash: string; baseRef: string; compareRef: string };
@@ -96,15 +109,16 @@ type QueryPayloads = {
       includeUnreachableCommits: boolean;
       onlyFollowFirstParent: boolean;
       commitOrdering: CommitOrdering;
-      showSignature: boolean;
       showStashes?: boolean;
       hard: boolean;
+      /** Serve this one load with the Git CLI whatever the backend setting says. */
+      forceCli?: boolean;
     };
     result: LoadCommitsResult;
     response: { requestId: number } & LoadCommitsResult;
   };
   loadRepoInfo: {
-    request: { requestId: number; repo: string; showStashes: boolean };
+    request: { requestId: number; repo: string; showStashes: boolean; forceCli?: boolean };
     result: LoadRepoInfoResult;
     response: { requestId: number } & LoadRepoInfoResult;
   };

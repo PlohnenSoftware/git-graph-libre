@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Reload once with the Git CLI, from the Hidden menu.** The menu behind a
+  double right-click on the version can now reload the graph once through
+  the Git command line, whatever the `backend` setting says — an escape
+  hatch for when the Rust engine's answer is in doubt. The setting itself
+  is left alone, and the status popup names the reload as the reason the
+  command line answered. (Forcing the command line permanently remains
+  `git-graph-libre.backend: "git-cli"`.)
+- **Telemetry can now see the engine failing.** Beside the existing
+  once-per-session "the engine served a read" signal, the extension records
+  — each at most once per session, and only with telemetry accepted — that
+  the engine could not start (which of five fixed reasons, nothing else),
+  that it failed a read, that it handed a read back to the command line,
+  and that the one-off CLI reload above was used. See the README's
+  Telemetry section for the full list of what is sent.
+
+### Changed
+
+- **The signature column no longer holds up the graph.** Signature
+  verification runs GPG once per signed commit, so the page now renders at
+  once with the column pending and the signatures fill in as they are read.
+  Showing the column no longer sends the whole load to the Git command
+  line either: the Rust engine serves those loads, and verification stays
+  on the command line where it belongs.
+
 ## [1.8.1] - 2026-10-16
 
 ### Added

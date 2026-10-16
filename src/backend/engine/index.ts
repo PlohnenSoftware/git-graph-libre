@@ -26,7 +26,12 @@ import { getRemoteUrl } from "@/backend/utils/git";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { uniqueNonEmpty } from "@/backend/utils/logFilters";
 import { toGitQueryError } from "@/backend/utils/queryError";
-import type { EngineBackend, EngineComponentStatus, GraphLoadRoute } from "@/types";
+import type {
+  EngineBackend,
+  EngineComponentStatus,
+  EngineUnavailableReason,
+  GraphLoadRoute
+} from "@/types";
 
 import { type EngineAddon, engineLoadStatus, loadEngineAddon } from "./addon";
 import {
@@ -66,6 +71,12 @@ export type RepoReaderDeps = {
   preference: EngineBackend;
   gitPath: string;
   addonProvider?: AddonProvider;
+  /**
+   * One read served by the CLI on request — the hidden menu's "Reload once
+   * with Git CLI" — whatever the preference says. Behaves exactly as `git-cli`
+   * (the addon is not touched) and is recorded as its own graph-load route.
+   */
+  forceCli?: boolean;
 };
 
 export type RepoReader = {
@@ -138,6 +149,8 @@ export function isEngineFallbackError(error: unknown): boolean {
 }
 
 let engineServedRead = false;
+let engineFailedRead = false;
+let engineDeclinedRead = false;
 
 /**
  * Whether the engine has actually served a read this session. Feeds the
@@ -148,9 +161,40 @@ export function didEngineServeRead(): boolean {
   return engineServedRead;
 }
 
-/** Test seam: the flag is session-scoped, so cases reset it between runs. */
+/**
+ * Whether the engine failed a read outright this session: a genuine error the
+ * user saw as the read's error, or a payload the strict guards refused. Feeds
+ * the `view.engineFailed` signal, once per session like every engine signal.
+ */
+export function didEngineFailRead(): boolean {
+  return engineFailedRead;
+}
+
+/**
+ * Whether the engine handed a read back to the CLI at run time this session
+ * (`NotARepository` / `Unsupported`): the read still succeeded, served by the
+ * CLI. Feeds the `view.engineDeclined` signal.
+ */
+export function didEngineDeclineRead(): boolean {
+  return engineDeclinedRead;
+}
+
+/** Test seam: the flags are session-scoped, so cases reset all three between runs. */
 export function resetEngineServedRead(): void {
   engineServedRead = false;
+  engineFailedRead = false;
+  engineDeclinedRead = false;
+}
+
+/** Record how an engine call that threw ended: declined to the CLI, or failed outright. */
+function noteEngineThrow(error: unknown): boolean {
+  const declined = isEngineFallbackError(error);
+  if (declined) {
+    engineDeclinedRead = true;
+  } else {
+    engineFailedRead = true;
+  }
+  return declined;
 }
 
 let lastGraphLoad: GraphLoadRoute | null = null;
@@ -176,6 +220,15 @@ export function engineComponentStatus(
   status: () => EngineComponentStatus = engineLoadStatus
 ): EngineComponentStatus {
   return preference === "git-cli" ? { state: "off" } : status();
+}
+
+/** Why the engine could not start under this preference, or null when it started or was not tried. */
+export function engineUnavailableReason(
+  preference: EngineBackend,
+  status: () => EngineComponentStatus = engineLoadStatus
+): EngineUnavailableReason | null {
+  const component = engineComponentStatus(preference, status);
+  return component.state === "unavailable" ? component.reason : null;
 }
 
 /**
@@ -226,9 +279,10 @@ export function createRepoReader(deps: RepoReaderDeps): RepoReader {
   return {
     getRemoteUrl: (repoPath: string) =>
       readRemoteUrl(deps.preference, deps.gitPath, provider, repoPath),
-    loadRepoInfo: (args: RepoInfoArgs) => readRepoInfo(deps.preference, provider, args),
+    loadRepoInfo: (args: RepoInfoArgs) =>
+      readRepoInfo(deps.forceCli === true ? "git-cli" : deps.preference, provider, args),
     loadCommits: (args: LoadCommitsArgs) =>
-      readCommits(deps.preference, deps.gitPath, provider, args),
+      readCommits(deps.preference, deps.gitPath, provider, args, deps.forceCli === true),
     loadCommitDetails: (args: CommitDetailsArgs) =>
       readCommitDetails(deps.preference, provider, args),
     loadCommitComparison: (args: CommitComparisonArgs) =>
@@ -254,7 +308,7 @@ async function readRemoteUrl(
     const normalized = (url ?? "").trim();
     return normalized === "" ? null : normalized;
   } catch (error: unknown) {
-    if (!isEngineFallbackError(error)) return null;
+    if (!noteEngineThrow(error)) return null;
     return getRemoteUrl(repoPath, gitPath);
   }
 }
@@ -279,6 +333,7 @@ async function readRepoInfo(
       await addon.loadRepoInfo(args.repoPath, buildRepoInfoOptions(args.showStashes))
     );
     if (info === null) {
+      engineFailedRead = true;
       return {
         repoInfo: emptyRepoInfo(true),
         error: toGitQueryError(
@@ -298,7 +353,7 @@ async function readRepoInfo(
     engineServedRead = true;
     return composed;
   } catch (error: unknown) {
-    if (!isEngineFallbackError(error)) {
+    if (!noteEngineThrow(error)) {
       return {
         repoInfo: emptyRepoInfo(true),
         error: toGitQueryError(error, "Unable to load repository info")
@@ -312,7 +367,8 @@ async function readCommits(
   preference: EngineBackend,
   gitPath: string,
   provider: AddonProvider,
-  args: LoadCommitsArgs
+  args: LoadCommitsArgs,
+  forceCli: boolean
 ): Promise<QueryResult<"loadCommits">> {
   const cliRead = (route: GraphLoadRoute): Promise<QueryResult<"loadCommits">> => {
     lastGraphLoad = route;
@@ -329,7 +385,6 @@ async function readCommits(
       includeUnreachableCommits: args.includeUnreachableCommits,
       onlyFollowFirstParent: args.onlyFollowFirstParent,
       commitOrdering: args.commitOrdering,
-      showSignature: args.showSignature,
       showStashes: args.showStashes,
       hard: args.hard,
       dateType: args.dateType,
@@ -340,6 +395,7 @@ async function readCommits(
     });
   };
   // The total no-op path: the addon is not even loaded.
+  if (forceCli) return cliRead("forced");
   if (preference === "git-cli") return cliRead("setting");
   // The pre-call declines: shapes the engine cannot serve go straight to
   // the CLI, decided here and never by catching a failure.
@@ -355,6 +411,7 @@ async function readCommits(
       await addon.loadCommits(args.repoPath, buildLoadCommitsOptions(args))
     );
     if (data === null) {
+      engineFailedRead = true;
       return {
         commits: [],
         head: null,
@@ -394,7 +451,7 @@ async function readCommits(
       error: null
     };
   } catch (error: unknown) {
-    if (!isEngineFallbackError(error)) {
+    if (!noteEngineThrow(error)) {
       return {
         commits: [],
         head: null,
@@ -428,11 +485,15 @@ async function fillLineCounts<
   let countsText: string;
   try {
     countsText = await addon.loadLineCounts(args.repoPath, from, to, JSON.stringify(paths));
-  } catch {
+  } catch (error: unknown) {
+    noteEngineThrow(error);
     return cliRead();
   }
   const counts = parseEngineLineCounts(countsText);
-  if (counts === null) return cliRead();
+  if (counts === null) {
+    engineFailedRead = true;
+    return cliRead();
+  }
   applyLineCounts(fileChanges, counts);
   return null;
 }
@@ -486,6 +547,7 @@ async function readCommitDetails(
     ]);
     const details = parseEngineCommitDetails(detailsText);
     if (details === null) {
+      engineFailedRead = true;
       return {
         commitDetails: null,
         error: toGitQueryError(
@@ -510,6 +572,7 @@ async function readCommitDetails(
       );
       const stashDetails = parseEngineCommitDetails(stashText);
       if (stashDetails === null) {
+        engineFailedRead = true;
         return {
           commitDetails: null,
           error: toGitQueryError(
@@ -526,7 +589,7 @@ async function readCommitDetails(
     engineServedRead = true;
     return { commitDetails: toGitCommitDetails(details, fileChanges), error: null };
   } catch (error: unknown) {
-    if (!isEngineFallbackError(error)) {
+    if (!noteEngineThrow(error)) {
       return {
         commitDetails: null,
         error: toGitQueryError(error, "Unable to load commit details")
@@ -572,6 +635,7 @@ async function readCommitComparison(
     const details = parseEngineCommitDetails(detailsText);
     const fileChanges = parseEngineFileChanges(changesText);
     if (details === null || fileChanges === null) {
+      engineFailedRead = true;
       return {
         commitDetails: null,
         error: toGitQueryError(
@@ -592,7 +656,7 @@ async function readCommitComparison(
     engineServedRead = true;
     return { commitDetails: toGitCommitDetails(details, fileChanges), error: null };
   } catch (error: unknown) {
-    if (!isEngineFallbackError(error)) {
+    if (!noteEngineThrow(error)) {
       return {
         commitDetails: null,
         error: toGitQueryError(error, "Unable to load commit comparison")
@@ -642,11 +706,14 @@ async function readSearch(
     const parsed = parseEngineSearchResults(
       await addon.searchCommits(args.repoPath, buildSearchOptions(args, maxResults))
     );
-    if (parsed === null) return cliRead();
+    if (parsed === null) {
+      engineFailedRead = true;
+      return cliRead();
+    }
     engineServedRead = true;
     return { results: mapEngineSearchResults(parsed), error: null };
   } catch (error: unknown) {
-    if (!isEngineFallbackError(error)) {
+    if (!noteEngineThrow(error)) {
       return { results: [], error: toGitQueryError(error, "Unable to search commits") };
     }
     return cliRead();

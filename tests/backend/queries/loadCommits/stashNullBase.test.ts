@@ -26,7 +26,6 @@ function loadOptions() {
     branchName: "",
     maxCommits: 300,
     showRemoteBranches: false,
-    showSignature: false,
     showStashes: true,
     showUncommittedChanges: false,
     hard: true,

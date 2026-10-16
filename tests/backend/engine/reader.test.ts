@@ -13,8 +13,11 @@ import {
   closeAllEngineRepositories,
   closeEngineRepository,
   createRepoReader,
+  didEngineDeclineRead,
+  didEngineFailRead,
   didEngineServeRead,
   engineComponentStatus,
+  engineUnavailableReason,
   isEngineFallbackError,
   type LoadCommitsArgs,
   lastGraphLoadRoute,
@@ -239,6 +242,24 @@ describe("engineComponentStatus", () => {
     const status = vi.fn(() => ({ state: "active" as const, version: "x", platform: "y" }));
     expect(engineComponentStatus("git-cli", status)).toEqual({ state: "off" });
     expect(status).not.toHaveBeenCalled();
+  });
+
+  it("names the reason only for an engine that was tried and failed to start", () => {
+    const unavailable = () => ({
+      state: "unavailable" as const,
+      reason: "versionMismatch" as const,
+      platform: "linux-x64-gnu",
+      detail: "found 1.0.24, expected 1.0.25"
+    });
+    expect(engineUnavailableReason("auto", unavailable)).toBe("versionMismatch");
+    expect(engineUnavailableReason("git-cli", unavailable)).toBeNull();
+    expect(
+      engineUnavailableReason("auto", () => ({
+        state: "active",
+        version: "1.0.25",
+        platform: "linux-x64-gnu"
+      }))
+    ).toBeNull();
   });
 
   it("reports the session's load attempt on auto", () => {
@@ -739,7 +760,6 @@ describe("createRepoReader loadCommits", () => {
       includeUnreachableCommits: false,
       onlyFollowFirstParent: false,
       commitOrdering: "date",
-      showSignature: false,
       showStashes: false,
       dateType: "Commit Date",
       showUncommittedChanges: true,
@@ -775,7 +795,6 @@ describe("createRepoReader loadCommits", () => {
       includeUnreachableCommits: args.includeUnreachableCommits,
       onlyFollowFirstParent: args.onlyFollowFirstParent,
       commitOrdering: args.commitOrdering,
-      showSignature: args.showSignature,
       showStashes: args.showStashes,
       hard: args.hard,
       dateType: args.dateType,
@@ -853,6 +872,22 @@ describe("createRepoReader loadCommits", () => {
     expect(lastGraphLoadRoute()).toBe("engine");
   });
 
+  it("serves a forced reload from the CLI without touching the addon, whatever the preference", async () => {
+    const provider = vi.fn(engineProvider(headedPage));
+    const result = await createRepoReader({
+      preference: "auto",
+      gitPath: "git",
+      addonProvider: provider,
+      forceCli: true
+    }).loadCommits(commitArgs());
+
+    expect(result.error).toBeNull();
+    expect(provider).not.toHaveBeenCalled();
+    expect(commitReads.count).toBe(1);
+    expect(didEngineServeRead()).toBe(false);
+    expect(lastGraphLoadRoute()).toBe("forced");
+  });
+
   it("serves Author Date from the engine, asking it for the author date", async () => {
     const options: unknown[] = [];
     const base = engineProvider(headedPage);
@@ -876,24 +911,6 @@ describe("createRepoReader loadCommits", () => {
     expect(commitReads.count).toBe(0);
     expect(didEngineServeRead()).toBe(true);
     expect(lastGraphLoadRoute()).toBe("engine");
-  });
-
-  it("moves the load from engine to CLI the moment the signature column is on", async () => {
-    const provider = vi.fn(engineProvider(headedPage));
-
-    const served = await commitsReader("auto", provider);
-    expect(served.error).toBeNull();
-    expect(commitReads.count).toBe(0);
-    expect(didEngineServeRead()).toBe(true);
-
-    resetEngineServedRead();
-    const declined = await commitsReader("auto", provider, { showSignature: true });
-    expect(declined.error).toBeNull();
-    expect(declined.commits).toHaveLength(1);
-    expect(provider).toHaveBeenCalledTimes(1);
-    expect(commitReads.count).toBe(1);
-    expect(didEngineServeRead()).toBe(false);
-    expect(lastGraphLoadRoute()).toBe("signatureColumn");
   });
 
   it.each([
@@ -985,6 +1002,9 @@ describe("createRepoReader loadCommits", () => {
       expect(commitReads.count).toBe(2);
       expect(didEngineServeRead()).toBe(false);
       expect(lastGraphLoadRoute()).toBe("handedBack");
+      // A decline is the design working: the read succeeded through the CLI.
+      expect(didEngineDeclineRead()).toBe(true);
+      expect(didEngineFailRead()).toBe(false);
     }
   );
 
@@ -1066,6 +1086,7 @@ describe("createRepoReader loadCommits", () => {
       expect(result.error?.message).toContain("malformed commit data");
       expect(commitReads.count).toBe(0);
       expect(didEngineServeRead()).toBe(false);
+      expect(didEngineFailRead()).toBe(true);
     }
   );
 
@@ -1126,6 +1147,8 @@ describe("createRepoReader loadCommits", () => {
     expect(result.error?.message).toContain("corrupt object");
     expect(commitReads.count).toBe(0);
     expect(didEngineServeRead()).toBe(false);
+    expect(didEngineFailRead()).toBe(true);
+    expect(didEngineDeclineRead()).toBe(false);
   });
 });
 

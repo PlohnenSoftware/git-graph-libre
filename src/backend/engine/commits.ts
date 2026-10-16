@@ -11,10 +11,6 @@
  *
  * The declines (each pinned by a test in `tests/backend/engine/commits.test.ts`):
  *
- * - the signature column is visible (`showSignature`): the engine reports no
- *   per-commit signatures, and the CLI's `%G?` plus batched `gpgsig` probe
- *   (the 1.2.0 work separating genuinely unsigned from SSH-signed-but-
- *   unverifiable) has no engine counterpart;
  * - reflog tips or unreachable-commit discovery on a show-all load: the CLI
  *   adds `--reflog` / runs `git fsck --unreachable`, and the engine has no
  *   equivalent for either. With explicit refs the CLI ignores both flags
@@ -29,6 +25,9 @@
  *
  * `Author Date` was a decline until engine `1.0.25`, whose `load_commits`
  * takes `useAuthorDate` and answers with the date the CLI formats as `%at`.
+ * The visible signature column was one too, until the graph load stopped
+ * verifying signatures on either backend: the webview now reads them through
+ * the CLI-only `commitSignatures` query after the page has rendered.
  */
 
 import type { CommitOrdering, DateType, GitCommitNode, GitRef } from "@/backend/types";
@@ -50,7 +49,6 @@ export type EngineLoadCommitsInput = {
   includeUnreachableCommits?: boolean;
   onlyFollowFirstParent?: boolean;
   commitOrdering?: CommitOrdering;
-  showSignature?: boolean;
   /**
    * Consumed by the 16.5b mapper, not by the predicate or options: the engine
    * always reads stashes (it walks from their bases), so when the caller did
@@ -80,8 +78,6 @@ export function engineLoadCommitsRefs(input: EngineLoadCommitsInput): string[] |
  * CLI, unchanged, and the status indicator names the reason.
  */
 export function loadCommitsDecline(input: EngineLoadCommitsInput): GraphLoadDecline | null {
-  // The signature column needs the CLI's `%G?` + `gpgsig` probe per commit.
-  if (input.showSignature === true) return "signatureColumn";
   // The engine's topo tie-breaks differ visibly from git's (see above).
   if (input.commitOrdering === "topo") return "topoOrdering";
   const refs = engineLoadCommitsRefs(input);

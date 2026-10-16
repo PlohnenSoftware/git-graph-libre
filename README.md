@@ -124,8 +124,13 @@ third-party analytics provider.
   submodule appearing in the repository dropdown, the graph actually being
   opened on one, the uncommitted-changes staging panel being opened, that
   panel actually grouping changes into folders, a stash row appearing in
-  the graph, or the built-in Rust engine actually serving a repository read.
-  These
+  the graph, the built-in Rust engine actually serving a repository read,
+  that engine being unable to start although the `backend` setting allowed
+  it (only which of the five fixed reasons — missing, failed to load, wrong
+  version, incompatible, unsupported platform — never a path or error
+  text), it failing a read outright, it handing a read back to the Git
+  command line, or the Hidden menu's one-off "Reload once with Git CLI"
+  being used. These
   are recorded once, not once per refresh, and each is a yes/no about the
   feature: the repository paths behind the submodule answers
   are compared inside the extension and never leave it, so nothing is sent
