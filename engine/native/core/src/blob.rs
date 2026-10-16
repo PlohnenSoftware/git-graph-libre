@@ -28,6 +28,8 @@ const CONTEXT_LINES: u32 = 3;
 /// as binary with `contents: None` — the view shows its "cannot display binary" presentation,
 /// exactly as it does for the `git` backend's binary output.
 pub fn commit_file(repo: &Repo, hash: &str, file_path: &str) -> Result<CommitFile> {
+    // A replaced commit reads its file from the replacement's tree in git.
+    repo.decline_replace_refs()?;
     let id = repo.resolve_commit(hash)?;
     let git = repo.borrow();
     let tree = git

@@ -16,8 +16,8 @@ use std::process::Command;
 
 use git_graph_core::repository::Repo;
 use git_graph_core::search::search_commits;
-use git_graph_core::types::{GitFileStatus, SearchOptions};
-use git_graph_core::{details, diff, log, status};
+use git_graph_core::types::{GitFileStatus, LogOptions, SearchOptions};
+use git_graph_core::{blob, details, diff, graph, log, status, ErrorKind};
 
 use common::TestRepo;
 
@@ -215,4 +215,51 @@ fn a_staged_rename_counts_as_git_status_lists_it() {
     assert_eq!(changes.len(), 1);
     assert_eq!(changes[0].kind, GitFileStatus::Renamed);
     assert_eq!(changes[0].old_file_path, "a.txt");
+}
+
+/* ---------- Replacement objects ---------- */
+
+#[test]
+fn replacement_objects_hand_history_reads_to_git() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    repo.commit_file("a.txt", "1", "one");
+    let two = repo.commit_file("a.txt", "2", "two");
+    repo.commit_file("a.txt", "3", "three");
+
+    let engine = open(&repo);
+    let options = LogOptions {
+        max_commits: 10,
+        ..Default::default()
+    };
+    // Without replacements every read is the engine's.
+    assert!(graph::load_commits(&engine, &options).is_ok());
+
+    repo.git(&["replace", "--graft", &two]);
+    let engine = open(&repo);
+    // git now shows `two` as a root; gix would still show its original parent.
+    assert_eq!(repo.git(&["log", "--format=%H"]).lines().count(), 2);
+    let declined = |kind: ErrorKind| assert_eq!(kind, ErrorKind::Unsupported);
+    declined(graph::load_commits(&engine, &options).unwrap_err().kind);
+    declined(details::commit_details(&engine, &two).unwrap_err().kind);
+    declined(
+        diff::diff_revisions(&engine, &two, "HEAD")
+            .unwrap_err()
+            .kind,
+    );
+    declined(blob::commit_file(&engine, &two, "a.txt").unwrap_err().kind);
+    let search = SearchOptions {
+        query: "two".to_string(),
+        max_results: 10,
+        show_tags: true,
+        ..Default::default()
+    };
+    declined(search_commits(&engine, &search).unwrap_err().kind);
+
+    // `core.useReplaceRefs=false` makes git read the original objects, and gix then applies the
+    // replacements (it inverts the setting), so the engine still hands the load to git.
+    repo.git(&["config", "core.useReplaceRefs", "false"]);
+    assert_eq!(repo.git(&["log", "--format=%H"]).lines().count(), 3);
+    let engine = open(&repo);
+    declined(graph::load_commits(&engine, &options).unwrap_err().kind);
 }

@@ -55,6 +55,10 @@ in terms of git, since that layer is not incorporated. The parts taken:
   `git add -N` path, both lines of a path removed from the index but kept on
   disk, and both halves of a staged rename when `status.renames` (or
   `diff.renames`) is off.
+- `Repo::uses_replace_refs` detects `refs/replace/*`, which gix applies the
+  opposite way to git; the graph load and commit details decline to the CLI
+  when any exist, and so do this project's comparison, file-at-revision and
+  `search_commits` reads.
 
 `native/core/tests/git_parity.rs` adapts the matching tests from the same
 commit. Everything else in `ff4aafe` was left out: single-file diff headers,
