@@ -810,6 +810,42 @@ fn keeps_repository_handles_open_across_requests() {
 }
 
 #[test]
+fn reopens_a_handle_whose_configuration_changed() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    repo.commit_file("a.txt", "1", "first");
+
+    let manager = git_graph_core::RepoManager::new();
+    let warm = manager.get(repo.path()).unwrap();
+    assert!(warm.remote_names().is_empty());
+
+    // Refs and objects are re-read on every call, but the configuration is read once at open, so
+    // without a reopen these edits would stay invisible for the rest of the session.
+    repo.git(&["remote", "add", "origin", "https://example.com/a.git"]);
+    let after_add = manager.get(repo.path()).unwrap();
+    assert!(!std::sync::Arc::ptr_eq(&warm, &after_add));
+    assert_eq!(after_add.remote_names(), vec!["origin"]);
+
+    repo.git(&[
+        "remote",
+        "set-url",
+        "origin",
+        "https://example.com/elsewhere.git",
+    ]);
+    let after_set_url = manager.get(repo.path()).unwrap();
+    assert_eq!(
+        git_graph_core::config::remote_url(&after_set_url, "origin").unwrap(),
+        Some("https://example.com/elsewhere.git".to_string())
+    );
+
+    // An untouched configuration keeps the warm handle, and the reopen replaced the stale one
+    // rather than adding a second.
+    let again = manager.get(repo.path()).unwrap();
+    assert!(std::sync::Arc::ptr_eq(&after_set_url, &again));
+    assert_eq!(manager.open_count(), 1);
+}
+
+#[test]
 fn flags_the_unmerged_paths_of_a_stopped_merge() {
     require_git!();
     let mut repo = TestRepo::new();

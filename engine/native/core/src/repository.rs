@@ -8,6 +8,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::SystemTime;
 
 use crate::error::{Error, Result, ResultExt};
 
@@ -26,6 +27,8 @@ pub struct Repo {
     root: PathBuf,
     /// The git directory. Cached because the shared handle does not expose it.
     git_dir: PathBuf,
+    /// The configuration files the handle was opened with, as they were then.
+    config: ConfigStamp,
 }
 
 impl Repo {
@@ -59,11 +62,18 @@ impl Repo {
                 git_dir.display()
             )));
         }
+        let config = ConfigStamp::of(&repo);
         Ok(Repo {
             inner: repo.into_sync(),
             root,
             git_dir,
+            config,
         })
+    }
+
+    /// Is the configuration this handle read at open still what is on disk?
+    pub fn config_is_current(&self) -> bool {
+        self.config.is_current()
     }
 
     /// A thread-local view of the repository, for use within a single request.
@@ -104,6 +114,60 @@ impl Repo {
     pub fn resolve_commit(&self, rev: &str) -> Result<gix::ObjectId> {
         resolve_commit_in(&self.borrow(), rev)
     }
+}
+
+/// When each configuration file a handle depends on was last written, so a stale handle can be
+/// told from a current one.
+///
+/// gix reads the configuration once, when a repository is opened, and the handle then lives for
+/// the session. Refs and objects are re-read on every call, but remotes, their URLs and the user
+/// identity all come from that one reading — so after `git remote add` or `git remote set-url`,
+/// whether run by the extension or in a terminal, every read kept answering with the old remotes
+/// until the repository was closed. Comparing these stamps on each request costs a handful of
+/// `stat` calls, and a changed one reopens the repository.
+///
+/// The files are every one the configuration was actually loaded from — system, global, XDG,
+/// local, `config.worktree` and anything they include — plus the local configuration and the
+/// worktree configuration whether or not they existed, since either can appear later. A file that
+/// is absent is stamped as absent, so creating it counts as a change.
+#[derive(Debug)]
+struct ConfigStamp(Vec<(PathBuf, Option<(SystemTime, u64)>)>);
+
+impl ConfigStamp {
+    fn of(repo: &gix::Repository) -> ConfigStamp {
+        let mut paths: Vec<PathBuf> = repo
+            .config_snapshot()
+            .plumbing()
+            .sections()
+            .filter_map(|section| section.meta().path.clone())
+            .collect();
+        paths.push(repo.common_dir().join("config"));
+        paths.push(repo.git_dir().join("config.worktree"));
+        paths.sort();
+        paths.dedup();
+        ConfigStamp(
+            paths
+                .into_iter()
+                .map(|path| {
+                    let stamp = file_stamp(&path);
+                    (path, stamp)
+                })
+                .collect(),
+        )
+    }
+
+    fn is_current(&self) -> bool {
+        self.0
+            .iter()
+            .all(|(path, stamp)| file_stamp(path) == *stamp)
+    }
+}
+
+/// A file's modification time and length, or `None` when it does not exist. The length catches a
+/// rewrite that lands within the file system's timestamp resolution.
+fn file_stamp(path: &Path) -> Option<(SystemTime, u64)> {
+    let metadata = std::fs::metadata(path).ok()?;
+    Some((metadata.modified().ok()?, metadata.len()))
 }
 
 /// Does the repository store its refs in the [reftable] format?
@@ -200,19 +264,31 @@ impl RepoManager {
         MANAGER.get_or_init(RepoManager::new)
     }
 
-    /// Get the open handle for `path`, opening it if this is the first request for it.
+    /// Get the open handle for `path`, opening it if this is the first request for it — or
+    /// reopening it when its configuration changed on disk since it was opened (see
+    /// [`ConfigStamp`]).
     pub fn get(&self, path: impl AsRef<Path>) -> Result<Arc<Repo>> {
         let key = path.as_ref().to_path_buf();
         if let Some(repo) = self.repos.lock().unwrap().get(&key) {
-            return Ok(Arc::clone(repo));
+            if repo.config_is_current() {
+                return Ok(Arc::clone(repo));
+            }
         }
         // Opening happens outside the lock: it touches the disk, and a slow open of one repository
         // must not block requests for the others.
         let repo = Arc::new(Repo::discover(&key)?);
         let mut repos = self.repos.lock().unwrap();
-        // Another thread may have opened it while we were; keep whichever handle landed first so
-        // that callers never hold two handles to the same repository.
-        Ok(Arc::clone(repos.entry(key).or_insert(repo)))
+        match repos.get(&key) {
+            // Another thread opened a current handle while we were; keep the one that landed
+            // first so that callers never hold two current handles to the same repository.
+            Some(existing) if existing.config_is_current() => Ok(Arc::clone(existing)),
+            // First open, or replacing a stale handle. Requests still holding the old one finish
+            // on it; it is dropped with its last reference.
+            _ => {
+                repos.insert(key, Arc::clone(&repo));
+                Ok(repo)
+            }
+        }
     }
 
     /// Drop the handle for `path` (e.g. because the folder was removed from the workspace).
