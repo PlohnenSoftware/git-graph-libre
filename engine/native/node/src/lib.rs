@@ -457,3 +457,9 @@ impl RefOptionsPayload {
         }
     }
 }
+
+// Lets the Linux glibc build load into a musl process too; see the module. Declared last so
+// that the platforms which compile it out build byte-identical binaries: everything above
+// keeps its line numbers, which rustc embeds for panic locations.
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+mod glibc;

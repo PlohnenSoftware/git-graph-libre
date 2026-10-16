@@ -25,130 +25,131 @@ the same change.
 
 **Mission**: why the project exists, and the license rule everything else follows.
 
-- L153 **Mission** (*always read*) — Mission and core licensing rules: `AGPL-3.0-or-later` since 1.0.0 over the MIT lineage (`NOTICE.md`, `LICENSE.mit`); the license flows one way; the upstream-review marker grep must return `0`; the clean-room reimplementation rule.
+- L154 **Mission** (*always read*) — Mission and core licensing rules: `AGPL-3.0-or-later` since 1.0.0 over the MIT lineage (`NOTICE.md`, `LICENSE.mit`); the license flows one way; the upstream-review marker grep must return `0`; the clean-room reimplementation rule.
 
 **Rules**: how to work in this repository, commit, verify, and keep this document.
 
-- L199 **Renames and relicensing since these notes were written** (*always read*) — Reading note: the project was renamed from the MIT fork `neo-git-graph` to Git Graph Libre; `neo-git-graph.*` IDs are now `git-graph-libre.*`, AGPL from 1.0.0, Sonar key `git-graph-libre`; old notes are kept as written.
-- L215 **Maintainer and Agent Source of Truth** (*always read*) — Names this document the single source of truth for `AI-dev` and `main`; `README.md` stays the public entry point; agent files (`CLAUDE.md`, `CODEX.md`, `agents.md`) stay pointer-only.
-  - L222 **Branch and release policy** (*always read*) — Standing rules: release by fast-forwarding `main` to `AI-dev`; session-start reading order; workflow (rebase not merge, signing, strict Biome, OKLCH, American English, gate order up to SonarQube `OK`, Rust arm on `engine/**`); handoff rules.
-  - L363 **Commit signing** (*always read*) — Standing rule: every commit signed (key `4858F11A2D1DFCBE`), checked with `git log --format='%h %G? %s'`; halt if `gpg-agent` is unreachable, never `--no-gpg-sign`; record of the `2026-09-09` unsigned-commit incident.
-- L426 **Documentation and Verification Rules** (*always read*) — Standing rules: tests ship with behavior changes; touched code meets `biome.strict.jsonc`; Biome and SonarQube gate `OK` before commit; fix touched-file issues; no `var`; small commits; record the checks run.
-  - L451 **Order of this document** (*always read*) — Standing rule: the document's groups in order (Contents, Mission, Rules, Licensing, Reference, Ongoing work, Future work, History oldest first) and how to keep new and finished work in the right group.
+- L200 **Renames and relicensing since these notes were written** (*always read*) — Reading note: the project was renamed from the MIT fork `neo-git-graph` to Git Graph Libre; `neo-git-graph.*` IDs are now `git-graph-libre.*`, AGPL from 1.0.0, Sonar key `git-graph-libre`; old notes are kept as written.
+- L216 **Maintainer and Agent Source of Truth** (*always read*) — Names this document the single source of truth for `AI-dev` and `main`; `README.md` stays the public entry point; agent files (`CLAUDE.md`, `CODEX.md`, `agents.md`) stay pointer-only.
+  - L223 **Branch and release policy** (*always read*) — Standing rules: release by fast-forwarding `main` to `AI-dev`; session-start reading order; workflow (rebase not merge, signing, strict Biome, OKLCH, American English, gate order up to SonarQube `OK`, Rust arm on `engine/**`); handoff rules.
+  - L364 **Commit signing** (*always read*) — Standing rule: every commit signed (key `4858F11A2D1DFCBE`), checked with `git log --format='%h %G? %s'`; halt if `gpg-agent` is unreachable, never `--no-gpg-sign`; record of the `2026-09-09` unsigned-commit incident.
+- L427 **Documentation and Verification Rules** (*always read*) — Standing rules: tests ship with behavior changes; touched code meets `biome.strict.jsonc`; Biome and SonarQube gate `OK` before commit; fix touched-file issues; no `var`; small commits; record the checks run.
+  - L452 **Order of this document** (*always read*) — Standing rule: the document's groups in order (Contents, Mission, Rules, Licensing, Reference, Ongoing work, Future work, History oldest first) and how to keep new and finished work in the right group.
 
 **Licensing**: license verdicts and clean-room records that bind all work.
 
-- L484 **Licensing** (*always read*) — License verdicts and clean-room records that bind all work; the rules they apply are in Mission, the notices in `NOTICE.md`, `LICENSE.mit` and `engine/NOTICE.md`.
-  - L490 **`vscode-git-graph-rs` licensing verdict (`2026-09-22`)** (*always read*) — Standing verdict: the `src/` and `web/` layers of `vscode-git-graph-rs` forbid redistribution, so never read or copy them; `native/` is MIT and usable except `native/core/src/gerrit.rs`; any future sync is a manual license audit.
-  - L539 **License review of the graph and stash UI slices (`2026-09-09`)** (*always read*) — Clean-room review (`2026-09-09`): a borrowed stash-node shape removed and identifiers renamed. Standing rules: derive constants from this project's own geometry; pair token scans with an identifier census.
+- L485 **Licensing** (*always read*) — License verdicts and clean-room records that bind all work; the rules they apply are in Mission, the notices in `NOTICE.md`, `LICENSE.mit` and `engine/NOTICE.md`.
+  - L491 **`vscode-git-graph-rs` licensing verdict (`2026-09-22`)** (*always read*) — Standing verdict: the `src/` and `web/` layers of `vscode-git-graph-rs` forbid redistribution, so never read or copy them; `native/` is MIT and usable except `native/core/src/gerrit.rs`; any future sync is a manual license audit.
+  - L540 **License review of the graph and stash UI slices (`2026-09-09`)** (*always read*) — Clean-room review (`2026-09-09`): a borrowed stash-node shape removed and identifiers renamed. Standing rules: derive constants from this project's own geometry; pair token scans with an identifier census.
 
 **Reference**: standing guidance to read when a task touches its area.
 
-- L568 **Graphify Map** (*always read*) — The graphify code graph, last regenerated `2026-07-29` at `ff8b744` (likely stale), AST-only: the `graphify-out/` artifacts, refreshing with `graphify update .`/`graphify tree`, and query/explain/path examples.
-- L621 **Current Architecture** — Layer map (`extension.ts`, `gitClient.ts`, queries, actions, `messageHandler.ts`, webview); Biome and SonarQube setup (`pnpm run sonar:scan`, no empty `SONAR_TOKEN=`); dated `sonar.projectVersion` advances up to `1.8.1`; `ZAM` gate conditions; feature route.
-  - L878 **Settings reach the webview twice, and the second time is raw (`2026-09-05`)** — Standing rule: boot reads validated `config` accessors but settings-hub echoes apply raw values, so change both ends; the `b225076` context-menu crash fix; the `onDidChangeConfiguration` whitelist; `pnpm run test` does not typecheck.
-- L934 **Webview UI Styling Guide** — Standing UI rules: VS Code theme tokens with `--ngg-*` OKLCH fallbacks; conventions for dialogs, checkboxes, locked controls (`lock: { reason }`), dropdowns, `octicon()` icons, selection tint, graph palette and status strip states; CSS regression tests.
-  - L1130 **Verifying webview visuals without a browser (`2026-09-10`)** — Standing rule: before calling a webview visual change done, render it headlessly with `PyQt6` QtWebEngine and `xvfb-run` using the real `media/*.css`; VS Code's bundled Electron can't be used for this.
-- L1153 **Telemetry (`telemetry` branch, `2026-08-26`)** — Standing client telemetry rules (ingest lives in `PlohnenSoftware/git-graph-libre-telemetry`): the `createTelemetryLogger` boundary, three chokepoints, once-per-session view features, tri-state `telemetry.enabled`, `TELEMETRY_ENDPOINT`, `telemetry.json`.
-  - L1252 **Consent prompt (`2026-09-02`)** — Consent rules for `consentPrompt.ts`: dismissal is not an answer, no latch (a past bug), the "Reject and Don't Show Again" label; the banner reversed into the `webviewConsentScreen.ts` gate; GDPR/Marketplace research.
-  - L1383 **End-to-end verification of the sender seam (`2026-09-02`)** — Proof of the `createTelemetryLogger` sender seam: test launches are logging-only (`isLoggingOnly`), so it was verified with a packaged build; the injected `common.*` properties; `commonProperties.ts` and its removal condition.
-  - L1483 **Consent epoch — session record (`2026-09-02`)** — Session record of seven consent-epoch slices: gate results and three packaged-build checks (`unset` sends nothing). Open: delete the `probe-machine` row from the production database.
-- L1525 **Temporary language switcher (`2026-09-03`)** — Standing rules for the hidden double-right-click language menu: always English, the override kept only in the `webviewPanel.ts` closure, switching by document rebuild, locale validated before `createBundleTranslator()`.
+- L569 **Graphify Map** (*always read*) — The graphify code graph, last regenerated `2026-07-29` at `ff8b744` (likely stale), AST-only: the `graphify-out/` artifacts, refreshing with `graphify update .`/`graphify tree`, and query/explain/path examples.
+- L622 **Current Architecture** — Layer map (`extension.ts`, `gitClient.ts`, queries, actions, `messageHandler.ts`, webview); Biome and SonarQube setup (`pnpm run sonar:scan`, no empty `SONAR_TOKEN=`); dated `sonar.projectVersion` advances up to `1.8.1`; `ZAM` gate conditions; feature route.
+  - L879 **Settings reach the webview twice, and the second time is raw (`2026-09-05`)** — Standing rule: boot reads validated `config` accessors but settings-hub echoes apply raw values, so change both ends; the `b225076` context-menu crash fix; the `onDidChangeConfiguration` whitelist; `pnpm run test` does not typecheck.
+- L935 **Webview UI Styling Guide** — Standing UI rules: VS Code theme tokens with `--ngg-*` OKLCH fallbacks; conventions for dialogs, checkboxes, locked controls (`lock: { reason }`), dropdowns, `octicon()` icons, selection tint, graph palette and status strip states; CSS regression tests.
+  - L1131 **Verifying webview visuals without a browser (`2026-09-10`)** — Standing rule: before calling a webview visual change done, render it headlessly with `PyQt6` QtWebEngine and `xvfb-run` using the real `media/*.css`; VS Code's bundled Electron can't be used for this.
+- L1154 **Telemetry (`telemetry` branch, `2026-08-26`)** — Standing client telemetry rules (ingest lives in `PlohnenSoftware/git-graph-libre-telemetry`): the `createTelemetryLogger` boundary, three chokepoints, once-per-session view features, tri-state `telemetry.enabled`, `TELEMETRY_ENDPOINT`, `telemetry.json`.
+  - L1253 **Consent prompt (`2026-09-02`)** — Consent rules for `consentPrompt.ts`: dismissal is not an answer, no latch (a past bug), the "Reject and Don't Show Again" label; the banner reversed into the `webviewConsentScreen.ts` gate; GDPR/Marketplace research.
+  - L1384 **End-to-end verification of the sender seam (`2026-09-02`)** — Proof of the `createTelemetryLogger` sender seam: test launches are logging-only (`isLoggingOnly`), so it was verified with a packaged build; the injected `common.*` properties; `commonProperties.ts` and its removal condition.
+  - L1484 **Consent epoch — session record (`2026-09-02`)** — Session record of seven consent-epoch slices: gate results and three packaged-build checks (`unset` sends nothing). Open: delete the `probe-machine` row from the production database.
+- L1526 **Temporary language switcher (`2026-09-03`)** — Standing rules for the hidden double-right-click language menu: always English, the override kept only in the `webviewPanel.ts` closure, switching by document rebuild, locale validated before `createBundleTranslator()`.
 
 **Ongoing work**: what is in progress now.
 
-- L1558 **Near-Term Work Order** (*always read*) — Next (`2026-10-16`, awaiting the maintainer): the upstream engine review's ranked candidates, config staleness first; earlier: the Phase 16 Rust engine, slices 16.1–16.9 done; then older priorities and the partial Phases 2 and 7–10.
-- L1644 **Implementation Roadmap** (*always read*) — Status table for every phase (audited `2026-07-03`, kept in sync with each phase's `Status:` line), then Phase 16, the active phase; open and completed phases have their own sections.
-  - L1671 **Phase 16: Rust Engine Backend** — In progress as of `2026-10-16`: slices 16.1–16.9 shipped in `v1.8.0`, Author Date and the status indicator in `1.8.1`, upstream candidates open. Wires the `engine/` Rust addon into the hot reads with CLI fallback; goal and speed numbers.
-    - L1692 **Non-goals, permanently** — Standing rule: permanently excluded from the engine are all writes, `includeReflog`, `includeUnreachableCommits`, signature verification and `customBranchGlobPatterns`; each is a decline routed to the CLI and pinned by a test.
-    - L1712 **Design rules — invariants every slice must keep** — Standing invariants for every engine slice: map to project types, CLI stays the default, cross-backend parity tests, no user-visible change, close handles, telemetry only at the documented chokepoints.
-    - L1739 **Slice 16.1 — A gate for the Rust side, with no wiring at all** — Done (`2026-09-22`): `engine:check`/`test`/`lint`/`fmt` scripts, `.github/workflows/engine.yml` CI keyed on `engine/**`, `engine/**` in `sonar.exclusions`, the Rust arm added to the gate order.
-    - L1781 **Slice 16.2 — Build the addon locally for one target** — Done (`2026-09-22`): `@napi-rs/cli` devDependency, `engine:build` (host triple, debug), `engine:smoke` version check, `engine/package.json` napi config; the other triples deferred.
-    - L1827 **Slice 16.3 — The seam, the escape hatch, and one trivial read** — Done (`2026-09-22`): `src/backend/engine/addon.ts` loader, `createRepoReader` falling back only on `NotARepository`/`Unsupported`, the `git-graph-libre.backend` setting, `remoteUrl` wired, parity test, `view.engineBackend` telemetry.
-    - L1908 **Slice 16.4 — `loadRepoInfo`** — Done (`2026-09-22`): `loadRepoInfo` served by the engine (`src/backend/engine/repoInfo.ts`), with CLI fills and ordering through the CLI sorters; parity table, probe findings; `loadBranches` untouched.
-    - L1951 **Slice 16.5 — `loadCommits`, and the three declines** — Done (`2026-09-22`): `loadCommits` served by the engine (`commits.ts`), declining up front for the signature column, reflog, unreachable commits, `--glob=` and `topo`; parity table, known deviations.
-    - L2040 **Slice 16.6 — Commit details, comparison, and line counts** — Done (`2026-09-23`): commit details and comparison via the engine (`details.ts`) with eager `load_line_counts`; `DiffDocProvider` reads file content from the engine; merges, the `*` row and failed counts reroute to the CLI.
-    - L2100 **Slice 16.7 — The remaining reads** — Done (`2026-09-23`): only `config_list` wired (user identity in repo info); the other reads declined, each with its reason; `search_history` superseded by the engine's `search_commits`, then deleted.
-    - L2149 **Slice 16.8 — Handle lifetime and post-write freshness** — Done (`2026-09-23`): a probe showed warm gix handles see external writes, so no cache bust is needed — corrected `2026-10-16`: config stays cached; `removeRepo` and `deactivate` close handles; lifecycle test.
-    - L2195 **Slice 16.9 — Per-platform packaging** — Done (`2026-09-23`): `native-build.yml` builds the triples; the maintainer chose one universal VSIX (`15.06 MB`) over the seven-VSIX plan; `.vscodeignore` whitelist; local packaging can ship a debug binary.
-    - L2269 **Building the whole stack (`2026-09-23`)** — Rule: `pnpm run build` builds the release addon, runs `engine:smoke`, then `package`; `pnpm run package` and `vsce package` build only the TypeScript, never the addon.
-    - L2286 **One build path, runnable anywhere (`2026-09-23`)** — Decision: cross-compile every platform from one machine with `engine/scripts/build-all.mjs` (CI `native-build.yml`, local `engine:build:all`); zig pinned `0.14.1`, `--cross-compile`, macOS ad-hoc signing, untested cross-builds.
-    - L2341 **Why the graph opened no faster, and what fixed it (`2026-09-23`)** — Record: simple-git adds ~50 ms to empty-output commands (`runGitRaw` move still open); `composeEngineRepoInfo` CLI fills moved into the engine; `log::authors` all-refs bug fixed; `loadRepoInfo` 7.2x faster.
-    - L2414 **The two ref fills, removed from the engine rather than optimised (`2026-09-23`)** — Record: the `attachRemoteHeadLabels`/`attachSignedTagNames` `for-each-ref` fills deleted; the engine reports tag `signed` and symbolic `origin/HEAD`; `loadCommits` spawns nothing. Benchmark only `engine:build:release`, never debug.
-    - L2503 **Search in the engine, and a CLI bug it exposed (`2026-09-23`)** — Record: the engine's `search_commits` (literal message, author and hash matches in one walk, 7.9x) replaces `search_history`; the parity table exposed a CLI `--author` `escapeRegExp` bug, fixed with `--fixed-strings`.
-    - L2566 **The engine surface: what is wired, what was removed, what is kept (`2026-09-23`)** — Audit of the 31 `#[napi]` exports (18 wired): five removed (`search_history`, write-flow helpers), dropping the `regex` crate; table of the exports kept unwired; a planned engine-only Statistics tab.
-    - L2638 **What the page-size defaults are actually worth (`2026-09-23`)** — Record (`2026-09-23`): `initialLoadCommits` `300` → `250`, `loadMoreCommits` `100` → `750`; the full `renderTable` rebuild is the real cost (open); keep manifest, accessor, README and test defaults in step.
-    - L2706 **Benchmarking the two backends (`2026-09-23`)** — How `pnpm run bench:backends` works (`backends.bench.ts`, `GGL_BENCH_REPO`, `didEngineServeRead()`); `vitest bench` is gone in Vitest 5; the first results (`loadCommits` `0.7x`) were fixed in the sections above.
-    - L2766 **Pinned toolchain, remapped paths, cached CI (`2026-09-23`)** — Rules: `rust-toolchain.toml` stays at the repo root; `--remap-path-prefix` makes builds identical across machines; CI caches cargo-xwin, zig (`engine/.toolchain/`) and `engine/target`.
-    - L2817 **Alpine and the C library (`2026-09-23`)** — Decision: ship eight platforms, adding `linux-x64-musl`/`linux-arm64-musl`, with `isMuslRuntime()` and ordered `platformDirectoriesFor()`; `linux-armhf` deliberately excluded; Windows still needs cargo-xwin.
-    - L2875 **Author Date through the engine, and the status indicator (`2026-10-16`)** — Done (`1.8.1`): engine `1.0.25` `useAuthorDate` lifts the Author Date decline; rule: bump the engine version when TS relies on behavior an older binary silently lacks; `loadCommitsDecline()` reasons; the status popup, amber unavailable state, `[engine]` log line; response field `components`, never `status`.
-    - L2968 **Upstream engine review, first pass (`2026-10-16`)** — Audit of upstream `native/` to `6357ec1`: license still MIT, no new tainted port; ranked unported candidates (config staleness, tags of trees/blobs, shallow clones, status counts, topo seeding, numstat, encoding, replace refs, remote-ref special cases).
-    - L3009 **Signatures leave the graph load; a one-off CLI reload and engine-failure telemetry (`2026-10-16`)** — Done (taken over mid-flight, gated `OK`): the CLI-only `commitSignatures` query lifts the signature-column decline; the Hidden menu's `forced` reload; reader failure/decline flags feeding `view.engineUnavailable.<reason>`, `view.engineFailed`, `view.engineDeclined`, `view.forceCliReload`; the `backend: "git-cli"` setting already existed.
-    - L3091 **Pruning the universal package on activation (`2026-10-16`)** — The universal VSIX stays (platform VSIXs declined again with numbers on the table); `prune.ts` deletes foreign-platform binaries on Production activation under test-pinned rails; signature verification is install-time, so no reinstall; musl-only Linux measured impossible with the zig dynamic build.
-    - L3127 **Risks to decide before 16.5, not during** — Phase 16 risks: ordering within a window (resolved in 16.5), devcontainer/Alpine CLI fallback, refusing `engineVersion()` skew, the unresolved `penghongxia`/`neophack` identity question.
+- L1559 **Near-Term Work Order** (*always read*) — Next (`2026-10-16`, awaiting the maintainer): the upstream engine review's ranked candidates, config staleness first; earlier: the Phase 16 Rust engine, slices 16.1–16.9 done; then older priorities and the partial Phases 2 and 7–10.
+- L1645 **Implementation Roadmap** (*always read*) — Status table for every phase (audited `2026-07-03`, kept in sync with each phase's `Status:` line), then Phase 16, the active phase; open and completed phases have their own sections.
+  - L1672 **Phase 16: Rust Engine Backend** — In progress as of `2026-10-16`: slices 16.1–16.9 shipped in `v1.8.0`, Author Date and the status indicator in `1.8.1`, upstream candidates open. Wires the `engine/` Rust addon into the hot reads with CLI fallback; goal and speed numbers.
+    - L1693 **Non-goals, permanently** — Standing rule: permanently excluded from the engine are all writes, `includeReflog`, `includeUnreachableCommits`, signature verification and `customBranchGlobPatterns`; each is a decline routed to the CLI and pinned by a test.
+    - L1713 **Design rules — invariants every slice must keep** — Standing invariants for every engine slice: map to project types, CLI stays the default, cross-backend parity tests, no user-visible change, close handles, telemetry only at the documented chokepoints.
+    - L1740 **Slice 16.1 — A gate for the Rust side, with no wiring at all** — Done (`2026-09-22`): `engine:check`/`test`/`lint`/`fmt` scripts, `.github/workflows/engine.yml` CI keyed on `engine/**`, `engine/**` in `sonar.exclusions`, the Rust arm added to the gate order.
+    - L1782 **Slice 16.2 — Build the addon locally for one target** — Done (`2026-09-22`): `@napi-rs/cli` devDependency, `engine:build` (host triple, debug), `engine:smoke` version check, `engine/package.json` napi config; the other triples deferred.
+    - L1828 **Slice 16.3 — The seam, the escape hatch, and one trivial read** — Done (`2026-09-22`): `src/backend/engine/addon.ts` loader, `createRepoReader` falling back only on `NotARepository`/`Unsupported`, the `git-graph-libre.backend` setting, `remoteUrl` wired, parity test, `view.engineBackend` telemetry.
+    - L1909 **Slice 16.4 — `loadRepoInfo`** — Done (`2026-09-22`): `loadRepoInfo` served by the engine (`src/backend/engine/repoInfo.ts`), with CLI fills and ordering through the CLI sorters; parity table, probe findings; `loadBranches` untouched.
+    - L1952 **Slice 16.5 — `loadCommits`, and the three declines** — Done (`2026-09-22`): `loadCommits` served by the engine (`commits.ts`), declining up front for the signature column, reflog, unreachable commits, `--glob=` and `topo`; parity table, known deviations.
+    - L2041 **Slice 16.6 — Commit details, comparison, and line counts** — Done (`2026-09-23`): commit details and comparison via the engine (`details.ts`) with eager `load_line_counts`; `DiffDocProvider` reads file content from the engine; merges, the `*` row and failed counts reroute to the CLI.
+    - L2101 **Slice 16.7 — The remaining reads** — Done (`2026-09-23`): only `config_list` wired (user identity in repo info); the other reads declined, each with its reason; `search_history` superseded by the engine's `search_commits`, then deleted.
+    - L2150 **Slice 16.8 — Handle lifetime and post-write freshness** — Done (`2026-09-23`): a probe showed warm gix handles see external writes, so no cache bust is needed — corrected `2026-10-16`: config stays cached; `removeRepo` and `deactivate` close handles; lifecycle test.
+    - L2196 **Slice 16.9 — Per-platform packaging** — Done (`2026-09-23`): `native-build.yml` builds the triples; the maintainer chose one universal VSIX (`15.06 MB`) over the seven-VSIX plan; `.vscodeignore` whitelist; local packaging can ship a debug binary.
+    - L2270 **Building the whole stack (`2026-09-23`)** — Rule: `pnpm run build` builds the release addon, runs `engine:smoke`, then `package`; `pnpm run package` and `vsce package` build only the TypeScript, never the addon.
+    - L2287 **One build path, runnable anywhere (`2026-09-23`)** — Decision: cross-compile every platform from one machine with `engine/scripts/build-all.mjs` (CI `native-build.yml`, local `engine:build:all`); zig pinned `0.14.1`, `--cross-compile`, macOS ad-hoc signing, untested cross-builds.
+    - L2346 **Why the graph opened no faster, and what fixed it (`2026-09-23`)** — Record: simple-git adds ~50 ms to empty-output commands (`runGitRaw` move still open); `composeEngineRepoInfo` CLI fills moved into the engine; `log::authors` all-refs bug fixed; `loadRepoInfo` 7.2x faster.
+    - L2419 **The two ref fills, removed from the engine rather than optimised (`2026-09-23`)** — Record: the `attachRemoteHeadLabels`/`attachSignedTagNames` `for-each-ref` fills deleted; the engine reports tag `signed` and symbolic `origin/HEAD`; `loadCommits` spawns nothing. Benchmark only `engine:build:release`, never debug.
+    - L2508 **Search in the engine, and a CLI bug it exposed (`2026-09-23`)** — Record: the engine's `search_commits` (literal message, author and hash matches in one walk, 7.9x) replaces `search_history`; the parity table exposed a CLI `--author` `escapeRegExp` bug, fixed with `--fixed-strings`.
+    - L2571 **The engine surface: what is wired, what was removed, what is kept (`2026-09-23`)** — Audit of the 31 `#[napi]` exports (18 wired): five removed (`search_history`, write-flow helpers), dropping the `regex` crate; table of the exports kept unwired; a planned engine-only Statistics tab.
+    - L2643 **What the page-size defaults are actually worth (`2026-09-23`)** — Record (`2026-09-23`): `initialLoadCommits` `300` → `250`, `loadMoreCommits` `100` → `750`; the full `renderTable` rebuild is the real cost (open); keep manifest, accessor, README and test defaults in step.
+    - L2711 **Benchmarking the two backends (`2026-09-23`)** — How `pnpm run bench:backends` works (`backends.bench.ts`, `GGL_BENCH_REPO`, `didEngineServeRead()`); `vitest bench` is gone in Vitest 5; the first results (`loadCommits` `0.7x`) were fixed in the sections above.
+    - L2771 **Pinned toolchain, remapped paths, cached CI (`2026-09-23`)** — Rules: `rust-toolchain.toml` stays at the repo root; `--remap-path-prefix` makes builds identical across machines; CI caches cargo-xwin, zig (`engine/.toolchain/`) and `engine/target`.
+    - L2822 **Alpine and the C library (`2026-09-23`)** — Decision: ship eight platforms, adding `linux-x64-musl`/`linux-arm64-musl`, with `isMuslRuntime()` and ordered `platformDirectoriesFor()`; `linux-armhf` deliberately excluded; Windows still needs cargo-xwin.
+    - L2880 **Author Date through the engine, and the status indicator (`2026-10-16`)** — Done (`1.8.1`): engine `1.0.25` `useAuthorDate` lifts the Author Date decline; rule: bump the engine version when TS relies on behavior an older binary silently lacks; `loadCommitsDecline()` reasons; the status popup, amber unavailable state, `[engine]` log line; response field `components`, never `status`.
+    - L2973 **Upstream engine review, first pass (`2026-10-16`)** — Audit of upstream `native/` to `6357ec1`: license still MIT, no new tainted port; ranked unported candidates (config staleness, tags of trees/blobs, shallow clones, status counts, topo seeding, numstat, encoding, replace refs, remote-ref special cases).
+    - L3014 **Signatures leave the graph load; a one-off CLI reload and engine-failure telemetry (`2026-10-16`)** — Done (taken over mid-flight, gated `OK`): the CLI-only `commitSignatures` query lifts the signature-column decline; the Hidden menu's `forced` reload; reader failure/decline flags feeding `view.engineUnavailable.<reason>`, `view.engineFailed`, `view.engineDeclined`, `view.forceCliReload`; the `backend: "git-cli"` setting already existed.
+    - L3096 **Pruning the universal package on activation (`2026-10-16`)** — The universal VSIX stays (platform VSIXs declined again with numbers on the table); `prune.ts` deletes foreign-platform binaries on Production activation under test-pinned rails; signature verification is install-time, so no reinstall; musl-only Linux measured impossible with the zig dynamic build.
+    - L3134 **Experiment: one Linux binary for both C libraries (`2026-10-16`)** — musl route: verdict keep the pair — the musl build with `libc.so` removed loads only on glibc ≥ 2.33 and on x86_64 binds glibc's oldest ABI (`realpath` silently empties `submodules`); engine memory is allocator retention, not a leak. Gnu route (`2026-10-17`): dropping every dependency aborts ld.so, a weak `gnu_get_libc_version` segfaults on Alpine; a defined `gnu_get_libc_version` (Rust, `RTLD_NEXT`) plus dropping only `ld-linux` loads on glibc ≥ 2.28 and musl with identical parity — wired into `build-addon.mjs` with `elf.mjs`; macOS/Windows relinks are not reproducible and macOS embeds the checkout path.
+    - L3587 **Risks to decide before 16.5, not during** — Phase 16 risks: ordering within a window (resolved in 16.5), devcontainer/Alpine CLI fallback, refusing `engineVersion()` skew, the unresolved `penghongxia`/`neophack` identity question.
 
 **Future work**: open roadmap items and directions nobody has started.
 
-- L3150 **Roadmap: open phases** — Phases with open items (2, 6, 8, 9, 10), in phase order; each phase's `Status:` line names what remains.
-  - L3157 **Phase 2: Commit Details UX** — Partial. Done: split renderer, collapse/expand, tree/list and compact folders, resizable height, safe linkification, file actions. Open: the docked-bottom commit-details mode.
-  - L3181 **Phase 6: Repo Settings and View Options** — Mostly complete: repo settings modal and per-repo view toggles. Open: initial branches on load. `2026-07-27` record: detached-HEAD visibility, `repository.includeUnreachableCommits` (`git fsck`), segmented local/remote ref badges.
-  - L3259 **Phase 8: Commit Comparison and Multi-Select** — Partial: multi-select squash/drop (`15a1967`) and compare-with-HEAD (`8fc95ef`) done. Open: comparing any two loaded commits, ref-to-ref comparison, external directory diff.
-  - L3280 **Phase 9: Repository and Remote Management** — Mostly complete: fetch shown only when remotes exist, upstream-aware push/pull, remotes CRUD popup, add/remove repo commands, full-path tooltips. Open: a preference for repository dropdown ordering.
-  - L3303 **Phase 10: Advanced History, Text, and Integrations** — Partial. Done: issue linking, config sharing, archives, commit/tag signatures, staging panel (`1.5.0`). Open: markdown/emoji, inline body, `.mailmap`, encoding. `2026-07-27` record: signature column, SonarQube gate, the empty-`SONAR_TOKEN=` pitfall.
-- L3413 **Future direction: integrate with VS Code's native source control (`2026-09-03`)** — Unimplemented future direction that needs maintainer go-ahead: use the built-in `vscode.git` API (`repository.ui.selected`, `api.init`) and `scm/*` menu contributions instead of the graph's own selector; open questions.
+- L3610 **Roadmap: open phases** — Phases with open items (2, 6, 8, 9, 10), in phase order; each phase's `Status:` line names what remains.
+  - L3617 **Phase 2: Commit Details UX** — Partial. Done: split renderer, collapse/expand, tree/list and compact folders, resizable height, safe linkification, file actions. Open: the docked-bottom commit-details mode.
+  - L3641 **Phase 6: Repo Settings and View Options** — Mostly complete: repo settings modal and per-repo view toggles. Open: initial branches on load. `2026-07-27` record: detached-HEAD visibility, `repository.includeUnreachableCommits` (`git fsck`), segmented local/remote ref badges.
+  - L3719 **Phase 8: Commit Comparison and Multi-Select** — Partial: multi-select squash/drop (`15a1967`) and compare-with-HEAD (`8fc95ef`) done. Open: comparing any two loaded commits, ref-to-ref comparison, external directory diff.
+  - L3740 **Phase 9: Repository and Remote Management** — Mostly complete: fetch shown only when remotes exist, upstream-aware push/pull, remotes CRUD popup, add/remove repo commands, full-path tooltips. Open: a preference for repository dropdown ordering.
+  - L3763 **Phase 10: Advanced History, Text, and Integrations** — Partial. Done: issue linking, config sharing, archives, commit/tag signatures, staging panel (`1.5.0`). Open: markdown/emoji, inline body, `.mailmap`, encoding. `2026-07-27` record: signature column, SonarQube gate, the empty-`SONAR_TOKEN=` pitfall.
+- L3873 **Future direction: integrate with VS Code's native source control (`2026-09-03`)** — Unimplemented future direction that needs maintainer go-ahead: use the built-in `vscode.git` API (`repository.ui.selected`, `api.init`) and `scm/*` menu contributions instead of the graph's own selector; open questions.
 
 **History**: finished work, oldest first, kept as the record.
 
-- L3470 **Local Inputs Reviewed** — Historical list of the inputs reviewed when this document began: `README.md`, `agents.md`, `package.json`, key `src/` files, `tests/**`, and the parent `../FEATURE_*.md` recommendation briefs.
-- L3498 **Roadmap: completed phases** — Finished phases (0, 0.5, 1, 3, 4, 5, 7, 12–15), in phase order, with their plans, acceptance criteria and slice records.
-  - L3504 **Phase 0: Guardrails and Baseline** — Complete. Guardrails: keep this document current, baseline `pnpm run typecheck`/`lint`/`test`/`l10n:check`; acceptance: `AI-dev` exists, and `README.md` deliberately does not link this document.
-  - L3522 **Phase 0.5: Backend Robustness and Data-Source Foundation** — Complete. Hardening `webviewBridge.ts`, raw Git via `gitRunner` over `simple-git`, request ids against stale responses, NUL-separated parsing, `loadRepoInfo`, the `RepoFileWatcher` rework.
-  - L3554 **Phase 1: UI/UX Foundation Refresh** — Complete: toolbar icon buttons, status strip, sticky headers with column show/hide, font-size and row-height density settings, theme-native dialogs and menus; original plan and acceptance criteria.
-  - L3587 **Phase 3: Commit Hash Display Hardening** — Complete: `shortHashLength` setting via `abbrevCommit()`, with full hashes kept in `data-hash` and in actions; `2026-07-02` slice record with verification commands and Sonar result (its machine paths are dead).
-  - L3637 **Phase 4: Find, Search, and Keyboard Navigation** — Complete: loaded-commit find widget (Ctrl/Cmd+F, F3), the `keyboardShortcuts.ts` key map, the full-history `searchCommits` command; `2026-07-02` slice records, including a Sonar cleanup and hotspot review.
-  - L3778 **Phase 5: Branch, Tag, and Author Filters** — Complete: AND-combined filter dropdowns for branches (multi-select, glob presets), tags and authors (`a1d2bc9`); also keeps the original `CommitFilter` plan and acceptance criteria.
-  - L3808 **Phase 7: Stash Management** — Complete: stash loading behind a per-repo toggle, the apply/pop/drop/branch actions (`6750480`), the stash list panel and graph stash rows; original plan and acceptance criteria.
-  - L3834 **Phase 12: Toolbar Dropdown Name Truncation and Find Row (Bug)** — Complete (`2026-07-03`): segment-aware middle truncation of dropdown names (`src/webview/utils/truncate.ts`), fixed CSS dropdown widths so the toolbar stops jumping, the find widget on its own row.
-  - L4010 **Phase 13: Settings Hub — Tabbed Widget, Color Editor, Settings Export** — Complete (`2026-07-03`): settings popup with Repository and Extension tabs, editors built from the manifest, hue-preserving OKLCH `graphColors` editor (`oklchColor.ts`), export/import of extension settings only.
-  - L4178 **Phase 14: Reveal Highlight — Persistent Blink and Configurable Color** — Complete (`2026-07-03`): the reveal highlight blinks until hover or click (`startRevealHighlight`), with reduced-motion handling; new setting `revealHighlightColor`, default `oklch(90% 0.25 150 / 0.42)`.
-  - L4336 **Phase 15: Tag Surfaces — Signed-Tag Distinction and Remote Tag Deletion** — Complete (`2026-07-29`, `v1.1.1`–`v1.2.0`): signed-tag badges, remote tag deletion (`tagRemote.ts`), tag details popup redesign, SSH-signed commits detected via a batched `gpgsig` probe, release-workflow token rule.
-- L4585 **Upstream review (`2026-07-29`)** — Record: three `upstream/main` commits (nix flake, tsconfig split, oxlint `node:` rule) not taken; taking any upstream MIT commit also requires updating `NOTICE.md`/`LICENSE.mit`.
-- L4605 **Submodule discovery (`2026-08-21`)** — Feature record: submodule discovery from `.gitmodules` `path` entries, with validation, nested submodules and an indented dropdown, written clean-room; `.gitmodules` is not watched live.
-  - L4619 **Merged as PR #1, released as `1.4.2` (`2026-09-03`)** — Record of the first outside PR (#1, released `1.4.2`): AGPL contributor credit goes in `NOTICE.md`, never `LICENSE.mit`; Windows path and ReDoS fixes, `view.submoduleRepo*` telemetry, verification.
-- L4734 **Immediate TODOs — High-Priority Bug Backlog (`2026-08-25`)** — Dated `2026-08-25` backlog of six bugs reported against `v1.3.0`, ranked above the roadmap. Rules: don't re-derive diagnoses, update `Status:` lines in place; the BUG-3/4/5 maintainer decisions.
-  - L4755 **BUG-1 — `pushTag` hardcodes the `origin` remote** — BUG-1: `pushTag` hardcoded `origin`. Implemented `2026-08-25` (pushes `refs/tags/<name>` to the chosen remotes via `runGitRaw`, force/`--no-verify`), though its `Status:` line still says open.
-  - L4852 **BUG-2 — The tag remote surface is a stub beside the branch remote surface** — BUG-2, fixed `2026-08-25`: `fetchTags` (`--tags`, `--prune-tags` implies `--prune`), a toolbar `pushAllTags` button, force/no-verify in the tag push dialog; a branch-versus-tag capability table.
-  - L4940 **BUG-3 — "Lightweight" creates a signed annotated tag and opens an editor window** — BUG-3, fixed `2026-08-25`: the lightweight path passes `--no-sign` to defeat `tag.gpgSign`; annotated tags follow git's signing config; an empty annotated message is allowed again since `1.4.1`.
-  - L5100 **BUG-4 — Branch and tag labels turn gray on every merge commit** — BUG-4, fixed `2026-08-25`: merge-commit dimming grayed ref labels; now opt-in via `repository.muteMergeCommits` (default `false`) and scoped to the `.commitMessage` span. Maintainer re-check pending.
-    - L5221 **Tag-specific graying — investigation result (`2026-08-25`)** — Finding: no tag-specific graying path exists; lists the only three ref-appearance paths (muted cell, `.gitRefAlias`, signed/unsigned pill tint); the unsigned gray tint is intended design.
-  - L5262 **BUG-5 — The "watching" eye status bar item can never appear** — BUG-5, fixed `2026-08-25`: the status bar `$(eye)` could never appear; restored `onStartupFinished`, removed the dead `workspaceContains:**/.git`; notes the untrusted-workspace limitation.
-  - L5390 **BUG-6 — Cross-cutting: tag actions bypass the command log** — BUG-6, fixed `2026-08-25`: `addTag` and `pushTag` moved to `runGitRaw` with `recordGitCommand`, so all three tag actions reach the git-command log.
-  - L5412 **Suggested slice order** — Historical slice order for the bug backlog (BUG-3, BUG-1+6, BUG-5, BUG-4, BUG-2), plus the per-slice gate order ending with an `OK` `ZAM` Sonar gate before committing.
-- L5429 **Upstream review, second pass (`2026-08-25`)** — Record: 33 upstream commits classified and ported as per-feature branches off `AI-dev`; upstream's `vsce` publish applied (Open VSX later restored); bold-branch rejected; adds `boldCheckedOutCommit`, `fetchTagsByDefault`; skip list.
-- L5509 **Upstream review, third pass (`2026-09-03`)** — Record: last reviewed upstream commit `86be522` — start the next pass there. License clean. All rejected except `34835ec` (no-folder activation) and `49c8025` (init-repository button).
-- L5576 **Pull request review — #4 and #5 (`2026-09-05`)** — Record: review of the Copilot PRs #4 (merge on a remote branch) and #5 (no-fast-forward dialog defaults, inert settings fixed). Passing gates is not a review; merging both needed a typecheck fix.
-- L5703 **Uncommitted-changes staging panel, released as `1.5.0` (`2026-09-07`)** — Record of the `1.5.0` staging panel: reuses `#commitDetails`, re-queries after actions, drag payload format, `--untracked-files=normal`; `1.4.3` was never released; pnpm 12 `allowBuilds` switch; release verification.
-- L5832 **Graph and stash UI slices (`2026-09-09`)** — Intro to the stash/graph UI slices. Standing rules: the stash list sits in `#topBar` `#stashListSlot`, folds away on scroll, and calls `publishTopBarHeight()` synchronously after slot changes.
-  - L5873 **Slice 1 — Checkbox appearance** — Slice 1: one shared `media/checkbox.css` restyle with VS Code checkbox tokens, a neutral box, a `clip-path` tick and `:indeterminate`; accent fill rejected. Lesson: check styling records against the actual CSS.
-  - L5926 **Slice 2 — Remote sub-label restyle** — Slice 2: the `.gitRefGroup > .gitRefAlias` divider in `media/refs.css` restyled to badge foreground at 30% via `color-mix(in oklab)`; AA contrast re-verified; CSS regression tests forbid `in srgb`.
-  - L5950 **Slice 3 — Stash list above the table** — Slice 3: `renderStashList()` moves the stash list from the footer into `#stashListSlot`; `renderGraph()` re-pins the canvas top. Rule: `tests/webview/setup.ts` duplicates the body markup, so update both.
-  - L5982 **Slice 4 — Stashes as graph rows** — Slice 4, closes Phase 7: stash graph rows injected on the backend above their base commit (`src/backend/queries/stashes.ts`); the `stashRing` halo-exemption CSS trap, marker geometry, `view.stashRows` telemetry.
-  - L6074 **Follow-up — where stashes appear, and a checkout default** — Two settings: `repository.stashDisplay` (`table`/`graph`/`both`, under `repository.showStashes`) and `dialog.createBranch.checkout` (default `true`; branch and checkout run as two separate steps).
-  - L6093 **Follow-up — staging catalogue view, and two rendering fixes** — Staging panes get a folder tree via the pure `src/webview/utils/pathTree.ts`; contracts for folder-drag payloads, path-keyed collapse state and the `dragstart` guard; two rendering fixes. Open: migrating `generateGitFileTree`.
-  - L6129 **Follow-up — list/tree toggle, and the stash-branch dialog** — The `uncommittedChanges.fileViewMode` tree/list setting, separate from `commitDetails.fileViewMode`; a new `GitGraphViewState` field broke thirteen fixtures (shared factory still needed); the `git stash branch` dialog.
-  - L6162 **Release gate for these slices (`2026-09-09`)** — Record of the `2026-09-09` gate over six already-committed slices: Biome, package, tests, l10n, coverage `92.9%`, Sonar `OK` after an `S7761` failure; `sonar.projectVersion` deliberately left at `1.5.1`.
-  - L6204 **Release `1.6.0` (`2026-09-10`)** — Record of release `1.6.0` (`2026-09-10`): `1.5.1` was never tagged and folded in; `view.stashRows`/`view.uncommittedTree` telemetry; gate results; the tag was created locally, with the push left for later.
-- L6263 **Open VSX restored as a publish target, released as `1.6.1` (`2026-09-17`)** — Maintainer reversal of the `2026-08-25` decision, not to be re-dropped: releases publish to Open VSX again; `ovsx` devDependency, `OPEN_VSX_TOKEN` → `OVSX_PAT`, separate token checks, `--skip-duplicate`, namespace claiming.
-  - L6313 **Toolchain upgraded in the same change (`2026-09-17`)** — Record of the `pnpm up --latest` upgrade (Vitest 5, `vsce` 4). Rules: pin `@types/vscode` `~1.98.0` to `engines.vscode`; avoid `pnpm add`; known format drift and a `vitest.config.ts` warning.
-  - L6368 **Release gate for `1.6.1` (`2026-09-17`)** — Record of the `1.6.1` release gate: no extension change, only the first Open VSX publish; test counts, `sonar:scan` `ZAM` `OK` with task ids, `sonar.projectVersion` bump.
-- L6392 **Pull request review — #8 and #9, released as `1.6.2` (`2026-09-22`)** — Record of reviewing outside contributor Arezim's PRs #8 and #9, both green on `ZAM` though #9 was broken. Lesson: the gate misses untested paths, so read the feature.
-  - L6400 **PR #8 — `commit.gpgsign` in the fetch-tags fixture** — PR #8 merged: `commit.gpgsign false` in the `fetchTags` fixture; why the signature tests stay valid (`git mktag`, `hash-object`). Open follow-up: use `makeRepo()` instead.
-  - L6428 **PR #9 — repository discovery, right diagnosis and a broken comparison** — PR #9: `checkIsRepo()` accepted subdirectories; the raw `--show-toplevel` comparison broke on symlinks and Windows drive case; fixed by `canonicalizePath()` (`e1668f9`). Rule: no quantifier-before-anchor regex on user paths (`S8786`).
-  - L6502 **Two environment facts recorded while doing this** — Environment facts: Rust via `rustup` (`1.98.1`, conflicts with the distro `rust`; use `rustup default stable`), and a flaky engine test whose `git clone` reads the real `~/.gitconfig`.
-- L6521 **Evaluating the Rust engine of `vscode-git-graph-rs` (`2026-09-22`)** — Intro to the `2026-09-22` evaluation of the `neophack/vscode-git-graph-rs` Rust engine (adoption and licensing); its "nothing adopted" status was later superseded by the `rusty` merge and Phase 16. Its licensing verdict is under Licensing.
-  - L6532 **Should the engine be adopted? Not wholesale** — `2026-09-22` recommendation: do not adopt wholesale (no reflog, unreachable commits, signature status or glob patterns; six-triple build cost); a bounded opt-in experiment proposed, which Phase 16 later pursued.
-  - L6577 **The filtered engine repository, merged onto `rusty` (`2026-09-22`)** — Record of merging the filtered engine under `engine/` on `rusty`: 52 re-signed commits, `gerrit.rs` and licenses excluded, `engine/NOTICE.md`, `LICENSE.mit` roster, crate attribution.
-- L6653 **Root squares only for true roots (`2026-10-16`)** — Fix: `Vertex.parents` holds drawn parents only, so page-boundary commits took root squares; `hasParentBeyondGraph` now reserves the square for commits both backends report parentless (`[""]`).
+- L3930 **Local Inputs Reviewed** — Historical list of the inputs reviewed when this document began: `README.md`, `agents.md`, `package.json`, key `src/` files, `tests/**`, and the parent `../FEATURE_*.md` recommendation briefs.
+- L3958 **Roadmap: completed phases** — Finished phases (0, 0.5, 1, 3, 4, 5, 7, 12–15), in phase order, with their plans, acceptance criteria and slice records.
+  - L3964 **Phase 0: Guardrails and Baseline** — Complete. Guardrails: keep this document current, baseline `pnpm run typecheck`/`lint`/`test`/`l10n:check`; acceptance: `AI-dev` exists, and `README.md` deliberately does not link this document.
+  - L3982 **Phase 0.5: Backend Robustness and Data-Source Foundation** — Complete. Hardening `webviewBridge.ts`, raw Git via `gitRunner` over `simple-git`, request ids against stale responses, NUL-separated parsing, `loadRepoInfo`, the `RepoFileWatcher` rework.
+  - L4014 **Phase 1: UI/UX Foundation Refresh** — Complete: toolbar icon buttons, status strip, sticky headers with column show/hide, font-size and row-height density settings, theme-native dialogs and menus; original plan and acceptance criteria.
+  - L4047 **Phase 3: Commit Hash Display Hardening** — Complete: `shortHashLength` setting via `abbrevCommit()`, with full hashes kept in `data-hash` and in actions; `2026-07-02` slice record with verification commands and Sonar result (its machine paths are dead).
+  - L4097 **Phase 4: Find, Search, and Keyboard Navigation** — Complete: loaded-commit find widget (Ctrl/Cmd+F, F3), the `keyboardShortcuts.ts` key map, the full-history `searchCommits` command; `2026-07-02` slice records, including a Sonar cleanup and hotspot review.
+  - L4238 **Phase 5: Branch, Tag, and Author Filters** — Complete: AND-combined filter dropdowns for branches (multi-select, glob presets), tags and authors (`a1d2bc9`); also keeps the original `CommitFilter` plan and acceptance criteria.
+  - L4268 **Phase 7: Stash Management** — Complete: stash loading behind a per-repo toggle, the apply/pop/drop/branch actions (`6750480`), the stash list panel and graph stash rows; original plan and acceptance criteria.
+  - L4294 **Phase 12: Toolbar Dropdown Name Truncation and Find Row (Bug)** — Complete (`2026-07-03`): segment-aware middle truncation of dropdown names (`src/webview/utils/truncate.ts`), fixed CSS dropdown widths so the toolbar stops jumping, the find widget on its own row.
+  - L4470 **Phase 13: Settings Hub — Tabbed Widget, Color Editor, Settings Export** — Complete (`2026-07-03`): settings popup with Repository and Extension tabs, editors built from the manifest, hue-preserving OKLCH `graphColors` editor (`oklchColor.ts`), export/import of extension settings only.
+  - L4638 **Phase 14: Reveal Highlight — Persistent Blink and Configurable Color** — Complete (`2026-07-03`): the reveal highlight blinks until hover or click (`startRevealHighlight`), with reduced-motion handling; new setting `revealHighlightColor`, default `oklch(90% 0.25 150 / 0.42)`.
+  - L4796 **Phase 15: Tag Surfaces — Signed-Tag Distinction and Remote Tag Deletion** — Complete (`2026-07-29`, `v1.1.1`–`v1.2.0`): signed-tag badges, remote tag deletion (`tagRemote.ts`), tag details popup redesign, SSH-signed commits detected via a batched `gpgsig` probe, release-workflow token rule.
+- L5045 **Upstream review (`2026-07-29`)** — Record: three `upstream/main` commits (nix flake, tsconfig split, oxlint `node:` rule) not taken; taking any upstream MIT commit also requires updating `NOTICE.md`/`LICENSE.mit`.
+- L5065 **Submodule discovery (`2026-08-21`)** — Feature record: submodule discovery from `.gitmodules` `path` entries, with validation, nested submodules and an indented dropdown, written clean-room; `.gitmodules` is not watched live.
+  - L5079 **Merged as PR #1, released as `1.4.2` (`2026-09-03`)** — Record of the first outside PR (#1, released `1.4.2`): AGPL contributor credit goes in `NOTICE.md`, never `LICENSE.mit`; Windows path and ReDoS fixes, `view.submoduleRepo*` telemetry, verification.
+- L5194 **Immediate TODOs — High-Priority Bug Backlog (`2026-08-25`)** — Dated `2026-08-25` backlog of six bugs reported against `v1.3.0`, ranked above the roadmap. Rules: don't re-derive diagnoses, update `Status:` lines in place; the BUG-3/4/5 maintainer decisions.
+  - L5215 **BUG-1 — `pushTag` hardcodes the `origin` remote** — BUG-1: `pushTag` hardcoded `origin`. Implemented `2026-08-25` (pushes `refs/tags/<name>` to the chosen remotes via `runGitRaw`, force/`--no-verify`), though its `Status:` line still says open.
+  - L5312 **BUG-2 — The tag remote surface is a stub beside the branch remote surface** — BUG-2, fixed `2026-08-25`: `fetchTags` (`--tags`, `--prune-tags` implies `--prune`), a toolbar `pushAllTags` button, force/no-verify in the tag push dialog; a branch-versus-tag capability table.
+  - L5400 **BUG-3 — "Lightweight" creates a signed annotated tag and opens an editor window** — BUG-3, fixed `2026-08-25`: the lightweight path passes `--no-sign` to defeat `tag.gpgSign`; annotated tags follow git's signing config; an empty annotated message is allowed again since `1.4.1`.
+  - L5560 **BUG-4 — Branch and tag labels turn gray on every merge commit** — BUG-4, fixed `2026-08-25`: merge-commit dimming grayed ref labels; now opt-in via `repository.muteMergeCommits` (default `false`) and scoped to the `.commitMessage` span. Maintainer re-check pending.
+    - L5681 **Tag-specific graying — investigation result (`2026-08-25`)** — Finding: no tag-specific graying path exists; lists the only three ref-appearance paths (muted cell, `.gitRefAlias`, signed/unsigned pill tint); the unsigned gray tint is intended design.
+  - L5722 **BUG-5 — The "watching" eye status bar item can never appear** — BUG-5, fixed `2026-08-25`: the status bar `$(eye)` could never appear; restored `onStartupFinished`, removed the dead `workspaceContains:**/.git`; notes the untrusted-workspace limitation.
+  - L5850 **BUG-6 — Cross-cutting: tag actions bypass the command log** — BUG-6, fixed `2026-08-25`: `addTag` and `pushTag` moved to `runGitRaw` with `recordGitCommand`, so all three tag actions reach the git-command log.
+  - L5872 **Suggested slice order** — Historical slice order for the bug backlog (BUG-3, BUG-1+6, BUG-5, BUG-4, BUG-2), plus the per-slice gate order ending with an `OK` `ZAM` Sonar gate before committing.
+- L5889 **Upstream review, second pass (`2026-08-25`)** — Record: 33 upstream commits classified and ported as per-feature branches off `AI-dev`; upstream's `vsce` publish applied (Open VSX later restored); bold-branch rejected; adds `boldCheckedOutCommit`, `fetchTagsByDefault`; skip list.
+- L5969 **Upstream review, third pass (`2026-09-03`)** — Record: last reviewed upstream commit `86be522` — start the next pass there. License clean. All rejected except `34835ec` (no-folder activation) and `49c8025` (init-repository button).
+- L6036 **Pull request review — #4 and #5 (`2026-09-05`)** — Record: review of the Copilot PRs #4 (merge on a remote branch) and #5 (no-fast-forward dialog defaults, inert settings fixed). Passing gates is not a review; merging both needed a typecheck fix.
+- L6163 **Uncommitted-changes staging panel, released as `1.5.0` (`2026-09-07`)** — Record of the `1.5.0` staging panel: reuses `#commitDetails`, re-queries after actions, drag payload format, `--untracked-files=normal`; `1.4.3` was never released; pnpm 12 `allowBuilds` switch; release verification.
+- L6292 **Graph and stash UI slices (`2026-09-09`)** — Intro to the stash/graph UI slices. Standing rules: the stash list sits in `#topBar` `#stashListSlot`, folds away on scroll, and calls `publishTopBarHeight()` synchronously after slot changes.
+  - L6333 **Slice 1 — Checkbox appearance** — Slice 1: one shared `media/checkbox.css` restyle with VS Code checkbox tokens, a neutral box, a `clip-path` tick and `:indeterminate`; accent fill rejected. Lesson: check styling records against the actual CSS.
+  - L6386 **Slice 2 — Remote sub-label restyle** — Slice 2: the `.gitRefGroup > .gitRefAlias` divider in `media/refs.css` restyled to badge foreground at 30% via `color-mix(in oklab)`; AA contrast re-verified; CSS regression tests forbid `in srgb`.
+  - L6410 **Slice 3 — Stash list above the table** — Slice 3: `renderStashList()` moves the stash list from the footer into `#stashListSlot`; `renderGraph()` re-pins the canvas top. Rule: `tests/webview/setup.ts` duplicates the body markup, so update both.
+  - L6442 **Slice 4 — Stashes as graph rows** — Slice 4, closes Phase 7: stash graph rows injected on the backend above their base commit (`src/backend/queries/stashes.ts`); the `stashRing` halo-exemption CSS trap, marker geometry, `view.stashRows` telemetry.
+  - L6534 **Follow-up — where stashes appear, and a checkout default** — Two settings: `repository.stashDisplay` (`table`/`graph`/`both`, under `repository.showStashes`) and `dialog.createBranch.checkout` (default `true`; branch and checkout run as two separate steps).
+  - L6553 **Follow-up — staging catalogue view, and two rendering fixes** — Staging panes get a folder tree via the pure `src/webview/utils/pathTree.ts`; contracts for folder-drag payloads, path-keyed collapse state and the `dragstart` guard; two rendering fixes. Open: migrating `generateGitFileTree`.
+  - L6589 **Follow-up — list/tree toggle, and the stash-branch dialog** — The `uncommittedChanges.fileViewMode` tree/list setting, separate from `commitDetails.fileViewMode`; a new `GitGraphViewState` field broke thirteen fixtures (shared factory still needed); the `git stash branch` dialog.
+  - L6622 **Release gate for these slices (`2026-09-09`)** — Record of the `2026-09-09` gate over six already-committed slices: Biome, package, tests, l10n, coverage `92.9%`, Sonar `OK` after an `S7761` failure; `sonar.projectVersion` deliberately left at `1.5.1`.
+  - L6664 **Release `1.6.0` (`2026-09-10`)** — Record of release `1.6.0` (`2026-09-10`): `1.5.1` was never tagged and folded in; `view.stashRows`/`view.uncommittedTree` telemetry; gate results; the tag was created locally, with the push left for later.
+- L6723 **Open VSX restored as a publish target, released as `1.6.1` (`2026-09-17`)** — Maintainer reversal of the `2026-08-25` decision, not to be re-dropped: releases publish to Open VSX again; `ovsx` devDependency, `OPEN_VSX_TOKEN` → `OVSX_PAT`, separate token checks, `--skip-duplicate`, namespace claiming.
+  - L6773 **Toolchain upgraded in the same change (`2026-09-17`)** — Record of the `pnpm up --latest` upgrade (Vitest 5, `vsce` 4). Rules: pin `@types/vscode` `~1.98.0` to `engines.vscode`; avoid `pnpm add`; known format drift and a `vitest.config.ts` warning.
+  - L6828 **Release gate for `1.6.1` (`2026-09-17`)** — Record of the `1.6.1` release gate: no extension change, only the first Open VSX publish; test counts, `sonar:scan` `ZAM` `OK` with task ids, `sonar.projectVersion` bump.
+- L6852 **Pull request review — #8 and #9, released as `1.6.2` (`2026-09-22`)** — Record of reviewing outside contributor Arezim's PRs #8 and #9, both green on `ZAM` though #9 was broken. Lesson: the gate misses untested paths, so read the feature.
+  - L6860 **PR #8 — `commit.gpgsign` in the fetch-tags fixture** — PR #8 merged: `commit.gpgsign false` in the `fetchTags` fixture; why the signature tests stay valid (`git mktag`, `hash-object`). Open follow-up: use `makeRepo()` instead.
+  - L6888 **PR #9 — repository discovery, right diagnosis and a broken comparison** — PR #9: `checkIsRepo()` accepted subdirectories; the raw `--show-toplevel` comparison broke on symlinks and Windows drive case; fixed by `canonicalizePath()` (`e1668f9`). Rule: no quantifier-before-anchor regex on user paths (`S8786`).
+  - L6962 **Two environment facts recorded while doing this** — Environment facts: Rust via `rustup` (`1.98.1`, conflicts with the distro `rust`; use `rustup default stable`), and a flaky engine test whose `git clone` reads the real `~/.gitconfig`.
+- L6981 **Evaluating the Rust engine of `vscode-git-graph-rs` (`2026-09-22`)** — Intro to the `2026-09-22` evaluation of the `neophack/vscode-git-graph-rs` Rust engine (adoption and licensing); its "nothing adopted" status was later superseded by the `rusty` merge and Phase 16. Its licensing verdict is under Licensing.
+  - L6992 **Should the engine be adopted? Not wholesale** — `2026-09-22` recommendation: do not adopt wholesale (no reflog, unreachable commits, signature status or glob patterns; six-triple build cost); a bounded opt-in experiment proposed, which Phase 16 later pursued.
+  - L7037 **The filtered engine repository, merged onto `rusty` (`2026-09-22`)** — Record of merging the filtered engine under `engine/` on `rusty`: 52 re-signed commits, `gerrit.rs` and licenses excluded, `engine/NOTICE.md`, `LICENSE.mit` roster, crate attribution.
+- L7113 **Root squares only for true roots (`2026-10-16`)** — Fix: `Vertex.parents` holds drawn parents only, so page-boundary commits took root squares; `hasParentBeyondGraph` now reserves the square for commits both backends report parentless (`[""]`).
 
 ## Mission
 
@@ -2299,7 +2300,11 @@ no CI at all.
 
 Measured on this machine (Linux, x64): **all six platforms in 58 seconds**,
 and a rebuild produced **bit-identical binaries** — verified by sha256 across
-two full runs. The universal VSIX built from them is **15.59 MB** (42 files;
+two full runs. (**Corrected `2026-10-17`:** true for the Linux builds, but
+the macOS and Windows ones change on every relink — a random Mach-O UUID,
+PE link timestamps — so the second run was most likely served from cargo's
+cache; see "Experiment: one Linux binary for both C libraries".) The
+universal VSIX built from them is **15.59 MB** (42 files;
 darwin-arm64 `7.6`, darwin-x64 `7.5`, win32-x64 `6.1`, linux-x64 `5.9`,
 win32-arm64 `5.7`, linux-arm64 `5.4` MB).
 
@@ -3122,7 +3127,462 @@ gnu build loads (`engineVersion()` `1.0.25`). A fully static musl rebuild
 could in principle dlopen under glibc, but two libcs in one process
 (static TLS budget under Electron, musl's allocator in the engine's
 parallel walks) would need its own parity and benchmark evidence to save
-roughly one binary per Linux install; not pursued.
+roughly one binary per Linux install; not pursued. The other route — one
+binary that binds whichever C library the process already has — is
+measured in the next record.
+
+#### Experiment: one Linux binary for both C libraries (`2026-10-16`)
+
+**Status: the musl route is done (`2026-10-16`), verdict below: keep
+shipping the gnu/musl pair. The follow-up on the gnu route (`2026-10-17`,
+at the end of this record) found a single Linux binary that works on both
+C libraries, and it is wired into the build on
+`feat/engine-linux-libc-neutral`; the musl route itself changed nothing in
+the build, the loader or the package.**
+The maintainer asked whether one Linux binary could replace the
+`linux-<arch>-gnu`/`linux-<arch>-musl` pair by using whichever C library is
+already loaded in the host process, and asked for it to be built anyway and
+compared for stability. It works, and is as fast and as stable as either
+build — but it raises the glibc floor from 2.28 to 2.33 on both
+architectures, and on x86_64 it silently runs a few calls against glibc's
+pre-2003 ABI, one of which (`realpath`) is already measurably wrong. Both
+costs are invisible to the project's own test suite. The saving is one
+binary per architecture — about 5–6 MB on disk after the activation prune,
+and roughly 2.4 MB of VSIX per architecture (adding the two musl builds cost
+`+4.85 MB`, see "Alpine and the C library"). The conclusion is at the end of
+this record.
+
+**Why the obvious versions cannot work (reasoning, kept for the next
+person who asks).** An addon is a library `dlopen`ed into a process that
+already has a C library, so it has to use that one; it cannot bring its own.
+A *dynamically* linked musl build in a musl Node shares Node's musl exactly
+as a gnu build shares glibc — that is why the pair works. A *statically*
+linked musl inside the `.node` would put two C libraries in one process (two
+allocators, two thread implementations, musl reading glibc's thread
+pointer) and was not built. The variant tested here is the third shape: the
+musl build with its C-library dependency removed, so every libc import
+resolves by name against whatever the host loaded.
+
+**How it was built and run.** Engine `1.0.25` at `8abfb17`.
+`x86_64-unknown-linux-gnu` and `x86_64-unknown-linux-musl` built exactly as
+`build-all.mjs` does (pinned zig `0.14.1`, `--cross-compile`, release,
+remapped paths) but into session scratch, then `patchelf --remove-needed
+libc.so` on a copy of the musl binary — the *universal* variant. Nothing was
+written under `engine/native/`; the project test suite saw the variant
+through `bwrap --ro-bind` over `engine/native/linux-x64-gnu`. All three
+binaries are `BIND_NOW`, so an unresolvable symbol fails at `require()` —
+where the loader's fallback catches it — never mid-read. Two practical
+notes: the pinned-zig symlink `engine/.toolchain/zig-0.14.1` still points
+at the pre-rename checkout path `…/prog/GGL/…` and is dangling (the build
+used `engine/.toolchain/venv/.../ziglang` directly; not fixed here), and the
+agent sandbox's `/tmp` is invisible to Docker and podman, so container runs
+received their inputs through a Docker volume filled by `tar`.
+
+**Load matrix** (each image's own Node: `require()` then `engineVersion()`):
+
+| host C library | gnu | musl | universal |
+| --- | --- | --- | --- |
+| glibc 2.28 (Debian 10, `node:18-buster-slim`) | loads | `libc.so: cannot open shared object file` | `undefined symbol: posix_spawn_file_actions_addchdir_np` |
+| glibc 2.31 (Debian 11, `node:22-bullseye-slim`) | loads | same | `undefined symbol: fstat` |
+| glibc 2.36 (Debian 12, `node:24-bookworm-slim`) | loads | same | loads |
+| glibc 2.44 (this machine, Node 26) | loads | `/usr/lib/libc.so: invalid ELF header` | loads |
+| musl (Alpine, `node:24-alpine`) | `ld-linux-x86-64.so.2` not found | loads | loads |
+
+**Finding 1 — the glibc floor rises from 2.28 to 2.33.** The musl-flavored
+standard library imports `stat`/`fstat`/`lstat` as real functions, which
+glibc exports only from 2.33, and `posix_spawn_file_actions_addchdir_np`
+(2.29). The zig gnu build's floor is `GLIBC_2.28`, exactly VS Code's own
+minimum, so the universal binary would move Debian 10 and 11, Ubuntu
+20.04 and RHEL 8 hosts from the engine to the CLI.
+
+**Finding 2 — unversioned imports bind to glibc's oldest ABI.** A musl
+build carries no symbol versions, and glibc binds such a reference to the
+symbol's `GLIBC_2.2.5` (x86_64 base) version when one exists, otherwise to
+its single default version. Of the 115 libc imports, four land on code that
+differs from the default — checked by symbol address in the host's
+`libc.so.6`/`libm.so.6` 2.44; the `clock_*` (librt, merged in 2.17) and
+pthread/`dl*` (merged in 2.34) doubles are aliases of the same code:
+
+- `realpath` binds `__old_realpath`, which rejects a NULL buffer with
+  `EINVAL`, and `std::fs::canonicalize` passes NULL. **Measured:** the
+  `submodules` export returns `[]` instead of the initialized submodule,
+  because `submodule_root` in `engine/native/core/src/config.rs` turns the
+  error into `None` — a silent wrong answer, no error, no crash. It is
+  latent today only because the TypeScript finds submodules from
+  `.gitmodules` and never calls that export; any `canonicalize` reached in
+  future inherits it, on glibc only.
+- `posix_spawnp` binds the pre-2.15 compat version, which retries through
+  `/bin/sh` on `ENOEXEC`.
+- `memcpy` binds the old `memmove` alias (a strict superset; harmless).
+- `pow` binds the SVID-compat wrapper (same values).
+
+Predicted and refuted: `sched_getaffinity`'s old two-argument `2.3.3` form
+looked like a crash in `available_parallelism()` (gix's `parallel` feature
+is on). Its oldest version is not `2.2.5`, so it binds the default, and
+`strace` in Debian 12 shows the identical `sched_getaffinity(0, 128, …) =
+16` from both builds.
+
+**Parity — the universal binary agrees everywhere except Finding 2.** The
+harness calls the engine directly (no loader, so no CLI can mask a
+failure): every wired export plus the unwired `submodules`, `repoRoot`,
+`authorStats`, bodies, summaries, tag details and `countCommitsBefore`;
+four `loadCommits` shapes (300, 5000 with Author Date, first-parent,
+no remotes/tags), an author filter, three searches, details, line counts
+and file content for 65 commits per repository, range and work-tree
+comparisons, uncommitted details and counts, both stashes and their
+details, and four error paths (missing, a file, not a repository, an
+unreadable directory). 578 calls over three repositories: a built fixture
+(50 commits, initialized submodule, two stashes one with untracked files, a
+rename, binary files, annotated and lightweight tags, a remote, a dirty
+tree), gitoxide (16,996 commits) and git.git (82,448). Output is
+normalized only for the uncommitted row's wall-clock date and for
+`authorStats`' order among equal counts.
+
+- glibc 2.44 host and Debian 12: universal equals gnu except `submodules`.
+- Alpine: universal equals musl, and equals Debian 12's gnu output.
+
+**The project's own suite agrees, and missed Finding 2.**
+`vitest run --project backend` with the variant overlaid as `linux-x64-gnu`
+and the musl directory emptied: universal **747/747 passed, 0 skipped**;
+a fresh gnu control the same; with no engine at all, 721 passed and 26
+skipped — so a skip count of zero is real evidence the binary served. No
+wired read calls `submodules`, so the suite could not see the `realpath`
+binding.
+
+**Speed — no difference.** Median of 15 per operation, two A-B-B-A passes,
+glibc 2.44 host: universal/gnu ratios `0.99`–`1.04` on every operation on
+both large repositories (git.git `loadCommits` 5000 `116.7` vs `117.9` ms,
+search `592` vs `606` ms, `authors` `460` vs `471` ms). On glibc the
+universal binary allocates through glibc's `malloc`, so musl's slow
+allocator never enters.
+
+**Stability, first pass.** 90 seconds each on the host, 20 concurrent
+mixed reads per iteration over all three repositories, every handle closed
+every 10 iterations: gnu 8,480 calls and universal 7,700, **zero errors and
+no crash in either**, RSS peaking at 1,405 and 1,329 MB. That pass picked
+its repository at random, so its counts are not a throughput comparison.
+
+**Stability, seeded.** The same load with a seeded job sequence, so both
+binaries run identical work; 60 seconds each in A-B-B-A order: gnu 256 and
+246 iterations, universal 244 and 244 (20 calls per iteration; 19,800
+calls in all). Zero errors and no crash in any pass; RSS peaked at 1,272 and
+1,274 MB for gnu and 1,227 and 1,239 MB for universal. The universal
+binary's ~3% lower throughput sits inside gnu's own 4% spread between its
+two passes, so it is not distinguishable from noise at this length.
+
+**Inside Electron — the extension host's runtime.** The same harness under
+the system Electron `43.7.11` run as Node (`ELECTRON_RUN_AS_NODE=1`, Node
+`24.21.0`, glibc 2.44). Parity: universal equals gnu except `submodules`,
+and Electron's gnu output is byte-identical to plain Node's. Seeded stress,
+45 seconds each in A-B-B-A order: gnu 140 and 143 iterations, universal 140
+and 140, zero errors, RSS peaking at 258–261 MB for both.
+
+**In Electron neither C library allocates for the engine.** `LD_DEBUG=bindings`
+shows both builds' `malloc`, `free`, `calloc` and `realloc` binding to the
+`electron` executable itself — Chromium's allocator shim — while under plain
+Node they bind to `libc.so.6`. So on desktop VS Code the "musl's allocator in
+the engine's parallel walks" worry from the pruning record never arises, for
+either build. It does arise for the VS Code Server on Alpine, which runs
+plain Node: there the musl and universal builds are the same code and both
+use musl's allocator — exactly what ships today.
+
+**Alpine — musl against universal.** Per-operation medians (10 runs, two
+A-B-B-A passes, `node:24-alpine`) match: the walks (`authors`, search,
+`loadCommits`, status) within 2% either way on both large repositories;
+the short reads within 12% either way (git.git `loadRepoInfo` `9.8` vs
+`10.6` ms, gitoxide's `0.33` vs `0.30` ms). Stress, 45 seconds each, zero
+errors in all eight passes: A-B-B-A gave musl 105/106 against universal
+120/120, which looked like a 13% gap, so the order was reversed — B-A-A-B
+gave universal 110/104 against musl 119/103. Every pass of either build
+lands between 103 and 120 iterations; it is run-to-run noise, not the
+binary. **Correction (`2026-10-17`):** these Alpine passes were *not*
+seeded — the Docker volume still held the harness from before the seed
+was added — so each pass drew its own random job mix, which accounts for
+much of that spread; the seeded rerun is in the follow-up below. Alpine's
+`node` exports no allocator (`U malloc`), so both builds use musl's there.
+
+**arm64 — predicted, not run.** No arm64 emulator is set up on this
+machine, so the arm64 builds (same build path; the zig gnu build's floor is
+`GLIBC_2.28` there too) were checked statically. The check is a script that
+applies glibc's binding rule — the base-index version if one exists, else
+the single default — to the variant's imports against a given glibc's
+`libc`, `libm`, `libpthread`, `libdl` and `ld.so`. It was validated on
+x86_64 first: it predicts exactly the observed load matrix (2.28 and 2.31
+fail on the symbols Node reported, 2.36 and 2.44 load) and exactly the four
+differing bindings found by address. Against arm64 glibc from
+`node:18-buster-slim` and `node:24-bookworm-slim`:
+
+- **Finding 1 holds on arm64:** glibc 2.28 cannot resolve `stat`, `fstat`,
+  `lstat` or `posix_spawn_file_actions_addchdir_np`.
+- **Finding 2 almost vanishes on arm64.** glibc's aarch64 ABI begins at
+  `GLIBC_2.17`, with no older compatibility layer, so `realpath`,
+  `posix_spawnp` and `memcpy` bind their current versions; only `pow`
+  lands on its SVID-compat wrapper (same values). Finding 2 is an x86_64
+  problem, because only x86_64 carries glibc's original 2002
+  (`GLIBC_2.2.5`) ABI.
+
+Incidental, in both builds and unrelated to the C library:
+
+- `authorStats` orders authors with equal counts differently between two
+  runs of the same binary (hash-map order). It is unwired today.
+- **The engine's memory is allocator retention, not a leak.** Under plain
+  Node the concurrent stress drives RSS to 1.2–1.4 GB and it stays at
+  1.1–1.3 GB after `closeAllRepositories()`. The identical load inside
+  Electron, whose allocator shim serves the engine (above), peaks at about
+  260 MB and returns to about 130 MB, its starting level. Same engine code,
+  different allocator: the plateau is glibc `malloc` keeping freed memory
+  across its per-thread arenas. Electron is what desktop users run, so the
+  260 MB figure is the representative one; plain-Node hosts (VS Code Server,
+  tests, the benchmark) see the larger number.
+- **A locally built `linux-x64-gnu` has a much higher glibc floor than a
+  released one.** `pnpm run build` builds the host triple with the system
+  linker (no `--cross-compile`), and the binary it left in
+  `engine/native/linux-x64-gnu` on this machine needs `GLIBC_2.39`; the zig
+  build `build-all.mjs` and CI use needs `GLIBC_2.28`. Harmless for
+  installing on the machine that built it, but a VSIX packaged from such a
+  tree and handed to anyone on glibc < 2.39 runs on the CLI. Release only
+  from `build:all` output, as the release path already does.
+
+**Conclusion.** Every runtime measurement favors the universal binary or
+ties: identical output apart from `submodules` across 578 calls on three
+hosts and inside Electron, the 747-test suite green with no skips, speed within noise, zero
+errors in about 65,000 concurrent calls (about 32,000 of them on the
+universal binary), and in Electron not even the allocator differs. What
+rules it out is how it can break, not how it ran:
+
+1. It drops the engine on glibc 2.28–2.32 hosts — Debian 10 and 11,
+   Ubuntu 20.04, RHEL 8 — that the gnu build serves today. The cause is
+   the musl-target standard library's imports, which this project cannot
+   change short of patching `std`.
+2. On x86_64 it runs some calls against glibc's oldest ABI, and nothing
+   enforces which ones: any new import that happens to have a
+   `GLIBC_2.2.5` compat version changes meaning silently. `realpath` shows
+   the shape — a wrong answer, not an error — and the project's suite
+   passed 747/747 while it was wrong, because no wired read reaches it.
+3. It depends on a post-link `patchelf` edit that no toolchain supports, so
+   a toolchain or dependency bump can change the binding set with nothing
+   to say so.
+
+So the pair stays. Re-examine only if the glibc floor stops mattering
+(VS Code raising its own minimum to 2.33 or above) *and* the x86_64
+binding check becomes part of the build — the method above then answers the
+question again.
+
+**Tooling — not kept in the repository.** Nothing was committed. The build
+script (the `build-all.mjs` path with an output directory), the harness
+(`parity`, `stress` with a seeded job sequence, `bench`; bundled with
+esbuild against `src/backend/engine/*`'s real option builders and calling
+the addon directly), the normalizer and the binding-model script lived in
+the agent session's temporary scratch directory and go with it. Docker
+state left on the machine: the `ggl-libc-exp` volume (512 MB: binaries,
+harness, fixture clones; `docker volume rm ggl-libc-exp` removes it) and
+the `node:18-buster-slim`, `node:22-bullseye-slim`, `node:24-bookworm-slim`
+and `node:24-alpine` images.
+
+**Follow-up (`2026-10-17`): the gnu build as the universal binary.** The maintainer's next question: the gnu build works on old glibc,
+so would the same `patchelf` treatment of *it* work everywhere? The premise
+is sound in a way the musl route's is not — a gnu build carries symbol
+versions (`DT_VERNEED`: `libc.so.6` up to `GLIBC_2.28`, `libpthread.so.0`
+`GLIBC_2.12`, `libdl.so.2`, `libm.so.6`, `ld-linux-x86-64.so.2` `GLIBC_2.3`),
+so glibc keeps binding every import to the version it was built against:
+no Finding 1 floor, no Finding 2 compat code. Same zig gnu build as above.
+
+- **Variant 1 — every `DT_NEEDED` removed: fatal on modern hosts.** It loads
+  on Debian 10, 11 and 12 (their official Node builds load `libpthread` and
+  `libdl`), but on this machine's Node 26 and Electron 43 — glibc 2.44, where
+  `libpthread`/`libdl` merged into libc in 2.34 and nothing loads them —
+  `require()` never returns: `Inconsistency detected by ld.so:
+  dl-version.c: 204: _dl_check_map_versions: Assertion 'needed != NULL'
+  failed!`, exit code `127`, the surrounding `try`/`catch` never runs. A
+  version need naming a file absent from the process aborts the whole
+  process, so in VS Code it would kill the extension host rather than fall
+  back. Ruled out.
+- **Variant 2 — only `ld-linux-x86-64.so.2` removed.** musl's dynamic linker
+  treats `libc.so*`, `libm.so*`, `libpthread.so*`, `libdl.so*` (and `librt`,
+  `libutil`, `libxnet`) as names for itself, so the unpatched gnu build was
+  refused on Alpine solely for `ld-linux-x86-64.so.2`; glibc always has that
+  one loaded (it is the loader), so dropping only it keeps glibc's version
+  checks satisfied. Loads on glibc 2.28, 2.31, 2.36 and 2.44 and in
+  Electron, with versioned bindings intact (`LD_DEBUG`: `realpath
+  [GLIBC_2.3]`, `memcpy [GLIBC_2.14]`, `__tls_get_addr` from `ld.so`). On
+  Alpine it is refused with `Error relocating …: gnu_get_libc_version:
+  symbol not found`.
+- **What musl lacks is one symbol.** Comparing the 121 non-napi imports
+  with `node:24-alpine`'s musl exports: `lseek64`, `mmap64`, `open64`,
+  `pread64`, `readdir64` and the `__xstat64` family resolve through musl's
+  built-in LFS64 renaming (musl ≥ 1.2.4 maps `foo64` to `foo` in the
+  dynamic linker); four weak imports (`__cxa_thread_atexit_impl`,
+  `pidfd_getpid`, `pidfd_spawnp`, `posix_spawn_file_actions_addchdir`) may
+  stay null and `std` checks for that; the only strong gap is
+  `gnu_get_libc_version`. The gnu-target `std` calls it from exactly two
+  places — process spawning (to decide whether `posix_spawn` is safe) and a
+  DNS-failure path. The engine's own code spawns nothing, but gix runs
+  `.gitattributes` filter drivers (git-lfs, say) through `std::process`
+  when it computes status, so the call is reachable from a read. Measured
+  with a fixture whose `*.txt` carry a `clean` filter and a modified file:
+  under the plain gnu build `countUncommittedChanges` and
+  `loadUncommittedDetails` ran the driver four times between them.
+- **Variant 3 — variant 2 plus `gnu_get_libc_version` made a weak import:
+  loads on Alpine, then segfaults.** A post-link edit of the one `.dynsym`
+  entry's binding (`STB_GLOBAL` to `STB_WEAK`; `patchelf` has no option for
+  it), so musl's loader leaves it null instead of refusing the library. On
+  `node:24-alpine` it loads and serves `loadCommits`, then the first read
+  that runs the filter driver ends the process: `Segmentation fault`, exit
+  code `139`, the driver never started. Spawning calls the null pointer
+  before it forks. In VS Code that is the extension host dying on any
+  repository with a filter driver configured. Ruled out — and it is the
+  general lesson of this follow-up: removing or weakening references only
+  moves a glibc-only call from load time, where the loader's fallback
+  catches it, to run time, where nothing does.
+- **Variant 4 — variant 2 plus a linked-in `gnu_get_libc_version`: loads
+  everywhere.** No longer `patchelf`-only: a 15-line C file, compiled with
+  the pinned zig (`-target x86_64-linux-gnu.2.28`) and passed to the gnu
+  build as `-C link-arg`, defines the function to return glibc's own answer
+  (`dlsym(RTLD_DEFAULT, …)`) when the process has glibc and `"2.28"` when
+  it does not. rustc's version script makes it local, so `std`'s reference
+  resolves to it at link time and the import disappears; the floor stays
+  `GLIBC_2.28`, the rest of the import list is unchanged, and
+  `ld-linux-x86-64.so.2` is then dropped as in variant 2. Built in a
+  separate cargo target directory so the repository's `engine/target` was
+  not invalidated. It loads, and serves the filter-driver reads (count 1,
+  `b.txt` modified, the driver run four times), on glibc 2.28, 2.31, 2.36
+  and 2.44, inside Electron 43, and on Alpine — the first single binary in
+  this experiment with no known failure.
+
+**Variant 4 — parity and the suite.** The parity harness now also covers
+the filter-driver fixture (608 calls over four repositories). Variant 4's
+output is byte-identical to the gnu build's on this machine (glibc 2.44),
+on Debian 12, on Debian 10 (glibc 2.28, VS Code's floor) and inside
+Electron 43, and byte-identical to the musl build's on Alpine — including
+`submodules`, since glibc now binds the current `realpath`. The backend
+suite with variant 4 overlaid as `linux-x64-gnu` (musl directory emptied):
+747/747 passed, 0 skipped.
+
+**Variant 4 on musl — what the gnu-compiled code assumes.** On glibc the
+binary *is* the gnu build (same versioned bindings), so the review is of
+the 121 imports as musl will serve them on x86_64. Nothing found that
+differs: `struct stat` through `__xstat64` → `__xstat` (kernel layout on
+both), `dirent` through `readdir64`, `passwd`, `dl_phdr_info` and
+`sigset_t` (128 bytes) share layouts; `posix_spawnattr_t` (336 bytes) and
+`posix_spawn_file_actions_t` (80) match in size by musl's design, as do the
+`POSIX_SPAWN_*` flag values; `pthread_rwlock_t`'s static initializer is all
+zeros on both; `msghdr` differs only in padding, which musl zeroes before
+the syscall; the `*64` calls are the 64-bit-offset calls either way;
+musl's `realpath` accepts NULL. The shim's `"2.28"` answer sends `std` down
+its `posix_spawn` path on musl, which is the path the filter-driver read
+exercised. What this review cannot see is a future import — the same
+class of risk as the musl route's Finding 2, but one-sided: a new
+glibc-only symbol fails musl's *load* (caught, CLI fallback) unless it is
+weak, and `std`'s weak imports are null-checked by construction.
+
+**Variant 4 — speed and stability on glibc.** Median of 15 per operation,
+two A-B-B-A passes against the gnu build on this machine: every walk
+within `0.99`–`1.03` (git.git `loadCommits` 5000 `154.0` vs `153.6` ms,
+search `775` vs `777` ms, `authors` `607` vs `603` ms); sub-millisecond reads
+`0.93`–`1.09` in both directions. The machine was busier than during the
+first benchmark (git.git `authors` `607` against `460` ms then), so compare
+within a table, not across them. Seeded stress, A-B-B-A: Node 60 seconds
+each, gnu 255 and 209 iterations against variant 4's 248 and 209; Electron
+45 seconds each, 115 for all four passes; zero errors in 27,620 calls.
+Expected — on glibc variant 4 runs the gnu build's code against the same
+glibc functions, and the added function runs only when a process is
+spawned.
+
+**Wired into the build (`2026-10-17`, branch
+`feat/engine-linux-libc-neutral`, not pushed).** The maintainer asked for
+variant 4 in the repository. Two changes from the experiment's form, both
+so nothing outside Rust and Node is involved:
+
+- **The shim is Rust, not C** — `engine/native/node/src/glibc.rs`, compiled
+  only under `cfg(all(target_os = "linux", target_env = "gnu"))`, so no C
+  compiler, no `cc` crate, no new dependency. A `#[no_mangle] extern "C"
+  fn gnu_get_libc_version` that asks `dlsym(RTLD_NEXT, …)` for glibc's own
+  and answers `"2.28"` without one. Unlike the C object, rustc exports it
+  from the cdylib, which changes nothing that matters: on glibc the
+  standard library's call still reaches glibc's definition first, and the
+  addon is loaded `RTLD_LOCAL`. Its unit test compares the answer with
+  `confstr(_CS_GNU_LIBC_VERSION)`, glibc's version by another route.
+  **That test caught a real flaw on its first run.** The first version asked
+  `dlsym(RTLD_DEFAULT, …)` and fell back to the floor when the lookup
+  returned the shim itself; in the test executable it answered `2.28` on
+  glibc 2.44, because an executable exports a symbol that a shared library
+  (here libc) also defines, so the global lookup found the shim first. The
+  addon loaded `RTLD_LOCAL` never hits that, but a host loading it
+  `RTLD_GLOBAL` would have. `RTLD_NEXT` — the next definition after the
+  calling object, `(void *)-1` on both C libraries — is the right primitive:
+  glibc's own however the addon is loaded, nothing on musl.
+- **The post-link step is Node, not `patchelf`** — `engine/scripts/elf.mjs`,
+  a dependency-free reader/editor for 64-bit little-endian ELF (the
+  `DT_NEEDED` list through the dynamic segment, undefined symbols through
+  `.dynsym`), unit-tested in `tests/backend/engine/elf.test.ts` against a
+  synthetic shared object built in the test. Checked against the real
+  binary before use: the same 164 undefined symbols `readelf` lists, and a
+  removal byte-identical to `patchelf --remove-needed`'s.
+  `build-addon.mjs`'s `makeLoadableByMusl` runs it on every `*-linux-gnu`
+  artifact (host and cross builds alike) before placing it, then asserts
+  the two properties — no glibc-loader `DT_NEEDED`, no
+  `gnu_get_libc_version` import — and fails the build otherwise, so a
+  toolchain or dependency change cannot quietly undo either.
+
+The musl builds, the loader and the package are unchanged: musl hosts still
+try the musl binary first, and the gnu binary is now a working fallback
+there instead of a certain `require()` failure. Whether to drop the musl
+builds is a separate packaging decision, not made here.
+
+**Line numbers are part of the binary.** The first full rebuild after the
+change changed all eight hashes — macOS, Windows and musl included —
+although the module is compiled out there. The `mod glibc;` declaration
+sat near the top of `lib.rs` and moved everything below it down four
+lines, and rustc embeds file/line/column for panic locations
+(`#[track_caller]`, `unwrap`, `expect`). Declaring the module at the end of
+the file leaves every existing line where it was. A change meant to leave
+other platforms untouched has to leave line numbers untouched too, or its
+"no change" can only be argued, not shown by hash. With the declaration
+last, both musl binaries rebuild byte-identical to the baseline, and the
+macOS and Windows ones differ from a same-checkout `HEAD` build only in the
+relink fields below (UUID and its signature page hash; the PE and
+debug-directory timestamps, whose second byte also moves when two links
+are minutes apart) — their code is unchanged.
+
+**macOS and Windows builds are not bit-reproducible on a relink —
+correcting "One build path, runnable anywhere".** Forcing a relink of
+*unchanged* source (`touch lib.rs`) changes `darwin-x64` in 16 bytes at
+offset 2177 (a new random `LC_UUID`), `darwin-arm64` in 48 (that UUID plus
+one 32-byte page hash in its ad-hoc code signature), and the two Windows
+builds in 10–12 (link timestamps in the PE header and debug directory).
+The earlier "bit-identical across two full runs" was almost certainly a
+second run cargo served from cache without relinking. Comparing these
+builds therefore means comparing everywhere *except* those fields.
+
+**The macOS binaries embed the building checkout's absolute path.** A
+Mach-O dylib carries its install name (`LC_ID_DYLIB`), and the linker sets
+it to the output path —
+`/home/zam/Desktop/prog/_GGL/git-graph-libre/engine/target/x86_64-apple-darwin/release/deps/libgit_graph_node.dylib`
+in a build on this machine, `/home/runner/work/…` from CI.
+`--remap-path-prefix` cannot reach it: rustc remaps the paths *it* embeds,
+and this one is written by the linker. So the shipped macOS binaries name
+the builder's home directory, and no two checkouts produce the same macOS
+bytes — which also contradicts "Pinned toolchain, remapped paths"'s
+identical-across-machines claim for these two targets. Not fixed here;
+the fix is to give the dylib a fixed install name at link time (for
+example `-C link-arg=-Wl,-install_name,@rpath/git-graph.node` for the
+Apple targets — an addon is loaded by path, so nothing reads the install
+name), then re-verify that both macOS builds still load.
+
+**The production binary on the matrix.** `engine/native/linux-x64-gnu`
+from `build:all` with the Rust shim: loads, and serves the filter-driver
+read, on glibc 2.28, 2.31, 2.36 and 2.44, inside Electron 43 and on Alpine;
+608-call parity identical to the gnu build on this machine, inside Electron
+and on Debian 10, and to the musl build on Alpine. Both production Linux
+gnu binaries keep the `GLIBC_2.28` floor and define rather than import
+`gnu_get_libc_version`; checked statically against Alpine's musl exports
+for both architectures, with the same check that predicted every observed
+x86_64 load result, neither has a strong import musl lacks. arm64 never
+had an `ld-linux-aarch64.so.1` entry to remove — its TLS goes through TLS
+descriptors, not `__tls_get_addr` — and `makeLoadableByMusl` reports
+removing nothing there, as it should.
+
+**Gate for the wiring (`2026-10-17`).** Rust arm: `engine:check`, `engine:test` (12 suites, the shim's test included), `engine:lint`, `engine:fmt`. Strict Biome on the touched TypeScript, `pnpm run package`, `pnpm run test` (backend 755, webview 548), `l10n:check`, fresh `test:coverage`, `sonar:scan`. The first scan's gate was `ERROR` on one issue this work did not touch: `loadCommits` in `src/webview/graph.ts` at cognitive complexity 16 against 15, introduced by the unpushed `23d50cd` (its `setParentBeyondGraph` branch). With the maintainer's approval the parent-linking loop moved into a private `linkVertices`, unchanged, as its own commit; the rescan (task `a33d1ecf-7e0d-4f98-98b5-61bcb3b27da7`) is `OK`. A packaged VSIX of this state (`git-graph-libre-1.8.1-libc-neutral-universal.vsix`, all eight binaries) and a test one without the musl builds (`git-graph-libre-1.8.1-linux-all-in-one-test.vsix`) were handed to the maintainer for testing; the binary inside both was re-verified on the full matrix, and its 608-call parity is identical to gnu on this machine and to musl on Alpine.
 
 #### Risks to decide before 16.5, not during
 

@@ -35,6 +35,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { GLIBC_LOADER, neededLibraries, removeNeeded, undefinedSymbols } from './elf.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -48,7 +49,8 @@ const TARGET_DIRECTORIES = {
 	'aarch64-apple-darwin': 'darwin-arm64',
 	// Alpine and other musl systems: `process.platform` is `linux` there too, so the
 	// extension cannot tell them apart by platform alone and the loader detects the C
-	// library instead. A gnu binary cannot load on musl at all — it needs `libc.so.6`.
+	// library instead, trying the musl build first. The gnu build also loads on musl
+	// (see makeLoadableByMusl), so it is the fallback there rather than a sure failure.
 	'x86_64-unknown-linux-musl': 'linux-x64-musl',
 	'aarch64-unknown-linux-musl': 'linux-arm64-musl'
 };
@@ -350,6 +352,42 @@ function place(artifact, target, directory, options) {
 	console.log(`Built ${target} (${options.release ? 'release' : 'debug'}) -> native/${directory}/git-graph.node (${size} MB)`);
 }
 
+/**
+ * Make a Linux glibc build loadable by musl as well, and fail the build if it is not.
+ *
+ * On glibc the binary binds its imports by symbol version exactly as before; musl's dynamic linker
+ * ignores the versions and resolves the same imports by name, and maps the `libc`, `libm`,
+ * `libpthread` and `libdl` sonames to itself. Two things stood in its way, and both are settled
+ * here, on every Linux gnu build, host or cross:
+ *
+ * - the `DT_NEEDED` entry for glibc's dynamic loader (`ld-linux-x86-64.so.2`,
+ *   `ld-linux-aarch64.so.1`), a file musl does not have. It is removed. glibc always has its
+ *   loader loaded — it is the program interpreter — so glibc's version checks still find it.
+ *   Only that entry may go: removing the others aborts glibc's loader (`Assertion 'needed !=
+ *   NULL' failed`) on hosts where nothing loads `libpthread`/`libdl`, killing the process.
+ * - an import of `gnu_get_libc_version`, which musl lacks and the gnu standard library calls when
+ *   it spawns a process. The addon defines it (`native/node/src/glibc.rs`), so it must not be an
+ *   import; if it is, that module did not link and the build stops here rather than shipping a
+ *   binary musl refuses — or, worse, one that crashes the first time gix runs a filter driver.
+ *
+ * The musl builds still ship and are still tried first on musl. See "Experiment: one Linux binary
+ * for both C libraries" in docs/AI_DEV_KNOWLEDGE_BASE.md for the measurements.
+ */
+function makeLoadableByMusl(artifact) {
+	const bytes = fs.readFileSync(artifact);
+	const removed = removeNeeded(bytes, (name) => GLIBC_LOADER.test(name));
+	if (removed.length > 0) fs.writeFileSync(artifact, bytes);
+	const name = path.basename(artifact);
+	const loaders = neededLibraries(bytes).filter((needed) => GLIBC_LOADER.test(needed));
+	if (loaders.length > 0) throw new Error(`${name} still needs ${loaders.join(', ')}, which musl does not have`);
+	if (undefinedSymbols(bytes).includes('gnu_get_libc_version')) {
+		throw new Error(
+			`${name} imports gnu_get_libc_version, which musl does not have: native/node/src/glibc.rs did not link`
+		);
+	}
+	console.log(`Made ${name} loadable by musl too (removed DT_NEEDED: ${removed.join(', ') || 'nothing'})`);
+}
+
 function main() {
 	const options = parseArguments(process.argv.slice(2));
 	const host = hostTarget();
@@ -422,7 +460,9 @@ function main() {
 		process.exit(1);
 	}
 
-	place(path.join(staging, artifacts[0]), target, directory, options);
+	const artifact = path.join(staging, artifacts[0]);
+	if (target.endsWith('-linux-gnu')) makeLoadableByMusl(artifact);
+	place(artifact, target, directory, options);
 	fs.rmSync(staging, { recursive: true, force: true });
 }
 
