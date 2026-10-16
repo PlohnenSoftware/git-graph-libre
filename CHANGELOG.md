@@ -26,12 +26,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A switched-off engine now shows on the status strip.** With
+  `git-graph-libre.backend: "git-cli"` the strip used to read plain
+  "Ready" with the same filled green dot as a running engine, and only
+  the hover popup told the two apart. It now shows the green as a hollow
+  ring reading "Ready (Rust off)", so an accidental switch-off is
+  discoverable at a glance — still not the amber of an engine that
+  failed to start, because choosing the command line is not a fault.
 - **The signature column no longer holds up the graph.** Signature
   verification runs GPG once per signed commit, so the page now renders at
   once with the column pending and the signatures fill in as they are read.
   Showing the column no longer sends the whole load to the Git command
   line either: the Rust engine serves those loads, and verification stays
   on the command line where it belongs.
+
+### Fixed
+
+- **Commits at the edge of the loaded window no longer pose as roots.**
+  The square marker meant "root commit", but any commit whose parents
+  were below the loaded page (or outside the current filter) got one
+  too, so a partially loaded history looked full of root commits. The
+  square is now reserved for commits git itself reports parentless;
+  a commit whose parents simply are not loaded yet keeps its circle.
 
 ## [1.8.1] - 2026-10-16
 

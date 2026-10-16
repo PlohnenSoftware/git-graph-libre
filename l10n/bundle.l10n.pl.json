@@ -458,6 +458,7 @@
   "error.invalidCharacters": "Nie można wykonać akcji {0}, wpisano co najmniej jeden nieprawidłowy znak.",
   "status.ready": "Gotowe",
   "status.engineUnavailable": "(silnik Rust niedostępny)",
+  "status.engineOff": "(Rust wyłączony)",
   "status.loadingGraph": "Wczytywanie grafu",
   "status.refreshingGraph": "Odświeżanie grafu",
   "status.loadingMore": "Wczytywanie kolejnych commitów",

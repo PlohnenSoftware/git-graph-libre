@@ -458,6 +458,7 @@
   "error.invalidCharacters": "Unable to {0}, one or more invalid characters entered.",
   "status.ready": "Ready",
   "status.engineUnavailable": "(Rust engine unavailable)",
+  "status.engineOff": "(Rust off)",
   "status.loadingGraph": "Loading graph",
   "status.refreshingGraph": "Refreshing graph",
   "status.loadingMore": "Loading more commits",

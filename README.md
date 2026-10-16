@@ -26,7 +26,10 @@
 - **Status at a glance**: Rest the pointer on the status dot above the toolbar
   to see the Git version, whether the built-in Rust engine is running, and
   which of the two loaded the graph; an amber dot reading "Ready (Rust engine
-  unavailable)" means everything works through Git, only slower
+  unavailable)" means everything works through Git, only slower, and a hollow
+  dot reading "Ready (Rust off)" means the `backend` setting has the engine
+  switched off — shown so an accidental `git-cli` never looks like a healthy
+  engine
 - **Multi-repo**: Work with multiple repositories and declared Git submodules in
   one workspace; reload the extension after changing `.gitmodules`
 - **Devcontainer ready**: Works in remote and container environments

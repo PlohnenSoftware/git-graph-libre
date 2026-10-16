@@ -102,6 +102,33 @@ describe("graph rendering", () => {
     expect(rects[0]?.getAttribute("height")).toBe("8");
   });
 
+  it("keeps a commit whose parent is not loaded a circle, not a root square", () => {
+    const graph = makeGraph();
+    // A page boundary: def456's parent exists in the repository but is below
+    // the loaded window, so no vertex is drawn for it. Only a commit git
+    // itself reports parentless may take the square.
+    const commits = [makeCommit("abc123", ["def456"]), makeCommit("def456", ["unloaded1"])];
+
+    graph.loadCommits(commits, "abc123", { abc123: 0, def456: 1 });
+    graph.render(null);
+
+    expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(0);
+    expect(document.querySelectorAll("#commitGraph g circle")).toHaveLength(2);
+  });
+
+  it("renders a true root in the backends' shape (one empty parent) as a square", () => {
+    const graph = makeGraph();
+    // Both backends normalize a parentless commit to [""]: the CLI's
+    // "".split(" ") and the engine mapper do the same.
+    const commits = [makeCommit("abc123", ["def456"]), makeCommit("def456", [""])];
+
+    graph.loadCommits(commits, "abc123", { abc123: 0, def456: 1 });
+    graph.render(null);
+
+    expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(1);
+    expect(document.querySelectorAll("#commitGraph g circle")).toHaveLength(1);
+  });
+
   it("draws stash nodes as a ringed pendant of their base", () => {
     const graph = makeGraph();
     const stash = {

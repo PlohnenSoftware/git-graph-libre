@@ -25,7 +25,9 @@ export function statusStripShows(state: StatusStripState, message: string): bool
 /**
  * Record the engine's state on the strip. Styling keys off it: a ready strip
  * over an unavailable engine shows the amber indicator and the "Rust engine
- * unavailable" note, while every busy and error state keeps its own look.
+ * unavailable" note, and over one switched off by the backend setting the
+ * hollow indicator and the "Rust off" note, while every busy and
+ * error state keeps its own look.
  */
 export function setEngineState(state: EngineComponentStatus["state"]): void {
   const strip = document.getElementById("statusStrip");

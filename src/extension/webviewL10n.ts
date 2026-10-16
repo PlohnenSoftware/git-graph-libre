@@ -464,6 +464,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     // Status
     statusReady: translate("status.ready"),
     statusEngineUnavailable: translate("status.engineUnavailable"),
+    statusEngineOff: translate("status.engineOff"),
     statusLoadingGraph: translate("status.loadingGraph"),
     statusRefreshingGraph: translate("status.refreshingGraph"),
     statusLoadingMore: translate("status.loadingMore"),

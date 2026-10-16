@@ -12,9 +12,10 @@ function escapeHtml(value: string): string {
 
 /**
  * The status strip above the toolbar. `engine` is baked in as `data-engine`
- * so the first paint already shows an unavailable engine — the amber
- * indicator and the "Rust engine unavailable" note are CSS on that attribute
- * — and the webview updates it from later `componentStatus` messages.
+ * so the first paint already shows an engine that is not serving reads —
+ * the amber indicator and "Rust engine unavailable" note, or the hollow
+ * indicator and "Rust off" note, are CSS on that attribute — and the
+ * webview updates it from later `componentStatus` messages.
  *
  * The indicator and the status text form one focusable target: hovering it
  * for a moment, or focusing it, opens the component popup. An 8px dot alone
@@ -28,6 +29,7 @@ export function buildWebviewStatusStrip(
   const label = escapeHtml(l10n.statusStrip);
   const ready = escapeHtml(l10n.statusReady);
   const engineNote = escapeHtml(l10n.statusEngineUnavailable);
+  const engineOffNote = escapeHtml(l10n.statusEngineOff);
   const versionLabel = escapeHtml(l10n.version);
   const escapedVersion = escapeHtml(version);
 
@@ -36,6 +38,7 @@ export function buildWebviewStatusStrip(
       <span id="statusIndicator" class="statusIndicator" aria-hidden="true"></span>
       <span id="statusText">${ready}</span>
       <span id="statusEngineNote" class="statusEngineNote">${engineNote}</span>
+      <span id="statusEngineOffNote" class="statusEngineNote">${engineOffNote}</span>
     </span>
     <span id="statusVersion" class="statusVersion" title="${versionLabel} ${escapedVersion}">v${escapedVersion}</span>
   </section>`;

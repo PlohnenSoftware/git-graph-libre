@@ -205,6 +205,7 @@ class Vertex {
   private nextParent: number = 0;
   private onBranch: Branch | null = null;
   private isCommitted: boolean = true;
+  private hasParentBeyondGraph: boolean = false;
   private isCurrent: boolean = false;
   private isStashRow: boolean = false;
   private nextX: number = 0;
@@ -216,6 +217,10 @@ class Vertex {
 
   public addParent(vertex: Vertex) {
     this.parents.push(vertex);
+  }
+  /** The commit names a parent the loaded window does not draw. */
+  public setParentBeyondGraph() {
+    this.hasParentBeyondGraph = true;
   }
   public hasParents() {
     return this.parents.length > 0;
@@ -328,7 +333,11 @@ class Vertex {
       return;
     }
 
-    const isRoot = this.parents.length === 0;
+    // `parents` holds drawn parents only, so an empty list alone does not
+    // make a root: the oldest commit of a loaded page has none drawn either.
+    // The square is reserved for commits git itself reports parentless —
+    // both backends normalize those to a single empty parent hash.
+    const isRoot = this.parents.length === 0 && !this.hasParentBeyondGraph;
     const node = document.createElementNS("http://www.w3.org/2000/svg", isRoot ? "rect" : "circle");
     if (isRoot) {
       node.setAttribute("x", (cx - NODE_RADIUS).toString());
@@ -412,6 +421,8 @@ export class Graph {
       for (const parentHash of commit.parentHashes) {
         if (typeof commitLookup[parentHash] === "number") {
           this.vertices[i].addParent(this.vertices[commitLookup[parentHash]]);
+        } else if (parentHash !== "") {
+          this.vertices[i].setParentBeyondGraph();
         }
       }
       if (commit.stash !== undefined) this.vertices[i].setStashRow();

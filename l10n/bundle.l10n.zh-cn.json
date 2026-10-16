@@ -458,6 +458,7 @@
   "error.invalidCharacters": "无法{0}，输入了一个或多个无效字符。",
   "status.ready": "就绪",
   "status.engineUnavailable": "（Rust 引擎不可用）",
+  "status.engineOff": "（Rust 已关闭）",
   "status.loadingGraph": "正在加载图形",
   "status.refreshingGraph": "正在刷新图形",
   "status.loadingMore": "正在加载更多提交",

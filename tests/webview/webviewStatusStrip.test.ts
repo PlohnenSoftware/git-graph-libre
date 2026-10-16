@@ -104,6 +104,18 @@ describe("webview status strip", () => {
     expect(getWebviewLocalizedStrings().statusEngineUnavailable).toBe("(Rust engine unavailable)");
   });
 
+  it("carries the switched-off engine note, escaped, for CSS to reveal", () => {
+    renderStatusStrip({
+      ...getWebviewLocalizedStrings(),
+      statusEngineOff: "(engine <b>off</b>)"
+    });
+
+    const note = document.getElementById("statusEngineOffNote");
+    expect(note?.textContent).toBe("(engine <b>off</b>)");
+    expect(note?.querySelector("b")).toBeNull();
+    expect(getWebviewLocalizedStrings().statusEngineOff).toBe("(Rust off)");
+  });
+
   it("updates the engine state without touching the readiness text", () => {
     renderStatusStrip();
 

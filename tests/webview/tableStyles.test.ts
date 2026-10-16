@@ -309,20 +309,35 @@ describe("commit table styles", () => {
     expect(css.match(/^\.statusStrip \{[^}]+\}/m)?.[0] ?? "").toContain("cursor: default;");
   });
 
-  it("marks a ready strip over an unavailable engine in amber, and says so", () => {
+  it("marks a ready strip by engine state: amber when unavailable, hollow when off", () => {
     const amber =
       css.match(
         /^\.statusStrip\[data-state="ready"\]\[data-engine="unavailable"\] \.statusIndicator \{[^}]+\}/m
       )?.[0] ?? "";
     expect(amber).toContain("var(--vscode-editorWarning-foreground, var(--ngg-warning))");
     expect(css.match(/--ngg-warning:\s*([^;]+);/)?.[1]).toMatch(/^oklch\(/);
-    // The note qualifies "Ready" only: busy and error states keep their own text.
+    // The notes qualify "Ready" only: busy and error states keep their own
+    // text, and each reveal names its own note so the two never show together.
     expect(css.match(/^\.statusEngineNote \{[^}]+\}/m)?.[0] ?? "").toContain("display: none;");
     expect(css).toMatch(
-      /^\.statusStrip\[data-state="ready"\]\[data-engine="unavailable"\] \.statusEngineNote \{\s*display: inline;/m
+      /^\.statusStrip\[data-state="ready"\]\[data-engine="unavailable"\] #statusEngineNote \{\s*display: inline;/m
     );
-    // An engine switched off by the backend setting is a choice, not a fault.
-    expect(css).not.toContain('[data-engine="off"]');
+    // Switched off by the backend setting: said on the strip too, so an
+    // accidental git-cli is discoverable — the Ready green as a hollow ring,
+    // never the amber.
+    const off =
+      css.match(
+        /^\.statusStrip\[data-state="ready"\]\[data-engine="off"\] \.statusIndicator \{[^}]+\}/m
+      )?.[0] ?? "";
+    expect(off).toContain("background-color: var(--ngg-transparent);");
+    expect(off).toContain(
+      "border: 2px solid var(--vscode-testing-iconPassed, var(--ngg-success));"
+    );
+    expect(off).toContain("box-sizing: border-box;");
+    expect(off).not.toContain("ngg-warning");
+    expect(css).toMatch(
+      /^\.statusStrip\[data-state="ready"\]\[data-engine="off"\] #statusEngineOffNote \{\s*display: inline;/m
+    );
   });
 
   it("styles the component popup as an editor hover, outside the clipped strip", () => {

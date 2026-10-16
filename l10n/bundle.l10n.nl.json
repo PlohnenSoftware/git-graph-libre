@@ -458,6 +458,7 @@
   "error.invalidCharacters": "Kan {0} niet uitvoeren, er zijn een of meer ongeldige tekens ingevoerd.",
   "status.ready": "Gereed",
   "status.engineUnavailable": "(Rust-engine niet beschikbaar)",
+  "status.engineOff": "(Rust uit)",
   "status.loadingGraph": "Graaf laden",
   "status.refreshingGraph": "Graaf vernieuwen",
   "status.loadingMore": "Meer commits laden",

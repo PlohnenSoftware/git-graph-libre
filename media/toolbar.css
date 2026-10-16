@@ -232,19 +232,32 @@
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 2px;
 }
-/* Ready, but every read goes through the Git command line because the
-   engine could not be loaded: amber rather than green, and said in words.
-   Busy and error states keep their own look — the note only qualifies
-   "Ready". An engine switched off by the backend setting is a choice, not
-   a degradation, so it stays green. */
+/* Ready, but every read goes through the Git command line: said in words
+   beside "Ready", because the strip collapses away while scrolling and the
+   popup is one hover too far when the question is "why is this slow?".
+   An engine that could not be loaded is amber — a degradation nobody
+   chose. An engine switched off by the backend setting keeps the Ready
+   green as a hollow ring — lit versus unlit, a choice rather than a
+   fault — but still shown so an accidental git-cli does not look like a
+   healthy engine. Busy and error
+   states keep their own look — the notes only qualify "Ready", and each
+   reveal names its own note so the two never show together. */
 .statusEngineNote {
   display: none;
 }
-.statusStrip[data-state="ready"][data-engine="unavailable"] .statusEngineNote {
+.statusStrip[data-state="ready"][data-engine="unavailable"] #statusEngineNote {
+  display: inline;
+}
+.statusStrip[data-state="ready"][data-engine="off"] #statusEngineOffNote {
   display: inline;
 }
 .statusStrip[data-state="ready"][data-engine="unavailable"] .statusIndicator {
   background-color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
+}
+.statusStrip[data-state="ready"][data-engine="off"] .statusIndicator {
+  background-color: var(--ngg-transparent);
+  border: 2px solid var(--vscode-testing-iconPassed, var(--ngg-success));
+  box-sizing: border-box;
 }
 .statusVersion {
   margin-left: auto;
