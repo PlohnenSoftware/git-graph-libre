@@ -12,7 +12,7 @@
  * produces.
  *
  * The routing is `build-addon.mjs`'s, which this only drives:
- *   - Linux and macOS targets -> cargo-zigbuild (zig supplies glibc, musl and the
+ *   - Linux and macOS targets -> cargo-zigbuild (zig supplies glibc and the
  *     macOS libc stubs, and ad-hoc signs arm64 Mach-O, which Apple Silicon
  *     refuses to load without)
  *   - Windows targets         -> cargo-xwin (downloads the MSVC CRT and SDK)
@@ -50,12 +50,10 @@ const ZIG_VERSION = '0.14.1';
 const TARGETS = {
 	'win32-x64-msvc': 'x86_64-pc-windows-msvc',
 	'win32-arm64-msvc': 'aarch64-pc-windows-msvc',
-	'linux-x64-gnu': 'x86_64-unknown-linux-gnu',
-	'linux-arm64-gnu': 'aarch64-unknown-linux-gnu',
+	'linux-x64': 'x86_64-unknown-linux-gnu',
+	'linux-arm64': 'aarch64-unknown-linux-gnu',
 	'darwin-x64': 'x86_64-apple-darwin',
-	'darwin-arm64': 'aarch64-apple-darwin',
-	'linux-x64-musl': 'x86_64-unknown-linux-musl',
-	'linux-arm64-musl': 'aarch64-unknown-linux-musl'
+	'darwin-arm64': 'aarch64-apple-darwin'
 };
 
 function run(command, args, options = {}) {

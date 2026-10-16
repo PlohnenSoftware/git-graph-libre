@@ -177,7 +177,7 @@ export type EngineUnavailableReason =
 
 /**
  * The Rust engine as the status strip reports it. `platform` names the build
- * target (`linux-x64-gnu`), or the raw `platform-arch` pair when no target
+ * target (`linux-x64`), or the raw `platform-arch` pair when no target
  * exists; `detail` is the loader's own explanation, shown verbatim.
  */
 export type EngineComponentStatus =

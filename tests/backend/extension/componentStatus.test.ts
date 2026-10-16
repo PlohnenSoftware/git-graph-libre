@@ -91,8 +91,8 @@ describe("buildComponentStatus", () => {
 describe("describeEngineStatus", () => {
   it("names the version and build target of an active engine", () => {
     expect(
-      describeEngineStatus({ state: "active", version: "1.0.25", platform: "linux-x64-gnu" })
-    ).toBe("Rust engine 1.0.25 active (linux-x64-gnu)");
+      describeEngineStatus({ state: "active", version: "1.0.25", platform: "linux-x64" })
+    ).toBe("Rust engine 1.0.25 active (linux-x64)");
   });
 
   it("says why the engine is off", () => {
@@ -104,11 +104,11 @@ describe("describeEngineStatus", () => {
       describeEngineStatus({
         state: "unavailable",
         reason: "versionMismatch",
-        platform: "linux-x64-gnu",
+        platform: "linux-x64",
         detail: "found 1.0.24, expected 1.0.25"
       })
     ).toBe(
-      "Rust engine unavailable (versionMismatch, linux-x64-gnu: found 1.0.24, expected 1.0.25); every read uses the git CLI"
+      "Rust engine unavailable (versionMismatch, linux-x64: found 1.0.24, expected 1.0.25); every read uses the git CLI"
     );
     expect(
       describeEngineStatus({

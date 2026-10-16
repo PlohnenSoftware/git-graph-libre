@@ -29,21 +29,20 @@ function remaining(root: string): string[] {
 }
 
 describe("pruneUnusedEngineBinaries", () => {
-  it("keeps both Linux builds of the host architecture and removes the other six", async () => {
+  it("keeps the host's Linux build and removes the other five", async () => {
     const root = makeNativeRoot(ENGINE_PLATFORM_DIRECTORIES);
 
-    const result = await pruneUnusedEngineBinaries(root, ["linux-x64-gnu", "linux-x64-musl"]);
+    const result = await pruneUnusedEngineBinaries(root, ["linux-x64"]);
 
     expect(result.removed.sort()).toEqual([
       "darwin-arm64",
       "darwin-x64",
-      "linux-arm64-gnu",
-      "linux-arm64-musl",
+      "linux-arm64",
       "win32-arm64-msvc",
       "win32-x64-msvc"
     ]);
-    expect(result.freedBytes).toBe(600);
-    expect(remaining(root)).toEqual(["linux-x64-gnu", "linux-x64-musl"]);
+    expect(result.freedBytes).toBe(500);
+    expect(remaining(root)).toEqual(["linux-x64"]);
   });
 
   it("keeps the single fixed directory of a Windows host", async () => {
@@ -51,7 +50,7 @@ describe("pruneUnusedEngineBinaries", () => {
 
     const result = await pruneUnusedEngineBinaries(root, ["win32-x64-msvc"]);
 
-    expect(result.removed).toHaveLength(7);
+    expect(result.removed).toHaveLength(5);
     expect(remaining(root)).toEqual(["win32-x64-msvc"]);
   });
 
@@ -66,10 +65,9 @@ describe("pruneUnusedEngineBinaries", () => {
 
   it("removes nothing when no kept directory holds the binary", async () => {
     const root = makeNativeRoot(ENGINE_PLATFORM_DIRECTORIES);
-    fs.rmSync(path.join(root, "linux-x64-gnu", ENGINE_BINARY_NAME));
-    fs.rmSync(path.join(root, "linux-x64-musl", ENGINE_BINARY_NAME));
+    fs.rmSync(path.join(root, "linux-x64", ENGINE_BINARY_NAME));
 
-    const result = await pruneUnusedEngineBinaries(root, ["linux-x64-gnu", "linux-x64-musl"]);
+    const result = await pruneUnusedEngineBinaries(root, ["linux-x64"]);
 
     expect(result).toEqual({ removed: [], freedBytes: 0 });
     expect(remaining(root)).toEqual([...ENGINE_PLATFORM_DIRECTORIES].sort());
@@ -102,14 +100,12 @@ describe("pruneUnusedEngineBinaries", () => {
 });
 
 describe("ENGINE_PLATFORM_DIRECTORIES", () => {
-  it("names exactly the eight shipped platform directories", () => {
+  it("names exactly the six shipped platform directories", () => {
     expect([...ENGINE_PLATFORM_DIRECTORIES].sort()).toEqual([
       "darwin-arm64",
       "darwin-x64",
-      "linux-arm64-gnu",
-      "linux-arm64-musl",
-      "linux-x64-gnu",
-      "linux-x64-musl",
+      "linux-arm64",
+      "linux-x64",
       "win32-arm64-msvc",
       "win32-x64-msvc"
     ]);

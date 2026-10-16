@@ -248,7 +248,7 @@ describe("engineComponentStatus", () => {
     const unavailable = () => ({
       state: "unavailable" as const,
       reason: "versionMismatch" as const,
-      platform: "linux-x64-gnu",
+      platform: "linux-x64",
       detail: "found 1.0.24, expected 1.0.25"
     });
     expect(engineUnavailableReason("auto", unavailable)).toBe("versionMismatch");
@@ -257,7 +257,7 @@ describe("engineComponentStatus", () => {
       engineUnavailableReason("auto", () => ({
         state: "active",
         version: "1.0.25",
-        platform: "linux-x64-gnu"
+        platform: "linux-x64"
       }))
     ).toBeNull();
   });
@@ -266,7 +266,7 @@ describe("engineComponentStatus", () => {
     const unavailable = {
       state: "unavailable" as const,
       reason: "missing" as const,
-      platform: "linux-x64-gnu",
+      platform: "linux-x64",
       detail: null
     };
     expect(engineComponentStatus("auto", () => unavailable)).toBe(unavailable);

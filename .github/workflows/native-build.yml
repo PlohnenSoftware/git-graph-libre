@@ -56,7 +56,7 @@ jobs:
           path: engine/.toolchain
           key: zig-${{ runner.os }}-${{ hashFiles('engine/scripts/build-all.mjs') }}
 
-      # The compiled dependencies, eight targets' worth. `Swatinem/rust-cache`
+      # The compiled dependencies, six targets' worth. `Swatinem/rust-cache`
       # keys on the lockfile and the rustc version itself and prunes the
       # workspace's own artifacts, which is what keeps this from growing past
       # the repository cache budget.

@@ -14,7 +14,7 @@
 # is: that is the minimum the source supports, this is the one it is built
 # with.
 #
-# Raising the channel is a deliberate act. Do it on its own, rebuild all eight
+# Raising the channel is a deliberate act. Do it on its own, rebuild all six
 # targets, and expect the hashes to change.
 
 [toolchain]
@@ -26,8 +26,6 @@ targets = [
   "aarch64-pc-windows-msvc",
   "x86_64-unknown-linux-gnu",
   "aarch64-unknown-linux-gnu",
-  "x86_64-unknown-linux-musl",
-  "aarch64-unknown-linux-musl",
   "x86_64-apple-darwin",
   "aarch64-apple-darwin"
 ]

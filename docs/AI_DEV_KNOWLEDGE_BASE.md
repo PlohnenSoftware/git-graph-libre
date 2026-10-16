@@ -80,76 +80,76 @@ the same change.
     - L2643 **What the page-size defaults are actually worth (`2026-09-23`)** — Record (`2026-09-23`): `initialLoadCommits` `300` → `250`, `loadMoreCommits` `100` → `750`; the full `renderTable` rebuild is the real cost (open); keep manifest, accessor, README and test defaults in step.
     - L2711 **Benchmarking the two backends (`2026-09-23`)** — How `pnpm run bench:backends` works (`backends.bench.ts`, `GGL_BENCH_REPO`, `didEngineServeRead()`); `vitest bench` is gone in Vitest 5; the first results (`loadCommits` `0.7x`) were fixed in the sections above.
     - L2771 **Pinned toolchain, remapped paths, cached CI (`2026-09-23`)** — Rules: `rust-toolchain.toml` stays at the repo root; `--remap-path-prefix` makes builds identical across machines; CI caches cargo-xwin, zig (`engine/.toolchain/`) and `engine/target`.
-    - L2822 **Alpine and the C library (`2026-09-23`)** — Decision: ship eight platforms, adding `linux-x64-musl`/`linux-arm64-musl`, with `isMuslRuntime()` and ordered `platformDirectoriesFor()`; `linux-armhf` deliberately excluded; Windows still needs cargo-xwin.
-    - L2880 **Author Date through the engine, and the status indicator (`2026-10-16`)** — Done (`1.8.1`): engine `1.0.25` `useAuthorDate` lifts the Author Date decline; rule: bump the engine version when TS relies on behavior an older binary silently lacks; `loadCommitsDecline()` reasons; the status popup, amber unavailable state, `[engine]` log line; response field `components`, never `status`.
-    - L2973 **Upstream engine review, first pass (`2026-10-16`)** — Audit of upstream `native/` to `6357ec1`: license still MIT, no new tainted port; ranked unported candidates (config staleness, tags of trees/blobs, shallow clones, status counts, topo seeding, numstat, encoding, replace refs, remote-ref special cases).
-    - L3014 **Signatures leave the graph load; a one-off CLI reload and engine-failure telemetry (`2026-10-16`)** — Done (taken over mid-flight, gated `OK`): the CLI-only `commitSignatures` query lifts the signature-column decline; the Hidden menu's `forced` reload; reader failure/decline flags feeding `view.engineUnavailable.<reason>`, `view.engineFailed`, `view.engineDeclined`, `view.forceCliReload`; the `backend: "git-cli"` setting already existed.
-    - L3096 **Pruning the universal package on activation (`2026-10-16`)** — The universal VSIX stays (platform VSIXs declined again with numbers on the table); `prune.ts` deletes foreign-platform binaries on Production activation under test-pinned rails; signature verification is install-time, so no reinstall; musl-only Linux measured impossible with the zig dynamic build.
-    - L3134 **Experiment: one Linux binary for both C libraries (`2026-10-16`)** — musl route: verdict keep the pair — the musl build with `libc.so` removed loads only on glibc ≥ 2.33 and on x86_64 binds glibc's oldest ABI (`realpath` silently empties `submodules`); engine memory is allocator retention, not a leak. Gnu route (`2026-10-17`): dropping every dependency aborts ld.so, a weak `gnu_get_libc_version` segfaults on Alpine; a defined `gnu_get_libc_version` (Rust, `RTLD_NEXT`) plus dropping only `ld-linux` loads on glibc ≥ 2.28 and musl with identical parity — wired into `build-addon.mjs` with `elf.mjs`; macOS/Windows relinks are not reproducible and macOS embeds the checkout path.
-    - L3587 **Risks to decide before 16.5, not during** — Phase 16 risks: ordering within a window (resolved in 16.5), devcontainer/Alpine CLI fallback, refusing `engineVersion()` skew, the unresolved `penghongxia`/`neophack` identity question.
+    - L2822 **Alpine and the C library (`2026-09-23`)** — Superseded `2026-10-17` by one Linux binary per architecture. Recorded decision: ship eight platforms, adding `linux-x64-musl`/`linux-arm64-musl`, with `isMuslRuntime()` and ordered `platformDirectoriesFor()`; `linux-armhf` deliberately excluded; Windows still needs cargo-xwin.
+    - L2887 **Author Date through the engine, and the status indicator (`2026-10-16`)** — Done (`1.8.1`): engine `1.0.25` `useAuthorDate` lifts the Author Date decline; rule: bump the engine version when TS relies on behavior an older binary silently lacks; `loadCommitsDecline()` reasons; the status popup, amber unavailable state, `[engine]` log line; response field `components`, never `status`.
+    - L2980 **Upstream engine review, first pass (`2026-10-16`)** — Audit of upstream `native/` to `6357ec1`: license still MIT, no new tainted port; ranked unported candidates (config staleness, tags of trees/blobs, shallow clones, status counts, topo seeding, numstat, encoding, replace refs, remote-ref special cases).
+    - L3021 **Signatures leave the graph load; a one-off CLI reload and engine-failure telemetry (`2026-10-16`)** — Done (taken over mid-flight, gated `OK`): the CLI-only `commitSignatures` query lifts the signature-column decline; the Hidden menu's `forced` reload; reader failure/decline flags feeding `view.engineUnavailable.<reason>`, `view.engineFailed`, `view.engineDeclined`, `view.forceCliReload`; the `backend: "git-cli"` setting already existed.
+    - L3103 **Pruning the universal package on activation (`2026-10-16`)** — The universal VSIX stays (platform VSIXs declined again with numbers on the table); `prune.ts` deletes foreign-platform binaries on Production activation under test-pinned rails (six directories since `2026-10-17`); signature verification is install-time, so no reinstall; musl-only Linux measured impossible with the zig dynamic build.
+    - L3145 **Experiment: one Linux binary for both C libraries (`2026-10-16`)** — Done: the musl route fails (glibc floor 2.33; x86_64 binds glibc's oldest ABI, `realpath` silently empties `submodules`); the gnu route works — a Rust `gnu_get_libc_version` (`RTLD_NEXT`) plus dropping only the `ld-linux` `DT_NEEDED` (`elf.mjs`, asserted by `build-addon.mjs`) loads on glibc ≥ 2.28 and musl with identical parity; the gnu/musl pair is removed, `linux-x64`/`linux-arm64` ship. Also: engine memory is allocator retention, macOS/Windows relinks are not reproducible, macOS embeds the checkout path.
+    - L3639 **Risks to decide before 16.5, not during** — Phase 16 risks: ordering within a window (resolved in 16.5), devcontainer/Alpine CLI fallback, refusing `engineVersion()` skew, the unresolved `penghongxia`/`neophack` identity question.
 
 **Future work**: open roadmap items and directions nobody has started.
 
-- L3610 **Roadmap: open phases** — Phases with open items (2, 6, 8, 9, 10), in phase order; each phase's `Status:` line names what remains.
-  - L3617 **Phase 2: Commit Details UX** — Partial. Done: split renderer, collapse/expand, tree/list and compact folders, resizable height, safe linkification, file actions. Open: the docked-bottom commit-details mode.
-  - L3641 **Phase 6: Repo Settings and View Options** — Mostly complete: repo settings modal and per-repo view toggles. Open: initial branches on load. `2026-07-27` record: detached-HEAD visibility, `repository.includeUnreachableCommits` (`git fsck`), segmented local/remote ref badges.
-  - L3719 **Phase 8: Commit Comparison and Multi-Select** — Partial: multi-select squash/drop (`15a1967`) and compare-with-HEAD (`8fc95ef`) done. Open: comparing any two loaded commits, ref-to-ref comparison, external directory diff.
-  - L3740 **Phase 9: Repository and Remote Management** — Mostly complete: fetch shown only when remotes exist, upstream-aware push/pull, remotes CRUD popup, add/remove repo commands, full-path tooltips. Open: a preference for repository dropdown ordering.
-  - L3763 **Phase 10: Advanced History, Text, and Integrations** — Partial. Done: issue linking, config sharing, archives, commit/tag signatures, staging panel (`1.5.0`). Open: markdown/emoji, inline body, `.mailmap`, encoding. `2026-07-27` record: signature column, SonarQube gate, the empty-`SONAR_TOKEN=` pitfall.
-- L3873 **Future direction: integrate with VS Code's native source control (`2026-09-03`)** — Unimplemented future direction that needs maintainer go-ahead: use the built-in `vscode.git` API (`repository.ui.selected`, `api.init`) and `scm/*` menu contributions instead of the graph's own selector; open questions.
+- L3662 **Roadmap: open phases** — Phases with open items (2, 6, 8, 9, 10), in phase order; each phase's `Status:` line names what remains.
+  - L3669 **Phase 2: Commit Details UX** — Partial. Done: split renderer, collapse/expand, tree/list and compact folders, resizable height, safe linkification, file actions. Open: the docked-bottom commit-details mode.
+  - L3693 **Phase 6: Repo Settings and View Options** — Mostly complete: repo settings modal and per-repo view toggles. Open: initial branches on load. `2026-07-27` record: detached-HEAD visibility, `repository.includeUnreachableCommits` (`git fsck`), segmented local/remote ref badges.
+  - L3771 **Phase 8: Commit Comparison and Multi-Select** — Partial: multi-select squash/drop (`15a1967`) and compare-with-HEAD (`8fc95ef`) done. Open: comparing any two loaded commits, ref-to-ref comparison, external directory diff.
+  - L3792 **Phase 9: Repository and Remote Management** — Mostly complete: fetch shown only when remotes exist, upstream-aware push/pull, remotes CRUD popup, add/remove repo commands, full-path tooltips. Open: a preference for repository dropdown ordering.
+  - L3815 **Phase 10: Advanced History, Text, and Integrations** — Partial. Done: issue linking, config sharing, archives, commit/tag signatures, staging panel (`1.5.0`). Open: markdown/emoji, inline body, `.mailmap`, encoding. `2026-07-27` record: signature column, SonarQube gate, the empty-`SONAR_TOKEN=` pitfall.
+- L3925 **Future direction: integrate with VS Code's native source control (`2026-09-03`)** — Unimplemented future direction that needs maintainer go-ahead: use the built-in `vscode.git` API (`repository.ui.selected`, `api.init`) and `scm/*` menu contributions instead of the graph's own selector; open questions.
 
 **History**: finished work, oldest first, kept as the record.
 
-- L3930 **Local Inputs Reviewed** — Historical list of the inputs reviewed when this document began: `README.md`, `agents.md`, `package.json`, key `src/` files, `tests/**`, and the parent `../FEATURE_*.md` recommendation briefs.
-- L3958 **Roadmap: completed phases** — Finished phases (0, 0.5, 1, 3, 4, 5, 7, 12–15), in phase order, with their plans, acceptance criteria and slice records.
-  - L3964 **Phase 0: Guardrails and Baseline** — Complete. Guardrails: keep this document current, baseline `pnpm run typecheck`/`lint`/`test`/`l10n:check`; acceptance: `AI-dev` exists, and `README.md` deliberately does not link this document.
-  - L3982 **Phase 0.5: Backend Robustness and Data-Source Foundation** — Complete. Hardening `webviewBridge.ts`, raw Git via `gitRunner` over `simple-git`, request ids against stale responses, NUL-separated parsing, `loadRepoInfo`, the `RepoFileWatcher` rework.
-  - L4014 **Phase 1: UI/UX Foundation Refresh** — Complete: toolbar icon buttons, status strip, sticky headers with column show/hide, font-size and row-height density settings, theme-native dialogs and menus; original plan and acceptance criteria.
-  - L4047 **Phase 3: Commit Hash Display Hardening** — Complete: `shortHashLength` setting via `abbrevCommit()`, with full hashes kept in `data-hash` and in actions; `2026-07-02` slice record with verification commands and Sonar result (its machine paths are dead).
-  - L4097 **Phase 4: Find, Search, and Keyboard Navigation** — Complete: loaded-commit find widget (Ctrl/Cmd+F, F3), the `keyboardShortcuts.ts` key map, the full-history `searchCommits` command; `2026-07-02` slice records, including a Sonar cleanup and hotspot review.
-  - L4238 **Phase 5: Branch, Tag, and Author Filters** — Complete: AND-combined filter dropdowns for branches (multi-select, glob presets), tags and authors (`a1d2bc9`); also keeps the original `CommitFilter` plan and acceptance criteria.
-  - L4268 **Phase 7: Stash Management** — Complete: stash loading behind a per-repo toggle, the apply/pop/drop/branch actions (`6750480`), the stash list panel and graph stash rows; original plan and acceptance criteria.
-  - L4294 **Phase 12: Toolbar Dropdown Name Truncation and Find Row (Bug)** — Complete (`2026-07-03`): segment-aware middle truncation of dropdown names (`src/webview/utils/truncate.ts`), fixed CSS dropdown widths so the toolbar stops jumping, the find widget on its own row.
-  - L4470 **Phase 13: Settings Hub — Tabbed Widget, Color Editor, Settings Export** — Complete (`2026-07-03`): settings popup with Repository and Extension tabs, editors built from the manifest, hue-preserving OKLCH `graphColors` editor (`oklchColor.ts`), export/import of extension settings only.
-  - L4638 **Phase 14: Reveal Highlight — Persistent Blink and Configurable Color** — Complete (`2026-07-03`): the reveal highlight blinks until hover or click (`startRevealHighlight`), with reduced-motion handling; new setting `revealHighlightColor`, default `oklch(90% 0.25 150 / 0.42)`.
-  - L4796 **Phase 15: Tag Surfaces — Signed-Tag Distinction and Remote Tag Deletion** — Complete (`2026-07-29`, `v1.1.1`–`v1.2.0`): signed-tag badges, remote tag deletion (`tagRemote.ts`), tag details popup redesign, SSH-signed commits detected via a batched `gpgsig` probe, release-workflow token rule.
-- L5045 **Upstream review (`2026-07-29`)** — Record: three `upstream/main` commits (nix flake, tsconfig split, oxlint `node:` rule) not taken; taking any upstream MIT commit also requires updating `NOTICE.md`/`LICENSE.mit`.
-- L5065 **Submodule discovery (`2026-08-21`)** — Feature record: submodule discovery from `.gitmodules` `path` entries, with validation, nested submodules and an indented dropdown, written clean-room; `.gitmodules` is not watched live.
-  - L5079 **Merged as PR #1, released as `1.4.2` (`2026-09-03`)** — Record of the first outside PR (#1, released `1.4.2`): AGPL contributor credit goes in `NOTICE.md`, never `LICENSE.mit`; Windows path and ReDoS fixes, `view.submoduleRepo*` telemetry, verification.
-- L5194 **Immediate TODOs — High-Priority Bug Backlog (`2026-08-25`)** — Dated `2026-08-25` backlog of six bugs reported against `v1.3.0`, ranked above the roadmap. Rules: don't re-derive diagnoses, update `Status:` lines in place; the BUG-3/4/5 maintainer decisions.
-  - L5215 **BUG-1 — `pushTag` hardcodes the `origin` remote** — BUG-1: `pushTag` hardcoded `origin`. Implemented `2026-08-25` (pushes `refs/tags/<name>` to the chosen remotes via `runGitRaw`, force/`--no-verify`), though its `Status:` line still says open.
-  - L5312 **BUG-2 — The tag remote surface is a stub beside the branch remote surface** — BUG-2, fixed `2026-08-25`: `fetchTags` (`--tags`, `--prune-tags` implies `--prune`), a toolbar `pushAllTags` button, force/no-verify in the tag push dialog; a branch-versus-tag capability table.
-  - L5400 **BUG-3 — "Lightweight" creates a signed annotated tag and opens an editor window** — BUG-3, fixed `2026-08-25`: the lightweight path passes `--no-sign` to defeat `tag.gpgSign`; annotated tags follow git's signing config; an empty annotated message is allowed again since `1.4.1`.
-  - L5560 **BUG-4 — Branch and tag labels turn gray on every merge commit** — BUG-4, fixed `2026-08-25`: merge-commit dimming grayed ref labels; now opt-in via `repository.muteMergeCommits` (default `false`) and scoped to the `.commitMessage` span. Maintainer re-check pending.
-    - L5681 **Tag-specific graying — investigation result (`2026-08-25`)** — Finding: no tag-specific graying path exists; lists the only three ref-appearance paths (muted cell, `.gitRefAlias`, signed/unsigned pill tint); the unsigned gray tint is intended design.
-  - L5722 **BUG-5 — The "watching" eye status bar item can never appear** — BUG-5, fixed `2026-08-25`: the status bar `$(eye)` could never appear; restored `onStartupFinished`, removed the dead `workspaceContains:**/.git`; notes the untrusted-workspace limitation.
-  - L5850 **BUG-6 — Cross-cutting: tag actions bypass the command log** — BUG-6, fixed `2026-08-25`: `addTag` and `pushTag` moved to `runGitRaw` with `recordGitCommand`, so all three tag actions reach the git-command log.
-  - L5872 **Suggested slice order** — Historical slice order for the bug backlog (BUG-3, BUG-1+6, BUG-5, BUG-4, BUG-2), plus the per-slice gate order ending with an `OK` `ZAM` Sonar gate before committing.
-- L5889 **Upstream review, second pass (`2026-08-25`)** — Record: 33 upstream commits classified and ported as per-feature branches off `AI-dev`; upstream's `vsce` publish applied (Open VSX later restored); bold-branch rejected; adds `boldCheckedOutCommit`, `fetchTagsByDefault`; skip list.
-- L5969 **Upstream review, third pass (`2026-09-03`)** — Record: last reviewed upstream commit `86be522` — start the next pass there. License clean. All rejected except `34835ec` (no-folder activation) and `49c8025` (init-repository button).
-- L6036 **Pull request review — #4 and #5 (`2026-09-05`)** — Record: review of the Copilot PRs #4 (merge on a remote branch) and #5 (no-fast-forward dialog defaults, inert settings fixed). Passing gates is not a review; merging both needed a typecheck fix.
-- L6163 **Uncommitted-changes staging panel, released as `1.5.0` (`2026-09-07`)** — Record of the `1.5.0` staging panel: reuses `#commitDetails`, re-queries after actions, drag payload format, `--untracked-files=normal`; `1.4.3` was never released; pnpm 12 `allowBuilds` switch; release verification.
-- L6292 **Graph and stash UI slices (`2026-09-09`)** — Intro to the stash/graph UI slices. Standing rules: the stash list sits in `#topBar` `#stashListSlot`, folds away on scroll, and calls `publishTopBarHeight()` synchronously after slot changes.
-  - L6333 **Slice 1 — Checkbox appearance** — Slice 1: one shared `media/checkbox.css` restyle with VS Code checkbox tokens, a neutral box, a `clip-path` tick and `:indeterminate`; accent fill rejected. Lesson: check styling records against the actual CSS.
-  - L6386 **Slice 2 — Remote sub-label restyle** — Slice 2: the `.gitRefGroup > .gitRefAlias` divider in `media/refs.css` restyled to badge foreground at 30% via `color-mix(in oklab)`; AA contrast re-verified; CSS regression tests forbid `in srgb`.
-  - L6410 **Slice 3 — Stash list above the table** — Slice 3: `renderStashList()` moves the stash list from the footer into `#stashListSlot`; `renderGraph()` re-pins the canvas top. Rule: `tests/webview/setup.ts` duplicates the body markup, so update both.
-  - L6442 **Slice 4 — Stashes as graph rows** — Slice 4, closes Phase 7: stash graph rows injected on the backend above their base commit (`src/backend/queries/stashes.ts`); the `stashRing` halo-exemption CSS trap, marker geometry, `view.stashRows` telemetry.
-  - L6534 **Follow-up — where stashes appear, and a checkout default** — Two settings: `repository.stashDisplay` (`table`/`graph`/`both`, under `repository.showStashes`) and `dialog.createBranch.checkout` (default `true`; branch and checkout run as two separate steps).
-  - L6553 **Follow-up — staging catalogue view, and two rendering fixes** — Staging panes get a folder tree via the pure `src/webview/utils/pathTree.ts`; contracts for folder-drag payloads, path-keyed collapse state and the `dragstart` guard; two rendering fixes. Open: migrating `generateGitFileTree`.
-  - L6589 **Follow-up — list/tree toggle, and the stash-branch dialog** — The `uncommittedChanges.fileViewMode` tree/list setting, separate from `commitDetails.fileViewMode`; a new `GitGraphViewState` field broke thirteen fixtures (shared factory still needed); the `git stash branch` dialog.
-  - L6622 **Release gate for these slices (`2026-09-09`)** — Record of the `2026-09-09` gate over six already-committed slices: Biome, package, tests, l10n, coverage `92.9%`, Sonar `OK` after an `S7761` failure; `sonar.projectVersion` deliberately left at `1.5.1`.
-  - L6664 **Release `1.6.0` (`2026-09-10`)** — Record of release `1.6.0` (`2026-09-10`): `1.5.1` was never tagged and folded in; `view.stashRows`/`view.uncommittedTree` telemetry; gate results; the tag was created locally, with the push left for later.
-- L6723 **Open VSX restored as a publish target, released as `1.6.1` (`2026-09-17`)** — Maintainer reversal of the `2026-08-25` decision, not to be re-dropped: releases publish to Open VSX again; `ovsx` devDependency, `OPEN_VSX_TOKEN` → `OVSX_PAT`, separate token checks, `--skip-duplicate`, namespace claiming.
-  - L6773 **Toolchain upgraded in the same change (`2026-09-17`)** — Record of the `pnpm up --latest` upgrade (Vitest 5, `vsce` 4). Rules: pin `@types/vscode` `~1.98.0` to `engines.vscode`; avoid `pnpm add`; known format drift and a `vitest.config.ts` warning.
-  - L6828 **Release gate for `1.6.1` (`2026-09-17`)** — Record of the `1.6.1` release gate: no extension change, only the first Open VSX publish; test counts, `sonar:scan` `ZAM` `OK` with task ids, `sonar.projectVersion` bump.
-- L6852 **Pull request review — #8 and #9, released as `1.6.2` (`2026-09-22`)** — Record of reviewing outside contributor Arezim's PRs #8 and #9, both green on `ZAM` though #9 was broken. Lesson: the gate misses untested paths, so read the feature.
-  - L6860 **PR #8 — `commit.gpgsign` in the fetch-tags fixture** — PR #8 merged: `commit.gpgsign false` in the `fetchTags` fixture; why the signature tests stay valid (`git mktag`, `hash-object`). Open follow-up: use `makeRepo()` instead.
-  - L6888 **PR #9 — repository discovery, right diagnosis and a broken comparison** — PR #9: `checkIsRepo()` accepted subdirectories; the raw `--show-toplevel` comparison broke on symlinks and Windows drive case; fixed by `canonicalizePath()` (`e1668f9`). Rule: no quantifier-before-anchor regex on user paths (`S8786`).
-  - L6962 **Two environment facts recorded while doing this** — Environment facts: Rust via `rustup` (`1.98.1`, conflicts with the distro `rust`; use `rustup default stable`), and a flaky engine test whose `git clone` reads the real `~/.gitconfig`.
-- L6981 **Evaluating the Rust engine of `vscode-git-graph-rs` (`2026-09-22`)** — Intro to the `2026-09-22` evaluation of the `neophack/vscode-git-graph-rs` Rust engine (adoption and licensing); its "nothing adopted" status was later superseded by the `rusty` merge and Phase 16. Its licensing verdict is under Licensing.
-  - L6992 **Should the engine be adopted? Not wholesale** — `2026-09-22` recommendation: do not adopt wholesale (no reflog, unreachable commits, signature status or glob patterns; six-triple build cost); a bounded opt-in experiment proposed, which Phase 16 later pursued.
-  - L7037 **The filtered engine repository, merged onto `rusty` (`2026-09-22`)** — Record of merging the filtered engine under `engine/` on `rusty`: 52 re-signed commits, `gerrit.rs` and licenses excluded, `engine/NOTICE.md`, `LICENSE.mit` roster, crate attribution.
-- L7113 **Root squares only for true roots (`2026-10-16`)** — Fix: `Vertex.parents` holds drawn parents only, so page-boundary commits took root squares; `hasParentBeyondGraph` now reserves the square for commits both backends report parentless (`[""]`).
+- L3982 **Local Inputs Reviewed** — Historical list of the inputs reviewed when this document began: `README.md`, `agents.md`, `package.json`, key `src/` files, `tests/**`, and the parent `../FEATURE_*.md` recommendation briefs.
+- L4010 **Roadmap: completed phases** — Finished phases (0, 0.5, 1, 3, 4, 5, 7, 12–15), in phase order, with their plans, acceptance criteria and slice records.
+  - L4016 **Phase 0: Guardrails and Baseline** — Complete. Guardrails: keep this document current, baseline `pnpm run typecheck`/`lint`/`test`/`l10n:check`; acceptance: `AI-dev` exists, and `README.md` deliberately does not link this document.
+  - L4034 **Phase 0.5: Backend Robustness and Data-Source Foundation** — Complete. Hardening `webviewBridge.ts`, raw Git via `gitRunner` over `simple-git`, request ids against stale responses, NUL-separated parsing, `loadRepoInfo`, the `RepoFileWatcher` rework.
+  - L4066 **Phase 1: UI/UX Foundation Refresh** — Complete: toolbar icon buttons, status strip, sticky headers with column show/hide, font-size and row-height density settings, theme-native dialogs and menus; original plan and acceptance criteria.
+  - L4099 **Phase 3: Commit Hash Display Hardening** — Complete: `shortHashLength` setting via `abbrevCommit()`, with full hashes kept in `data-hash` and in actions; `2026-07-02` slice record with verification commands and Sonar result (its machine paths are dead).
+  - L4149 **Phase 4: Find, Search, and Keyboard Navigation** — Complete: loaded-commit find widget (Ctrl/Cmd+F, F3), the `keyboardShortcuts.ts` key map, the full-history `searchCommits` command; `2026-07-02` slice records, including a Sonar cleanup and hotspot review.
+  - L4290 **Phase 5: Branch, Tag, and Author Filters** — Complete: AND-combined filter dropdowns for branches (multi-select, glob presets), tags and authors (`a1d2bc9`); also keeps the original `CommitFilter` plan and acceptance criteria.
+  - L4320 **Phase 7: Stash Management** — Complete: stash loading behind a per-repo toggle, the apply/pop/drop/branch actions (`6750480`), the stash list panel and graph stash rows; original plan and acceptance criteria.
+  - L4346 **Phase 12: Toolbar Dropdown Name Truncation and Find Row (Bug)** — Complete (`2026-07-03`): segment-aware middle truncation of dropdown names (`src/webview/utils/truncate.ts`), fixed CSS dropdown widths so the toolbar stops jumping, the find widget on its own row.
+  - L4522 **Phase 13: Settings Hub — Tabbed Widget, Color Editor, Settings Export** — Complete (`2026-07-03`): settings popup with Repository and Extension tabs, editors built from the manifest, hue-preserving OKLCH `graphColors` editor (`oklchColor.ts`), export/import of extension settings only.
+  - L4690 **Phase 14: Reveal Highlight — Persistent Blink and Configurable Color** — Complete (`2026-07-03`): the reveal highlight blinks until hover or click (`startRevealHighlight`), with reduced-motion handling; new setting `revealHighlightColor`, default `oklch(90% 0.25 150 / 0.42)`.
+  - L4848 **Phase 15: Tag Surfaces — Signed-Tag Distinction and Remote Tag Deletion** — Complete (`2026-07-29`, `v1.1.1`–`v1.2.0`): signed-tag badges, remote tag deletion (`tagRemote.ts`), tag details popup redesign, SSH-signed commits detected via a batched `gpgsig` probe, release-workflow token rule.
+- L5097 **Upstream review (`2026-07-29`)** — Record: three `upstream/main` commits (nix flake, tsconfig split, oxlint `node:` rule) not taken; taking any upstream MIT commit also requires updating `NOTICE.md`/`LICENSE.mit`.
+- L5117 **Submodule discovery (`2026-08-21`)** — Feature record: submodule discovery from `.gitmodules` `path` entries, with validation, nested submodules and an indented dropdown, written clean-room; `.gitmodules` is not watched live.
+  - L5131 **Merged as PR #1, released as `1.4.2` (`2026-09-03`)** — Record of the first outside PR (#1, released `1.4.2`): AGPL contributor credit goes in `NOTICE.md`, never `LICENSE.mit`; Windows path and ReDoS fixes, `view.submoduleRepo*` telemetry, verification.
+- L5246 **Immediate TODOs — High-Priority Bug Backlog (`2026-08-25`)** — Dated `2026-08-25` backlog of six bugs reported against `v1.3.0`, ranked above the roadmap. Rules: don't re-derive diagnoses, update `Status:` lines in place; the BUG-3/4/5 maintainer decisions.
+  - L5267 **BUG-1 — `pushTag` hardcodes the `origin` remote** — BUG-1: `pushTag` hardcoded `origin`. Implemented `2026-08-25` (pushes `refs/tags/<name>` to the chosen remotes via `runGitRaw`, force/`--no-verify`), though its `Status:` line still says open.
+  - L5364 **BUG-2 — The tag remote surface is a stub beside the branch remote surface** — BUG-2, fixed `2026-08-25`: `fetchTags` (`--tags`, `--prune-tags` implies `--prune`), a toolbar `pushAllTags` button, force/no-verify in the tag push dialog; a branch-versus-tag capability table.
+  - L5452 **BUG-3 — "Lightweight" creates a signed annotated tag and opens an editor window** — BUG-3, fixed `2026-08-25`: the lightweight path passes `--no-sign` to defeat `tag.gpgSign`; annotated tags follow git's signing config; an empty annotated message is allowed again since `1.4.1`.
+  - L5612 **BUG-4 — Branch and tag labels turn gray on every merge commit** — BUG-4, fixed `2026-08-25`: merge-commit dimming grayed ref labels; now opt-in via `repository.muteMergeCommits` (default `false`) and scoped to the `.commitMessage` span. Maintainer re-check pending.
+    - L5733 **Tag-specific graying — investigation result (`2026-08-25`)** — Finding: no tag-specific graying path exists; lists the only three ref-appearance paths (muted cell, `.gitRefAlias`, signed/unsigned pill tint); the unsigned gray tint is intended design.
+  - L5774 **BUG-5 — The "watching" eye status bar item can never appear** — BUG-5, fixed `2026-08-25`: the status bar `$(eye)` could never appear; restored `onStartupFinished`, removed the dead `workspaceContains:**/.git`; notes the untrusted-workspace limitation.
+  - L5902 **BUG-6 — Cross-cutting: tag actions bypass the command log** — BUG-6, fixed `2026-08-25`: `addTag` and `pushTag` moved to `runGitRaw` with `recordGitCommand`, so all three tag actions reach the git-command log.
+  - L5924 **Suggested slice order** — Historical slice order for the bug backlog (BUG-3, BUG-1+6, BUG-5, BUG-4, BUG-2), plus the per-slice gate order ending with an `OK` `ZAM` Sonar gate before committing.
+- L5941 **Upstream review, second pass (`2026-08-25`)** — Record: 33 upstream commits classified and ported as per-feature branches off `AI-dev`; upstream's `vsce` publish applied (Open VSX later restored); bold-branch rejected; adds `boldCheckedOutCommit`, `fetchTagsByDefault`; skip list.
+- L6021 **Upstream review, third pass (`2026-09-03`)** — Record: last reviewed upstream commit `86be522` — start the next pass there. License clean. All rejected except `34835ec` (no-folder activation) and `49c8025` (init-repository button).
+- L6088 **Pull request review — #4 and #5 (`2026-09-05`)** — Record: review of the Copilot PRs #4 (merge on a remote branch) and #5 (no-fast-forward dialog defaults, inert settings fixed). Passing gates is not a review; merging both needed a typecheck fix.
+- L6215 **Uncommitted-changes staging panel, released as `1.5.0` (`2026-09-07`)** — Record of the `1.5.0` staging panel: reuses `#commitDetails`, re-queries after actions, drag payload format, `--untracked-files=normal`; `1.4.3` was never released; pnpm 12 `allowBuilds` switch; release verification.
+- L6344 **Graph and stash UI slices (`2026-09-09`)** — Intro to the stash/graph UI slices. Standing rules: the stash list sits in `#topBar` `#stashListSlot`, folds away on scroll, and calls `publishTopBarHeight()` synchronously after slot changes.
+  - L6385 **Slice 1 — Checkbox appearance** — Slice 1: one shared `media/checkbox.css` restyle with VS Code checkbox tokens, a neutral box, a `clip-path` tick and `:indeterminate`; accent fill rejected. Lesson: check styling records against the actual CSS.
+  - L6438 **Slice 2 — Remote sub-label restyle** — Slice 2: the `.gitRefGroup > .gitRefAlias` divider in `media/refs.css` restyled to badge foreground at 30% via `color-mix(in oklab)`; AA contrast re-verified; CSS regression tests forbid `in srgb`.
+  - L6462 **Slice 3 — Stash list above the table** — Slice 3: `renderStashList()` moves the stash list from the footer into `#stashListSlot`; `renderGraph()` re-pins the canvas top. Rule: `tests/webview/setup.ts` duplicates the body markup, so update both.
+  - L6494 **Slice 4 — Stashes as graph rows** — Slice 4, closes Phase 7: stash graph rows injected on the backend above their base commit (`src/backend/queries/stashes.ts`); the `stashRing` halo-exemption CSS trap, marker geometry, `view.stashRows` telemetry.
+  - L6586 **Follow-up — where stashes appear, and a checkout default** — Two settings: `repository.stashDisplay` (`table`/`graph`/`both`, under `repository.showStashes`) and `dialog.createBranch.checkout` (default `true`; branch and checkout run as two separate steps).
+  - L6605 **Follow-up — staging catalogue view, and two rendering fixes** — Staging panes get a folder tree via the pure `src/webview/utils/pathTree.ts`; contracts for folder-drag payloads, path-keyed collapse state and the `dragstart` guard; two rendering fixes. Open: migrating `generateGitFileTree`.
+  - L6641 **Follow-up — list/tree toggle, and the stash-branch dialog** — The `uncommittedChanges.fileViewMode` tree/list setting, separate from `commitDetails.fileViewMode`; a new `GitGraphViewState` field broke thirteen fixtures (shared factory still needed); the `git stash branch` dialog.
+  - L6674 **Release gate for these slices (`2026-09-09`)** — Record of the `2026-09-09` gate over six already-committed slices: Biome, package, tests, l10n, coverage `92.9%`, Sonar `OK` after an `S7761` failure; `sonar.projectVersion` deliberately left at `1.5.1`.
+  - L6716 **Release `1.6.0` (`2026-09-10`)** — Record of release `1.6.0` (`2026-09-10`): `1.5.1` was never tagged and folded in; `view.stashRows`/`view.uncommittedTree` telemetry; gate results; the tag was created locally, with the push left for later.
+- L6775 **Open VSX restored as a publish target, released as `1.6.1` (`2026-09-17`)** — Maintainer reversal of the `2026-08-25` decision, not to be re-dropped: releases publish to Open VSX again; `ovsx` devDependency, `OPEN_VSX_TOKEN` → `OVSX_PAT`, separate token checks, `--skip-duplicate`, namespace claiming.
+  - L6825 **Toolchain upgraded in the same change (`2026-09-17`)** — Record of the `pnpm up --latest` upgrade (Vitest 5, `vsce` 4). Rules: pin `@types/vscode` `~1.98.0` to `engines.vscode`; avoid `pnpm add`; known format drift and a `vitest.config.ts` warning.
+  - L6880 **Release gate for `1.6.1` (`2026-09-17`)** — Record of the `1.6.1` release gate: no extension change, only the first Open VSX publish; test counts, `sonar:scan` `ZAM` `OK` with task ids, `sonar.projectVersion` bump.
+- L6904 **Pull request review — #8 and #9, released as `1.6.2` (`2026-09-22`)** — Record of reviewing outside contributor Arezim's PRs #8 and #9, both green on `ZAM` though #9 was broken. Lesson: the gate misses untested paths, so read the feature.
+  - L6912 **PR #8 — `commit.gpgsign` in the fetch-tags fixture** — PR #8 merged: `commit.gpgsign false` in the `fetchTags` fixture; why the signature tests stay valid (`git mktag`, `hash-object`). Open follow-up: use `makeRepo()` instead.
+  - L6940 **PR #9 — repository discovery, right diagnosis and a broken comparison** — PR #9: `checkIsRepo()` accepted subdirectories; the raw `--show-toplevel` comparison broke on symlinks and Windows drive case; fixed by `canonicalizePath()` (`e1668f9`). Rule: no quantifier-before-anchor regex on user paths (`S8786`).
+  - L7014 **Two environment facts recorded while doing this** — Environment facts: Rust via `rustup` (`1.98.1`, conflicts with the distro `rust`; use `rustup default stable`), and a flaky engine test whose `git clone` reads the real `~/.gitconfig`.
+- L7033 **Evaluating the Rust engine of `vscode-git-graph-rs` (`2026-09-22`)** — Intro to the `2026-09-22` evaluation of the `neophack/vscode-git-graph-rs` Rust engine (adoption and licensing); its "nothing adopted" status was later superseded by the `rusty` merge and Phase 16. Its licensing verdict is under Licensing.
+  - L7044 **Should the engine be adopted? Not wholesale** — `2026-09-22` recommendation: do not adopt wholesale (no reflog, unreachable commits, signature status or glob patterns; six-triple build cost); a bounded opt-in experiment proposed, which Phase 16 later pursued.
+  - L7089 **The filtered engine repository, merged onto `rusty` (`2026-09-22`)** — Record of merging the filtered engine under `engine/` on `rusty`: 52 re-signed commits, `gerrit.rs` and licenses excluded, `engine/NOTICE.md`, `LICENSE.mit` roster, crate attribution.
+- L7165 **Root squares only for true roots (`2026-10-16`)** — Fix: `Vertex.parents` holds drawn parents only, so page-boundary commits took root squares; `hasParentBeyondGraph` now reserves the square for commits both backends report parentless (`[""]`).
 
 ## Mission
 
@@ -2821,6 +2821,13 @@ surfaced.
 
 #### Alpine and the C library (`2026-09-23`)
 
+**Superseded (`2026-10-17`): one Linux binary per architecture.** The musl
+builds are gone. The glibc build is made loadable by musl when it is built
+and ships as `linux-x64`/`linux-arm64`; `isMuslRuntime()` and the ordered
+two-directory fallback are removed, and six platforms ship. See "Experiment:
+one Linux binary for both C libraries" for the measurements. What follows is
+the eight-platform decision as it stood.
+
 **Eight platforms ship, not six.** `linux-x64-musl` and `linux-arm64-musl`
 were added after establishing that the previous framing was wrong in a way
 worth not repeating.
@@ -3095,6 +3102,10 @@ while `curl` with the same token succeeds — poll with `curl`.
 
 #### Pruning the universal package on activation (`2026-10-16`)
 
+**Updated (`2026-10-17`):** six platform directories now, not eight, and a
+Linux host keeps its one directory — the gnu/musl pair is gone (see the
+experiment record below). The rails are unchanged.
+
 The universal VSIX (the 16.9 maintainer decision) installs eight engine
 binaries, about 50 MB on disk, of which a host can load at most two. The
 extension now deletes the others on activation
@@ -3133,12 +3144,11 @@ measured in the next record.
 
 #### Experiment: one Linux binary for both C libraries (`2026-10-16`)
 
-**Status: the musl route is done (`2026-10-16`), verdict below: keep
-shipping the gnu/musl pair. The follow-up on the gnu route (`2026-10-17`,
-at the end of this record) found a single Linux binary that works on both
-C libraries, and it is wired into the build on
-`feat/engine-linux-libc-neutral`; the musl route itself changed nothing in
-the build, the loader or the package.**
+**Status: done. The musl route (`2026-10-16`) is not viable — verdict
+below. The gnu route (`2026-10-17`, at the end of this record) found a
+single Linux binary that works on both C libraries; it is wired into the
+build on `feat/engine-linux-libc-neutral`, and the gnu/musl pair is
+removed — one Linux binary per architecture ships.**
 The maintainer asked whether one Linux binary could replace the
 `linux-<arch>-gnu`/`linux-<arch>-musl` pair by using whichever C library is
 already loaded in the host process, and asked for it to be built anyway and
@@ -3527,7 +3537,8 @@ so nothing outside Rust and Node is involved:
 The musl builds, the loader and the package are unchanged: musl hosts still
 try the musl binary first, and the gnu binary is now a working fallback
 there instead of a certain `require()` failure. Whether to drop the musl
-builds is a separate packaging decision, not made here.
+builds is a separate packaging decision, not made here — it was made the
+same day; see "The pair removed" below.
 
 **Line numbers are part of the binary.** The first full rebuild after the
 change changed all eight hashes — macOS, Windows and musl included —
@@ -3582,7 +3593,48 @@ had an `ld-linux-aarch64.so.1` entry to remove — its TLS goes through TLS
 descriptors, not `__tls_get_addr` — and `makeLoadableByMusl` reports
 removing nothing there, as it should.
 
-**Gate for the wiring (`2026-10-17`).** Rust arm: `engine:check`, `engine:test` (12 suites, the shim's test included), `engine:lint`, `engine:fmt`. Strict Biome on the touched TypeScript, `pnpm run package`, `pnpm run test` (backend 755, webview 548), `l10n:check`, fresh `test:coverage`, `sonar:scan`. The first scan's gate was `ERROR` on one issue this work did not touch: `loadCommits` in `src/webview/graph.ts` at cognitive complexity 16 against 15, introduced by the unpushed `23d50cd` (its `setParentBeyondGraph` branch). With the maintainer's approval the parent-linking loop moved into a private `linkVertices`, unchanged, as its own commit; the rescan (task `a33d1ecf-7e0d-4f98-98b5-61bcb3b27da7`) is `OK`. A packaged VSIX of this state (`git-graph-libre-1.8.1-libc-neutral-universal.vsix`, all eight binaries) and a test one without the musl builds (`git-graph-libre-1.8.1-linux-all-in-one-test.vsix`) were handed to the maintainer for testing; the binary inside both was re-verified on the full matrix, and its 608-call parity is identical to gnu on this machine and to musl on Alpine.
+**Gate for the wiring (`2026-10-17`).** Rust arm: `engine:check`,
+`engine:test` (12 suites, the shim's test included), `engine:lint`,
+`engine:fmt`. Strict Biome on the touched TypeScript, `pnpm run package`,
+`pnpm run test` (backend 755, webview 548), `l10n:check`, fresh
+`test:coverage`, `sonar:scan`. The first scan's gate was `ERROR` on one
+issue this work did not touch: `loadCommits` in `src/webview/graph.ts` at
+cognitive complexity 16 against 15, introduced by the unpushed `23d50cd`
+(its `setParentBeyondGraph` branch). With the maintainer's approval the
+parent-linking loop moved into a private `linkVertices`, unchanged, as its
+own commit; the rescan (task `a33d1ecf-7e0d-4f98-98b5-61bcb3b27da7`) is
+`OK`. A packaged VSIX of this state
+(`git-graph-libre-1.8.1-libc-neutral-universal.vsix`, all eight binaries)
+and a test one without the musl builds
+(`git-graph-libre-1.8.1-linux-all-in-one-test.vsix`) were handed to the
+maintainer for testing; the binary inside both was re-verified on the full
+matrix, and its 608-call parity is identical to gnu on this machine and to
+musl on Alpine.
+
+**The pair removed (`2026-10-17`, same branch, not pushed).** The maintainer
+then asked to stop building the gnu/musl pair altogether and keep only the
+universal binary. Six platforms ship: `build-all.mjs` and `build-addon.mjs`
+drop both musl triples, `rust-toolchain.toml` stops installing them, and the
+Linux directories are renamed `linux-x64` and `linux-arm64` (VS Code's own
+target names, and the `darwin-x64` pattern) since a `-gnu` suffix would now
+mislead. The loader's platform map is one table:
+`platformDirectoriesFor(platform, arch)` loses its musl argument and
+`isMuslRuntime()` — a `process.report` call on every activation — is
+deleted, as are its two tests and the musl rows of the mapping table; the
+load-status tests keep the ranking cases, now across a directory's two
+candidate locations. The prune keeps one Linux directory, `publish.yml`
+asserts six binaries, README and CHANGELOG say one Linux build serves glibc
+and musl. The rebuilt `linux-x64`/`linux-arm64` binaries are byte-identical
+to the ones verified on the matrix (`95ac76e2…`, `a37dbf63…`) — only their
+directory names changed. The universal package is 13.07 MB against 17.06 MB
+with the musl builds. Gates: Rust arm; strict Biome on the nine touched
+TypeScript files (and Biome's formatter applied to `webviewPanel.test.ts`,
+whose import block had drifted); `package`; tests (backend 751 — four
+libc-detection cases fewer — and webview 548, none skipped); `l10n:check`;
+coverage; SonarQube `OK` (task `ef581620-bf04-4cd2-b928-7489ea7429a1`). Any
+old `engine/native/linux-*-gnu` or `linux-*-musl` directory in a working
+tree is now stale and must be deleted before packaging locally, because
+`.vscodeignore` ships every `engine/native/*/*.node`.
 
 #### Risks to decide before 16.5, not during
 

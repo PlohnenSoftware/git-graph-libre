@@ -8,29 +8,28 @@ import type { WebviewBridge } from "@/extension/webviewBridge";
 import { createWebviewPanel } from "@/extension/webviewPanel";
 import type { ExtensionState } from "@/extensionState";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
-import type {
-  ComponentStatus,
-  EngineComponentStatus,
-  GitRepoSet,
-  TelemetryConsent
-} from "@/types";
+import type { ComponentStatus, EngineComponentStatus, GitRepoSet, TelemetryConsent } from "@/types";
 
 const ACTIVE_ENGINE: EngineComponentStatus = {
   state: "active",
   version: "1.0.25",
-  platform: "linux-x64-gnu"
+  platform: "linux-x64"
 };
 
 const mocks = vi.hoisted(() => ({
-  buildWebviewHtml: vi.fn((_opts: { language?: string }): {
-    html: string;
-    isGraphLoaded: boolean;
-    engine: EngineComponentStatus | null;
-  } => ({
-    html: "<html>graph</html>",
-    isGraphLoaded: true,
-    engine: null
-  })),
+  buildWebviewHtml: vi.fn(
+    (_opts: {
+      language?: string;
+    }): {
+      html: string;
+      isGraphLoaded: boolean;
+      engine: EngineComponentStatus | null;
+    } => ({
+      html: "<html>graph</html>",
+      isGraphLoaded: true,
+      engine: null
+    })
+  ),
   buildComponentStatus: vi.fn(
     async (_deps: unknown): Promise<ComponentStatus> => ({
       git: { state: "ok", path: "git", version: "git version 2.51.0" },
@@ -352,7 +351,7 @@ describe("createWebviewPanel", () => {
   it("logs the engine state when it builds the graph document, and not for a placeholder", () => {
     const graph = createHarness();
     expect(graph.outputChannel.appendLine).toHaveBeenCalledWith(
-      "[engine] Rust engine 1.0.25 active (linux-x64-gnu)"
+      "[engine] Rust engine 1.0.25 active (linux-x64)"
     );
 
     const placeholder = createHarness({ initialIsGraphLoaded: false });

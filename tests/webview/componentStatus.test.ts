@@ -13,7 +13,7 @@ import {
 
 const ACTIVE: ComponentStatus = {
   git: { state: "ok", path: "git", version: "git version 2.51.0" },
-  engine: { state: "active", version: "1.0.25", platform: "linux-x64-gnu" },
+  engine: { state: "active", version: "1.0.25", platform: "linux-x64" },
   graphLoad: "engine"
 };
 
@@ -22,7 +22,7 @@ const UNAVAILABLE: ComponentStatus = {
   engine: {
     state: "unavailable",
     reason: "loadFailed",
-    platform: "linux-x64-gnu",
+    platform: "linux-x64",
     detail: "libc.so.6: cannot open shared object file"
   },
   graphLoad: "unavailable"
@@ -106,7 +106,7 @@ describe("status indicator popup", () => {
     expect(popup()?.querySelector(".componentStatusTitle")?.textContent).toBe("Components");
     expect(rowTexts()).toEqual([
       ["Git CLI", "git version 2.51.0"],
-      ["Rust engine", "Active, version 1.0.25 (linux-x64-gnu)"],
+      ["Rust engine", "Active, version 1.0.25 (linux-x64)"],
       ["Last graph load", "Rust engine"]
     ]);
     expect(popup()?.querySelector(".componentStatusNote")).toBeNull();
@@ -120,7 +120,7 @@ describe("status indicator popup", () => {
       ["Git CLI", "git version 2.51.0"],
       [
         "Rust engine",
-        "Unavailable: the binary could not be loaded (linux-x64-gnu)",
+        "Unavailable: the binary could not be loaded (linux-x64)",
         "libc.so.6: cannot open shared object file"
       ],
       ["Last graph load", "Git CLI (Rust engine unavailable)"]

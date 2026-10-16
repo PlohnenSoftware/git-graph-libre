@@ -73,8 +73,9 @@ it: `vsce package` on its own still produces a working extension that runs
 entirely on the `git` CLI.
 
 `pnpm run build:all` builds the engine for **every** supported platform rather
-than just yours — Windows, macOS and Linux on x64 and arm64, including musl
-systems such as Alpine — which is what the published package contains. It
+than just yours — Windows, macOS and Linux on x64 and arm64, with one Linux
+build per architecture that runs on glibc and musl systems (such as Alpine)
+alike — which is what the published package contains. It
 cross-compiles all of them from whichever machine you run it on, so releasing
 never depends on a particular CI service. The installed copy removes the
 binaries for other platforms the first time it runs, so keeping every

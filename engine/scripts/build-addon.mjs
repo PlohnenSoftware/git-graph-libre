@@ -43,16 +43,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TARGET_DIRECTORIES = {
 	'x86_64-pc-windows-msvc': 'win32-x64-msvc',
 	'aarch64-pc-windows-msvc': 'win32-arm64-msvc',
-	'x86_64-unknown-linux-gnu': 'linux-x64-gnu',
-	'aarch64-unknown-linux-gnu': 'linux-arm64-gnu',
+	// One Linux binary per architecture, for glibc and musl (Alpine) alike: the glibc
+	// build is made loadable by musl too (see makeLoadableByMusl). There are no musl
+	// targets: a musl build cannot load on glibc, so it would only duplicate this one.
+	'x86_64-unknown-linux-gnu': 'linux-x64',
+	'aarch64-unknown-linux-gnu': 'linux-arm64',
 	'x86_64-apple-darwin': 'darwin-x64',
-	'aarch64-apple-darwin': 'darwin-arm64',
-	// Alpine and other musl systems: `process.platform` is `linux` there too, so the
-	// extension cannot tell them apart by platform alone and the loader detects the C
-	// library instead, trying the musl build first. The gnu build also loads on musl
-	// (see makeLoadableByMusl), so it is the fallback there rather than a sure failure.
-	'x86_64-unknown-linux-musl': 'linux-x64-musl',
-	'aarch64-unknown-linux-musl': 'linux-arm64-musl'
+	'aarch64-apple-darwin': 'darwin-arm64'
 };
 
 function parseArguments(argv) {
@@ -370,8 +367,9 @@ function place(artifact, target, directory, options) {
  *   import; if it is, that module did not link and the build stops here rather than shipping a
  *   binary musl refuses — or, worse, one that crashes the first time gix runs a filter driver.
  *
- * The musl builds still ship and are still tried first on musl. See "Experiment: one Linux binary
- * for both C libraries" in docs/AI_DEV_KNOWLEDGE_BASE.md for the measurements.
+ * This is what lets one Linux binary per architecture serve glibc and musl alike, so there are
+ * no musl targets. See "Experiment: one Linux binary for both C libraries" in
+ * docs/AI_DEV_KNOWLEDGE_BASE.md for the measurements.
  */
 function makeLoadableByMusl(artifact) {
 	const bytes = fs.readFileSync(artifact);

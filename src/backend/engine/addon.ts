@@ -126,38 +126,19 @@ export type EngineAddon = {
 };
 
 /**
- * Whether this Node runs against musl rather than glibc — Alpine, in
- * practice.
- *
- * `process.platform` is `"linux"` on Alpine exactly as it is on Debian, so
- * the platform map alone cannot tell the two apart. `glibcVersionRuntime` is
- * present in the process report only when glibc is the C library, which is
- * the check `detect-libc` makes and the only one available without spawning
- * anything. A report that cannot be read at all is treated as glibc, because
- * that is the overwhelmingly more common case and the candidate order below
- * recovers from a wrong guess anyway.
+ * Each platform's binary directory, by `platform:arch`. Linux has one per
+ * architecture for both C libraries: the glibc build is made loadable by
+ * musl too when it is built (`makeLoadableByMusl` in
+ * `engine/scripts/build-addon.mjs`), so Debian and Alpine load the same
+ * file and the loader never needs to know which C library it is on.
  */
-export function isMuslRuntime(): boolean {
-  try {
-    const header = process.report?.getReport() as { header?: { glibcVersionRuntime?: string } };
-    return header?.header?.glibcVersionRuntime === undefined;
-  } catch {
-    return false;
-  }
-}
-
-/** Platforms whose binary is decided by `platform:arch` alone. */
-const FIXED_PLATFORM_DIRECTORIES: Record<string, string | undefined> = {
+const PLATFORM_DIRECTORIES: Record<string, string | undefined> = {
   "win32:x64": "win32-x64-msvc",
   "win32:arm64": "win32-arm64-msvc",
   "darwin:x64": "darwin-x64",
-  "darwin:arm64": "darwin-arm64"
-};
-
-/** Linux architectures, as `[glibc, musl]` — the C library picks between them. */
-const LINUX_PLATFORM_DIRECTORIES: Record<string, readonly [string, string] | undefined> = {
-  x64: ["linux-x64-gnu", "linux-x64-musl"],
-  arm64: ["linux-arm64-gnu", "linux-arm64-musl"]
+  "darwin:arm64": "darwin-arm64",
+  "linux:x64": "linux-x64",
+  "linux:arm64": "linux-arm64"
 };
 
 /** The binary's file name inside every platform directory. */
@@ -168,39 +149,26 @@ export const ENGINE_BINARY_NAME = "git-graph.node";
  * activation prune deletes by this list and no other name, so nothing else
  * that ever lands under `engine/native` is its business.
  */
-export const ENGINE_PLATFORM_DIRECTORIES: readonly string[] = [
-  ...Object.values(FIXED_PLATFORM_DIRECTORIES).filter((dir) => dir !== undefined),
-  ...Object.values(LINUX_PLATFORM_DIRECTORIES)
-    .filter((pair) => pair !== undefined)
-    .flatMap((pair) => [...pair])
-];
+export const ENGINE_PLATFORM_DIRECTORIES: readonly string[] = Object.values(
+  PLATFORM_DIRECTORIES
+).filter((dir) => dir !== undefined);
 
 /**
- * The `engine/native` directories that may hold this platform's binary, in
- * the order to try them, or empty when there is no prebuilt target at all
- * (32-bit ARM — `linux-armhf` — is the only VS Code desktop target this
- * project does not build, and those installs run on the `git` CLI).
- *
- * Linux returns two: the C library is not visible in `process.platform`, so
- * the detected one is tried first and the other is kept as a fallback. That
- * is deliberate belt-and-braces — a wrong detection costs one failed
- * `require()` and still lands on the right binary, instead of silently
- * dropping the whole platform to the CLI.
+ * The `engine/native` directory holding this platform's binary, as a list —
+ * empty when there is no prebuilt target at all (32-bit ARM — `linux-armhf` —
+ * is the only VS Code desktop target this project does not build, and those
+ * installs run on the `git` CLI).
  *
  * Pure in its arguments so every combination is unit-testable; the loader
  * below calls it with the host's own values.
  */
-export function platformDirectoriesFor(platform: string, arch: string, musl: boolean): string[] {
-  const fixed = FIXED_PLATFORM_DIRECTORIES[`${platform}:${arch}`];
-  if (fixed !== undefined) return [fixed];
-  const linux = platform === "linux" ? LINUX_PLATFORM_DIRECTORIES[arch] : undefined;
-  if (linux === undefined) return [];
-  const [gnu, muslDirectory] = linux;
-  return musl ? [muslDirectory, gnu] : [gnu, muslDirectory];
+export function platformDirectoriesFor(platform: string, arch: string): string[] {
+  const directory = PLATFORM_DIRECTORIES[`${platform}:${arch}`];
+  return directory === undefined ? [] : [directory];
 }
 
 function platformDirectories(): string[] {
-  return platformDirectoriesFor(process.platform, process.arch, isMuslRuntime());
+  return platformDirectoriesFor(process.platform, process.arch);
 }
 
 /**
@@ -281,8 +249,9 @@ function tryLoadEngineAddon(): EngineLoad {
  * How much a refusal says about what went wrong, so the reported reason is
  * the most telling one across every candidate: a binary that loaded but was
  * refused beats one the operating system would not load, which beats no
- * file at all. Without the ranking, a Linux host whose glibc binary failed
- * to load would report the musl fallback's absence instead.
+ * file at all. Every directory has two candidate files (see
+ * `candidateAddonFiles`); without the ranking, a binary the OS refused at
+ * the packaged location would be reported as missing at the other.
  */
 const REASON_RANK: Record<EngineUnavailableReason, number> = {
   unsupportedPlatform: 0,

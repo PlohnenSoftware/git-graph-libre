@@ -1,9 +1,8 @@
 name: engine
 
-# Rust gate for `engine/` (Phase 16, slice 16.1). The extension's Biome and
-# SonarQube gates never see the engine — `sonar.sources` and Biome's
-# `includes` allowlist both miss it — so these four cargo commands are the
-# engine's own pre-commit gate. They run only when the engine changed.
+# Rust gate for `engine/` (Phase 16, slice 16.1). These cargo checks complement
+# SonarQube's Rust analysis; Biome's allowlist covers only the extension.
+# They run only when the engine changed.
 
 on:
   push:

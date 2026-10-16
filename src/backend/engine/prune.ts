@@ -2,7 +2,7 @@
  * Dropping the engine binaries this host can never load.
  *
  * The published VSIX is universal: it carries every platform's binary
- * (eight directories, roughly 50 MB installed) and the loader picks the
+ * (six directories, roughly 33 MB installed) and the loader picks the
  * host's at run time. That one-file simplicity was a deliberate maintainer
  * decision (slice 16.9), and this is its disk-space counterpart: on
  * activation the extension deletes the platform directories that are not
@@ -14,10 +14,8 @@
  *
  * The rails, each pinned by a test:
  *
- * - only names in `ENGINE_PLATFORM_DIRECTORIES` are ever deleted, and a
- *   directory the loader might still pick never is — Linux keeps both the
- *   gnu and musl builds of its architecture, because the loader's fallback
- *   between them is deliberate;
+ * - only names in `ENGINE_PLATFORM_DIRECTORIES` are ever deleted, and the
+ *   directory the loader picks for this host never is;
  * - nothing is deleted unless a kept directory actually contains the
  *   binary, so an unexpected layout (or a misdetected platform) aborts
  *   the prune instead of compounding the problem;
@@ -32,12 +30,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import {
-  ENGINE_BINARY_NAME,
-  ENGINE_PLATFORM_DIRECTORIES,
-  isMuslRuntime,
-  platformDirectoriesFor
-} from "./addon";
+import { ENGINE_BINARY_NAME, ENGINE_PLATFORM_DIRECTORIES, platformDirectoriesFor } from "./addon";
 
 export type PruneResult = {
   /** The platform directories removed, by name. */
@@ -105,6 +98,6 @@ export async function pruneUnusedEngineBinaries(
 export function pruneInstalledEngineBinaries(extensionPath: string): Promise<PruneResult> {
   return pruneUnusedEngineBinaries(
     path.join(extensionPath, "engine", "native"),
-    platformDirectoriesFor(process.platform, process.arch, isMuslRuntime())
+    platformDirectoriesFor(process.platform, process.arch)
   );
 }

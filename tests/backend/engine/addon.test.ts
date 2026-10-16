@@ -7,7 +7,6 @@ import {
   classifyLoadedAddon,
   EXPECTED_ENGINE_VERSION,
   engineLoadStatus,
-  isMuslRuntime,
   loadEngineAddon,
   platformDirectoriesFor,
   resolveEngineLoad,
@@ -62,45 +61,23 @@ describe("engine addon loader", () => {
     expect(addon.engineVersion()).toBe(EXPECTED_ENGINE_VERSION);
   });
 
-  const triples: [string, string, boolean, string[]][] = [
-    ["win32", "x64", false, ["win32-x64-msvc"]],
-    ["win32", "arm64", false, ["win32-arm64-msvc"]],
-    ["darwin", "x64", false, ["darwin-x64"]],
-    ["darwin", "arm64", false, ["darwin-arm64"]],
-    ["linux", "x64", false, ["linux-x64-gnu", "linux-x64-musl"]],
-    ["linux", "arm64", false, ["linux-arm64-gnu", "linux-arm64-musl"]],
-    // Alpine: `process.platform` is still `linux`, so only the detected C
-    // library separates these from the two rows above.
-    ["linux", "x64", true, ["linux-x64-musl", "linux-x64-gnu"]],
-    ["linux", "arm64", true, ["linux-arm64-musl", "linux-arm64-gnu"]],
+  const pairs: [string, string, string[]][] = [
+    ["win32", "x64", ["win32-x64-msvc"]],
+    ["win32", "arm64", ["win32-arm64-msvc"]],
+    ["darwin", "x64", ["darwin-x64"]],
+    ["darwin", "arm64", ["darwin-arm64"]],
+    // One directory per Linux architecture, glibc and musl (Alpine) alike:
+    // the build makes the glibc binary loadable by musl too.
+    ["linux", "x64", ["linux-x64"]],
+    ["linux", "arm64", ["linux-arm64"]],
     // 32-bit ARM is the one VS Code desktop target this project does not
     // build; everything else has no VS Code build at all.
-    ["linux", "arm", false, []],
-    ["linux", "riscv64", false, []],
-    ["freebsd", "x64", false, []]
+    ["linux", "arm", []],
+    ["linux", "riscv64", []],
+    ["freebsd", "x64", []]
   ];
-  it.each(triples)("maps %s/%s (musl=%s) to %s", (platform, arch, musl, expected) => {
-    expect(platformDirectoriesFor(platform, arch, musl)).toEqual(expected);
-  });
-
-  it("keeps the other C library as a fallback, so a wrong guess still loads", () => {
-    // The detected library is tried first, but both are always offered: a
-    // misdetection must cost one failed `require()`, not the whole platform.
-    for (const musl of [false, true]) {
-      expect(platformDirectoriesFor("linux", "x64", musl)).toHaveLength(2);
-      expect(platformDirectoriesFor("linux", "x64", musl)).toEqual(
-        expect.arrayContaining(["linux-x64-gnu", "linux-x64-musl"])
-      );
-    }
-  });
-
-  it("reports musl only when the process report carries no glibc version", () => {
-    // `glibcVersionRuntime` is present in the report on glibc and absent on
-    // musl; this is the check `detect-libc` makes, and the only one available
-    // without spawning anything.
-    const report = process.report?.getReport() as { header?: Record<string, unknown> };
-    const hasGlibc = report?.header?.glibcVersionRuntime !== undefined;
-    expect(isMuslRuntime()).toBe(!hasGlibc);
+  it.each(pairs)("maps %s/%s to %s", (platform, arch, expected) => {
+    expect(platformDirectoriesFor(platform, arch)).toEqual(expected);
   });
 
   it("accepts a module with the expected version", () => {
@@ -281,8 +258,7 @@ describe("engine addon loader", () => {
 });
 
 describe("engine load status", () => {
-  const GNU = "linux-x64-gnu";
-  const MUSL = "linux-x64-musl";
+  const LINUX = "linux-x64";
   const candidates = (directory: string) => [`/a/${directory}.node`, `/b/${directory}.node`];
 
   function notFound(): never {
@@ -301,23 +277,23 @@ describe("engine load status", () => {
   });
 
   it("reports a missing binary against the directory tried first", () => {
-    const load = resolveEngineLoad([GNU, MUSL], candidates, notFound, "linux-x64");
+    const load = resolveEngineLoad([LINUX], candidates, notFound, "linux-x64");
     expect(load.status).toEqual({
       state: "unavailable",
       reason: "missing",
-      platform: GNU,
+      platform: LINUX,
       detail: null
     });
   });
 
-  it("names a binary the OS refused over the fallback that does not exist", () => {
-    // The Alpine shape in reverse: the glibc binary is there and cannot load,
-    // the musl one is absent. The refusal is what the user needs to read.
+  it("names a binary the OS refused over a location that has none", () => {
+    // The packaged location's binary is there and cannot load; the other
+    // location has no file. The refusal is what the user needs to read.
     const load = resolveEngineLoad(
-      [GNU, MUSL],
+      [LINUX],
       candidates,
       (file) => {
-        if (file === `/a/${GNU}.node`) {
+        if (file === `/a/${LINUX}.node`) {
           throw Object.assign(new Error("libc.so.6: cannot open shared object file\nat dlopen"), {
             code: "ERR_DLOPEN_FAILED"
           });
@@ -329,41 +305,41 @@ describe("engine load status", () => {
     expect(load.status).toEqual({
       state: "unavailable",
       reason: "loadFailed",
-      platform: GNU,
+      platform: LINUX,
       detail: "libc.so.6: cannot open shared object file"
     });
   });
 
   it("names a binary from a different build, with both versions", () => {
     const stale = { ...completeAddon(), engineVersion: () => "1.0.0" };
-    const load = resolveEngineLoad([GNU], candidates, () => stale, "linux-x64");
+    const load = resolveEngineLoad([LINUX], candidates, () => stale, "linux-x64");
     expect(load.status).toEqual({
       state: "unavailable",
       reason: "versionMismatch",
-      platform: GNU,
+      platform: LINUX,
       detail: `found 1.0.0, expected ${EXPECTED_ENGINE_VERSION}`
     });
   });
 
   it("names a binary missing a function the extension calls", () => {
     const { searchCommits: _dropped, ...partial } = completeAddon();
-    const load = resolveEngineLoad([GNU], candidates, () => partial, "linux-x64");
+    const load = resolveEngineLoad([LINUX], candidates, () => partial, "linux-x64");
     expect(load.status).toMatchObject({ state: "unavailable", reason: "incompatible" });
   });
 
-  it("loads from the fallback directory and reports the target that loaded", () => {
+  it("loads from the second location and reports the target that loaded", () => {
     const addon = completeAddon();
     const load = resolveEngineLoad(
-      [GNU, MUSL],
+      [LINUX],
       candidates,
-      (file) => (file === `/b/${MUSL}.node` ? addon : notFound()),
+      (file) => (file === `/b/${LINUX}.node` ? addon : notFound()),
       "linux-x64"
     );
     expect(load.addon).toBe(addon);
     expect(load.status).toEqual({
       state: "active",
       version: EXPECTED_ENGINE_VERSION,
-      platform: MUSL
+      platform: LINUX
     });
   });
 
