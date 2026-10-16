@@ -47,12 +47,13 @@ These add no further copyright holders; all were authored by asispts:
 
 Git engine — https://github.com/neophack/vscode-git-graph-rs
 The `native/` crates of that repository, incorporated under `engine/` from its
-history spanning commits 611a8fa (2026-08-22) to f93e8b2 (2026-09-21). Its
+history spanning commits 611a8fa (2026-08-22) to f93e8b2 (2026-09-21), with
+selected fixes adapted by hand from its later commit ff4aafe (2026-09-23). Its
 webview and extension-host layers are NOT incorporated, are not MIT, and may
 not be; NOTICE.md records why:
 
   penghongxia                      2026-08-22 to 2026-09-15
-  neophack                         2026-09-04 to 2026-09-21
+  neophack                         2026-09-04 to 2026-09-23
   unusuallman                      2026-09-04 to 2026-09-12
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

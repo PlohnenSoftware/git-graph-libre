@@ -35,6 +35,25 @@ author date of each commit are unchanged**. The engine's authors are:
     neophack      <pep3309531@163.com>
     unusuallman   <84268283+unusuallman@users.noreply.github.com>
 
+### Fixes adapted after the import
+
+Upstream kept fixing the engine after `f93e8b2`. Its commit `ff4aafe`
+(neophack, 2026-09-23, "the engine and the CLI backend answer as git
+answers") bundles many separate corrections, some to code this project does
+not use, so it was not merged. The corrections that change what this
+project's reads return were adapted by hand instead. Each one landed in its
+own commit naming `ff4aafe`, with a `Co-authored-by: neophack` trailer.
+Comments that described upstream's own extension-host backend were reworded
+in terms of git, since that layer is not incorporated. The parts taken:
+
+- `log::all_tips` skips tags that name a tree or a blob, which `git log --all`
+  passes over, instead of letting them end the walk early.
+
+`native/core/tests/git_parity.rs` adapts the matching tests from the same
+commit. Everything else in `ff4aafe` was left out: single-file diff headers,
+tag details for non-commit tags, mailmap in the statistics, and the
+comparison-with-working-tree layering, none of which this project wires.
+
 ## License
 
 The engine is MIT licensed. The upstream workspace declares `license = "MIT"`,

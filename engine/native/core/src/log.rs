@@ -494,9 +494,18 @@ pub fn all_tips(repo: &Repo, include_tags: bool, include_remotes: bool) -> Resul
             .git_ctx("Could not read references")?
             .filter_map(std::result::Result::ok)
         {
-            // Tags are peeled because a tag object is not a commit and cannot be walked from.
+            // Tags are peeled because a tag object is not a commit and cannot be walked from. A tag
+            // can also name a tree or a blob (git.git and linux both carry one), which
+            // `git log --all` passes over; handed to the walk, it would end the walk early, and
+            // every caller would silently see only part of the history.
             if let Ok(id) = reference.peel_to_id() {
-                add(id.detach(), &mut tips, &mut seen);
+                let id = id.detach();
+                let is_commit = git
+                    .find_header(id)
+                    .is_ok_and(|header| header.kind() == gix::object::Kind::Commit);
+                if is_commit {
+                    add(id, &mut tips, &mut seen);
+                }
             }
         }
     }

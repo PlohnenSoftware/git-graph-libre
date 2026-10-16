@@ -125,7 +125,10 @@ MIT-licensed: that repository's workspace declares `license = "MIT"` and its
 `LICENSE` names "the Rust native engine (./native/)" among its original
 contributions, Copyright (c) 2026 penghongxia. The engine's history is
 preserved here, with its original authors and dates, from the commits spanning
-`611a8fa` (2026-08-22) to `f93e8b2` (2026-09-21).
+`611a8fa` (2026-08-22) to `f93e8b2` (2026-09-21). Selected fixes from the
+later upstream commit `ff4aafe` (2026-09-23) were adapted by hand afterwards,
+each in a commit that names it and credits its author; `engine/NOTICE.md`
+lists them.
 
 [engine/NOTICE.md](engine/NOTICE.md) carries the rest: the verbatim copyright
 line and permission notice the MIT license requires be included in all copies,
@@ -136,8 +139,9 @@ the Rust crates the engine links.
 every other change made here. The MIT notice above covers the engine *as
 incorporated* and continues to do so; it does not extend to work done on it
 afterwards. The boundary is the import recorded above — anything in the
-imported history is the MIT-licensed original, anything committed to
-`engine/` since is part of the AGPL whole. This is the same one-way rule the
+imported history, and the parts of `ff4aafe` adapted since, is the
+MIT-licensed original; anything else committed to `engine/` since is part of
+the AGPL whole. This is the same one-way rule the
 lineage section states, applied to a second incorporated work.
 
 **What was deliberately not incorporated, and may not be.** That project is
