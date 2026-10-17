@@ -59,14 +59,6 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
     // full, the way `git log --author` does.
     let searching = filtering || options.authors.is_some();
 
-    // A filtered walk cannot know in advance how deep it must go to fill a page, so it walks until
-    // the page is full (or the safety limit is hit) instead of taking a fixed window.
-    let window = if searching {
-        FILTERED_WALK_LIMIT
-    } else {
-        (options.limit * WINDOW_FACTOR).max(WINDOW_MINIMUM)
-    };
-
     let mut platform =
         git.rev_walk(tips.iter().copied())
             .sorting(gix::revision::walk::Sorting::ByCommitTime(
@@ -83,51 +75,16 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
     // ones it keeps: re-parenting a shown commit means tracing through the hidden commits
     // between it and its nearest shown ancestor, which requires their parents too.
     let mut visited_parents: Vec<(String, Vec<String>)> = Vec::new();
-    let mut visited = 0usize;
-    for info in walk {
-        let info = match info {
-            Ok(info) => info,
-            // A missing object (a shallow clone's boundary, or a corrupt pack) truncates the walk
-            // rather than failing the whole view.
-            Err(_) => break,
+    for info in walk.take(window_size(options.limit, searching)) {
+        // A missing object (a shallow clone's boundary, or a corrupt pack) truncates the walk
+        // rather than failing the whole view.
+        let Ok(info) = info else { break };
+        let Ok(commit) = git.find_commit(info.id) else {
+            continue;
         };
-        visited += 1;
-        if visited > window {
-            break;
+        if !passes_filters(&git, &commit, &shallow, options, &mut visited_parents)? {
+            continue;
         }
-
-        let commit = match git.find_commit(info.id) {
-            Ok(commit) => commit,
-            Err(_) => continue,
-        };
-
-        // The filters judge a commit on its identity alone — author, parents, the object ids below
-        // its tree — so the message and the dates of the commits about to be dropped are never
-        // decoded. On a filtered walk through a large repository that is nearly every commit it
-        // reads.
-        if filtering || options.authors.is_some() {
-            let author_ok = match &options.authors {
-                Some(authors) => commit_matches_author(&commit, authors)?,
-                None => true,
-            };
-            if filtering {
-                visited_parents.push((
-                    commit.id().detach().to_string(),
-                    shallow
-                        .parents(&commit)
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect(),
-                ));
-            }
-            if !author_ok {
-                continue;
-            }
-            if filtering && !touches_paths(&git, &commit, &shallow, &options.filter_paths)? {
-                continue;
-            }
-        }
-
         records.push(read_commit(&commit, &shallow)?);
         if searching && records.len() >= options.limit {
             break;
@@ -142,6 +99,56 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
     }
 
     Ok(order(records, options.ordering, options.limit))
+}
+
+/// How many commits a walk may read for a page of `limit`.
+///
+/// A searching walk cannot know in advance how deep it must go to fill a page, so it walks until
+/// the page is full (or the safety limit is hit) instead of taking a fixed window.
+fn window_size(limit: usize, searching: bool) -> usize {
+    if searching {
+        FILTERED_WALK_LIMIT
+    } else {
+        (limit * WINDOW_FACTOR).max(WINDOW_MINIMUM)
+    }
+}
+
+/// Does `commit` pass the walk's author and path filters? A walk without filters keeps every
+/// commit. While a path filter is active, the parents of every commit judged are recorded in
+/// `visited_parents`, kept or not, for re-parenting afterwards.
+///
+/// The filters judge a commit on its identity alone — author, parents, the object ids below its
+/// tree — so the message and the dates of the commits about to be dropped are never decoded. On a
+/// filtered walk through a large repository that is nearly every commit it reads.
+fn passes_filters(
+    git: &gix::Repository,
+    commit: &gix::Commit<'_>,
+    shallow: &Shallow,
+    options: &WalkOptions,
+    visited_parents: &mut Vec<(String, Vec<String>)>,
+) -> Result<bool> {
+    let filtering = !options.filter_paths.is_empty();
+    let author_ok = match &options.authors {
+        Some(authors) => commit_matches_author(commit, authors)?,
+        None => true,
+    };
+    if filtering {
+        visited_parents.push((
+            commit.id().detach().to_string(),
+            shallow
+                .parents(commit)
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
+        ));
+    }
+    if !author_ok {
+        return Ok(false);
+    }
+    if filtering {
+        return touches_paths(git, commit, shallow, &options.filter_paths);
+    }
+    Ok(true)
 }
 
 /// Read the fields the graph renders out of a commit object.
