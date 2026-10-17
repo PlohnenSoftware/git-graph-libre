@@ -22,6 +22,15 @@ export function operationContext(): string {
     : "request=background";
 }
 
+/**
+ * Runs `operation` outside any request. Timers and queues it starts outlive
+ * the request that happened to start them, so their work is logged as
+ * background rather than under that request's id.
+ */
+export function runDetached<T>(operation: () => T): T {
+  return requests.exit(operation);
+}
+
 export function logBackendRoute(operation: string, reason: string): void {
   output?.(`[route] ${operationContext()} operation=${operation} ${reason}`);
 }

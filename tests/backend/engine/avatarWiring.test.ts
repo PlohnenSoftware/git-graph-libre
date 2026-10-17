@@ -74,32 +74,55 @@ beforeEach(() => {
   resetEngineServedRead();
 });
 
+function makeState(): ExtensionState {
+  return {
+    getAvatarStoragePath: () => storage,
+    getAvatarCache: (): AvatarCache => ({}),
+    removeAvatarFromCache: () => {},
+    saveAvatar: () => {},
+    clearAvatarCache: () => {}
+  } as unknown as ExtensionState;
+}
+
+async function waitForRequest() {
+  const deadline = Date.now() + 10000;
+  while (net.requested.length === 0 && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
 describe("avatar backend wiring", () => {
   it("reaches the github api through the auto reader", async () => {
-    const state = {
-      getAvatarStoragePath: () => storage,
-      getAvatarCache: (): AvatarCache => ({}),
-      removeAvatarFromCache: () => {},
-      saveAvatar: () => {},
-      clearAvatarCache: () => {}
-    } as unknown as ExtensionState;
     // Live product default: the preference thunk, like the git-path thunk,
     // is read on every call rather than captured.
     const manager = new AvatarManager(
       () => "git",
-      state,
-      () => "auto"
+      makeState(),
+      () => "auto",
+      () => true
     );
 
     manager.fetchAvatarImage("someone@example.test", repo, ["deadbeef"]);
-    const deadline = Date.now() + 10000;
-    while (net.requested.length === 0 && Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
+    await waitForRequest();
 
     expect(net.requested.some((url) => url.startsWith("api.github.com/"))).toBe(true);
     // The 422 stub carries a single commit, so the manager falls through to
     // Gravatar rather than requeueing — the routing decision is what matters.
     expect(didEngineServeRead()).toBe(loadEngineAddon() !== null);
+  });
+
+  it("reads the remote through the CLI while Git has not confirmed the repository", async () => {
+    const manager = new AvatarManager(
+      () => "git",
+      makeState(),
+      () => "auto",
+      () => false
+    );
+
+    manager.fetchAvatarImage("someone@example.test", repo, ["deadbeef"]);
+    await waitForRequest();
+
+    expect(net.requested.some((url) => url.startsWith("api.github.com/"))).toBe(true);
+    expect(didEngineServeRead()).toBe(false);
   });
 });

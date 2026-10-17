@@ -179,7 +179,8 @@ export function renderComponentDetails(popup: HTMLElement, status: ComponentStat
   for (const row of componentRows(status)) list.appendChild(renderRow(row));
 
   const children: HTMLElement[] = [title, list];
-  if (status?.engine.state === "unavailable") {
+  // The fallback promise holds only while the command line itself works.
+  if (status?.engine.state === "unavailable" && status.git?.state !== "failed") {
     const note = document.createElement("p");
     note.className = "componentStatusNote";
     note.textContent = l10n.componentStatusCliFallback;
@@ -236,7 +237,8 @@ function gitRow(status: ComponentStatus): Row {
   return {
     label,
     value: l10n.componentStatusGitFailed.replace("{0}", status.git.detail),
-    tone: "error"
+    tone: "error",
+    detail: status.git.path
   };
 }
 
@@ -277,6 +279,7 @@ function engineRow(engine: EngineComponentStatus): Row {
 const CLI_ROUTES: Record<Exclude<GraphLoadRoute, "engine">, () => string> = {
   setting: () => l10n.componentStatusRouteSetting,
   forced: () => l10n.componentStatusRouteForced,
+  unverified: () => l10n.componentStatusRouteUnverified,
   unavailable: () => l10n.componentStatusRouteUnavailable,
   handedBack: () => l10n.componentStatusRouteHandedBack,
   topoOrdering: () => l10n.componentStatusRouteTopoOrdering,

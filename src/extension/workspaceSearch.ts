@@ -28,15 +28,20 @@ export function scanLogLevel(totalRepos: number): "log" | "warn" {
 export function createRepoSearch(repoManager: RepoManager, config: Config, logger?: ScanLogger) {
   let maxDepthOfRepoSearch = config.maxDepthOfRepoSearch();
 
+  // The last completed scan's answers. A scan in flight fills its own map and
+  // publishes it whole, so readers never see a half-cleared picture: a trust
+  // request or a read routed while a scan runs is judged on complete evidence.
   let diagnostics = new Map<string, RepositoryProbe>();
+  let scanning: Map<string, RepositoryProbe> | null = null;
   let inFlight: Promise<void> | null = null;
+  const probeResults = () => scanning ?? diagnostics;
 
   async function probe(directory: string): Promise<boolean> {
     const result = await inspectRepository(directory, {
       gitPath: config.gitPath(),
       useEngine: config.backend() === "auto"
     });
-    diagnostics.set(directory, result);
+    probeResults().set(directory, result);
     const detail = result.detail ? ` detail=${JSON.stringify(result.detail)}` : "";
     logger?.log(
       `[repos] probe path=${JSON.stringify(directory)} state=${result.state} repository=${result.repository} via=${result.detectedBy ?? "unknown"}${detail}`
@@ -55,7 +60,7 @@ export function createRepoSearch(repoManager: RepoManager, config: Config, logge
     );
     let changed = false;
     for (const repo of found) {
-      if (diagnostics.get(repo)?.state !== "ready") continue;
+      if (probeResults().get(repo)?.state !== "ready") continue;
       repoManager.addRepo(repo);
       changed = true;
     }
@@ -63,23 +68,14 @@ export function createRepoSearch(repoManager: RepoManager, config: Config, logge
   }
 
   async function scanWorkspace(): Promise<void> {
-    diagnostics = new Map();
-    const roots = (vscode.workspace.workspaceFolders ?? []).map((folder) =>
-      getPathFromUri(folder.uri)
-    );
-    // Every remembered repository is probed before the walk below starts, so
-    // the walk's own probe of the same path cannot race this one.
-    const known = Object.keys(repoManager.getKnownRepos());
-    await evalPromises(known, MAX_PARALLEL_PROBES, probe);
-    for (const repo of known) {
-      const state = diagnostics.get(repo)?.state;
-      if (state === "notRepository") repoManager.removeRepo(repo);
-      else if (state !== "ready") repoManager.setRepoUnavailable(repo);
-      else repoManager.addRepo(repo);
+    const results = new Map<string, RepositoryProbe>();
+    scanning = results;
+    try {
+      await discover(results);
+    } finally {
+      scanning = null;
     }
-    await evalPromises(roots, MAX_PARALLEL_PROBES, (root) =>
-      searchDirectoryForRepos(root, maxDepthOfRepoSearch)
-    );
+    diagnostics = results;
     // Always publish completion, including an empty result: a failure screen
     // needs updated evidence just as much as a graph needs a repository list.
     repoManager.sendRepos();
@@ -91,6 +87,25 @@ export function createRepoSearch(repoManager: RepoManager, config: Config, logge
     } else {
       logger?.log(message);
     }
+  }
+
+  async function discover(results: Map<string, RepositoryProbe>): Promise<void> {
+    const roots = (vscode.workspace.workspaceFolders ?? []).map((folder) =>
+      getPathFromUri(folder.uri)
+    );
+    // Every remembered repository is probed before the walk below starts, so
+    // the walk's own probe of the same path cannot race this one.
+    const known = Object.keys(repoManager.getKnownRepos());
+    await evalPromises(known, MAX_PARALLEL_PROBES, probe);
+    for (const repo of known) {
+      const state = results.get(repo)?.state;
+      if (state === "notRepository") repoManager.removeRepo(repo);
+      else if (state !== "ready") repoManager.setRepoUnavailable(repo);
+      else repoManager.addRepo(repo);
+    }
+    await evalPromises(roots, MAX_PARALLEL_PROBES, (root) =>
+      searchDirectoryForRepos(root, maxDepthOfRepoSearch)
+    );
   }
 
   function searchWorkspaceForRepos(force = false): Promise<void> {
@@ -117,6 +132,24 @@ export function createRepoSearch(repoManager: RepoManager, config: Config, logge
               result.repository !== false)
         )
       };
+    },
+    /**
+     * Whether Git itself last answered that it can read this repository. The
+     * Rust engine opens a repository Git rejects for ownership (with reduced
+     * trust rather than an error), so only a confirmed one may be read through
+     * it; anything else goes to the CLI, which reports the rejection.
+     */
+    isVerified(repo: string): boolean {
+      // A scan still running may already have seen Git refuse it; that
+      // answer counts at once, even before the scan publishes the rest.
+      const pending = scanning?.get(repo);
+      if (pending !== undefined && pending.state !== "ready") return false;
+      return diagnostics.get(repo)?.state === "ready";
+    },
+    /** A read just saw Git reject this repository: stop trusting the last answer. */
+    forgetVerification(repo: string): void {
+      diagnostics.delete(repo);
+      scanning?.delete(repo);
     },
     searchDirectoryForRepos,
     searchWorkspaceForRepos,

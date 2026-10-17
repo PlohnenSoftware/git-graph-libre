@@ -1,17 +1,21 @@
 import * as fs from "node:fs";
 import { git, makeRepo } from "@tests/backend/helpers";
+import { simpleGit } from "simple-git";
 import { afterEach, describe, expect, it } from "vitest";
 import { type EngineAddon, loadEngineAddon, withEngineLogging } from "@/backend/engine/addon";
 import { createRepoReader } from "@/backend/engine/index";
+import { formatGitCommandRecord } from "@/backend/utils/gitCommandLog";
 import {
   logBackendRoute,
   operationContext,
+  runDetached,
   setOperationLog,
   traceBackend,
   traceRequest
 } from "@/backend/utils/operationLog";
 import { inspectRepository } from "@/backend/utils/repositoryProbe";
 import { probeGit } from "@/extension/componentStatus";
+import { webviewBridgeFactory } from "@/extension/webviewBridge";
 
 let log: ReturnType<typeof setOperationLog> | undefined;
 afterEach(() => log?.dispose());
@@ -100,44 +104,161 @@ describe("operation logging", () => {
     expect(lines.join("\n")).not.toContain("secret");
   });
 
-  it.each(["engine", "setting", "missing", "declined", "failed"] as const)(
+  // The reader is built inside the request, as the bridge does it, so every
+  // line it writes — routing included — carries that request's id.
+  const ROUTE_LINES = {
+    engine: null,
+    setting: "operation=reader backend=cli reason=setting",
+    unverified: "operation=reader backend=cli reason=unverified",
+    missing: "operation=fallback backend=cli reason=engineUnavailable",
+    declined: "operation=remoteUrl backend=cli reason=engineDeclined kind=Unsupported",
+    failed: "operation=remoteUrl result=failed reason=engineFailed"
+  } as const;
+
+  it.each(Object.keys(ROUTE_LINES) as (keyof typeof ROUTE_LINES)[])(
     "records the actual calls and routing for %s reads",
     async (route) => {
       const repo = makeRepo();
       try {
         git(["remote", "add", "origin", "https://user:secret@example.test/repo"], repo);
         const lines = capture();
+        let engineCalls = 0;
         const addon = {
           async remoteUrl() {
+            engineCalls += 1;
             if (route === "declined") throw new Error("Unsupported: test");
             if (route === "failed") throw new Error("corrupt repo");
             return "https://example.test/native";
           }
         } as unknown as EngineAddon;
-        const reader = createRepoReader({
-          preference: route === "setting" ? "git-cli" : "auto",
-          gitPath: "git",
-          addonProvider: () => (route === "missing" ? null : addon)
-        });
-        await traceRequest("getRemoteUrl", null, () => reader.getRemoteUrl(repo));
+        await traceRequest("getRemoteUrl", 7, () =>
+          createRepoReader({
+            preference: route === "setting" ? "git-cli" : "auto",
+            gitPath: "git",
+            addonProvider: () => (route === "missing" ? null : addon),
+            unverified: route === "unverified"
+          }).getRemoteUrl(repo)
+        );
         const calls = lines.filter(
           (line) => line.startsWith("[backend:") && line.endsWith(" started")
         );
+        const viaCli = ["setting", "unverified", "missing"].includes(route);
         expect(calls.map((line) => line.split("]", 1)[0])).toEqual(
           route === "declined"
             ? ["[backend:engine", "[backend:cli"]
-            : [route === "setting" || route === "missing" ? "[backend:cli" : "[backend:engine"]
+            : [viaCli ? "[backend:cli" : "[backend:engine"]
         );
-        if (["setting", "missing", "declined"].includes(route)) {
-          expect(lines.some((line) => line.startsWith("[route]"))).toBe(true);
+        if (viaCli) expect(engineCalls).toBe(0);
+        const routes = lines.filter((line) => line.startsWith("[route]"));
+        const expected = ROUTE_LINES[route];
+        if (expected === null) {
+          expect(routes).toEqual([]);
+        } else {
+          expect(routes).toEqual([
+            expect.stringMatching(
+              new RegExp(
+                `^\\[route\\] request=\\d+ command=getRemoteUrl clientRequest=7 ${expected}$`
+              )
+            )
+          ]);
         }
-        if (route === "failed") expect(lines.some((line) => line.includes(" failed "))).toBe(true);
         expect(lines.join("\n")).not.toContain("secret");
       } finally {
         fs.rmSync(repo, { recursive: true, force: true });
       }
     }
   );
+
+  it("fails a read the engine answers with a payload it cannot read, and says why", async () => {
+    const repo = makeRepo();
+    try {
+      const lines = capture();
+      const addon = { loadRepoInfo: async () => "not json" } as unknown as EngineAddon;
+      const result = await createRepoReader({
+        preference: "auto",
+        gitPath: "git",
+        addonProvider: () => addon
+      }).loadRepoInfo({ repoPath: repo, showStashes: false, git: simpleGit(repo) });
+      expect(result.error).not.toBeNull();
+      expect(lines).toContainEqual(
+        expect.stringContaining("operation=loadRepoInfo result=failed reason=malformedPayload")
+      );
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps overlapping webview requests apart from the bridge down", async () => {
+    const lines = capture();
+    let deliver: ((msg: unknown) => Promise<void>) | undefined;
+    const webview = {
+      onDidReceiveMessage: (listener: (msg: unknown) => Promise<void>) => {
+        deliver = listener;
+      },
+      postMessage: async () => true
+    };
+    const bridge = webviewBridgeFactory(webview as never, { mute() {}, unmute() {} } as never);
+    const gates: Record<string, () => void> = {};
+    for (const command of ["loadCommits", "loadRepoInfo"] as const) {
+      bridge.onMessage(command, async () => {
+        await new Promise<void>((resolve) => {
+          gates[command] = resolve;
+        });
+        await traceBackend("cli", command, "/repo", async () => "");
+      });
+    }
+
+    const first = deliver?.({ command: "loadCommits", requestId: 11 });
+    const second = deliver?.({ command: "loadRepoInfo", requestId: 22 });
+    // Released in the opposite order to arrival, so only the async context —
+    // not the order of events — can tell the two apart.
+    gates.loadRepoInfo?.();
+    gates.loadCommits?.();
+    await Promise.all([first, second]);
+
+    const ids = (command: string) =>
+      new Set(
+        lines
+          .filter((line) => line.includes(`command=${command} `))
+          .map((line) => /request=(\d+)/.exec(line)?.[1])
+      );
+    expect(ids("loadCommits").size).toBe(1);
+    expect(ids("loadRepoInfo").size).toBe(1);
+    expect([...ids("loadCommits")][0]).not.toBe([...ids("loadRepoInfo")][0]);
+    expect(lines).toContainEqual(
+      expect.stringMatching(/^\[backend:cli\] request=\d+ command=loadCommits clientRequest=11 /)
+    );
+    expect(lines).toContainEqual(
+      expect.stringMatching(/^\[backend:cli\] request=\d+ command=loadRepoInfo clientRequest=22 /)
+    );
+  });
+
+  it("logs work a request merely started, such as a timer, as background", async () => {
+    const seen = await traceRequest(
+      "fetchAvatar",
+      null,
+      () =>
+        new Promise<string>((resolve) => {
+          runDetached(() => setTimeout(() => resolve(operationContext()), 0));
+        })
+    );
+    expect(seen).toBe("request=background");
+  });
+
+  it("stamps Git command records with the request that ran them", async () => {
+    const line = await traceRequest("loadBranches", 5, async () =>
+      formatGitCommandRecord({
+        label: "loadBranches",
+        kind: "query",
+        repo: "/repo",
+        args: ["branch"],
+        durationMs: 1,
+        success: true,
+        error: null
+      })
+    );
+    expect(line).toMatch(/ request=\d+ command=loadBranches clientRequest=5 repo=/);
+  });
 
   it.skipIf(!loadEngineAddon()?.repoRoot)("traces real native discovery only once", async () => {
     const repo = makeRepo();

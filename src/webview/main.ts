@@ -662,7 +662,9 @@ class GitGraphView {
       return;
     }
     if (!isRepo) {
-      this.renderShowError(l10n.unableToLoadGitGraph, l10n.noGitRepository);
+      // No guess at why: the error screen asks the host to rediscover, and the
+      // startup screen then shows what Git and the engine actually observed.
+      this.renderShowError(l10n.unableToLoadGitGraph, null);
       this.triggerLoadBranchesCallback(false, isRepo);
       return;
     }

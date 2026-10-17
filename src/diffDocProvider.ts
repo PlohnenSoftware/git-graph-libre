@@ -3,16 +3,22 @@ import * as vscode from "vscode";
 import { loadEngineAddon, type EngineAddon } from "./backend/engine/addon";
 import { parseEngineCommitFile } from "./backend/engine/details";
 import type { GitInstance } from "./backend/gitClient";
+import { runGitCommand } from "./backend/utils/gitRunner";
+import { logBackendRoute } from "./backend/utils/operationLog";
 import { getPathFromStr } from "./backend/utils/path";
 import type { EngineBackend } from "./types";
 
 /** The slice of the engine addon file content reads need. */
 export type FileContentAddon = Pick<EngineAddon, "loadCommitFile">;
 
+type DiffDocRequest = { repo: string; commit: string; filePath: string };
+
 export type DiffDocProviderDeps = {
   /** Read live on every load, so flipping the backend needs no reload. */
   backend?: () => EngineBackend;
   addonProvider?: () => FileContentAddon | null;
+  /** Whether Git confirmed it accepts the repository; see `RepoSearch.isVerified`. */
+  isVerified?: (repo: string) => boolean;
 };
 
 export class DiffDocProvider implements vscode.TextDocumentContentProvider {
@@ -20,6 +26,7 @@ export class DiffDocProvider implements vscode.TextDocumentContentProvider {
   private readonly gitClient: GitInstance;
   private readonly backend: () => EngineBackend;
   private readonly addonProvider: () => FileContentAddon | null;
+  private readonly isVerified: (repo: string) => boolean;
   private readonly onDidChangeEventEmitter = new vscode.EventEmitter<vscode.Uri>();
   private readonly docs = new Map<string, DiffDocument>();
   private readonly subscriptions: vscode.Disposable;
@@ -28,6 +35,7 @@ export class DiffDocProvider implements vscode.TextDocumentContentProvider {
     this.gitClient = gitClient;
     this.backend = deps.backend ?? (() => "git-cli");
     this.addonProvider = deps.addonProvider ?? (() => loadEngineAddon());
+    this.isVerified = deps.isVerified ?? (() => false);
     this.subscriptions = vscode.workspace.onDidCloseTextDocument((doc) =>
       this.docs.delete(doc.uri.toString())
     );
@@ -48,23 +56,24 @@ export class DiffDocProvider implements vscode.TextDocumentContentProvider {
     const document = this.docs.get(key);
     if (document) return document.value;
 
-    const request = decodeDiffDocUri(uri);
-    return this.readFromEngine(request).then((engineText) => {
-      if (engineText !== null) {
-        const doc = new DiffDocument(engineText);
-        this.docs.set(key, doc);
-        return doc.value;
-      }
-      return this.gitClient()
-        .cwd(request.repo)
-        .show([`${request.commit}:${request.filePath}`])
-        .catch(() => "")
-        .then((data) => {
-          const doc = new DiffDocument(data);
-          this.docs.set(key, doc);
-          return doc.value;
-        });
-    });
+    return this.loadDocument(key, decodeDiffDocUri(uri));
+  }
+
+  private async loadDocument(key: string, request: DiffDocRequest): Promise<string> {
+    const text = (await this.readFromEngine(request)) ?? (await this.readFromCli(request));
+    const doc = new DiffDocument(text);
+    this.docs.set(key, doc);
+    return doc.value;
+  }
+
+  /** The file through `git show`; an unreadable revision is an empty document. */
+  private readFromCli(request: DiffDocRequest): Promise<string> {
+    const object = `${request.commit}:${request.filePath}`;
+    return runGitCommand(() => this.gitClient().cwd(request.repo).show([object]), {
+      label: "diffDoc.show",
+      repo: request.repo,
+      args: ["show", object]
+    }).catch(() => "");
   }
 
   /**
@@ -73,22 +82,24 @@ export class DiffDocProvider implements vscode.TextDocumentContentProvider {
    * malformed payload, or the binary marker (the CLI's byte-identical
    * binary presentation, not an empty document).
    */
-  private async readFromEngine(request: {
-    repo: string;
-    commit: string;
-    filePath: string;
-  }): Promise<string | null> {
-    if (this.backend() !== "auto") return null;
+  private async readFromEngine(request: DiffDocRequest): Promise<string | null> {
+    const viaCli = (reason: string) => {
+      logBackendRoute("loadCommitFile", `backend=cli reason=${reason}`);
+      return null;
+    };
+    if (this.backend() !== "auto") return viaCli("setting");
+    if (!this.isVerified(request.repo)) return viaCli("unverified");
     const addon = this.addonProvider();
-    if (addon === null) return null;
+    if (addon === null) return viaCli("engineUnavailable");
     try {
       const file = parseEngineCommitFile(
         await addon.loadCommitFile(request.repo, request.commit, request.filePath)
       );
-      if (file === null || file.binary || file.contents === null) return null;
+      if (file === null) return viaCli("malformedPayload");
+      if (file.binary || file.contents === null) return viaCli("binaryFile");
       return file.contents;
     } catch {
-      return null;
+      return viaCli("engineThrew");
     }
   }
 }
@@ -106,15 +117,8 @@ class DiffDocument {
 }
 
 export function encodeDiffDocUri(repo: string, path: string, commit: string): vscode.Uri {
-  return vscode.Uri.parse(
-    DiffDocProvider.scheme +
-      ":" +
-      getPathFromStr(path) +
-      "?commit=" +
-      encodeURIComponent(commit) +
-      "&repo=" +
-      encodeURIComponent(repo)
-  );
+  const query = `commit=${encodeURIComponent(commit)}&repo=${encodeURIComponent(repo)}`;
+  return vscode.Uri.parse(`${DiffDocProvider.scheme}:${getPathFromStr(path)}?${query}`);
 }
 
 export function decodeDiffDocUri(uri: vscode.Uri) {

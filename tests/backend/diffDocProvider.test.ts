@@ -168,9 +168,11 @@ describe("diff document provider on the engine backend", () => {
     };
   }
 
+  // Verified unless a case says otherwise: the engine paths below are only
+  // reachable for a repository Git has confirmed.
   async function readWith(git: ReturnType<typeof makeGitClient>, deps: DiffDocProviderDeps = {}) {
     const { DiffDocProvider, encodeDiffDocUri } = await import("@/diffDocProvider");
-    const provider = new DiffDocProvider(git.client, deps);
+    const provider = new DiffDocProvider(git.client, { isVerified: () => true, ...deps });
     return {
       content: await provider.provideTextDocumentContent(
         encodeDiffDocUri("/repo", "f.ts", "abc123") as never
@@ -198,7 +200,8 @@ describe("diff document provider on the engine backend", () => {
     const { DiffDocProvider, encodeDiffDocUri } = await import("@/diffDocProvider");
     const provider = new DiffDocProvider(git.client, {
       backend: () => "auto",
-      addonProvider: addon.provider
+      addonProvider: addon.provider,
+      isVerified: () => true
     });
     const uri = encodeDiffDocUri("/repo", "f.ts", "abc123") as never;
 
@@ -208,6 +211,31 @@ describe("diff document provider on the engine backend", () => {
     expect(second).toBe("engine text");
     expect(addon.loadCommitFile).toHaveBeenCalledTimes(1);
     expect(git.show).not.toHaveBeenCalled();
+  });
+
+  it("reads a repository Git has not confirmed through the CLI, and says why", async () => {
+    const { setOperationLog } = await import("@/backend/utils/operationLog");
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    const git = makeGitClient("cli text");
+    const addon = fileAddon(JSON.stringify({ contents: "engine text", binary: false }));
+    const load = vi.fn(addon.provider);
+    try {
+      const { content } = await readWith(git, {
+        backend: () => "auto",
+        addonProvider: load,
+        isVerified: (repo) => repo !== "/repo"
+      });
+
+      expect(content).toBe("cli text");
+      expect(load).not.toHaveBeenCalled();
+      expect(lines).toContainEqual(
+        expect.stringContaining("operation=loadCommitFile backend=cli reason=unverified")
+      );
+      expect(lines).toContainEqual(expect.stringContaining("operation=diffDoc.show"));
+    } finally {
+      log.dispose();
+    }
   });
 
   it("never loads the addon on the git-cli preference", async () => {

@@ -12,6 +12,7 @@ import { createCommandManager } from "./extension/commandManager";
 import { explicitExtensionSettings } from "./extension/extensionSettings";
 import { registerMessageHandlers } from "./extension/messageHandler";
 import { createRepoManager } from "./extension/repoManager";
+import { createGitTrustCommand } from "./extension/repositoryRecovery";
 import { createLogger } from "./extension/utils/logger";
 import { type WebviewBridge, webviewBridgeFactory } from "./extension/webviewBridge";
 import { createWebviewPanel, type WebviewPanel } from "./extension/webviewPanel";
@@ -45,7 +46,9 @@ export function activate(context: vscode.ExtensionContext) {
     });
   }
   const extensionState = new ExtensionState(context);
-  const avatarManager = new AvatarManager(config.gitPath, extensionState, config.backend);
+  const avatarManager = new AvatarManager(config.gitPath, extensionState, config.backend, (repo) =>
+    repoSearch.isVerified(repo)
+  );
   const statusBarItem = new StatusBarItem(context, config, logger);
   // Usage telemetry. Gated twice: by VS Code's global telemetry setting,
   // which always wins, and by git-graph-libre.telemetry.enabled. With no
@@ -145,6 +148,7 @@ export function activate(context: vscode.ExtensionContext) {
     avatarManager,
     openGraphView,
     getCurrentPanel: () => currentPanel,
+    trustRepository: createGitTrustCommand({ config, repoSearch, outputChannel: logger }),
     telemetry
   });
 
@@ -178,8 +182,15 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     logger.channel,
+    // Registered even when restoring is off: without a serializer, a tab VS
+    // Code had already saved would come back blank and never be filled.
     vscode.window.registerWebviewPanelSerializer("git-graph-libre", {
       async deserializeWebviewPanel(panel) {
+        if (!config.restoreTabOnStartup()) {
+          logger.log("[panel] restore skipped (restoreTabOnStartup=false)");
+          panel.dispose();
+          return;
+        }
         openGraphView(undefined, panel);
         await repoSearch.searchWorkspaceForRepos();
       }
@@ -191,7 +202,10 @@ export function activate(context: vscode.ExtensionContext) {
     ...commandManager.registerAll(),
     vscode.workspace.registerTextDocumentContentProvider(
       DiffDocProvider.scheme,
-      new DiffDocProvider(gitClient.getInstance, { backend: config.backend })
+      new DiffDocProvider(gitClient.getInstance, {
+        backend: config.backend,
+        isVerified: (repo) => repoSearch.isVerified(repo)
+      })
     ),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("git-graph-libre.showStatusBarItem")) {

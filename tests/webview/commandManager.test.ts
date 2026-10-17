@@ -138,6 +138,7 @@ describe("command manager", () => {
       "git-graph-libre.removeRepo",
       "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
+      "git-graph-libre.trustRepository",
       "git-graph-libre.view",
       "git-graph-libre.viewActiveEditorRepo"
     ]);
@@ -152,6 +153,7 @@ describe("command manager", () => {
       "git-graph-libre.removeRepo",
       "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
+      "git-graph-libre.trustRepository",
       "git-graph-libre.view",
       "git-graph-libre.viewActiveEditorRepo"
     ]);

@@ -35,10 +35,15 @@
 - **Startup diagnostics and recovery**: See Git availability, repository
   discovery, and Rust engine status when the graph cannot open. If Git rejects
   a repository's ownership, confirm **Trust this repository in Git** to add
-  that exact directory to Git's global `safe.directory` list. This is separate
-  from VS Code Workspace Trust. The open tab checks again automatically after
-  trust or Git settings change. When no repository is found, adjust the search
-  depth directly on the screen; the setting is saved for the workspace.
+  that exact directory, spelled as Git reports it, to Git's global
+  `safe.directory` list; in a workspace where another repository did open,
+  run **Git Graph Libre: Trust Repository in Git…** instead. This is separate
+  from VS Code Workspace Trust, which the extension needs as well. The open
+  tab checks again automatically after trust or Git settings change, and the
+  Rust engine never reads a repository Git has not accepted. When no
+  repository is found, adjust the search depth directly on the screen; the
+  setting is saved for the workspace. An open graph tab comes back when VS
+  Code restores its window (`restoreTabOnStartup`).
 - **Devcontainer ready**: Works in remote and container environments
 - **Internationalization**: English, Dutch, Polish, zh-CN, and zh-TW
 
@@ -115,6 +120,7 @@ All settings use the `git-graph-libre` prefix.
 | `uncommittedChanges.fileViewMode`              | `"tree"`        | Staging panel shows changes as a `"tree"` or flat `"list"` |
 | `showCurrentBranchByDefault`                   | `false`         | Show only current branch on open                 |
 | `showStatusBarItem`                            | `true`          | Show status bar button                           |
+| `restoreTabOnStartup`                          | `true`          | Reopen the graph tab when a window is restored   |
 | `showUncommittedChanges`                       | `true`          | Show uncommitted changes node                    |
 | `telemetry.enabled`                            | `"unset"`       | `unset` / `enabled` / `disabled` — see below     |
 | `tabIconColorTheme`                            | `"color"`       | `"color"` or `"grey"`                            |

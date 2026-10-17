@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 type PackageManifest = {
   activationEvents: string[];
+  capabilities?: { untrustedWorkspaces?: { supported: boolean | "limited" } };
   contributes: {
     commands: Array<{ command: string }>;
     configuration: {
@@ -33,6 +34,15 @@ function readManifest(): PackageManifest {
 }
 
 describe("extension manifest", () => {
+  // VS Code's Workspace Trust and Git's repository ownership trust are two
+  // different gates. The extension runs Git in the workspace, so it stays off
+  // in Restricted Mode, and inside a trusted workspace Git's own ownership
+  // check still applies — which is what the startup screen's trust action is
+  // for. Declared rather than left to the default so the two cannot blur.
+  it("declares that it does not run in untrusted workspaces", () => {
+    expect(readManifest().capabilities?.untrustedWorkspaces).toEqual({ supported: false });
+  });
+
   it("activates at startup as well as in Git workspaces", () => {
     const manifest = readManifest();
     const commands = manifest.contributes.commands.map((command) => command.command);
@@ -137,6 +147,8 @@ describe("extension manifest", () => {
   //    flipping either changes what those dialogs do out of the box.
   //  - dialog.createBranch.checkout: on, so the create-branch dialog checks
   //    out the new branch unless the user opts out.
+  //  - restoreTabOnStartup: on, so a graph tab comes back with its window
+  //    like every other editor tab unless the user opts out.
   it.each([
     ["git-graph-libre.columns.signature", false],
     ["git-graph-libre.repository.muteMergeCommits", false],
@@ -144,7 +156,8 @@ describe("extension manifest", () => {
     ["git-graph-libre.repository.fetchTagsByDefault", true],
     ["git-graph-libre.dialog.merge.noFastForward", true],
     ["git-graph-libre.dialog.pullBranch.noFastForward", false],
-    ["git-graph-libre.dialog.createBranch.checkout", true]
+    ["git-graph-libre.dialog.createBranch.checkout", true],
+    ["git-graph-libre.restoreTabOnStartup", true]
   ])("contributes %s as a boolean defaulting to %s", (key, expectedDefault) => {
     const manifest = readManifest();
     const setting = manifest.contributes.configuration.properties[key];

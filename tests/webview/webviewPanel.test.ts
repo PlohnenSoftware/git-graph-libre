@@ -313,6 +313,78 @@ describe("createWebviewPanel", () => {
     );
   });
 
+  it("counts a failure screen again only after the graph actually recovered", () => {
+    const harness = createHarness({
+      initialIsGraphLoaded: false,
+      initialRepos: {},
+      repoSearch: true
+    });
+    const failures = () =>
+      harness.telemetryEvents.filter((event) => event.feature.startsWith("view.failure."));
+    const show = (screen: string) =>
+      harness.send("failureScreenShown", { command: "failureScreenShown", screen });
+
+    show("repositoryError");
+    show("repositoryError");
+    expect(failures()).toHaveLength(1);
+
+    // Recovered: the startup screen gave way to the graph...
+    harness.emitRepos({ "/repo": { columnWidths: null } });
+    // ...and then lost it again, so the same failure is a new appearance.
+    mocks.buildWebviewHtml.mockImplementationOnce(() => ({
+      html: "<html>placeholder</html>",
+      isGraphLoaded: false,
+      engine: null
+    }));
+    harness.emitRepos({});
+    show("repositoryError");
+    expect(failures()).toHaveLength(2);
+  });
+
+  it("does not count a failure again when the graph is only rebuilt in place", () => {
+    const harness = createHarness({ repoSearch: true });
+    const failures = () =>
+      harness.telemetryEvents.filter((event) => event.feature.startsWith("view.failure."));
+    const show = () =>
+      harness.send("failureScreenShown", {
+        command: "failureScreenShown",
+        screen: "graphLoadError"
+      });
+
+    show();
+    harness.send("setTemporaryLanguage", { command: "setTemporaryLanguage", language: "pl" });
+    // The rebuilt document reports the error it still shows.
+    show();
+    expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(2);
+    expect(failures()).toEqual([{ feature: "view.failure.graphLoadError", ok: false }]);
+  });
+
+  it("stops rechecking repositories once the panel is disposed", () => {
+    vi.useFakeTimers();
+    try {
+      const harness = createHarness({ repoSearch: true });
+      harness.repoSearch?.getDiagnostics.mockReturnValue({
+        roots: ["/workspace"],
+        repositories: [
+          {
+            path: "/workspace",
+            state: "untrusted",
+            repository: true,
+            detectedBy: "git",
+            detail: null
+          }
+        ]
+      } as never);
+      vi.advanceTimersByTime(5000);
+      expect(harness.repoSearch?.searchWorkspaceForRepos).toHaveBeenCalledTimes(1);
+      harness.disposeHandler()?.();
+      vi.advanceTimersByTime(20000);
+      expect(harness.repoSearch?.searchWorkspaceForRepos).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("disposes the panel and its collaborators", () => {
     const harness = createHarness();
     const disposeHandler = harness.disposeHandler();

@@ -130,6 +130,22 @@ describe("status indicator popup", () => {
     );
   });
 
+  it("promises no fallback when the Git CLI itself is not working", () => {
+    applyComponentStatus({
+      ...UNAVAILABLE,
+      git: { state: "failed", path: "/opt/git/bin/git", detail: "spawn /opt/git/bin/git EACCES" }
+    });
+    summary().dispatchEvent(new FocusEvent("focus"));
+
+    expect(popup()?.querySelector(".componentStatusNote")).toBeNull();
+    // The configured path is named even when the error text does not say it.
+    expect(rowTexts()[0]).toEqual([
+      "Git CLI",
+      "Not working: spawn /opt/git/bin/git EACCES",
+      "/opt/git/bin/git"
+    ]);
+  });
+
   it("recolors the indicator from every answer, open or not", () => {
     applyComponentStatus(UNAVAILABLE);
     expect(document.getElementById("statusStrip")?.dataset.engine).toBe("unavailable");
@@ -181,7 +197,7 @@ describe("status indicator popup", () => {
     summary().dispatchEvent(new FocusEvent("focus"));
 
     expect(popup()?.querySelector("img")).toBeNull();
-    expect(rowTexts()[0]).toEqual(["Git CLI", "Not working: <img src=x onerror=alert(1)>"]);
+    expect(rowTexts()[0]).toEqual(["Git CLI", "Not working: <img src=x onerror=alert(1)>", "git"]);
   });
 });
 
@@ -194,6 +210,7 @@ describe("componentRows", () => {
   it.each([
     ["setting", "Git CLI (backend setting is git-cli)"],
     ["forced", "Git CLI (reloaded once from the Hidden menu)"],
+    ["unverified", "Git CLI (Git has not confirmed this repository yet)"],
     ["handedBack", "Git CLI (handed back by the Rust engine)"],
     ["topoOrdering", "Git CLI (topological order is selected)"],
     ["reflog", "Git CLI (reflog commits are included)"],
@@ -217,7 +234,8 @@ describe("componentRows", () => {
     expect(broken[0]).toEqual({
       label: "Git CLI",
       value: "Not working: spawn git ENOENT",
-      tone: "error"
+      tone: "error",
+      detail: "git"
     });
   });
 

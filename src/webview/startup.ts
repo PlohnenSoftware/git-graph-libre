@@ -30,6 +30,17 @@ function titleFor(screen: FailureScreen): string {
   return titles[screen];
 }
 
+/**
+ * The line under the title. No workspace and no repository are empty states,
+ * not faults, so they say what would fill the view instead of asking for a
+ * fix and a retry.
+ */
+function summaryFor(screen: FailureScreen): string {
+  if (screen === "noWorkspace") return l10n.startupNoWorkspaceHint;
+  if (screen === "noRepository") return l10n.startupNoRepositoryHint;
+  return l10n.startupRecoveryHint;
+}
+
 function repositoryStateText(repo: RepositoryProbe): string {
   if (repo.state === "untrusted") return l10n.startupTrustHint;
   if (repo.repository === true)
@@ -89,7 +100,7 @@ export function initStartupScreen(
     const depth = document.getElementById("repoSearchDepth") as HTMLInputElement | null;
     if (search) search.hidden = latest !== "noRepository";
     if (depth && document.activeElement !== depth) depth.value = String(status.searchDepth);
-    summary.textContent = status.error ?? l10n.startupRecoveryHint;
+    summary.textContent = status.error ?? summaryFor(latest);
     repositories.replaceChildren(...status.repositories.map(renderRepository));
     renderComponentDetails(components, status.components);
     failures.show(latest);

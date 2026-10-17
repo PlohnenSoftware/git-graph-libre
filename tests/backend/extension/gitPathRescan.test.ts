@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 const channelLines: string[] = [];
 
 const vscodeMocks = vi.hoisted(() => ({
+  settings: {} as Record<string, unknown>,
+  focusListener: null as null | ((state: { focused: boolean }) => void),
   configListener: null as null | ((e: { affectsConfiguration(section: string): boolean }) => void),
   serializer: null as null | {
     deserializeWebviewPanel(panel: unknown): Promise<void>;
@@ -53,11 +55,15 @@ vi.mock("vscode", () => ({
       vscodeMocks.serializer = serializer;
       return { dispose: () => {} };
     },
-    onDidChangeWindowState: () => ({ dispose: () => {} })
+    onDidChangeWindowState: (listener: (state: { focused: boolean }) => void) => {
+      vscodeMocks.focusListener = listener;
+      return { dispose: () => {} };
+    }
   },
   workspace: {
     getConfiguration: () => ({
-      get: (_key: string, defaultValue: unknown) => defaultValue ?? null,
+      get: (key: string, defaultValue: unknown) =>
+        key in vscodeMocks.settings ? vscodeMocks.settings[key] : (defaultValue ?? null),
       inspect: () => undefined
     }),
     onDidChangeConfiguration: (
@@ -187,6 +193,18 @@ describe("activate git.path rescan", () => {
     expect(channelLines.some((line) => line.includes("[config] git.path changed"))).toBe(true);
   });
 
+  // Trust granted in an external terminal changes nothing VS Code watches;
+  // coming back to the window is the moment to look again.
+  it("rediscovers repositories when the window regains focus, not when it loses it", () => {
+    activate(makeContext());
+    repoSearchStub.searchWorkspaceForRepos.mockClear();
+
+    vscodeMocks.focusListener?.({ focused: false });
+    expect(repoSearchStub.searchWorkspaceForRepos).not.toHaveBeenCalled();
+    vscodeMocks.focusListener?.({ focused: true });
+    expect(repoSearchStub.searchWorkspaceForRepos).toHaveBeenCalledTimes(1);
+  });
+
   it("ignores unrelated configuration changes", () => {
     activate(makeContext());
     const calls = gitClientStub.setGitPath.mock.calls.length;
@@ -194,6 +212,30 @@ describe("activate git.path rescan", () => {
     vscodeMocks.configListener?.({ affectsConfiguration: () => false });
 
     expect(gitClientStub.setGitPath.mock.calls).toHaveLength(calls);
+  });
+});
+
+// Runs before the cases below, while no graph panel is live, so closing the
+// restored tab can only come from the setting, not from the duplicate path.
+describe("activate webview panel serializer with restoring off", () => {
+  it("closes a restored tab without opening the graph", async () => {
+    vscodeMocks.settings.restoreTabOnStartup = false;
+    try {
+      activate(makeContext());
+      const restored = { webview: {}, visible: true, dispose: vi.fn(), reveal: vi.fn() };
+
+      await vscodeMocks.serializer?.deserializeWebviewPanel(restored);
+
+      expect(restored.dispose).toHaveBeenCalledTimes(1);
+      expect(panelStub.create).not.toHaveBeenCalled();
+      expect(
+        channelLines.some((line) =>
+          line.includes("[panel] restore skipped (restoreTabOnStartup=false)")
+        )
+      ).toBe(true);
+    } finally {
+      delete vscodeMocks.settings.restoreTabOnStartup;
+    }
   });
 });
 

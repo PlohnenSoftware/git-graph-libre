@@ -4,12 +4,14 @@ import type * as http from "node:http";
 import * as https from "node:https";
 
 import { createRepoReader } from "./backend/engine/index";
+import { runDetached } from "./backend/utils/operationLog";
 import type { ExtensionState } from "./extensionState";
 import type { AvatarCache, EngineBackend, ResponseMessage } from "./types";
 
 export class AvatarManager {
   private readonly gitPath: () => string;
   private readonly backendPreference: () => EngineBackend;
+  private readonly isVerified: (repo: string) => boolean;
   private readonly extensionState: ExtensionState;
   private readonly avatarStorageFolder: string;
   private postToWebview: ((msg: ResponseMessage) => void) | null = null;
@@ -24,20 +26,27 @@ export class AvatarManager {
   constructor(
     gitPath: () => string,
     extensionState: ExtensionState,
-    backendPreference: () => EngineBackend
+    backendPreference: () => EngineBackend,
+    /** Whether Git confirmed it accepts the repository; see `RepoSearch.isVerified`. */
+    isVerified: (repo: string) => boolean
   ) {
     this.gitPath = gitPath;
     this.backendPreference = backendPreference;
+    this.isVerified = isVerified;
     this.extensionState = extensionState;
     this.avatarStorageFolder = this.extensionState.getAvatarStoragePath();
     this.avatars = this.extensionState.getAvatarCache();
     this.queue = new AvatarRequestQueue(() => {
       if (this.interval !== null) return;
-      this.interval = setInterval(() => {
-        // Fetch avatars every 10 seconds
+      // The queue serves every later request too, so its lookups belong to
+      // no single one.
+      runDetached(() => {
+        this.interval = setInterval(() => {
+          // Fetch avatars every 10 seconds
+          void this.fetchAvatarsInterval();
+        }, 10000);
         void this.fetchAvatarsInterval();
-      }, 10000);
-      void this.fetchAvatarsInterval();
+      });
     });
   }
 
@@ -117,10 +126,11 @@ export class AvatarManager {
       // reader serves from the engine where it can and the CLI elsewhere.
       const reader = createRepoReader({
         preference: this.backendPreference(),
-        gitPath: this.gitPath()
+        gitPath: this.gitPath(),
+        unverified: !this.isVerified(avatarRequest.repo)
       });
-      let remoteUrl = await reader.getRemoteUrl(avatarRequest.repo),
-        remoteSource: RemoteSource;
+      const remoteUrl = await reader.getRemoteUrl(avatarRequest.repo);
+      let remoteSource: RemoteSource;
       if (remoteUrl === null) {
         remoteSource = { type: "gravatar" };
       } else if (remoteUrl.startsWith("https://github.com/")) {
@@ -165,13 +175,13 @@ export class AvatarManager {
         (res: http.IncomingMessage) => {
           let respBody = "";
           res.on("data", (chunk: Buffer) => {
-            respBody += chunk;
+            respBody += chunk.toString();
           });
           res.on("end", async () => {
             if (res.headers["x-ratelimit-remaining"] === "0") {
               // If the GitHub Api rate limit was reached, store the github timeout to prevent subsequent requests
               this.githubTimeout =
-                Number.parseInt(<string>res.headers["x-ratelimit-reset"], 10) * 1000;
+                Number.parseInt(res.headers["x-ratelimit-reset"] as string, 10) * 1000;
             }
 
             if (res.statusCode === 200) {
@@ -235,13 +245,13 @@ export class AvatarManager {
         (res: http.IncomingMessage) => {
           let respBody = "";
           res.on("data", (chunk: Buffer) => {
-            respBody += chunk;
+            respBody += chunk.toString();
           });
           res.on("end", async () => {
             if (res.headers["ratelimit-remaining"] === "0") {
               // If the GitLab Api rate limit was reached, store the github timeout to prevent subsequent requests
               this.gitLabTimeout =
-                Number.parseInt(<string>res.headers["ratelimit-reset"], 10) * 1000;
+                Number.parseInt(res.headers["ratelimit-reset"] as string, 10) * 1000;
             }
 
             if (res.statusCode === 200) {

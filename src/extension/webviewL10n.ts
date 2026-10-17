@@ -146,8 +146,6 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
 
     // Error messages
     unableToLoadGitGraph: translate("error.unableToLoadGitGraph"),
-    noGitRepository: translate("error.noGitRepository"),
-    noGit: translate("error.noGit"),
     unableToLoadCommitDetails: translate("error.unableToLoadCommitDetails"),
     unableToLoadCommitComparison: translate("error.unableToLoadCommitComparison"),
     unableToLoadTagDetails: translate("error.unableToLoadTagDetails"),
@@ -584,6 +582,8 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     startupNoRepository: translate("startup.noRepository"),
     startupRepositoryError: translate("startup.repositoryError"),
     startupRecoveryHint: translate("startup.recoveryHint"),
+    startupNoWorkspaceHint: translate("startup.noWorkspaceHint"),
+    startupNoRepositoryHint: translate("startup.noRepositoryHint"),
     startupTrustHint: translate("startup.trustHint"),
     startupFoundEngine: translate("startup.foundEngine"),
     startupFound: translate("startup.found"),
@@ -613,6 +613,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     componentStatusRouteCli: translate("componentStatus.route.cli"),
     componentStatusRouteSetting: translate("componentStatus.route.setting"),
     componentStatusRouteForced: translate("componentStatus.route.forced"),
+    componentStatusRouteUnverified: translate("componentStatus.route.unverified"),
     componentStatusRouteUnavailable: translate("componentStatus.route.unavailable"),
     componentStatusRouteHandedBack: translate("componentStatus.route.handedBack"),
     componentStatusRouteTopoOrdering: translate("componentStatus.route.topoOrdering"),

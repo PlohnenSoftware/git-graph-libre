@@ -121,7 +121,8 @@ async function createManager(cache: AvatarCache = {}) {
   const manager = new AvatarManager(
     () => "git",
     extensionState.state,
-    () => "git-cli"
+    () => "git-cli",
+    () => true
   );
   manager.registerBridge((msg) => posted.push(msg));
   return { manager, posted, extensionState };

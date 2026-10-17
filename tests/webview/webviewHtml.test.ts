@@ -47,6 +47,7 @@ function makeConfig(): Config {
     stashDisplay: () => "graph",
     showTags: () => true,
     showStatusBarItem: () => true,
+    restoreTabOnStartup: () => true,
     showUncommittedChanges: () => true,
     telemetryConsent: () => "enabled" as const,
     tabIconColorTheme: () => "color",
@@ -138,5 +139,32 @@ describe("webview HTML", () => {
     expect(statusIndex).toBeGreaterThan(topBarIndex);
     expect(controlsIndex).toBeGreaterThan(statusIndex);
     expect(result.html).not.toContain("scrollShadow");
+  });
+
+  it("builds the startup screen, not a generic message, when no repository is open", () => {
+    const result = buildWebviewHtml({
+      webview: {
+        cspSource: "vscode-webview:",
+        asWebviewUri: (uri: vscode.Uri) => `webview://${uri.fsPath}` as unknown as vscode.Uri
+      } as unknown as vscode.Webview,
+      config: makeConfig(),
+      extensionPath: "/extension",
+      extensionState: {
+        isAvatarStorageAvailable: () => true,
+        getLastActiveRepo: () => null
+      } as ExtensionState,
+      repoManager: { getRepos: () => ({}) } as unknown as RepoManager,
+      extensionVersion: "1.2.0"
+    });
+
+    expect(result.isGraphLoaded).toBe(false);
+    expect(result.html).toContain('id="startupTitle"');
+    expect(result.html).toContain("startup.min.js");
+    expect(result.html).not.toContain("web.min.js");
+    expect(result.html).toContain(
+      '<input id="repoSearchDepth" type="number" min="0" max="20" step="1" required'
+    );
+    // The old placeholder guessed at both causes at once.
+    expect(result.html).not.toContain("Either the current workspace");
   });
 });

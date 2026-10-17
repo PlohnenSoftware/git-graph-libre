@@ -278,6 +278,7 @@ describe("configuration", () => {
     { accessor: "showCurrentBranchByDefault", expected: false },
     { accessor: "showRemoteBranches", expected: true },
     { accessor: "showStatusBarItem", expected: true },
+    { accessor: "restoreTabOnStartup", expected: true },
     { accessor: "showStashes", expected: true },
     { accessor: "stashDisplay", expected: "both" },
     { accessor: "showTags", expected: true },

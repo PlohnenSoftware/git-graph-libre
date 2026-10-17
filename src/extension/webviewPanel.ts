@@ -107,9 +107,12 @@ export function createWebviewPanel(opts: {
       outputChannel?.appendLine(`[engine] ${describeEngineStatus(result.engine)}`);
     }
     panel.webview.html = result.html;
+    // Recovery is the startup screen giving way to the graph. A graph rebuilt
+    // in place (a language switch) recovered from nothing, so a failure still
+    // on screen must not count as a new appearance.
+    if (result.isGraphLoaded && !isGraphViewLoaded) recovery?.clearFailure();
     isGraphViewLoaded = result.isGraphLoaded;
     hadRepositories = Object.keys(repoManager.getRepos()).length > 0;
-    if (isGraphViewLoaded) recovery?.clearFailure();
   }
 
   // Bring a re-shown panel up to date without disturbing the retained
@@ -141,6 +144,7 @@ export function createWebviewPanel(opts: {
     if (disposed) return;
     disposed = true;
     onDispose();
+    recovery?.dispose();
     panel.dispose();
     avatarManager.deregisterBridge();
     repoFileWatcher.stop();

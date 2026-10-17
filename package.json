@@ -181,6 +181,11 @@
         "category": "Git Graph Libre",
         "command": "git-graph-libre.showDiagnostics",
         "title": "%command.showDiagnostics%"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.trustRepository",
+        "title": "%command.trustRepository%"
       }
     ],
     "menus": {
@@ -510,6 +515,11 @@
           "default": true,
           "description": "%config.showStatusBarItem%"
         },
+        "git-graph-libre.restoreTabOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.restoreTabOnStartup%"
+        },
         "git-graph-libre.showUncommittedChanges": {
           "type": "boolean",
           "default": true,
@@ -568,6 +578,11 @@
     "onStartupFinished",
     "workspaceContains:.git"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
   "icon": "resources/icon.png",
   "engines": {
     "vscode": "^1.98.0"

@@ -58,7 +58,7 @@ import { commitSignatures } from "@/backend/queries/commitSignatures";
 import { loadBranches } from "@/backend/queries/loadBranches";
 import { tagDetails } from "@/backend/queries/tagDetails";
 import { uncommittedDetails } from "@/backend/queries/uncommittedDetails";
-import type { GitFileChangeType } from "@/backend/types";
+import type { GitFileChangeType, GitQueryError } from "@/backend/types";
 import { formatGitCommandRecord } from "@/backend/utils/gitCommandLog";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { selectedLogRefs } from "@/backend/utils/logFilters";
@@ -336,6 +336,31 @@ export function registerMessageHandlers(
       }
     : undefined;
 
+  /**
+   * Every repository read starts here. The preference is read live, so
+   * flipping git-graph-libre.backend needs no reload, and the engine is
+   * offered only a repository Git has confirmed it accepts (see
+   * `RepoSearch.isVerified`); anything else is read by the CLI.
+   */
+  function readerFor(repo: string, forceCli = false) {
+    return createRepoReader({
+      preference: config.backend(),
+      gitPath: config.gitPath(),
+      forceCli,
+      unverified: !(deps.repoSearch?.isVerified(repo) ?? false)
+    });
+  }
+
+  /**
+   * A failed graph read withdraws the repository's confirmation at once. Git
+   * words its ownership refusal in the user's language, so the failure itself
+   * is the signal rather than its text; the error screen the graph then shows
+   * requests the rediscovery that re-confirms a repository that is fine.
+   */
+  function noteReadFailure(repo: string | null, error: GitQueryError | null) {
+    if (repo !== null && error !== null) deps.repoSearch?.forgetVerification(repo);
+  }
+
   function registerAction<T extends RequestMessage["command"]>(
     command: T,
     handler: (msg: Extract<RequestMessage, { command: T }>) => Promise<void>
@@ -550,16 +575,9 @@ export function registerMessageHandlers(
   // --- Query handlers ---
 
   bridge.onMessage("loadCommits", async (msg) => {
-    // The preference is read live on every load, so flipping
-    // git-graph-libre.backend needs no reload. The reader serves from the
-    // engine where it can and the CLI elsewhere, with an identical shape.
     // `forceCli` is the hidden menu's one-off Git CLI reload.
     const preference = config.backend();
-    const reader = createRepoReader({
-      preference,
-      gitPath: config.gitPath(),
-      forceCli: msg.forceCli === true
-    });
+    const reader = readerFor(msg.repo, msg.forceCli === true);
     const result = await reader.loadCommits({
       branchName: msg.branchName,
       branches: msg.branches,
@@ -581,6 +599,7 @@ export function registerMessageHandlers(
       git: gitClient.getInstance(),
       recordGitCommand
     });
+    noteReadFailure(msg.repo, result.error);
 
     // History recovery, the signed-tag badge and submodule repositories are
     // features nobody invokes — they change what the graph contains or which
@@ -641,39 +660,28 @@ export function registerMessageHandlers(
   });
 
   bridge.onMessage("loadBranches", async (msg) => {
-    bridge.post({
-      command: "loadBranches",
-      requestId: msg.requestId,
-      ...(await loadBranches(gitClient.getInstance(), {
-        showRemoteBranches: msg.showRemoteBranches,
-        hiddenRemotes: msg.hiddenRemotes,
-        hard: msg.hard,
-        currentRepo: currentRepo ?? "",
-        gitPath: config.gitPath(),
-        recordGitCommand
-      }))
+    const result = await loadBranches(gitClient.getInstance(), {
+      showRemoteBranches: msg.showRemoteBranches,
+      hiddenRemotes: msg.hiddenRemotes,
+      hard: msg.hard,
+      currentRepo: currentRepo ?? "",
+      gitPath: config.gitPath(),
+      recordGitCommand
     });
+    noteReadFailure(currentRepo, result.error);
+    bridge.post({ command: "loadBranches", requestId: msg.requestId, ...result });
   });
 
   bridge.onMessage("loadRepoInfo", async (msg) => {
-    // The preference is read live on every load, so flipping
-    // git-graph-libre.backend needs no reload. The reader serves from the
-    // engine where it can and the CLI elsewhere, with an identical shape.
-    const reader = createRepoReader({
-      preference: config.backend(),
-      gitPath: config.gitPath(),
-      forceCli: msg.forceCli === true
+    const reader = readerFor(msg.repo, msg.forceCli === true);
+    const result = await reader.loadRepoInfo({
+      repoPath: msg.repo,
+      showStashes: msg.showStashes,
+      git: gitClient.getInstance(),
+      recordGitCommand
     });
-    bridge.post({
-      command: "loadRepoInfo",
-      requestId: msg.requestId,
-      ...(await reader.loadRepoInfo({
-        repoPath: msg.repo,
-        showStashes: msg.showStashes,
-        git: gitClient.getInstance(),
-        recordGitCommand
-      }))
-    });
+    noteReadFailure(msg.repo, result.error);
+    bridge.post({ command: "loadRepoInfo", requestId: msg.requestId, ...result });
   });
 
   bridge.onMessage("loadExtensionSettings", (msg) => {
@@ -688,13 +696,7 @@ export function registerMessageHandlers(
   });
 
   bridge.onMessage("searchCommits", async (msg) => {
-    // The preference is read live on every search, so flipping
-    // git-graph-libre.backend needs no reload. The reader serves from the
-    // engine where it can and the CLI elsewhere, with an identical shape.
-    const reader = createRepoReader({
-      preference: config.backend(),
-      gitPath: config.gitPath()
-    });
+    const reader = readerFor(msg.repo);
     bridge.post({
       command: "searchCommits",
       requestId: msg.requestId,
@@ -716,13 +718,7 @@ export function registerMessageHandlers(
   });
 
   bridge.onMessage("commitDetails", async (msg) => {
-    // The preference is read live on every load, so flipping
-    // git-graph-libre.backend needs no reload. The reader serves from the
-    // engine where it can and the CLI elsewhere, with an identical shape.
-    const reader = createRepoReader({
-      preference: config.backend(),
-      gitPath: config.gitPath()
-    });
+    const reader = readerFor(msg.repo);
     bridge.post({
       command: "commitDetails",
       ...(await reader.loadCommitDetails({
@@ -760,10 +756,7 @@ export function registerMessageHandlers(
   });
 
   bridge.onMessage("commitComparison", async (msg) => {
-    const reader = createRepoReader({
-      preference: config.backend(),
-      gitPath: config.gitPath()
-    });
+    const reader = readerFor(msg.repo);
     bridge.post({
       command: "commitComparison",
       ...(await reader.loadCommitComparison({

@@ -1,11 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const vscodeStub = vi.hoisted(() => ({
   update: vi.fn(async () => {}),
   showWarningMessage: vi.fn(),
   executeCommand: vi.fn(async () => {})
 }));
-const trust = vi.hoisted(() => ({ fn: vi.fn(async () => {}) }));
+// The entry differs from the requested path on purpose (as through a
+// symlink), so every case can tell which of the two was shown and written.
+const trust = vi.hoisted(() => ({
+  fn: vi.fn(async () => {}),
+  entry: vi.fn(async (repo: string) => `/real${repo}`)
+}));
 const engine = vi.hoisted(() => ({ close: vi.fn() }));
 const components = vi.hoisted(() => ({
   build: vi.fn(async () => ({
@@ -26,14 +31,23 @@ vi.mock("vscode", () => ({
 vi.mock("@/l10n", () => ({
   t: (key: string, ...args: unknown[]) => (args.length > 0 ? `${key}:${args.join(",")}` : key)
 }));
-vi.mock("@/backend/utils/repositoryProbe", () => ({ trustGitRepository: trust.fn }));
+vi.mock("@/backend/utils/repositoryProbe", () => ({
+  trustGitRepository: trust.fn,
+  safeDirectoryEntry: trust.entry
+}));
 vi.mock("@/backend/engine/index", () => ({ closeEngineRepository: engine.close }));
 vi.mock("@/extension/componentStatus", () => ({ buildComponentStatus: components.build }));
 
-import { registerRepositoryRecovery } from "@/extension/repositoryRecovery";
+import { createGitTrustCommand, registerRepositoryRecovery } from "@/extension/repositoryRecovery";
 import type { RepositoryProbe } from "@/types";
 
 type Handler = (msg: never) => unknown;
+
+const created: { dispose(): void }[] = [];
+afterEach(() => {
+  for (const recovery of created.splice(0)) recovery.dispose();
+  vi.useRealTimers();
+});
 
 function makeRecovery(repositories: RepositoryProbe[] = [], visible: () => boolean = () => true) {
   const handlers = new Map<string, Handler>();
@@ -61,6 +75,7 @@ function makeRecovery(repositories: RepositoryProbe[] = [], visible: () => boole
     outputChannel: { appendLine: (line: string) => output.push(line), show: vi.fn() },
     telemetry
   });
+  created.push(recovery);
   return { recovery, handlers, posted, repoSearch, telemetry, output };
 }
 
@@ -76,7 +91,9 @@ beforeEach(() => {
   vscodeStub.update.mockClear();
   vscodeStub.showWarningMessage.mockReset();
   vscodeStub.executeCommand.mockClear();
-  trust.fn.mockClear();
+  trust.fn.mockReset();
+  trust.entry.mockReset();
+  trust.entry.mockImplementation(async (repo: string) => `/real${repo}`);
   engine.close.mockClear();
   components.build.mockClear();
 });
@@ -116,12 +133,13 @@ describe("registerRepositoryRecovery trust", () => {
     const { handlers, repoSearch, output } = makeRecovery([untrustedRepo]);
     await handlers.get("trustRepository")?.({ command: "trustRepository", repo: "/repo" } as never);
 
+    // The dialog names the entry that will be written, not the path asked for.
     expect(vscodeStub.showWarningMessage).toHaveBeenCalledWith(
-      expect.any(String),
+      "startup.trustConfirm:/real/repo",
       { modal: true },
-      expect.any(String)
+      "startup.trust"
     );
-    expect(trust.fn).toHaveBeenCalledWith("/repo", "git");
+    expect(trust.fn).toHaveBeenCalledWith("/repo", "git", "/real/repo");
     expect(engine.close).toHaveBeenCalledWith("/repo");
     expect(repoSearch.searchWorkspaceForRepos).toHaveBeenCalledWith(true);
     expect(trust.fn.mock.invocationCallOrder[0]).toBeLessThan(
@@ -152,6 +170,99 @@ describe("registerRepositoryRecovery trust", () => {
     await handlers.get("trustRepository")?.({ command: "trustRepository", repo: "/etc" } as never);
     expect(vscodeStub.showWarningMessage).not.toHaveBeenCalled();
     expect(trust.fn).not.toHaveBeenCalled();
+  });
+
+  it("asks nothing when the repository no longer needs trust, and says so", async () => {
+    trust.entry.mockRejectedValueOnce(new Error("no longer needs Git ownership trust"));
+    const { handlers, posted } = makeRecovery([untrustedRepo]);
+    await handlers.get("trustRepository")?.({ command: "trustRepository", repo: "/repo" } as never);
+    expect(vscodeStub.showWarningMessage).not.toHaveBeenCalled();
+    expect(trust.fn).not.toHaveBeenCalled();
+    expect(posted.at(-1)).toMatchObject({
+      startup: { error: expect.stringContaining("no longer needs") }
+    });
+  });
+});
+
+describe("createGitTrustCommand", () => {
+  function makeCommand(repositories: RepositoryProbe[]) {
+    const window = {
+      showWarningMessage: vi.fn(async (_m: string, _o: unknown, accept: string) => accept),
+      showInformationMessage: vi.fn(async () => undefined),
+      showErrorMessage: vi.fn(async () => undefined),
+      showQuickPick: vi.fn(async (items: readonly string[]) => items[1])
+    };
+    const repoSearch = {
+      getDiagnostics: () => ({ roots: ["/ws"], repositories }),
+      searchWorkspaceForRepos: vi.fn(async () => {})
+    };
+    const run = createGitTrustCommand({
+      config: { gitPath: () => "git" },
+      repoSearch,
+      window: window as never
+    });
+    return { run, window, repoSearch };
+  }
+  const second = { ...untrustedRepo, path: "/other" } as RepositoryProbe;
+
+  it("says so when no repository waits for trust", async () => {
+    const { run, window } = makeCommand([{ ...untrustedRepo, state: "ready" }]);
+    await run();
+    expect(window.showInformationMessage).toHaveBeenCalledWith("command.trustRepository.none");
+    expect(window.showWarningMessage).not.toHaveBeenCalled();
+  });
+
+  it("confirms the only blocked repository directly, then rescans", async () => {
+    const { run, window, repoSearch } = makeCommand([untrustedRepo]);
+    await run();
+    expect(window.showQuickPick).not.toHaveBeenCalled();
+    expect(trust.fn).toHaveBeenCalledWith("/repo", "git", "/real/repo");
+    expect(repoSearch.searchWorkspaceForRepos).toHaveBeenCalledWith(true);
+  });
+
+  it("lets the user pick among several, and does nothing when the pick is dismissed", async () => {
+    const { run, window } = makeCommand([untrustedRepo, second]);
+    await run();
+    expect(window.showQuickPick).toHaveBeenCalledWith(["/repo", "/other"], expect.anything());
+    expect(trust.fn).toHaveBeenCalledWith("/other", "git", "/real/other");
+
+    trust.fn.mockClear();
+    window.showQuickPick.mockResolvedValueOnce(undefined as never);
+    await run();
+    expect(trust.fn).not.toHaveBeenCalled();
+  });
+
+  it("shows a failed trust as an error", async () => {
+    trust.fn.mockRejectedValueOnce(new Error("permission denied"));
+    const { run, window } = makeCommand([untrustedRepo]);
+    await run();
+    expect(window.showErrorMessage).toHaveBeenCalledWith("permission denied");
+  });
+});
+
+describe("registerRepositoryRecovery trust recheck", () => {
+  it("rescans a visible tab while a repository waits for trust, and stops when disposed", async () => {
+    vi.useFakeTimers();
+    let visible = true;
+    const { recovery, repoSearch } = makeRecovery([untrustedRepo], () => visible);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(repoSearch.searchWorkspaceForRepos).toHaveBeenCalledTimes(1);
+
+    visible = false;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(repoSearch.searchWorkspaceForRepos).toHaveBeenCalledTimes(1);
+
+    visible = true;
+    recovery.dispose();
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(repoSearch.searchWorkspaceForRepos).toHaveBeenCalledTimes(1);
+  });
+
+  it("costs nothing while no repository waits for trust", async () => {
+    vi.useFakeTimers();
+    const { repoSearch } = makeRecovery([{ ...untrustedRepo, state: "ready" }]);
+    await vi.advanceTimersByTimeAsync(15000);
+    expect(repoSearch.searchWorkspaceForRepos).not.toHaveBeenCalled();
   });
 });
 
@@ -191,6 +302,23 @@ describe("registerRepositoryRecovery depth and telemetry", () => {
     expect(vscodeStub.update.mock.invocationCallOrder[0]).toBeLessThan(
       repoSearch.maxDepthChanged.mock.invocationCallOrder[0] ?? 0
     );
+    // The rescan is forced, so a scan already running at the old depth
+    // cannot stand in for one at the new depth.
+    expect(repoSearch.searchWorkspaceForRepos).toHaveBeenLastCalledWith(true);
+  });
+
+  it("posts a failed write, such as having no workspace to save to, and still rescans", async () => {
+    vscodeStub.update.mockRejectedValueOnce(new Error("Unable to write to Workspace Settings"));
+    const { handlers, repoSearch, posted } = makeRecovery();
+    await handlers.get("setRepoSearchDepth")?.({
+      command: "setRepoSearchDepth",
+      depth: 1
+    } as never);
+    expect(repoSearch.maxDepthChanged).not.toHaveBeenCalled();
+    expect(repoSearch.searchWorkspaceForRepos).toHaveBeenCalledWith(true);
+    expect(posted.at(-1)).toMatchObject({
+      startup: { error: expect.stringContaining("Workspace Settings") }
+    });
   });
 
   it("records each distinct failure screen once with the fixed category only", async () => {

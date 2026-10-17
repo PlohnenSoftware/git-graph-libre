@@ -237,14 +237,16 @@ export type GraphLoadDecline = "topoOrdering" | "reflog" | "unreachableCommits" 
  * Which backend answered the most recent graph load, and why the command line
  * did when it did: `setting` is the `git-cli` backend preference, `forced`
  * the one-off "Reload once with Git CLI" from the hidden menu,
- * `unavailable` an engine that could not be loaded, and `handedBack` a load
- * the engine passed back at run time (an unborn branch, HEAD beyond the page,
- * a shape it declined).
+ * `unavailable` an engine that could not be loaded, `unverified` a
+ * repository Git has not yet confirmed it accepts (see `RepoReaderDeps`), and
+ * `handedBack` a load the engine passed back at run time (an unborn branch,
+ * HEAD beyond the page, a shape it declined).
  */
 export type GraphLoadRoute =
   | "engine"
   | "setting"
   | "forced"
+  | "unverified"
   | "unavailable"
   | "handedBack"
   | GraphLoadDecline;

@@ -173,6 +173,7 @@ export const config = {
   showCurrentBranchByDefault: (): boolean => getConfig("showCurrentBranchByDefault", false),
   showRemoteBranches: (): boolean => getConfig("repository.showRemoteBranches", true),
   showStatusBarItem: (): boolean => getConfig("showStatusBarItem", true),
+  restoreTabOnStartup: (): boolean => getConfig("restoreTabOnStartup", true),
   showStashes: (): boolean => getConfig("repository.showStashes", true),
   stashDisplay: (): StashDisplay =>
     getStringUnionConfig("repository.stashDisplay", "both", ["table", "graph", "both"]),

@@ -145,16 +145,51 @@ export async function inspectRepository(
   };
 }
 
-/** Called only after the host confirms the exact discovered directory with the user. */
-export async function trustGitRepository(directory: string, gitPath: string): Promise<void> {
+const OWNERSHIP_MARKER = "detected dubious ownership in repository at '";
+
+/** The path in Git's "detected dubious ownership in repository at '<path>'" line, as Git spells it. */
+function reportedOwnershipPath(detail: string): string | null {
+  const start = detail.indexOf(OWNERSHIP_MARKER);
+  if (start === -1) return null;
+  const from = start + OWNERSHIP_MARKER.length;
+  const lineEnd = detail.indexOf("\n", from);
+  const rest = detail.slice(from, lineEnd === -1 ? undefined : lineEnd).trimEnd();
+  return rest.endsWith("'") ? rest.slice(0, -1) : null;
+}
+
+/**
+ * The exact `safe.directory` value for a repository Git still rejects for
+ * ownership: the path Git names in its own message, which is the spelling it
+ * compares against (drive-letter case included), accepted only when it
+ * resolves to `directory` itself. This is what the user is shown and what is
+ * written; it is never `*`, a glob, or a parent of the repository.
+ */
+export async function safeDirectoryEntry(directory: string, gitPath: string): Promise<string> {
   const current = await inspectRepository(directory, { gitPath, useEngine: false });
   if (current.state !== "untrusted")
     throw new Error("This repository no longer needs Git ownership trust. Retry discovery.");
   const root = await canonicalizePath(directory);
-  if (!path.isAbsolute(root) || root.endsWith("/*"))
+  const entry = reportedOwnershipPath(current.detail ?? "") ?? root;
+  if (!path.isAbsolute(entry) || entry.includes("*") || (await canonicalizePath(entry)) !== root)
     throw new Error("An exact repository path is required.");
-  await traceBackend("cli", "trust.safeDirectory", root, () =>
-    execute(gitPath, ["config", "--global", "--add", "safe.directory", root], {
+  return entry;
+}
+
+/**
+ * Adds `confirmed` — the entry `safeDirectoryEntry` produced and the user
+ * confirmed — to Git's global `safe.directory` list, after checking that it
+ * is still exactly the entry this repository needs.
+ */
+export async function trustGitRepository(
+  directory: string,
+  gitPath: string,
+  confirmed: string
+): Promise<void> {
+  const entry = await safeDirectoryEntry(directory, gitPath);
+  if (entry !== confirmed)
+    throw new Error("The repository path changed after it was confirmed. Retry discovery.");
+  await traceBackend("cli", "trust.safeDirectory", entry, () =>
+    execute(gitPath, ["config", "--global", "--add", "safe.directory", entry], {
       timeout: 5000,
       windowsHide: true,
       env: { ...process.env, LC_ALL: "C" }

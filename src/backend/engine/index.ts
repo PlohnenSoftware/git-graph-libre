@@ -77,6 +77,13 @@ export type RepoReaderDeps = {
    * (the addon is not touched) and is recorded as its own graph-load route.
    */
   forceCli?: boolean;
+  /**
+   * Git has not confirmed in this session that it accepts this repository.
+   * The engine would open a repository Git rejects for ownership (gix grants
+   * it reduced trust instead of failing), so every read goes to the CLI,
+   * which reports the rejection instead of bypassing it.
+   */
+  unverified?: boolean;
 };
 
 export type RepoReader = {
@@ -186,16 +193,51 @@ export function resetEngineServedRead(): void {
   engineDeclinedRead = false;
 }
 
-/** Record how an engine call that threw ended: declined to the CLI, or failed outright. */
-function noteEngineThrow(error: unknown): boolean {
+/** The fixed decline kind an engine error's prefix names; never the message itself. */
+function declineKind(error: unknown): string {
+  const message = (error as { message?: unknown }).message;
+  const prefix = FALLBACK_ERROR_PREFIXES.find(
+    (candidate) => typeof message === "string" && message.startsWith(candidate)
+  );
+  return prefix === undefined ? "unknown" : prefix.slice(0, -1);
+}
+
+/**
+ * Record how an engine call that threw ended: declined to the CLI, or failed.
+ * A failure fails the read unless the caller falls back for it, which the
+ * route line then says instead.
+ */
+function noteEngineThrow(
+  error: unknown,
+  operation: string,
+  onFailure: "fails" | "fallsBack" = "fails"
+): boolean {
   const declined = isEngineFallbackError(error);
   if (declined) {
     engineDeclinedRead = true;
-    logBackendRoute("fallback", "backend=cli reason=engineDeclined");
+    logBackendRoute(operation, `backend=cli reason=engineDeclined kind=${declineKind(error)}`);
   } else {
     engineFailedRead = true;
+    logBackendRoute(
+      operation,
+      onFailure === "fails"
+        ? "result=failed reason=engineFailed"
+        : "backend=cli reason=engineFailed"
+    );
   }
   return declined;
+}
+
+/** Record an engine answer this version cannot read; the read fails. */
+function noteMalformedPayload(operation: string): void {
+  engineFailedRead = true;
+  logBackendRoute(operation, "result=failed reason=malformedPayload");
+}
+
+/** Log why a read the engine could have served goes to the CLI instead. */
+function rerouteToCli<T>(operation: string, reason: string, read: () => Promise<T>): Promise<T> {
+  logBackendRoute(operation, `backend=cli reason=${reason}`);
+  return read();
 }
 
 let lastGraphLoad: GraphLoadRoute | null = null;
@@ -281,20 +323,27 @@ export function createRepoReader(deps: RepoReaderDeps): RepoReader {
     if (!addon) logBackendRoute("fallback", "backend=cli reason=engineUnavailable");
     return addon ? withEngineLogging(addon) : null;
   };
-  if (deps.preference === "git-cli" || deps.forceCli)
-    logBackendRoute("reader", `backend=cli reason=${deps.forceCli ? "forced" : "setting"}`);
+  const forced = deps.forceCli === true;
+  // An unverified repository is never handed to the engine, whatever the read.
+  const preference: EngineBackend = deps.unverified === true ? "git-cli" : deps.preference;
+  let cliReason: string | null = null;
+  if (forced) cliReason = "forced";
+  else if (deps.unverified === true) cliReason = "unverified";
+  else if (deps.preference === "git-cli") cliReason = "setting";
+  if (cliReason !== null) logBackendRoute("reader", `backend=cli reason=${cliReason}`);
+  let commitsRoute: "forced" | "unverified" | null = null;
+  if (forced) commitsRoute = "forced";
+  else if (deps.unverified === true) commitsRoute = "unverified";
   return {
-    getRemoteUrl: (repoPath: string) =>
-      readRemoteUrl(deps.preference, deps.gitPath, provider, repoPath),
+    getRemoteUrl: (repoPath: string) => readRemoteUrl(preference, deps.gitPath, provider, repoPath),
     loadRepoInfo: (args: RepoInfoArgs) =>
-      readRepoInfo(deps.forceCli === true ? "git-cli" : deps.preference, provider, args),
+      readRepoInfo(forced ? "git-cli" : preference, provider, args),
     loadCommits: (args: LoadCommitsArgs) =>
-      readCommits(deps.preference, deps.gitPath, provider, args, deps.forceCli === true),
-    loadCommitDetails: (args: CommitDetailsArgs) =>
-      readCommitDetails(deps.preference, provider, args),
+      readCommits(preference, deps.gitPath, provider, args, commitsRoute),
+    loadCommitDetails: (args: CommitDetailsArgs) => readCommitDetails(preference, provider, args),
     loadCommitComparison: (args: CommitComparisonArgs) =>
-      readCommitComparison(deps.preference, provider, args),
-    searchCommits: (args: SearchArgs) => readSearch(deps.preference, provider, args)
+      readCommitComparison(preference, provider, args),
+    searchCommits: (args: SearchArgs) => readSearch(preference, provider, args)
   };
 }
 
@@ -315,7 +364,7 @@ async function readRemoteUrl(
     const normalized = (url ?? "").trim();
     return normalized === "" ? null : normalized;
   } catch (error: unknown) {
-    if (!noteEngineThrow(error)) return null;
+    if (!noteEngineThrow(error, "remoteUrl")) return null;
     return getRemoteUrl(repoPath, gitPath);
   }
 }
@@ -340,7 +389,7 @@ async function readRepoInfo(
       await addon.loadRepoInfo(args.repoPath, buildRepoInfoOptions(args.showStashes))
     );
     if (info === null) {
-      engineFailedRead = true;
+      noteMalformedPayload("loadRepoInfo");
       return {
         repoInfo: emptyRepoInfo(true),
         error: toGitQueryError(
@@ -351,16 +400,16 @@ async function readRepoInfo(
     }
     // The partial-error field is reserved (always null today): stay on the
     // CLI behavior rather than guessing which half to trust.
-    if (info.error !== null) return cliRead();
+    if (info.error !== null) return rerouteToCli("loadRepoInfo", "partialError", cliRead);
     const composed = await composeEngineRepoInfo(
       { git: args.git, repo: args.repoPath, recordGitCommand: args.recordGitCommand, addon },
       info
     );
-    if (composed === null) return cliRead();
+    if (composed === null) return rerouteToCli("loadRepoInfo", "composeDeclined", cliRead);
     engineServedRead = true;
     return composed;
   } catch (error: unknown) {
-    if (!noteEngineThrow(error)) {
+    if (!noteEngineThrow(error, "loadRepoInfo")) {
       return {
         repoInfo: emptyRepoInfo(true),
         error: toGitQueryError(error, "Unable to load repository info")
@@ -375,7 +424,7 @@ async function readCommits(
   gitPath: string,
   provider: AddonProvider,
   args: LoadCommitsArgs,
-  forceCli: boolean
+  cliRoute: "forced" | "unverified" | null
 ): Promise<QueryResult<"loadCommits">> {
   const cliRead = (route: GraphLoadRoute): Promise<QueryResult<"loadCommits">> => {
     lastGraphLoad = route;
@@ -403,7 +452,7 @@ async function readCommits(
     });
   };
   // The total no-op path: the addon is not even loaded.
-  if (forceCli) return cliRead("forced");
+  if (cliRoute !== null) return cliRead(cliRoute);
   if (preference === "git-cli") return cliRead("setting");
   // The pre-call declines: shapes the engine cannot serve go straight to
   // the CLI, decided here and never by catching a failure.
@@ -419,7 +468,7 @@ async function readCommits(
       await addon.loadCommits(args.repoPath, buildLoadCommitsOptions(args))
     );
     if (data === null) {
-      engineFailedRead = true;
+      noteMalformedPayload("loadCommits");
       return {
         commits: [],
         head: null,
@@ -459,7 +508,7 @@ async function readCommits(
       error: null
     };
   } catch (error: unknown) {
-    if (!noteEngineThrow(error)) {
+    if (!noteEngineThrow(error, "loadCommits")) {
       return {
         commits: [],
         head: null,
@@ -494,13 +543,13 @@ async function fillLineCounts<
   try {
     countsText = await addon.loadLineCounts(args.repoPath, from, to, JSON.stringify(paths));
   } catch (error: unknown) {
-    noteEngineThrow(error);
+    noteEngineThrow(error, "loadLineCounts", "fallsBack");
     return cliRead();
   }
   const counts = parseEngineLineCounts(countsText);
   if (counts === null) {
     engineFailedRead = true;
-    return cliRead();
+    return rerouteToCli("loadLineCounts", "malformedPayload", cliRead);
   }
   applyLineCounts(fileChanges, counts);
   return null;
@@ -541,7 +590,8 @@ async function readCommitDetails(
   // A blank hash and the `*` row both error on the CLI today (`git show`
   // resolves neither); the engine would serve uncommitted-shaped data for
   // `*`, which is a UX change for its own slice — so both stay CLI.
-  if (args.commitHash.trim() === "" || args.commitHash === "*") return cliRead();
+  if (args.commitHash.trim() === "" || args.commitHash === "*")
+    return rerouteToCli("commitDetails", "noCommitHash", cliRead);
   const addon = provider();
   if (addon === null) return cliRead();
   try {
@@ -555,7 +605,7 @@ async function readCommitDetails(
     ]);
     const details = parseEngineCommitDetails(detailsText);
     if (details === null) {
-      engineFailedRead = true;
+      noteMalformedPayload("commitDetails");
       return {
         commitDetails: null,
         error: toGitQueryError(
@@ -567,7 +617,7 @@ async function readCommitDetails(
     // The CLI diffs a merge against every parent (`-m`); the engine diffs
     // against the first parent only. A multi-parent page is not a valid
     // substitute, so those loads go back to the whole CLI read.
-    if (details.parents.length > 1) return cliRead();
+    if (details.parents.length > 1) return rerouteToCli("commitDetails", "mergeCommit", cliRead);
     const stashes = parseEngineStashEntries(stashesText);
     const stash = stashes === null ? undefined : findStashEntry(stashes, args.commitHash);
     let fileChanges = details.fileChanges.map(mapEngineFileChange);
@@ -580,7 +630,7 @@ async function readCommitDetails(
       );
       const stashDetails = parseEngineCommitDetails(stashText);
       if (stashDetails === null) {
-        engineFailedRead = true;
+        noteMalformedPayload("stashDetails");
         return {
           commitDetails: null,
           error: toGitQueryError(
@@ -597,7 +647,7 @@ async function readCommitDetails(
     engineServedRead = true;
     return { commitDetails: toGitCommitDetails(details, fileChanges), error: null };
   } catch (error: unknown) {
-    if (!noteEngineThrow(error)) {
+    if (!noteEngineThrow(error, "commitDetails")) {
       return {
         commitDetails: null,
         error: toGitQueryError(error, "Unable to load commit details")
@@ -631,7 +681,7 @@ async function readCommitComparison(
     args.baseRef.trim() === "" ||
     args.compareRef.trim() === ""
   ) {
-    return cliRead();
+    return rerouteToCli("commitComparison", "blankRef", cliRead);
   }
   const addon = provider();
   if (addon === null) return cliRead();
@@ -643,7 +693,7 @@ async function readCommitComparison(
     const details = parseEngineCommitDetails(detailsText);
     const fileChanges = parseEngineFileChanges(changesText);
     if (details === null || fileChanges === null) {
-      engineFailedRead = true;
+      noteMalformedPayload("commitComparison");
       return {
         commitDetails: null,
         error: toGitQueryError(
@@ -664,7 +714,7 @@ async function readCommitComparison(
     engineServedRead = true;
     return { commitDetails: toGitCommitDetails(details, fileChanges), error: null };
   } catch (error: unknown) {
-    if (!noteEngineThrow(error)) {
+    if (!noteEngineThrow(error, "commitComparison")) {
       return {
         commitDetails: null,
         error: toGitQueryError(error, "Unable to load commit comparison")
@@ -702,7 +752,8 @@ async function readSearch(
     });
   // The total no-op path: the addon is not even loaded.
   if (preference === "git-cli") return cliRead();
-  if (!shouldServeSearchFromEngine(args)) return cliRead();
+  if (!shouldServeSearchFromEngine(args))
+    return rerouteToCli("searchCommits", "searchShape", cliRead);
   const addon = provider();
   if (addon === null) return cliRead();
   // The CLI clamps before building `--max-count`; the engine is given the same
@@ -716,12 +767,12 @@ async function readSearch(
     );
     if (parsed === null) {
       engineFailedRead = true;
-      return cliRead();
+      return rerouteToCli("searchCommits", "malformedPayload", cliRead);
     }
     engineServedRead = true;
     return { results: mapEngineSearchResults(parsed), error: null };
   } catch (error: unknown) {
-    if (!noteEngineThrow(error)) {
+    if (!noteEngineThrow(error, "searchCommits")) {
       return { results: [], error: toGitQueryError(error, "Unable to search commits") };
     }
     return cliRead();

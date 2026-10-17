@@ -84,10 +84,11 @@ export async function canonicalizePath(value: string): Promise<string> {
  */
 export async function isGitRepository(repoPath: string, gitPath: string): Promise<boolean> {
   try {
-    const toplevel = await simpleGit({ baseDir: repoPath, binary: gitPath }).raw([
-      "rev-parse",
-      "--show-toplevel"
-    ]);
+    const toplevel = await runGitRaw(simpleGit({ baseDir: repoPath, binary: gitPath }), {
+      label: "isGitRepository.revParse",
+      args: ["rev-parse", "--show-toplevel"],
+      repo: repoPath
+    });
     const [root, queried] = await Promise.all([
       canonicalizePath(toplevel.trim()),
       canonicalizePath(repoPath)

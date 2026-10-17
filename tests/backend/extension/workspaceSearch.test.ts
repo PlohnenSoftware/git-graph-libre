@@ -6,8 +6,12 @@ const workspaceState = vi.hoisted(() => ({
 
 const searchUtilMock = vi.hoisted(() => vi.fn());
 const probeStates = vi.hoisted(() => new Map<string, string>());
+/** Whole probe answers, for shapes a bare state cannot express. */
+const probeOverrides = vi.hoisted(() => new Map<string, Record<string, unknown>>());
 const inspectMock = vi.hoisted(() =>
   vi.fn(async (directory: string) => {
+    const override = probeOverrides.get(directory);
+    if (override) return { path: directory, detail: null, ...override };
     const state = probeStates.get(directory) ?? "notRepository";
     return {
       path: directory,
@@ -79,6 +83,7 @@ function summaryCalls(logger: ReturnType<typeof makeLogger>) {
 beforeEach(() => {
   workspaceState.folders = undefined;
   probeStates.clear();
+  probeOverrides.clear();
   searchUtilMock.mockReset();
   searchUtilMock.mockResolvedValue([]);
   inspectMock.mockClear();
@@ -241,5 +246,91 @@ describe("createRepoSearch workspace scan", () => {
     gates[1]();
     await Promise.all([third, forced]);
     expect(searchUtilMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("createRepoSearch verification", () => {
+  function walkProbing(paths: string[]) {
+    searchUtilMock.mockImplementation(
+      async (_dir: string, _depth: number, _git: string, _known: string[], probe: never) => {
+        for (const found of paths) await (probe as (d: string) => Promise<boolean>)(found);
+        return paths;
+      }
+    );
+  }
+
+  it("confirms only what Git last answered ready, until a read withdraws it", async () => {
+    workspaceState.folders = [{ uri: { fsPath: "/workspace" } }];
+    probeStates.set("/workspace/a", "ready");
+    probeStates.set("/workspace/b", "untrusted");
+    walkProbing(["/workspace/a", "/workspace/b"]);
+    const search = createRepoSearch(makeRepoManager() as never, makeConfig());
+
+    await search.searchWorkspaceForRepos();
+
+    expect(search.isVerified("/workspace/a")).toBe(true);
+    expect(search.isVerified("/workspace/b")).toBe(false);
+    expect(search.isVerified("/never/probed")).toBe(false);
+    search.forgetVerification("/workspace/a");
+    expect(search.isVerified("/workspace/a")).toBe(false);
+  });
+
+  it("publishes a scan's answers whole, only once it completes", async () => {
+    workspaceState.folders = [{ uri: { fsPath: "/workspace" } }];
+    probeStates.set("/workspace/a", "ready");
+    walkProbing(["/workspace/a"]);
+    const search = createRepoSearch(makeRepoManager() as never, makeConfig());
+    await search.searchWorkspaceForRepos();
+
+    probeStates.set("/workspace/a", "untrusted");
+    let release!: () => void;
+    searchUtilMock.mockImplementation(
+      async (_dir: string, _depth: number, _git: string, _known: string[], probe: never) => {
+        await (probe as (d: string) => Promise<boolean>)("/workspace/a");
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        return ["/workspace/a"];
+      }
+    );
+    const scan = search.searchWorkspaceForRepos(true);
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+
+    // Mid-scan, trust requests and the startup screen still see the last
+    // complete answer — but a refusal the running scan already saw counts at
+    // once, so the engine is not offered the repository in the meantime.
+    expect(search.isVerified("/workspace/a")).toBe(false);
+    expect(search.getDiagnostics().repositories).toEqual([
+      expect.objectContaining({ path: "/workspace/a", state: "ready" })
+    ]);
+    release();
+    await scan;
+    expect(search.isVerified("/workspace/a")).toBe(false);
+    expect(search.getDiagnostics().repositories).toEqual([
+      expect.objectContaining({ path: "/workspace/a", state: "untrusted" })
+    ]);
+  });
+
+  it("never opens a repository only the engine could confirm while Git is missing", async () => {
+    workspaceState.folders = [{ uri: { fsPath: "/workspace" } }];
+    probeOverrides.set("/workspace/repo", {
+      state: "gitUnavailable",
+      repository: true,
+      detectedBy: "engine",
+      detail: "spawn git ENOENT"
+    });
+    walkProbing(["/workspace/repo"]);
+    const repoManager = makeRepoManager();
+    const search = createRepoSearch(repoManager as never, makeConfig());
+
+    await search.searchWorkspaceForRepos();
+
+    // Shown as evidence on the startup screen, but never handed to the graph,
+    // whose operations need the command line.
+    expect(repoManager.addRepo).not.toHaveBeenCalled();
+    expect(search.isVerified("/workspace/repo")).toBe(false);
+    expect(search.getDiagnostics().repositories).toEqual([
+      expect.objectContaining({ path: "/workspace/repo", detectedBy: "engine" })
+    ]);
   });
 });

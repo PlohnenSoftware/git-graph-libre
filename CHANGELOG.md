@@ -7,7 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-16
+
 ### Added
+
+- **The status indicator says what is working.** Rest the pointer on the
+  status dot and its text for a moment, or focus it with the keyboard, and a
+  popup lists the Git command line (with its version), the built-in Rust
+  engine (its version and build, or why it is not running), and which of the
+  two answered the last graph load — and if it was the command line, why.
+- **A platform where the engine cannot start says so.** When the engine is
+  missing, fails to load, or comes from a different build, the indicator turns
+  amber and reads "Ready (Rust engine unavailable)". The extension keeps
+  working fully through the Git command line, as before; only the speed
+  differs. Choosing `"git-cli"` for `backend` is a choice rather than a fault,
+  so it stays green.
+- **The output channel records whether the engine started.** Each time the
+  graph is built, Git Graph Libre's output names the engine's version and
+  build, or the reason it is unavailable.
+- **A repository Git refuses for its ownership can be trusted from the
+  graph.** Git turns away a repository whose folder belongs to another user
+  (its `safe.directory` check) — common in containers, WSL and shared drives
+  — and the graph used to report that as "no Git repository". It now names
+  the problem, separately from VS Code's own Workspace Trust and from a
+  missing Git, and offers **Trust this repository in Git**. A confirmation
+  shows the exact entry first: only that one directory, spelled the way Git
+  reports it, is added to your global `safe.directory` list — never `*`, a
+  wildcard, or a parent folder. Where another repository in the workspace did
+  open, **Git Graph Libre: Trust Repository in Git…** in the Command Palette
+  offers the same.
+- **The graph recovers in the tab you already have open.** Once trust is
+  granted — from the graph or from any terminal — or Git or the search depth
+  is fixed, the open tab notices within seconds and shows the graph, with no
+  window reload and no reopening.
+- **Graph tabs come back after a restart.** An open graph tab is restored with
+  its window, like any other editor tab. The new
+  `git-graph-libre.restoreTabOnStartup` setting (on by default) turns that off.
+- **A startup screen that says what it actually found.** When no graph can be
+  shown, the screen lists what was observed instead of one generic guess: the
+  Git command line with its version or the error it gave, each repository
+  folder as found, not found, or not verifiable, and what the Rust engine
+  detected — even with Git missing, in which case it also says that Git is
+  still needed for everything the command line does. The same component
+  details as the status indicator's popup are shown underneath.
+- **No repository yet is an empty state, with a fix on the spot.** When the
+  workspace simply has no repository at the current search depth, the screen
+  says so plainly and lets you raise the search depth and search again right
+  there; the depth is saved for this workspace only.
+- **Diagnostics follow every request.** Git Graph Libre's output now logs each
+  Git command and each Rust engine call a request made, how long it took and
+  whether it worked, and why a read went to the command line instead of the
+  engine — with a request id, so lines from overlapping requests can be told
+  apart. Credentials stay redacted, and none of this is sent anywhere.
+- **Telemetry counts failure screens.** With telemetry accepted, each distinct
+  failure screen that appears (Git trust required, Git unavailable,
+  repository access failed, graph load failed) is counted once, and the
+  no-workspace and no-repository screens once each as empty states — the
+  category only, never a path or an error message. Polling or retrying the
+  same screen does not count again. See the README's Telemetry section.
 
 - **Reload once with the Git CLI, from the Hidden menu.** The menu behind a
   double right-click on the version can now reload the graph once through
@@ -26,6 +83,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Author Date no longer sends the graph to the Git command line.** With
+  `dateType` at its default, `"Author Date"`, every graph load used to skip
+  the engine; the engine now reports author dates itself, so the default
+  configuration gets the faster path. The dates shown are the same ones as
+  before, which is checked against `git` on a history whose author and commit
+  dates disagree.
+- **The Rust engine reads only repositories Git has accepted.** The engine
+  would open a repository Git refuses for its ownership. It is now offered
+  a repository only after Git confirmed it can read it; until then, and as
+  soon as a read sees Git refuse it, the command line answers instead, which
+  reports the refusal rather than quietly working around it. The status
+  popup names this as the reason when it applies.
 - **The installed extension drops engine binaries for other platforms.**
   The one published package carries the Rust engine for every platform
   (about 33 MB of binaries once installed); on first activation the
@@ -54,40 +123,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The graph no longer stays stuck after a passing load error.** A refresh
+  that brought back the same commits after an error kept the error screen
+  up, because an unchanged list skipped redrawing; the graph now redraws
+  whenever the commit table is not on screen.
 - **Commits at the edge of the loaded window no longer pose as roots.**
   The square marker meant "root commit", but any commit whose parents
   were below the loaded page (or outside the current filter) got one
   too, so a partially loaded history looked full of root commits. The
   square is now reserved for commits git itself reports parentless;
   a commit whose parents simply are not loaded yet keeps its circle.
-
-## [1.8.1] - 2026-10-16
-
-### Added
-
-- **The status indicator says what is working.** Rest the pointer on the
-  status dot and its text for a moment, or focus it with the keyboard, and a
-  popup lists the Git command line (with its version), the built-in Rust
-  engine (its version and build, or why it is not running), and which of the
-  two answered the last graph load — and if it was the command line, why.
-- **A platform where the engine cannot start says so.** When the engine is
-  missing, fails to load, or comes from a different build, the indicator turns
-  amber and reads "Ready (Rust engine unavailable)". The extension keeps
-  working fully through the Git command line, as before; only the speed
-  differs. Choosing `"git-cli"` for `backend` is a choice rather than a fault,
-  so it stays green.
-- **The output channel records whether the engine started.** Each time the
-  graph is built, Git Graph Libre's output names the engine's version and
-  build, or the reason it is unavailable.
-
-### Changed
-
-- **Author Date no longer sends the graph to the Git command line.** With
-  `dateType` at its default, `"Author Date"`, every graph load used to skip
-  the engine; the engine now reports author dates itself, so the default
-  configuration gets the faster path. The dates shown are the same ones as
-  before, which is checked against `git` on a history whose author and commit
-  dates disagree.
 
 ## [1.8.0] - 2026-10-16
 

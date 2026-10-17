@@ -158,9 +158,12 @@ export async function editRemote(
   });
 
   if (pushUrl === "") {
-    const existingPushUrls = await git
-      .raw(["config", "--get-all", `remote.${name}.pushurl`])
-      .catch(() => "");
+    const existingPushUrls = await runGitRaw(git, {
+      label: "remote.getPushUrls",
+      args: ["config", "--get-all", `remote.${name}.pushurl`],
+      repo: input.repo,
+      record
+    }).catch(() => "");
     if (existingPushUrls.trim() !== "") {
       await runGitRaw(git, {
         label: "remote.clearPushUrl",

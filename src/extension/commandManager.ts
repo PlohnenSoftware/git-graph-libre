@@ -52,6 +52,8 @@ export type CommandManagerDeps = {
   };
   openGraphView(targetRepo?: string): void;
   getCurrentPanel(): WebviewPanel | undefined;
+  /** Trust a repository Git rejects for ownership; see `createGitTrustCommand`. */
+  trustRepository?: () => Promise<void>;
   telemetry?: Pick<TelemetryReporter, "logFeature">;
 };
 
@@ -262,6 +264,7 @@ export function createCommandManager(deps: CommandManagerDeps) {
     register("git-graph-libre.addRepo", () => addRepository());
     register("git-graph-libre.removeRepo", () => removeRepository());
     register("git-graph-libre.showDiagnostics", () => showDiagnostics());
+    register("git-graph-libre.trustRepository", () => deps.trustRepository?.());
     register("git-graph-libre.clearAvatarCache", () => {
       deps.avatarManager.clearCache();
     });

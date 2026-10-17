@@ -7,6 +7,7 @@ import { loadEngineAddon } from "@/backend/engine/addon";
 import {
   inspectRepository,
   isGitTrustError,
+  safeDirectoryEntry,
   trustGitRepository
 } from "@/backend/utils/repositoryProbe";
 
@@ -262,10 +263,40 @@ describe("inspectRepository with the Git executable missing", () => {
   });
 });
 
+async function trustConfirmed(directory: string) {
+  await trustGitRepository(directory, GIT, await safeDirectoryEntry(directory, GIT));
+}
+
+describe("safeDirectoryEntry", () => {
+  it("is the path Git names in its rejection, resolved to the repository itself", async () => {
+    isolate(true);
+    // Through the symlink too: Git names the resolved path, and that spelling
+    // is what the user confirms and what is written.
+    expect(await safeDirectoryEntry(repo, GIT)).toBe(fs.realpathSync(repo));
+    expect(await safeDirectoryEntry(symlink, GIT)).toBe(fs.realpathSync(repo));
+  });
+
+  it("refuses a repository whose path holds a wildcard, writing nothing", async () => {
+    const starred = path.join(root, "*");
+    initRepo(starred);
+    try {
+      isolate(true);
+      expect((await inspectRepository(starred, { gitPath: GIT, useEngine: false })).state).toBe(
+        "untrusted"
+      );
+      await expect(safeDirectoryEntry(starred, GIT)).rejects.toThrow(/exact repository path/);
+      await expect(trustGitRepository(starred, GIT, `${root}/*`)).rejects.toThrow();
+      expect(fs.readFileSync(globalConfig, "utf8")).toBe("");
+    } finally {
+      fs.rmSync(starred, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("trustGitRepository", () => {
   it("writes exactly the canonical root and recovers", async () => {
     isolate(true);
-    await trustGitRepository(repo, GIT);
+    await trustConfirmed(repo);
     const written = fs.readFileSync(globalConfig, "utf8");
     expect(written).toContain(`directory = ${fs.realpathSync(repo)}`);
     expect(written).not.toContain("*");
@@ -277,7 +308,7 @@ describe("trustGitRepository", () => {
     isolate(true);
     const before = await inspectRepository(symlink, { gitPath: GIT, useEngine: false });
     expect(before.state).toBe("untrusted");
-    await trustGitRepository(symlink, GIT);
+    await trustConfirmed(symlink);
     expect(fs.readFileSync(globalConfig, "utf8")).toContain(`directory = ${fs.realpathSync(repo)}`);
     const after = await inspectRepository(symlink, { gitPath: GIT, useEngine: false });
     expect(after.state).toBe("ready");
@@ -285,15 +316,25 @@ describe("trustGitRepository", () => {
 
   it("trusts a worktree without trusting its main repository", async () => {
     isolate(true);
-    await trustGitRepository(worktree, GIT);
+    await trustConfirmed(worktree);
     const wt = await inspectRepository(worktree, { gitPath: GIT, useEngine: false });
     expect(wt.state).toBe("ready");
     const main = await inspectRepository(repo, { gitPath: GIT, useEngine: false });
     expect(main.state).toBe("untrusted");
   });
 
+  it("writes nothing when the confirmed entry is not the one the repository needs", async () => {
+    isolate(true);
+    await expect(trustGitRepository(repo, GIT, fs.realpathSync(worktree))).rejects.toThrow(
+      /changed after it was confirmed/
+    );
+    expect(fs.readFileSync(globalConfig, "utf8")).toBe("");
+  });
+
   it("refuses to trust a repository that no longer needs it", async () => {
-    await expect(trustGitRepository(repo, GIT)).rejects.toThrow(/no longer needs/);
+    await expect(trustGitRepository(repo, GIT, fs.realpathSync(repo))).rejects.toThrow(
+      /no longer needs/
+    );
   });
 });
 

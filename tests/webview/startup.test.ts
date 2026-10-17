@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { buildStartupScreen } from "@/extension/webviewStartupScreen";
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
 import type { RepositoryProbe, RequestMessage, StartupStatus } from "@/types";
 
@@ -239,5 +240,88 @@ describe("initStartupScreen", () => {
     expect(input.value).toBe("4");
     receive(status({ roots: [] }));
     expect(form.hidden).toBe(true);
+  });
+});
+
+describe("initStartupScreen on the shipped markup", () => {
+  // The document the host really builds, not a fixture, so a renamed id or a
+  // dropped attribute in it fails here.
+  beforeEach(() => {
+    const parsed = new DOMParser().parseFromString(
+      `<!doctype html><html>${buildStartupScreen(l10n, "")}</html>`,
+      "text/html"
+    );
+    document.body.replaceWith(document.adoptNode(parsed.body));
+  });
+
+  function text(id: string) {
+    return document.getElementById(id)?.textContent ?? "";
+  }
+
+  it("says what Git and the engine observed when Git is missing but the engine found the repository", () => {
+    start();
+    receive(
+      status({
+        components: {
+          git: { state: "failed", path: "/opt/git", detail: "spawn /opt/git ENOENT" },
+          engine: { state: "active", version: "1.0.25", platform: "linux-x64" },
+          graphLoad: null
+        },
+        repositories: [
+          probe({
+            state: "gitUnavailable",
+            repository: true,
+            detectedBy: "engine",
+            detail: "spawn /opt/git ENOENT"
+          })
+        ]
+      })
+    );
+
+    expect(text("startupTitle")).toBe(l10n.startupGitUnavailable);
+    // Presence is confirmed, and the screen says it does not make Git optional.
+    expect(text("startupRepositories")).toContain(l10n.startupFoundEngine);
+    expect(text("startupComponents")).toContain("/opt/git");
+    expect(text("startupComponents")).toContain("1.0.25");
+    expect(document.querySelector(".startupRepository button")).toBeNull();
+    expect(document.getElementById("startupSearchDepth")?.hidden).toBe(true);
+  });
+
+  it.each([
+    ["absent", { repository: false, state: "notRepository" }, "startupNotFound"],
+    ["unknown", { repository: null, state: "error" }, "startupUnknown"],
+    ["found by Git", { repository: true, state: "ready" }, "startupFound"]
+  ] as const)("words a repository whose presence is %s", (_name, shape, key) => {
+    start();
+    receive(status({ repositories: [probe(shape as Partial<RepositoryProbe>)] }));
+    expect(text("startupRepositories")).toContain(l10n[key]);
+  });
+
+  it("frames no workspace and no repository as empty states, not failures", () => {
+    start();
+    receive(status({ roots: [] }));
+    expect(text("startupTitle")).toBe(l10n.startupNoWorkspace);
+    expect(text("startupSummary")).toBe(l10n.startupNoWorkspaceHint);
+
+    receive(status({ repositories: [probe({ repository: false, state: "notRepository" })] }));
+    expect(text("startupTitle")).toBe(l10n.startupNoRepository);
+    expect(text("startupSummary")).toBe(l10n.startupNoRepositoryHint);
+    expect(text("startupSummary")).not.toBe(l10n.startupRecoveryHint);
+
+    receive(status({ repositories: [probe({ state: "error", repository: null })] }));
+    expect(text("startupSummary")).toBe(l10n.startupRecoveryHint);
+  });
+
+  it("offers the depth form only for an empty workspace search, bounded 0 to 20", () => {
+    start();
+    receive(status({ repositories: [probe({ repository: false, state: "notRepository" })] }));
+    const form = document.getElementById("startupSearchDepth");
+    const input = document.getElementById("repoSearchDepth") as HTMLInputElement;
+    expect(form?.hidden).toBe(false);
+    expect(input.value).toBe("2");
+    expect([input.min, input.max, input.step, input.required]).toEqual(["0", "20", "1", true]);
+
+    receive(status({ repositories: [probe({ state: "untrusted" })] }));
+    expect(form?.hidden).toBe(true);
   });
 });
