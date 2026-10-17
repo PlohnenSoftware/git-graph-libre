@@ -213,7 +213,7 @@ apply these facts:
 - From version 1.0.0 the project as a whole is `AGPL-3.0-or-later`, not MIT.
 - The SonarQube project key is `git-graph-libre`, not `neo-git-graph`.
 - The local SonarQube setup recorded below belonged to an earlier machine and
-  no longer exists; see the Tooling section.
+  no longer exists; see the SonarQube bullets under Current Architecture.
 
 ## Maintainer and Agent Source of Truth
 
@@ -654,31 +654,31 @@ The extension is already split into clean layers:
 - SonarQube is the required deeper pre-commit analysis gate beside Biome. Use
   `sonar-project.properties` for project metadata and exclusions, run
   `pnpm run test:coverage` to generate `coverage/lcov.info`, then run
-  `pnpm run sonar:scan:local` against the local server at
-  `http://127.0.0.1:9000`, and provide credentials through `SONAR_TOKEN` or an
-  explicit scanner property. Keep the project token outside the repo and pass
-  it in by environment variable; do not commit tokens. Run
-  `pnpm run sonar:auth` before using
-  SonarQube CLI commands such as `pnpm run sonar:secrets`; the browser login
-  must be completed by a human. Do not commit tokens, generated `.scannerwork/`
-  output, generated `coverage/` output, or local SonarQube server data. The
-  project key is `git-graph-libre`.
-- SonarQube state on this machine (`2026-07-27`): no local server, but a remote
-  one is configured and working. `sonar-scanner` `8.0.1.6346` is installed at
-  `/opt/sonar-scanner`, and its global config
-  `/opt/sonar-scanner/conf/sonar-scanner.properties` holds both `sonar.host.url`
-  and `sonar.token` for the maintainer's private instance. Read the address from
-  that file when you need it; never record the address or the token anywhere in
-  this repository. Run `pnpm run sonar:scan`, not `pnpm run sonar:scan:local` —
-  the latter overrides the host with `-Dsonar.host.url=http://127.0.0.1:9000`
-  where nothing is listening. **Never prefix the command with an empty
-  `SONAR_TOKEN=`**: the environment variable takes precedence over `sonar.token`
-  from the config file, so the scan authenticates anonymously and fails with
-  `HTTP 401 Unauthorized` on `/api/v2/analysis/version` even though a valid token
-  is present. A `401` is not by itself evidence that no credential exists. The
-  separate SonarQube CLI is absent, so `pnpm run sonar:auth`,
-  `sonar:auth:status`, and `sonar:secrets` cannot run at all; those scripts still
-  point at `http://127.0.0.1:9000`.
+  `pnpm run sonar:scan` — plain `sonar-scanner`, which takes host and token
+  from the system-wide scanner configuration
+  (`/opt/sonar-scanner/conf/sonar-scanner.properties`). There is no local
+  SonarQube server in use: never override the host or token
+  (`-Dsonar.host.url`, `SONAR_HOST_URL`, `SONAR_TOKEN`), and never record
+  the configured address or token anywhere in this repository. Do not
+  commit tokens, generated `.scannerwork/` output, or generated
+  `coverage/` output.
+  The project key is `git-graph-libre`.
+- SonarQube state on this machine (re-verified `2026-10-17`): no local
+  server; the maintainer's remote instance is reached through the global
+  config above. `sonar-scanner` is installed at `/opt/sonar-scanner`
+  (`SONAR_SCANNER_HOME`). Read the address from that file when you need it
+  for an API poll; never record the address or the token anywhere in this
+  repository. **Never prefix the command with an empty `SONAR_TOKEN=`**:
+  the environment variable takes precedence over `sonar.token` from the
+  config file, so the scan authenticates anonymously and fails with
+  `HTTP 401 Unauthorized` on `/api/v2/analysis/version` even though a valid
+  token is present. A `401` is not by itself evidence that no credential
+  exists. The separate SonarQube CLI is absent, so `pnpm run sonar:auth`,
+  `sonar:auth:status`, and `sonar:secrets` cannot run on this machine; the
+  old `sonar:scan:local` script and `sonar:auth`'s `-s http://127.0.0.1:9000`
+  were removed `2026-10-17`. That day's final scan (task
+  `9ffe7ba5-e235-49c3-9d59-99072d226e8e`, analysis
+  `fc6fbf5e-e5d7-4a9d-9922-b8c2ec90da12`) polled back gate `OK`.
 - Scan the completed, uncommitted working tree with fresh coverage **before**
   committing. SonarQube logs `Missing blame information` for changed/new files
   and identifies the report with the current HEAD revision; those warnings are
@@ -4169,9 +4169,9 @@ platform look like a slow one.
   workflows lint clean with actionlint `1.7.12` (`1.7.7` predates the
   `macos-15-intel` and `windows-11-arm` labels); the only remaining notes are
   shellcheck `SC2012` infos on `publish.yml`'s existing `ls` lines.
-- **Not covered:** anything older than glibc 2.28, which VS Code itself does
-  not run on. The remote matrix itself is proven by its first run — use the
-  manual dry run before the next tag.
+- **Not covered:** anything older than glibc 2.28, which VS Code itself does not run on. The first remote run (`2026-10-17`, Actions run `39053275791`) passed eight legs; both Windows legs loaded and read with the engine, then went red on cleanup — `EPERM` unlinking the still-loaded `git-graph.node`, because Windows locks a loaded DLL until the process exits and a Node addon cannot be unloaded.
+  Cleanup is therefore best-effort and never fails a passed check: `cleanupWorkDirectory` removes only the fixture repository on `win32`, leaves the binary in the temporary directory for the OS, and swallows any other removal failure; `verifyVsix.test.ts` pins both branches. The fix is local and unit-proven only.
+  A fresh manual dry-run dispatch before the next tag remains the remote proof for Windows — re-running the failed run would only reuse the old commit.
 
 #### Risks to decide before 16.5, not during
 

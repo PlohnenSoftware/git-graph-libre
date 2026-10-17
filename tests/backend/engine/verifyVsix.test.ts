@@ -5,6 +5,7 @@ import * as path from "node:path";
 import * as zlib from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  cleanupWorkDirectory,
   nativeContents,
   PLATFORM_DIRECTORIES,
   platformDirectoryFor,
@@ -156,6 +157,36 @@ describe("verify-vsix reads the package", () => {
     // A version only on glibc, which is what lets a legacy leg pin its floor.
     if (libc === "gnu") expect(glibc).toMatch(/^2\.\d+$/);
     else expect(glibc).toBeNull();
+  });
+});
+
+describe("verify-vsix cleanup", () => {
+  function workTree() {
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), "ggl-verify-cleanup-"));
+    scratch.push(work);
+    const repository = path.join(work, "repository");
+    fs.mkdirSync(repository);
+    fs.writeFileSync(path.join(repository, "file"), "x");
+    const binary = path.join(work, "git-graph.node");
+    fs.writeFileSync(binary, "x");
+    return { work, repository, binary };
+  }
+
+  // Windows locks a loaded DLL until the process exits, so deleting the
+  // extracted binary there throws EPERM and must never fail a passed check:
+  // the run of 2026-10-17 verified both Windows binaries and then went red
+  // on exactly this unlink.
+  it("leaves the loaded binary in place on Windows instead of failing on its lock", () => {
+    const { work, repository, binary } = workTree();
+    expect(() => cleanupWorkDirectory(work, repository, "win32")).not.toThrow();
+    expect(fs.existsSync(repository)).toBe(false);
+    expect(fs.existsSync(binary)).toBe(true);
+  });
+
+  it("removes the whole work directory elsewhere", () => {
+    const { work, repository } = workTree();
+    cleanupWorkDirectory(work, repository, "linux");
+    expect(fs.existsSync(work)).toBe(false);
   });
 });
 

@@ -200,6 +200,23 @@ export function runningLibc() {
 	return runningGlibc() === null ? 'musl' : 'gnu';
 }
 
+/**
+ * Best-effort removal of the work directory after a passed check, so cleanup
+ * can never fail it. Windows keeps a loaded DLL locked until the process
+ * exits and a Node addon cannot be unloaded, so there the extracted binary
+ * (and with it the work directory) stays in the temporary directory for the
+ * OS to clear; only the fixture repository is removed. Any other removal
+ * failure — a file still held open, say — is likewise left to the OS.
+ */
+export function cleanupWorkDirectory(work, repository, platform = process.platform) {
+	try {
+		fs.rmSync(repository, { recursive: true, force: true });
+		if (platform !== 'win32') fs.rmSync(work, { recursive: true, force: true });
+	} catch {
+		// Left in the temporary directory until the OS clears it.
+	}
+}
+
 /** The engine version the sources expect: the crate's, and the loader's pinned one. */
 function expectedVersions() {
 	const cargo = fs.readFileSync(path.join(repositoryRoot, 'engine', 'Cargo.toml'), 'utf8');
@@ -291,7 +308,6 @@ async function main(argv) {
 		throw new Error(`loadCommitFile returned ${JSON.stringify(file)}.`);
 	}
 	addon.closeAllRepositories();
-	fs.rmSync(work, { recursive: true, force: true });
 
 	const runtime = glibc === null ? libc : `glibc ${glibc}`;
 	const summary =
@@ -301,6 +317,8 @@ async function main(argv) {
 	if (process.env.GITHUB_STEP_SUMMARY) {
 		fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `- ${summary}\n`);
 	}
+
+	cleanupWorkDirectory(work, repository);
 }
 
 if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

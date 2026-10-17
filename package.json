@@ -110,7 +110,7 @@
     "lint:strict:changed": "biome lint --config-path biome.strict.jsonc --changed --no-errors-on-unmatched --error-on-warnings .",
     "lint:strict:staged": "biome lint --config-path biome.strict.jsonc --staged --no-errors-on-unmatched --error-on-warnings .",
     "biome-migrate": "biome migrate --write",
-    "sonar:auth": "sonar auth login -s http://127.0.0.1:9000",
+    "sonar:auth": "sonar auth login",
     "sonar:auth:status": "sonar auth status",
     "sonar:scan": "sonar-scanner",
     "sonar:scan:local": "sonar-scanner -Dsonar.host.url=http://127.0.0.1:9000",

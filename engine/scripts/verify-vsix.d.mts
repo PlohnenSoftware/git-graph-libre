@@ -42,3 +42,10 @@ export declare function runningGlibc(): string | null;
 
 /** `gnu` or `musl` on Linux, from what this Node actually runs on; null elsewhere. */
 export declare function runningLibc(): "gnu" | "musl" | null;
+
+/** Removes the fixture repository, and off Windows the whole work directory; never throws. */
+export declare function cleanupWorkDirectory(
+  work: string,
+  repository: string,
+  platform?: string
+): void;
