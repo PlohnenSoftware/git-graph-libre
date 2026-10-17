@@ -4,10 +4,14 @@ name: release
 permissions:
   contents: write
 
+# A tag push builds, packages, verifies and publishes. Running it by hand
+# ("Run workflow") does everything but the last job: a dry run that builds the
+# engine, packages the VSIX and loads it on every platform, publishing nothing.
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 jobs:
   native:
@@ -78,9 +82,18 @@ jobs:
           path: ${{ steps.package.outputs.vsix }}
           if-no-files-found: error
 
+  # The packaged VSIX, loaded on every platform it ships an engine for. Every
+  # leg must be green before anything is released or published.
+  verify:
+    name: Verify the VSIX on every platform
+    needs: package
+    uses: ./.github/workflows/verify-vsix.yml
+
   release:
     name: Release and publish
-    needs: package
+    needs: [package, verify]
+    # Only a tag push publishes; a manual run stops after verification.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1

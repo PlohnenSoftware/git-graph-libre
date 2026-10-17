@@ -1,0 +1,116 @@
+name: verify
+
+# Loads the Rust engine out of the packaged VSIX on every platform it ships
+# for, before anything is published. Every binary is cross-built on one Linux
+# runner (`native-build.yml`), so none is otherwise loaded before release — and
+# the extension's loader hides a broken one by design: a binary that fails to
+# load, lacks an export, or reports another version than the TypeScript
+# expects sends that platform to the `git` CLI without a word. A broken
+# platform would ship looking like a slow one. Each leg here fails loudly on
+# exactly that instead, against the very artifact the release job publishes.
+#
+# What a leg runs is `engine/scripts/verify-vsix.mjs`, which needs only Node:
+# it checks the VSIX carries all six binaries and nothing else under
+# `engine/native`, loads this platform's, checks its exports and version, and
+# has it find and read a one-commit repository it writes by hand. Locally:
+#   node engine/scripts/verify-vsix.mjs <file.vsix> [--libc gnu|musl] [--glibc <version>]
+#
+# Kept short on purpose: a sparse checkout of the three files the script
+# reads, one artifact download, one Node process — well under a minute a leg,
+# capped at ten. Runner images are pinned so a leg's meaning cannot drift
+# (`macos-latest` has changed architecture before). Legs that need a C library
+# no hosted runner offers run the same command in a container on the native
+# runner of their architecture, so nothing is emulated:
+#   - musl, in `node:22-alpine`: one Linux binary per architecture serves both
+#     C libraries, and both are proven here;
+#   - glibc 2.28, in `node:18-buster-slim` (Debian 10): the floor the Linux
+#     binaries are built for and VS Code's own minimum. A runner's current
+#     glibc proves nothing about older ones — a binary that quietly starts
+#     needing, say, GLIBC_2.29 loads everywhere recent and fails here — and
+#     glibc is backward compatible, so passing on 2.28 covers every later one.
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  load:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    strategy:
+      # Every platform reports, so one failure shows the whole picture.
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64 (glibc)
+            runner: ubuntu-24.04
+            args: --libc gnu
+          - name: Linux arm64 (glibc)
+            runner: ubuntu-24.04-arm
+            args: --libc gnu
+          - name: Linux x64 (glibc 2.28, Debian 10)
+            runner: ubuntu-24.04
+            image: node:18-buster-slim
+            args: --libc gnu --glibc 2.28
+          - name: Linux arm64 (glibc 2.28, Debian 10)
+            runner: ubuntu-24.04-arm
+            image: node:18-buster-slim
+            args: --libc gnu --glibc 2.28
+          - name: Linux x64 (musl)
+            runner: ubuntu-24.04
+            image: node:22-alpine
+            args: --libc musl
+          - name: Linux arm64 (musl)
+            runner: ubuntu-24.04-arm
+            image: node:22-alpine
+            args: --libc musl
+          - name: macOS x64
+            runner: macos-15-intel
+          - name: macOS arm64
+            runner: macos-15
+          - name: Windows x64
+            runner: windows-2025
+          - name: Windows arm64
+            runner: windows-11-arm
+    steps:
+      # Only what the check reads: itself, and the two files that say which
+      # engine version this commit expects.
+      - uses: actions/checkout@v7.0.1
+        with:
+          sparse-checkout: |
+            engine/scripts/verify-vsix.mjs
+            engine/Cargo.toml
+            src/backend/engine/addon.ts
+          sparse-checkout-cone-mode: false
+
+      - name: Download VSIX
+        uses: actions/download-artifact@v8.0.2
+        with:
+          name: vsix
+          path: dist/
+
+      # Node 22 is the line VS Code's Electron runs the extension on.
+      - name: Setup Node.js
+        if: ${{ !matrix.image }}
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 22
+
+      - name: Load the engine from the VSIX
+        if: ${{ !matrix.image }}
+        shell: bash
+        run: node engine/scripts/verify-vsix.mjs dist ${{ matrix.args }}
+
+      # The workspace goes in read-only; the step summary is the one file the
+      # container may write.
+      - name: Load the engine from the VSIX in ${{ matrix.image }}
+        if: ${{ matrix.image }}
+        run: >-
+          docker run --rm
+          -v "$GITHUB_WORKSPACE:/w:ro" -w /w
+          -v "$GITHUB_STEP_SUMMARY:/summary.md" -e GITHUB_STEP_SUMMARY=/summary.md
+          ${{ matrix.image }}
+          node engine/scripts/verify-vsix.mjs dist ${{ matrix.args }}
