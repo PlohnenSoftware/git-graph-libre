@@ -125,9 +125,9 @@
     "@napi-rs/cli": "^3.10.8",
     "@primer/octicons": "^19.40.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.5",
     "@types/vscode": "~1.98.0",
-    "@vitest/coverage-v8": "5.0.3",
+    "@vitest/coverage-v8": "5.0.4",
     "@vscode/l10n-dev": "^0.0.35",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",
@@ -137,7 +137,7 @@
     "ovsx": "^1.2.0",
     "tsc-alias": "^1.9.7",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.4"
   },
   "l10n": "./l10n",
   "contributes": {
