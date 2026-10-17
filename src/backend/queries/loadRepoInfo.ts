@@ -278,7 +278,10 @@ export async function loadRepoInfo(
   try {
     isRepo = await isInsideWorkTree(git, context);
   } catch (error) {
-    return { repoInfo: emptyRepoInfo(true), error: toGitQueryError(error, "Unable to access repository") };
+    return {
+      repoInfo: emptyRepoInfo(true),
+      error: toGitQueryError(error, "Unable to access repository")
+    };
   }
   if (!isRepo) return { repoInfo: emptyRepoInfo(false), error: null };
 

@@ -1,11 +1,9 @@
 import * as assert from "node:assert";
 import * as fs from "node:fs";
-
-import { Config } from "@/config";
-import { RepoManager } from "@/extension/repoManager";
-import { createRepoSearch, scanLogLevel } from "@/extension/workspaceSearch";
-
 import { makeRepo } from "@tests/backend/helpers";
+import type { Config } from "@/config";
+import type { RepoManager } from "@/extension/repoManager";
+import { createRepoSearch, scanLogLevel } from "@/extension/workspaceSearch";
 
 function makeStubs(initialRepoPaths: string[] = [], maxDepth = 2, gitPath = "git") {
   const repos: Record<string, { columnWidths: null }> = {};
@@ -82,7 +80,7 @@ suite("workspaceSearch / searchDirectoryForRepos", () => {
 
   test("returns false for a non-repo directory", async () => {
     const { repoSearch, added } = makeStubs();
-    const dir = fs.mkdtempSync(repo + "-plain-");
+    const dir = fs.mkdtempSync(`${repo}-plain-`);
     try {
       const found = await repoSearch.searchDirectoryForRepos(dir, 0);
       assert.strictEqual(found, false);
@@ -110,8 +108,8 @@ suite("workspaceSearch / searchDirectoryForRepos", () => {
   });
 
   test("finds repo nested at depth 1", async () => {
-    const parent = fs.mkdtempSync(repo + "-parent-");
-    const nested = parent + "/nested-repo";
+    const parent = fs.mkdtempSync(`${repo}-parent-`);
+    const nested = `${parent}/nested-repo`;
     fs.mkdirSync(nested);
     // copy repo into nested
     fs.cpSync(repo, nested, { recursive: true });
@@ -126,11 +124,11 @@ suite("workspaceSearch / searchDirectoryForRepos", () => {
   });
 
   test("does not find repos beyond maxDepth", async () => {
-    const parent = fs.mkdtempSync(repo + "-deep-");
-    const level1 = parent + "/level1";
-    const level2 = level1 + "/level2";
+    const parent = fs.mkdtempSync(`${repo}-deep-`);
+    const level1 = `${parent}/level1`;
+    const level2 = `${level1}/level2`;
     fs.mkdirSync(level2, { recursive: true });
-    fs.cpSync(repo, level2 + "/repo", { recursive: true });
+    fs.cpSync(repo, `${level2}/repo`, { recursive: true });
     try {
       const { repoSearch, added } = makeStubs();
       const found = await repoSearch.searchDirectoryForRepos(parent, 1);

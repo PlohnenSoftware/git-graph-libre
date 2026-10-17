@@ -231,7 +231,8 @@ export function componentRows(status: ComponentStatus | null): Row[] {
 function gitRow(status: ComponentStatus): Row {
   const label = l10n.componentStatusGit;
   if (status.git === null) return { label, value: l10n.componentStatusChecking, tone: "neutral" };
-  if (status.git.state === "ok") return { label, value: status.git.version, tone: "ok" };
+  if (status.git.state === "ok")
+    return { label, value: status.git.version, tone: "ok", detail: status.git.path };
   return {
     label,
     value: l10n.componentStatusGitFailed.replace("{0}", status.git.detail),

@@ -12,7 +12,12 @@ const inspectMock = vi.hoisted(() =>
     return {
       path: directory,
       state,
-      repository: state === "ready" || state === "untrusted" ? true : state === "notRepository" ? false : null,
+      repository:
+        state === "ready" || state === "untrusted"
+          ? true
+          : state === "notRepository"
+            ? false
+            : null,
       detectedBy: "git",
       detail: state === "untrusted" ? "dubious ownership" : null
     };
@@ -104,6 +109,7 @@ describe("createRepoSearch workspace scan", () => {
     expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(logger.warn.mock.calls[0]?.[0]).toContain('git: "/usr/bin/git"');
     expect(logger.warn.mock.calls[0]?.[0]).toContain("depth: 2");
+    expect(logger.warn.mock.calls[0]?.[0]).toContain('check the "git.path" setting');
     expect(search.getDiagnostics()).toEqual({ roots: [], repositories: [] });
   });
 
@@ -221,6 +227,9 @@ describe("createRepoSearch workspace scan", () => {
     const first = search.searchWorkspaceForRepos();
     const second = search.searchWorkspaceForRepos();
     expect(second).toBe(first);
+    // The walk starts after the remembered repositories are probed, so wait
+    // for it rather than assume it began in the same tick.
+    await vi.waitFor(() => expect(gates).toHaveLength(1));
     gates[0]();
     await Promise.all([first, second]);
     expect(searchUtilMock).toHaveBeenCalledTimes(1);
@@ -228,6 +237,7 @@ describe("createRepoSearch workspace scan", () => {
     // A forced call during a scan queues exactly one more scan behind it.
     const third = search.searchWorkspaceForRepos();
     const forced = search.searchWorkspaceForRepos(true);
+    await vi.waitFor(() => expect(gates).toHaveLength(2));
     gates[1]();
     await Promise.all([third, forced]);
     expect(searchUtilMock).toHaveBeenCalledTimes(3);

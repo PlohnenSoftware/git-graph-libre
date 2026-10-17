@@ -19,7 +19,6 @@ import type {
 import { COMMIT_ORDERINGS, GIT_PUSH_BRANCH_MODES } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
 import { normalizeContextMenuActionsVisibility } from "@/contextMenuVisibility";
-
 import {
   alterGitFileTree,
   COMMIT_DETAILS_COLLAPSED_HEIGHT,
@@ -35,6 +34,7 @@ import {
 import { findCommitIndexes, formatFindMatchCount } from "./commitFind";
 import { applyComponentStatus, initComponentStatus } from "./componentStatus";
 import { Dropdown, type DropdownOption } from "./dropdown";
+import { createFailureScreenReporter } from "./failureScreen";
 import { Graph } from "./graph";
 import { resolveGlobalShortcut } from "./keyboardShortcuts";
 import { groupCommitRefs, parseRemoteBranchName } from "./refLabels";
@@ -65,6 +65,8 @@ import { rewritePaletteLightnessChroma, toOklch } from "./utils/oklchColor";
 import { sendMessage, vscode } from "./utils/vscode";
 
 const searchHistoryMaxResults = 50;
+const failureScreens = createFailureScreenReporter(sendMessage);
+window.addEventListener("pagehide", () => failureScreens.dispose(), { once: true });
 const FILTER_SHOW_ALL_VALUE = "";
 const HEAD_REF_VALUE = "HEAD";
 const REF_DROPDOWN_DISPLAY_CHARS = 40;
@@ -778,11 +780,15 @@ class GitGraphView {
       this.triggerLoadCommitsCallback(false);
       return;
     }
-    sendMessage({ command: "failureScreenShown", screen: null });
+    failureScreens.show(null);
     // Before the comparison below, so a refresh of an unchanged page stays
     // unchanged rather than dropping every signature back to pending.
     const page = this.withKnownSignatures(commits);
-    if (!hard && this.isCommitListUnchanged(page, commitHead, moreAvailable)) {
+    if (
+      !hard &&
+      this.isTableMounted() &&
+      this.isCommitListUnchanged(page, commitHead, moreAvailable)
+    ) {
       this.refreshUncommittedChangesCommit(page);
       this.triggerLoadCommitsCallback(false);
       this.requestMissingSignatures();
@@ -896,6 +902,13 @@ class GitGraphView {
       setStatusStrip("ready", l10n.statusReady);
     }
   }
+  /**
+   * Whether the commit table is on screen. The loading and error placeholders
+   * replace it, so an unchanged list arriving after either must still render.
+   */
+  private isTableMounted() {
+    return this.tableElem.firstElementChild instanceof HTMLTableElement;
+  }
   private isCommitListUnchanged(
     commits: GitCommitNode[],
     commitHead: string | null,
@@ -970,7 +983,7 @@ class GitGraphView {
   public loadAvatar(email: string, image: string) {
     this.avatars[email] = image;
     this.saveState();
-    const avatarsElems = <HTMLCollectionOf<HTMLElement>>document.getElementsByClassName("avatar"),
+    const avatarsElems = document.getElementsByClassName("avatar") as HTMLCollectionOf<HTMLElement>,
       escapedEmail = escapeHtml(email);
     for (const avatarElem of avatarsElems) {
       if (avatarElem.dataset.email === escapedEmail) {
@@ -1110,8 +1123,6 @@ class GitGraphView {
             hideDialogAndContextMenu();
           }
         });
-      } else {
-        sendMessage({ command: "loadRepos", check: true });
       }
     });
   }
@@ -2839,8 +2850,7 @@ class GitGraphView {
   }
   private renderNoCommitsRow() {
     return (
-      `<tr class="noCommitsRow"><td colspan="6"><div class="noCommitsView">` +
-      svgIcons.noCommits +
+      `<tr class="noCommitsRow"><td colspan="6"><div class="noCommitsView">${svgIcons.noCommits}` +
       `<div class="noCommitsHeading">${l10n.noCommits}</div>` +
       `<div class="noCommitsHint">${l10n.createFirstCommit}</div>` +
       `</div></td></tr>`
@@ -2892,7 +2902,7 @@ class GitGraphView {
       const hash = sourceElem?.dataset.hash;
       if (sourceElem === null || hash === undefined) return;
       this.prepareCommitContextSelection(hash, sourceElem);
-      showContextMenu(<MouseEvent>e, this.buildCommitContextMenu(hash, sourceElem), sourceElem);
+      showContextMenu(e as MouseEvent, this.buildCommitContextMenu(hash, sourceElem), sourceElem);
     });
   }
   private registerUncommittedChangesContextMenuListener() {
@@ -2901,7 +2911,7 @@ class GitGraphView {
       const sourceElem = closestHTMLElement(e.target, ".unsavedChanges");
       if (sourceElem === null) return;
       showContextMenu(
-        <MouseEvent>e,
+        e as MouseEvent,
         this.buildUncommittedChangesContextMenu(sourceElem),
         sourceElem
       );
@@ -3636,7 +3646,7 @@ class GitGraphView {
           command: "resetToCommit",
           repo: this.currentRepo,
           commitHash: hash,
-          resetMode: <GitResetMode>mode
+          resetMode: mode as GitResetMode
         });
       },
       sourceElem
@@ -3644,7 +3654,7 @@ class GitGraphView {
   }
   private registerCommitActivationListeners() {
     addListenerToClass("commit", "click", (e: Event) => {
-      const mouseEvent = <MouseEvent>e;
+      const mouseEvent = e as MouseEvent;
       const sourceElem = closestHTMLElement(e.target, ".commit");
       const hash = sourceElem?.dataset.hash;
       if (sourceElem === null || hash === undefined) return;
@@ -3663,7 +3673,7 @@ class GitGraphView {
       this.toggleCommitDetails(sourceElem, hash);
     });
     addListenerToClass("commit", "keydown", (e: Event) => {
-      const keyboardEvent = <KeyboardEvent>e;
+      const keyboardEvent = e as KeyboardEvent;
       if (keyboardEvent.key !== "Enter" && keyboardEvent.key !== " ") return;
       const sourceElem = closestHTMLElement(e.target, ".commit");
       const hash = sourceElem?.dataset.hash;
@@ -3680,7 +3690,11 @@ class GitGraphView {
       if (sourceElem === null || rawRefName === undefined) return;
 
       const refName = unescapeHtml(rawRefName);
-      showContextMenu(<MouseEvent>e, this.buildGitRefContextMenu(sourceElem, refName), sourceElem);
+      showContextMenu(
+        e as MouseEvent,
+        this.buildGitRefContextMenu(sourceElem, refName),
+        sourceElem
+      );
     });
   }
   private buildGitRefContextMenu(sourceElem: HTMLElement, refName: string) {
@@ -4241,26 +4255,27 @@ class GitGraphView {
     const signature = this.formatTagSignature(details);
     const messageHtml = message === "" ? null : escapeHtml(message).replaceAll("\n", "<br>");
 
-    const html =
-      `<div class="dialogTitle tagDetailsTitle"><b>${l10n.tagDetailsTitle.replace("{0}", escapeHtml(details.tagName))}</b></div>` +
-      `<dl class="tagDetailsFields">` +
-      this.tagDetailRow(l10n.tagDetailsType, escapeHtml(tagType)) +
+    const html = [
+      `<div class="dialogTitle tagDetailsTitle"><b>${l10n.tagDetailsTitle.replace("{0}", escapeHtml(details.tagName))}</b></div>`,
+      `<dl class="tagDetailsFields">`,
+      this.tagDetailRow(l10n.tagDetailsType, escapeHtml(tagType)),
       this.tagDetailRow(
         l10n.tagDetailsObject,
         escapeHtml(abbrevCommit(details.objectHash, this.config.shortHashLength))
-      ) +
-      this.tagDetailRow(l10n.tagDetailsTarget, escapeHtml(target)) +
-      this.tagDetailRow(l10n.tagDetailsTagger, tagger) +
-      this.tagDetailRow(l10n.tagDetailsDate, escapeHtml(date)) +
-      this.tagDetailRow(l10n.tagDetailsSignature, signature) +
-      `<dt class="tagDetailsMessageLabel">${l10n.tagDetailsMessage}</dt>` +
-      `<dd class="tagDetailsMessage">${messageHtml ?? escapeHtml(l10n.tagDetailsNoMessage)}</dd>` +
-      `</dl>` +
-      `<div class="tagDetailsActions">` +
-      this.tagDetailsCopyButton("tagDetailsCopyName", svgIcons.copy, l10n.copyTagName) +
-      this.tagDetailsCopyButton("tagDetailsCopyHash", svgIcons.copy, l10n.copyTagHash) +
-      this.tagDetailsCopyButton("tagDetailsCopyMessage", svgIcons.copy, l10n.copyTagMessage) +
-      `</div>`;
+      ),
+      this.tagDetailRow(l10n.tagDetailsTarget, escapeHtml(target)),
+      this.tagDetailRow(l10n.tagDetailsTagger, tagger),
+      this.tagDetailRow(l10n.tagDetailsDate, escapeHtml(date)),
+      this.tagDetailRow(l10n.tagDetailsSignature, signature),
+      `<dt class="tagDetailsMessageLabel">${l10n.tagDetailsMessage}</dt>`,
+      `<dd class="tagDetailsMessage">${messageHtml ?? escapeHtml(l10n.tagDetailsNoMessage)}</dd>`,
+      `</dl>`,
+      `<div class="tagDetailsActions">`,
+      this.tagDetailsCopyButton("tagDetailsCopyName", svgIcons.copy, l10n.copyTagName),
+      this.tagDetailsCopyButton("tagDetailsCopyHash", svgIcons.copy, l10n.copyTagHash),
+      this.tagDetailsCopyButton("tagDetailsCopyMessage", svgIcons.copy, l10n.copyTagMessage),
+      `</div>`
+    ].join("");
 
     showDialog(html, null, l10n.dialogDismiss, null, null);
     dialog.classList.add("tagDetails");
@@ -4606,20 +4621,15 @@ class GitGraphView {
       boldMessage ? `<b>${message}</b>` : message
     }</span>`;
     const authorTitle = escapeHtml(`${commit.author} <${commit.email}>`);
+    const headDot = isHeadCommit ? '<span class="commitHeadDot"></span>' : "";
 
     return (
       `<tr ${rowAttributes}` +
       ` data-id="${index}" data-color="${this.graph.getVertexColor(index)}"><td></td><td>` +
-      (isHeadCommit ? '<span class="commitHeadDot"></span>' : "") +
-      this.renderCommitRefs(commit) +
-      commitMessage +
-      `</td><td title="${date.title}">` +
-      date.value +
-      `</td><td title="${authorTitle}">` +
-      this.renderCommitAvatar(commit) +
-      escapeHtml(commit.author) +
-      `</td><td title="${escapeHtml(commit.hash)}">` +
-      this.displayHash(commit.hash) +
+      `${headDot}${this.renderCommitRefs(commit)}${commitMessage}` +
+      `</td><td title="${date.title}">${date.value}` +
+      `</td><td title="${authorTitle}">${this.renderCommitAvatar(commit)}${escapeHtml(commit.author)}` +
+      `</td><td title="${escapeHtml(commit.hash)}">${this.displayHash(commit.hash)}` +
       `</td>${this.renderCommitSignatureCell(commit)}</tr>`
     );
   }
@@ -4651,10 +4661,8 @@ class GitGraphView {
       ` data-color="${this.graph.getVertexColor(index)}"><td></td><td>` +
       `<span class="gitRef stash" data-name="${escapedSelector}" title="${escapedSelector}" aria-label="${escapedSelector}">${svgIcons.stash}${escapeHtml(selector.replace(/^stash/, ""))}</span>` +
       `<span class="commitMessage">${escapeHtml(commit.message)}</span>` +
-      `</td><td title="${date.title}">` +
-      date.value +
-      `</td><td></td><td title="${escapedHash}">` +
-      this.displayHash(commit.hash) +
+      `</td><td title="${date.title}">${date.value}` +
+      `</td><td></td><td title="${escapedHash}">${this.displayHash(commit.hash)}` +
       `</td>${this.renderCommitSignatureCell(commit)}</tr>`
     );
   }
@@ -4754,13 +4762,13 @@ class GitGraphView {
         if (item.kind === "ref") return this.renderCommitRef(item.ref, item.ref.name, "");
         const active = item.local.name === this.gitBranchHead;
         const label = [item.local.name, ...item.remotes.map(({ ref }) => ref.name)].join(", ");
+        const primary = this.renderCommitRef(item.local, item.local.name, " gitRefPrimary");
+        const aliases = item.remotes
+          .map(({ ref, remote }) => this.renderCommitRef(ref, remote, " gitRefAlias"))
+          .join("");
         return (
           `<span class="gitRefGroup${active ? " active" : ""}" role="group" aria-label="${escapeHtml(label)}">` +
-          this.renderCommitRef(item.local, item.local.name, " gitRefPrimary") +
-          item.remotes
-            .map(({ ref, remote }) => this.renderCommitRef(ref, remote, " gitRefAlias"))
-            .join("") +
-          "</span>"
+          `${primary}${aliases}</span>`
         );
       })
       .join("");
@@ -4770,12 +4778,10 @@ class GitGraphView {
     const refActive = ref.type === "head" && ref.name === this.gitBranchHead;
     const signed = ref.type === "tag" && ref.signed === true;
     const title = escapeHtml(signed ? `${ref.name} — ${l10n.signedTagTooltip}` : ref.name);
+    const badge = signed ? `<span class="gitRefSignedBadge">${svgIcons.verified}</span>` : "";
     return (
       `<span class="gitRef ${ref.type}${refActive ? " active" : ""}${signed ? " signed" : ""}${extraClass}" data-name="${refName}" title="${title}">` +
-      this.refIcon(ref.type) +
-      (signed ? `<span class="gitRefSignedBadge">${svgIcons.verified}</span>` : "") +
-      escapeHtml(label) +
-      "</span>"
+      `${this.refIcon(ref.type)}${badge}${escapeHtml(label)}</span>`
     );
   }
   private refIcon(type: GitCommitNode["refs"][number]["type"]) {
@@ -4846,8 +4852,7 @@ class GitGraphView {
           )}" data-stash-hash="${escapeHtml(stash.hash)}">` +
           `<span class="stashRef">${escapeHtml(stash.ref)}</span>` +
           `<span class="stashMessage">${escapeHtml(stash.message)}</span>` +
-          dateHtml +
-          "</div>"
+          `${dateHtml}</div>`
         );
       })
       .join("");
@@ -4862,7 +4867,7 @@ class GitGraphView {
       const hash = sourceElem?.dataset.stashHash;
       if (sourceElem === null || selector === undefined || hash === undefined) return;
       showContextMenu(
-        <MouseEvent>e,
+        e as MouseEvent,
         this.buildStashContextMenu(unescapeHtml(selector), unescapeHtml(hash), sourceElem),
         sourceElem
       );
@@ -4870,7 +4875,7 @@ class GitGraphView {
   }
   private registerStashActivationListeners() {
     addListenerToClass("stashRow", "keydown", (e: Event) => {
-      const keyboardEvent = <KeyboardEvent>e;
+      const keyboardEvent = e as KeyboardEvent;
       if (keyboardEvent.key !== "Enter" && keyboardEvent.key !== " ") return;
       keyboardEvent.preventDefault();
       const sourceElem = closestHTMLElement(e.target, ".stashRow");
@@ -5073,7 +5078,7 @@ class GitGraphView {
       const selector = row?.dataset.stashRef;
       const hash = row?.dataset.hash;
       if (row === null || selector === undefined || hash === undefined) return;
-      showContextMenu(<MouseEvent>e, this.buildStashContextMenu(selector, hash, row), row);
+      showContextMenu(e as MouseEvent, this.buildStashContextMenu(selector, hash, row), row);
     });
   }
   /**
@@ -5085,9 +5090,9 @@ class GitGraphView {
   private findAnyRowByHash(hash: string): HTMLElement | null {
     const commitRow = this.findCommitRow(hash);
     if (commitRow !== null) return commitRow;
-    const stashRows = <HTMLCollectionOf<HTMLElement>>(
-      document.getElementsByClassName("stashGraphRow")
-    );
+    const stashRows = document.getElementsByClassName(
+      "stashGraphRow"
+    ) as HTMLCollectionOf<HTMLElement>;
     for (const row of stashRows) {
       if (hash === row.dataset.hash) return row;
     }
@@ -5099,13 +5104,8 @@ class GitGraphView {
   private renderUncommitedChanges() {
     const date = getCommitDate(this.commits[0].date);
     document.getElementsByClassName("unsavedChanges")[0].innerHTML =
-      "<td></td><td><b>" +
-      escapeHtml(this.commits[0].message) +
-      '</b></td><td title="' +
-      date.title +
-      '">' +
-      date.value +
-      '</td><td title="* <>">*</td><td title="*">*</td>' +
+      `<td></td><td><b>${escapeHtml(this.commits[0].message)}</b></td>` +
+      `<td title="${date.title}">${date.value}</td><td title="* <>">*</td><td title="*">*</td>` +
       `<td class="signatureCol">${this.renderCommitSignature(null)}</td>`;
   }
   private renderShowLoading(message = l10n.statusLoadingGraph) {
@@ -5120,7 +5120,6 @@ class GitGraphView {
     this.clearStashSection();
   }
   private renderShowError(message: string, reason: string | null) {
-    sendMessage({ command: "failureScreenShown", screen: "graphLoadError" });
     hideDialogAndContextMenu();
     document.body.classList.add("unableToLoad");
     this.graph.clear();
@@ -5133,6 +5132,10 @@ class GitGraphView {
     this.footerElem.innerHTML = "";
     // Same as the loading path: the list is outside the table and footer.
     this.clearStashSection();
+    failureScreens.show("graphLoadError");
+    // Trust, the Git binary or the repository may have changed since the
+    // graph opened. Reclassify the failure so startup recovery can take over.
+    sendMessage({ command: "loadRepos", check: true });
   }
   private checkoutBranchAction(sourceElem: HTMLElement, refName: string) {
     if (sourceElem.classList.contains("head")) {
@@ -5253,12 +5256,12 @@ class GitGraphView {
       e.stopPropagation();
       const sourceElem = closestHTMLElement(e.target, ".tableColHeader");
       if (sourceElem === null) return;
-      showContextMenu(<MouseEvent>e, this.buildColumnVisibilityMenu(), sourceElem);
+      showContextMenu(e as MouseEvent, this.buildColumnVisibilityMenu(), sourceElem);
     });
   }
   private makeTableResizable() {
     const colHeadersElem = requireElement("tableColHeaders"),
-      cols = <HTMLCollectionOf<HTMLElement>>document.getElementsByClassName("tableColHeader");
+      cols = document.getElementsByClassName("tableColHeader") as HTMLCollectionOf<HTMLElement>;
     let columnWidths = this.gitRepos[this.currentRepo].columnWidths,
       mouseX = -1,
       col = -1;
@@ -5307,16 +5310,16 @@ class GitGraphView {
     } else {
       this.setTableLayout("autoLayout");
       this.graph.limitMaxWidth(-1);
-      cols[0].style.padding =
-        "0 " +
-        Math.round((Math.max(this.graph.getWidth() + 16, 64) - (cols[0].offsetWidth - 24)) / 2) +
-        "px";
+      const padding = Math.round(
+        (Math.max(this.graph.getWidth() + 16, 64) - (cols[0].offsetWidth - 24)) / 2
+      );
+      cols[0].style.padding = `0 ${padding}px`;
     }
 
     addListenerToClass("resizeCol", "mousedown", (e) => {
       if (!(e.target instanceof HTMLElement) || e.target.dataset.col === undefined) return;
       col = Number.parseInt(e.target.dataset.col, 10);
-      mouseX = (<MouseEvent>e).clientX;
+      mouseX = (e as MouseEvent).clientX;
       if (columnWidths === null) {
         columnWidths = [
           cols[0].clientWidth - 24,
@@ -5331,9 +5334,8 @@ class GitGraphView {
     });
     colHeadersElem.addEventListener("mousemove", (e) => {
       if (col > -1 && columnWidths !== null) {
-        const mouseEvent = <MouseEvent>e;
-        this.resizeTableColumn(col, mouseEvent.clientX - mouseX, columnWidths, cols);
-        mouseX = mouseEvent.clientX;
+        this.resizeTableColumn(col, e.clientX - mouseX, columnWidths, cols);
+        mouseX = e.clientX;
       }
     });
     colHeadersElem.addEventListener("mouseup", stopResizing);
@@ -5532,7 +5534,7 @@ class GitGraphView {
       this.toggleUncommittedDetails(sourceElem);
     });
     addListenerToClass("unsavedChanges", "keydown", (e: Event) => {
-      const keyboardEvent = <KeyboardEvent>e;
+      const keyboardEvent = e as KeyboardEvent;
       if (keyboardEvent.key !== "Enter" && keyboardEvent.key !== " ") return;
       const sourceElem = closestHTMLElement(e.target, ".unsavedChanges");
       if (sourceElem === null) return;
@@ -5573,7 +5575,7 @@ class GitGraphView {
   public showUncommittedDetails(changes: GitUncommittedChanges) {
     const view = this.uncommittedView;
     if (view === null) return;
-    const row = <HTMLElement | null>document.querySelector("tr.unsavedChanges");
+    const row = document.querySelector("tr.unsavedChanges") as HTMLElement | null;
     if (row === null) {
       view.srcElem = null;
       return;
@@ -5636,7 +5638,7 @@ class GitGraphView {
     this.registerUncommittedFolderListeners(panel);
     panel.querySelectorAll(".uncommittedToggle").forEach((toggle) => {
       toggle.addEventListener("click", (e) => {
-        const section = (<HTMLElement>e.currentTarget).dataset.section;
+        const section = (e.currentTarget as HTMLElement).dataset.section;
         if (!isUncommittedSection(section) || this.uncommittedView === null) return;
         const open =
           section === "staged"
@@ -5650,7 +5652,7 @@ class GitGraphView {
     });
     panel.querySelectorAll(".uncommittedMoveFile").forEach((button) => {
       button.addEventListener("click", (e) => {
-        const target = <HTMLElement>e.currentTarget;
+        const target = e.currentTarget as HTMLElement;
         const section = target.dataset.section;
         const filePath = target.dataset.filepath;
         if (!isUncommittedSection(section) || filePath === undefined) return;
@@ -5662,8 +5664,8 @@ class GitGraphView {
     panel.querySelectorAll(".uncommittedPane").forEach((zone) => {
       zone.addEventListener("dragover", (e) => this.allowUncommittedFileDrop(e));
       zone.addEventListener("dragleave", (e) => {
-        const zoneElem = <HTMLElement>e.currentTarget;
-        const next = (<DragEvent>e).relatedTarget;
+        const zoneElem = e.currentTarget as HTMLElement;
+        const next = (e as DragEvent).relatedTarget;
         if (next instanceof Node && zoneElem.contains(next)) return;
         zoneElem.classList.remove("dropTarget");
       });
@@ -5722,7 +5724,7 @@ class GitGraphView {
     panel.querySelectorAll(".uncommittedFolderHeader").forEach((header) => {
       header.addEventListener("click", (e) => this.toggleUncommittedFolder(e));
       header.addEventListener("keydown", (e) => {
-        const key = (<KeyboardEvent>e).key;
+        const key = (e as KeyboardEvent).key;
         if (key !== "Enter" && key !== " ") return;
         e.preventDefault();
         this.toggleUncommittedFolder(e);
@@ -5775,8 +5777,8 @@ class GitGraphView {
    * ends together if this payload ever changes shape.
    */
   private startUncommittedFileDrag(e: Event) {
-    const item = <HTMLElement>e.currentTarget;
-    const transfer = (<DragEvent>e).dataTransfer;
+    const item = e.currentTarget as HTMLElement;
+    const transfer = (e as DragEvent).dataTransfer;
     if (transfer === null) return;
     if (item.dataset.filepath === undefined && item.dataset.paths === undefined) return;
     transfer.effectAllowed = "move";
@@ -5800,9 +5802,9 @@ class GitGraphView {
   }
   private allowUncommittedFileDrop(e: Event) {
     e.preventDefault();
-    const transfer = (<DragEvent>e).dataTransfer;
+    const transfer = (e as DragEvent).dataTransfer;
     if (transfer !== null) transfer.dropEffect = "move";
-    (<HTMLElement>e.currentTarget).classList.add("dropTarget");
+    (e.currentTarget as HTMLElement).classList.add("dropTarget");
   }
   /**
    * Handle a drop on a pane. The dragged payload decides the source section,
@@ -5812,9 +5814,9 @@ class GitGraphView {
    */
   private dropUncommittedFile(e: Event) {
     e.preventDefault();
-    const zone = <HTMLElement>e.currentTarget;
+    const zone = e.currentTarget as HTMLElement;
     zone.classList.remove("dropTarget");
-    const transfer = (<DragEvent>e).dataTransfer;
+    const transfer = (e as DragEvent).dataTransfer;
     const target = zone.dataset.section;
     if (transfer === null || !isUncommittedSection(target)) return;
     const payload = transfer.getData("text/plain").split(" ");
@@ -5846,10 +5848,10 @@ class GitGraphView {
   }
   public showCommitDetails(commitDetails: GitCommitDetails, fileTree: GitFolder) {
     const expandedCommit = this.expandedCommit;
-    const sourceElem = expandedCommit?.srcElem;
+    const expandedRow = expandedCommit?.srcElem;
     if (
-      sourceElem === null ||
-      sourceElem === undefined ||
+      expandedRow === null ||
+      expandedRow === undefined ||
       expandedCommit?.hash !== commitDetails.hash
     )
       return;
@@ -5858,13 +5860,13 @@ class GitGraphView {
 
     expandedCommit.commitDetails = commitDetails;
     expandedCommit.fileTree = fileTree;
-    sourceElem.classList.add("commitDetailsOpen");
-    sourceElem.setAttribute("aria-selected", "true");
+    expandedRow.classList.add("commitDetailsOpen");
+    expandedRow.setAttribute("aria-selected", "true");
     this.saveState();
 
     const newElem = document.createElement("tr");
     newElem.id = "commitDetails";
-    const rowColor = sourceElem.dataset.color;
+    const rowColor = expandedRow.dataset.color;
     if (rowColor !== undefined) newElem.dataset.color = rowColor;
     this.applyCommitDetailsSectionClasses(newElem);
     this.applyCommitDetailsHeight(newElem);
@@ -5879,7 +5881,7 @@ class GitGraphView {
       sections: expandedCommit,
       issueLinking: this.getCurrentRepoState()?.issueLinking ?? null
     });
-    insertAfter(newElem, sourceElem);
+    insertAfter(newElem, expandedRow);
     this.updateCommitDetailsResizeHandle();
 
     this.renderGraph();
@@ -5977,7 +5979,7 @@ class GitGraphView {
       const fileChange = this.getExpandedCommitFileChange(sourceElem?.dataset.fileindex);
       if (sourceElem === null || fileChange === null) return;
       showContextMenu(
-        <MouseEvent>e,
+        e as MouseEvent,
         this.buildGitFileContextMenu(fileChange, sourceElem),
         sourceElem
       );
@@ -6916,7 +6918,7 @@ function showFormDialog(
 function bindLockedDialogInputs(inputs: DialogInput[]) {
   for (const [index, input] of inputs.entries()) {
     if (input.type !== "checkbox" || input.lock === undefined) continue;
-    const elem = <HTMLInputElement | null>document.getElementById(`dialogInput${index}`);
+    const elem = document.getElementById(`dialogInput${index}`) as HTMLInputElement | null;
     if (elem === null) continue;
     const forced = input.value;
     // `preventDefault()` is what refuses the toggle, and in a browser it is
@@ -7043,10 +7045,11 @@ function getDialogFormValues(inputs: DialogInput[]) {
 function getDialogInputValue(input: DialogInput, index: number) {
   const elem = document.getElementById(`dialogInput${index}`);
   if (elem === null) return getDialogInputFallbackValue(input);
-  if (input.type === "select") return (<HTMLSelectElement>elem).value;
-  if (input.type === "checkbox") return (<HTMLInputElement>elem).checked ? "checked" : "unchecked";
-  if (input.type === "textarea") return (<HTMLTextAreaElement>elem).value;
-  return (<HTMLInputElement>elem).value;
+  if (input.type === "select") return (elem as HTMLSelectElement).value;
+  if (input.type === "checkbox")
+    return (elem as HTMLInputElement).checked ? "checked" : "unchecked";
+  if (input.type === "textarea") return (elem as HTMLTextAreaElement).value;
+  return (elem as HTMLInputElement).value;
 }
 function getDialogInputFallbackValue(input: DialogInput) {
   // Inputs are addressable by id only once the dialog markup is in the DOM,
@@ -7092,9 +7095,9 @@ function bindFormDialogInputs(inputs: DialogInput[], textRefInput: number, actio
   };
 
   if (textRefInput > -1) {
-    const dialogInput = <HTMLInputElement | null>(
-      document.getElementById(`dialogInput${textRefInput}`)
-    );
+    const dialogInput = document.getElementById(
+      `dialogInput${textRefInput}`
+    ) as HTMLInputElement | null;
     if (dialogInput !== null) {
       if (dialogInput.value === "") dialog.className = "active noInput";
       dialogInput.focus();

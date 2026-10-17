@@ -67,6 +67,7 @@ body.unableToLoad p {
 }
 
 body.repositoryStartup {
+  margin: 0;
   text-align: left;
   overflow: auto;
 }
@@ -75,8 +76,8 @@ body.repositoryStartup {
   margin: 32px auto;
   padding: 0 24px;
 }
-.repositoryStartup h2,
-.repositoryStartup p {
+body.repositoryStartup h2,
+body.repositoryStartup p {
   text-align: left;
 }
 .startupRepository {
@@ -98,4 +99,45 @@ body.repositoryStartup {
 .startupComponents {
   padding: 16px;
   border: 1px solid var(--vscode-panel-border);
+}
+.repositoryStartup button,
+.repositoryStartup input {
+  font: inherit;
+  padding: 6px 12px;
+  border: 1px solid var(--vscode-button-border, var(--ngg-transparent));
+  border-radius: 2px;
+}
+.repositoryStartup button {
+  background: var(--vscode-button-background, var(--ngg-accent));
+  color: var(--vscode-button-foreground, var(--ngg-accent-foreground));
+  cursor: pointer;
+}
+.repositoryStartup button:hover {
+  background: var(--vscode-button-hoverBackground, var(--ngg-accent));
+}
+.repositoryStartup button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.repositoryStartup button:focus-visible,
+.repositoryStartup input:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 2px;
+}
+.repositoryStartup input {
+  width: 5rem;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border-color: var(--vscode-input-border, var(--vscode-panel-border));
+}
+#startupSearchDepth:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+#searchDepthHint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
 }

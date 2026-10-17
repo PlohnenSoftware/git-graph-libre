@@ -21,13 +21,13 @@ vi.mock("vscode", () => ({
   Uri: { file: (p: string) => ({ fsPath: p }) }
 }));
 
+import { git } from "@tests/backend/helpers";
 import type { Config } from "@/config";
-import type { ExtensionState } from "@/extensionState";
 import { createRepoManager } from "@/extension/repoManager";
 import { createRepoSearch } from "@/extension/workspaceSearch";
 import { createRepoWatcher } from "@/extension/workspaceWatcher";
+import type { ExtensionState } from "@/extensionState";
 import type { GitRepoSet } from "@/types";
-import { git } from "@tests/backend/helpers";
 
 type Fire = (u: { fsPath: string }) => void;
 
@@ -69,7 +69,11 @@ function setupWatch(root: string) {
   const workspace = {
     workspaceFolders: ws.folders,
     createFileSystemWatcher: () => {
-      const h = { fireCreate: (() => {}) as Fire, fireChange: (() => {}) as Fire, fireDelete: (() => {}) as Fire };
+      const h = {
+        fireCreate: (() => {}) as Fire,
+        fireChange: (() => {}) as Fire,
+        fireDelete: (() => {}) as Fire
+      };
       handles.push(h);
       return {
         onDidCreate: (fn: Fire) => {
@@ -158,7 +162,10 @@ describe("createRepoWatcher discovery (real Git)", () => {
       initRepo(parent);
       initRepo(childSrc);
       const { watcher, fireCreate, fireDelete, known } = setupWatch(root);
-      git(["-c", "protocol.file.allow=always", "submodule", "add", childSrc, "modules/child"], parent);
+      git(
+        ["-c", "protocol.file.allow=always", "submodule", "add", childSrc, "modules/child"],
+        parent
+      );
       const sub = path.join(parent, "modules", "child");
       expect(fs.statSync(path.join(sub, ".git")).isFile()).toBe(true);
       fireCreate(sub);

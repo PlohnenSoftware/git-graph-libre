@@ -25,6 +25,7 @@ import type { DateType, GitCommitDetails, GitFileChange, QueryResult } from "@/b
 import { getRemoteUrl } from "@/backend/utils/git";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { uniqueNonEmpty } from "@/backend/utils/logFilters";
+import { logBackendRoute } from "@/backend/utils/operationLog";
 import { toGitQueryError } from "@/backend/utils/queryError";
 import type {
   EngineBackend,
@@ -32,9 +33,7 @@ import type {
   EngineUnavailableReason,
   GraphLoadRoute
 } from "@/types";
-
 import { type EngineAddon, engineLoadStatus, loadEngineAddon, withEngineLogging } from "./addon";
-import { logBackendRoute } from "@/backend/utils/operationLog";
 import {
   buildLoadCommitsOptions,
   type EngineLoadCommitsInput,
@@ -282,7 +281,8 @@ export function createRepoReader(deps: RepoReaderDeps): RepoReader {
     if (!addon) logBackendRoute("fallback", "backend=cli reason=engineUnavailable");
     return addon ? withEngineLogging(addon) : null;
   };
-  if (deps.preference === "git-cli" || deps.forceCli) logBackendRoute("reader", `backend=cli reason=${deps.forceCli ? "forced" : "setting"}`);
+  if (deps.preference === "git-cli" || deps.forceCli)
+    logBackendRoute("reader", `backend=cli reason=${deps.forceCli ? "forced" : "setting"}`);
   return {
     getRemoteUrl: (repoPath: string) =>
       readRemoteUrl(deps.preference, deps.gitPath, provider, repoPath),

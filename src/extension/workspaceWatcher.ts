@@ -63,7 +63,7 @@ export function createRepoWatcher(
   }
 
   function onWatcherChange(uri: vscode.Uri) {
-    let path = getPathFromUri(uri);
+    const path = getPathFromUri(uri);
     if (path.includes("/.git/")) return;
     if (path.endsWith("/.git")) {
       // A .git FILE (linked worktree, submodule) can be delivered as a

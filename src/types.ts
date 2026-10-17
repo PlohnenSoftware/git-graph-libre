@@ -23,7 +23,14 @@ export type StartupStatus = {
   components: ComponentStatus;
   error: string | null;
 };
-export const FAILURE_SCREENS = ["noWorkspace", "gitUntrusted", "gitUnavailable", "noRepository", "repositoryError", "graphLoadError"] as const;
+export const FAILURE_SCREENS = [
+  "noWorkspace",
+  "gitUntrusted",
+  "gitUnavailable",
+  "noRepository",
+  "repositoryError",
+  "graphLoadError"
+] as const;
 export type FailureScreen = (typeof FAILURE_SCREENS)[number];
 export type RequestRepositoryRecovery =
   | { command: "repositoryStatus" }

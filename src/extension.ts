@@ -4,8 +4,8 @@ import { AvatarManager } from "./avatarManager";
 import { closeAllEngineRepositories } from "./backend/engine/index";
 import { pruneInstalledEngineBinaries } from "./backend/engine/prune";
 import { gitClientFactory } from "./backend/gitClient";
-import { buildExtensionUri } from "./backend/utils/path";
 import { setOperationLog } from "./backend/utils/operationLog";
+import { buildExtensionUri } from "./backend/utils/path";
 import { config } from "./config";
 import { DiffDocProvider } from "./diffDocProvider";
 import { createCommandManager } from "./extension/commandManager";
@@ -74,22 +74,27 @@ export function activate(context: vscode.ExtensionContext) {
       currentPanel.reveal(column);
       return;
     }
-    const panel = restoredPanel ?? vscode.window.createWebviewPanel(
-      "git-graph-libre",
-      l10n.t("outputChannel.text"),
-      column ?? vscode.ViewColumn.One,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-        localResourceRoots: [
-          buildExtensionUri(context.extensionPath, "media"),
-          buildExtensionUri(context.extensionPath, "out")
-        ]
-      }
-    );
+    const panel =
+      restoredPanel ??
+      vscode.window.createWebviewPanel(
+        "git-graph-libre",
+        l10n.t("outputChannel.text"),
+        column ?? vscode.ViewColumn.One,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [
+            buildExtensionUri(context.extensionPath, "media"),
+            buildExtensionUri(context.extensionPath, "out")
+          ]
+        }
+      );
     panel.webview.options = {
       enableScripts: true,
-      localResourceRoots: [buildExtensionUri(context.extensionPath, "media"), buildExtensionUri(context.extensionPath, "out")]
+      localResourceRoots: [
+        buildExtensionUri(context.extensionPath, "media"),
+        buildExtensionUri(context.extensionPath, "out")
+      ]
     };
     let bridge!: WebviewBridge;
     const repoFileWatcher = new RepoFileWatcher(() => {
@@ -179,7 +184,7 @@ export function activate(context: vscode.ExtensionContext) {
         await repoSearch.searchWorkspaceForRepos();
       }
     }),
-    vscode.window.onDidChangeWindowState(state => {
+    vscode.window.onDidChangeWindowState((state) => {
       if (state.focused) void repoSearch.searchWorkspaceForRepos();
     }),
     telemetry,

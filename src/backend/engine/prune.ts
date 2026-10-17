@@ -41,6 +41,19 @@ export type PruneResult = {
 
 const NOTHING: PruneResult = { removed: [], freedBytes: 0 };
 
+/** The bytes freed by deleting one platform directory, or `null` if it could not be deleted. */
+async function removePlatformDirectory(nativeRoot: string, name: string): Promise<number | null> {
+  const directory = path.join(nativeRoot, name);
+  const size = await fs
+    .stat(path.join(directory, ENGINE_BINARY_NAME))
+    .then((stats) => stats.size)
+    .catch(() => 0);
+  return fs
+    .rm(directory, { recursive: true, force: true })
+    .then(() => size)
+    .catch(() => null);
+}
+
 /**
  * Remove every known platform directory under `nativeRoot` except
  * `keepDirectories`. Pure in its arguments (the host's values are the
@@ -67,28 +80,20 @@ export async function pruneUnusedEngineBinaries(
             .catch(() => false)
         )
       )
-    ).some((present) => present);
+    ).some(Boolean);
     if (!hostBinaryPresent) return NOTHING;
 
-    const removed: string[] = [];
-    let freedBytes = 0;
-    for (const entry of entries) {
-      if (!entry.isDirectory() || keep.has(entry.name)) continue;
-      if (!ENGINE_PLATFORM_DIRECTORIES.includes(entry.name)) continue;
-      const size = await fs
-        .stat(path.join(nativeRoot, entry.name, ENGINE_BINARY_NAME))
-        .then((stats) => stats.size)
-        .catch(() => 0);
-      const deleted = await fs
-        .rm(path.join(nativeRoot, entry.name), { recursive: true, force: true })
-        .then(() => true)
-        .catch(() => false);
-      if (deleted) {
-        removed.push(entry.name);
-        freedBytes += size;
-      }
-    }
-    return { removed, freedBytes };
+    const foreign = entries
+      .filter((entry) => entry.isDirectory() && !keep.has(entry.name))
+      .map((entry) => entry.name)
+      .filter((name) => ENGINE_PLATFORM_DIRECTORIES.includes(name));
+    const freed = await Promise.all(
+      foreign.map((name) => removePlatformDirectory(nativeRoot, name))
+    );
+    return {
+      removed: foreign.filter((_, index) => freed[index] !== null),
+      freedBytes: freed.reduce<number>((total, size) => total + (size ?? 0), 0)
+    };
   } catch {
     return NOTHING;
   }

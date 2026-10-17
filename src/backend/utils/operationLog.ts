@@ -8,7 +8,11 @@ let output: ((line: string) => void) | undefined;
 /** Local diagnostics only. Never connected to the telemetry sender. */
 export function setOperationLog(write: (line: string) => void): { dispose(): void } {
   output = write;
-  return { dispose: () => { if (output === write) output = undefined; } };
+  return {
+    dispose: () => {
+      if (output === write) output = undefined;
+    }
+  };
 }
 
 export function operationContext(): string {

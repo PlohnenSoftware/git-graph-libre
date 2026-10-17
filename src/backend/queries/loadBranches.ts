@@ -2,7 +2,7 @@ import type { SimpleGit } from "simple-git";
 
 import type { GitQueryError, QueryResult } from "@/backend/types";
 import { isGitRepository } from "@/backend/utils/git";
-import { runGitCommand, type GitCommandRecorder } from "@/backend/utils/gitRunner";
+import { type GitCommandRecorder, runGitCommand } from "@/backend/utils/gitRunner";
 import { toGitQueryError } from "@/backend/utils/queryError";
 import { isHiddenRemoteRef } from "@/backend/utils/remoteRefs";
 

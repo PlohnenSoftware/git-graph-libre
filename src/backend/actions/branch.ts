@@ -1,8 +1,7 @@
 import type { SimpleGit } from "simple-git";
-
-import type { ActionPayload } from "@/backend/types";
 import { deleteRemoteBranch } from "@/backend/actions/branchRemote";
-import { type GitCommandRecorder, runGitRaw, runGitCommand } from "@/backend/utils/gitRunner";
+import type { ActionPayload } from "@/backend/types";
+import { type GitCommandRecorder, runGitCommand, runGitRaw } from "@/backend/utils/gitRunner";
 
 type DeleteBranchInput = ActionPayload<"deleteBranch"> & { repo?: string | null };
 
@@ -11,9 +10,21 @@ export async function createBranch(
   input: ActionPayload<"createBranch"> & { repo?: string | null },
   record?: GitCommandRecorder
 ): Promise<void> {
-  await runGitRaw(git, { label: "branch.create", kind: "action", args: ["branch", input.branchName, input.commitHash], repo: input.repo, record });
+  await runGitRaw(git, {
+    label: "branch.create",
+    kind: "action",
+    args: ["branch", input.branchName, input.commitHash],
+    repo: input.repo,
+    record
+  });
   if (input.checkout === true) {
-    await runGitCommand(() => git.checkout(input.branchName), { label: "branch.checkout", kind: "action", args: ["checkout", input.branchName], repo: input.repo, record });
+    await runGitCommand(() => git.checkout(input.branchName), {
+      label: "branch.checkout",
+      kind: "action",
+      args: ["checkout", input.branchName],
+      repo: input.repo,
+      record
+    });
   }
 }
 
@@ -49,7 +60,13 @@ export async function renameBranch(
   input: ActionPayload<"renameBranch"> & { repo?: string | null },
   record?: GitCommandRecorder
 ): Promise<void> {
-  await runGitRaw(git, { label: "branch.rename", kind: "action", args: ["branch", "-m", input.oldName, input.newName], repo: input.repo, record });
+  await runGitRaw(git, {
+    label: "branch.rename",
+    kind: "action",
+    args: ["branch", "-m", input.oldName, input.newName],
+    repo: input.repo,
+    record
+  });
 }
 
 export async function checkoutBranch(
@@ -58,9 +75,21 @@ export async function checkoutBranch(
   record?: GitCommandRecorder
 ): Promise<void> {
   if (input.remoteBranch === null) {
-    await runGitCommand(() => git.checkout(input.branchName), { label: "branch.checkout", kind: "action", args: ["checkout", input.branchName], repo: input.repo, record });
+    await runGitCommand(() => git.checkout(input.branchName), {
+      label: "branch.checkout",
+      kind: "action",
+      args: ["checkout", input.branchName],
+      repo: input.repo,
+      record
+    });
   } else {
     const remoteBranch = input.remoteBranch;
-    await runGitCommand(() => git.checkoutBranch(input.branchName, remoteBranch), { label: "branch.checkoutRemote", kind: "action", args: ["checkout", "-b", input.branchName, input.remoteBranch], repo: input.repo, record });
+    await runGitCommand(() => git.checkoutBranch(input.branchName, remoteBranch), {
+      label: "branch.checkoutRemote",
+      kind: "action",
+      args: ["checkout", "-b", input.branchName, input.remoteBranch],
+      repo: input.repo,
+      record
+    });
   }
 }

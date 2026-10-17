@@ -7,9 +7,8 @@
  */
 
 import { execFile } from "node:child_process";
-import { traceBackend } from "@/backend/utils/operationLog";
-
 import { engineComponentStatus, lastGraphLoadRoute } from "@/backend/engine/index";
+import { traceBackend } from "@/backend/utils/operationLog";
 import type {
   ComponentStatus,
   EngineBackend,
@@ -26,23 +25,38 @@ const GIT_PROBE_TIMEOUT_MS = 5000;
  * Total: a missing binary, a non-zero exit or a timeout all resolve to a
  * `failed` status carrying the first line of the reason.
  */
-export function probeGit(gitPath: string): Promise<GitComponentStatus> {
-  return traceBackend("cli", "gitVersion", null, () => new Promise((resolve) => {
-    execFile(
-      gitPath,
-      ["--version"],
-      { timeout: GIT_PROBE_TIMEOUT_MS, windowsHide: true },
-      (error, stdout, stderr) => {
-        const version = String(stdout).trim();
-        if (error === null && version !== "") {
-          resolve({ state: "ok", path: gitPath, version });
-          return;
-        }
-        const reason = String(stderr).trim() || error?.message || "no output";
-        resolve({ state: "failed", path: gitPath, detail: reason.split("\n", 1)[0] ?? reason });
-      }
+export async function probeGit(gitPath: string): Promise<GitComponentStatus> {
+  try {
+    const version = await traceBackend(
+      "cli",
+      "gitVersion",
+      null,
+      () =>
+        new Promise<string>((resolve, reject) => {
+          execFile(
+            gitPath,
+            ["--version"],
+            { timeout: GIT_PROBE_TIMEOUT_MS, windowsHide: true },
+            (error, stdout, stderr) => {
+              const output = String(stdout).trim();
+              if (error === null && output !== "") {
+                resolve(output);
+                return;
+              }
+              const reason = String(stderr).trim() || error?.message || "no output";
+              reject(new Error(reason.split("\n", 1)[0] ?? reason));
+            }
+          );
+        })
     );
-  }));
+    return { state: "ok", path: gitPath, version };
+  } catch (error) {
+    return {
+      state: "failed",
+      path: gitPath,
+      detail: error instanceof Error ? error.message : String(error)
+    };
+  }
 }
 
 export type ComponentStatusDeps = {

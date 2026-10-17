@@ -1,13 +1,10 @@
 import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
-
-import { simpleGit, type SimpleGit } from "simple-git";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-
-import { loadBranches } from "@/backend/queries/loadBranches";
-
 import { git, makeRepo } from "@tests/backend/helpers";
+import { type SimpleGit, simpleGit } from "simple-git";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { loadBranches } from "@/backend/queries/loadBranches";
 
 let simpleRepo: string;
 let detachedRepo: string;

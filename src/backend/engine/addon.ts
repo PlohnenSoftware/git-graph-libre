@@ -9,9 +9,8 @@
 
 import { createRequire } from "node:module";
 import * as path from "node:path";
-
-import type { EngineComponentStatus, EngineUnavailableReason } from "@/types";
 import { traceBackend } from "@/backend/utils/operationLog";
+import type { EngineComponentStatus, EngineUnavailableReason } from "@/types";
 
 /**
  * The engine version the TypeScript side was built against. Mirrors
@@ -227,8 +226,20 @@ export function withEngineLogging(addon: EngineAddon): EngineAddon {
   const wrapped = new Proxy(addon, {
     get(target, property) {
       const method: unknown = Reflect.get(target, property);
-      if (typeof method !== "function" || ["engineVersion", "closeRepository", "closeAllRepositories", "openRepositoryCount"].includes(String(property))) return method;
-      return (...args: unknown[]) => traceBackend("engine", String(property), typeof args[0] === "string" ? args[0] : null, async () => Reflect.apply(method, target, args));
+      if (
+        typeof method !== "function" ||
+        [
+          "engineVersion",
+          "closeRepository",
+          "closeAllRepositories",
+          "openRepositoryCount"
+        ].includes(String(property))
+      )
+        return method;
+      return (...args: unknown[]) =>
+        traceBackend("engine", String(property), typeof args[0] === "string" ? args[0] : null, () =>
+          Promise.resolve(Reflect.apply(method, target, args))
+        );
     }
   });
   loggedAddons.set(addon, wrapped);

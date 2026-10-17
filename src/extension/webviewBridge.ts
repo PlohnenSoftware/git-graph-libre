@@ -1,8 +1,7 @@
 import type * as vscode from "vscode";
-
+import { traceRequest } from "@/backend/utils/operationLog";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
 import type { RequestMessage, ResponseMessage } from "@/types";
-import { traceRequest } from "@/backend/utils/operationLog";
 
 export function webviewBridgeFactory(webview: vscode.Webview, repoFileWatcher: RepoFileWatcher) {
   const handlers = new Map<string, (msg: RequestMessage) => void | Promise<void>>();
@@ -12,7 +11,9 @@ export function webviewBridgeFactory(webview: vscode.Webview, repoFileWatcher: R
     if (!handler) return;
     repoFileWatcher.mute();
     try {
-      await traceRequest(msg.command, "requestId" in msg ? msg.requestId : undefined, async () => handler(msg));
+      await traceRequest(msg.command, "requestId" in msg ? msg.requestId : undefined, async () =>
+        handler(msg)
+      );
     } finally {
       repoFileWatcher.unmute();
     }

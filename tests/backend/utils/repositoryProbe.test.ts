@@ -1,16 +1,14 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-
+import { git } from "@tests/backend/helpers";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { loadEngineAddon } from "@/backend/engine/addon";
 import {
   inspectRepository,
   isGitTrustError,
   trustGitRepository
 } from "@/backend/utils/repositoryProbe";
-import { git } from "@tests/backend/helpers";
 
 // Every Git child in this file runs against an isolated global/system config
 // inside the fixture root, so the real user's safe.directory list is never
@@ -153,10 +151,10 @@ describe("inspectRepository with Git available", () => {
     }
   });
 
-  it("treats an empty .git directory as no repository", async () => {
+  it("keeps a damaged .git directory as an access failure with unknown presence", async () => {
     const result = await inspectRepository(corrupt, { gitPath: GIT, useEngine: false });
-    expect(result.state).toBe("notRepository");
-    expect(result.repository).toBe(false);
+    expect(result.state).toBe("error");
+    expect(result.repository).toBeNull();
   });
 
   it("keeps a broken gitfile as access error with unknown presence", async () => {
@@ -223,6 +221,34 @@ describe("inspectRepository with the Git executable missing", () => {
     expect(result.detectedBy).toBe("filesystem");
   });
 
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+    "keeps inaccessible directories unknown rather than claiming absence",
+    async () => {
+      const denied = path.join(root, "denied");
+      fs.mkdirSync(denied, { recursive: true });
+      fs.chmodSync(denied, 0);
+      try {
+        const result = await inspectRepository(denied, { gitPath: MISSING_GIT, useEngine: false });
+        expect(result.repository).toBeNull();
+        expect(result.detectedBy).toBeNull();
+      } finally {
+        fs.chmodSync(denied, 0o700);
+      }
+    }
+  );
+
+  it("does not replace a native access failure with a filesystem absence guess", async () => {
+    const result = await inspectRepository(plain, {
+      gitPath: MISSING_GIT,
+      useEngine: true,
+      engineRoot: async () => {
+        throw new Error("Permission denied");
+      }
+    });
+    expect(result.repository).toBeNull();
+    expect(result.detectedBy).toBe("engine");
+  });
+
   const realAddon = loadEngineAddon();
   it.skipIf(!realAddon?.repoRoot)("discovers through the real engine binary", async () => {
     const found = await inspectRepository(repo, { gitPath: MISSING_GIT, useEngine: true });
@@ -252,9 +278,7 @@ describe("trustGitRepository", () => {
     const before = await inspectRepository(symlink, { gitPath: GIT, useEngine: false });
     expect(before.state).toBe("untrusted");
     await trustGitRepository(symlink, GIT);
-    expect(fs.readFileSync(globalConfig, "utf8")).toContain(
-      `directory = ${fs.realpathSync(repo)}`
-    );
+    expect(fs.readFileSync(globalConfig, "utf8")).toContain(`directory = ${fs.realpathSync(repo)}`);
     const after = await inspectRepository(symlink, { gitPath: GIT, useEngine: false });
     expect(after.state).toBe("ready");
   });

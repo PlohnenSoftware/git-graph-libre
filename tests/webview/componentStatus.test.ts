@@ -105,7 +105,7 @@ describe("status indicator popup", () => {
 
     expect(popup()?.querySelector(".componentStatusTitle")?.textContent).toBe("Components");
     expect(rowTexts()).toEqual([
-      ["Git CLI", "git version 2.51.0"],
+      ["Git CLI", "git version 2.51.0", "git"],
       ["Rust engine", "Active, version 1.0.25 (linux-x64)"],
       ["Last graph load", "Rust engine"]
     ]);
@@ -117,7 +117,7 @@ describe("status indicator popup", () => {
     summary().dispatchEvent(new FocusEvent("focus"));
 
     expect(rowTexts()).toEqual([
-      ["Git CLI", "git version 2.51.0"],
+      ["Git CLI", "git version 2.51.0", "git"],
       [
         "Rust engine",
         "Unavailable: the binary could not be loaded (linux-x64)",

@@ -63,38 +63,45 @@ async function readSubmodulePaths(repoPath: string): Promise<string[]> {
   }
 }
 
+/** Answers whether a directory is the root of a repository. */
+type RootCheck = (candidate: string) => Promise<boolean>;
+
+/** Directory probes in flight at once; every probe may spawn `git`. */
+const MAX_PARALLEL_PROBES = 2;
+
 async function searchSubmodules(
   repoPath: string,
   maxDepth: number,
   gitPath: string,
   knownRepoPaths: string[],
-  probe: (directory: string) => Promise<boolean> = (directory) => isGitRepository(directory, gitPath)
+  probe: RootCheck = (candidate) => isGitRepository(candidate, gitPath)
 ): Promise<string[]> {
-  const found = new Set<string>();
   const unrelatedKnownRepoPaths = knownRepoPaths.filter(
     (knownPath) => repoPath !== knownPath && !repoPath.startsWith(`${knownPath}/`)
   );
-  const submodules = await readSubmodulePaths(repoPath);
-  for (const submodulePath of submodules) {
-    if (
-      unrelatedKnownRepoPaths.some(
+  const submodules = (await readSubmodulePaths(repoPath)).filter(
+    (submodulePath) =>
+      !unrelatedKnownRepoPaths.some(
         (knownPath) => submodulePath === knownPath || submodulePath.startsWith(`${knownPath}/`)
       )
-    ) {
-      continue;
+  );
+  const perSubmodule = await evalPromises(
+    submodules,
+    MAX_PARALLEL_PROBES,
+    async (submodulePath) => {
+      if (!(await probe(submodulePath))) return [];
+      if (maxDepth <= 0) return [submodulePath];
+      const nested = await searchDirectoryForRepos(
+        submodulePath,
+        maxDepth - 1,
+        gitPath,
+        [...knownRepoPaths, repoPath],
+        probe
+      );
+      return [submodulePath, ...nested];
     }
-    if (await probe(submodulePath)) {
-      found.add(submodulePath);
-      if (maxDepth > 0) {
-        const nested = await searchDirectoryForRepos(submodulePath, maxDepth - 1, gitPath, [
-          ...knownRepoPaths,
-          repoPath
-        ], probe);
-        for (const nestedRepo of nested) found.add(nestedRepo);
-      }
-    }
-  }
-  return [...found];
+  );
+  return [...new Set(perSubmodule.flat())];
 }
 
 export async function searchDirectoryForRepos(
@@ -102,7 +109,7 @@ export async function searchDirectoryForRepos(
   maxDepth: number,
   gitPath: string,
   knownRepoPaths: string[],
-  probe: (directory: string) => Promise<boolean> = (directory) => isGitRepository(directory, gitPath)
+  probe: RootCheck = (candidate) => isGitRepository(candidate, gitPath)
 ): Promise<string[]> {
   if (knownRepoPaths.includes(directory)) {
     return searchSubmodules(directory, maxDepth, gitPath, knownRepoPaths, probe);
@@ -135,14 +142,13 @@ export async function searchDirectoryForRepos(
     return [];
   }
 
-  const dirs: string[] = [];
-  for (const entry of dirContents) {
-    if (entry !== ".git" && (await isDirectory(`${directory}/${entry}`))) {
-      dirs.push(`${directory}/${entry}`);
-    }
-  }
+  const entries = dirContents
+    .filter((entry) => entry !== ".git")
+    .map((entry) => `${directory}/${entry}`);
+  const isDir = await Promise.all(entries.map(isDirectory));
+  const dirs = entries.filter((_, index) => isDir[index]);
 
-  const results = await evalPromises(dirs, 2, (dir) =>
+  const results = await evalPromises(dirs, MAX_PARALLEL_PROBES, (dir) =>
     searchDirectoryForRepos(dir, maxDepth - 1, gitPath, knownRepoPaths, probe)
   );
   return results.flat();

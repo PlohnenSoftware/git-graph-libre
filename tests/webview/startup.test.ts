@@ -59,7 +59,10 @@ function setupDom() {
 
 function receive(startup: StartupStatus) {
   window.dispatchEvent(
-    new MessageEvent("message", { data: { command: "repositoryStatus", startup } })
+    new MessageEvent("message", {
+      data: { command: "repositoryStatus", startup },
+      origin: window.location.origin
+    })
   );
 }
 
@@ -103,9 +106,11 @@ describe("startupFailure category order", () => {
       )
     ).toBe("gitUnavailable");
     expect(startupFailure(status({ error: "boom" }))).toBe("repositoryError");
-    expect(startupFailure(status({ repositories: [probe({ state: "notRepository", repository: false })] }))).toBe(
-      "noRepository"
-    );
+    expect(
+      startupFailure(
+        status({ repositories: [probe({ state: "notRepository", repository: false })] })
+      )
+    ).toBe("noRepository");
   });
 });
 
@@ -147,8 +152,7 @@ describe("initStartupScreen", () => {
     start();
     receive(status());
     receive(status());
-    const shown = () =>
-      sent.filter((m) => m.command === "failureScreenShown");
+    const shown = () => sent.filter((m) => m.command === "failureScreenShown");
     expect(shown()).toEqual([{ command: "failureScreenShown", screen: "noRepository" }]);
 
     Object.defineProperty(document, "hidden", { value: true, configurable: true });
@@ -175,6 +179,41 @@ describe("initStartupScreen", () => {
     receive(status());
     vi.advanceTimersByTime(10000);
     expect(sent.filter((m) => m.command === "repositoryStatus")).toHaveLength(2);
+  });
+
+  it("ignores foreign messages and retries a lost reply without getting stuck", () => {
+    vi.useFakeTimers();
+    start();
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://foreign.example",
+        data: { command: "repositoryStatus", startup: status() }
+      })
+    );
+    expect(sent).toEqual([{ command: "repositoryStatus" }]);
+    vi.advanceTimersByTime(10000);
+    expect(sent).toHaveLength(1);
+    vi.advanceTimersByTime(5000);
+    expect(sent).toHaveLength(2);
+    document.getElementById("retryRepositories")?.click();
+    expect(sent).toHaveLength(3);
+  });
+
+  it("removes every action listener when disposed", () => {
+    start();
+    receive(status({ repositories: [probe({ state: "untrusted" })] }));
+    dispose?.();
+    sent.length = 0;
+    document.getElementById("retryRepositories")?.click();
+    document.getElementById("openGitSettings")?.click();
+    document.getElementById("showOutput")?.click();
+    document.querySelector<HTMLButtonElement>(".startupRepository button")?.click();
+    const input = document.getElementById("repoSearchDepth") as HTMLInputElement;
+    input.value = "3";
+    document
+      .getElementById("startupSearchDepth")
+      ?.dispatchEvent(new Event("submit", { cancelable: true }));
+    expect(sent).toEqual([]);
   });
 
   it("sends only valid search depths", () => {

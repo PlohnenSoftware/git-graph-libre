@@ -383,7 +383,9 @@ export function registerMessageHandlers(
     fetchRemotes(gitClient.getInstance(), msg, recordGitCommand)
   );
   registerAction("fetchTags", (msg) => fetchTags(gitClient.getInstance(), msg, recordGitCommand));
-  registerAction("createBranch", (msg) => createBranch(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("createBranch", (msg) =>
+    createBranch(gitClient.getInstance(), msg, recordGitCommand)
+  );
   registerAction("createPullRequest", async (msg) => {
     if (msg.pushBeforeCreate) {
       await pushBranch(
@@ -429,8 +431,12 @@ export function registerMessageHandlers(
   registerAction("updateBranchFromUpstream", (msg) =>
     updateBranchFromUpstream(gitClient.getInstance(), msg, recordGitCommand)
   );
-  registerAction("renameBranch", (msg) => renameBranch(gitClient.getInstance(), msg, recordGitCommand));
-  registerAction("checkoutBranch", (msg) => checkoutBranch(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("renameBranch", (msg) =>
+    renameBranch(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("checkoutBranch", (msg) =>
+    checkoutBranch(gitClient.getInstance(), msg, recordGitCommand)
+  );
   registerAction("checkoutCommit", (msg) =>
     checkoutCommit(gitClient.getInstance(), msg, recordGitCommand)
   );

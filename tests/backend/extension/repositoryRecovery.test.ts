@@ -35,7 +35,7 @@ import type { RepositoryProbe } from "@/types";
 
 type Handler = (msg: never) => unknown;
 
-function makeRecovery(repositories: RepositoryProbe[] = []) {
+function makeRecovery(repositories: RepositoryProbe[] = [], visible: () => boolean = () => true) {
   const handlers = new Map<string, Handler>();
   const posted: unknown[] = [];
   const bridge = {
@@ -57,7 +57,7 @@ function makeRecovery(repositories: RepositoryProbe[] = []) {
       maxDepthOfRepoSearch: () => 2
     } as never,
     repoSearch: repoSearch as never,
-    visible: () => true,
+    visible,
     outputChannel: { appendLine: (line: string) => output.push(line), show: vi.fn() },
     telemetry
   });
@@ -137,6 +137,16 @@ describe("registerRepositoryRecovery trust", () => {
     expect(trust.fn).not.toHaveBeenCalled();
   });
 
+  it("surfaces trust failures and still rescans so the action can be retried", async () => {
+    vscodeStub.showWarningMessage.mockImplementation(async (_msg, _opts, accept) => accept);
+    trust.fn.mockRejectedValueOnce(new Error("permission denied"));
+    const { handlers, posted, repoSearch } = makeRecovery([untrustedRepo]);
+    await handlers.get("trustRepository")?.({ command: "trustRepository", repo: "/repo" } as never);
+    expect(posted.at(-1)).toMatchObject({ startup: { error: "permission denied" } });
+    expect(repoSearch.searchWorkspaceForRepos).toHaveBeenCalledWith(true);
+    expect(engine.close).not.toHaveBeenCalled();
+  });
+
   it("never prompts for a path that is not a discovered untrusted repository", async () => {
     const { handlers } = makeRecovery([]);
     await handlers.get("trustRepository")?.({ command: "trustRepository", repo: "/etc" } as never);
@@ -146,6 +156,24 @@ describe("registerRepositoryRecovery trust", () => {
 });
 
 describe("registerRepositoryRecovery depth and telemetry", () => {
+  it("ignores hidden appearances but accepts recovery while hidden", async () => {
+    let visible = false;
+    const { handlers, telemetry } = makeRecovery([], () => visible);
+    const shown = handlers.get("failureScreenShown");
+    const failure = { command: "failureScreenShown", screen: "graphLoadError" } as never;
+    await shown?.(failure);
+    expect(telemetry.logFeature).not.toHaveBeenCalled();
+    visible = true;
+    await shown?.(failure);
+    visible = false;
+    await shown?.({ command: "failureScreenShown", screen: null } as never);
+    visible = true;
+    await shown?.(failure);
+    expect(telemetry.logFeature.mock.calls).toEqual([
+      ["view.failure.graphLoadError", false],
+      ["view.failure.graphLoadError", false]
+    ]);
+  });
   it("persists a valid depth before rescanning, and rejects invalid depths", async () => {
     const { handlers, repoSearch, posted } = makeRecovery();
     const setDepth = handlers.get("setRepoSearchDepth");

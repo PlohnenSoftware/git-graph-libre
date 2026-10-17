@@ -12,7 +12,7 @@ vi.mock("@/backend/utils/repositoryProbe", () => ({
       state,
       // gitUnavailable also reports absence through the engine here, so the
       // tests below prove deletion keys on the explicit state alone.
-      repository: state === "notRepository" || state === "gitUnavailable" ? false : true,
+      repository: !(state === "notRepository" || state === "gitUnavailable"),
       detectedBy: "git",
       detail: null
     };

@@ -1,5 +1,5 @@
-import type { LocalizedStrings } from "./webviewL10n";
 import { escapeHtml } from "@/webview/utils/html";
+import type { LocalizedStrings } from "./webviewL10n";
 
 export function buildStartupScreen(strings: LocalizedStrings, styleVars: string): string {
   return `<body class="unableToLoad repositoryStartup" style="${styleVars}">

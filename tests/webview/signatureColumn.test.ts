@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 
 import type { GitCommitNode, GitRepoInfo } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
@@ -14,6 +14,21 @@ const REPO = "/workspace/signature-column";
 const SIGNED = "a".repeat(40);
 const UNSIGNED = "b".repeat(40);
 const STASH = "c".repeat(40);
+
+// Each boot imports a new page module. Remove the previous page's global
+// listeners as a real document replacement does; otherwise old instances
+// consume new replies against detached table elements.
+let listeners: MockInstance<typeof window.addEventListener>;
+beforeEach(() => {
+  listeners = vi.spyOn(window, "addEventListener");
+});
+afterEach(() => {
+  window.dispatchEvent(new Event("pagehide"));
+  for (const [type, listener, options] of listeners.mock.calls) {
+    window.removeEventListener(type, listener, options);
+  }
+  listeners.mockRestore();
+});
 
 const viewState: GGL.GitGraphViewState = {
   autoCenterCommitDetailsView: true,
@@ -196,6 +211,42 @@ function answerSignatures(
 }
 
 describe("signature column", () => {
+  it("redraws an unchanged commit page after a transient graph failure", async () => {
+    Object.defineProperty(document, "hidden", { value: false, configurable: true });
+    const vscodeMock = await boot();
+    function refreshPage() {
+      receive({ command: "refresh" });
+      receive({
+        command: "loadBranches",
+        requestId: latest(vscodeMock.sentMessages, "loadBranches").requestId,
+        branches: ["main"],
+        head: "main",
+        hard: false,
+        isRepo: true,
+        error: null
+      });
+    }
+    refreshPage();
+    receive({
+      command: "loadCommits",
+      requestId: latest(vscodeMock.sentMessages, "loadCommits").requestId,
+      commits: [],
+      head: null,
+      moreCommitsAvailable: false,
+      hard: false,
+      error: { message: "permission denied", stderr: null, exitCode: 128, task: null }
+    });
+    expect(document.body.classList.contains("unableToLoad")).toBe(true);
+    expect(vscodeMock.sentMessages).toContainEqual({ command: "loadRepos", check: true });
+    refreshPage();
+    answerLoadCommits(vscodeMock, false);
+    expect(document.body.classList.contains("unableToLoad")).toBe(false);
+    expect(document.querySelectorAll("#commitTable tr[data-id]")).toHaveLength(4);
+    expect(requests(vscodeMock.sentMessages, "failureScreenShown")).toEqual([
+      { command: "failureScreenShown", screen: "graphLoadError" },
+      { command: "failureScreenShown", screen: null }
+    ]);
+  });
   it("renders the page at once with the column pending, then asks for the signatures it lacks", async () => {
     const vscodeMock = await boot();
 

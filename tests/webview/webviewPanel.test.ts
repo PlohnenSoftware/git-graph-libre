@@ -53,6 +53,7 @@ function createHarness(opts?: {
   initialIsGraphLoaded?: boolean;
   consent?: TelemetryConsent;
   initialRepos?: GitRepoSet;
+  initialVisible?: boolean;
   repoSearch?: boolean;
 }) {
   const initialIsGraphLoaded = opts?.initialIsGraphLoaded ?? true;
@@ -67,7 +68,7 @@ function createHarness(opts?: {
   let disposeHandler: DisposeHandler | undefined;
   const webview = { html: "" };
   const panel = {
-    visible: true,
+    visible: opts?.initialVisible ?? true,
     webview,
     iconPath: undefined,
     onDidDispose: vi.fn((handler: DisposeHandler) => {
@@ -175,6 +176,13 @@ function createHarness(opts?: {
 }
 
 describe("createWebviewPanel", () => {
+  it("synchronizes a restored panel that starts hidden when it first becomes visible", () => {
+    const harness = createHarness({ initialVisible: false });
+    harness.emitRepos({});
+    harness.show();
+    expect(harness.onPanelShown).toHaveBeenCalledTimes(1);
+    expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(2);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
   });

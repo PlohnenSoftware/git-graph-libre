@@ -32,6 +32,13 @@
   engine
 - **Multi-repo**: Work with multiple repositories and declared Git submodules in
   one workspace; reload the extension after changing `.gitmodules`
+- **Startup diagnostics and recovery**: See Git availability, repository
+  discovery, and Rust engine status when the graph cannot open. If Git rejects
+  a repository's ownership, confirm **Trust this repository in Git** to add
+  that exact directory to Git's global `safe.directory` list. This is separate
+  from VS Code Workspace Trust. The open tab checks again automatically after
+  trust or Git settings change. When no repository is found, adjust the search
+  depth directly on the screen; the setting is saved for the workspace.
 - **Devcontainer ready**: Works in remote and container environments
 - **Internationalization**: English, Dutch, Polish, zh-CN, and zh-TW
 
@@ -144,6 +151,12 @@ third-party analytics provider.
 - Once per session: the language Visual Studio Code is running in and which of
   this extension's translations served you — so missing translations can be
   spotted, since a mismatch between the two is a request nobody has answered.
+- Each distinct visible failure screen: Git ownership trust required, Git
+  unavailable, repository access failed, or graph load failed. The ordinary
+  no-workspace and no-repository screens are counted separately as empty states.
+  Only the fixed category is sent. Polling or retrying the same screen does not
+  increase its count; seeing it again after recovery does. No error text, path,
+  repository details, or search depth is included.
 - Once per session: which settings you have changed from their defaults — only
   *that* they were changed, never what you changed them to.
 - The properties Visual Studio Code attaches to every extension telemetry

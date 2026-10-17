@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
 
 import { closeEngineRepository } from "@/backend/engine/index";
-import { inspectRepository } from "@/backend/utils/repositoryProbe";
 import { getPathFromUri } from "@/backend/utils/path";
 import { evalPromises } from "@/backend/utils/promise";
+import { inspectRepository } from "@/backend/utils/repositoryProbe";
 import type { Config } from "@/config";
 import type { ExtensionState } from "@/extensionState";
 import type { StatusBarItem } from "@/statusBarItem";
@@ -28,7 +28,9 @@ export function createRepoManager(
   let viewCallback: ((repos: GitRepoSet, numRepos: number) => void) | null = null;
 
   function getRepos() {
-    return sortRepos(Object.fromEntries(Object.entries(repos).filter(([repo]) => !unavailable.has(repo))));
+    return sortRepos(
+      Object.fromEntries(Object.entries(repos).filter(([repo]) => !unavailable.has(repo)))
+    );
   }
 
   function sendRepos() {

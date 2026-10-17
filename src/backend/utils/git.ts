@@ -101,7 +101,9 @@ export async function isGitRepository(repoPath: string, gitPath: string): Promis
 export async function getRemoteUrl(repoPath: string, gitPath: string): Promise<string | null> {
   try {
     const url = await runGitRaw(simpleGit({ baseDir: repoPath, binary: gitPath }), {
-      label: "getRemoteUrl", args: ["config", "--get", "remote.origin.url"], repo: repoPath
+      label: "getRemoteUrl",
+      args: ["config", "--get", "remote.origin.url"],
+      repo: repoPath
     });
     return url.trim() || null;
   } catch {
