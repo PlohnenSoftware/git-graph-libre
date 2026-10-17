@@ -16,10 +16,15 @@ function makeStubs(initialRepoPaths: string[] = [], maxDepth = 2, gitPath = "git
 
   const repoManager = {
     getRepos: () => ({ ...repos }),
+    getKnownRepos: () => ({ ...repos }),
     addRepo: (path: string) => {
       repos[path] = { columnWidths: null };
       added.push(path);
     },
+    removeRepo: (path: string) => {
+      delete repos[path];
+    },
+    setRepoUnavailable: () => {},
     sendRepos: () => {
       sendCount++;
     }
@@ -28,7 +33,8 @@ function makeStubs(initialRepoPaths: string[] = [], maxDepth = 2, gitPath = "git
   let currentMaxDepth = maxDepth;
   const config = {
     maxDepthOfRepoSearch: () => currentMaxDepth,
-    gitPath: () => gitPath
+    gitPath: () => gitPath,
+    backend: () => "auto"
   };
 
   const logged: { level: string; message: string }[] = [];
@@ -93,11 +99,14 @@ suite("workspaceSearch / searchDirectoryForRepos", () => {
     assert.deepStrictEqual(added, []);
   });
 
-  test("skips repos already in repoManager", async () => {
+  test("re-probes repos already in repoManager and re-adds them when ready", async () => {
+    // Discovery must revisit known paths so a repository that became
+    // untrusted (or recovered) is noticed; the manager's add is a no-op
+    // for a repository it already holds.
     const { repoSearch, added } = makeStubs([repo]);
     const found = await repoSearch.searchDirectoryForRepos(repo, 0);
-    assert.strictEqual(found, false);
-    assert.deepStrictEqual(added, []);
+    assert.strictEqual(found, true);
+    assert.deepStrictEqual(added, [repo]);
   });
 
   test("finds repo nested at depth 1", async () => {
@@ -158,9 +167,11 @@ suite("workspaceSearch / maxDepthChanged", () => {
     const { repoSearch, logged } = makeStubs([], 2, "git");
     await repoSearch.searchWorkspaceForRepos();
 
-    assert.strictEqual(logged.length, 1);
-    assert.ok(logged[0].message.startsWith("[repos] workspace scan "));
-    assert.ok(logged[0].message.includes('(git: "git"'));
+    // The scan also logs one probe line per directory it inspects; the
+    // summary is the single "scan complete" line among them.
+    const summaries = logged.filter((entry) => entry.message.includes("workspace scan complete"));
+    assert.strictEqual(summaries.length, 1);
+    assert.ok(summaries[0].message.includes('(git: "git"'));
   });
 
   test("after depth increase, same depth again does not re-trigger search", async () => {

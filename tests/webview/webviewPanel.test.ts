@@ -49,7 +49,12 @@ type ViewStateHandler = () => void;
 type RepoCallback = (repos: GitRepoSet, numRepos: number) => void;
 type DisposeHandler = () => void;
 
-function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: TelemetryConsent }) {
+function createHarness(opts?: {
+  initialIsGraphLoaded?: boolean;
+  consent?: TelemetryConsent;
+  initialRepos?: GitRepoSet;
+  repoSearch?: boolean;
+}) {
   const initialIsGraphLoaded = opts?.initialIsGraphLoaded ?? true;
   let consent: TelemetryConsent = opts?.consent ?? "enabled";
   mocks.buildWebviewHtml.mockImplementationOnce(() => ({
@@ -84,15 +89,22 @@ function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: Teleme
     })
   };
   const repoFileWatcher = { stop: vi.fn() };
-  const repos: GitRepoSet = { "/repo": { columnWidths: null } };
+  const repos: GitRepoSet = opts?.initialRepos ?? { "/repo": { columnWidths: null } };
+  let currentRepos: GitRepoSet = repos;
   let repoCallback: RepoCallback | undefined;
   const repoManager = {
-    getRepos: vi.fn(() => repos),
+    getRepos: vi.fn(() => currentRepos),
     registerViewCallback: vi.fn((handler: RepoCallback) => {
       repoCallback = handler;
     }),
     deregisterViewCallback: vi.fn()
   };
+  const repoSearch = opts?.repoSearch
+    ? {
+        searchWorkspaceForRepos: vi.fn(async () => {}),
+        getDiagnostics: vi.fn(() => ({ roots: ["/workspace"], repositories: [] }))
+      }
+    : undefined;
   const avatarManager = { deregisterBridge: vi.fn() };
   const extensionState = { getLastActiveRepo: vi.fn(() => "/repo") };
   const onDispose = vi.fn();
@@ -107,13 +119,15 @@ function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: Teleme
       tabIconColorTheme: () => "color",
       telemetryConsent: () => consent,
       backend: () => "git-cli",
-      gitPath: () => "/opt/git"
+      gitPath: () => "/opt/git",
+      maxDepthOfRepoSearch: () => 2
     } as unknown as Config,
     repoFileWatcher: repoFileWatcher as unknown as RepoFileWatcher,
     extensionPath: process.cwd(),
     extensionState: extensionState as unknown as ExtensionState,
     avatarManager: avatarManager as unknown as AvatarManager,
     repoManager: repoManager as unknown as RepoManager,
+    repoSearch: repoSearch as never,
     extensionVersion: "1.2.3",
     outputChannel,
     telemetry: {
@@ -145,7 +159,12 @@ function createHarness(opts?: { initialIsGraphLoaded?: boolean; consent?: Teleme
     repoCallback: () => repoCallback,
     repoFileWatcher,
     repoManager,
+    repoSearch,
     repos,
+    emitRepos: (next: GitRepoSet) => {
+      currentRepos = next;
+      repoCallback?.(next, Object.keys(next).length);
+    },
     show: () => {
       panel.visible = true;
       viewStateHandler?.();
@@ -201,49 +220,89 @@ describe("createWebviewPanel", () => {
     expect(harness.bridge.post).not.toHaveBeenCalled();
   });
 
-  it("posts loadRepos without rebuilding when the repo set changes", () => {
+  it("posts loadRepos without rebuilding when the repo set changes on the same side of zero", () => {
     const harness = createHarness();
-    const repoCallback = harness.repoCallback();
-    if (!repoCallback) throw new Error("view callback was not registered");
 
-    repoCallback(harness.repos, 1);
+    harness.emitRepos({ "/repo": { columnWidths: null }, "/repo2": { columnWidths: null } });
+
     expect(harness.bridge.post).toHaveBeenCalledWith({
       command: "loadRepos",
-      repos: harness.repos,
+      repos: { "/repo": { columnWidths: null }, "/repo2": { columnWidths: null } },
       lastActiveRepo: "/repo"
     });
-
-    repoCallback({}, 0);
-    expect(harness.bridge.post).toHaveBeenCalledTimes(2);
     expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(1);
     expect(harness.webview.html).toBe("<html>graph</html>");
   });
 
+  it("swaps documents in both directions across the zero-repository transition", () => {
+    const harness = createHarness();
+
+    // The last repository became unavailable: the graph document gives way
+    // to the startup screen instead of receiving an empty loadRepos.
+    harness.emitRepos({});
+    expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(2);
+    expect(harness.bridge.post).not.toHaveBeenCalled();
+
+    // And back: the first usable repository mounts the graph again.
+    harness.emitRepos(harness.repos);
+    expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(3);
+    expect(harness.bridge.post).not.toHaveBeenCalled();
+
+    harness.emitRepos(harness.repos);
+    expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(3);
+    expect(harness.bridge.post).toHaveBeenCalledTimes(1);
+  });
+
   it("swaps the placeholder document once repositories are discovered", () => {
-    const harness = createHarness({ initialIsGraphLoaded: false });
+    const harness = createHarness({ initialIsGraphLoaded: false, initialRepos: {} });
     expect(harness.webview.html).toBe("<html>placeholder</html>");
 
-    const repoCallback = harness.repoCallback();
-    if (!repoCallback) throw new Error("view callback was not registered");
-    repoCallback(harness.repos, 1);
+    harness.emitRepos({ "/repo": { columnWidths: null } });
 
     expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(2);
     expect(harness.webview.html).toBe("<html>graph</html>");
     expect(harness.bridge.post).not.toHaveBeenCalled();
 
-    repoCallback(harness.repos, 1);
+    harness.emitRepos({ "/repo": { columnWidths: null } });
     expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(2);
     expect(harness.bridge.post).toHaveBeenCalledTimes(1);
   });
 
-  it("rebuilds the placeholder document when re-shown without repositories", () => {
-    const harness = createHarness({ initialIsGraphLoaded: false });
+  it("refreshes recovery in place when re-shown without repositories", async () => {
+    const harness = createHarness({
+      initialIsGraphLoaded: false,
+      initialRepos: {},
+      repoSearch: true
+    });
     harness.hide();
     harness.show();
 
     expect(harness.onPanelShown).toHaveBeenCalledTimes(1);
+    // The startup document is live script now: it is refreshed by message,
+    // not rebuilt. The post lands after the re-scan it triggers completes.
+    expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(harness.bridge.post).toHaveBeenCalledWith(
+        expect.objectContaining({ command: "repositoryStatus" })
+      );
+    });
+    expect(harness.repoSearch?.searchWorkspaceForRepos).toHaveBeenCalled();
+  });
+
+  it("applies a repository transition that happened while hidden on re-show", () => {
+    const harness = createHarness();
+    harness.hide();
+
+    // The callback fires while hidden and is ignored; nothing swaps yet.
+    harness.emitRepos({});
+    expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(1);
+
+    harness.show();
+
     expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(2);
-    expect(harness.bridge.post).not.toHaveBeenCalled();
+    expect(harness.bridge.post).not.toHaveBeenCalledWith(
+      expect.objectContaining({ command: "loadRepos" })
+    );
   });
 
   it("disposes the panel and its collaborators", () => {

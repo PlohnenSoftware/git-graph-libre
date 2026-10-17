@@ -68,6 +68,9 @@ export function activate(context: vscode.ExtensionContext) {
     const column = vscode.window.activeTextEditor?.viewColumn;
     if (currentPanel) {
       logger.log("[panel] reveal existing");
+      // A restored duplicate tab yields to the live panel; dispose it or the
+      // tab VS Code recreated stays behind blank and unmanaged.
+      restoredPanel?.dispose();
       currentPanel.reveal(column);
       return;
     }

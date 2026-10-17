@@ -93,15 +93,6 @@ type ViewDiffInput = {
   newRef?: string;
 };
 
-function formatWebviewDiagnostic(msg: Extract<RequestMessage, { command: "webviewDiagnostic" }>) {
-  const parts = [`[webview] ${msg.stage}`];
-  if (msg.repo !== undefined) parts.push(`repo=${JSON.stringify(msg.repo)}`);
-  if (msg.repoCount !== undefined) parts.push(`repos=${msg.repoCount}`);
-  if (msg.requestId !== undefined && msg.requestId !== null) parts.push(`request=${msg.requestId}`);
-  if (msg.message !== undefined) parts.push(`message=${JSON.stringify(msg.message)}`);
-  return parts.join(" ");
-}
-
 async function viewDiff(input: ViewDiffInput): Promise<boolean> {
   const { repo, commitHash, oldFilePath, newFilePath, type, shortHashLength, oldRef, newRef } =
     input;
@@ -813,10 +804,6 @@ export function registerMessageHandlers(
         lastActiveRepo: extensionState.getLastActiveRepo()
       });
     }
-  });
-
-  bridge.onMessage("webviewDiagnostic", (msg) => {
-    outputChannel?.appendLine(formatWebviewDiagnostic(msg));
   });
 
   bridge.onMessage("importRepoConfig", async (msg) => {

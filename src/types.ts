@@ -475,15 +475,6 @@ export type ResponseImportExtensionSettings = {
   skippedKeys: string[];
 };
 
-export type RequestWebviewDiagnostic = {
-  command: "webviewDiagnostic";
-  stage: string;
-  message?: string;
-  repo?: string;
-  repoCount?: number;
-  requestId?: number | null;
-};
-
 export type ResponseRefresh = {
   command: "refresh";
 };
@@ -551,8 +542,7 @@ export type RequestMessage =
   | RequestImportExtensionSettings
   | RequestComponentStatus
   | RequestSetTemporaryLanguage
-  | RequestShowTelemetryConsent
-  | RequestWebviewDiagnostic;
+  | RequestShowTelemetryConsent;
 
 export type ResponseMessage =
   | ResponseRepositoryStatus

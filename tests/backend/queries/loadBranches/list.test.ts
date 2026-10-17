@@ -137,20 +137,20 @@ describe("loadBranches", () => {
     expect(result.branches).toContain("main");
   });
 
-  it("returns isRepo: false for a non-git directory", async () => {
+  it("returns isRepo: false with the Git error for a non-git directory", async () => {
+    // Errors are no longer suppressed just because the directory is not a
+    // repository: the webview needs the reason to tell "not a repository"
+    // apart from a repository Git cannot read.
     const result = await loadBranches(simpleGit(os.tmpdir()), {
       showRemoteBranches: false,
       hard: false,
       currentRepo: os.tmpdir(),
       gitPath: "git"
     });
-    expect(result).toEqual({
-      branches: [],
-      head: null,
-      hard: false,
-      isRepo: false,
-      error: null
-    });
+    expect(result.branches).toEqual([]);
+    expect(result.head).toBeNull();
+    expect(result.isRepo).toBe(false);
+    expect(result.error?.message).toContain("not a git repository");
   });
 
   it("passes hard flag through to the result", async () => {

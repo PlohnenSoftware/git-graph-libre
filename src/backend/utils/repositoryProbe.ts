@@ -36,7 +36,12 @@ async function engineProbe(directory: string, options: RepositoryProbeOptions): 
         };
       } catch (error) {
         const detail = normalizeGitError(error).message;
-        // Ownership, corruption and unsupported formats are not proof of absence.
+        // The engine's typed absence answer (the same prefix the reader
+        // treats as a decline) is proof there is no repository here.
+        // Ownership, corruption and unsupported formats are not.
+        if (detail.startsWith("NotARepository:")) {
+          return { repository: false, detectedBy: "engine", engineDetail: detail };
+        }
         return { repository: null, detectedBy: "engine", engineDetail: detail };
       }
     }

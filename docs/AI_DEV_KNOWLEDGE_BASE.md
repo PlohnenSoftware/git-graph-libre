@@ -1650,7 +1650,16 @@ any later commit. Prior Sonar profile/configuration work is already in HEAD.
   reproduce exactly as recorded (`repoManager.getKnownRepos is not a
   function`). The real linux-x64 binary exports `repoRoot` (function,
   `engineVersion()` `1.0.25`), closing that review risk. The staged diff
-  (32 files, +844/−88) was read end to end; R1 is next.
+  (32 files, +844/−88) was read end to end.
+- **R1 done** (`2026-10-17`): `tests/backend/utils/repositoryProbe.test.ts`,
+  18 real-Git cases under isolated `GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM`
+  with `GIT_TEST_ASSUME_DIFFERENT_OWNER` — ready/plain/subdir, untrusted
+  root/worktree/submodule with the engine provably never consulted, exact
+  canonical trust entries (symlink and worktree included, per-repo),
+  missing-executable states with fake and real engine discovery, corrupt
+  and bare shapes. One probe refinement: the engine's typed
+  `NotARepository:` answer now maps to `repository: false` instead of
+  unknown. R2 is next.
 - Direct TypeScript checks passed for `src`, `src/webview`, and `tests` before
   the last small branch-runner/query changes; the latest `src` check passed.
 - `pnpm run typecheck` in the sandbox failed before execution because pnpm's

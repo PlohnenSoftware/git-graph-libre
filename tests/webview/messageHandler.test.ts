@@ -578,24 +578,9 @@ describe("registerMessageHandlers", () => {
     }
   });
 
-  it("writes webview diagnostics to the output channel", async () => {
-    const { handlers, outputLines } = registerHandlersForTest();
-    const handler = handlers.get("webviewDiagnostic");
-
-    expect(handler).toBeDefined();
-    await handler?.({
-      command: "webviewDiagnostic",
-      stage: "load.start",
-      repo,
-      repoCount: 1,
-      requestId: 2,
-      message: "checking"
-    });
-
-    expect(outputLines[outputLines.length - 1]).toContain("[webview] load.start");
-    expect(outputLines[outputLines.length - 1]).toContain("repos=1");
-    expect(outputLines[outputLines.length - 1]).toContain("request=2");
-    expect(outputLines[outputLines.length - 1]).toContain("checking");
+  it("does not register a webview diagnostic channel", () => {
+    const { handlers } = registerHandlersForTest();
+    expect(handlers.get("webviewDiagnostic" as never)).toBeUndefined();
   });
 
   it("opens current files from repo-contained paths", async () => {

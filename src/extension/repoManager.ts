@@ -122,9 +122,14 @@ export function createRepoManager(
         removeRepo(repoPaths[i]);
         changes = true;
       } else if (results[i].state !== "ready") {
-        unavailable.add(repoPaths[i]);
-        closeEngineRepository(repoPaths[i]);
-        changes = true;
+        // Only the transition closes the engine handle and counts as a
+        // change; re-checks of an already-hidden repository (the startup
+        // screen polls) must not re-close and re-publish every cycle.
+        if (!unavailable.has(repoPaths[i])) {
+          unavailable.add(repoPaths[i]);
+          closeEngineRepository(repoPaths[i]);
+          changes = true;
+        }
       } else if (unavailable.delete(repoPaths[i])) {
         changes = true;
       }
@@ -139,6 +144,7 @@ export function createRepoManager(
     getRepos,
     getKnownRepos: () => sortRepos(repos),
     setRepoUnavailable(repo: string) {
+      if (unavailable.has(repo)) return;
       unavailable.add(repo);
       closeEngineRepository(repo);
     },

@@ -3,7 +3,21 @@ import { describe, expect, it, vi } from "vitest";
 const channelLines: string[] = [];
 
 const vscodeMocks = vi.hoisted(() => ({
-  configListener: null as null | ((e: { affectsConfiguration(section: string): boolean }) => void)
+  configListener: null as null | ((e: { affectsConfiguration(section: string): boolean }) => void),
+  serializer: null as null | {
+    deserializeWebviewPanel(panel: unknown): Promise<void>;
+  }
+}));
+
+const panelStub = vi.hoisted(() => ({
+  create: vi.fn((_opts: { panel: unknown }) => ({
+    reveal: vi.fn(),
+    startHistorySearch: vi.fn(),
+    getLanguage: () => undefined,
+    refreshComponentStatus: async () => {},
+    applyTelemetryConsentChange: () => {},
+    dispose: vi.fn()
+  }))
 }));
 
 const gitClientStub = vi.hoisted(() => ({
@@ -23,6 +37,9 @@ const repoManagerStub = vi.hoisted(() => ({
 }));
 
 vi.mock("vscode", () => ({
+  Uri: {
+    file: (p: string) => ({ fsPath: p, path: p })
+  },
   window: {
     createOutputChannel: () => ({
       appendLine: (line: string) => {
@@ -31,7 +48,12 @@ vi.mock("vscode", () => ({
       show: vi.fn()
     }),
     activeTextEditor: undefined,
-    createWebviewPanel: vi.fn()
+    createWebviewPanel: vi.fn(),
+    registerWebviewPanelSerializer: (_type: string, serializer: never) => {
+      vscodeMocks.serializer = serializer;
+      return { dispose: () => {} };
+    },
+    onDidChangeWindowState: () => ({ dispose: () => {} })
   },
   workspace: {
     getConfiguration: () => ({
@@ -136,11 +158,11 @@ vi.mock("@/telemetry/consentPrompt", () => ({
 }));
 
 vi.mock("@/extension/webviewBridge", () => ({
-  webviewBridgeFactory: () => ({})
+  webviewBridgeFactory: () => ({ post: vi.fn(), onMessage: vi.fn() })
 }));
 
 vi.mock("@/extension/webviewPanel", () => ({
-  createWebviewPanel: () => ({})
+  createWebviewPanel: panelStub.create
 }));
 
 import { activate } from "@/extension";
@@ -172,5 +194,40 @@ describe("activate git.path rescan", () => {
     vscodeMocks.configListener?.({ affectsConfiguration: () => false });
 
     expect(gitClientStub.setGitPath.mock.calls).toHaveLength(calls);
+  });
+});
+
+// Order-coupled on purpose: `currentPanel` is module state in extension.ts,
+// so the duplicate-restore case needs the panel the first case rebound.
+describe("activate webview panel serializer", () => {
+  it("rebinds a restored panel instead of creating a new one, then rescans", async () => {
+    activate(makeContext());
+    expect(vscodeMocks.serializer).not.toBeNull();
+    const restored = { webview: {}, visible: true, dispose: vi.fn(), reveal: vi.fn() };
+
+    await vscodeMocks.serializer?.deserializeWebviewPanel(restored);
+
+    expect(panelStub.create).toHaveBeenCalledTimes(1);
+    expect(panelStub.create.mock.calls[0]?.[0]).toMatchObject({ panel: restored });
+    expect(repoSearchStub.searchWorkspaceForRepos).toHaveBeenCalled();
+    expect(restored.dispose).not.toHaveBeenCalled();
+  });
+
+  it("disposes a duplicate restored panel when a graph panel is already live", async () => {
+    let disposed = 0;
+    const duplicate = {
+      webview: {},
+      visible: true,
+      dispose: () => {
+        disposed += 1;
+      },
+      reveal: vi.fn()
+    };
+
+    await vscodeMocks.serializer?.deserializeWebviewPanel(duplicate);
+
+    expect(disposed).toBe(1);
+    // Call counts reset between tests; no new panel may be created here.
+    expect(panelStub.create).not.toHaveBeenCalled();
   });
 });

@@ -67,7 +67,6 @@ import { sendMessage, vscode } from "./utils/vscode";
 const searchHistoryMaxResults = 50;
 const FILTER_SHOW_ALL_VALUE = "";
 const HEAD_REF_VALUE = "HEAD";
-const diagnosticMessageMaxLength = 500;
 const REF_DROPDOWN_DISPLAY_CHARS = 40;
 const AUTHOR_DROPDOWN_DISPLAY_CHARS = 30;
 const DEFAULT_REVEAL_HIGHLIGHT_COLOR = "oklch(90% 0.25 150 / 0.42)";
@@ -117,19 +116,6 @@ const REPO_BOOLEAN_SETTING_KEYS: readonly RepoBooleanSettingKey[] = [
   "showTags"
 ];
 
-function truncateDiagnosticMessage(value: string) {
-  return value.length > diagnosticMessageMaxLength
-    ? `${value.slice(0, diagnosticMessageMaxLength)}...`
-    : value;
-}
-
-function errorToDiagnosticMessage(error: unknown) {
-  if (error instanceof Error) {
-    return truncateDiagnosticMessage(error.stack ?? error.message);
-  }
-  return truncateDiagnosticMessage(String(error));
-}
-
 function trimRepoTrailingSeparators(repo: string) {
   const minimumLength =
     repo.length >= 3 && repo[1] === ":" && (repo[2] === "\\" || repo[2] === "/") ? 3 : 1;
@@ -137,31 +123,6 @@ function trimRepoTrailingSeparators(repo: string) {
   while (end > minimumLength && (repo[end - 1] === "/" || repo[end - 1] === "\\")) end -= 1;
   return repo.slice(0, end);
 }
-
-function postWebviewDiagnostic(
-  stage: string,
-  opts: Omit<GGL.RequestWebviewDiagnostic, "command" | "stage"> = {}
-) {
-  try {
-    sendMessage({ command: "webviewDiagnostic", stage, ...opts });
-  } catch {
-    // Diagnostics must never make the graph fail to load.
-  }
-}
-
-globalThis.addEventListener("error", (event) => {
-  postWebviewDiagnostic("window.error", {
-    message: truncateDiagnosticMessage(
-      `${event.message} (${event.filename}:${event.lineno}:${event.colno})`
-    )
-  });
-});
-
-globalThis.addEventListener("unhandledrejection", (event) => {
-  postWebviewDiagnostic("window.unhandledrejection", {
-    message: errorToDiagnosticMessage(event.reason)
-  });
-});
 
 function isHideableColumn(value: string): value is HideableColumn {
   return (HIDEABLE_COLUMNS as readonly string[]).includes(value);
@@ -647,14 +608,6 @@ class GitGraphView {
 
   public loadRepoInfo(requestId: number, repoInfo: GitRepoInfo, errorReason: string | null = null) {
     if (!this.acceptLoadRepoInfoResponse(requestId)) return;
-    postWebviewDiagnostic("loadRepoInfo.response", {
-      repo: this.currentRepo,
-      requestId,
-      message:
-        errorReason ??
-        `isRepo=${repoInfo.isRepo} remotes=${repoInfo.remotes.length} stashes=${repoInfo.stashes.length} authors=${repoInfo.authors.length} tags=${repoInfo.tags.length}`
-    });
-
     this.gitAuthors = errorReason === null && repoInfo.isRepo ? repoInfo.authors : [];
     this.gitTags = errorReason === null && repoInfo.isRepo ? repoInfo.tags : [];
     this.gitRemotes = errorReason === null && repoInfo.isRepo ? repoInfo.remotes : [];
@@ -701,13 +654,6 @@ class GitGraphView {
     errorReason: string | null = null
   ) {
     if (!this.acceptLoadBranchesResponse(requestId)) return;
-    postWebviewDiagnostic("loadBranches.response", {
-      repo: this.currentRepo,
-      requestId,
-      message:
-        errorReason ?? `isRepo=${isRepo} branches=${branchOptions.length} head=${branchHead ?? ""}`
-    });
-
     if (errorReason !== null) {
       this.renderShowError(l10n.unableToLoadGitGraph, errorReason);
       this.triggerLoadBranchesCallback(false, isRepo);
@@ -826,13 +772,6 @@ class GitGraphView {
     errorReason: string | null = null
   ) {
     if (!this.acceptLoadCommitsResponse(requestId)) return;
-    postWebviewDiagnostic("loadCommits.response", {
-      repo: this.currentRepo,
-      requestId,
-      message:
-        errorReason ?? `commits=${commits.length} head=${commitHead ?? ""} more=${moreAvailable}`
-    });
-
     if (errorReason !== null) {
       this.pendingFocusCommitHash = null;
       this.renderShowError(l10n.unableToLoadGitGraph, errorReason);
@@ -1163,10 +1102,6 @@ class GitGraphView {
     this.forceCliOnce = false;
   }
   private requestLoadBranchesAndCommits(hard: boolean) {
-    postWebviewDiagnostic("load.start", {
-      repo: this.currentRepo,
-      repoCount: Object.keys(this.gitRepos).length
-    });
     this.requestLoadRepoInfo();
     this.requestLoadBranches(hard, (branchChanges: boolean, isRepo: boolean) => {
       if (isRepo) {
@@ -6447,11 +6382,6 @@ const gitGraph = new GitGraphView(
   },
   restoredState && "gitRepos" in restoredState ? restoredState : null
 );
-postWebviewDiagnostic("boot.ready", {
-  repo: viewState.lastActiveRepo ?? undefined,
-  repoCount: Object.keys(viewState.repos).length
-});
-
 const actionErrorLabels = {
   addRemote: l10n.unableToAddRemote,
   addTag: l10n.unableToAddTag,

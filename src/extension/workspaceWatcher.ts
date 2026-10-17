@@ -65,7 +65,15 @@ export function createRepoWatcher(
   function onWatcherChange(uri: vscode.Uri) {
     let path = getPathFromUri(uri);
     if (path.includes("/.git/")) return;
-    if (path.endsWith("/.git")) path = path.slice(0, -5);
+    if (path.endsWith("/.git")) {
+      // A .git FILE (linked worktree, submodule) can be delivered as a
+      // change instead of a create depending on the watcher backend, and
+      // an existing repository's .git changing can mean it became usable
+      // again. Discovery must not depend on which channel delivered it,
+      // so route it through the create path like a .git directory.
+      onWatcherCreate(uri);
+      return;
+    }
     if (changeEventPaths.includes(path)) return;
 
     changeEventPaths.push(path);

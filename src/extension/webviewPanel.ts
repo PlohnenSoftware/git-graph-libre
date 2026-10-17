@@ -113,9 +113,15 @@ export function createWebviewPanel(opts: {
   // state. Only the placeholder document is rebuilt, because it cannot
   // receive messages.
   function syncRetainedView() {
+    // The view callback ignores hidden panels, so a zero/nonzero transition
+    // from while hidden is still unapplied: swap documents now, whichever
+    // side of it is mounted, exactly as the visible path would have.
+    if (hadRepositories !== (Object.keys(repoManager.getRepos()).length > 0)) {
+      update();
+      return;
+    }
     if (!isGraphViewLoaded) {
-      if (hadRepositories !== (Object.keys(repoManager.getRepos()).length > 0)) update();
-      else if (!hadRepositories) void recovery?.refresh();
+      if (!hadRepositories) void recovery?.refresh();
       return;
     }
     bridge.post({
