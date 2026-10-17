@@ -73,6 +73,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is left alone, and the status popup names the reload as the reason the
   command line answered. (Forcing the command line permanently remains
   `git-graph-libre.backend: "git-cli"`.)
+- **Show diagnostics, from the Hidden menu.** The same menu also opens Git
+  Graph Libre's output — every Git command and engine call, with timings and
+  why each read went where it did — exactly as the startup screen's **Show
+  diagnostics** button does, so it is one click away while a graph is open
+  too.
 - **Telemetry can now see the engine failing.** Beside the existing
   once-per-session "the engine served a read" signal, the extension records
   — each at most once per session, and only with telemetry accepted — that

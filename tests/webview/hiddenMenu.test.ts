@@ -105,7 +105,30 @@ describe("hidden menu", () => {
     rightClick(version);
 
     const items = [...menu.querySelectorAll(".contextMenuItem")].map((item) => item.textContent);
-    expect(items).toEqual(["English", "Dutch", "✓Polish", "Reload once with Git CLI"]);
+    expect(items).toEqual([
+      "English",
+      "Dutch",
+      "✓Polish",
+      "Reload once with Git CLI",
+      "Show diagnostics"
+    ]);
+  });
+
+  // The startup screen's "Show diagnostics", for when a graph did load but
+  // something about it is in doubt.
+  it("opens the diagnostics output, as the startup screen's button does", async () => {
+    const { version, menu, sent } = await mount();
+
+    rightClick(version);
+    rightClick(version);
+    const before = sent.length;
+    const diagnostics = [...menu.querySelectorAll(".contextMenuItem")].find(
+      (item) => item.textContent === "Show diagnostics"
+    ) as HTMLElement;
+    diagnostics.click();
+
+    expect(sent.slice(before)).toEqual([{ command: "showOutput" }]);
+    expect(menu.className).not.toContain("active");
   });
 
   // An escape hatch for when the engine's answer is in doubt: one full reload

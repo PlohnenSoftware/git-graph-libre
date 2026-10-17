@@ -64,6 +64,7 @@ function makeRecovery(repositories: RepositoryProbe[] = [], visible: () => boole
   };
   const telemetry = { logFeature: vi.fn() };
   const output: string[] = [];
+  const showOutput = vi.fn();
   const recovery = registerRepositoryRecovery(bridge as never, {
     config: {
       gitPath: () => "git",
@@ -72,11 +73,11 @@ function makeRecovery(repositories: RepositoryProbe[] = [], visible: () => boole
     } as never,
     repoSearch: repoSearch as never,
     visible,
-    outputChannel: { appendLine: (line: string) => output.push(line), show: vi.fn() },
+    outputChannel: { appendLine: (line: string) => output.push(line), show: showOutput },
     telemetry
   });
   created.push(recovery);
-  return { recovery, handlers, posted, repoSearch, telemetry, output };
+  return { recovery, handlers, posted, repoSearch, telemetry, output, showOutput };
 }
 
 const untrustedRepo: RepositoryProbe = {
@@ -263,6 +264,15 @@ describe("registerRepositoryRecovery trust recheck", () => {
     const { repoSearch } = makeRecovery([{ ...untrustedRepo, state: "ready" }]);
     await vi.advanceTimersByTimeAsync(15000);
     expect(repoSearch.searchWorkspaceForRepos).not.toHaveBeenCalled();
+  });
+});
+
+describe("registerRepositoryRecovery diagnostics", () => {
+  // Sent by the startup screen's button and by the graph's Hidden menu alike.
+  it("shows the output channel without taking focus from the tab", async () => {
+    const { handlers, showOutput } = makeRecovery();
+    await handlers.get("showOutput")?.({ command: "showOutput" } as never);
+    expect(showOutput).toHaveBeenCalledWith(true);
   });
 });
 

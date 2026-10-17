@@ -156,6 +156,9 @@ const HIDDEN_MENU_HEADER: ContextMenuHeader = {
 /** The hidden menu's one-off reload; English like the rest of the menu. */
 const HIDDEN_MENU_RELOAD_WITH_CLI = "Reload once with Git CLI";
 
+/** The startup screen's "Show diagnostics", reachable from a working graph too. */
+const HIDDEN_MENU_SHOW_DIAGNOSTICS = "Show diagnostics";
+
 function requireElement<T extends HTMLElement = HTMLElement>(id: string): T {
   const elem = document.getElementById(id);
   if (elem === null) throw new Error(`Missing webview element #${id}`);
@@ -3056,6 +3059,12 @@ class GitGraphView {
           this.forceCliOnce = true;
           this.refresh(true);
         }
+      },
+      {
+        // Opens the extension's output channel — Git commands, engine calls
+        // and routing per request — exactly as the startup screen's button.
+        title: HIDDEN_MENU_SHOW_DIAGNOSTICS,
+        onClick: () => sendMessage({ command: "showOutput" })
       }
     ];
   }
