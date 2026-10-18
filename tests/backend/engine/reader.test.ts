@@ -1327,7 +1327,7 @@ describe("createRepoReader loadCommitDetails", () => {
     expect(didEngineServeRead()).toBe(false);
   });
 
-  it("reroutes a merge back to the whole CLI read", async () => {
+  it("serves a merge from the engine without touching the CLI", async () => {
     const merged = JSON.stringify({
       ...JSON.parse(detailsPayload),
       parents: ["b".repeat(40), "c".repeat(40)]
@@ -1341,13 +1341,18 @@ describe("createRepoReader loadCommitDetails", () => {
       })
     );
 
-    expect(result.error).toBeNull();
-    expect(result.commitDetails?.fileChanges).toHaveLength(1);
-    expect(detailsReads.count).toBe(1);
-    expect(didEngineServeRead()).toBe(false);
+    expect(result).toEqual({
+      commitDetails: {
+        ...servedNodes.commitDetails,
+        parents: ["b".repeat(40), "c".repeat(40)]
+      },
+      error: null
+    });
+    expect(detailsReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(true);
   });
 
-  it("logs only the CLI route when a merge is rerouted", async () => {
+  it("logs the engine route, not a merge reroute, for a merge", async () => {
     const merged = JSON.stringify({
       ...JSON.parse(detailsPayload),
       parents: ["b".repeat(40), "c".repeat(40)]
@@ -1366,11 +1371,9 @@ describe("createRepoReader loadCommitDetails", () => {
 
       expect(result.error).toBeNull();
       expect(lines).toContainEqual(
-        expect.stringContaining("operation=commitDetails backend=cli reason=mergeCommit")
+        expect.stringContaining("operation=commitDetails backend=engine files=1")
       );
-      expect(lines.some((line) => line.includes("operation=commitDetails backend=engine"))).toBe(
-        false
-      );
+      expect(lines.some((line) => line.includes("reason=mergeCommit"))).toBe(false);
     } finally {
       log.dispose();
     }

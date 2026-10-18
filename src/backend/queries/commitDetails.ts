@@ -16,51 +16,31 @@ type CommitDetailsInput = {
   recordGitCommand?: GitCommandRecorder;
 };
 
-async function fetchNameStatus(
+async function fetchDiffTree(
   git: SimpleGit,
+  format: "--name-status" | "--numstat",
+  label: "commitDetails.nameStatus" | "commitDetails.numStat",
   commitHash: string,
+  firstParentOnly: boolean,
   repo: string | null,
   record?: GitCommandRecorder
 ): Promise<string[]> {
+  // A merge is diffed against its first parent (`<hash>^1` against
+  // `<hash>`), like the engine and like the left side `viewDiff` opens;
+  // `-m` would list one section per parent instead. Single-parent and
+  // root commits keep the one-commit query, `--root` included.
   const args = [
     "diff-tree",
-    "--name-status",
+    format,
     "-z",
     "-r",
-    "-m",
-    "--root",
+    ...(firstParentOnly ? [] : ["-m", "--root"]),
     "--find-renames",
     "--diff-filter=AMDR",
-    commitHash
+    ...(firstParentOnly ? [`${commitHash}^1`, commitHash] : [commitHash])
   ];
   const stdout = await runGitRaw(git, {
-    label: "commitDetails.nameStatus",
-    args,
-    repo,
-    record
-  });
-  return splitNulTerminatedFields(stdout);
-}
-
-async function fetchNumStat(
-  git: SimpleGit,
-  commitHash: string,
-  repo: string | null,
-  record?: GitCommandRecorder
-): Promise<string[]> {
-  const args = [
-    "diff-tree",
-    "--numstat",
-    "-z",
-    "-r",
-    "-m",
-    "--root",
-    "--find-renames",
-    "--diff-filter=AMDR",
-    commitHash
-  ];
-  const stdout = await runGitRaw(git, {
-    label: "commitDetails.numStat",
+    label,
     args,
     repo,
     record
@@ -77,8 +57,10 @@ async function fetchFileChanges(
 ): Promise<GitFileChange[]> {
   // A stash commit carries two or three parents, and `diff-tree -m` would
   // list one section per parent. When the hash is a known stash, list its
-  // files like `git stash show --include-untracked` instead; non-stash
-  // merges keep the `-m` queries unchanged.
+  // files like `git stash show --include-untracked` instead. Any other
+  // multi-parent commit is a merge, diffed against its first parent
+  // only, so its file list agrees with the diffs `viewDiff` opens.
+  let firstParentOnly = false;
   if (details.parents.length >= 2) {
     const stashes = await loadStashes(git, { repo, record }, "commitDetails.stashes");
     const stash = stashes.value.find((entry) => entry.hash === details.hash);
@@ -92,11 +74,28 @@ async function fetchFileChanges(
         recordGitCommand: record
       });
     }
+    firstParentOnly = true;
   }
 
   const [nameStatusLines, numStatLines] = await Promise.all([
-    fetchNameStatus(git, input.commitHash, repo, record),
-    fetchNumStat(git, input.commitHash, repo, record)
+    fetchDiffTree(
+      git,
+      "--name-status",
+      "commitDetails.nameStatus",
+      input.commitHash,
+      firstParentOnly,
+      repo,
+      record
+    ),
+    fetchDiffTree(
+      git,
+      "--numstat",
+      "commitDetails.numStat",
+      input.commitHash,
+      firstParentOnly,
+      repo,
+      record
+    )
   ]);
   return parseDiffFileChanges(nameStatusLines, numStatLines);
 }

@@ -665,14 +665,11 @@ async function readCommitDetails(
     }
     const stashes = parseEngineStashEntries(stashesText);
     const stash = stashes === null ? undefined : findStashEntry(stashes, args.commitHash);
-    // The CLI diffs a merge against every parent (`-m`); the engine diffs
-    // against the first parent only. A multi-parent page is not a valid
-    // substitute, so those loads go back to the whole CLI read. A stash is
-    // multi-parent too, but the stash branch below diffs it against its
-    // base the way the CLI's stash path does, so only non-stash merges
-    // reroute here.
-    if (details.parents.length > 1 && stash === undefined)
-      return rerouteToCli("commitDetails", "mergeCommit", cliRead);
+    // A merge needs no reroute: the engine's `diff_commit` diffs against
+    // the first parent, and the CLI merge query does the same, so a
+    // multi-parent page from either backend lists the same files. A
+    // stash is multi-parent too, and the stash branch below diffs it
+    // against its base the way the CLI's stash path does.
     const fileChanges = await engineFileChanges(addon, args, details, stash);
     if (fileChanges === null) {
       return malformedCommitDetails("Engine returned malformed stash details");

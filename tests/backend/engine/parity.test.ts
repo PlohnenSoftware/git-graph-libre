@@ -664,10 +664,10 @@ describe("engine/CLI parity: commit details, comparison and files", () => {
   // unborn branch, and a file that is modified but unstaged. Every case
   // drives the reader (engine) and the query (CLI) against the same real
   // repository and asserts identical output — a divergence is an engine or
-  // mapping bug, never a test to relax. Two documented reroutes: merges
-  // diff differently in the engine (first parent only versus the CLI's
-  // `-m`), so they stay on the CLI; unborn errors in different words on
-  // each side, so only the error shape is pinned there.
+  // mapping bug, never a test to relax. Merges diff against the first
+  // parent on both backends, so the engine serves them too. Unborn
+  // errors in different words on each side, so only the error shape is
+  // pinned there.
   type DetailsFixture = {
     dir: string;
     unborn: string;
@@ -871,11 +871,16 @@ describe("engine/CLI parity: commit details, comparison and files", () => {
     });
   }, 120000);
 
-  it("keeps merges on the CLI and errors unborn on both sides", async (context) => {
+  it("serves merges from the engine and errors unborn on both sides", async (context) => {
     requireAddon(context);
     const current = fixture.current;
     if (current === undefined) throw new Error("details fixture not built");
-    await expectDetailsParity(current.dir, current.merge, "merge", false);
+    const mergeResult = await expectDetailsParity(current.dir, current.merge, "merge", true);
+    // Against the first parent the merge brings in only the side
+    // branch's file, on both backends.
+    expect(mergeResult.commitDetails?.fileChanges).toEqual([
+      { oldFilePath: "side.txt", newFilePath: "side.txt", type: "A", additions: 1, deletions: 0 }
+    ]);
 
     resetEngineServedRead();
     const [viaAuto, direct] = await Promise.all([
