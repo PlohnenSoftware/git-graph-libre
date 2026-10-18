@@ -9,7 +9,7 @@ summary: >-
 
 # D43 — Engine export for the staged copy of a file
 
-Status: claimed by Muse Code sub-agent D43 on 2026-10-19 01:36
+Status: done — awaiting integration
 Needs: —
 Decisions: —
 Kind: Rust and TypeScript, the Rust arm applies · Size budget: ≤ 150 changed lines outside tests
@@ -92,4 +92,11 @@ only), `src/backend/engine/addon.ts`, `src/backend/engine/stagedFile.ts`
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Muse Code sub-agent D43, 2026-10-19 01:40
+- **Branch and commits:** `diff-1.9.0/d43` — `2310f3c G feat(engine): export load_index_file from the addon (D43)`; `81a1d11 G feat(engine): read the staged copy through readStagedFile (D43)`; plus the signed report commit carrying this section.
+- **Files changed:** `engine/native/node/src/lib.rs` +11; `src/backend/engine/addon.ts` +7; `src/backend/engine/stagedFile.ts` (new) +128; `engine/native/core/tests/config_and_blob.rs` +50; `tests/backend/engine/stagedFile.test.ts` (new) +186; `tests/backend/engine/parity.test.ts` +73; this slice file (claim, status, report). Outside tests: 146 changed lines, within the ≤150 budget.
+- **Tests added or changed:** Rust: `reads_the_staged_copy_from_the_index` (staged modification beside a later unstaged edit, newly staged file), `reports_a_staged_binary_file_as_binary`, `a_path_outside_the_index_is_not_found` — Rust arm 119 → 122 passed. TypeScript: `stagedFile.test.ts`, 9 tests (engine text/binary; CLI for no `loadIndexFile`, the `git-cli` backend, unverified, malformed and inconsistent payloads, engine throw; CLI text/binary/missing; route log lines asserted in each), and one `parity.test.ts` case agreeing engine and CLI on a staged modification, a newly staged file, a staged binary file and a path outside the index, with the addon called directly so a binary without the export fails there — backend 873 → 883.
+- **Gates:** biome strict clean on the 4 touched TS files; typecheck clean; test backend 883/883, webview 591/591 (rebuilt addon, engine halves ran); l10n n/a (no user-visible text); kb:check clean; Rust arm clean (`engine:fmt`, `engine:lint`, `engine:check`, `engine:test` 122 passed, 0 failed); `engine:build` and `engine:smoke` OK (reports 1.0.25); Sonar: integrator.
+- **Acceptance:** "Gates pass, the Rust arm included" — met, numbers above. "`pnpm run engine:build` and `pnpm run engine:smoke` succeed" — met. "The engine version is unchanged" — met: `EXPECTED_ENGINE_VERSION`, the Cargo workspace version and `engine/package.json` all stay at 1.0.25. That is safe by the Phase 16 rule (bump only when TS relies on behavior an older binary silently lacks): `loadIndexFile` is optional in the type and absent from the required shape check, and the seam calls it only after a `typeof === "function"` check, so an older binary loads and the read goes to `git show :<path>` instead of silently answering wrongly.
+- **Deviations from the slice:** The Rust `index_file` tests live in the existing integration suite `engine/native/core/tests/config_and_blob.rs` (sharing its `TestRepo` fixtures) instead of new unit tests inside `blob.rs`; no `blob.rs` change was needed since `index_file` already existed. On the CLI path, output that is not valid UTF-8 also reads as binary, matching the engine's `commit_file`/`index_file` contract so the two backends agree; the slice names the NUL sniff, which is checked first.
+- **Open questions / follow-ups:** none. `readStagedFile(repo, path, deps)` takes the resolved git binary in `deps.gitPath`, ready for D45 to wire.
