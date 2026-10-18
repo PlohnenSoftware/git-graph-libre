@@ -1,8 +1,8 @@
 ---
 summary: >-
   D44 · wave D · needs D42 · TypeScript, webview, build · ≤300 lines: the
-  "GGL Diff" editor tab itself. One reusable webview panel with its own
-  small bundle (`out/diffTab.min.js`, under 100 KB), the graph's CSP
+  "GGL Diff" editor tab itself. One reusable webview panel, kept alive
+  in the background so later opens are instant, with its own small bundle (`out/diffTab.min.js`, under 100 KB), the graph's CSP
   pattern, the user's `diffEditor.*` settings, localized labels and a
   first-paint timing log. Its data comes through a `DiffTabSource`; no
   entry point yet.
@@ -51,9 +51,19 @@ D47 add the ways to open the tab.
      second call reuses it, retitles it and reveals it.
    - Create it with `createWebviewPanel("git-graph-libre.diffTab", title,
      <active column>, { enableScripts: true, retainContextWhenHidden:
-     false, localResourceRoots: [media, out] })`.
+     true, localResourceRoots: [media, out] })`.
+   - **Keeping it warm.** `retainContextWhenHidden: true` keeps the one
+     panel's document alive while its tab is in the background, so every
+     open after the first is one message, not a reload. Only one panel
+     ever exists, so the memory cost is one webview. VS Code has no API
+     to keep a webview alive without a tab, so the first open of a
+     session, and the first after the user closes the tab, stay cold.
+   - **Overlapping the cold start.** On each open, call `source.load`
+     at the same moment as creating or revealing the panel; don't wait
+     for `ready`. Post the payload once both have arrived, so the
+     webview's start-up and the engine's work run in parallel.
    - The panel keeps the last payload and posts it again whenever the
-     webview reports `ready`, because a hidden webview is rebuilt.
+     webview reports `ready` (after a reload or a restore).
    - Read the layout and the view's numbers from the user's settings:
      `diffEditor.hideUnchangedRegions.enabled`, `.contextLineCount`,
      `.minimumLineCount` and `.revealLineCount`, plus `editor.lineHeight`
@@ -92,7 +102,10 @@ D47 add the ways to open the tab.
 
 - **Panel:**
   - a second open reuses the panel with the new title and posts the new
-    payload;
+    payload, without rebuilding its HTML;
+  - the panel is created with `retainContextWhenHidden: true`;
+  - `source.load` starts before the webview reports `ready`, and the
+    payload is posted once both are done, in either order;
   - `ready` after a hide posts the last payload again;
   - the CSP has a nonce and no `unsafe-eval`;
   - the settings reach the options, including `lineHeight` 0;

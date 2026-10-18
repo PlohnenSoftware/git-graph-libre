@@ -210,5 +210,17 @@ esbuild import closures from `monaco-editor` `0.57.0`, minified:
 - Not faster: a webview tab has to start cold. Every open creates the
   webview and parses its script; with (a) that is 2.7 MB. The native diff
   editor is already loaded. On small files the native editor may well win.
+- **Keeping it warm (`2026-10-19`, the maintainer asked).** VS Code has no
+  API to keep a webview alive without a tab, so a hidden, preloaded diff
+  tab isn't possible. What is possible, and planned in D44:
+  - one reused panel with `retainContextWhenHidden: true`, so while its
+    tab exists, even in the background, every open is one message;
+  - starting the engine's read and diff on the click, in parallel with
+    the webview's start-up, so a cold open costs about the larger of the
+    two, not their sum;
+  - a bundle under 100 KB, which is why option (c) beat Monaco.
+
+  So only the first open of a session, or the first after the user closes
+  the tab, is cold. D48 measures cold and warm opens separately.
 - A spike must measure "click to first paint" against `vscode.diff`, on a
   small file and on a file over 10,000 lines, before G4 is chosen.
