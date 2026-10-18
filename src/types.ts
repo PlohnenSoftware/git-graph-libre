@@ -3,6 +3,7 @@ import type {
   ActionResponse,
   CommitOrdering,
   GitFileChangeType,
+  GitQueryError,
   QueryRequest,
   QueryResponse
 } from "@/backend/types";
@@ -529,6 +530,19 @@ export type ResponseComponentStatus = {
   components: ComponentStatus;
 };
 
+export type RequestResolveRef = {
+  command: "resolveRef";
+  repo: string;
+  ref: string;
+  requestId: number;
+};
+export type ResponseResolveRef = {
+  command: "resolveRef";
+  requestId: number;
+  hash: string | null;
+  error: GitQueryError | null;
+};
+
 export type RequestMessage =
   | RequestRepositoryRecovery
   | ActionRequest
@@ -550,6 +564,7 @@ export type RequestMessage =
   | RequestExportExtensionSettings
   | RequestImportExtensionSettings
   | RequestComponentStatus
+  | RequestResolveRef
   | RequestSetTemporaryLanguage
   | RequestShowTelemetryConsent;
 
@@ -574,4 +589,5 @@ export type ResponseMessage =
   | ResponseImportExtensionSettings
   | ResponseComponentStatus
   | ResponseRefresh
+  | ResponseResolveRef
   | ResponseStartHistorySearch;

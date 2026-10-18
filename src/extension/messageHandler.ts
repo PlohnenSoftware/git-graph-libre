@@ -56,6 +56,7 @@ import {
 import type { GitClient } from "@/backend/gitClient";
 import { commitSignatures } from "@/backend/queries/commitSignatures";
 import { loadBranches } from "@/backend/queries/loadBranches";
+import { resolveRef } from "@/backend/queries/resolveRef";
 import { tagDetails } from "@/backend/queries/tagDetails";
 import { uncommittedDetails } from "@/backend/queries/uncommittedDetails";
 import type { GitFileChangeType, GitQueryError } from "@/backend/types";
@@ -777,6 +778,18 @@ export function registerMessageHandlers(
       ...(await tagDetails(gitClient.getInstance(), {
         repo: msg.repo,
         tagName: msg.tagName,
+        recordGitCommand
+      }))
+    });
+  });
+
+  bridge.onMessage("resolveRef", async (msg) => {
+    bridge.post({
+      command: "resolveRef",
+      requestId: msg.requestId,
+      ...(await resolveRef(gitClient.getInstance(), {
+        repo: msg.repo,
+        ref: msg.ref,
         recordGitCommand
       }))
     });

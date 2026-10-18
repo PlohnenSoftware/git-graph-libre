@@ -419,6 +419,23 @@ describe("registerMessageHandlers", () => {
     expect(outputLines.some((line) => line.includes("tagDetails.info"))).toBe(true);
   });
 
+  it("routes resolveRef queries and echoes the request id", async () => {
+    const { handlers, posts, outputLines } = registerHandlersForTest();
+    const hash = cp.execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo }).toString().trim();
+
+    const handler = handlers.get("resolveRef");
+    expect(handler).toBeDefined();
+    await handler?.({ command: "resolveRef", repo, ref: "HEAD", requestId: 99 });
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "resolveRef",
+      requestId: 99,
+      hash,
+      error: null
+    });
+    expect(outputLines.some((line) => line.includes("resolveRef"))).toBe(true);
+  });
+
   it("routes uncommitted detail queries", async () => {
     fs.writeFileSync(path.join(repo, "route-staged.txt"), "staged");
     fs.writeFileSync(path.join(repo, "f"), "route unstaged change");
