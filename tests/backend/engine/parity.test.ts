@@ -6,7 +6,14 @@ import { git, makeRepo } from "@tests/backend/helpers";
 import { simpleGit } from "simple-git";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { loadEngineAddon } from "@/backend/engine/addon";
-import { parseEngineCommitFile } from "@/backend/engine/details";
+import {
+  findStashEntry,
+  mapEngineFileChange,
+  parseEngineCommitDetails,
+  parseEngineCommitFile,
+  parseEngineStashEntries,
+  stashEntryPayload
+} from "@/backend/engine/details";
 import {
   createRepoReader,
   didEngineServeRead,
@@ -888,6 +895,96 @@ describe("engine/CLI parity: commit details, comparison and files", () => {
     expect(direct.commitDetails, "unborn CLI details").toBeNull();
     expect(viaAuto.error, "unborn engine error").not.toBeNull();
     expect(direct.error, "unborn CLI error").not.toBeNull();
+  }, 120000);
+
+  it("agrees on a stash with untracked files", async (context) => {
+    requireAddon(context);
+    const dir = makeRepo();
+    try {
+      fs.writeFileSync(path.join(dir, "feature.txt"), "feature\n");
+      fs.writeFileSync(path.join(dir, "shared.txt"), "shared\n");
+      git(["add", "."], dir);
+      git(["commit", "-m", "base files"], dir);
+      fs.writeFileSync(path.join(dir, "shared.txt"), "shared\nstaged\n");
+      git(["add", "shared.txt"], dir);
+      fs.writeFileSync(path.join(dir, "feature.txt"), "feature\nunstaged\n");
+      fs.writeFileSync(path.join(dir, "untracked.txt"), "untracked\n");
+      git(["stash", "push", "-u", "-m", "wip"], dir);
+      const stashHash = revParse(dir, "stash@{0}");
+
+      resetEngineServedRead();
+      const [viaAuto, direct] = await Promise.all([
+        createRepoReader({ preference: "auto", gitPath: "git" }).loadCommitDetails({
+          repoPath: dir,
+          git: simpleGit(dir),
+          commitHash: stashHash,
+          dateType: "Commit Date"
+        }),
+        commitDetails(simpleGit(dir), {
+          commitHash: stashHash,
+          dateType: "Commit Date",
+          repo: dir
+        })
+      ]);
+
+      type DetailsResult = Awaited<ReturnType<typeof commitDetails>>;
+      const summary = (result: DetailsResult) =>
+        result.commitDetails?.fileChanges.map((change) => ({
+          oldFilePath: change.oldFilePath,
+          newFilePath: change.newFilePath,
+          type: change.type
+        }));
+      const tracked = (result: DetailsResult) =>
+        result.commitDetails?.fileChanges.filter(
+          (change) => change.newFilePath !== "untracked.txt"
+        );
+
+      expect(summary(direct), "stash CLI file list").toEqual([
+        { oldFilePath: "feature.txt", newFilePath: "feature.txt", type: "M" },
+        { oldFilePath: "shared.txt", newFilePath: "shared.txt", type: "M" },
+        { oldFilePath: "untracked.txt", newFilePath: "untracked.txt", type: "A" }
+      ]);
+      expect(summary(viaAuto), "stash reader file list").toEqual(summary(direct));
+
+      // The reader reroutes multi-parent hashes to the CLI, so also compare
+      // the engine's own stash details against the CLI directly.
+      const addon = loadEngineAddon();
+      if (addon === null) throw new Error("stash fixture addon missing");
+      const entries = parseEngineStashEntries(await addon.loadStashes(dir));
+      const entry = entries === null ? undefined : findStashEntry(entries, stashHash);
+      if (entry === undefined) throw new Error("engine did not list the stash");
+      const engineDetails = parseEngineCommitDetails(
+        await addon.loadStashDetails(dir, stashHash, stashEntryPayload(entry))
+      );
+      const engineSummary = engineDetails?.fileChanges.map(mapEngineFileChange).map((change) => ({
+        oldFilePath: change.oldFilePath,
+        newFilePath: change.newFilePath,
+        type: change.type
+      }));
+      expect(engineSummary, "stash engine file list").toEqual(summary(direct));
+      // Counts for untracked files may differ until D03 (the engine leaves
+      // them null), so full equality — counts included — is asserted for
+      // tracked files only.
+      expect(tracked(viaAuto), "stash tracked files").toEqual(tracked(direct));
+      expect(tracked(direct), "stash tracked counts").toEqual([
+        {
+          oldFilePath: "feature.txt",
+          newFilePath: "feature.txt",
+          type: "M",
+          additions: 1,
+          deletions: 0
+        },
+        {
+          oldFilePath: "shared.txt",
+          newFilePath: "shared.txt",
+          type: "M",
+          additions: 1,
+          deletions: 0
+        }
+      ]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   }, 120000);
 
   it("agrees on rename and binary comparisons", async (context) => {
