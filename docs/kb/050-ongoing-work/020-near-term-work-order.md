@@ -9,7 +9,11 @@ always_read: true
 
 # Near-Term Work Order
 
-**Next (`2026-10-16`), awaiting the maintainer:** what remains of the
+**Next (`2026-10-18`): release 1.9.0 "The Diff"**, under Ongoing work, with
+its slices, agent protocol and decisions. It supersedes the diff-related
+items below.
+
+**Earlier next (`2026-10-16`), awaiting the maintainer:** what remains of the
 upstream engine review's ranked candidates. Landed the same day, each in
 its own signed commit on `feat/engine-author-date-status`: config
 staleness (`a17048e`, correcting the 16.8 record), tags of trees and blobs

@@ -1,6 +1,6 @@
 ---
 summary: >-
-  Phases with open items (2, 6, 8, 9, 10), in phase order; each phase's
+  Phases with open items (2, 6, 8, 9, 10, and the planned 17), in phase order; each phase's
   `Status:` line names what remains.
 ---
 
