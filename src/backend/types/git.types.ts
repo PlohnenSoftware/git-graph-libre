@@ -77,6 +77,8 @@ export type GitFileChange = {
   type: GitFileChangeType;
   additions: number | null;
   deletions: number | null;
+  /** Present only in a stash's untracked-files commit (its third parent). */
+  untracked?: true;
 };
 
 export type GitUncommittedFile = {

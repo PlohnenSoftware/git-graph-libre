@@ -934,10 +934,6 @@ describe("engine/CLI parity: commit details, comparison and files", () => {
           newFilePath: change.newFilePath,
           type: change.type
         }));
-      const tracked = (result: DetailsResult) =>
-        result.commitDetails?.fileChanges.filter(
-          (change) => change.newFilePath !== "untracked.txt"
-        );
 
       expect(summary(direct), "stash CLI file list").toEqual([
         { oldFilePath: "feature.txt", newFilePath: "feature.txt", type: "M" },
@@ -946,8 +942,7 @@ describe("engine/CLI parity: commit details, comparison and files", () => {
       ]);
       expect(summary(viaAuto), "stash reader file list").toEqual(summary(direct));
 
-      // The reader reroutes multi-parent hashes to the CLI, so also compare
-      // the engine's own stash details against the CLI directly.
+      // Also compare the engine's own stash details against the CLI directly.
       const addon = loadEngineAddon();
       if (addon === null) throw new Error("stash fixture addon missing");
       const entries = parseEngineStashEntries(await addon.loadStashes(dir));
@@ -962,11 +957,11 @@ describe("engine/CLI parity: commit details, comparison and files", () => {
         type: change.type
       }));
       expect(engineSummary, "stash engine file list").toEqual(summary(direct));
-      // Counts for untracked files may differ until D03 (the engine leaves
-      // them null), so full equality — counts included — is asserted for
-      // tracked files only.
-      expect(tracked(viaAuto), "stash tracked files").toEqual(tracked(direct));
-      expect(tracked(direct), "stash tracked counts").toEqual([
+      expect(didEngineServeRead(), "stash served by the engine").toBe(true);
+      expect(viaAuto.commitDetails?.fileChanges, "stash files with counts").toEqual(
+        direct.commitDetails?.fileChanges
+      );
+      expect(direct.commitDetails?.fileChanges, "stash counts").toEqual([
         {
           oldFilePath: "feature.txt",
           newFilePath: "feature.txt",
@@ -980,8 +975,29 @@ describe("engine/CLI parity: commit details, comparison and files", () => {
           type: "M",
           additions: 1,
           deletions: 0
+        },
+        {
+          oldFilePath: "untracked.txt",
+          newFilePath: "untracked.txt",
+          type: "A",
+          additions: 1,
+          deletions: 0,
+          untracked: true
         }
       ]);
+      // The webview opens an untracked file at `<W>^3`; both arms behind
+      // DiffDocProvider resolve that revision to the file's text.
+      expect(
+        cp.execFileSync("git", ["show", `${stashHash}^3:untracked.txt`], {
+          cwd: dir,
+          encoding: "utf8"
+        }),
+        "CLI file at the third parent"
+      ).toBe("untracked\n");
+      const engineFile = parseEngineCommitFile(
+        await addon.loadCommitFile(dir, `${stashHash}^3`, "untracked.txt")
+      );
+      expect(engineFile?.contents, "engine file at the third parent").toBe("untracked\n");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

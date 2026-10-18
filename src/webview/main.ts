@@ -6100,11 +6100,20 @@ class GitGraphView {
   private viewGitFileDiff(fileChange: GitFileChange) {
     if (this.expandedCommit === null) return;
     const comparison = this.expandedCommit.comparison;
+    const hash = this.expandedCommit.hash;
+    // A stashed untracked file lives only in the stash's third parent, so
+    // its new side reads from there instead of the stash commit itself.
+    const untrackedRefs =
+      comparison === null && fileChange.untracked === true
+        ? { oldRef: `${hash}^`, newRef: `${hash}^3` }
+        : null;
     sendMessage({
       command: "viewDiff",
       repo: this.currentRepo,
-      commitHash: this.expandedCommit.hash,
-      ...(comparison === null ? {} : { oldRef: comparison.baseRef, newRef: comparison.compareRef }),
+      commitHash: hash,
+      ...(comparison === null
+        ? (untrackedRefs ?? {})
+        : { oldRef: comparison.baseRef, newRef: comparison.compareRef }),
       oldFilePath: fileChange.oldFilePath,
       newFilePath: fileChange.newFilePath,
       type: fileChange.type
@@ -6112,8 +6121,12 @@ class GitGraphView {
   }
 
   private viewGitFileAtRevision(fileChange: GitFileChange) {
-    const commitHash = this.getExpandedFileRevision(fileChange);
-    if (commitHash === null) return;
+    const revision = this.getExpandedFileRevision(fileChange);
+    if (revision === null || this.expandedCommit === null) return;
+    const commitHash =
+      fileChange.untracked === true && this.expandedCommit.comparison === null
+        ? `${this.expandedCommit.hash}^3`
+        : revision;
     sendMessage({
       command: "viewFileAtRevision",
       repo: this.currentRepo,

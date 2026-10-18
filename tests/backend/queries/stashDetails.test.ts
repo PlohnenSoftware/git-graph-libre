@@ -66,7 +66,8 @@ describe("commitDetails for a stash on the CLI path", () => {
           newFilePath: "untracked.txt",
           type: "A",
           additions: 1,
-          deletions: 0
+          deletions: 0,
+          untracked: true
         }
       ]);
     } finally {

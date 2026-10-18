@@ -1211,7 +1211,12 @@ describe("createRepoReader loadCommitDetails", () => {
 
   function detailsAddon(impl: {
     details?: () => Promise<string>;
-    counts?: () => Promise<string>;
+    counts?: (
+      repoPath: string,
+      from: string | null,
+      to: string,
+      pathsJson: string
+    ) => Promise<string>;
     stashes?: () => Promise<string>;
     stashDetails?: (repoPath: string, hash: string, stashJson: string) => Promise<string>;
   }): AddonProvider {
@@ -1462,6 +1467,80 @@ describe("createRepoReader loadCommitDetails", () => {
     } finally {
       log.dispose();
     }
+  });
+
+  it("counts stashed untracked files from the third parent", async () => {
+    const stashHash = "c".repeat(40);
+    const baseHash = "b".repeat(40);
+    const untrackedHash = "d".repeat(40);
+    const stashDetailsPayload = JSON.stringify({
+      ...JSON.parse(detailsPayload),
+      hash: stashHash,
+      parents: [baseHash, "e".repeat(40), untrackedHash],
+      fileChanges: [
+        { oldFilePath: "s", newFilePath: "s", type: "M", additions: null, deletions: null },
+        { oldFilePath: "u", newFilePath: "u", type: "U", additions: null, deletions: null }
+      ]
+    });
+    const countsFn = vi.fn(
+      async (_repoPath: string, _from: string | null, to: string, _pathsJson: string) =>
+        to === untrackedHash
+          ? JSON.stringify({ u: { additions: 1, deletions: 0 } })
+          : JSON.stringify({ s: { additions: 2, deletions: 0 } })
+    );
+    const result = await detailsReader(
+      "auto",
+      detailsAddon({
+        details: async () =>
+          JSON.stringify({
+            ...JSON.parse(detailsPayload),
+            hash: stashHash,
+            parents: [baseHash, "e".repeat(40), untrackedHash]
+          }),
+        counts: countsFn,
+        stashes: async () =>
+          JSON.stringify([
+            {
+              hash: stashHash,
+              baseHash,
+              untrackedFilesHash: untrackedHash,
+              selector: "refs/stash@{0}"
+            }
+          ]),
+        stashDetails: async () => stashDetailsPayload
+      }),
+      { commitHash: stashHash }
+    );
+
+    expect(countsFn).toHaveBeenCalledTimes(2);
+    expect(countsFn).toHaveBeenNthCalledWith(
+      1,
+      repoWithRemote,
+      baseHash,
+      stashHash,
+      JSON.stringify(["s", "u"])
+    );
+    expect(countsFn).toHaveBeenNthCalledWith(
+      2,
+      repoWithRemote,
+      null,
+      untrackedHash,
+      JSON.stringify(["u"])
+    );
+    expect(result.commitDetails?.fileChanges).toEqual([
+      { oldFilePath: "s", newFilePath: "s", type: "M", additions: 2, deletions: 0 },
+      {
+        oldFilePath: "u",
+        newFilePath: "u",
+        type: "A",
+        additions: 1,
+        deletions: 0,
+        untracked: true
+      }
+    ]);
+    expect(result.error).toBeNull();
+    expect(detailsReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(true);
   });
 
   it("reroutes to the whole CLI read on malformed counts", async () => {

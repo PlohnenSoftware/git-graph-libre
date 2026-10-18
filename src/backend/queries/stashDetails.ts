@@ -71,5 +71,6 @@ export async function stashFileChanges(
     repo,
     record
   );
+  for (const change of untrackedChanges) change.untracked = true;
   return [...baseChanges, ...untrackedChanges];
 }

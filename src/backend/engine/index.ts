@@ -614,12 +614,16 @@ async function readCommitDetails(
         )
       };
     }
-    // The CLI diffs a merge against every parent (`-m`); the engine diffs
-    // against the first parent only. A multi-parent page is not a valid
-    // substitute, so those loads go back to the whole CLI read.
-    if (details.parents.length > 1) return rerouteToCli("commitDetails", "mergeCommit", cliRead);
     const stashes = parseEngineStashEntries(stashesText);
     const stash = stashes === null ? undefined : findStashEntry(stashes, args.commitHash);
+    // The CLI diffs a merge against every parent (`-m`); the engine diffs
+    // against the first parent only. A multi-parent page is not a valid
+    // substitute, so those loads go back to the whole CLI read. A stash is
+    // multi-parent too, but the stash branch below diffs it against its
+    // base the way the CLI's stash path does, so only non-stash merges
+    // reroute here.
+    if (details.parents.length > 1 && stash === undefined)
+      return rerouteToCli("commitDetails", "mergeCommit", cliRead);
     let fileChanges = details.fileChanges.map(mapEngineFileChange);
     let from: string | null = null;
     if (stash !== undefined) {
@@ -644,6 +648,22 @@ async function readCommitDetails(
     }
     const filled = await fillLineCounts(addon, args, from, args.commitHash, fileChanges, cliRead);
     if (filled !== null) return filled;
+    // Untracked files live only in the stash's third parent, a root commit
+    // the base-to-stash counts above cannot see, so count them against the
+    // empty tree. A failure follows the same reroute rule as fillLineCounts.
+    const untrackedHash = stash?.untrackedFilesHash ?? null;
+    if (untrackedHash !== null) {
+      const untrackedChanges = fileChanges.filter((change) => change.untracked === true);
+      const filledUntracked = await fillLineCounts(
+        addon,
+        args,
+        null,
+        untrackedHash,
+        untrackedChanges,
+        cliRead
+      );
+      if (filledUntracked !== null) return filledUntracked;
+    }
     engineServedRead = true;
     logBackendRoute(
       "commitDetails",

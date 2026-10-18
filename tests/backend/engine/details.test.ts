@@ -73,7 +73,14 @@ describe("mapEngineFileChange", () => {
       additions: null,
       deletions: null
     });
-    expect(mapEngineFileChange({ ...CHANGE, type: "U" }).type).toBe("A");
+    expect(mapEngineFileChange({ ...CHANGE, type: "U" })).toEqual({
+      oldFilePath: "a.txt",
+      newFilePath: "b.txt",
+      type: "A",
+      additions: null,
+      deletions: null,
+      untracked: true
+    });
   });
 });
 

@@ -13,8 +13,8 @@
  * CLI's numstat pass.
  */
 
-import type { GitFileChange, GitFileChangeType } from "@/backend/types";
 import { trimTrailingBlankLines } from "@/backend/queries/commitInfo";
+import type { GitFileChange, GitFileChangeType } from "@/backend/types";
 
 /** One file change as the engine encodes it. Counts stay null until filled. */
 export type EngineFileChange = {
@@ -112,7 +112,8 @@ export function mapEngineFileChange(change: EngineFileChange): GitFileChange {
     newFilePath: change.newFilePath,
     type: (change.type === "U" ? "A" : change.type) as GitFileChangeType,
     additions: change.additions,
-    deletions: change.deletions
+    deletions: change.deletions,
+    ...(change.type === "U" ? { untracked: true as const } : {})
   };
 }
 

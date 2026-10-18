@@ -172,4 +172,81 @@ describe("commit details list mode runtime", () => {
       type: "M"
     });
   });
+
+  it("opens a stashed untracked file from the stash's third parent", async () => {
+    await import("@/webview/main");
+
+    const loadBranchesRequest = latestLoadBranchesRequest(vscodeMock.sentMessages);
+    receive({
+      command: "loadBranches",
+      requestId: loadBranchesRequest.requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    const loadCommitsRequest = latestLoadCommitsRequest(vscodeMock.sentMessages);
+    receive({
+      command: "loadCommits",
+      requestId: loadCommitsRequest.requestId,
+      commits,
+      head: "abc123",
+      moreCommitsAvailable: false,
+      hard: true,
+      error: null
+    });
+
+    document
+      .querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]')
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "commitDetails",
+      commitDetails: {
+        ...commitDetails,
+        fileChanges: [
+          {
+            oldFilePath: "untracked.txt",
+            newFilePath: "untracked.txt",
+            type: "A",
+            additions: 1,
+            deletions: 0,
+            untracked: true
+          }
+        ]
+      },
+      error: null
+    });
+
+    document
+      .querySelector<HTMLElement>(".gitFileList .gitFile")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "viewDiff",
+      repo: REPO,
+      commitHash: "abc123",
+      oldRef: "abc123^",
+      newRef: "abc123^3",
+      oldFilePath: "untracked.txt",
+      newFilePath: "untracked.txt",
+      type: "A"
+    });
+
+    document
+      .querySelector<HTMLElement>(".gitFileList .gitFile")
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const viewAtRevision = Array.from(
+      document.querySelectorAll("#contextMenu .contextMenuItem")
+    ).find((item) => item.textContent?.includes("View File at Revision"));
+    expect(viewAtRevision).not.toBeUndefined();
+    viewAtRevision?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "viewFileAtRevision",
+      repo: REPO,
+      commitHash: "abc123^3",
+      filePath: "untracked.txt"
+    });
+  });
 });
