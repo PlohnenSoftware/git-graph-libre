@@ -9,7 +9,7 @@ summary: >-
 
 # D02 — Correct stash details on the CLI path
 
-Status: ready
+Status: done — awaiting integration
 Needs: —
 Decisions: —
 Kind: TypeScript · Size budget: ≤ 220 changed lines outside tests
@@ -96,4 +96,11 @@ order. No user should see a different file list depending on the backend.
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Muse Code sub-agent D02, 2026-10-19 00:04 (claimed 2026-10-18 23:58)
+- **Branch and commits:** `diff-1.9.0/d02` — `57b7a0a G fix(details): list stash files like git stash show (D02)`, plus the signed docs commit carrying this report (its own hash cannot be listed inside itself; verify with `git log --format='%h %G? %s' the-diff..HEAD`)
+- **Files changed:** `src/backend/queries/stashDetails.ts` (new, +75/−0), `src/backend/queries/commitDetails.ts` (+38/−7), `tests/backend/queries/stashDetails.test.ts` (new, +132/−0), `tests/backend/engine/parity.test.ts` (+98/−1, one new case plus its imports), this slice file (status and report). Counts from `git diff --numstat 3aea3ca..HEAD` for code and tests; 113 insertions and 7 deletions outside tests, inside the ≤220 budget.
+- **Tests added or changed:** new `stashDetails.test.ts` with 3 cases (stash with `-u`, stash without `-u`, stash holding only a staged change) and one new parity case "agrees on a stash with untracked files"; backend 849 → 853 tests, webview unchanged at 589.
+- **Gates:** biome pass (strict, `--error-on-warnings`, 4 touched files, no fixes); typecheck pass; test backend 853/853 (79 files), webview 589/589 (54 files) via `pnpm run test`, with the backend project re-run at 853/853 after the parity case was strengthened; l10n n/a (no user-visible text changed); kb:check pass; Rust arm n/a (no `engine/**` code changed; `pnpm run engine:build` was run only so the parity engine half could execute, its artifact is ignored and uncommitted); Sonar: integrator
+- **Acceptance:** gates pass — met, evidence above. The new tests fail on the old code — met: before the fix `stashDetails.test.ts` reported 2 failed / 1 passed, and with the old `commitDetails.ts` temporarily restored (engine built) the stash parity case and the `-u` stash case both failed (2 failed); after the fix all pass. With the backend at `git-cli`, the stash fixture shows three files in commit details — met: the `-u` case asserts exactly `M feature.txt 1/0`, `M shared.txt 1/0`, `A untracked.txt 1/0` through the CLI `commitDetails` query, matching `git stash show --include-untracked` on the same fixture (also verified by hand with `git stash show`/`diff-tree` in a temp repo). The parity case also compares the engine's own `loadStashDetails` output (paths, types, order) against the CLI and asserts full equality including counts for tracked files only, with a comment naming D03 for untracked counts.
+- **Deviations from the slice:** none in scope or files. The stash lookup reuses `loadStashes` for membership and the base hash (`sourceHash`), taking the untracked hash from `fetchCommitInfo`'s third parent because `loadStashes` keeps only the first parent — one of the two options the slice names. One observation for the integrator and D03, not changed here because the slice says not to change the engine path: `readCommitDetails` reroutes hashes with more than one parent to the CLI before its engine stash branch, so through the reader a stash is served by the (now corrected) CLI.
+- **Open questions / follow-ups:** none. D03 remains the follow-up for untracked-file diffs and engine line counts.
