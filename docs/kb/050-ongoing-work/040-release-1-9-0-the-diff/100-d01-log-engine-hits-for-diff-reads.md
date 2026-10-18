@@ -9,7 +9,7 @@ summary: >-
 
 # D01 — Log engine hits for diff reads
 
-Status: done — awaiting integration
+Status: integrated 2ddce22
 Needs: —
 Decisions: —
 Kind: TypeScript · Size budget: ≤ 120 changed lines outside tests
