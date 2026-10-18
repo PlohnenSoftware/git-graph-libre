@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { loadEngineAddon, type EngineAddon } from "./backend/engine/addon";
+import { type EngineAddon, loadEngineAddon } from "./backend/engine/addon";
 import { parseEngineCommitFile } from "./backend/engine/details";
 import type { GitInstance } from "./backend/gitClient";
 import { runGitCommand } from "./backend/utils/gitRunner";
@@ -97,6 +97,7 @@ export class DiffDocProvider implements vscode.TextDocumentContentProvider {
       );
       if (file === null) return viaCli("malformedPayload");
       if (file.binary || file.contents === null) return viaCli("binaryFile");
+      logBackendRoute("loadCommitFile", "backend=engine");
       return file.contents;
     } catch {
       return viaCli("engineThrew");

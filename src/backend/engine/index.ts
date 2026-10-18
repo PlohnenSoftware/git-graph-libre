@@ -645,6 +645,10 @@ async function readCommitDetails(
     const filled = await fillLineCounts(addon, args, from, args.commitHash, fileChanges, cliRead);
     if (filled !== null) return filled;
     engineServedRead = true;
+    logBackendRoute(
+      "commitDetails",
+      `backend=engine files=${fileChanges.length}${stash !== undefined ? " stash=1" : ""}`
+    );
     return { commitDetails: toGitCommitDetails(details, fileChanges), error: null };
   } catch (error: unknown) {
     if (!noteEngineThrow(error, "commitDetails")) {
@@ -712,6 +716,7 @@ async function readCommitComparison(
     );
     if (filled !== null) return filled;
     engineServedRead = true;
+    logBackendRoute("commitComparison", `backend=engine files=${fileChanges.length}`);
     return { commitDetails: toGitCommitDetails(details, fileChanges), error: null };
   } catch (error: unknown) {
     if (!noteEngineThrow(error, "commitComparison")) {

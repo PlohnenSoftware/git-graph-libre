@@ -194,6 +194,48 @@ describe("diff document provider on the engine backend", () => {
     expect(addon.loadCommitFile).toHaveBeenCalledWith("/repo", "abc123", "f.ts");
   });
 
+  it("logs one engine route line when the engine serves file text", async () => {
+    const { setOperationLog } = await import("@/backend/utils/operationLog");
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    const git = makeGitClient("cli text");
+    const addon = fileAddon(JSON.stringify({ contents: "engine text\n", binary: false }));
+    try {
+      const { content } = await readWith(git, {
+        backend: () => "auto",
+        addonProvider: addon.provider
+      });
+
+      expect(content).toBe("engine text\n");
+      expect(
+        lines.filter((line) => line.includes("operation=loadCommitFile backend=engine"))
+      ).toHaveLength(1);
+    } finally {
+      log.dispose();
+    }
+  });
+
+  it("logs no engine route line on the git-cli preference", async () => {
+    const { setOperationLog } = await import("@/backend/utils/operationLog");
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    const git = makeGitClient("cli text");
+    const addon = fileAddon(JSON.stringify({ contents: "engine text", binary: false }));
+    try {
+      const { content } = await readWith(git, {
+        backend: () => "git-cli",
+        addonProvider: addon.provider
+      });
+
+      expect(content).toBe("cli text");
+      expect(lines.some((line) => line.includes("operation=loadCommitFile backend=engine"))).toBe(
+        false
+      );
+    } finally {
+      log.dispose();
+    }
+  });
+
   it("caches the engine answer like the CLI one", async () => {
     const git = makeGitClient("cli text");
     const addon = fileAddon(JSON.stringify({ contents: "engine text", binary: false }));

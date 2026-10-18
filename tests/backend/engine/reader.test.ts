@@ -28,6 +28,7 @@ import { commitComparison } from "@/backend/queries/commitComparison";
 import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadCommits } from "@/backend/queries/loadCommits";
 import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
+import { setOperationLog } from "@/backend/utils/operationLog";
 
 const cliCalls = vi.hoisted(() => ({ count: 0 }));
 const fallbackReads = vi.hoisted(() => ({ count: 0 }));
@@ -1278,6 +1279,29 @@ describe("createRepoReader loadCommitDetails", () => {
     expect(didEngineServeRead()).toBe(true);
   });
 
+  it("logs an engine route line with the file count on a details success", async () => {
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    try {
+      const result = await detailsReader(
+        "auto",
+        detailsAddon({
+          details: async () => detailsPayload,
+          counts: async () => countsPayload,
+          stashes: async () => "[]"
+        })
+      );
+
+      expect(result).toEqual(servedNodes);
+      expect(lines).toContainEqual(
+        expect.stringContaining("operation=commitDetails backend=engine files=1")
+      );
+      expect(lines.some((line) => line.includes(" stash=1"))).toBe(false);
+    } finally {
+      log.dispose();
+    }
+  });
+
   it.each([
     ["the * row", "*"],
     ["a blank hash", "  "]
@@ -1316,6 +1340,35 @@ describe("createRepoReader loadCommitDetails", () => {
     expect(result.commitDetails?.fileChanges).toHaveLength(1);
     expect(detailsReads.count).toBe(1);
     expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("logs only the CLI route when a merge is rerouted", async () => {
+    const merged = JSON.stringify({
+      ...JSON.parse(detailsPayload),
+      parents: ["b".repeat(40), "c".repeat(40)]
+    });
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    try {
+      const result = await detailsReader(
+        "auto",
+        detailsAddon({
+          details: async () => merged,
+          counts: async () => countsPayload,
+          stashes: async () => "[]"
+        })
+      );
+
+      expect(result.error).toBeNull();
+      expect(lines).toContainEqual(
+        expect.stringContaining("operation=commitDetails backend=cli reason=mergeCommit")
+      );
+      expect(lines.some((line) => line.includes("operation=commitDetails backend=engine"))).toBe(
+        false
+      );
+    } finally {
+      log.dispose();
+    }
   });
 
   it("takes stash hashes through load_stash_details with the base as from", async () => {
@@ -1369,6 +1422,46 @@ describe("createRepoReader loadCommitDetails", () => {
     expect(result.error).toBeNull();
     expect(detailsReads.count).toBe(0);
     expect(didEngineServeRead()).toBe(true);
+  });
+
+  it("logs the stash marker on an engine-served stash details read", async () => {
+    const stashHash = "c".repeat(40);
+    const stashDetailsPayload = JSON.stringify({
+      ...JSON.parse(detailsPayload),
+      hash: stashHash,
+      fileChanges: [
+        { oldFilePath: "s", newFilePath: "s", type: "A", additions: null, deletions: null }
+      ]
+    });
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    try {
+      const result = await detailsReader(
+        "auto",
+        detailsAddon({
+          details: async () => detailsPayload,
+          counts: async () => JSON.stringify({ s: { additions: 2, deletions: 0 } }),
+          stashes: async () =>
+            JSON.stringify([
+              {
+                hash: stashHash,
+                baseHash: "b".repeat(40),
+                untrackedFilesHash: null,
+                selector: "refs/stash@{0}"
+              }
+            ]),
+          stashDetails: async () => stashDetailsPayload
+        }),
+        { commitHash: stashHash }
+      );
+
+      expect(result.error).toBeNull();
+      expect(lines).toContainEqual(
+        expect.stringContaining("operation=commitDetails backend=engine files=1 stash=1")
+      );
+    } finally {
+      log.dispose();
+    }
   });
 
   it("reroutes to the whole CLI read on malformed counts", async () => {
@@ -1571,6 +1664,28 @@ describe("createRepoReader loadCommitComparison", () => {
     });
     expect(comparisonReads.count).toBe(0);
     expect(didEngineServeRead()).toBe(true);
+  });
+
+  it("logs an engine route line with the file count on a comparison success", async () => {
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    try {
+      const result = await comparisonReader(
+        "auto",
+        comparisonAddon({
+          details: async () => headerPayload,
+          compare: async () => changesPayload,
+          counts: async () => JSON.stringify({ g: { additions: 1, deletions: 1 } })
+        })
+      );
+
+      expect(result.error).toBeNull();
+      expect(lines).toContainEqual(
+        expect.stringContaining("operation=commitComparison backend=engine files=1")
+      );
+    } finally {
+      log.dispose();
+    }
   });
 
   it.each([
