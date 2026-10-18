@@ -29,7 +29,7 @@ import { createTelemetryReporter } from "@/telemetry";
  * are both still `true` while nothing is forwarded.
  *
  * The seam was therefore verified against a packaged build instead
- * (`2026-09-02`, recorded in `docs/AI_DEV_KNOWLEDGE_BASE.md`): a VSIX
+ * (`2026-09-02`, recorded under Telemetry in `docs/kb/`): a VSIX
  * installed into an isolated `--extensions-dir`/`--user-data-dir` under real
  * code-insiders `1.136.0-insider` delivered the `activate` event to a local
  * listener, name already normalized to the bare `activate`. Redo it that way,

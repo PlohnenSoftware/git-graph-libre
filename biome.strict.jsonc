@@ -15,6 +15,7 @@
       "src/**/*.ts",
       "tests/**/*.ts",
       "scripts/**/*.js",
+      "docs/kb/*.mjs",
       "l10n/**/*.json",
       ".vscode/**/*.json",
       ".github/**/*.json"

@@ -1,0 +1,159 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "kb/README.md",
+      "file_type": "document",
+      "source_file": "docs/kb/README.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_kb_readme",
+      "community": 0
+    },
+    {
+      "label": "Notes \u2014 draft",
+      "file_type": "document",
+      "source_file": "docs/kb/README.md",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "docs_kb_readme_notes_draft",
+      "community": 0
+    },
+    {
+      "label": "010-group.md",
+      "file_type": "document",
+      "source_file": "docs/kb/010-group.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_kb_010_group",
+      "community": 0
+    },
+    {
+      "label": "010-alpha.md",
+      "file_type": "document",
+      "source_file": "docs/kb/010-group/010-alpha.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_kb_010_group_010_alpha",
+      "community": 0
+    },
+    {
+      "label": "010-child.md",
+      "file_type": "document",
+      "source_file": "docs/kb/010-group/010-alpha/010-child.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_kb_010_group_010_alpha_010_child",
+      "community": 0
+    },
+    {
+      "label": "engine.ts",
+      "file_type": "code",
+      "source_file": "src/engine.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_engine",
+      "community": 0
+    },
+    {
+      "label": "readCommitDetails()",
+      "file_type": "code",
+      "source_file": "src/engine.ts",
+      "source_location": "L4",
+      "_origin": "ast",
+      "id": "src_engine_readcommitdetails",
+      "community": 0
+    },
+    {
+      "label": "run()",
+      "file_type": "code",
+      "source_file": "src/engine.ts",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "src_engine_run",
+      "community": 0
+    },
+    {
+      "label": "loadThing()",
+      "file_type": "code",
+      "source_file": "src/engine.ts",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "src_engine_loadthing_1",
+      "community": 0
+    },
+    {
+      "label": "loadThing()",
+      "file_type": "code",
+      "source_file": "src/engine.ts",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "src_engine_loadthing_2",
+      "community": 0
+    },
+    {
+      "label": "loadThing()",
+      "file_type": "code",
+      "source_file": "src/engine.ts",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "src_engine_loadthing_3",
+      "community": 0
+    },
+    {
+      "label": "loadThing()",
+      "file_type": "code",
+      "source_file": "src/engine.ts",
+      "source_location": "L14",
+      "_origin": "ast",
+      "id": "src_engine_loadthing_4",
+      "community": 0
+    },
+    {
+      "label": "a/index.ts",
+      "file_type": "code",
+      "source_file": "src/a/index.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_a_index",
+      "community": 0
+    },
+    {
+      "label": "b/index.ts",
+      "file_type": "code",
+      "source_file": "src/b/index.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_b_index",
+      "community": 0
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/engine.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_engine",
+      "target": "src_engine_readcommitdetails",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "mentions",
+      "confidence": "INFERRED",
+      "source_file": "docs/kb/010-group.md",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "kb",
+      "source": "docs_kb_010_group",
+      "target": "src_engine_run",
+      "confidence_score": 0.8
+    }
+  ],
+  "hyperedges": [],
+  "built_at_commit": "abc"
+}

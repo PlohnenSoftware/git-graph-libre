@@ -1,366 +1,397 @@
-# Graph Report - git-graph-libre  (2026-09-10)
+# Graph Report - .  (2026-10-18)
 
 ## Corpus Check
-- 257 files · ~209,454 words
-- Verdict: corpus is large enough that graph structure adds value.
+- cluster-only mode — file stats not available
 
 ## Summary
-- 2556 nodes · 5945 edges · 147 communities (137 shown, 10 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 42 edges (avg confidence: 0.69)
+- 3915 nodes · 9918 edges · 184 communities (174 shown, 10 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 556 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `85229565`
+- Built from commit: `af5f841a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- sendMessage
+- escapeHtml
 - messageHandler.test.ts
-- tagDetails.ts
-- GitGraphView
-- Graph
-- .constructor
-- messageHandler.ts
+- git
+- all_tips_with_stash
+- Vertex
+- details.ts
+- branchRemote.ts
 - types.ts
 - main.ts
 - rendering.test.ts
-- vscode
+- messageHandlerTrustGate.test.ts
 - ExtensionState
 - Dropdown
-- .renderTable
-- escapeHtml
-- Implementation Roadmap
+- closestHTMLElement
+- settingsWidget.ts
+- 010-active-handoff-git-trust-repository-recovery-and-diagnostics.md
 - devDependencies
 - scripts
 - commandManager.ts
-- extension.ts
-- index.ts
+- addon.ts
+- tableColumnResize.test.ts
 - global.d.ts
 - properties
-- loadRepoInfo.ts
+- types/index.ts
 - commitDetailsView.ts
 - .showCommitDetails
 - compilerOptions
-- remote.ts
-- path.ts
-- repoConfigFile.ts
-- Changelog
-- GitCommandRecorder
-- runGitRaw
-- searchCommits.ts
-- webviewL10n.ts
+- extensionSettings.ts
+- statusBarItem.test.ts
 - linkify.ts
-- .displayHash
-- package.json
-- commit.ts
-- .bindSettingsWidget
-- keyboardNavigation.test.ts
+- Changelog
+- extension.ts
+- queries.rs
 - loadCommits.ts
+- setupHtml
+- Engine
+- searchCommits.ts
+- package.json
+- tagDetails.ts
+- GitGraphView
+- keyboardNavigation.test.ts
+- repoInfo.ts
 - gitRunner.ts
-- properties
+- git-graph-libre.fetchAvatars
 - default
-- webviewHtml.ts
-- git-graph-libre.customBranchGlobPatterns
-- queries.types.ts
-- config.ts
-- oklchColor.ts
+- housekeeping.mjs
+- git-graph-libre.telemetry.enabled
+- node/src/lib.rs
+- RepoManager
+- log.rs
 - include
-- GitCommitNode
-- settingsWidget.test.ts
+- config.ts
+- webview/uncommittedDetails.test.ts
 - git-graph-libre.dateFormat
 - check-l10n.js
-- git.types.ts
-- keyboardShortcuts.ts
+- contextMenuVisibility.ts
+- build-addon.mjs
 - compilerOptions
-- userConfig.ts
-- actions.types.ts
-- abbrevCommit
-- getCommitDate
+- graph_and_diff.rs
+- commits.ts
+- types.rs
+- GitCommitNode
 - README.md
 - git-graph-libre.commitDetails.fileViewMode
 - git-graph-libre.dateType
 - git-graph-libre.graphStyle
 - git-graph-libre.tabIconColorTheme
-- contextMenuVisibilityRendering.test.ts
+- settingsWidgetActions.test.ts
+- search_commits
 - generate-octicons.js
+- kb/README.md
 - esbuild.js
-- pullRequest.ts
-- AvatarRequestQueue
-- ActionPayload
-- webview/tsconfig.json
+- engine/index.ts
+- diffDocProvider.ts
+- git-graph-libre.repository.showRemoteBranches
+- status.rs
+- lib
 - git-graph-libre.graph.fontSize
 - git-graph-libre.graph.rowHeight
 - git-graph-libre.shortHashLength
 - keywords
-- dom.ts
+- TestRepo
+- mergeDialogDefaults.test.ts
+- Repo
 - src/tsconfig.json
-- generateGitFileTree
+- 020-design-rules-invariants-every-slice-must-keep.md
 - contributes
-- git-graph-libre.autoCenterCommitDetailsView
-- git-graph-libre.commitDetails.compactFolders
-- git-graph-libre.fetchAvatars
-- git-graph-libre.initialLoadCommits
-- git-graph-libre.loadMoreCommits
-- git-graph-libre.maxDepthOfRepoSearch
-- git-graph-libre.revealHighlightColor
-- git-graph-libre.repository.includeUnreachableCommits
+- messageHandler.ts
+- blob.rs
+- repository.rs
+- graph.rs
+- webviewL10n.ts
+- GitCommandRecorder
+- git-graph-libre.customBranchGlobPatterns
+- extensionSettingsContextMenu.test.ts
+- read_refs
 - git-graph-libre.showCurrentBranchByDefault
-- git-graph-libre.repository.muteCommitsNotAncestorsOfHead
-- git-graph-libre.showUncommittedChanges
-- git-graph-libre.showStatusBarItem
-- html.ts
-- dialogStyles.test.ts
-- categories
-- html.ts
-- .applyStructuredExtensionSetting
-- extension.test.ts
-- utils/vscode.ts
-- manifest.test.ts
-- GitCommitNode
-- git-graph-libre.repository.includeReflog
-- config.test.ts
-- vitest.config.ts
+- git-graph-libre.repository.onlyFollowFirstParent
+- logger.test.ts
+- uncommittedDetailsView.ts
+- git-graph-libre.dialog.createBranch.checkout
+- tableStyles.test.ts
+- git-graph-libre.dialog.pullBranch.noFastForward
+- log_and_refs.rs
+- commitSignatures.ts
+- 020-near-term-work-order.md
+- git-graph-libre.loadMoreCommits
+- reader.test.ts
+- GitRef
+- [1.0.0] - 2026-07-01
+- remote.ts
+- 010-toolchain-upgraded-in-the-same-change.md
+- diff.rs
+- receive
+- PULL_REQUEST_TEMPLATE.md
+- repoConfigFile.ts
 - repository
-- CommitDetailsSection
-- extension.test.ts
-- repository
-- statusBarItem.test.ts
-- git-graph-libre.repository.includeReflog
+- webview/componentStatus.ts
+- runGitRaw
+- [1.1.0] - 2026-07-27
+- loadEngineAddon
+- git-graph-libre.columns.signature
+- config_and_blob.rs
 - git-graph-libre.repository.boldCheckedOutCommit
 - git-graph-libre.repository.fetchTagsByDefault
 - git-graph-libre.repository.muteCommitsNotAncestorsOfHead
-- git-graph-libre.showStatusBarItem
-- .value
+- fetchDialogDefaults.test.ts
+- git-graph-libre.repository.stashDisplay
 - merge.ts
-- AI_DEV_KNOWLEDGE_BASE.md
-- dom.ts
-- Telemetry (`telemetry` branch, `2026-08-26`)
-- CommitDetailsSection
-- .value
-- uncommittedDetails.ts
-- statusStrip.ts
-- statusBarItem.test.ts
+- 050-phase-10-advanced-history-text-and-integrations.md
+- elf.test.ts
+- backend/extension/workspaceSearch.test.ts
+- 010-should-the-engine-be-adopted-not-wholesale.md
+- git-graph-libre.backend
 - git.types.ts
-- octicons.ts
-- .showTagDetails
-- contextMenuVisibility.ts
-- [1.4.2] - 2026-09-03
-- push.test.ts
-- git-graph-libre.dialog.merge.noFastForward
+- git-graph-libre.repository.includeReflog
+- Graph
+- [0.4.0] - 2026-04-10
+- git_parity.rs
+- properties
+- Branch
+- oklchColor.ts
+- [1.8.1] - 2026-10-17
+- git-graph-libre.repository.includeUnreachableCommits
+- tests/stats.rs
+- 040-slice-16-2-build-the-addon-locally-for-one-target.md
 - git-graph-libre.maxDepthOfRepoSearch
 - repoSearch.ts
 - AvatarRequestQueue
-- .applyStructuredExtensionSetting
-- Maintainer and Agent Source of Truth
+- [1.5.0] - 2026-09-07
+- build-all.mjs
+- settingsWidget.test.ts
 - git-graph-libre.showUncommittedChanges
+- [1.8.0] - 2026-10-16
 - [0.2.0] - 2026-03-17
 - git-graph-libre.repository.showTags
-- .applyStructuredExtensionSetting
-- UncommittedSection
+- git-graph-libre.showStatusBarItem
+- keyboardShortcuts.ts
+- .registerUncommittedPanelListeners
+- [1.6.0] - 2026-09-10
+- git-graph-libre.revealHighlightColor
+- parity.test.ts
+- 260-experiment-one-linux-binary-for-both-c-libraries.md
+- reftable.rs
+- git-graph-libre.repository.showStashes
+- git-graph-libre.restoreTabOnStartup
+- [0.3.0] - 2026-03-26
+- [1.4.2] - 2026-09-03
+- [1.6.2] - 2026-09-22
+- extension.test.ts
+- GitRepoInfo
+- RefOptionsPayload
+- stashes.test.ts
+- [1.4.0] - 2026-09-03
+- [1.1.1] - 2026-07-29
+- 100-graph-and-stash-ui-slices.md
+- 010-roadmap-open-phases.md
+- 090-uncommitted-changes-staging-panel-released-as-1-5-0.md
+- verify-vsix.d.mts
 
 ## God Nodes (most connected - your core abstractions)
-1. `GitGraphView` - 326 edges
-2. `runGitRaw()` - 92 edges
-3. `escapeHtml()` - 84 edges
-4. `sendMessage()` - 83 edges
-5. `registerMessageHandlers()` - 77 edges
-6. `showActionRunningDialog()` - 45 edges
-7. `GitCommitNode` - 40 edges
-8. `showFormDialog()` - 40 edges
-9. `makeRepo()` - 39 edges
-10. `Dropdown` - 35 edges
+1. `GitGraphView` - 332 edges
+2. `runGitRaw()` - 109 edges
+3. `escapeHtml()` - 87 edges
+4. `Repo` - 85 edges
+5. `sendMessage()` - 84 edges
+6. `registerMessageHandlers()` - 80 edges
+7. `git()` - 50 edges
+8. `GitCommitNode` - 49 edges
+9. `scripts` - 46 edges
+10. `showActionRunningDialog()` - 46 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `createCommitNodes()` --indirect_call--> `ref()`  [INFERRED]
-  src/backend/queries/loadCommits.ts → tests/webview/refLabels.test.ts
-- `registerHandlersForTest()` --calls--> `registerMessageHandlers()`  [EXTRACTED]
-  tests/webview/messageHandler.test.ts → src/extension/messageHandler.ts
-- `createEventQueue()` --indirect_call--> `flush()`  [INFERRED]
-  src/telemetry/eventQueue.ts → tests/backend/avatarManager.test.ts
-- `editRemote()` --references--> `simple-git`  [EXTRACTED]
-  src/backend/actions/remote.ts → package.json
-- `loadBranches()` --references--> `simple-git`  [EXTRACTED]
-  src/backend/queries/loadBranches.ts → package.json
+- `createFailureScreenReporter()` --indirect_call--> `report()`  [INFERRED]
+  src/webview/failureScreen.ts → docs/kb/housekeeping.mjs
+- `readInfo()` --calls--> `createRepoReader()`  [EXTRACTED]
+  tests/backend/engine/lifecycle.test.ts → src/backend/engine/index.ts
+- `comparisonReader()` --calls--> `createRepoReader()`  [EXTRACTED]
+  tests/backend/engine/reader.test.ts → src/backend/engine/index.ts
+- `detailsReader()` --calls--> `createRepoReader()`  [EXTRACTED]
+  tests/backend/engine/reader.test.ts → src/backend/engine/index.ts
+- `repoInfoReader()` --calls--> `createRepoReader()`  [EXTRACTED]
+  tests/backend/engine/reader.test.ts → src/backend/engine/index.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (147 total, 10 thin omitted)
+## Communities (184 total, 10 thin omitted)
 
-### Community 0 - "sendMessage"
-Cohesion: 0.06
-Nodes (9): dialogTitleHtml(), renderDialogForm(), showActionRunningDialog(), showCheckboxDialog(), showConfirmationDialog(), showFormDialog(), showRefInputDialog(), showSelectDialog() (+1 more)
+### Community 0 - "escapeHtml"
+Cohesion: 0.07
+Nodes (15): Webview UI Styling Guide, Pull request review — #4 and #5 (`2026-09-05`), dialogTitleHtml(), renderDialogForm(), renderDialogInputRow(), showActionRunningDialog(), showCheckboxDialog(), showConfirmationDialog() (+7 more)
 
 ### Community 1 - "messageHandler.test.ts"
-Cohesion: 0.08
-Nodes (33): GitClient, createSignatureBearingTag(), registerHandlersForTest(), commands, configurationKey(), ConfigurationTarget, configurationUpdates, configurationWorkspaceFolderValues (+25 more)
-
-### Community 2 - "tagDetails.ts"
 Cohesion: 0.05
-Nodes (27): addTag(), AddTagInput, deleteTag(), DeleteTagInput, pushAllTags(), PushAllTagsInput, pushTag(), PushTagInput (+19 more)
+Nodes (50): End-to-end verification of the sender seam (`2026-09-02`), Merged as PR #1, released as `1.4.2` (`2026-09-03`), buildAdditionalCommonProperties(), EnvironmentFacts, leadingDigits(), reducePlatformVersion(), createNoopReporter(), createTelemetryReporter() (+42 more)
 
-### Community 3 - "GitGraphView"
-Cohesion: 0.07
-Nodes (3): DropdownOption, GitGraphView, postWebviewDiagnostic()
+### Community 2 - "git"
+Cohesion: 0.08
+Nodes (17): PR #8 — `commit.gpgsign` in the fetch-tags fixture, GitCommandRecord, createdDirs, makeBareRemote(), makeRepoWithRemotes(), createdDirs, makeBareRemote(), makeRepoWithRemotes() (+9 more)
 
-### Community 4 - "Graph"
-Cohesion: 0.06
-Nodes (6): Branch, Graph, UnavailablePoint, Vertex, VertexOrNull, config
+### Community 3 - "all_tips_with_stash"
+Cohesion: 0.46
+Nodes (7): activity_heatmap(), all_tips_with_stash(), author_stats(), ObjectId, Result, Vec, GitActivityCell
 
-### Community 5 - ".constructor"
-Cohesion: 0.19
-Nodes (19): ExportedRepoConfig, exportedRepoState(), exportRepoConfigFile(), getRepoConfigFilePath(), importRepoConfigFile(), isColumnWidths(), isCommitOrdering(), isIssueLinkingConfig() (+11 more)
+### Community 5 - "details.ts"
+Cohesion: 0.14
+Nodes (23): applyLineCounts(), EngineCommitDetails, EngineCommitFile, EngineFileChange, engineFileKinds, EngineLineCounts, EngineStashEntry, findStashEntry() (+15 more)
 
-### Community 6 - "messageHandler.ts"
-Cohesion: 0.07
-Nodes (71): dependencies, simple-git, simple-git, checkoutBranch(), createBranch(), deleteBranch(), DeleteBranchInput, renameBranch() (+63 more)
+### Community 6 - "branchRemote.ts"
+Cohesion: 0.09
+Nodes (27): BUG-1 — `pushTag` hardcodes the `origin` remote, BUG-3 — "Lightweight" creates a signed annotated tag and opens an editor window, BUG-6 — Cross-cutting: tag actions bypass the command log, Immediate TODOs — High-Priority Bug Backlog (`2026-08-25`), ActionInput, ActionPayloadByCommand, currentBranch(), fetchIntoLocalBranch() (+19 more)
 
 ### Community 7 - "types.ts"
-Cohesion: 0.05
-Nodes (42): CustomBranchGlobPattern, DateFormat, GraphStyle, JsonPrimitive, RequestCompareFileWithWorkingTree, RequestCopyToClipboard, RequestExportExtensionSettings, RequestFetchAvatar (+34 more)
+Cohesion: 0.04
+Nodes (48): Upstream review, third pass (`2026-09-03`), CustomBranchGlobPattern, DateFormat, ExtensionSettingType, FAILURE_SCREENS, GraphStyle, JsonPrimitive, RequestCompareFileWithWorkingTree (+40 more)
 
 ### Community 8 - "main.ts"
-Cohesion: 0.06
-Nodes (35): bindLockedDialogInputs(), COLUMN_HIDE_CLASSES, COMMIT_SIGNATURE_PRESENTATIONS, contextMenu, dialog, dialogBacking, errorToDiagnosticMessage(), gitGraph (+27 more)
+Cohesion: 0.04
+Nodes (62): GitTagDetails, DialogInput, bindDialogInputDependencies(), bindFormDialogInputs(), bindLockedDialogInputs(), COLUMN_HIDE_CLASSES, COMMIT_SIGNATURE_PRESENTATIONS, contextMenu (+54 more)
 
 ### Community 9 - "rendering.test.ts"
 Cohesion: 0.05
-Nodes (27): clickContextMenuItem(), commitsWithStashRow, contextMenuItem(), defaultViewState, finishAction(), firstCommitDetails, getFindInput(), latestLoadBranchesRequest() (+19 more)
+Nodes (26): Slice 2 — Remote sub-label restyle, clickContextMenuItem(), commitsWithStashRow, contextMenuItem(), defaultViewState, finishAction(), firstCommitDetails, getFindInput() (+18 more)
 
-### Community 10 - "vscode"
+### Community 10 - "messageHandlerTrustGate.test.ts"
 Cohesion: 0.07
-Nodes (23): vscode, webviewBridgeFactory(), normalizeRepoPath(), RelativePatternFactory, RepoFileWatcher, shouldRefreshGitPath(), shouldRefreshRepoPath(), trimTrailingSlashes() (+15 more)
+Nodes (22): Phase 0.5: Backend Robustness and Data-Source Foundation, GitClient, webviewBridgeFactory(), normalizeRepoPath(), RelativePatternFactory, RepoFileWatcher, shouldRefreshGitPath(), shouldRefreshRepoPath() (+14 more)
 
 ### Community 11 - "ExtensionState"
-Cohesion: 0.08
-Nodes (17): AvatarManager, AvatarRequestItem, GitHubRemoteSource, GitLabRemoteSource, GravatarRemoteSource, RemoteSource, getRemoteUrl(), ExtensionState (+9 more)
+Cohesion: 0.07
+Nodes (18): AvatarManager, AvatarRequestItem, GitHubRemoteSource, GitLabRemoteSource, GravatarRemoteSource, RemoteSource, ExtensionState, Avatar (+10 more)
 
 ### Community 12 - "Dropdown"
-Cohesion: 0.12
-Nodes (4): Dropdown, DropdownDisplayOptions, truncateMiddle(), truncateRefName()
-
-### Community 13 - ".renderTable"
-Cohesion: 0.07
-Nodes (9): closestHTMLElement(), handleUncommittedDetailsResponse(), hideContextMenu(), hideContextMenuListener(), renderContextMenuHeader(), requireElement(), showContextMenu(), addListenerToClass() (+1 more)
-
-### Community 14 - "escapeHtml"
-Cohesion: 0.06
-Nodes (61): GitRepoConfig, ExtensionSetting, RepoBooleanOverride, SettingsWidgetTab, booleanSettingOrder, configValueText(), firstRemoteUrl(), getRepoBasename() (+53 more)
-
-### Community 15 - "Implementation Roadmap"
 Cohesion: 0.08
-Nodes (25): Implementation Roadmap, Merged as PR #1, released as `1.4.2` (`2026-09-03`), Phase 0.5: Backend Robustness and Data-Source Foundation, Phase 0: Guardrails and Baseline, Phase 10: Advanced History, Text, and Integrations, Phase 12: Toolbar Dropdown Name Truncation and Find Row (Bug), Phase 13: Settings Hub — Tabbed Widget, Color Editor, Settings Export, Phase 14: Reveal Highlight — Persistent Blink and Configurable Color (+17 more)
+Nodes (16): Phase 12: Toolbar Dropdown Name Truncation and Find Row (Bug), buildToolbarButton(), buildToolbarDropdownGroup(), buildWebviewToolbar(), escapeAttribute(), octicon(), OcticonName, octicons (+8 more)
+
+### Community 13 - "closestHTMLElement"
+Cohesion: 0.08
+Nodes (8): closestHTMLElement(), normalizeContextMenuItems(), renderContextMenuHeader(), showContextMenu(), addListenerToClass(), htmlEscapes, htmlUnescapes, unescapeHtml()
+
+### Community 14 - "settingsWidget.ts"
+Cohesion: 0.10
+Nodes (37): RepoBooleanOverride, SettingsWidgetTab, booleanSettingOrder, configValueText(), firstRemoteUrl(), getRepoBasename(), getRepoDisplayName(), getRepoParent() (+29 more)
+
+### Community 15 - "010-active-handoff-git-trust-repository-recovery-and-diagnostics.md"
+Cohesion: 0.07
+Nodes (47): Active handoff: Git trust, repository recovery, and diagnostics (`2026-10-17`), Author Date through the engine, and the status indicator (`2026-10-16`), closeEngineRepository(), lastGraphLoadRoute(), formatGitCommandRecord(), operationContext(), RequestContext, requests (+39 more)
 
 ### Community 16 - "devDependencies"
 Cohesion: 0.06
-Nodes (31): @biomejs/biome, jsdom, devDependencies, @biomejs/biome, esbuild, jsdom, @primer/octicons, tsc-alias (+23 more)
+Nodes (35): @biomejs/biome, jsdom, @napi-rs/cli, ovsx, devDependencies, @biomejs/biome, esbuild, jsdom (+27 more)
 
 ### Community 17 - "scripts"
-Cohesion: 0.06
-Nodes (31): scripts, clean, compile, compile-tests, format, format:changed, format:changed:fix, format:fix (+23 more)
+Cohesion: 0.04
+Nodes (46): scripts, bench:backends, biome-migrate, build, build:all, clean, compile, compile-tests (+38 more)
 
 ### Community 18 - "commandManager.ts"
-Cohesion: 0.09
-Nodes (29): formatGitCommandRecord(), getPathFromStr(), CommandApi, CommandManager, CommandManagerDeps, createCommandManager(), createVsCodeWindowApi(), findKnownRepoForPath() (+21 more)
+Cohesion: 0.11
+Nodes (20): getPathFromStr(), CommandApi, CommandManager, CommandManagerDeps, createCommandManager(), createVsCodeWindowApi(), findKnownRepoForPath(), OutputChannel (+12 more)
 
-### Community 19 - "extension.ts"
-Cohesion: 0.15
-Nodes (21): addRemote(), AddRemoteInput, assertPruneTagsSupported(), cleanRemoteName(), cleanRemoteUrl(), deleteRemote(), DeleteRemoteInput, editRemote() (+13 more)
+### Community 19 - "addon.ts"
+Cohesion: 0.06
+Nodes (47): Slice 16.3 — The seam, the escape hatch, and one trivial read, Verifying the packaged VSIX on every platform (`2026-10-17`), cleanupWorkDirectory(), expectedVersions(), main(), nativeContents(), parseArguments(), PLATFORM_DIRECTORIES (+39 more)
 
-### Community 20 - "index.ts"
+### Community 20 - "tableColumnResize.test.ts"
 Cohesion: 0.11
 Nodes (18): boot(), columns(), commits, DragCase, dragCases, headers(), latest(), LoadBranchesRequest (+10 more)
 
 ### Community 21 - "global.d.ts"
-Cohesion: 0.07
-Nodes (26): GitCommitDetails, GitRemote, GitStash, AvatarImageCollection, Config, ContextMenuElement, DialogCheckboxInput, DialogGroupInput (+18 more)
+Cohesion: 0.08
+Nodes (23): GitRemote, AvatarImageCollection, Config, ContextMenuElement, DialogCheckboxInput, DialogGroupInput, DialogInputDependency, DialogInputLock (+15 more)
 
 ### Community 22 - "properties"
 Cohesion: 0.07
 Nodes (27): additionalProperties, type, additionalProperties, type, additionalProperties, type, additionalProperties, default (+19 more)
 
-### Community 23 - "loadRepoInfo.ts"
-Cohesion: 0.20
-Nodes (19): commitComparison(), CommitComparisonInput, fetchComparisonDiff(), requireRef(), commitDetails(), CommitDetailsInput, fetchNameStatus(), fetchNumStat() (+11 more)
+### Community 23 - "types/index.ts"
+Cohesion: 0.15
+Nodes (22): commitComparison(), CommitComparisonInput, fetchComparisonDiff(), requireRef(), commitDetails(), CommitDetailsInput, fetchNameStatus(), fetchNumStat() (+14 more)
 
 ### Community 24 - "commitDetailsView.ts"
-Cohesion: 0.11
-Nodes (32): CommitDetailsFileViewMode, alterGitFileTree(), capitalizeSection(), CommitDetailsFileViewOptions, CommitDetailsSectionState, compactFolderChain(), compactFolderContents(), compareGitFolderEntries() (+24 more)
+Cohesion: 0.13
+Nodes (28): CommitDetailsFileViewMode, alterGitFileTree(), capitalizeSection(), CommitDetailsFileViewOptions, CommitDetailsSectionState, compactFolderChain(), compactFolderContents(), compareGitFolderEntries() (+20 more)
 
 ### Community 25 - ".showCommitDetails"
-Cohesion: 0.14
-Nodes (5): GitFileChange, clampCommitDetailsHeight(), CommitDetailsSection, isCommitDetailsSection(), insertAfter()
+Cohesion: 0.13
+Nodes (6): GitFileChange, clampCommitDetailsHeight(), CommitDetailsSection, isCommitDetailsSection(), trimRepoTrailingSeparators(), insertAfter()
 
 ### Community 26 - "compilerOptions"
 Cohesion: 0.09
-Nodes (22): mocha, node, ./node_modules/@types, compilerOptions, esModuleInterop, isolatedModules, lib, module (+14 more)
+Nodes (22): compilerOptions, esModuleInterop, isolatedModules, lib, module, moduleResolution, noEmit, noFallthroughCasesInSwitch (+14 more)
 
-### Community 27 - "remote.ts"
-Cohesion: 0.17
-Nodes (20): clampNumber(), ConfigInspection, expectArray(), expectBoolean(), expectObject(), expectString(), listPackageNlsLanguages(), loadExtensionSettings() (+12 more)
+### Community 27 - "extensionSettings.ts"
+Cohesion: 0.11
+Nodes (32): Phase 13: Settings Hub — Tabbed Widget, Color Editor, Settings Export, DiffDocument, applyExtensionSettings(), clampNumber(), ConfigInspection, expectArray(), expectBoolean(), expectObject() (+24 more)
 
-### Community 28 - "path.ts"
-Cohesion: 0.13
-Nodes (13): commitDetailsFileViewModes, customBranchGlobPatterns(), DEFAULT_GRAPH_COLORS, getColorConfig(), getConfig(), getConfigWithLegacy(), getExplicitConfig(), getNumberConfig() (+5 more)
-
-### Community 29 - "repoConfigFile.ts"
+### Community 28 - "statusBarItem.test.ts"
 Cohesion: 0.14
-Nodes (20): IssueLinkingConfig, htmlEscapes, htmlUnescapes, buildIssueUrl(), collectHttpLinks(), collectIssueLinks(), collectLinks(), countCharacter() (+12 more)
+Nodes (10): Phase 6: Repo Settings and View Options, BUG-5 — The "watching" eye status bar item can never appear, Logger, StatusBarItem, PackageManifest, createItem(), FakeStatusBarItem, makeConfig() (+2 more)
+
+### Community 29 - "linkify.ts"
+Cohesion: 0.17
+Nodes (18): IssueLinkingConfig, buildIssueUrl(), collectHttpLinks(), collectIssueLinks(), collectLinks(), countCharacter(), createIssuePattern(), extractIssueLinks() (+10 more)
 
 ### Community 30 - "Changelog"
-Cohesion: 0.11
-Nodes (18): [0.1.0] - 2026-02-18, [0.3.0] - 2026-03-26, [1.1.2] - 2026-07-29, [1.2.0] - 2026-07-29, [1.2.1] - 2026-07-31, [1.3.0] - 2026-08-06, [1.4.1] - 2026-09-03, [1.4.2] - 2026-09-03 (+10 more)
+Cohesion: 0.12
+Nodes (17): [0.1.0] - 2026-02-18, [0.1.1] - 2026-02-23, [1.1.2] - 2026-07-29, [1.2.0] - 2026-07-29, [1.2.1] - 2026-07-31, [1.3.0] - 2026-08-06, [1.4.1] - 2026-09-03, [1.6.1] - 2026-09-17 (+9 more)
 
-### Community 31 - "GitCommandRecorder"
-Cohesion: 0.14
-Nodes (16): buildActivationPayload(), createEventQueue(), EventQueue, EventQueueOptions, QueuedTelemetryEvent, TelemetryEventPayload, createTelemetrySender(), isStorablePrimitive() (+8 more)
+### Community 31 - "extension.ts"
+Cohesion: 0.05
+Nodes (37): Settings reach the webview twice, and the second time is raw (`2026-09-05`), Current Architecture, Telemetry (`telemetry` branch, `2026-08-26`), Reference, gitClientFactory(), setOperationLog(), activate(), createLogger() (+29 more)
 
-### Community 32 - "runGitRaw"
-Cohesion: 0.48
-Nodes (5): commitSearchFields(), findCommitIndexes(), formatFindMatchCount(), normalizeFindText(), commits
+### Community 32 - "queries.rs"
+Cohesion: 0.07
+Nodes (7): Two environment facts recorded while doing this, open(), rejects_tag_names_git_would_reject(), Result<git_graph_core::types::GitTagDetails, git_graph_core::Error>, String, UnwrapErrOrElse, FnOnce
 
-### Community 33 - "searchCommits.ts"
+### Community 33 - "loadCommits.ts"
+Cohesion: 0.08
+Nodes (32): Phase 15: Tag Surfaces — Signed-Tag Distinction and Remote Tag Deletion, PR #9 — repository discovery, right diagnosis and a broken comparison, Pull request review — #8 and #9, released as `1.6.2` (`2026-09-22`), loadBranches(), LoadBranchesInput, addUnsavedChangesCommit(), buildRefFormat(), createCommitNodes() (+24 more)
+
+### Community 34 - "setupHtml"
 Cohesion: 0.09
-Nodes (35): addUnsavedChangesCommit(), buildLogArgs(), buildLogFormat(), buildRefFormat(), createCommitNodes(), getLog(), getRefs(), getUnreachableCommitHashes() (+27 more)
+Nodes (21): commits, LoadBranchesRequest, LoadCommitsRequest, viewState, bootWebview(), commits, defaultViewState, latestRequest() (+13 more)
 
-### Community 34 - "webviewL10n.ts"
-Cohesion: 0.09
-Nodes (24): GitRepoInfo, bootWebview(), commits, defaultViewState, latestRequest(), repoInfo, mount(), viewStateFixture (+16 more)
+### Community 35 - "Engine"
+Cohesion: 0.08
+Nodes (19): default_graph_options_match_the_views_first_request(), Engine, GraphOptions, Arc, AsRef, BTreeMap, CommitOrdering, Default (+11 more)
 
-### Community 35 - "linkify.ts"
-Cohesion: 0.15
-Nodes (11): interpolate(), loadEnglishTranslations(), resolveTranslationPath(), t(), TranslationRecord, TranslationValue, ConsentPrompt, ConsentPromptDeps (+3 more)
-
-### Community 36 - ".displayHash"
-Cohesion: 0.25
-Nodes (17): escapeRegExp(), GitQueryContext, hashSearch(), loadPositions(), logFormat(), mergeSearchResults(), normalizeMaxResults(), parseLogEntries() (+9 more)
+### Community 36 - "searchCommits.ts"
+Cohesion: 0.21
+Nodes (18): Phase 4: Find, Search, and Keyboard Navigation, GitQueryContext, hashSearch(), loadPositions(), logFormat(), mergeSearchResults(), normalizeMaxResults(), parseLogEntries() (+10 more)
 
 ### Community 37 - "package.json"
-Cohesion: 0.09
-Nodes (21): author, name, bugs, url, categories, contributors, description, displayName (+13 more)
-
-### Community 38 - "commit.ts"
-Cohesion: 0.20
-Nodes (20): applySignatureRecord(), cleanEmail(), emptySignature(), failedSignatureCodes, markBadSignature(), markFailedSignature(), markGoodSignature(), markValidSignature() (+12 more)
-
-### Community 39 - ".bindSettingsWidget"
 Cohesion: 0.07
-Nodes (3): createEmptyGitConfig(), hideDialogAndContextMenu(), RepoBooleanSettingKey
+Nodes (29): activationEvents, author, name, bugs, url, capabilities, untrustedWorkspaces, categories (+21 more)
+
+### Community 38 - "tagDetails.ts"
+Cohesion: 0.16
+Nodes (22): applySignatureRecord(), cleanEmail(), emptySignature(), failedSignatureCodes, markBadSignature(), markFailedSignature(), markGoodSignature(), markValidSignature() (+14 more)
+
+### Community 39 - "GitGraphView"
+Cohesion: 0.05
+Nodes (7): What the page-size defaults are actually worth (`2026-09-23`), DropdownOption, createEmptyGitConfig(), GitGraphView, isCommitOrdering(), RepoBooleanSettingKey, event()
 
 ### Community 40 - "keyboardNavigation.test.ts"
 Cohesion: 0.15
 Nodes (11): commitDetailsFor(), CommitDetailsRequest, commitRow(), latestRequest(), LoadBranchesRequest, LoadCommitsRequest, loadedCommits, openCommitDetails() (+3 more)
 
-### Community 41 - "loadCommits.ts"
-Cohesion: 0.10
-Nodes (32): loadBranches(), LoadBranchesInput, appendUnique(), emptyRepoInfo(), GitQueryContext, isInsideWorkTree(), loadAuthors(), loadConfig() (+24 more)
+### Community 41 - "repoInfo.ts"
+Cohesion: 0.08
+Nodes (54): Why the graph opened no faster, and what fixed it (`2026-09-23`), collects_authors_from_every_ref_not_just_head(), composeEngineRepoInfo(), engineAuthors(), engineRemotes(), EngineRepoInfo, EngineRepoInfoFills, EngineStash (+46 more)
 
 ### Community 42 - "gitRunner.ts"
-Cohesion: 0.10
-Nodes (26): FileActionInput, FileActionPayloads, requireRepoRelativePath(), requireValue(), resetFileToRevision(), rebaseCurrentBranch(), RebaseCurrentBranchInput, requireValue() (+18 more)
+Cohesion: 0.18
+Nodes (18): arrayOfStrings(), findCredentialHostSeparator(), findUrlEnd(), GitCommandError, GitCommandErrorInfo, GitCommandKind, GitCommandOptions, GitInputOptions (+10 more)
 
-### Community 43 - "properties"
+### Community 43 - "git-graph-libre.fetchAvatars"
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.fetchAvatars
 
@@ -368,33 +399,37 @@ Nodes (4): default, description, type, git-graph-libre.fetchAvatars
 Cohesion: 0.12
 Nodes (16): default, description, type, git-graph-libre.graphColors, oklch(59% 0.21 130), oklch(59% 0.21 145), oklch(59% 0.21 190), oklch(59% 0.21 245) (+8 more)
 
-### Community 45 - "webviewHtml.ts"
-Cohesion: 0.24
-Nodes (11): bindDialogInputDependencies(), bindFormDialogInputs(), getDialogFormValues(), getDialogInputFallbackValue(), getDialogInputValue(), getFormDialogInputState(), getTextRefDialogClassName(), isDialogInputVisible() (+3 more)
+### Community 45 - "housekeeping.mjs"
+Cohesion: 0.08
+Nodes (40): codeTargets(), edge(), fileNodes(), inlineCode(), isCodeShapedName(), knowledgeBaseEdges(), linkGraph(), mentionEdges() (+32 more)
 
-### Community 46 - "git-graph-libre.customBranchGlobPatterns"
+### Community 46 - "git-graph-libre.telemetry.enabled"
 Cohesion: 0.13
 Nodes (15): default, enum, enumDescriptions, markdownDescription, tags, type, git-graph-libre.telemetry.enabled, %config.telemetry.enabled.disabled% (+7 more)
 
-### Community 47 - "queries.types.ts"
-Cohesion: 0.33
-Nodes (7): bundlePath(), createBundleTranslator(), LANGUAGE_LABELS, listWebviewLanguages(), readBundle(), WebviewLanguage, REPO
-
-### Community 49 - "oklchColor.ts"
+### Community 47 - "node/src/lib.rs"
 Cohesion: 0.17
-Nodes (15): DiffDocument, applyExtensionSettings(), explicitExtensionSettings(), sanitizeImportedExtensionSettings(), ExportedExtensionSettings, exportExtensionSettingsFile(), importExtensionSettingsFile(), isRecord() (+7 more)
+Nodes (43): Slice 16.6 — Commit details, comparison, and line counts, Slice 16.7 — The remaining reads, The engine surface: what is wired, what was removed, what is kept (`2026-09-23`), Diff parity against real history, and a gix Myers fix (`2026-10-18`), repo_root(), PathBuf, activity_heatmap(), author_stats() (+35 more)
+
+### Community 48 - "RepoManager"
+Cohesion: 0.12
+Nodes (13): RepoManager, resolve_commit_in(), Arc, AsRef, Commit, ObjectId, Path, Repository (+5 more)
+
+### Community 49 - "log.rs"
+Cohesion: 0.15
+Nodes (35): all_tips(), authors(), changes_path(), changes_paths(), commit_matches_author(), count_commits_before(), entry_named(), order() (+27 more)
 
 ### Community 50 - "include"
 Cohesion: 0.15
-Nodes (12): ./backend/**/*.ts, ./extension/**/*.ts, ../src/backend/**/*.ts, ../src/webview/**/*.ts, ./webview/**/*.ts, compilerOptions, lib, extends (+4 more)
+Nodes (12): compilerOptions, lib, extends, include, ./backend/**/*.ts, ./extension/**/*.ts, ../src/backend/**/*.ts, ../src/webview/**/*.ts (+4 more)
 
-### Community 51 - "GitCommitNode"
-Cohesion: 0.15
-Nodes (20): doesPathExist(), getPathFromUri(), isDirectory(), RepoManager, createRepoSearch(), RepoSearch, ScanLogger, scanLogLevel() (+12 more)
+### Community 51 - "config.ts"
+Cohesion: 0.05
+Nodes (63): Phase 14: Reveal Highlight — Persistent Blink and Configurable Color, BUG-4 — Branch and tag labels turn gray on every merge commit, Follow-up — where stashes appear, and a checkout default, Follow-up — list/tree toggle, and the stash-branch dialog, vscode, buildExtensionUri(), doesPathExist(), getPathFromUri() (+55 more)
 
-### Community 52 - "settingsWidget.test.ts"
-Cohesion: 0.18
-Nodes (13): receive(), defaultViewState, headCommit, latestSent(), openPanel(), receiveLoadedCommits(), receiveUncommittedDetails(), reloadGraphWithCommits() (+5 more)
+### Community 52 - "webview/uncommittedDetails.test.ts"
+Cohesion: 0.17
+Nodes (12): defaultViewState, headCommit, latestSent(), openPanel(), receiveLoadedCommits(), receiveUncommittedDetails(), reloadGraphWithCommits(), reloadGraphWithRow() (+4 more)
 
 ### Community 53 - "git-graph-libre.dateFormat"
 Cohesion: 0.17
@@ -404,33 +439,37 @@ Nodes (12): default, description, enum, enumDescriptions, type, git-graph-libre.
 Cohesion: 0.26
 Nodes (11): checkFileSet(), checkTranslations(), extractPlaceholders(), formatCoverage(), fs, L10N_DIR, loadJson(), path (+3 more)
 
-### Community 55 - "git.types.ts"
-Cohesion: 0.18
-Nodes (9): createDefaultContextMenuActionsVisibility(), isRecord(), normalizeContextMenuActionsVisibility(), ContextMenuActionsVisibility, commitDetails, commits, LoadBranchesRequest, LoadCommitsRequest (+1 more)
+### Community 55 - "contextMenuVisibility.ts"
+Cohesion: 0.53
+Nodes (4): createDefaultContextMenuActionsVisibility(), isRecord(), normalizeContextMenuActionsVisibility(), ContextMenuActionsVisibility
 
-### Community 56 - "keyboardShortcuts.ts"
-Cohesion: 0.27
-Nodes (8): GlobalShortcutAction, GlobalShortcutContext, GlobalShortcutKeyEvent, resolveCommitDetailsNavigate(), resolveCtrlOrMetaShortcut(), resolveEscape(), resolveGlobalShortcut(), resolvePlainKeyShortcut()
+### Community 56 - "build-addon.mjs"
+Cohesion: 0.22
+Nodes (17): buildEnvironment(), buildWindowsArm64Locally(), cargoArtifactName(), copyReplacingHeldFile(), extractArm64CrtLibraries(), findCachedArm64CrtVsix(), findCrtLibDir(), findWindowsKitsArm64() (+9 more)
 
 ### Community 57 - "compilerOptions"
 Cohesion: 0.14
-Nodes (13): ./**/*.ts, compilerOptions, module, moduleResolution, noEmit, outDir, paths, rootDir (+5 more)
+Nodes (13): compilerOptions, module, moduleResolution, noEmit, outDir, paths, rootDir, extends (+5 more)
 
-### Community 59 - "actions.types.ts"
-Cohesion: 0.14
-Nodes (10): DialogInput, handleActionResponse(), handleCreateArchiveResponse(), handleExtensionSettingsFileResponse(), handleTagDetailsResponse(), hideDialog(), refreshGraphOrDisplayError(), showDialog() (+2 more)
+### Community 58 - "graph_and_diff.rs"
+Cohesion: 0.07
+Nodes (11): adds_an_uncommitted_changes_row_above_head(), allows_branch_filtered_graphs_with_reflog_option(), assembles_a_graph_with_its_branch_and_tag_labels(), declines_graphs_that_include_reflog_commits(), declines_mailmapped_graphs_only_when_a_mailmap_exists(), hangs_a_stash_row_off_the_commit_it_was_taken_from(), open(), reports_the_author_date_only_when_asked() (+3 more)
 
-### Community 60 - "abbrevCommit"
-Cohesion: 0.20
-Nodes (9): ActionPayloads, ActionRequest, ActionResponse, GIT_CONFIG_SCOPES, GIT_PUSH_BRANCH_MODES, GitCommandStatus, GitConfigScope, GitPushBranchMode (+1 more)
+### Community 59 - "commits.ts"
+Cohesion: 0.12
+Nodes (27): Slice 16.5 — `loadCommits`, and the three declines, compareRefNames(), EngineCommit, EngineCommitData, EngineCommitRemote, EngineCommitStash, EngineCommitTag, EngineLoadCommitsInput (+19 more)
 
-### Community 61 - "getCommitDate"
-Cohesion: 0.31
-Nodes (8): getCommitDate(), formatRelativeDate(), getMonth(), getRelativeFormatter, pad2(), RELATIVE_UNITS, ago(), NOW
+### Community 60 - "types.rs"
+Cohesion: 0.12
+Nodes (35): `vscode-git-graph-rs` licensing verdict (`2026-09-22`), License review of the graph and stash UI slices (`2026-09-09`), Licensing, Licensing, ConfigSnapshot, GitAuthor, GitAuthorStat, GitCommit (+27 more)
+
+### Community 61 - "GitCommitNode"
+Cohesion: 0.06
+Nodes (20): Phase 3: Commit Hash Display Hardening, Upstream review, second pass (`2026-08-25`), Slice 4 — Stashes as graph rows, GitCommitNode, abbrevCommit(), clampShortHashLength(), commitSearchFields(), findCommitIndexes() (+12 more)
 
 ### Community 62 - "README.md"
-Cohesion: 0.29
-Nodes (6): Configuration, Features, Installation, License, Telemetry, Why this fork
+Cohesion: 0.10
+Nodes (14): Agent Instructions, Renames and relicensing since these notes were written, Branch and release policy, Commit signing, Maintainer and Agent Source of Truth, Order of this document, Documentation and Verification Rules, Rules (+6 more)
 
 ### Community 63 - "git-graph-libre.commitDetails.fileViewMode"
 Cohesion: 0.12
@@ -448,27 +487,43 @@ Nodes (10): default, description, enum, enumDescriptions, type, git-graph-libre.
 Cohesion: 0.20
 Nodes (10): default, description, enum, enumDescriptions, type, git-graph-libre.tabIconColorTheme, color, %config.tabIconColorTheme.color% (+2 more)
 
-### Community 67 - "contextMenuVisibilityRendering.test.ts"
+### Community 67 - "settingsWidgetActions.test.ts"
 Cohesion: 0.15
-Nodes (13): click(), commits, dialogActions, extensionTabActions, latest(), LoadBranchesRequest, LoadCommitsRequest, LoadRepoInfoRequest (+5 more)
+Nodes (14): bootWithSettingsOpen(), click(), commits, dialogActions, extensionTabActions, latest(), LoadBranchesRequest, LoadCommitsRequest (+6 more)
+
+### Community 68 - "search_commits"
+Cohesion: 0.11
+Nodes (23): author_contains(), is_hash_like(), Commit, ObjectId, Result, Vec, search_commits(), search_tips() (+15 more)
 
 ### Community 69 - "generate-octicons.js"
 Cohesion: 0.22
 Nodes (7): data, entries, fs, ICON_NAMES, missing, outFile, path
 
+### Community 70 - "kb/README.md"
+Cohesion: 0.04
+Nodes (31): Mission, Mission, Graphify Map, Verifying webview visuals without a browser (`2026-09-10`), Consent epoch — session record (`2026-09-02`), Non-goals, permanently, Slice 16.1 — A gate for the Rust side, with no wiring at all, Slice 16.4 — `loadRepoInfo` (+23 more)
+
 ### Community 71 - "esbuild.js"
 Cohesion: 0.29
 Nodes (7): aliasPlugin, esbuild, esbuildProblemMatcherPlugin, main(), path, production, watch
 
-### Community 72 - "pullRequest.ts"
-Cohesion: 0.43
-Nodes (6): assertHttpUrl(), buildPullRequestUrl(), parseRemoteUrl(), PullRequestUrlInput, RemoteUrlParts, stripGitSuffix()
+### Community 72 - "engine/index.ts"
+Cohesion: 0.15
+Nodes (36): EngineAddon, withEngineLogging(), buildLoadCommitsOptions(), engineLoadCommitsRefs(), loadCommitsDecline(), createRepoReader(), declineKind(), FALLBACK_ERROR_PREFIXES (+28 more)
 
-### Community 74 - "ActionPayload"
+### Community 73 - "diffDocProvider.ts"
+Cohesion: 0.15
+Nodes (10): GitInstance, decodeDiffDocUri(), decodeUriQueryArgs(), DiffDocProvider, DiffDocProviderDeps, DiffDocRequest, FileContentAddon, closeHandlers (+2 more)
+
+### Community 74 - "git-graph-libre.repository.showRemoteBranches"
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.repository.showRemoteBranches
 
-### Community 76 - "webview/tsconfig.json"
+### Community 75 - "status.rs"
+Cohesion: 0.17
+Nodes (22): classify_staged(), classify_unstaged(), count_changes(), is_conflict(), is_dirty(), PathState, Renames, BTreeMap (+14 more)
+
+### Community 76 - "lib"
 Cohesion: 0.29
 Nodes (6): compilerOptions, lib, extends, dom, es2023, ../../tsconfig.json
 
@@ -485,122 +540,166 @@ Cohesion: 0.33
 Nodes (6): default, description, maximum, minimum, type, git-graph-libre.shortHashLength
 
 ### Community 80 - "keywords"
-Cohesion: 0.06
-Nodes (34): default, description, enum, enumDescriptions, type, keywords, git-graph-libre.repository.stashDisplay, action (+26 more)
+Cohesion: 0.09
+Nodes (22): keywords, action, branch, cherry-pick, commit, devcontainer, diff, git (+14 more)
 
-### Community 82 - "dom.ts"
+### Community 81 - "TestRepo"
+Cohesion: 0.22
+Nodes (6): git_available(), Path, String, Vec, TestRepo, TempDir
+
+### Community 82 - "mergeDialogDefaults.test.ts"
 Cohesion: 0.20
 Nodes (7): bootWebview(), commits, Defaults, latest(), makeViewState(), receiveSetting(), repoInfo
 
+### Community 83 - "Repo"
+Cohesion: 0.12
+Nodes (35): config_list(), ConfigLocation, global_config_path(), read_config(), remote_url(), BTreeMap, Option, Path (+27 more)
+
 ### Community 84 - "src/tsconfig.json"
 Cohesion: 0.40
-Nodes (4): webview, exclude, extends, ../tsconfig.json
+Nodes (4): exclude, extends, webview, ../tsconfig.json
 
-### Community 85 - "generateGitFileTree"
-Cohesion: 0.10
-Nodes (18): gitClientFactory(), GitInstance, decodeDiffDocUri(), decodeUriQueryArgs(), DiffDocProvider, activate(), initL10n(), createConsentPrompt() (+10 more)
+### Community 85 - "020-design-rules-invariants-every-slice-must-keep.md"
+Cohesion: 0.29
+Nodes (5): Design rules — invariants every slice must keep, Slice 16.8 — Handle lifetime and post-write freshness, close_all_repositories(), close_repository(), open_repository_count()
 
 ### Community 86 - "contributes"
 Cohesion: 0.50
 Nodes (4): contributes, commands, menus, scm/title
 
-### Community 87 - "git-graph-libre.autoCenterCommitDetailsView"
-Cohesion: 0.50
-Nodes (4): default, description, type, git-graph-libre.autoCenterCommitDetailsView
+### Community 87 - "messageHandler.ts"
+Cohesion: 0.08
+Nodes (49): Phase 7: Stash Management, simple-git, simple-git, checkoutBranch(), createBranch(), deleteBranch(), DeleteBranchInput, renameBranch() (+41 more)
 
-### Community 88 - "git-graph-libre.commitDetails.compactFolders"
-Cohesion: 0.14
-Nodes (14): AI Development Knowledge Base, Branch and release policy, Commit signing, Current Architecture, Documentation and Verification Rules, Future direction: integrate with VS Code's native source control (`2026-09-03`), Graphify Map, Local Inputs Reviewed (+6 more)
-
-### Community 89 - "git-graph-libre.fetchAvatars"
-Cohesion: 0.48
-Nodes (4): buildAdditionalCommonProperties(), EnvironmentFacts, leadingDigits(), reducePlatformVersion()
-
-### Community 90 - "git-graph-libre.initialLoadCommits"
-Cohesion: 0.50
-Nodes (4): default, description, type, git-graph-libre.initialLoadCommits
-
-### Community 91 - "git-graph-libre.loadMoreCommits"
-Cohesion: 0.13
-Nodes (21): getNonce(), buildExtensionUri(), buildTelemetryConsentScreen(), escapeHtml(), buildWebviewHtml(), escapeJsonForHtml(), getWebviewLocalizedStrings(), LocalizedStrings (+13 more)
-
-### Community 92 - "git-graph-libre.maxDepthOfRepoSearch"
+### Community 88 - "blob.rs"
 Cohesion: 0.16
-Nodes (14): ActionInput, ActionPayloadByCommand, requirePaths(), stageFiles(), unstageFiles(), deleteUserDetails(), editUserDetails(), requireScope() (+6 more)
+Nodes (18): ConsumeHunk, DiffLineKind, blob_at(), commit_file(), commit_file_diff(), git_range(), HunkSink, index_file() (+10 more)
 
-### Community 93 - "git-graph-libre.revealHighlightColor"
+### Community 89 - "repository.rs"
+Cohesion: 0.14
+Nodes (16): Error, ErrorKind, ResultExt, Result, Self, String, T, std::result::Result<T, E> (+8 more)
+
+### Community 90 - "graph.rs"
+Cohesion: 0.19
+Nodes (19): annotate_refs(), insert_stashes(), insert_uncommitted_row(), load_commits(), now_seconds(), repo_info(), resolve_tips(), GitRefData (+11 more)
+
+### Community 91 - "webviewL10n.ts"
+Cohesion: 0.06
+Nodes (34): Consent prompt (`2026-09-02`), Temporary language switcher (`2026-09-03`), getNonce(), buildTelemetryConsentScreen(), escapeHtml(), buildWebviewHtml(), escapeJsonForHtml(), getWebviewLocalizedStrings() (+26 more)
+
+### Community 92 - "GitCommandRecorder"
+Cohesion: 0.07
+Nodes (30): ARCHIVE_FORMATS, ArchiveFormat, archiveFormatFromPath(), createArchive(), CreateArchiveInput, requireArchiveFormat(), requireValue(), rebaseCurrentBranch() (+22 more)
+
+### Community 93 - "git-graph-libre.customBranchGlobPatterns"
 Cohesion: 0.13
 Nodes (15): default, description, items, type, items, description, pattern, properties (+7 more)
 
-### Community 94 - "git-graph-libre.repository.includeUnreachableCommits"
+### Community 94 - "extensionSettingsContextMenu.test.ts"
 Cohesion: 0.23
 Nodes (10): bootWebview(), commits, defaultViewState, extensionSetting(), latest(), openBranchContextMenu(), openCommitContextMenu(), openContextMenu() (+2 more)
+
+### Community 95 - "read_refs"
+Cohesion: 0.17
+Nodes (20): The two ref fills, removed from the engine rather than optimised (`2026-09-23`), bstr_to_string(), direct_target(), direct_target_id(), read_refs(), read_remote_refs(), GitRefData, ObjectId (+12 more)
 
 ### Community 96 - "git-graph-libre.showCurrentBranchByDefault"
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.showCurrentBranchByDefault
 
-### Community 97 - "git-graph-libre.repository.muteCommitsNotAncestorsOfHead"
+### Community 97 - "git-graph-libre.repository.onlyFollowFirstParent"
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.repository.onlyFollowFirstParent
 
-### Community 99 - "git-graph-libre.showStatusBarItem"
-Cohesion: 0.14
-Nodes (20): GitUncommittedChanges, octicon(), OcticonName, octicons, renderCommitDetailsResizeHandle(), RenderUncommittedDetailsOptions, renderUncommittedDetailsRowHtml(), renderUncommittedFileItem() (+12 more)
+### Community 99 - "uncommittedDetailsView.ts"
+Cohesion: 0.10
+Nodes (29): Follow-up — staging catalogue view, and two rendering fixes, GitUncommittedChanges, renderCommitDetailsResizeHandle(), getStagingDropAction(), RenderUncommittedDetailsOptions, renderUncommittedDetailsRowHtml(), renderUncommittedFileItem(), renderUncommittedFileList() (+21 more)
 
-### Community 100 - "html.ts"
+### Community 100 - "git-graph-libre.dialog.createBranch.checkout"
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.dialog.createBranch.checkout
 
-### Community 101 - "dialogStyles.test.ts"
-Cohesion: 0.25
-Nodes (7): css, dropdownCss, css, dropdownCss, readDropdownCss(), readWebviewCss(), WEBVIEW_CSS_FILES
+### Community 101 - "tableStyles.test.ts"
+Cohesion: 0.22
+Nodes (8): Slice 1 — Checkbox appearance, css, dropdownCss, css, dropdownCss, readDropdownCss(), readWebviewCss(), WEBVIEW_CSS_FILES
 
-### Community 102 - "categories"
+### Community 102 - "git-graph-libre.dialog.pullBranch.noFastForward"
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.dialog.pullBranch.noFastForward
 
-### Community 103 - "html.ts"
-Cohesion: 0.20
-Nodes (7): createNoopReporter(), createTelemetryReporter(), Batch, QueuedEvent, env, telemetryLoggers, reporterFor()
+### Community 103 - "log_and_refs.rs"
+Cohesion: 0.11
+Nodes (9): limits_the_page_to_the_requested_size(), never_shows_a_parent_before_its_child(), open(), reports_tag_signature_presence_the_way_for_each_ref_does(), CommitOrdering, String, Vec, walk_all() (+1 more)
 
-### Community 105 - "extension.test.ts"
-Cohesion: 0.33
-Nodes (4): Contributors to the AGPL-licensed work, Git Graph Libre — license and provenance, Incorporated MIT-licensed material, NOTICE
+### Community 104 - "commitSignatures.ts"
+Cohesion: 0.14
+Nodes (13): commitSignatures(), CommitSignaturesInput, commitSignatureStatuses, GitQueryContext, parseCommitSignature(), parseGpgsigPresence(), parseSignatureEntries(), reclassifyUnverifiedSignatures() (+5 more)
 
-### Community 106 - "utils/vscode.ts"
+### Community 105 - "020-near-term-work-order.md"
+Cohesion: 0.10
+Nodes (16): Near-Term Work Order, The filtered engine repository, merged onto `rusty` (`2026-09-22`), Fixes adapted after the import, License, NOTICE — the Git engine, Obligation that survives, Provenance, What this is (+8 more)
+
+### Community 106 - "git-graph-libre.loadMoreCommits"
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.loadMoreCommits
 
-### Community 108 - "GitCommitNode"
-Cohesion: 0.15
-Nodes (4): GitCommitNode, GitTagDetails, arraysEqual(), escapeHtml()
+### Community 107 - "reader.test.ts"
+Cohesion: 0.11
+Nodes (18): AddonProvider, CommitComparisonArgs, CommitDetailsArgs, engineComponentStatus(), engineUnavailableReason(), cliCalls, commitArgs(), commitReads (+10 more)
 
-### Community 109 - "git-graph-libre.repository.includeReflog"
+### Community 108 - "GitRef"
+Cohesion: 0.27
+Nodes (8): Tag-specific graying — investigation result (`2026-08-25`), GitRef, CommitRefDisplayItem, groupCommitRefs(), ParsedRemoteBranch, parseRemoteBranchName(), tagRefs(), ref()
+
+### Community 109 - "[1.0.0] - 2026-07-01"
 Cohesion: 0.50
 Nodes (4): [1.0.0] - 2026-07-01, Added, Changed, Fixed
+
+### Community 110 - "remote.ts"
+Cohesion: 0.14
+Nodes (22): BUG-2 — The tag remote surface is a stub beside the branch remote surface, addRemote(), AddRemoteInput, assertPruneTagsSupported(), cleanRemoteName(), cleanRemoteUrl(), deleteRemote(), DeleteRemoteInput (+14 more)
+
+### Community 111 - "010-toolchain-upgraded-in-the-same-change.md"
+Cohesion: 0.25
+Nodes (4): Toolchain upgraded in the same change (`2026-09-17`), Release gate for `1.6.1` (`2026-09-17`), Open VSX restored as a publish target, released as `1.6.1` (`2026-09-17`), alias
+
+### Community 112 - "diff.rs"
+Cohesion: 0.27
+Nodes (18): apply_worktree_status(), classify(), collect_changes(), diff_against_worktree(), diff_commit(), diff_commits(), diff_revisions(), line_counts() (+10 more)
+
+### Community 113 - "receive"
+Cohesion: 0.20
+Nodes (15): receiveExtensionSetting(), receiveLoadedCommits(), receive(), answerLoadCommits(), answerSignatures(), boot(), latest(), page() (+7 more)
+
+### Community 114 - "PULL_REQUEST_TEMPLATE.md"
+Cohesion: 0.22
+Nodes (8): All contributions, Checklist, How it was tested, Includes third-party code, License, Only code I wrote myself, Type of change, What and why
+
+### Community 115 - "repoConfigFile.ts"
+Cohesion: 0.19
+Nodes (19): ExportedRepoConfig, exportedRepoState(), exportRepoConfigFile(), getRepoConfigFilePath(), importRepoConfigFile(), isColumnWidths(), isCommitOrdering(), isIssueLinkingConfig() (+11 more)
 
 ### Community 116 - "repository"
 Cohesion: 0.67
 Nodes (3): repository, type, url
 
-### Community 117 - "CommitDetailsSection"
-Cohesion: 0.11
-Nodes (16): GitRef, CommitLoadFacts, createViewFeatureReporter(), hasNestedRepo(), isNestedRepo(), ViewFeatureReporter, CommitRefDisplayItem, groupCommitRefs() (+8 more)
+### Community 117 - "webview/componentStatus.ts"
+Cohesion: 0.05
+Nodes (49): CommitLoadFacts, hasNestedRepo(), isNestedRepo(), ViewFeatureReporter, ComponentStatus, EngineUnavailableReason, FailureScreen, applyComponentStatus() (+41 more)
 
-### Community 118 - "extension.test.ts"
-Cohesion: 0.29
-Nodes (8): ARCHIVE_FORMATS, ArchiveFormat, archiveFormatFromPath(), createArchive(), CreateArchiveInput, requireArchiveFormat(), requireValue(), chooseArchiveOutputPath()
+### Community 118 - "runGitRaw"
+Cohesion: 0.23
+Nodes (17): checkoutCommit(), cherrypickCommit(), CommitActionInput, CommitActionPayloads, dropCommit(), dropCommitSelection(), editHeadCommitMessage(), normalizeCommitMessage() (+9 more)
 
-### Community 119 - "repository"
+### Community 119 - "[1.1.0] - 2026-07-27"
 Cohesion: 0.50
 Nodes (4): [1.1.0] - 2026-07-27, Added, Changed, Fixed
 
-### Community 120 - "statusBarItem.test.ts"
-Cohesion: 0.50
-Nodes (4): [1.4.0] - 2026-09-03, Added, Changed, Fixed
+### Community 120 - "loadEngineAddon"
+Cohesion: 0.13
+Nodes (18): loadEngineAddon(), closeAllEngineRepositories(), openEngineRepositoryCount(), RepoReader, deactivate(), Case, CASES, commitsArgs() (+10 more)
 
-### Community 121 - "git-graph-libre.repository.includeReflog"
+### Community 121 - "git-graph-libre.columns.signature"
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.columns.signature
 
@@ -616,93 +715,105 @@ Nodes (4): default, description, type, git-graph-libre.repository.fetchTagsByDef
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.repository.muteCommitsNotAncestorsOfHead
 
-### Community 126 - "git-graph-libre.showStatusBarItem"
+### Community 126 - "fetchDialogDefaults.test.ts"
 Cohesion: 0.27
 Nodes (9): commits, latest(), LoadBranchesRequest, LoadCommitsRequest, LoadRepoInfoRequest, makeViewState(), openFetchDialog(), receiveFetchTagsSetting() (+1 more)
 
-### Community 127 - ".value"
-Cohesion: 0.22
-Nodes (9): BUG-1 — `pushTag` hardcodes the `origin` remote, BUG-2 — The tag remote surface is a stub beside the branch remote surface, BUG-3 — "Lightweight" creates a signed annotated tag and opens an editor window, BUG-4 — Branch and tag labels turn gray on every merge commit, BUG-5 — The "watching" eye status bar item can never appear, BUG-6 — Cross-cutting: tag actions bypass the command log, Immediate TODOs — High-Priority Bug Backlog (`2026-08-25`), Suggested slice order (+1 more)
+### Community 127 - "git-graph-libre.repository.stashDisplay"
+Cohesion: 0.17
+Nodes (12): default, description, enum, enumDescriptions, type, git-graph-libre.repository.stashDisplay, both, %config.repository.stashDisplay.both% (+4 more)
 
 ### Community 128 - "merge.ts"
 Cohesion: 0.39
 Nodes (6): buildMergeArgs(), MergeActionInput, MergeActionPayloads, mergeBranch(), mergeCommit(), requireValue()
 
-### Community 129 - "AI_DEV_KNOWLEDGE_BASE.md"
-Cohesion: 0.29
-Nodes (3): Agent Instructions, Claude Instructions, Codex Instructions
+### Community 129 - "050-phase-10-advanced-history-text-and-integrations.md"
+Cohesion: 0.20
+Nodes (11): Phase 10: Advanced History, Text, and Integrations, FileActionInput, FileActionPayloads, requireRepoRelativePath(), requireValue(), resetFileToRevision(), buildLogArgs(), buildLogFormat() (+3 more)
 
-### Community 131 - "Telemetry (`telemetry` branch, `2026-08-26`)"
-Cohesion: 0.50
-Nodes (4): Consent epoch — session record (`2026-09-02`), Consent prompt (`2026-09-02`), End-to-end verification of the sender seam (`2026-09-02`), Telemetry (`telemetry` branch, `2026-08-26`)
+### Community 130 - "elf.test.ts"
+Cohesion: 0.24
+Nodes (13): makeLoadableByMusl(), fileOffset(), neededLibraries(), readDynamic(), readHeader(), readString(), removeNeeded(), segments() (+5 more)
 
-### Community 132 - "CommitDetailsSection"
-Cohesion: 0.50
-Nodes (4): default, description, type, git-graph-libre.repository.muteMergeCommits
-
-### Community 133 - ".value"
+### Community 131 - "backend/extension/workspaceSearch.test.ts"
 Cohesion: 0.17
-Nodes (12): Follow-up — list/tree toggle, and the stash-branch dialog, Follow-up — staging catalogue view, and two rendering fixes, Follow-up — where stashes appear, and a checkout default, Graph and stash UI slices (`2026-09-09`), Licence review of these slices (`2026-09-09`), Release `1.6.0` (`2026-09-10`), Release gate for these slices (`2026-09-09`), Slice 1 — Checkbox appearance (+4 more)
+Nodes (5): inspectMock, probeOverrides, probeStates, searchUtilMock, workspaceState
 
-### Community 134 - "uncommittedDetails.ts"
-Cohesion: 0.07
-Nodes (27): parseStatusEntries(), uncommittedDetails(), UncommittedDetailsInput, UNMERGED_PAIRS, DateType, GitCommitSearchResult, GitCommitSignature, GitCommitSignatureStatus (+19 more)
+### Community 132 - "010-should-the-engine-be-adopted-not-wholesale.md"
+Cohesion: 0.11
+Nodes (14): Slice 16.9 — Per-platform packaging, Should the engine be adopted? Not wholesale, Evaluating the Rust engine of `vscode-git-graph-rs` (`2026-09-22`), Dependencies: What the Engine Is Built From, and What It Links Against, `git-graph-core` (the engine — no Node, no VS Code), `git-graph-node` (the Node-API addon), Re-verifying all of this, Runtime dependencies (+6 more)
 
-### Community 135 - "statusStrip.ts"
+### Community 133 - "git-graph-libre.backend"
+Cohesion: 0.20
+Nodes (10): default, description, enum, enumDescriptions, type, git-graph-libre.backend, auto, %config.backend.auto% (+2 more)
+
+### Community 134 - "git.types.ts"
+Cohesion: 0.09
+Nodes (23): GitCommitDetails, GitCommitSearchResult, GitCommitSignatureStatus, GitConfigValue, GitLogEntry, GitRefData, GitTagSignature, GitTagSignatureStatus (+15 more)
+
+### Community 135 - "git-graph-libre.repository.includeReflog"
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.repository.includeReflog
 
-### Community 136 - "statusBarItem.test.ts"
-Cohesion: 0.17
-Nodes (13): Config, createRepoManager(), createLogger(), Logger, timestamp(), StatusBarItem, createItem(), FakeStatusBarItem (+5 more)
+### Community 136 - "Graph"
+Cohesion: 0.20
+Nodes (4): Graph, UnavailablePoint, VertexOrNull, config
 
-### Community 137 - "git.types.ts"
+### Community 137 - "[0.4.0] - 2026-04-10"
 Cohesion: 0.67
 Nodes (3): [0.4.0] - 2026-04-10, Added, Fixed
 
-### Community 139 - "octicons.ts"
-Cohesion: 0.12
-Nodes (17): properties, title, type, configuration, default, description, type, default (+9 more)
-
-### Community 140 - ".showTagDetails"
+### Community 138 - "git_parity.rs"
 Cohesion: 0.22
-Nodes (11): buildPathTree(), childFolder(), collectLeafPaths(), compact(), compareNodes(), emptyFolder(), findFolder(), PathTreeFolder (+3 more)
+Nodes (4): a_shallow_boundary_commit_has_no_parents_and_opens_its_details(), open(), porcelain_lines(), replacement_objects_hand_history_reads_to_git()
 
-### Community 141 - "contextMenuVisibility.ts"
-Cohesion: 0.67
-Nodes (3): [1.1.1] - 2026-07-29, Added, Changed
+### Community 139 - "properties"
+Cohesion: 0.08
+Nodes (24): properties, title, type, configuration, default, description, type, default (+16 more)
 
-### Community 142 - "[1.4.2] - 2026-09-03"
-Cohesion: 0.40
-Nodes (5): [1.6.0] - 2026-09-10, Added, Changed, Fixed, Telemetry
+### Community 141 - "oklchColor.ts"
+Cohesion: 0.35
+Nodes (11): clamp(), formatOklch(), hexToOklch(), normalizeHue(), OklchColor, parseOklch(), rewritePaletteLightnessChroma(), rgbComponentsToOklch() (+3 more)
 
-### Community 143 - "push.test.ts"
+### Community 142 - "[1.8.1] - 2026-10-17"
+Cohesion: 0.50
+Nodes (4): [1.8.1] - 2026-10-17, Added, Changed, Fixed
+
+### Community 143 - "git-graph-libre.repository.includeUnreachableCommits"
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.repository.includeUnreachableCommits
 
-### Community 145 - "git-graph-libre.dialog.merge.noFastForward"
-Cohesion: 0.50
-Nodes (4): default, description, type, git-graph-libre.dialog.merge.noFastForward
+### Community 145 - "040-slice-16-2-build-the-addon-locally-for-one-target.md"
+Cohesion: 0.15
+Nodes (13): Slice 16.2 — Build the addon locally for one target, description, license, name, napi, binaryName, private, version (+5 more)
 
 ### Community 146 - "git-graph-libre.maxDepthOfRepoSearch"
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.maxDepthOfRepoSearch
 
 ### Community 147 - "repoSearch.ts"
-Cohesion: 0.27
-Nodes (9): isGitRepository(), evalPromises(), toRejectionError(), isDirectory(), parseSubmodulePathEntry(), readSubmodulePaths(), searchDirectoryForRepos(), searchSubmodules() (+1 more)
+Cohesion: 0.38
+Nodes (8): evalPromises(), toRejectionError(), isDirectory(), parseSubmodulePathEntry(), readSubmodulePaths(), RootCheck, searchDirectoryForRepos(), searchSubmodules()
 
-### Community 149 - ".applyStructuredExtensionSetting"
+### Community 149 - "[1.5.0] - 2026-09-07"
 Cohesion: 0.50
 Nodes (4): [1.5.0] - 2026-09-07, Added, Changed, Fixed
 
-### Community 150 - "Maintainer and Agent Source of Truth"
-Cohesion: 0.67
-Nodes (3): activationEvents, onStartupFinished, workspaceContains:.git
+### Community 150 - "build-all.mjs"
+Cohesion: 0.39
+Nodes (7): ENGINE, HERE, main(), pinnedZigDirectory(), remapArguments(), run(), TARGETS
+
+### Community 151 - "settingsWidget.test.ts"
+Cohesion: 0.18
+Nodes (12): GitRepoConfig, ExtensionSetting, renderExtensionTab(), renderSettingsWidget(), SettingsWidgetModel, tabHiddenAttr(), tabSelectedAttr(), config (+4 more)
 
 ### Community 152 - "git-graph-libre.showUncommittedChanges"
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.showUncommittedChanges
+
+### Community 153 - "[1.8.0] - 2026-10-16"
+Cohesion: 0.33
+Nodes (6): [1.8.0] - 2026-10-16, Added, Changed, Changed, Fixed, Fixed
 
 ### Community 154 - "[0.2.0] - 2026-03-17"
 Cohesion: 0.67
@@ -712,33 +823,101 @@ Nodes (3): [0.2.0] - 2026-03-17, Added, Fixed
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.repository.showTags
 
-### Community 156 - ".applyStructuredExtensionSetting"
+### Community 156 - "git-graph-libre.showStatusBarItem"
 Cohesion: 0.50
 Nodes (4): default, description, type, git-graph-libre.showStatusBarItem
 
-### Community 158 - "UncommittedSection"
-Cohesion: 0.20
-Nodes (6): ContextMenuHeader, ContextMenuItem, getSectionToggleLabel(), getStagingDropAction(), isUncommittedSection(), UncommittedSection
+### Community 157 - "keyboardShortcuts.ts"
+Cohesion: 0.27
+Nodes (8): GlobalShortcutAction, GlobalShortcutContext, GlobalShortcutKeyEvent, resolveCommitDetailsNavigate(), resolveCtrlOrMetaShortcut(), resolveEscape(), resolveGlobalShortcut(), resolvePlainKeyShortcut()
+
+### Community 158 - ".registerUncommittedPanelListeners"
+Cohesion: 0.22
+Nodes (5): ContextMenuHeader, ContextMenuItem, getSectionToggleLabel(), isUncommittedSection(), UncommittedSection
+
+### Community 159 - "[1.6.0] - 2026-09-10"
+Cohesion: 0.40
+Nodes (5): [1.6.0] - 2026-09-10, Added, Changed, Fixed, Telemetry
+
+### Community 160 - "git-graph-libre.revealHighlightColor"
+Cohesion: 0.40
+Nodes (5): default, description, pattern, type, git-graph-libre.revealHighlightColor
+
+### Community 161 - "parity.test.ts"
+Cohesion: 0.10
+Nodes (29): Benchmarking the two backends (`2026-09-23`), entry, outDir, outFile, root, didEngineServeRead(), LoadCommitsArgs, resetEngineServedRead() (+21 more)
+
+### Community 162 - "260-experiment-one-linux-binary-for-both-c-libraries.md"
+Cohesion: 0.18
+Nodes (8): c_char, Experiment: one Linux binary for both C libraries (`2026-10-16`), answers_with_the_running_glibcs_version(), gnu_get_libc_version(), DT_NEEDED, repoRoot, uri(), vscodeL10n
+
+### Community 164 - "git-graph-libre.repository.showStashes"
+Cohesion: 0.50
+Nodes (4): default, description, type, git-graph-libre.repository.showStashes
+
+### Community 165 - "git-graph-libre.restoreTabOnStartup"
+Cohesion: 0.50
+Nodes (4): default, description, type, git-graph-libre.restoreTabOnStartup
+
+### Community 166 - "[0.3.0] - 2026-03-26"
+Cohesion: 0.67
+Nodes (3): [0.3.0] - 2026-03-26, Added, Changed
+
+### Community 167 - "[1.4.2] - 2026-09-03"
+Cohesion: 0.67
+Nodes (3): [1.4.2] - 2026-09-03, Added, Fixed
+
+### Community 168 - "[1.6.2] - 2026-09-22"
+Cohesion: 0.67
+Nodes (3): [1.6.2] - 2026-09-22, Changed, Fixed
+
+### Community 170 - "GitRepoInfo"
+Cohesion: 0.22
+Nodes (6): GitRepoInfo, bootWebview(), commits, defaultViewState, latestRequest(), repoInfo
+
+### Community 171 - "RefOptionsPayload"
+Cohesion: 0.40
+Nodes (3): RefOptionsPayload, Default, Self
+
+### Community 173 - "[1.4.0] - 2026-09-03"
+Cohesion: 0.50
+Nodes (4): [1.4.0] - 2026-09-03, Added, Changed, Fixed
+
+### Community 174 - "[1.1.1] - 2026-07-29"
+Cohesion: 0.67
+Nodes (3): [1.1.1] - 2026-07-29, Added, Changed
+
+### Community 210 - "100-graph-and-stash-ui-slices.md"
+Cohesion: 0.26
+Nodes (3): Slice 3 — Stash list above the table, Release gate for these slices (`2026-09-09`), Graph and stash UI slices (`2026-09-09`)
+
+### Community 218 - "010-roadmap-open-phases.md"
+Cohesion: 0.15
+Nodes (6): Phase 2: Commit Details UX, Phase 8: Commit Comparison and Multi-Select, Phase 9: Repository and Remote Management, Roadmap: open phases, Future direction: integrate with VS Code's native source control (`2026-09-03`), Future work
+
+### Community 254 - "090-uncommitted-changes-staging-panel-released-as-1-5-0.md"
+Cohesion: 0.17
+Nodes (12): Uncommitted-changes staging panel, released as `1.5.0` (`2026-09-07`), Release `1.6.0` (`2026-09-10`), ActionInput, ActionPayloadByCommand, requirePaths(), stageFiles(), unstageFiles(), parseStatusEntries() (+4 more)
 
 ## Knowledge Gaps
-- **810 isolated node(s):** `path`, `esbuild`, `production`, `esbuildProblemMatcherPlugin`, `aliasPlugin` (+805 more)
+- **1050 isolated node(s):** `name`, `version`, `private`, `license`, `description` (+1045 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `simple-git` connect `messageHandler.ts` to `loadCommits.ts`, `extension.ts`, `searchCommits.ts`?**
-  _High betweenness centrality (0.245) - this node is a cross-community bridge._
-- **Why does `dependencies` connect `messageHandler.ts` to `package.json`?**
-  _High betweenness centrality (0.245) - this node is a cross-community bridge._
-- **Why does `properties` connect `octicons.ts` to `CommitDetailsSection`, `statusStrip.ts`, `push.test.ts`, `git-graph-libre.dialog.merge.noFastForward`, `git-graph-libre.maxDepthOfRepoSearch`, `properties`, `git-graph-libre.showUncommittedChanges`, `git-graph-libre.repository.showTags`, `.applyStructuredExtensionSetting`, `properties`, `default`, `git-graph-libre.customBranchGlobPatterns`, `git-graph-libre.dateFormat`, `git-graph-libre.commitDetails.fileViewMode`, `git-graph-libre.dateType`, `git-graph-libre.graphStyle`, `git-graph-libre.tabIconColorTheme`, `ActionPayload`, `git-graph-libre.graph.fontSize`, `git-graph-libre.graph.rowHeight`, `git-graph-libre.shortHashLength`, `keywords`, `git-graph-libre.autoCenterCommitDetailsView`, `git-graph-libre.initialLoadCommits`, `git-graph-libre.revealHighlightColor`, `git-graph-libre.showCurrentBranchByDefault`, `git-graph-libre.repository.muteCommitsNotAncestorsOfHead`, `html.ts`, `categories`, `utils/vscode.ts`, `git-graph-libre.repository.includeReflog`, `git-graph-libre.repository.boldCheckedOutCommit`, `git-graph-libre.repository.fetchTagsByDefault`, `git-graph-libre.repository.muteCommitsNotAncestorsOfHead`?**
-  _High betweenness centrality (0.194) - this node is a cross-community bridge._
-- **What connects `path`, `esbuild`, `production` to the rest of the system?**
-  _810 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `sendMessage` be split into smaller, more focused modules?**
-  _Cohesion score 0.058050645007166744 - nodes in this community are weakly interconnected._
+- **Why does `properties` connect `properties` to `git-graph-libre.backend`, `git-graph-libre.repository.includeReflog`, `git-graph-libre.repository.includeUnreachableCommits`, `git-graph-libre.maxDepthOfRepoSearch`, `properties`, `git-graph-libre.showUncommittedChanges`, `git-graph-libre.repository.showTags`, `git-graph-libre.showStatusBarItem`, `git-graph-libre.revealHighlightColor`, `git-graph-libre.repository.showStashes`, `git-graph-libre.restoreTabOnStartup`, `git-graph-libre.fetchAvatars`, `default`, `git-graph-libre.telemetry.enabled`, `git-graph-libre.dateFormat`, `git-graph-libre.commitDetails.fileViewMode`, `git-graph-libre.dateType`, `git-graph-libre.graphStyle`, `git-graph-libre.tabIconColorTheme`, `git-graph-libre.repository.showRemoteBranches`, `git-graph-libre.graph.fontSize`, `git-graph-libre.graph.rowHeight`, `git-graph-libre.shortHashLength`, `git-graph-libre.customBranchGlobPatterns`, `git-graph-libre.showCurrentBranchByDefault`, `git-graph-libre.repository.onlyFollowFirstParent`, `git-graph-libre.dialog.createBranch.checkout`, `git-graph-libre.dialog.pullBranch.noFastForward`, `git-graph-libre.loadMoreCommits`, `git-graph-libre.columns.signature`, `git-graph-libre.repository.boldCheckedOutCommit`, `git-graph-libre.repository.fetchTagsByDefault`, `git-graph-libre.repository.muteCommitsNotAncestorsOfHead`, `git-graph-libre.repository.stashDisplay`?**
+  _High betweenness centrality (0.153) - this node is a cross-community bridge._
+- **Why does `contributes` connect `contributes` to `properties`, `package.json`?**
+  _High betweenness centrality (0.148) - this node is a cross-community bridge._
+- **Why does `configuration` connect `properties` to `contributes`?**
+  _High betweenness centrality (0.147) - this node is a cross-community bridge._
+- **Are the 10 inferred relationships involving `runGitRaw()` (e.g. with `010-active-handoff-git-trust-repository-recovery-and-diagnostics.md` and `010-non-goals-permanently.md`) actually correct?**
+  _`runGitRaw()` has 10 INFERRED edges - model-reasoned connections that need verification._
+- **What connects `name`, `version`, `private` to the rest of the system?**
+  _1050 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `escapeHtml` be split into smaller, more focused modules?**
+  _Cohesion score 0.06522196507468966 - nodes in this community are weakly interconnected._
 - **Should `messageHandler.test.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.08258258258258258 - nodes in this community are weakly interconnected._
-- **Should `tagDetails.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.05405405405405406 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05427547363031234 - nodes in this community are weakly interconnected._
