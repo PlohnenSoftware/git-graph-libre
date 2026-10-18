@@ -45,6 +45,7 @@ import {
 import {
   applyLineCounts,
   type EngineCommitDetails,
+  type EngineStashEntry,
   findStashEntry,
   lineCountPaths,
   mapEngineFileChange,
@@ -573,6 +574,60 @@ function toGitCommitDetails(
   };
 }
 
+function malformedCommitDetails(message: string): QueryResult<"commitDetails"> {
+  return {
+    commitDetails: null,
+    error: toGitQueryError(new Error(message), "Unable to load commit details")
+  };
+}
+
+/**
+ * The file list to serve: the commit's own diff, or for a stash its
+ * `load_stash_details` list (diffed against the base, untracked appended).
+ * Null when the stash payload is malformed.
+ */
+async function engineFileChanges(
+  addon: EngineAddon,
+  args: CommitDetailsArgs,
+  details: EngineCommitDetails,
+  stash: EngineStashEntry | undefined
+): Promise<GitFileChange[] | null> {
+  if (stash === undefined) return details.fileChanges.map(mapEngineFileChange);
+  const stashText = await addon.loadStashDetails(
+    args.repoPath,
+    args.commitHash,
+    stashEntryPayload(stash)
+  );
+  const stashDetails = parseEngineCommitDetails(stashText);
+  if (stashDetails === null) {
+    noteMalformedPayload("stashDetails");
+    return null;
+  }
+  return stashDetails.fileChanges.map(mapEngineFileChange);
+}
+
+/**
+ * Fill the `+N/-M` counts, then, for a stash, the counts of its untracked
+ * files. Those live only in the stash's third parent, a root commit the
+ * base-to-stash counts cannot see, so they are counted against the empty
+ * tree. Returns the CLI answer when either call reroutes, else null.
+ */
+async function fillCommitDetailsCounts(
+  addon: EngineAddon,
+  args: CommitDetailsArgs,
+  stash: EngineStashEntry | undefined,
+  fileChanges: GitFileChange[],
+  cliRead: () => Promise<QueryResult<"commitDetails">>
+): Promise<QueryResult<"commitDetails"> | null> {
+  const from = stash === undefined ? null : stash.baseHash;
+  const filled = await fillLineCounts(addon, args, from, args.commitHash, fileChanges, cliRead);
+  if (filled !== null) return filled;
+  const untrackedHash = stash?.untrackedFilesHash ?? null;
+  if (untrackedHash === null) return null;
+  const untrackedChanges = fileChanges.filter((change) => change.untracked === true);
+  return fillLineCounts(addon, args, null, untrackedHash, untrackedChanges, cliRead);
+}
+
 async function readCommitDetails(
   preference: EngineBackend,
   provider: AddonProvider,
@@ -606,13 +661,7 @@ async function readCommitDetails(
     const details = parseEngineCommitDetails(detailsText);
     if (details === null) {
       noteMalformedPayload("commitDetails");
-      return {
-        commitDetails: null,
-        error: toGitQueryError(
-          new Error("Engine returned malformed commit details"),
-          "Unable to load commit details"
-        )
-      };
+      return malformedCommitDetails("Engine returned malformed commit details");
     }
     const stashes = parseEngineStashEntries(stashesText);
     const stash = stashes === null ? undefined : findStashEntry(stashes, args.commitHash);
@@ -624,46 +673,12 @@ async function readCommitDetails(
     // reroute here.
     if (details.parents.length > 1 && stash === undefined)
       return rerouteToCli("commitDetails", "mergeCommit", cliRead);
-    let fileChanges = details.fileChanges.map(mapEngineFileChange);
-    let from: string | null = null;
-    if (stash !== undefined) {
-      const stashText = await addon.loadStashDetails(
-        args.repoPath,
-        args.commitHash,
-        stashEntryPayload(stash)
-      );
-      const stashDetails = parseEngineCommitDetails(stashText);
-      if (stashDetails === null) {
-        noteMalformedPayload("stashDetails");
-        return {
-          commitDetails: null,
-          error: toGitQueryError(
-            new Error("Engine returned malformed stash details"),
-            "Unable to load commit details"
-          )
-        };
-      }
-      fileChanges = stashDetails.fileChanges.map(mapEngineFileChange);
-      from = stash.baseHash;
+    const fileChanges = await engineFileChanges(addon, args, details, stash);
+    if (fileChanges === null) {
+      return malformedCommitDetails("Engine returned malformed stash details");
     }
-    const filled = await fillLineCounts(addon, args, from, args.commitHash, fileChanges, cliRead);
+    const filled = await fillCommitDetailsCounts(addon, args, stash, fileChanges, cliRead);
     if (filled !== null) return filled;
-    // Untracked files live only in the stash's third parent, a root commit
-    // the base-to-stash counts above cannot see, so count them against the
-    // empty tree. A failure follows the same reroute rule as fillLineCounts.
-    const untrackedHash = stash?.untrackedFilesHash ?? null;
-    if (untrackedHash !== null) {
-      const untrackedChanges = fileChanges.filter((change) => change.untracked === true);
-      const filledUntracked = await fillLineCounts(
-        addon,
-        args,
-        null,
-        untrackedHash,
-        untrackedChanges,
-        cliRead
-      );
-      if (filledUntracked !== null) return filledUntracked;
-    }
     engineServedRead = true;
     logBackendRoute(
       "commitDetails",
