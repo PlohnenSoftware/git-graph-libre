@@ -46,7 +46,7 @@ export function parseGraph(text) {
 function pyString(value) {
   return JSON.stringify(value).replaceAll(
     /[\u007f-￿]/g,
-    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`
+    (char) => String.raw`\u${char.codePointAt(0).toString(16).padStart(4, "0")}`
   );
 }
 
@@ -58,8 +58,8 @@ export function serializeGraph(value, indent = "") {
   const inner = `${indent}  `;
   if (Array.isArray(value)) {
     if (value.length === 0) return "[]";
-    const items = value.map((item) => inner + serializeGraph(item, inner));
-    return `[\n${items.join(",\n")}\n${indent}]`;
+    const elements = value.map((item) => inner + serializeGraph(item, inner));
+    return `[\n${elements.join(",\n")}\n${indent}]`;
   }
   const entries = Object.entries(value);
   if (entries.length === 0) return "{}";

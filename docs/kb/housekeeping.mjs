@@ -59,7 +59,7 @@ export function parseSection(text, file, problems) {
 
 function parseFrontMatter(lines, file, problems) {
   let summary = "";
-  let alwaysRead = false;
+  let isAlwaysRead = false;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line === "summary: >-") {
@@ -70,7 +70,7 @@ function parseFrontMatter(lines, file, problems) {
       }
       summary = folded.join(" ");
     } else if (line === "always_read: true") {
-      alwaysRead = true;
+      isAlwaysRead = true;
     } else {
       problems.push(`${file}: unsupported front matter line "${line}"`);
       return null;
@@ -80,7 +80,7 @@ function parseFrontMatter(lines, file, problems) {
     problems.push(`${file}: no summary (write it as "summary: >-" and indented lines)`);
     return null;
   }
-  return { summary, alwaysRead };
+  return { summary, alwaysRead: isAlwaysRead };
 }
 
 function parseTitle(lines, file, problems) {
@@ -135,7 +135,7 @@ function checkDirectory(siblings, name, rel, problems) {
 }
 
 function escapeLinkText(text) {
-  return text.replaceAll("[", "\\[").replaceAll("]", "\\]");
+  return text.replaceAll("[", String.raw`\[`).replaceAll("]", String.raw`\]`);
 }
 
 function entryLines(sections, depth) {
