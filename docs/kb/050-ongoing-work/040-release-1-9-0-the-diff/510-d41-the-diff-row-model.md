@@ -9,7 +9,7 @@ summary: >-
 
 # D41 — The diff row model
 
-Status: done — awaiting integration
+Status: integrated 01deb86
 Needs: —
 Decisions: Phase 17 D4 (answered: G4, option (c))
 Kind: TypeScript, pure (no DOM, no `vscode`) · Size budget: ≤ 250 changed lines outside tests
