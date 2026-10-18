@@ -9,7 +9,7 @@ summary: >-
 
 # D06 — Merge commits against their first parent
 
-Status: done — awaiting integration
+Status: integrated f70d006
 Needs: —
 Decisions: X1
 Kind: TypeScript (webview label included) · Size budget: ≤ 200 changed lines outside tests
