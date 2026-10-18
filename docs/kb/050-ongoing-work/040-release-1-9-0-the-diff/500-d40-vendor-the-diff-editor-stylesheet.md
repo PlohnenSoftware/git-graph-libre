@@ -9,7 +9,7 @@ summary: >-
 
 # D40 — Vendor the diff editor's stylesheet
 
-Status: ready
+Status: done — awaiting integration
 Needs: —
 Decisions: Phase 17 D4 (answered: G4, option (c))
 Kind: CSS and notices · Size budget: ≤ 150 changed lines, not counting the vendored CSS
@@ -105,4 +105,16 @@ own theme variables.
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Muse Code sub-agent D40, 2026-10-19 01:43 (claimed 2026-10-19 01:35)
+- **Branch and commits:** `diff-1.9.0/d40` — `8d30406 G feat(diff-tab): vendor the diff editor stylesheet (D40)`, plus the signed docs commit carrying this report (its own hash cannot be listed inside itself; verify with `git log --format='%h %G? %s' d094e80..HEAD`)
+- **Files changed:** `media/diff-tab/vscode-diff.css` (new, +173/−0; the vendored CSS, outside the size budget), `LICENSE.mit` (+27/−0), `NOTICE.md` (+12/−0), `tests/webview/diffTabCss.test.ts` (new, +75/−0), this slice file (status and report). Counts from `git diff --numstat HEAD~1..HEAD`; 114 insertions outside the vendored CSS, inside the ≤150 budget. Source copied: `microsoft/vscode` `src/vs/editor/browser/widget/diffEditor/style.css` at `1356222d342e6a7b2dd5603107bcdb60a6d0653b`, fetched with the `gh api` command in *Facts*; its header reads "Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the MIT License" and the repository `LICENSE.txt` at the same commit is the MIT License, "Copyright (c) 2015 - present Microsoft Corporation" — both lines and the permission text are preserved verbatim in the new Microsoft Corporation section of `LICENSE.mit` (checked byte-for-byte against the fetched files). Kept 28 rules: every *Facts* class, re-rooted to `.ggl-diff` with declarations verbatim (checked: all 28 declaration blocks match upstream exactly). Dropped: the two icon-font rules (Step 2), editor-only structure (scrollbars, overview, moved-code, inline view zones), and the `diff-hidden-lines-disclosure`/`-compact`/`-widget` variants the tab does not render; in mixed selector lists only the *Facts*-class alternatives were kept. Only literal colors are `transparent` and `#0000`, listed in the header per Step 3.
+- **Tests added or changed:** new `tests/webview/diffTabCss.test.ts` (4 tests: header provenance; every *Facts* class ruled under `.ggl-diff`; every selector rooted at `.ggl-diff` with no editor or icon roots; colors only via `var(--vscode-…)` except the header-listed literals). Webview 591 → 595 tests; backend unchanged at 873.
+- **Gates:** biome pass (strict, `--error-on-warnings`, `tests/webview/diffTabCss.test.ts`, the only touched file Biome covers); typecheck pass; test backend 873/873 (80 files), webview 595/595 (55 files) via `pnpm run test` — the first run reported 30 backend skips because this worktree had no built engine addon, so `pnpm run engine:build` + `engine:smoke` (1.0.25) were run and the backend project rerun at 873/873 (the binary is ignored and uncommitted); l10n n/a (no user-visible text changed); kb:check pass; Rust arm n/a (no `engine/**` change); Sonar: integrator
+- **Acceptance:** Gates pass and the new test fails before the CSS exists — met: with no `media/diff-tab/vscode-diff.css` the suite failed `ENOENT … media/diff-tab/vscode-diff.css` (0 tests run), and passes 4/4 after. `pnpm exec vsce ls` lists the three files — met with the project's packaging flag, because plain `vsce ls` fails in this pnpm tree inside its `npm list` step; `pnpm exec vsce ls --no-dependencies` lists:
+  ```
+  LICENSE.mit
+  NOTICE.md
+  media/diff-tab/vscode-diff.css
+  ```
+- **Deviations from the slice:** none. No Microsoft section existed in `LICENSE.mit` yet, so this slice created it (D20 can extend it, as its file anticipates). High-contrast selectors were re-rooted mechanically to `.ggl-diff.hc-black`/`.hc-light` with declarations verbatim; they stay inert unless D42 sets those classes.
+- **Open questions / follow-ups:** none. D42 decides how much of the collapsed-region sub-structure (`.top`, `.bottom`, `.center`, `.first`) its rows use; the rules are vendored ready for it.
