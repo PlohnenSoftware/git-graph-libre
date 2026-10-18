@@ -1,0 +1,173 @@
+/*---------------------------------------------------------------------------------------------
+ * Source: microsoft/vscode src/vs/editor/browser/widget/diffEditor/style.css
+ * at commit 1356222d342e6a7b2dd5603107bcdb60a6d0653b.
+ * Copyright (c) Microsoft Corporation. Licensed under the MIT License (see LICENSE.mit).
+ * Trimmed to the rules the GGL Diff tab uses and re-rooted under `.ggl-diff`; changes are AGPL-3.0-or-later.
+ *
+ * Literal colors kept verbatim from the source, so this file stays comparable
+ * with it (the styling guide's external-asset exception): `transparent`,
+ * `#0000`. Every other color is a var(--vscode-...) theme reference.
+ * Icon-font rules were dropped; declarations are otherwise verbatim.
+ *--------------------------------------------------------------------------------------------*/
+
+.ggl-diff .diff-hidden-lines {
+	height: 0px; /* The children each have a fixed height, the transform confuses the browser */
+	transform: translate(0px, -10px);
+	font-size: 13px;
+	line-height: 14px;
+}
+
+.ggl-diff .diff-hidden-lines:not(.dragging) .top:hover,
+.ggl-diff .diff-hidden-lines:not(.dragging) .bottom:hover,
+.ggl-diff .diff-hidden-lines .top.dragging,
+.ggl-diff .diff-hidden-lines .bottom.dragging {
+	background-color: var(--vscode-focusBorder);
+}
+
+.ggl-diff .diff-hidden-lines .top,
+.ggl-diff .diff-hidden-lines .bottom {
+	transition: background-color 0.1s ease-out;
+	height: 4px;
+	background-color: transparent;
+	background-clip: padding-box;
+	border-bottom: 2px solid transparent;
+	border-top: 4px solid transparent;
+	/*cursor: n-resize;*/
+}
+
+.ggl-diff .diff-hidden-lines .top.canMoveTop:not(.canMoveBottom),
+.ggl-diff .diff-hidden-lines .bottom.canMoveTop:not(.canMoveBottom) {
+	cursor: n-resize !important;
+}
+
+.ggl-diff .diff-hidden-lines .top:not(.canMoveTop).canMoveBottom,
+.ggl-diff .diff-hidden-lines .bottom:not(.canMoveTop).canMoveBottom {
+	cursor: s-resize !important;
+}
+
+.ggl-diff .diff-hidden-lines .top.canMoveTop.canMoveBottom,
+.ggl-diff .diff-hidden-lines .bottom.canMoveTop.canMoveBottom {
+	cursor: ns-resize !important;
+}
+
+.ggl-diff .diff-hidden-lines .top {
+	transform: translate(0px, 4px);
+}
+
+.ggl-diff .diff-hidden-lines .bottom {
+	transform: translate(0px, -6px);
+}
+
+.ggl-diff .diff-hidden-lines .center {
+	background: var(--vscode-diffEditor-unchangedRegionBackground);
+	color: var(--vscode-diffEditor-unchangedRegionForeground);
+	overflow: hidden;
+	display: block;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+
+	height: 24px;
+	box-shadow: inset 0 -5px 5px -7px var(--vscode-diffEditor-unchangedRegionShadow), inset 0 5px 5px -7px var(--vscode-diffEditor-unchangedRegionShadow);
+}
+
+.ggl-diff .diff-hidden-lines .first {
+	justify-content: center;
+}
+
+.ggl-diff .diff-hidden-lines div.breadcrumb-item {
+	cursor: pointer;
+}
+
+.ggl-diff .diff-hidden-lines div.breadcrumb-item:hover {
+	color: var(--vscode-editorLink-activeForeground);
+}
+
+.ggl-diff .diff-hidden-lines .line-number-control,
+.ggl-diff .diff-hidden-lines .disclosure-toggle {
+	display: none;
+}
+
+.ggl-diff .char-delete.diff-range-empty {
+	margin-left: -1px;
+	border-left: solid var(--vscode-diffEditor-removedTextBackground) 3px;
+}
+
+.ggl-diff .char-insert.diff-range-empty {
+	border-left: solid var(--vscode-diffEditor-insertedTextBackground) 3px;
+}
+
+.ggl-diff .insert-sign,
+.ggl-diff .delete-sign {
+	font-size: 11px !important;
+	opacity: 0.7 !important;
+	display: flex !important;
+	align-items: center;
+}
+
+.ggl-diff.hc-black .insert-sign,
+.ggl-diff.hc-black .delete-sign,
+.ggl-diff.hc-light .insert-sign,
+.ggl-diff.hc-light .delete-sign {
+	opacity: 1;
+}
+
+.ggl-diff .char-insert {
+	background-color: var(--vscode-diffEditor-insertedTextBackground);
+}
+
+.ggl-diff .line-insert {
+	background-color: var(--vscode-diffEditor-insertedLineBackground, var(--vscode-diffEditor-insertedTextBackground));
+}
+
+.ggl-diff .line-insert,
+.ggl-diff .char-insert {
+	box-sizing: border-box;
+	border: 1px solid var(--vscode-diffEditor-insertedTextBorder);
+}
+
+.ggl-diff.hc-black .line-insert,
+.ggl-diff.hc-light .line-insert,
+.ggl-diff.hc-black .char-insert,
+.ggl-diff.hc-light .char-insert {
+	border-style: dashed;
+}
+
+.ggl-diff .line-delete,
+.ggl-diff .char-delete {
+	box-sizing: border-box;
+	border: 1px solid var(--vscode-diffEditor-removedTextBorder);
+}
+
+.ggl-diff.hc-black .line-delete,
+.ggl-diff.hc-light .line-delete,
+.ggl-diff.hc-black .char-delete,
+.ggl-diff.hc-light .char-delete {
+	border-style: dashed;
+}
+
+.ggl-diff .gutter-insert {
+	background-color: var(--vscode-diffEditorGutter-insertedLineBackground, var(--vscode-diffEditor-insertedLineBackground), var(--vscode-diffEditor-insertedTextBackground));
+}
+
+.ggl-diff .char-delete {
+	background-color: var(--vscode-diffEditor-removedTextBackground);
+}
+
+.ggl-diff .line-delete {
+	background-color: var(--vscode-diffEditor-removedLineBackground, var(--vscode-diffEditor-removedTextBackground));
+}
+
+.ggl-diff .gutter-delete {
+	background-color: var(--vscode-diffEditorGutter-removedLineBackground, var(--vscode-diffEditor-removedLineBackground), var(--vscode-diffEditor-removedTextBackground));
+}
+
+.ggl-diff .diagonal-fill {
+	background-image: linear-gradient(
+		-45deg,
+		var(--vscode-diffEditor-diagonalFill) 12.5%,
+		#0000 12.5%, #0000 50%,
+		var(--vscode-diffEditor-diagonalFill) 50%, var(--vscode-diffEditor-diagonalFill) 62.5%,
+		#0000 62.5%, #0000 100%
+	);
+	background-size: 8px 8px;
+}

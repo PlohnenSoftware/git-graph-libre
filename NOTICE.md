@@ -157,6 +157,18 @@ the workspace's MIT declaration. It is absent from every commit of the
 imported history, as are that project's own `LICENSE` and `licenses/`
 directory, which described the tree that was not taken.
 
+### VS Code's diff editor styles (`media/diff-tab/vscode-diff.css`)
+
+The GGL Diff tab's stylesheet is copied from
+[microsoft/vscode](https://github.com/microsoft/vscode),
+`src/vs/editor/browser/widget/diffEditor/style.css` at commit
+`1356222d342e6a7b2dd5603107bcdb60a6d0653b`, MIT-licensed, Copyright (c)
+Microsoft Corporation. The file was trimmed to the rules the tab uses and
+re-rooted under `.ggl-diff`, with its declarations otherwise verbatim; the
+icon-font rules were dropped because the webview draws its signs as text.
+Changes made here are AGPL-3.0-or-later. The copyright and permission notices
+are preserved in [LICENSE.mit](LICENSE.mit).
+
 The upstream projects above remain available under the MIT license from their
 own repositories. The modifications and additions made in this fork are
 available only under the AGPL-3.0-or-later.
