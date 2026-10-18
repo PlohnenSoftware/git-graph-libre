@@ -8,7 +8,7 @@ summary: >-
 
 # D03 — Diff stashed untracked files from the third parent
 
-Status: waiting on D02
+Status: ready
 Needs: D02
 Decisions: —
 Kind: TypeScript (webview included) · Size budget: ≤ 220 changed lines outside tests

@@ -62,8 +62,8 @@ wait for them.
 | ID | Slice | Kind | Needs | Parallel group | Status |
 | --- | --- | --- | --- | --- | --- |
 | D01 | [Log engine hits for diff reads](040-release-1-9-0-the-diff/100-d01-log-engine-hits-for-diff-reads.md) | TS | — | A | ready |
-| D02 | [Correct stash details on the CLI path](040-release-1-9-0-the-diff/110-d02-correct-stash-details-on-the-cli-path.md) | TS | — | B | ready |
-| D03 | [Diff stashed untracked files from the third parent](040-release-1-9-0-the-diff/120-d03-diff-stashed-untracked-files-from-the-third-parent.md) | TS | D02 | B | waiting on D02 |
+| D02 | [Correct stash details on the CLI path](040-release-1-9-0-the-diff/110-d02-correct-stash-details-on-the-cli-path.md) | TS | — | B | integrated c7349b2 |
+| D03 | [Diff stashed untracked files from the third parent](040-release-1-9-0-the-diff/120-d03-diff-stashed-untracked-files-from-the-third-parent.md) | TS | D02 | B | ready |
 | D04 | [Show type changes in file lists](040-release-1-9-0-the-diff/130-d04-show-type-changes-in-file-lists.md) | TS + Rust | X2 | C | waiting on X2 |
 | D05 | [Engine line counts that match Git](040-release-1-9-0-the-diff/140-d05-engine-line-counts-that-match-git.md) | Rust | — | D | ready |
 | D06 | [Merge commits against their first parent](040-release-1-9-0-the-diff/150-d06-merge-commits-against-their-first-parent.md) | TS | X1 | C | waiting on X1 |
@@ -106,3 +106,4 @@ The integrator appends one dated line per integrated slice or wave: the
 commit, the gate results with numbers, and the Sonar task id.
 
 - `2026-10-19` — D11 integrated (`70db6f9`, fast-forward from `diff-1.9.0/d11`; commits `9eebcf3`, `70db6f9`, both `G`). Gates on the result: strict Biome clean on the 5 touched files, typecheck green, tests backend 862/862 and webview 590/590 (the 29 engine-test skips in the slice worktree were the missing built addon there; none skip on the integration branch), `kb:check` green. SonarQube: wave gate, pending.
+- `2026-10-19` — D02 integrated (`c7349b2`, rebased from `diff-1.9.0/d02` onto the D11 integration, then fast-forward; commits `1530d0f`, `c7349b2`, both `G`). Gates on the result: strict Biome clean on the 4 touched files, typecheck green, tests backend 866/866 and webview 590/590, `kb:check` green. Noted for D03: through the reader a stash is currently served by the CLI (the multi-parent reroute runs before the engine stash branch). D03 flipped to `ready`. SonarQube: wave gate, pending.

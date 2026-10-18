@@ -9,7 +9,7 @@ summary: >-
 
 # D02 — Correct stash details on the CLI path
 
-Status: done — awaiting integration
+Status: integrated c7349b2
 Needs: —
 Decisions: —
 Kind: TypeScript · Size budget: ≤ 220 changed lines outside tests
