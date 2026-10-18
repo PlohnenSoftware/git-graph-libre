@@ -9,7 +9,7 @@ summary: >-
 
 # D43 — Engine export for the staged copy of a file
 
-Status: done — awaiting integration
+Status: integrated 14ac021
 Needs: —
 Decisions: —
 Kind: Rust and TypeScript, the Rust arm applies · Size budget: ≤ 150 changed lines outside tests
