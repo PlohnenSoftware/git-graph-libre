@@ -64,6 +64,34 @@ The extension is already split into clean layers:
   were removed `2026-10-17`. That day's final scan (task
   `9ffe7ba5-e235-49c3-9d59-99072d226e8e`, analysis
   `fc6fbf5e-e5d7-4a9d-9922-b8c2ec90da12`) polled back gate `OK`.
+- Quality profiles on the server (`2026-10-19`): every language this project
+  scans has a profile named `Zam` inheriting from the built-in **Sonar way
+  comprehensive**.
+  - **Rust** (`rust`) differs from its parent in one override:
+    cognitive complexity `S3776`, threshold 16 instead of 15, severity
+    `CRITICAL`.
+  - **JavaScript** (`js`, created `2026-10-19`) carries the same `S3776`
+    override and 16 rules of its own, 440 active in all:
+    - from the built-in **Sonar agentic AI** profile, the two its parent
+      lacks: `S6440` and `S7764`;
+    - ten rules the TypeScript `Zam` enforces, at its severities: `S2260`,
+      `S3786`, `S1117`, `S1172`, `S3801`, `S2424`, `S2427`, `S4139`,
+      `S5867`, `S4326`;
+    - four guards against quietly bypassing checks: `S1291` (tracks
+      `NOSONAR`), `S125` (commented-out code), `S3827` (use before
+      definition), and the custom rule `javascript:zam_suppression_comments`.
+      That last one is built on the `S124` template because templates can't
+      be activated directly, and flags `biome-ignore`, `eslint-disable`,
+      `@ts-ignore`, `@ts-expect-error` and `@ts-nocheck`.
+    The TypeScript `Zam` has the same guards (`2026-10-19`): `S1291`, `S125`
+    and `typescript:zam_suppression_comments`. It has no `S3827`, because the
+    TypeScript compiler already rejects use before definition. That makes
+    476 active rules.
+  - **TypeScript** (`ts`) activates 34 rules beyond its parent.
+  Rust and TypeScript are assigned to the `git-graph-libre` project rather
+  than set as server defaults. JavaScript was not yet assigned when this
+  was recorded. Read the current state off the server (`/api/qualityprofiles/search`)
+  rather than trusting this list.
 - Scan the completed, uncommitted working tree with fresh coverage **before**
   committing. SonarQube logs `Missing blame information` for changed/new files
   and identifies the report with the current HEAD revision; those warnings are
