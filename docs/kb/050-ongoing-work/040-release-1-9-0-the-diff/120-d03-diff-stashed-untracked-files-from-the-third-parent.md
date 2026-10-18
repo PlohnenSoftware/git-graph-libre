@@ -8,7 +8,7 @@ summary: >-
 
 # D03 — Diff stashed untracked files from the third parent
 
-Status: done — awaiting integration
+Status: integrated 221e98c
 Needs: D02
 Decisions: —
 Kind: TypeScript (webview included) · Size budget: ≤ 220 changed lines outside tests
