@@ -9,7 +9,7 @@ summary: >-
 
 # D42 — The diff view
 
-Status: waiting on D40, D41
+Status: ready
 Needs: D40, D41
 Decisions: Phase 17 D4 (answered: G4, option (c))
 Kind: webview (TypeScript and CSS) · Size budget: ≤ 300 changed lines outside tests

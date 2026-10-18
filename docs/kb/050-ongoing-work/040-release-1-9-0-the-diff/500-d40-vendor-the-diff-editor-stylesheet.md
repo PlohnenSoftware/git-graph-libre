@@ -9,7 +9,7 @@ summary: >-
 
 # D40 — Vendor the diff editor's stylesheet
 
-Status: done — awaiting integration
+Status: integrated bfa769e
 Needs: —
 Decisions: Phase 17 D4 (answered: G4, option (c))
 Kind: CSS and notices · Size budget: ≤ 150 changed lines, not counting the vendored CSS

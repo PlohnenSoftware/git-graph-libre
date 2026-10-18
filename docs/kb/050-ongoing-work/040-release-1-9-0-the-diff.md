@@ -79,9 +79,9 @@ wait for them.
 | D21 | [Phase 17 oracle suite](040-release-1-9-0-the-diff/310-d21-phase-17-oracle-suite.md) | TS tests | D20 | H | waiting on D20 |
 | D22 | [Phase 17 port sub-slices (stretch)](040-release-1-9-0-the-diff/320-d22-phase-17-port-sub-slices.md) | Rust | D21, X5 | H | waiting on D21 |
 | D30 | [Upstream gix contributions for Git compatibility](040-release-1-9-0-the-diff/400-d30-upstream-gix-git-compatibility.md) | gix fork | — | U | ready (posting: maintainer) |
-| D40 | [Vendor the diff editor's stylesheet](040-release-1-9-0-the-diff/500-d40-vendor-the-diff-editor-stylesheet.md) | CSS, notices | — | I | ready |
+| D40 | [Vendor the diff editor's stylesheet](040-release-1-9-0-the-diff/500-d40-vendor-the-diff-editor-stylesheet.md) | CSS, notices | — | I | integrated bfa769e |
 | D41 | [The diff row model](040-release-1-9-0-the-diff/510-d41-the-diff-row-model.md) | TS | — | I | integrated 01deb86 |
-| D42 | [The diff view](040-release-1-9-0-the-diff/520-d42-the-diff-view.md) | webview | D40, D41 | J | waiting on D40, D41 |
+| D42 | [The diff view](040-release-1-9-0-the-diff/520-d42-the-diff-view.md) | webview | D40, D41 | J | ready |
 | D43 | [Engine export for the staged copy of a file](040-release-1-9-0-the-diff/530-d43-engine-export-for-the-staged-copy-of-a-file.md) | Rust + TS | — | I | integrated 14ac021 |
 | D44 | [The GGL Diff tab](040-release-1-9-0-the-diff/540-d44-the-ggl-diff-tab.md) | TS + webview | D42 | J | waiting on D42 |
 | D45 | [Feed the tab from the engine](040-release-1-9-0-the-diff/550-d45-feed-the-tab-from-the-engine.md) | TS | D43, D44, 22j | J | waiting on D43, D44, 22j |
@@ -132,3 +132,4 @@ commit, the gate results with numbers, and the Sonar task id.
 - `2026-10-19` — SonarQube rescan after the maintainer's kb-script fixes and gate adjustments (task `d7e1c5c8-48aa-4353-bb2b-5077027d0490`, analysis `1ff085ac-04e1-4af1-8597-538cc2107e12`, HEAD `d094e80`): gate **OK**, 0 new-code issues, fresh coverage 1464/1464 tests at 93.0% lines. The wave-1 ERROR above is closed.
 - `2026-10-19` — D43 integrated (`14ac021`, fast-forward from `diff-1.9.0/d43`; commits `2310f3c`, `81a1d11`, `14ac021`, all `G`). Gates on the result: Rust arm pass (122 tests), `engine:build` + `engine:smoke` OK (version `1.0.25`, unchanged by design), strict Biome clean, typecheck green, tests backend 883/883 and webview 591/591, `kb:check` green. SonarQube: wave gate.
 - `2026-10-19` — D41 integrated (`01deb86`, rebased from `diff-1.9.0/d41`, then fast-forward; commits `de51c98`, `01deb86`, both `G`). Gates on the result: strict Biome clean, typecheck green, tests backend 883/883 and webview 618/618, `kb:check` green. For D42: `expandCollapsed` works on the row objects `buildRows` returned, not on serialized copies (see D41's report). SonarQube: wave gate.
+- `2026-10-19` — D40 integrated (`bfa769e`, rebased from `diff-1.9.0/d40`, then fast-forward; commits `ecf22d2`, `bfa769e`, both `G`). Gates on the result: strict Biome clean, typecheck green, tests backend 883/883 and webview 622/622, `kb:check` green; `vsce ls --no-dependencies` lists the new CSS and notices (in the slice report). The vendored stylesheet records `microsoft/vscode` `1356222` as its MIT source. D42 flipped to `ready`. SonarQube: wave gate.
