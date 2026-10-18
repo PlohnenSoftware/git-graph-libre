@@ -4,8 +4,8 @@ summary: >-
   diff-related item into small, self-contained slices for one or many
   agents: issue #26 (compare any two commits), the diff-read part of issue
   #31, Phase 8's and Phase 10's comparison items, the bugs found by the
-  diff-parity audit, the engine's numstat fixes, and Phase 17's first
-  slices. Holds the goals, the slice table, the dependencies and the
+  diff-parity audit, the engine's numstat fixes, Phase 17's first slices,
+  and the GGL Diff tab (Phase 17 D4, wave D). Holds the goals, the slice table, the dependencies and the
   release's definition of done; the agent protocol, decisions and integrator
   procedure sit beneath it.
 ---
@@ -43,6 +43,7 @@ of VS Code's algorithm (Phase 17). The two are never mixed.
 | Take the upstream gix diff fixes | diff audit: rename limit, replacement refs, the Myers fix | D07 (blocked on a gix release) |
 | Hand Git-compatibility fixes to gitoxide | diff audit; the maintainer's "gix first" request | D30 |
 | Start VS Code's diff algorithm in the engine | Phase 17, slices 17.0 and 17.1; the port itself is a stretch goal | D20, D21, D22 (decision X5) |
+| A light "GGL Diff" tab that looks like the diff editor, opened from Source Control and commit details, fed by the engine | the maintainer's request and Phase 17 D4 = G4 (c), `2026-10-19` | D40–D48; D45 onward need the port's 22j |
 
 **Out of scope:**
 - the rest of #31 (the diagnostics report, log-file access, the session
@@ -78,12 +79,29 @@ wait for them.
 | D21 | [Phase 17 oracle suite](040-release-1-9-0-the-diff/310-d21-phase-17-oracle-suite.md) | TS tests | D20 | H | waiting on D20 |
 | D22 | [Phase 17 port sub-slices (stretch)](040-release-1-9-0-the-diff/320-d22-phase-17-port-sub-slices.md) | Rust | D21, X5 | H | stretch |
 | D30 | [Upstream gix contributions for Git compatibility](040-release-1-9-0-the-diff/400-d30-upstream-gix-git-compatibility.md) | gix fork | — | U | ready (posting: maintainer) |
+| D40 | [Vendor the diff editor's stylesheet](040-release-1-9-0-the-diff/500-d40-vendor-the-diff-editor-stylesheet.md) | CSS, notices | — | I | ready |
+| D41 | [The diff row model](040-release-1-9-0-the-diff/510-d41-the-diff-row-model.md) | TS | — | I | ready |
+| D42 | [The diff view](040-release-1-9-0-the-diff/520-d42-the-diff-view.md) | webview | D40, D41 | J | waiting on D40, D41 |
+| D43 | [Engine export for the staged copy of a file](040-release-1-9-0-the-diff/530-d43-engine-export-for-the-staged-copy-of-a-file.md) | Rust + TS | — | I | ready |
+| D44 | [The GGL Diff tab](040-release-1-9-0-the-diff/540-d44-the-ggl-diff-tab.md) | TS + webview | D42 | J | waiting on D42 |
+| D45 | [Feed the tab from the engine](040-release-1-9-0-the-diff/550-d45-feed-the-tab-from-the-engine.md) | TS | D43, D44, 22j | J | waiting on D43, D44, 22j |
+| D46 | [Open the tab from Source Control](040-release-1-9-0-the-diff/560-d46-open-the-tab-from-source-control.md) | manifest + TS | D45 | K | waiting on D45 |
+| D47 | [Open the tab from commit details](040-release-1-9-0-the-diff/570-d47-open-the-tab-from-commit-details.md) | webview + TS | D45 | L | waiting on D45 |
+| D48 | [Measure the tab against the diff editor](040-release-1-9-0-the-diff/580-d48-measure-the-tab-against-the-diff-editor.md) | measurement | D46, D47 | — | waiting on D46, D47 (display half: maintainer) |
 | D90 | [Release 1.9.0](040-release-1-9-0-the-diff/900-d90-release-1-9-0.md) | release | every slice in scope | — | maintainer |
 
 **Order, if one agent does everything:** D01, D02, D05 and D11 first (no
 decisions needed); then D03; then D10, D13, D12 and D14 once X3 is answered;
 then whichever of D04, D06, D15 and D20–D22 the maintainer's decisions
 release; then D90.
+
+**Wave D, the GGL Diff tab:** D40, D41 and D43 can start now and run in
+parallel. Then D42, then D44. D45 waits for the port's 22j as well, and
+D46 and D47 wait for D45 (they share `package.json` and the `l10n`
+bundles, so run them one after the other). D48 comes last. D40–D44 add
+no entry point, so they can be integrated before the port exists. If 22j
+misses 1.9.0, D45–D48 move to the next release with it, and the
+maintainer decides whether D40–D44 ship unreached or wait too.
 
 ## Definition of done for 1.9.0
 

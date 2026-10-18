@@ -6,13 +6,14 @@ summary: >-
   against `@vscode/diff`'s TypeScript and WebAssembly backends (a pinned
   devDependency), then use it for diffs shown inside Git Graph Libre. Holds
   the research, architecture, slices 17.0–17.8, the legal plan, and the five
-  decisions the maintainer must make first.
+  decisions; D4 is answered (`2026-10-19`): a light "GGL Diff" tab of our
+  own, release 1.9.0's wave D.
 ---
 
 # Phase 17: VS Code's diff algorithm in the engine
 
-**Status: planned `2026-10-18`; nothing implemented. Decisions D1–D5 below
-come first. Release 1.9.0 schedules 17.0 and 17.1 as D20 and D21, and the
+**Status: planned `2026-10-18`; nothing implemented. Decisions D1–D3 and D5
+below come first; D4 is answered (G4 (c), `2026-10-19`). Release 1.9.0 schedules 17.0 and 17.1 as D20 and D21, and the
 port as D22 (stretch). The maintainer confirmed this port over a gix-based
 display diff (1.9.0 decision X7, `2026-10-18`).**
 
@@ -160,6 +161,16 @@ surfaces:
   editor decorations for the character-level changes. It's a native editor,
   so it's fast and searchable.
 - **G3, both,** keeping `vscode.diff` for the full side-by-side view.
+- **G4, a "GGL Diff" tab** that looks like the diff editor, opened from
+  commit details and from Source Control. It is built on Monaco's diff
+  editor or on a renderer of our own; the measurements and trade-offs are in
+  "No way to route a computed diff into the editor" below.
+
+**Chosen (`2026-10-19`): G4, option (c).** A renderer of our own, with VS
+Code's diff editor stylesheet and its unchanged-region rule copied in (MIT),
+fed by this port through the engine. Release 1.9.0 plans it as wave D,
+slices D40–D48. `vscode.diff` stays the default click; the tab is an extra
+action.
 
 Either way it's an engine-only feature, an exception to design rule 2 that
 must be recorded the way the planned Statistics tab's is. Without the engine,
@@ -198,8 +209,11 @@ the action falls back to `vscode.diff`.
   - `diff_texts` and `diff_file_at_revisions`; remove `load_commit_file_diff`.
   - A TypeScript seam with strict payload parsing.
   - A parity test of the seam against `@vscode/diff`'s TypeScript backend.
-- **17.8 The surface chosen in D4,** with its tests, localization and
-  telemetry (one view-feature flag, at the documented chokepoint).
+- **17.8 The surface chosen in D4:** the GGL Diff tab, cut into release
+  1.9.0's slices D40–D48 (stylesheet, row model, view, staged-file export,
+  tab, engine source, Source Control button, commit-details action,
+  measurement). Its commands and actions report through the existing
+  telemetry chokepoints, so it needs no new feature flag.
 
 Each slice runs the full gate, and the Rust arm too.
 
@@ -285,7 +299,8 @@ is MIT, taken directly with its notice, like the engine import.
 - **D2, the crate name** and whether to publish it on crates.io.
 - **D3, the version of `@vscode/diff` to pin**
   (`0.0.2-87` today, or `0.0.2-7` to match what VS Code ships).
-- **D4, the surface:** G1, G2 or G3.
+- **D4, the surface:** G1, G2, G3 or G4 (and for G4, Monaco or our own
+  renderer). **Answered `2026-10-19`: G4, option (c).**
 - **D5, how continuous integration gets the WebAssembly build:** built in
   CI with a pinned `wasm-bindgen-cli`, or checked in as a test artifact.
 

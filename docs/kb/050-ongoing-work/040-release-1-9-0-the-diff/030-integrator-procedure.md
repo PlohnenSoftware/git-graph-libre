@@ -33,7 +33,7 @@ order:**
    slice's own status line too. Flip any slice whose `Needs:` are now all
    integrated to `ready`.
 
-**After each wave** (A–D, E–G, H), or at least before D90:
+**After each wave** (A–D, E–G, H, I–L), or at least before D90:
 
 ```bash
 pnpm run package && pnpm run test && pnpm run l10n:check && pnpm run test:coverage

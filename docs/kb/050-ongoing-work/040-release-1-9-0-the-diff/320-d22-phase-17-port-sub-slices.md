@@ -33,8 +33,9 @@ clock. Each sub-slice is claimed and reported like a slice, by appending a
 | 22i | `pnpm run diff:parity` over real history (≤200) | results recorded in Phase 17 |
 | 22j | the `diff_texts` and `diff_file_at_revisions` napi exports, the TS seam, and removal of `load_commit_file_diff` (≤250) | seam parity test |
 
-The UI surface (Phase 17's slice 17.8) waits for Phase 17's decision D4 and
-for 22j, and is planned once those exist.
+The UI surface (Phase 17's slice 17.8) is planned: D4 is answered (G4,
+option (c), `2026-10-19`), and the GGL Diff tab is wave D, slices
+D40–D48. Only D45 and the slices after it need 22j.
 
 **Never use gix or Git's diff in this crate** (decision X7). It reproduces
 VS Code alone, and gix stays Git's.

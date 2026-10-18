@@ -24,6 +24,9 @@ Do items 1–8 of Phase 17's "Legal plan", with these limits:
 - Add the devDependency by editing `package.json` by hand
   (`"@vscode/diff": "<exact version from D3>"`), then run `pnpm install`.
   Don't run `pnpm add`.
+- D40 may already have added a Microsoft Corporation section to
+  `LICENSE.mit` for the diff editor styles. If so, add this port to that
+  section, and don't write a second one.
 - Write the licensing verdict as a new dated file under
   `docs/kb/030-licensing/010-licensing/`, with `always_read: true`.
 
