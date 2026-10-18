@@ -534,6 +534,7 @@
   "detail.committerDate": "提交者日期：",
   "detail.summary": "摘要",
   "detail.files": "文件",
+  "detail.comparedWithFirstParent": "与第一个父提交相比的更改",
   "detail.collapseSummary": "折叠提交摘要",
   "detail.expandSummary": "展开提交摘要",
   "detail.collapseFiles": "折叠更改文件",

@@ -534,6 +534,7 @@
   "detail.committerDate": "Committer Date: ",
   "detail.summary": "Summary",
   "detail.files": "Files",
+  "detail.comparedWithFirstParent": "Changes compared with the first parent",
   "detail.collapseSummary": "Collapse commit summary",
   "detail.expandSummary": "Expand commit summary",
   "detail.collapseFiles": "Collapse changed files",

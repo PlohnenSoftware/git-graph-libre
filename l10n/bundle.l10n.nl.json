@@ -534,6 +534,7 @@
   "detail.committerDate": "Committerdatum: ",
   "detail.summary": "Samenvatting",
   "detail.files": "Bestanden",
+  "detail.comparedWithFirstParent": "Wijzigingen vergeleken met de eerste parent",
   "detail.collapseSummary": "Commitsamenvatting samenvouwen",
   "detail.expandSummary": "Commitsamenvatting uitvouwen",
   "detail.collapseFiles": "Gewijzigde bestanden samenvouwen",

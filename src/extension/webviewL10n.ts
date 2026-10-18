@@ -542,6 +542,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     detailCommitterDate: translate("detail.committerDate"),
     detailSummary: translate("detail.summary"),
     detailFiles: translate("detail.files"),
+    comparedWithFirstParent: translate("detail.comparedWithFirstParent"),
     detailCollapseSummary: translate("detail.collapseSummary"),
     detailExpandSummary: translate("detail.expandSummary"),
     detailCollapseFiles: translate("detail.collapseFiles"),

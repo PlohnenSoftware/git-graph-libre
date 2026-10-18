@@ -71,7 +71,8 @@ export function renderCommitDetailsRowHtml({
       commitDetails.fileChanges,
       l10n,
       sections.filesOpen,
-      resolvedFileView
+      resolvedFileView,
+      commitDetails.parents.length > 1
     ),
     renderCommitDetailsResizeHandle(l10n, sections.detailsHeight),
     "</td>"
@@ -146,10 +147,16 @@ export function renderCommitDetailsFiles(
   fileChanges: GitFileChange[],
   l10n: LocalizedStrings,
   open = true,
-  fileView?: CommitDetailsFileViewOptions
+  fileView?: CommitDetailsFileViewOptions,
+  comparedWithFirstParent = false
 ): string {
   const fileViewMode = fileView?.mode ?? "tree";
   const bodyClass = `commitDetailsPaneBody${open ? "" : " hidden"}`;
+  // A merge's files are diffed against its first parent on both
+  // backends; the note says so where the files are listed.
+  const firstParentNote = comparedWithFirstParent
+    ? `<div class="commitDetailsFirstParentNote">${escapeHtml(l10n.comparedWithFirstParent)}</div>`
+    : "";
   return [
     '<div id="commitDetailsFiles">',
     renderCommitDetailsSectionToggle("files", l10n.detailFiles, open, {
@@ -157,6 +164,7 @@ export function renderCommitDetailsFiles(
       collapsed: l10n.detailExpandFiles
     }),
     `<div id="commitDetailsFilesBody" class="${bodyClass}">`,
+    firstParentNote,
     fileViewMode === "list"
       ? renderGitFileListHtml(fileChanges, l10n)
       : renderGitFileTreeHtml(fileTree, fileChanges, l10n),

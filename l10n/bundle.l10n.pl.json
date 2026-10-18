@@ -534,6 +534,7 @@
   "detail.committerDate": "Data committera: ",
   "detail.summary": "Podsumowanie",
   "detail.files": "Pliki",
+  "detail.comparedWithFirstParent": "Zmiany w porównaniu z pierwszym rodzicem",
   "detail.collapseSummary": "Zwiń podsumowanie commita",
   "detail.expandSummary": "Rozwiń podsumowanie commita",
   "detail.collapseFiles": "Zwiń zmienione pliki",

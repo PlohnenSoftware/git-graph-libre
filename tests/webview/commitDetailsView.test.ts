@@ -1,17 +1,17 @@
+import { describe, expect, it } from "vitest";
 import type { GitCommitDetails, GitFileChange } from "@/backend/types";
 import type { LocalizedStrings } from "@/extension/webviewL10n";
 import {
+  alterGitFileTree,
   COMMIT_DETAILS_DEFAULT_HEIGHT,
   COMMIT_DETAILS_MAX_HEIGHT,
   COMMIT_DETAILS_MIN_HEIGHT,
-  alterGitFileTree,
   clampCommitDetailsHeight,
   generateGitFileTree,
   renderCommitDetailsRowHtml,
   renderGitFileListHtml,
   renderGitFileTreeHtml
 } from "@/webview/commitDetailsView";
-import { describe, expect, it } from "vitest";
 
 const l10n = {
   detailCommit: "Commit: ",
@@ -27,6 +27,7 @@ const l10n = {
   detailExpandSummary: "Expand commit summary",
   detailCollapseFiles: "Collapse changed files",
   detailExpandFiles: "Expand changed files",
+  comparedWithFirstParent: "Changes compared with the first parent",
   detailResize: "Resize commit details",
   copyFilePath: "Copy file path",
   openFile: "Open file",
@@ -139,6 +140,25 @@ describe("commit details view rendering", () => {
     expect(host.querySelector("#commitDetailsResizeHandle")?.getAttribute("aria-valuenow")).toBe(
       COMMIT_DETAILS_DEFAULT_HEIGHT.toString()
     );
+  });
+
+  it("shows the first-parent note only for a merge commit", () => {
+    const mergeHost = renderSummaryHost({
+      ...commitDetails,
+      parents: ["def456", "789abc"]
+    });
+    const note = mergeHost.querySelector("#commitDetailsFilesBody > .commitDetailsFirstParentNote");
+    expect(note?.textContent).toBe("Changes compared with the first parent");
+    expect(note?.nextElementSibling?.classList.contains("gitFolderContents")).toBe(true);
+
+    expect(
+      renderSummaryHost(commitDetails).querySelector(".commitDetailsFirstParentNote")
+    ).toBeNull();
+    expect(
+      renderSummaryHost({ ...commitDetails, parents: [] }).querySelector(
+        ".commitDetailsFirstParentNote"
+      )
+    ).toBeNull();
   });
 
   it("renders one shared date when author and committer metadata matches", () => {
