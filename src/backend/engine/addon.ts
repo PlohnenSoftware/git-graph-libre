@@ -95,6 +95,13 @@ export type EngineAddon = {
    */
   loadCommitFile(repoPath: string, hash: string, file: string): Promise<string>;
   /**
+   * `load_index_file` encoded as JSON: the file's staged copy, or a binary
+   * marker when it is not text. Optional and deliberately absent from the
+   * shape check below, so binaries built before it still load and the
+   * callers fall back to `git show :<path>` — no engine version bump.
+   */
+  loadIndexFile?(repoPath: string, file: string): Promise<string>;
+  /**
    * `config_list` encoded as JSON: the entries of one location (local or
    * global), last value per key. A file carrying `include`/`includeIf`
    * directives declines, so the CLI resolves them.

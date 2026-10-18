@@ -21,6 +21,7 @@ import {
   type LoadCommitsArgs,
   resetEngineServedRead
 } from "@/backend/engine/index";
+import { readStagedFile } from "@/backend/engine/stagedFile";
 import { commitComparison } from "@/backend/queries/commitComparison";
 import { commitDetails } from "@/backend/queries/commitDetails";
 import { loadCommits } from "@/backend/queries/loadCommits";
@@ -1317,5 +1318,77 @@ describe("engine/CLI parity: searchCommits", () => {
       repo: dir
     });
     expect(viaAuto, "glob result").toEqual(direct);
+  }, 120000);
+});
+
+describe("engine/CLI parity: stagedFile", () => {
+  // The staged copy of a file (slice D43): the engine's `load_index_file`
+  // and the CLI's `git show :<path>` must agree on text, binary and missing.
+  // The addon is called directly as well as through `readStagedFile`, so a
+  // binary without the export fails here instead of hiding behind the
+  // seam's CLI fallback.
+  const dirs: string[] = [];
+  let dir: string;
+
+  beforeAll(() => {
+    dir = makeRepo();
+    dirs.push(dir);
+    // A staged modification, edited again afterwards so only the index
+    // still holds "staged text".
+    fs.writeFileSync(path.join(dir, "f"), "staged text\n");
+    git(["add", "f"], dir);
+    fs.writeFileSync(path.join(dir, "f"), "working text\n");
+    // A newly staged file, and a staged binary file.
+    fs.writeFileSync(path.join(dir, "new.txt"), "newly staged\n");
+    fs.writeFileSync(path.join(dir, "blob.bin"), Buffer.from([0, 1, 2, 3, 0, 255, 254, 65]));
+    git(["add", "new.txt", "blob.bin"], dir);
+  }, 180000);
+
+  afterAll(() => {
+    for (const candidate of dirs) fs.rmSync(candidate, { recursive: true, force: true });
+  });
+
+  it("the engine and the CLI agree on the staged copy", async (context) => {
+    const addon = loadEngineAddon();
+    if (addon === null) {
+      context.skip("Engine addon not built — run pnpm run engine:build for the engine half.");
+      return;
+    }
+    expect(addon.loadIndexFile, "loadIndexFile export").toBeTypeOf("function");
+
+    const engineDeps = {
+      gitPath: "git",
+      backend: () => "auto" as const,
+      addonProvider: () => addon,
+      isVerified: () => true
+    };
+    const cliDeps = { gitPath: "git", backend: () => "git-cli" as const };
+
+    for (const [file, expected] of [
+      ["f", { text: "staged text\n" }],
+      ["new.txt", { text: "newly staged\n" }],
+      ["blob.bin", { binary: true }],
+      ["no-such.txt", { missing: true }]
+    ] as const) {
+      const viaEngine = await readStagedFile(dir, file, engineDeps);
+      const viaCli = await readStagedFile(dir, file, cliDeps);
+      expect(viaEngine, `${file} engine`).toEqual(expected);
+      expect(viaCli, `${file} cli`).toEqual(expected);
+    }
+
+    // The addon itself, without the seam: the payload matches `git show`
+    // byte for byte, and a path outside the index is `NotFound` there too.
+    for (const file of ["f", "new.txt"]) {
+      const parsed = parseEngineCommitFile((await addon.loadIndexFile?.(dir, file)) ?? "");
+      const shown = cp.execFileSync("git", ["show", `:${file}`], { cwd: dir });
+      expect(parsed?.binary, `${file} binary`).toBe(false);
+      expect(parsed?.contents, `${file} contents`).toBe(shown.toString("utf8"));
+    }
+    const binary = parseEngineCommitFile((await addon.loadIndexFile?.(dir, "blob.bin")) ?? "");
+    expect(binary, "staged binary").toEqual({ contents: null, binary: true });
+    await expect(addon.loadIndexFile?.(dir, "no-such.txt")).rejects.toThrow(/NotFound/);
+    expect(() =>
+      cp.execFileSync("git", ["show", ":no-such.txt"], { cwd: dir, stdio: "pipe" })
+    ).toThrow();
   }, 120000);
 });
