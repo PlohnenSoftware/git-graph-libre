@@ -8,7 +8,7 @@ summary: >-
 
 # D04 — Show type changes in file lists
 
-Status: waiting on X2
+Status: waiting on re-scope for X2 (b) — steps below cover (a) only
 Needs: —
 Decisions: X2
 Kind: TypeScript + Rust (the Rust arm applies) · Size budget: ≤ 250 changed lines outside tests

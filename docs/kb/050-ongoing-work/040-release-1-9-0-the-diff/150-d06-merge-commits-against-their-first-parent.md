@@ -9,7 +9,7 @@ summary: >-
 
 # D06 — Merge commits against their first parent
 
-Status: waiting on X1
+Status: ready
 Needs: —
 Decisions: X1
 Kind: TypeScript (webview label included) · Size budget: ≤ 200 changed lines outside tests

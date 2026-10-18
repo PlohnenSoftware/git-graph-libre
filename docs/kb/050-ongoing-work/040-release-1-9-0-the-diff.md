@@ -65,19 +65,19 @@ wait for them.
 | D01 | [Log engine hits for diff reads](040-release-1-9-0-the-diff/100-d01-log-engine-hits-for-diff-reads.md) | TS | — | A | integrated 2ddce22 |
 | D02 | [Correct stash details on the CLI path](040-release-1-9-0-the-diff/110-d02-correct-stash-details-on-the-cli-path.md) | TS | — | B | integrated c7349b2 |
 | D03 | [Diff stashed untracked files from the third parent](040-release-1-9-0-the-diff/120-d03-diff-stashed-untracked-files-from-the-third-parent.md) | TS | D02 | B | integrated 221e98c |
-| D04 | [Show type changes in file lists](040-release-1-9-0-the-diff/130-d04-show-type-changes-in-file-lists.md) | TS + Rust | X2 | C | waiting on X2 |
+| D04 | [Show type changes in file lists](040-release-1-9-0-the-diff/130-d04-show-type-changes-in-file-lists.md) | TS + Rust | X2 | C | waiting on re-scope for X2 (b) |
 | D05 | [Engine line counts that match Git](040-release-1-9-0-the-diff/140-d05-engine-line-counts-that-match-git.md) | Rust | — | D | integrated 79c5fb4 |
-| D06 | [Merge commits against their first parent](040-release-1-9-0-the-diff/150-d06-merge-commits-against-their-first-parent.md) | TS | X1 | C | waiting on X1 |
+| D06 | [Merge commits against their first parent](040-release-1-9-0-the-diff/150-d06-merge-commits-against-their-first-parent.md) | TS | X1 | C | ready |
 | D07 | [Upgrade gix for the upstream diff fixes](040-release-1-9-0-the-diff/160-d07-upgrade-gix-for-the-upstream-diff-fixes.md) | Rust | a gix release | D | blocked (external) |
-| D10 | [Compare two selected commits](040-release-1-9-0-the-diff/200-d10-compare-two-selected-commits.md) | webview | X3 | E | waiting on X3 |
+| D10 | [Compare two selected commits](040-release-1-9-0-the-diff/200-d10-compare-two-selected-commits.md) | webview | X3 | E | ready |
 | D11 | [Resolve a ref for comparison](040-release-1-9-0-the-diff/210-d11-resolve-a-ref-for-comparison.md) | TS | — | F | integrated 70db6f9 |
 | D12 | ["Compare with…" dialog](040-release-1-9-0-the-diff/220-d12-compare-with-dialog.md) | webview | D10, D11 | E | waiting on D10, D11 |
 | D13 | [Comparison header and swap](040-release-1-9-0-the-diff/230-d13-comparison-header-and-swap.md) | webview | D10 | E | waiting on D10 |
 | D14 | [Compare with the working tree](040-release-1-9-0-the-diff/240-d14-compare-with-the-working-tree.md) | TS + webview | D13 | E | waiting on D13 |
-| D15 | [Open a comparison in the external diff tool](040-release-1-9-0-the-diff/250-d15-open-a-comparison-in-the-external-diff-tool.md) | TS + webview | X4, D13 | G | waiting on X4 |
-| D20 | [Phase 17 legal groundwork](040-release-1-9-0-the-diff/300-d20-phase-17-legal-groundwork.md) | docs | X5, P17-D1, P17-D3 | H | waiting on decisions |
+| D15 | [Open a comparison in the external diff tool](040-release-1-9-0-the-diff/250-d15-open-a-comparison-in-the-external-diff-tool.md) | TS + webview | X4, D13 | G | waiting on D13 |
+| D20 | [Phase 17 legal groundwork](040-release-1-9-0-the-diff/300-d20-phase-17-legal-groundwork.md) | docs | X5, P17-D1, P17-D3 | H | ready |
 | D21 | [Phase 17 oracle suite](040-release-1-9-0-the-diff/310-d21-phase-17-oracle-suite.md) | TS tests | D20 | H | waiting on D20 |
-| D22 | [Phase 17 port sub-slices (stretch)](040-release-1-9-0-the-diff/320-d22-phase-17-port-sub-slices.md) | Rust | D21, X5 | H | stretch |
+| D22 | [Phase 17 port sub-slices (stretch)](040-release-1-9-0-the-diff/320-d22-phase-17-port-sub-slices.md) | Rust | D21, X5 | H | waiting on D21 |
 | D30 | [Upstream gix contributions for Git compatibility](040-release-1-9-0-the-diff/400-d30-upstream-gix-git-compatibility.md) | gix fork | — | U | ready (posting: maintainer) |
 | D40 | [Vendor the diff editor's stylesheet](040-release-1-9-0-the-diff/500-d40-vendor-the-diff-editor-stylesheet.md) | CSS, notices | — | I | ready |
 | D41 | [The diff row model](040-release-1-9-0-the-diff/510-d41-the-diff-row-model.md) | TS | — | I | ready |

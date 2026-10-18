@@ -8,7 +8,7 @@ summary: >-
 
 # D22 — Phase 17 port sub-slices (stretch)
 
-Status: stretch — waiting on D21 and X5
+Status: waiting on D21 (X5 answered `2026-10-19`: full port in scope)
 Needs: D21
 Decisions: X5 = (b); Phase 17 D1, D2 and D5
 Kind: Rust, the Rust arm applies · Size budget: per sub-slice, as listed

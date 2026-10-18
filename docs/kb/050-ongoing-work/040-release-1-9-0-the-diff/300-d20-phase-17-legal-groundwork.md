@@ -9,7 +9,7 @@ summary: >-
 
 # D20 — Phase 17 legal groundwork
 
-Status: waiting on decisions
+Status: ready
 Needs: —
 Decisions: X5, Phase 17 D1 and D3
 Kind: docs, notices, `package.json` · Size budget: ≤ 150 changed lines
