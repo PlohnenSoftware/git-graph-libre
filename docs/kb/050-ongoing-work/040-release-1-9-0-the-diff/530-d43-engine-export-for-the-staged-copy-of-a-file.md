@@ -9,7 +9,7 @@ summary: >-
 
 # D43 — Engine export for the staged copy of a file
 
-Status: ready
+Status: claimed by Muse Code sub-agent D43 on 2026-10-19 01:36
 Needs: —
 Decisions: —
 Kind: Rust and TypeScript, the Rust arm applies · Size budget: ≤ 150 changed lines outside tests

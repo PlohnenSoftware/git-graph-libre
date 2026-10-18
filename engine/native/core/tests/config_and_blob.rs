@@ -166,6 +166,56 @@ fn a_missing_path_is_not_found() {
 }
 
 #[test]
+fn reads_the_staged_copy_from_the_index() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    repo.commit_file("a.txt", "one\n", "first");
+    // Stage a modification of `a.txt` and a brand-new file, then edit
+    // `a.txt` once more: the index must still hold the staged text.
+    repo.write("a.txt", "staged\n");
+    repo.write("new.txt", "newly staged\n");
+    repo.git(&["add", "a.txt", "new.txt"]);
+    repo.write("a.txt", "working\n");
+
+    let engine = open(&repo);
+    let staged = blob::index_file(&engine, "a.txt").unwrap();
+    let new = blob::index_file(&engine, "new.txt").unwrap();
+
+    assert!(!staged.binary);
+    assert_eq!(staged.contents.as_deref(), Some("staged\n"));
+    assert_eq!(new.contents.as_deref(), Some("newly staged\n"));
+}
+
+#[test]
+fn reports_a_staged_binary_file_as_binary() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    repo.commit_file("a.txt", "one\n", "first");
+    repo.write("blob.bin", "text\0with a nul\n");
+    repo.git(&["add", "blob.bin"]);
+
+    let engine = open(&repo);
+    let file = blob::index_file(&engine, "blob.bin").unwrap();
+
+    assert!(file.binary);
+    assert_eq!(file.contents, None);
+}
+
+#[test]
+fn a_path_outside_the_index_is_not_found() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    repo.commit_file("a.txt", "one\n", "first");
+    // Present on disk but never staged: not in the index either.
+    repo.write("untracked.txt", "not staged\n");
+
+    let engine = open(&repo);
+    let error = blob::index_file(&engine, "untracked.txt").unwrap_err();
+
+    assert_eq!(error.kind, git_graph_core::ErrorKind::NotFound);
+}
+
+#[test]
 fn diffs_a_modified_file_against_its_parent() {
     require_git!();
     let mut repo = TestRepo::new();

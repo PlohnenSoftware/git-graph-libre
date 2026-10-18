@@ -207,6 +207,17 @@ pub async fn load_commit_file(path: String, commit_hash: String, file: String) -
     .await
 }
 
+/// The content of one file's staged copy — what the index holds — or a binary marker when it
+/// is not text. A path that is not in the index answers `NotFound`.
+#[napi]
+pub async fn load_index_file(path: String, file: String) -> Result<String> {
+    run(move || {
+        let repo = RepoManager::global().get(&path)?;
+        encode(&blob::index_file(&repo, &file)?)
+    })
+    .await
+}
+
 /// The unified diff of one file between a commit and its first parent.
 #[napi]
 pub async fn load_commit_file_diff(
