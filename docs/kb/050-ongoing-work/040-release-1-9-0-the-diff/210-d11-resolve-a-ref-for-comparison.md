@@ -8,7 +8,7 @@ summary: >-
 
 # D11 — Resolve a ref for comparison
 
-Status: done — awaiting integration
+Status: integrated 70db6f9
 Needs: —
 Decisions: —
 Kind: TypeScript (backend and message contract) · Size budget: ≤ 180 changed lines outside tests

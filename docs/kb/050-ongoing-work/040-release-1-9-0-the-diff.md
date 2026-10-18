@@ -69,7 +69,7 @@ wait for them.
 | D06 | [Merge commits against their first parent](040-release-1-9-0-the-diff/150-d06-merge-commits-against-their-first-parent.md) | TS | X1 | C | waiting on X1 |
 | D07 | [Upgrade gix for the upstream diff fixes](040-release-1-9-0-the-diff/160-d07-upgrade-gix-for-the-upstream-diff-fixes.md) | Rust | a gix release | D | blocked (external) |
 | D10 | [Compare two selected commits](040-release-1-9-0-the-diff/200-d10-compare-two-selected-commits.md) | webview | X3 | E | waiting on X3 |
-| D11 | [Resolve a ref for comparison](040-release-1-9-0-the-diff/210-d11-resolve-a-ref-for-comparison.md) | TS | — | F | ready |
+| D11 | [Resolve a ref for comparison](040-release-1-9-0-the-diff/210-d11-resolve-a-ref-for-comparison.md) | TS | — | F | integrated 70db6f9 |
 | D12 | ["Compare with…" dialog](040-release-1-9-0-the-diff/220-d12-compare-with-dialog.md) | webview | D10, D11 | E | waiting on D10, D11 |
 | D13 | [Comparison header and swap](040-release-1-9-0-the-diff/230-d13-comparison-header-and-swap.md) | webview | D10 | E | waiting on D10 |
 | D14 | [Compare with the working tree](040-release-1-9-0-the-diff/240-d14-compare-with-the-working-tree.md) | TS + webview | D13 | E | waiting on D13 |
@@ -105,4 +105,4 @@ release; then D90.
 The integrator appends one dated line per integrated slice or wave: the
 commit, the gate results with numbers, and the Sonar task id.
 
-- *(empty)*
+- `2026-10-19` — D11 integrated (`70db6f9`, fast-forward from `diff-1.9.0/d11`; commits `9eebcf3`, `70db6f9`, both `G`). Gates on the result: strict Biome clean on the 5 touched files, typecheck green, tests backend 862/862 and webview 590/590 (the 29 engine-test skips in the slice worktree were the missing built addon there; none skip on the integration branch), `kb:check` green. SonarQube: wave gate, pending.
