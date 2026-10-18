@@ -181,6 +181,7 @@ fn collect_changes(
         options.track_rewrites(Some(gix::diff::Rewrites {
             copies: None,
             percentage: Some(RENAME_SIMILARITY),
+            track_empty: true,
             ..Default::default()
         }));
     });
@@ -257,6 +258,7 @@ pub fn line_counts(
         options.track_rewrites(Some(gix::diff::Rewrites {
             copies: None,
             percentage: Some(RENAME_SIMILARITY),
+            track_empty: true,
             ..Default::default()
         }));
     });
@@ -282,10 +284,13 @@ pub fn line_counts(
             additions: None,
             deletions: None,
         };
-        if let Ok(mut platform) = change.diff(&mut cache) {
-            if let Ok(Some(line_counts)) = platform.line_counts() {
-                counts.additions = Some(line_counts.insertions);
-                counts.deletions = Some(line_counts.removals);
+        if let Some((additions, deletions)) = gitlink_counts(&change) {
+            counts.additions = Some(additions);
+            counts.deletions = Some(deletions);
+        } else if let Ok(platform) = change.diff(&mut cache) {
+            if let Some((additions, deletions)) = count_lines(platform) {
+                counts.additions = Some(additions);
+                counts.deletions = Some(deletions);
             }
         }
         counted.insert(change.location().to_string(), counts);
@@ -294,6 +299,65 @@ pub fn line_counts(
     outcome.map_err(|e| Error::git(format!("Could not diff the trees: {e}")))?;
 
     Ok(counted)
+}
+
+/// Count added and removed lines the way `git diff --numstat` does, keeping line endings.
+///
+/// Temporary shim: gix's `Platform::line_counts()` diffs lines with their LF/CRLF stripped, so a
+/// final line gaining its newline and a CRLF-to-LF conversion both count as no change. Diffing
+/// the `intern_source()` tokens instead keeps the terminators and matches git. Remove this once
+/// gix ships numstat-compatible counts (D30b) and switch back to `line_counts()`.
+fn count_lines(platform: gix::object::blob::diff::Platform<'_>) -> Option<(u32, u32)> {
+    use gix::diff::blob::platform::prepare_diff::Operation;
+
+    platform
+        .resource_cache
+        .options
+        .skip_internal_diff_if_external_is_configured = false;
+    let prep = platform.resource_cache.prepare_diff().ok()?;
+    match prep.operation {
+        Operation::InternalDiff { algorithm } => {
+            let input = gix::diff::blob::InternedInput::new(
+                prep.old.intern_source(),
+                prep.new.intern_source(),
+            );
+            let diff = gix::diff::blob::Diff::compute(algorithm, &input);
+            Some((diff.count_additions(), diff.count_removals()))
+        }
+        Operation::SourceOrDestinationIsBinary | Operation::ExternalCommand { .. } => None,
+    }
+}
+
+/// The counts git reports for a gitlink (submodule), whose diff is its one `Subproject commit`
+/// line: `(1, 0)` when added, `(0, 1)` when deleted and `(1, 1)` when moved to another commit.
+/// `None` for a change no side of which is a gitlink.
+fn gitlink_counts(change: &gix::object::tree::diff::Change<'_, '_, '_>) -> Option<(u32, u32)> {
+    use gix::object::tree::diff::Change;
+
+    match change {
+        Change::Addition { entry_mode, .. } if entry_mode.is_commit() => Some((1, 0)),
+        Change::Deletion { entry_mode, .. } if entry_mode.is_commit() => Some((0, 1)),
+        Change::Modification {
+            entry_mode,
+            previous_entry_mode,
+            ..
+        } if entry_mode.is_commit() || previous_entry_mode.is_commit() => Some((1, 1)),
+        Change::Rewrite {
+            entry_mode,
+            source_entry_mode,
+            source_id,
+            id,
+            ..
+        } if entry_mode.is_commit() || source_entry_mode.is_commit() => {
+            // A rename that keeps the same submodule commit changes no `Subproject commit` line.
+            Some(if source_id.detach() == id.detach() {
+                (0, 0)
+            } else {
+                (1, 1)
+            })
+        }
+        _ => None,
+    }
 }
 
 /// Turn one tree change into a file change record, or `None` for changes the view does not list.

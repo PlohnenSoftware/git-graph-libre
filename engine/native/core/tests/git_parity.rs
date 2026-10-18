@@ -263,3 +263,139 @@ fn replacement_objects_hand_history_reads_to_git() {
     let engine = open(&repo);
     declined(graph::load_commits(&engine, &options).unwrap_err().kind);
 }
+
+/* ---------- Diff line counts ---------- */
+
+/// The `+N/-M` git itself reports for one path of one commit, from
+/// `git diff-tree -r --numstat --find-renames`. `None` is numstat's dash (a binary file).
+fn git_numstat_counts(repo: &TestRepo, hash: &str, path: &str) -> (Option<u32>, Option<u32>) {
+    let out = repo.git(&[
+        "diff-tree",
+        "-r",
+        "--root",
+        "--no-commit-id",
+        "--numstat",
+        "--find-renames",
+        hash,
+    ]);
+    for line in out.lines() {
+        let mut fields = line.split('\t');
+        let (Some(added), Some(deleted), Some(found)) =
+            (fields.next(), fields.next(), fields.next())
+        else {
+            continue;
+        };
+        if found == path {
+            let parse = |value: &str| value.parse::<u32>().ok();
+            return (parse(added), parse(deleted));
+        }
+    }
+    panic!("`git diff-tree --numstat` has no line for {path} in {hash}:\n{out}");
+}
+
+/// The engine's `+N/-M` for one path of one commit, against its first parent.
+fn engine_counts(engine: &Repo, hash: &str, path: &str) -> (Option<u32>, Option<u32>) {
+    let counts = diff::line_counts(engine, None, hash, &[path.to_string()]).unwrap();
+    let settled = counts
+        .get(path)
+        .copied()
+        .expect("the engine settled no counts for the path");
+    (settled.additions, settled.deletions)
+}
+
+#[test]
+fn a_final_line_gaining_its_newline_counts_as_git_counts_it() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    repo.commit_file("a.txt", "one\ntwo", "no trailing newline");
+    let hash = repo.commit_file("a.txt", "one\ntwo\n", "add the trailing newline");
+
+    // git counts the last line as replaced: it gained its terminator.
+    assert_eq!(
+        git_numstat_counts(&repo, &hash, "a.txt"),
+        (Some(1), Some(1))
+    );
+    let engine = open(&repo);
+    assert_eq!(engine_counts(&engine, &hash, "a.txt"), (Some(1), Some(1)));
+}
+
+#[test]
+fn a_crlf_to_lf_conversion_counts_every_line_as_git_does() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    repo.git(&["config", "core.autocrlf", "false"]);
+    repo.commit_file("a.txt", "one\r\ntwo\r\nthree\r\n", "CRLF");
+    let hash = repo.commit_file("a.txt", "one\ntwo\nthree\n", "LF");
+
+    // Every line's terminator changed, so git counts every line.
+    assert_eq!(
+        git_numstat_counts(&repo, &hash, "a.txt"),
+        (Some(3), Some(3))
+    );
+    let engine = open(&repo);
+    assert_eq!(engine_counts(&engine, &hash, "a.txt"), (Some(3), Some(3)));
+}
+
+#[test]
+fn a_renamed_empty_file_is_one_rename_as_git_reports_it() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    repo.commit_file("empty.txt", "", "an empty file");
+    repo.git(&["mv", "empty.txt", "moved.txt"]);
+    let hash = repo.commit("move the empty file");
+
+    // git pairs the two empty blobs into one rename.
+    let name_status = repo.git(&[
+        "diff-tree",
+        "-r",
+        "--no-commit-id",
+        "--name-status",
+        "-M",
+        &hash,
+    ]);
+    assert_eq!(name_status.trim(), "R100\tempty.txt\tmoved.txt");
+
+    let engine = open(&repo);
+    let changes = diff::diff_commit(&engine, &hash).unwrap();
+    assert_eq!(changes.len(), 1, "{changes:?}");
+    assert_eq!(changes[0].kind, GitFileStatus::Renamed);
+    assert_eq!(changes[0].old_file_path, "empty.txt");
+    assert_eq!(changes[0].new_file_path, "moved.txt");
+    assert_eq!(
+        engine_counts(&engine, &hash, "moved.txt"),
+        (Some(0), Some(0))
+    );
+}
+
+#[test]
+fn a_submodule_counts_as_git_counts_it() {
+    require_git!();
+    let mut sub_source = TestRepo::new();
+    let sub_first = sub_source.commit_file("inside.txt", "one\n", "sub one");
+    let sub_second = sub_source.commit_file("inside.txt", "two\n", "sub two");
+
+    let mut repo = TestRepo::new();
+    repo.commit_file("a.txt", "base\n", "base");
+    let sub_path = sub_source.path().display().to_string().replace('\\', "/");
+    repo.git(&[
+        "-c",
+        "protocol.file.allow=always",
+        "submodule",
+        "add",
+        "--quiet",
+        &sub_path,
+        "sub",
+    ]);
+    repo.git(&["-C", "sub", "checkout", "--quiet", &sub_first]);
+    let added = repo.commit("add the submodule");
+    repo.git(&["-C", "sub", "checkout", "--quiet", &sub_second]);
+    let moved = repo.commit("move the submodule");
+
+    // git's numstat for a gitlink is its one `Subproject commit` line.
+    assert_eq!(git_numstat_counts(&repo, &added, "sub"), (Some(1), Some(0)));
+    assert_eq!(git_numstat_counts(&repo, &moved, "sub"), (Some(1), Some(1)));
+
+    let engine = open(&repo);
+    assert_eq!(engine_counts(&engine, &added, "sub"), (Some(1), Some(0)));
+    assert_eq!(engine_counts(&engine, &moved, "sub"), (Some(1), Some(1)));
+}
