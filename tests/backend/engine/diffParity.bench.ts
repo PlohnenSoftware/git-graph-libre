@@ -30,12 +30,21 @@ import { diffTexts } from "@/backend/engine/diffTexts";
  * Repositories are read with `git log`/`git diff`/`git show` only.
  *
  * Both passes use `ignoreTrimWhitespace: false`,
- * `extendToSubwords: false` and no time limit. The changes pass runs all
+ * `extendToSubwords: false` and VS Code's editor-default computation
+ * cap, `maxComputationTimeMs` 5000 (`diffEditor.maxComputationTime`),
+ * on every arm; `hitTimeout` is counted per arm and reported with the
+ * timings. The cap is what keeps a sweep finite: the first, unbounded
+ * run over this repository burned about 83 minutes of CPU on
+ * generated-file pairs with multi-megabyte lines (few lines, so the
+ * line bound above never caught them) and was killed with nothing
+ * flushed. The changes pass runs all
  * four arms with `computeMoves: false` (the package computes no moves);
  * the moves pass runs our two arms with `computeMoves: true` and
  * compares the full result, moves included.
  */
 
+/** VS Code's `diffEditor.maxComputationTime` default, applied to every arm. */
+const MAX_TIME_MS = 5000;
 const COMMITS = positiveInt("GGL_PARITY_COMMITS", 100);
 const MAX_LINES = positiveInt("GGL_PARITY_MAX_LINES", 50000);
 const EXAMPLES_PER_PAIR = positiveInt("GGL_PARITY_EXAMPLES", 5);
@@ -172,7 +181,7 @@ let packageWasm: Awaited<ReturnType<DiffPackage["_initWasm"]>>;
 function packageOptions() {
   return {
     ignoreTrimWhitespace: false,
-    maxComputationTimeMs: 0,
+    maxComputationTimeMs: MAX_TIME_MS,
     computeMoves: false,
     extendToSubwords: false
   };
@@ -271,7 +280,7 @@ function ourDetailed(change: OurDetailed): ChangeLike {
 function ourWasmDiffs(c: PairCase, moves: boolean): RawDiff {
   if (!ourWasm) throw new Error("our wasm build was not loaded");
   const parsed = JSON.parse(
-    ourWasm.computeDiff(c.firstContent, c.secondContent, false, moves, false, 0)
+    ourWasm.computeDiff(c.firstContent, c.secondContent, false, moves, false, MAX_TIME_MS)
   ) as OurResponse;
   if ("error" in parsed) throw new Error(parsed.error);
   return {
@@ -292,7 +301,7 @@ async function ourNativeDiffs(c: PairCase, moves: boolean): Promise<RawDiff> {
     c.secondContent,
     {
       ignoreTrimWhitespace: false,
-      maxComputationTimeMs: 0,
+      maxComputationTimeMs: MAX_TIME_MS,
       computeMoves: moves,
       extendToSubwords: false
     },
@@ -585,7 +594,9 @@ async function main(): Promise<void> {
   console.log(
     `skips: binary, non-UTF-8, or over ${MAX_LINES} lines on either side (counted below)`
   );
-  console.log("options: ignoreTrimWhitespace false, extendToSubwords false, no time limit");
+  console.log(
+    `options: ignoreTrimWhitespace false, extendToSubwords false, maxComputationTimeMs ${MAX_TIME_MS} on every arm (hitTimeout counted per arm)`
+  );
   console.log("arms: the four computing arms (real history has no expected JSON)");
   console.log("");
 
