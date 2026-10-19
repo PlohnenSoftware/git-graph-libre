@@ -1,0 +1,9 @@
+[package]
+name = "git-graph-diff"
+description = "Rust port of VS Code's advanced diff algorithm (Phase 17)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license = "AGPL-3.0-or-later AND MIT"
+
+[dependencies]

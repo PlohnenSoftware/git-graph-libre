@@ -7,6 +7,7 @@
 native/*/
 !native/core/
 !native/node/
+!native/diff/
 
 # The pinned zig `build-all.mjs` installs. Outside target/ so a cache action
 # can own that directory without evicting this.

@@ -368,6 +368,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "git-graph-diff"
+version = "1.0.26"
+
+[[package]]
 name = "git-graph-node"
 version = "1.0.26"
 dependencies = [
