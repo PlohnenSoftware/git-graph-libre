@@ -126,26 +126,26 @@ const randomText = () => {
 // A modified copy: a few token-level and character-level edits.
 const mutateLine = (line) => {
   const parts = line.split(/(?<=[ (){},;=+.])/u);
-  const out = [];
+  const edited = [];
   for (const part of parts) {
     const r = rand(12);
     if (r === 0) continue;
-    if (r === 1) out.push(token());
-    else if (r === 2) out.push(part + token());
-    else if (r === 3 && part.length > 1) out.push(part.slice(0, 1) + 'e' + part.slice(2));
-    else out.push(part);
+    if (r === 1) edited.push(token());
+    else if (r === 2) edited.push(part + token());
+    else if (r === 3 && part.length > 1) edited.push(part.slice(0, 1) + 'e' + part.slice(2));
+    else edited.push(part);
   }
-  return out.join('');
+  return edited.join('');
 };
 const mutateText = (lines) => {
-  const out = [];
+  const edited = [];
   for (const line of lines) {
     const r = rand(10);
     if (r === 0) continue;
-    out.push(r < 6 ? mutateLine(line) : line);
-    if (r === 9) out.push(randomLine(8));
+    edited.push(r < 6 ? mutateLine(line) : line);
+    if (r === 9) edited.push(randomLine(8));
   }
-  return out.length ? out : [randomLine(6)];
+  return edited.length ? edited : [randomLine(6)];
 };
 
 // ---- serialization --------------------------------------------------------
