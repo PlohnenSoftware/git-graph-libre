@@ -10,7 +10,7 @@ summary: >-
 
 # D44 — The GGL Diff tab
 
-Status: ready
+Status: claimed by Claude Code sub-agent D44 on 2026-10-19 02:23
 Needs: D42
 Decisions: Phase 17 D4 (answered: G4, option (c))
 Kind: TypeScript, webview, build · Size budget: ≤ 300 changed lines outside tests
