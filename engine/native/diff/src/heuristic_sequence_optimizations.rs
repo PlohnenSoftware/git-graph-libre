@@ -176,7 +176,8 @@ fn shift_right_and_join(
     result2
 }
 
-/// The range an empty diff may move within: not onto the previous or next diff.
+/// The range an empty diff may move within: not onto the previous or next diff
+/// (`shiftSequenceDiffs` L142-L143, the two `OffsetRange` constructions).
 fn valid_range(prev_end: Option<u32>, next_start: Option<u32>, length: u32) -> OffsetRange {
     let start = prev_end.map_or(0, |end| i64::from(end) + 1);
     let end = next_start.map_or(i64::from(length), |s| i64::from(s) - 1);
@@ -184,8 +185,11 @@ fn valid_range(prev_end: Option<u32>, next_start: Option<u32>, length: u32) -> O
     OffsetRange::new(start as u32, end as u32)
 }
 
-// Aligns character level diffs at whitespace and other boundaries, e.g.
-// `import { I[Arr, I]Bar }` becomes `import { [IArr, ]IBar }`.
+/// `shiftSequenceDiffs` (`heuristicSequenceOptimizations.ts` L132-L153):
+/// aligns character level diffs at whitespace and other boundaries, e.g.
+/// `import { I[Arr, I]Bar }` becomes `import { [IArr, ]IBar }`. L133-L135
+/// (no boundary scores) is here; `valid_range` replaces L142-L143, and each
+/// empty diff goes to `shift_diff_to_better_position` (L145-L149).
 fn shift_sequence_diffs(
     sequence1: &dyn ISequence,
     sequence2: &dyn ISequence,
@@ -234,14 +238,17 @@ fn shift_sequence_diffs(
     sequence_diffs
 }
 
-fn shift_diff_to_better_position(
+const MAX_SHIFT_LIMIT: i64 = 100; // To prevent performance issues
+
+/// How far the diff may move left and right without touching its neighbors
+/// (`shiftDiffToBetterPosition` L158-L176: the `deltaBefore` loop with its
+/// decrement at L167, then the `deltaAfter` loop).
+fn shift_limits(
     diff: SequenceDiff,
-    sequence1: &dyn ISequence,
     sequence2: &dyn ISequence,
     seq1_valid_range: OffsetRange,
     seq2_valid_range: OffsetRange,
-) -> SequenceDiff {
-    const MAX_SHIFT_LIMIT: i64 = 100; // To prevent performance issues
+) -> (i64, i64) {
     let start1 = i64::from(diff.seq1_range.start);
     let start2 = i64::from(diff.seq2_range.start);
     let end2 = i64::from(diff.seq2_range.end_exclusive);
@@ -255,7 +262,6 @@ fn shift_diff_to_better_position(
     {
         delta_before += 1;
     }
-    delta_before -= 1;
 
     let mut delta_after = 0;
     while start1 + delta_after < i64::from(seq1_valid_range.end_exclusive)
@@ -265,14 +271,23 @@ fn shift_diff_to_better_position(
     {
         delta_after += 1;
     }
+    (delta_before - 1, delta_after)
+}
 
-    if delta_before == 0 && delta_after == 0 {
-        return diff;
-    }
-
+/// The shift in `-delta_before..=delta_after` with the best boundary score
+/// (`shiftDiffToBetterPosition` L185-L198; the first best wins).
+fn best_shift(
+    diff: SequenceDiff,
+    sequence1: &dyn ISequence,
+    sequence2: &dyn ISequence,
+    delta_before: i64,
+    delta_after: i64,
+) -> i64 {
+    let start1 = i64::from(diff.seq1_range.start);
+    let start2 = i64::from(diff.seq2_range.start);
+    let end2 = i64::from(diff.seq2_range.end_exclusive);
     let mut best_delta = 0;
     let mut best_score = -1.0;
-    // find best scored delta
     for delta in -delta_before..=delta_after {
         let score = |sequence: &dyn ISequence, offset: i64| {
             sequence
@@ -285,7 +300,32 @@ fn shift_diff_to_better_position(
             best_delta = delta;
         }
     }
-    diff.delta(best_delta)
+    best_delta
+}
+
+/// `shiftDiffToBetterPosition` (`heuristicSequenceOptimizations.ts`
+/// L155-L201). Calls, in order: `shift_limits` (L158-L176), the no-shift
+/// return (L178-L180, here), `best_shift` (L185-L198), and the final
+/// `diff.delta(bestDelta)` (L200, here).
+fn shift_diff_to_better_position(
+    diff: SequenceDiff,
+    sequence1: &dyn ISequence,
+    sequence2: &dyn ISequence,
+    seq1_valid_range: OffsetRange,
+    seq2_valid_range: OffsetRange,
+) -> SequenceDiff {
+    let (delta_before, delta_after) =
+        shift_limits(diff, sequence2, seq1_valid_range, seq2_valid_range);
+    if delta_before == 0 && delta_after == 0 {
+        return diff;
+    }
+    diff.delta(best_shift(
+        diff,
+        sequence1,
+        sequence2,
+        delta_before,
+        delta_after,
+    ))
 }
 
 pub fn remove_short_matches(
