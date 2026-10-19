@@ -136,3 +136,6 @@ Status: done — awaiting integration
 - **Acceptance:** met: exact oracle match on the whole corpus, and the pinned weight tables.
 - **Deviations from the slice:** (1) `Math.pow` is Rust's `powf` (no new dependency, so no `libm`); the corpus pins `Math.pow(x, 1.5)` for 0..=130, the full weight formula for every pair of caps (8,646) and the threshold, all bit-identical to V8 here (the platform libm could differ elsewhere; the test would show it). (2) `deltaStart(-prefix.length)` can go below zero on the second range in TypeScript, where the later intersection clamps it; Rust clamps at zero first, equivalent. (3) The `findParent` callbacks take an `i64` offset, so 22f can pass `find_word_containing` directly. (4) Subtractions that can go negative are done in `i64`; `OffsetPair::MAX` is only ever used in `min`/`max`, never added to. (5) Unused `sequence` parameters of `removeShortMatches` and `removeVeryShortMatchingLinesBetweenDiffs` are kept as `_sequence` for 22f's call parity. (6) `forEachWithNeighbors` is inlined as an index loop.
 - **Open questions / follow-ups:** none blocking. The data file is 1.2 MB; the integrator may want fewer scenarios.
+### 22g Report
+
+Status: claimed by Claude Sonnet 22g on 2026-10-19 15:04
