@@ -199,9 +199,100 @@ pub fn get_line_range_mapping(
     )
 }
 
+/// `lineRangeMappingFromRangeMappings` (`rangeMapping.ts` L322-L359): groups
+/// the character mappings whose line ranges intersect or touch
+/// (`groupAdjacentBy`, comparing each with the one before it) into one
+/// `DetailedLineRangeMapping` per group. The `assertFn` at L340-L358 is
+/// [`assert_changes_valid`], a debug assertion.
+pub fn line_range_mapping_from_range_mappings(
+    alignments: &[RangeMapping],
+    original_lines: &TextModel,
+    modified_lines: &TextModel,
+    dont_assert_start_line: bool,
+) -> Vec<DetailedLineRangeMapping> {
+    let mut groups: Vec<Vec<DetailedLineRangeMapping>> = Vec::new();
+    for alignment in alignments {
+        let item = get_line_range_mapping(alignment, original_lines, modified_lines);
+        match groups.last_mut() {
+            Some(group) if should_group(group.last().expect("groups are never empty"), &item) => {
+                group.push(item);
+            }
+            _ => groups.push(vec![item]),
+        }
+    }
+    let changes: Vec<DetailedLineRangeMapping> = groups
+        .into_iter()
+        .map(|group| {
+            let (first, last) = (&group[0], &group[group.len() - 1]);
+            DetailedLineRangeMapping::new(
+                first.original.join(last.original),
+                first.modified.join(last.modified),
+                Some(
+                    group
+                        .iter()
+                        .map(|a| {
+                            a.inner_changes
+                                .as_ref()
+                                .expect("set by getLineRangeMapping")[0]
+                                .clone()
+                        })
+                        .collect(),
+                ),
+            )
+        })
+        .collect();
+    debug_assert!(assert_changes_valid(
+        &changes,
+        original_lines,
+        modified_lines,
+        dont_assert_start_line
+    ));
+    changes
+}
+
+/// The predicate of `groupAdjacentBy` at `rangeMapping.ts` L325-L327.
+fn should_group(a1: &DetailedLineRangeMapping, a2: &DetailedLineRangeMapping) -> bool {
+    a1.original.intersects_or_touches(a2.original) || a1.modified.intersects_or_touches(a2.modified)
+}
+
+/// The `assertFn` body of `lineRangeMappingFromRangeMappings`
+/// (`rangeMapping.ts` L340-L358): the first and last change sit at the same
+/// offset on both sides, and consecutive changes are separated by the same
+/// number of unchanged lines (at least one) on both sides.
+fn assert_changes_valid(
+    changes: &[DetailedLineRangeMapping],
+    original_lines: &TextModel,
+    modified_lines: &TextModel,
+    dont_assert_start_line: bool,
+) -> bool {
+    if !dont_assert_start_line {
+        if let (Some(first), Some(last)) = (changes.first(), changes.last()) {
+            let tail = |lines: &TextModel, end: u32| i64::from(lines.line_count()) - i64::from(end);
+            if first.modified.start_line_number != first.original.start_line_number
+                || tail(modified_lines, last.modified.end_line_number_exclusive)
+                    != tail(original_lines, last.original.end_line_number_exclusive)
+            {
+                return false;
+            }
+        }
+    }
+    changes.windows(2).all(|pair| {
+        let (m1, m2) = (&pair[0], &pair[1]);
+        let gap = |a: LineRange, b: LineRange| {
+            i64::from(b.start_line_number) - i64::from(a.end_line_number_exclusive)
+        };
+        gap(m1.original, m2.original) == gap(m1.modified, m2.modified)
+            && m1.original.end_line_number_exclusive < m2.original.start_line_number
+            && m1.modified.end_line_number_exclusive < m2.modified.start_line_number
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{get_line_range_mapping, DetailedLineRangeMapping, LineRangeMapping, RangeMapping};
+    use super::{
+        get_line_range_mapping, line_range_mapping_from_range_mappings, DetailedLineRangeMapping,
+        LineRangeMapping, RangeMapping,
+    };
     use crate::line_range::LineRange;
     use crate::range::Range;
     use crate::text::TextModel;
@@ -278,5 +369,23 @@ mod tests {
         let a = text(&["x"]);
         let _ = LineRangeMapping::new(LineRange::new(1, 1), LineRange::new(1, 5))
             .to_range_mapping2(&a, &a);
+    }
+
+    #[test]
+    fn groups_touching_mappings() {
+        let (a, b) = (
+            text(&["a", "b", "c", "d", "e"]),
+            text(&["A", "B", "c", "d", "E"]),
+        );
+        let alignments = [
+            RangeMapping::new(Range::new(1, 1, 1, 2), Range::new(1, 1, 1, 2)),
+            RangeMapping::new(Range::new(2, 1, 2, 2), Range::new(2, 1, 2, 2)),
+            RangeMapping::new(Range::new(5, 1, 5, 2), Range::new(5, 1, 5, 2)),
+        ];
+        let changes = line_range_mapping_from_range_mappings(&alignments, &a, &b, false);
+        assert_eq!(changes.len(), 2);
+        assert_eq!(changes[0].original, LineRange::new(1, 3));
+        assert_eq!(changes[0].inner_changes.as_ref().unwrap().len(), 2);
+        assert_eq!(changes[1].modified, LineRange::new(5, 6));
     }
 }
