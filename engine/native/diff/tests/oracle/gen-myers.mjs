@@ -44,12 +44,17 @@ try {
     mkdirSync(dirname(target), { recursive: true });
     writeFileSync(target, text);
   };
-  for (const file of FILES) {
-    const response = await fetch(`${RAW}${file}`);
-    if (!response.ok) {
-      throw new Error(`${response.status} fetching ${file}`);
-    }
-    put(`vscode/${file}`, await response.text());
+  const texts = await Promise.all(
+    FILES.map(async (file) => {
+      const response = await fetch(`${RAW}${file}`);
+      if (!response.ok) {
+        throw new Error(`${response.status} fetching ${file}`);
+      }
+      return response.text();
+    }),
+  );
+  for (const [index, file] of FILES.entries()) {
+    put(`vscode/${file}`, texts[index]);
   }
   put(
     "vscode/src/vs/base/common/errors.ts",
