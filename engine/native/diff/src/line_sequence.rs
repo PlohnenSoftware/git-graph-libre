@@ -67,3 +67,128 @@ fn get_indentation(text: &str) -> u32 {
         .take_while(|&b| b == b' ' || b == b'\t')
         .count() as u32
 }
+
+#[cfg(test)]
+mod tests {
+    use super::LineSequence;
+    use crate::diff_algorithm::ISequence;
+    use crate::offset_range::OffsetRange;
+
+    fn owned(lines: &[&str]) -> Vec<String> {
+        lines.iter().map(ToString::to_string).collect()
+    }
+
+    // Expected values come from running VS Code's `LineSequence`.
+    #[test]
+    fn scores_boundaries_by_surrounding_indentation() {
+        let lines = owned(&["{", "  if (x) {", "    y();", "  }", "}"]);
+        let hashes = [0, 1, 2, 3, 3];
+        let seq = LineSequence::new(&hashes, &lines);
+        let scores: Vec<_> = (0..=5).map(|l| seq.get_boundary_score(l)).collect();
+        assert_eq!(
+            scores,
+            [1000.0, 998.0, 994.0, 994.0, 998.0, 1000.0].map(Some)
+        );
+        assert_eq!(seq.length(), 5);
+        assert_eq!(seq.get_element(4), 3);
+    }
+
+    #[test]
+    fn strong_equality_compares_untrimmed_lines() {
+        let lines = owned(&["a", " a", "a"]);
+        let hashes = [0, 0, 0];
+        let seq = LineSequence::new(&hashes, &lines);
+        assert!(seq.is_strongly_equal(0, 2));
+        assert!(!seq.is_strongly_equal(0, 1));
+    }
+
+    #[test]
+    fn get_text_joins_lines_and_clamps_like_slice() {
+        let lines = owned(&["a", "b", "c"]);
+        let hashes = [0, 1, 2];
+        let seq = LineSequence::new(&hashes, &lines);
+        assert_eq!(seq.get_text(OffsetRange::new(1, 3)), "b\nc");
+        assert_eq!(seq.get_text(OffsetRange::new(2, 9)), "c");
+        assert_eq!(seq.get_text(OffsetRange::new(5, 6)), "");
+    }
+
+    fn unescape(text: &str) -> String {
+        let mut out = String::new();
+        let mut chars = text.chars();
+        while let Some(c) = chars.next() {
+            if c != '\\' {
+                out.push(c);
+                continue;
+            }
+            out.push(match chars.next().unwrap() {
+                'c' => ';',
+                'p' => '|',
+                't' => '\t',
+                'n' => '\n',
+                other => other,
+            });
+        }
+        out
+    }
+
+    fn list(field: &str) -> Vec<&str> {
+        field.split(',').filter(|s| !s.is_empty()).collect()
+    }
+
+    #[test]
+    fn matches_vscode_on_the_oracle_corpus() {
+        let mut cases = 0;
+        for line in include_str!("../tests/data/line-sequence-oracle.txt").lines() {
+            if line.starts_with('#') {
+                continue;
+            }
+            let mut parts = line.splitn(5, ';');
+            let (head, hashes, scores, strong, texts) = (
+                parts.next().unwrap(),
+                parts.next().unwrap(),
+                parts.next().unwrap(),
+                parts.next().unwrap(),
+                parts.next().unwrap(),
+            );
+            let (n, lines_field) = head.split_once(':').unwrap();
+            let n: usize = n.parse().unwrap();
+            let lines: Vec<String> = if n == 0 {
+                Vec::new()
+            } else {
+                lines_field.split('|').map(unescape).collect()
+            };
+            let hashes: Vec<u32> = list(hashes).iter().map(|h| h.parse().unwrap()).collect();
+            let seq = LineSequence::new(&hashes, &lines);
+            assert_eq!(seq.length() as usize, n, "{line}");
+            for (i, &hash) in hashes.iter().enumerate() {
+                assert_eq!(seq.get_element(i as u32), hash, "{line}");
+            }
+            let scores: Vec<f64> = list(scores).iter().map(|s| s.parse().unwrap()).collect();
+            for (l, expected) in scores.iter().enumerate() {
+                assert_eq!(seq.get_boundary_score(l as u32), Some(*expected), "{line}");
+            }
+            let mut bits = strong.chars();
+            for i in 0..n {
+                for j in 0..n {
+                    let expected = bits.next() == Some('1');
+                    assert_eq!(
+                        seq.is_strongly_equal(i as u32, j as u32),
+                        expected,
+                        "{line}"
+                    );
+                }
+            }
+            let mut expected_texts = texts.split('|');
+            for start in 0..=n {
+                for end in start..=n {
+                    let range = OffsetRange::new(start as u32, end as u32);
+                    let expected = unescape(expected_texts.next().unwrap());
+                    assert_eq!(seq.get_text(range), expected, "{line}");
+                }
+            }
+            assert_eq!(expected_texts.next(), None, "{line}");
+            cases += 1;
+        }
+        assert_eq!(cases, 90);
+    }
+}
