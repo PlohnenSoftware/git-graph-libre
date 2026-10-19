@@ -75,4 +75,16 @@ The three Rust files above; the oracle generators under
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Claude Sonnet D22F, 2026-10-19
+- **Branch and commits:** `diff-1.9.0/d22f`; see `git log --format='%h %G? %s' 7b54320..HEAD` (claim, Myers split, DP split, `line_sequence` test split, `replaceAll`, `String.raw`, `fetch`, this report); all signed `G`.
+- **Files changed:** `myers_diff_algorithm.rs`, `dynamic_programming_diffing.rs`, `line_sequence.rs` (tests only), `gen-line-sequence.mjs`, `gen-myers.mjs`, this file.
+- **Tests added or changed:** none added or changed in assertions; the `line_sequence` corpus test body was split into helpers with the same assertions. Rust arm: 166 tests passed, 0 failed (the Myers 437-case, DP and line-sequence 90-case corpus tests among them); no flaky failure seen.
+- **Gates:** `engine:fmt`, `engine:lint`, `engine:check`, `engine:test` green; kb:check run before the final commit; Sonar: integrator.
+- **Complexity (hand count, Sonar S3776 rules: +1 per `if`/`else if`/`else`/loop/`match`/labeled `break`/operator sequence, plus nesting; closures add nesting only):**
+  - `MyersDiffAlgorithm::compute`: about 44 before; after `compute` 3, `x_after_snake` 4, `find_final_diagonal` 8, `extend_diagonal` 11, `backtrack_diffs` 6, `new` 0.
+  - `DynamicProgrammingDiffing::compute_with_score`: about 60 before; after `compute_with_score` 3, `fill_tables` 6, `fill_cell` 4, `record_direction` 7, `extended_seq_score` 6, `AlignmentReport::report` 2, `backtrack_diffs` 6.
+  - `line_sequence.rs:139` is the corpus test `matches_vscode_on_the_oracle_corpus`, not a ported function: about 25 before; after the test 3, `parse_case` 2, `check_elements_and_scores` 2, `check_strong_equality` 3, `check_texts` 3.
+- **Byte-for-byte checks:** `node gen-myers.mjs | cmp - myers-oracle.txt` identical; `node gen-lines_slice_char_sequence.mjs | cmp - lines-slice-char-sequence-oracle.txt` identical; `node gen-dynamic-programming-diffing.mjs` and `node gen-line-sequence.mjs` (they write their files) leave `git status` clean.
+- **Acceptance:** met, except that the Sonar re-scan is the integrator's.
+- **Deviations from the slice:** (1) the `line_sequence.rs` finding is in the unit test, so its helpers are test helpers with no VS Code lines to map; their docs say so. (2) `S7780`: converted the backslash literals in `gen-line-sequence.mjs` to `String.raw`; the lone `'\\'` and the header comment strings (they contain backticks) stay, and I found no `S7780`, `S1516` or other trivial finding in `gen-myers.mjs` to fix (the `\n\t` patches need real escapes). The four `charCodeAt` `S7758` stay. (3) Myers `x_after_snake` is a method of a new private `MyersSearch` struct that holds the TypeScript's locals.
+- **Open questions / follow-ups:** none.
