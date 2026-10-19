@@ -9,6 +9,7 @@ import { buildExtensionUri } from "./backend/utils/path";
 import { config } from "./config";
 import { DiffDocProvider } from "./diffDocProvider";
 import { createCommandManager } from "./extension/commandManager";
+import { setDiffTabAvailableContext } from "./extension/diffTab/engineSource";
 import { explicitExtensionSettings } from "./extension/extensionSettings";
 import { registerMessageHandlers } from "./extension/messageHandler";
 import { createRepoManager } from "./extension/repoManager";
@@ -32,6 +33,7 @@ export function activate(context: vscode.ExtensionContext) {
   initL10n(context.extensionPath);
   const logger = createLogger(l10n.t("outputChannel.text"));
   context.subscriptions.push(setOperationLog(logger.log));
+  setDiffTabAvailableContext({ backend: config.backend });
   // The universal VSIX carries every platform's engine binary; drop the ones
   // this host can never load. Production installs only — a development host
   // runs from the repository, whose built binaries are the developer's own.
@@ -215,6 +217,7 @@ export function activate(context: vscode.ExtensionContext) {
       } else if (e.affectsConfiguration("git-graph-libre.backend")) {
         // Readers take the preference live, so only the status indicator
         // has to be told: it would otherwise keep the old engine state.
+        setDiffTabAvailableContext({ backend: config.backend });
         void currentPanel?.refreshComponentStatus();
       } else if (e.affectsConfiguration("git-graph-libre.telemetry.enabled")) {
         // Answering the prompt writes this setting, so this is what swaps the
