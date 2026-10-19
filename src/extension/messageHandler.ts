@@ -67,6 +67,7 @@ import { selectedLogRefs } from "@/backend/utils/logFilters";
 import { abbrevCommit } from "@/backend/utils/string";
 import type { Config } from "@/config";
 import { encodeDiffDocUri } from "@/diffDocProvider";
+import type { DiffTabRequest, DiffTabSide } from "@/diffTabTypes";
 import { copyToClipboard } from "@/extension/utils/clipboard";
 import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
@@ -76,6 +77,8 @@ import { createViewFeatureReporter } from "@/telemetry/viewFeatures";
 import type { ExtensionSetting, GitRepoState, RequestMessage, ResponseMessage } from "@/types";
 
 import { buildComponentStatus } from "./componentStatus";
+import { openDiffTab as openGglDiffTab } from "./diffTab/diffTabPanel";
+import { createEngineDiffTabSource, isDiffTabAvailable } from "./diffTab/engineSource";
 import { loadExtensionSettings, updateExtensionSetting } from "./extensionSettings";
 import { exportExtensionSettingsFile, importExtensionSettingsFile } from "./extensionSettingsFile";
 import { buildPullRequestUrl } from "./pullRequest";
@@ -96,21 +99,14 @@ type ViewDiffInput = {
 };
 
 async function viewDiff(input: ViewDiffInput): Promise<boolean> {
-  const { repo, commitHash, oldFilePath, newFilePath, type, shortHashLength, oldRef, newRef } =
-    input;
+  const { repo, commitHash, oldFilePath, newFilePath, oldRef, newRef } = input;
   const oldRevision = oldRef ?? `${commitHash}^`;
   const newRevision = newRef ?? commitHash;
   // "*" names the working tree, on either side after a swap: that side is
   // the file on disk, not a revision document.
   const side = worktreeSideOf(oldRef, newRef);
   if (side !== null) return viewWorktreeDiff(input, side, oldRevision, newRevision);
-  const abbrevHash = abbrevCommit(commitHash, shortHashLength);
-  const pathComponents = newFilePath.split("/");
-  const fileName = pathComponents.at(-1);
-  const title =
-    oldRef === undefined && newRef === undefined
-      ? `${fileName} (${formatDiffTitle(type, abbrevHash)})`
-      : `${fileName} (${formatRevisionDiffTitle(oldRevision, newRevision, shortHashLength)})`;
+  const title = diffTitleFor(input, oldRevision, newRevision, null);
   try {
     await vscode.commands.executeCommand(
       "vscode.diff",
@@ -160,11 +156,7 @@ async function viewWorktreeDiff(
   );
   if (absolutePath === null) return false;
   const revision = isNew ? oldRevision : newRevision;
-  const title = formatWorktreeDiffTitle(
-    input.newFilePath.split("/").at(-1),
-    formatRevisionLabel(revision, input.shortHashLength),
-    side
-  );
+  const title = diffTitleFor(input, oldRevision, newRevision, side);
   const revisionUri = encodeDiffDocUri(
     input.repo,
     isNew ? input.oldFilePath : input.newFilePath,
@@ -209,6 +201,93 @@ function formatRevisionLabel(ref: string, shortHashLength: number) {
   const hash = HASH_REVISION.exec(ref);
   if (hash === null) return ref;
   return `${abbrevCommit(hash[1], shortHashLength)}${hash[2] ?? ""}`;
+}
+
+/** The title `viewDiff` shows, shared so the GGL Diff tab names the same pair. */
+function diffTitleFor(
+  input: ViewDiffInput,
+  oldRevision: string,
+  newRevision: string,
+  side: WorktreeSide | null
+): string {
+  const fileName = input.newFilePath.split("/").at(-1);
+  if (side !== null) {
+    const revision = side === "new" ? oldRevision : newRevision;
+    return formatWorktreeDiffTitle(
+      fileName,
+      formatRevisionLabel(revision, input.shortHashLength),
+      side
+    );
+  }
+  if (input.oldRef === undefined && input.newRef === undefined) {
+    const abbrevHash = abbrevCommit(input.commitHash, input.shortHashLength);
+    return `${fileName} (${formatDiffTitle(input.type, abbrevHash)})`;
+  }
+  return `${fileName} (${formatRevisionDiffTitle(oldRevision, newRevision, input.shortHashLength)})`;
+}
+
+/**
+ * The GGL Diff tab request for a commit-details file: the same two sides
+ * `viewDiff` opens (labels ride as refs, a stashed untracked file as
+ * `<hash>^`/`<hash>^3`). `"*"` names the working tree on its own side; an
+ * added file has no left side and a deleted file no right side, whichever
+ * kind the other side is — the empty side stands in for the file
+ * `viewWorktreeDiff` finds missing on disk. Binary content needs no case
+ * here: the engine source answers the tab's binary payload.
+ */
+export function buildCommitDetailsDiffRequest(input: ViewDiffInput): DiffTabRequest {
+  const oldRevision = input.oldRef ?? `${input.commitHash}^`;
+  const newRevision = input.newRef ?? input.commitHash;
+  const side = worktreeSideOf(input.oldRef, input.newRef);
+  return {
+    repo: input.repo,
+    left: diffTabLeftSide(input, oldRevision, side),
+    right: diffTabRightSide(input, newRevision, side),
+    title: diffTitleFor(input, oldRevision, newRevision, side)
+  };
+}
+
+function diffTabLeftSide(
+  input: ViewDiffInput,
+  oldRevision: string,
+  side: WorktreeSide | null
+): DiffTabSide {
+  if (input.type === "A") return { kind: "empty" };
+  if (side === "old") return { kind: "workingTree", path: input.oldFilePath };
+  return { kind: "revision", ref: oldRevision, path: input.oldFilePath };
+}
+
+function diffTabRightSide(
+  input: ViewDiffInput,
+  newRevision: string,
+  side: WorktreeSide | null
+): DiffTabSide {
+  if (input.type === "D") return { kind: "empty" };
+  if (side === "new") return { kind: "workingTree", path: input.newFilePath };
+  return { kind: "revision", ref: newRevision, path: input.newFilePath };
+}
+
+/**
+ * Open a commit-details file in the tab, or — while the tab cannot be fed
+ * (D45's availability check, since a context key cannot be read back) — in
+ * `vscode.diff` through `viewDiff` itself, saying so in the log.
+ */
+async function openCommitDetailsDiffTab(
+  input: ViewDiffInput,
+  openTab: (request: DiffTabRequest) => void,
+  available: boolean,
+  logFallback: () => void
+): Promise<boolean> {
+  if (!available) {
+    logFallback();
+    return viewDiff(input);
+  }
+  try {
+    openTab(buildCommitDetailsDiffRequest(input));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function resolveRepoFilePath(repo: string, filePath: string): string | null {
@@ -393,6 +472,16 @@ export function registerMessageHandlers(
     telemetry?: Pick<TelemetryReporter, "logFeature">;
     /** Re-opens the consent notification for the screen's Set now button. */
     telemetryConsentPrompt?: { promptIfUnset: () => Promise<void> };
+    /**
+     * Opens the GGL Diff tab for a commit-details file. Defaults to D44's
+     * panel fed by D45's engine source, assembled from this handler's live
+     * deps the way `extension.ts` assembles it for Source Control (D46);
+     * `extension.ts` is outside D47's Touch, so the assembly is repeated
+     * here rather than hoisted into one shared place.
+     */
+    openDiffTab?: (request: DiffTabRequest) => void;
+    /** Whether the tab can be fed (D45); defaults to the engine check. */
+    isDiffTabAvailable?: () => boolean;
   }
 ) {
   const {
@@ -417,6 +506,25 @@ export function registerMessageHandlers(
         if (record.error?.stderr) outputChannel.appendLine(`  stderr: ${record.error.stderr}`);
       }
     : undefined;
+
+  // The GGL Diff tab opening route, assembled as in `extension.ts` for
+  // Source Control (D46) but from this handler's live deps; both defaults
+  // read the backend live, so flipping the setting needs no reload.
+  const openCommitDiffTab =
+    deps.openDiffTab ??
+    ((request: DiffTabRequest): void => {
+      openGglDiffTab(
+        request,
+        createEngineDiffTabSource({
+          gitPath: config.gitPath,
+          backend: config.backend,
+          isVerified: (repo) => deps.repoSearch?.isVerified(repo) ?? false
+        }),
+        { extensionPath, outputChannel: outputChannel ?? { appendLine: () => undefined } }
+      );
+    });
+  const diffTabAvailable =
+    deps.isDiffTabAvailable ?? ((): boolean => isDiffTabAvailable({ backend: config.backend }));
 
   /**
    * Every repository read starts here. The preference is read live, so
@@ -986,6 +1094,27 @@ export function registerMessageHandlers(
         oldRef: msg.oldRef,
         newRef: msg.newRef
       })
+    });
+  });
+
+  bridge.onMessage("openDiffTab", async (msg) => {
+    bridge.post({
+      command: "openDiffTab",
+      success: await openCommitDetailsDiffTab(
+        {
+          repo: msg.repo,
+          commitHash: msg.commitHash,
+          oldFilePath: msg.oldFilePath,
+          newFilePath: msg.newFilePath,
+          type: msg.type,
+          shortHashLength: config.shortHashLength(),
+          oldRef: msg.oldRef,
+          newRef: msg.newRef
+        },
+        openCommitDiffTab,
+        diffTabAvailable(),
+        () => outputChannel?.appendLine("[diffTab] unavailable; falling back to vscode.diff")
+      )
     });
   });
 
