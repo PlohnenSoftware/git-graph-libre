@@ -8,7 +8,7 @@ summary: >-
 
 # D50 — Pin the settings popup's header
 
-Status: claimed by Claude Sonnet D50 on 2026-10-19 15:01
+Status: done — awaiting integration
 Needs: —
 Decisions: — (maintainer bug report, `2026-10-19`)
 Kind: webview (CSS, and TypeScript markup if needed) · Size budget: ≤ 120 changed lines outside tests
@@ -73,4 +73,13 @@ dialog-building code only for the step-2 fixes, their tests under
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Claude Sonnet D50, 2026-10-19
+- **Branch and commits:** `diff-1.9.0/d50`; commit list in the hand-back message (claim, markup, CSS, test, this report)
+- **Files changed:** `media/settings.css`, `src/webview/settingsWidget.ts`, `tests/webview/dialogStyles.test.ts`, this slice file (about 40 changed lines outside tests)
+- **Approach:** the title row and tabs are wrapped in `.settingsWidgetHead`, which is `position: sticky; top: 0` with the opaque `--vscode-editorWidget-background` token. The padding moved from `#settingsWidget` onto the head and `.settingsTabPanel`, so nothing shows above the pinned head. Sticky was chosen over a separate scrolling body element so the scroll position survives `main.ts` re-rendering the widget with `innerHTML` (a new body element would reset to the top, and `main.ts` is outside the Touch list). Ids, tab order, keyboard handling and Escape are unchanged.
+- **Tests added or changed:** one added in `dialogStyles.test.ts` (pins the sticky head, no popup padding, panel padding); webview files run (dialogStyles, settingsWidget, rendering, settingsWidgetActions): 136 passed, all green
+- **Gates:** focused strict biome on touched .ts clean; typecheck clean; l10n n/a (no text change); Sonar: integrator
+- **Acceptance:** met. Headless QtWebEngine renders of the real media CSS with the real `renderSettingsWidget` markup (panel content repeated to force overflow), scrolled to the bottom, close button and tabs visible: dark `/tmp/claude-1000/-home-zam-Desktop-prog--GGL-git-graph-libre/5f80f5de-8c08-45fe-b4e2-9ed81938cdbe/scratchpad/d50/dark.png`, light `/tmp/claude-1000/-home-zam-Desktop-prog--GGL-git-graph-libre/5f80f5de-8c08-45fe-b4e2-9ed81938cdbe/scratchpad/d50/light.png`
+- **Other popups checked:** `#dialog` (confirmation, form, error dialogs) scrolls as a whole at `max-height: 80%`, but has no close button and only overflows with very long content; left unchanged. The dropdown menu already pins its filter header; the stash list and context menu have no header. No other popup shares the pattern.
+- **Deviations from the slice:** none. `dialogs.css` and `main.ts` untouched.
+- **Open questions / follow-ups:** none
