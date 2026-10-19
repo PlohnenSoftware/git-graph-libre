@@ -9,7 +9,7 @@ summary: >-
 
 # D21 — Phase 17 oracle suite
 
-Status: ready
+Status: claimed by Muse Code (muse-wonder-full-1.0, general-purpose) D21 on 2026-10-19 10:38 — reassigned with maintainer authorization, continuing from the previous agent's vendored fixtures
 Needs: D20
 Decisions: —
 Kind: TypeScript tests and vendored fixtures · Size budget: ≤ 250 changed lines, not counting the fixtures
