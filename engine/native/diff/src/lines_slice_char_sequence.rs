@@ -132,11 +132,8 @@ impl CharBoundaryCategory {
         }
     }
 
-    /// `getCategory`; `None` is the TypeScript's `-1`, the end of the sequence.
-    fn of(char_code: Option<u32>) -> Self {
-        let Some(code) = char_code else {
-            return Self::End;
-        };
+    /// `getCategory` for a real element.
+    fn of(code: u32) -> Self {
         match code {
             10 => Self::LineBreakLf,
             13 => Self::LineBreakCr,
@@ -154,8 +151,13 @@ impl LinesSliceCharSequence {
     /// `getBoundaryScore`: how good a place `length` is to split the sequence.
     pub fn boundary_score(&self, length: u32) -> f64 {
         let at = |i: usize| self.elements.get(i).map(|&u| u32::from(u));
-        let prev = CharBoundaryCategory::of(length.checked_sub(1).and_then(|i| at(i as usize)));
-        let next = CharBoundaryCategory::of(at(length as usize));
+        // `getCategory(length > 0 ? elements[length - 1] : -1)`: -1 is the end,
+        // and a `length` past the end reads `undefined`, which is `Other`.
+        let prev = match length.checked_sub(1) {
+            None => CharBoundaryCategory::End,
+            Some(i) => at(i as usize).map_or(CharBoundaryCategory::Other, CharBoundaryCategory::of),
+        };
+        let next = at(length as usize).map_or(CharBoundaryCategory::End, CharBoundaryCategory::of);
 
         if prev == CharBoundaryCategory::LineBreakCr && next == CharBoundaryCategory::LineBreakLf {
             return 0.0; // don't break between \r and \n
@@ -374,6 +376,8 @@ mod tests {
         assert_eq!(s.get_boundary_score(2), Some(40.0));
         let s = seq(&["aB"], Range::new(1, 1, 1, 3), true);
         assert_eq!(scores(&s), [20.0, 11.0, 20.0]);
+        // Past the end, the previous element reads `undefined`: category Other.
+        assert_eq!(s.boundary_score(3), 22.0);
         // Never between a carriage return and the line feed that follows it.
         let s = seq(&["a\r", "b"], Range::new(1, 1, 2, 2), true);
         assert_eq!(scores(&s), [20.0, 20.0, 0.0, 150.0, 20.0]);
