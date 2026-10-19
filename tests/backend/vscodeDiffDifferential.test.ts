@@ -4,21 +4,26 @@ import * as path from "node:path";
 
 import { _DefaultLinesDiffComputer, _initWasm } from "@vscode/diff";
 import { beforeAll, describe, expect, it } from "vitest";
+import { loadEngineAddon } from "@/backend/engine/addon";
+import { diffTexts } from "@/backend/engine/diffTexts";
 
 /**
- * Phase 17 differential suite (22h): four arms over VS Code's 58 vendored
- * fixtures — the fixtures' expected JSON, `@vscode/diff`'s TypeScript and
- * WebAssembly backends, and this port's WebAssembly build — plus a seeded
- * generated corpus for the two computing arms that must agree everywhere
- * (ours and TypeScript). 22i adds the native engine arm to `computedArms`.
+ * Phase 17 differential suite (22h, made five-way by 22i): five arms over
+ * VS Code's 58 vendored fixtures — the fixtures' expected JSON,
+ * `@vscode/diff`'s TypeScript and WebAssembly backends, and this port's
+ * WebAssembly build and native engine build (through 22j's `diffTexts`
+ * seam) — plus a seeded generated corpus for the computing arms that must
+ * agree everywhere (ours and TypeScript).
  *
- * Our arm needs `pnpm run diff:wasm` first (decision D5: a local dev test
- * for now); without that build its tests skip, like the engine-addon tests.
- * Moves exist only in the expected JSON and our build (the package computes
- * none), so they are compared only between those two. The package's
- * WebAssembly backend differs on `noisy-move1` and `ts-example1` (measured
- * and pinned in `vscodeDiffOracles.test.ts`); every pair that involves it is
- * asserted unequal there and equal everywhere else — nothing is loosened.
+ * Our arms need their builds first — `pnpm run diff:wasm` and
+ * `pnpm run engine:build` (decision D5: a local dev test for now); without
+ * either build the five-way tests skip, like the engine-addon tests.
+ * Moves exist only in the expected JSON and our builds (the package
+ * computes none), so they are compared only between those arms. The
+ * package's WebAssembly backend differs on `noisy-move1` and
+ * `ts-example1` (measured and pinned in `vscodeDiffOracles.test.ts`);
+ * every pair that involves it is asserted unequal there and equal
+ * everywhere else — nothing is loosened.
  */
 const FIXTURES_DIR = path.resolve(__dirname, "../fixtures/vscode-diff");
 const OUR_WASM_PATH = path.resolve(__dirname, "../../engine/target/diff-wasm/git_graph_diff.js");
@@ -268,15 +273,39 @@ function ourDiffs(c: DiffCase): ArmResult {
   return toArmResult(c, parsed.changes.map(ourDetailed), moves, parsed.hitTimeout);
 }
 
-type ArmId = "expected" | "ts" | "packageWasm" | "ourWasm";
-type Arm = { id: ArmId; label: string; run: (c: DiffCase) => ArmResult };
+const nativeCandidate = loadEngineAddon();
+const nativeAddon = typeof nativeCandidate?.diffTexts === "function" ? nativeCandidate : null;
+
+/** The native arm: the same crate through 22j's seam; a null answer is a failure here. */
+async function ourNativeDiffs(c: DiffCase): Promise<ArmResult> {
+  if (!nativeAddon) {
+    throw new Error("engine addon with diffTexts is missing: run pnpm run engine:build first");
+  }
+  const diff = await diffTexts(
+    c.firstContent,
+    c.secondContent,
+    {
+      ignoreTrimWhitespace: c.ignoreTrimWhitespace,
+      maxComputationTimeMs: 0,
+      computeMoves: c.computeMoves,
+      extendToSubwords: c.extendToSubwords
+    },
+    { backend: () => "auto", addonProvider: () => nativeAddon }
+  );
+  if (diff === null) throw new Error("native arm failed: the seam answered null");
+  return toArmResult(c, diff.changes, diff.moves, diff.hitTimeout);
+}
+
+type ArmId = "expected" | "ts" | "packageWasm" | "ourWasm" | "ourNative";
+type Arm = { id: ArmId; label: string; run: (c: DiffCase) => ArmResult | Promise<ArmResult> };
 type NamedResult = { id: ArmId; label: string; result: ArmResult };
 
-/** 22i adds the native arm (22j's `diff_texts` export) to this list. */
+/** The four computing arms; with the expected JSON they make the five-way suite. */
 const computedArms: Arm[] = [
   { id: "ts", label: "@vscode/diff TypeScript", run: tsDiffs },
   { id: "packageWasm", label: "@vscode/diff WebAssembly", run: packageWasmDiffs },
-  { id: "ourWasm", label: "our WebAssembly", run: ourDiffs }
+  { id: "ourWasm", label: "our WebAssembly", run: ourDiffs },
+  { id: "ourNative", label: "our native", run: ourNativeDiffs }
 ];
 
 function expectedResult(fixture: Fixture): NamedResult {
@@ -390,17 +419,19 @@ function generatedCase(rng: () => number): DiffCase {
   };
 }
 
-describe("four-arm differential over the VS Code fixtures", () => {
+const ourBuildsMissing = ourWasm === null || nativeAddon === null;
+
+describe("five-arm differential over the VS Code fixtures", () => {
   it("vendors all 58 fixtures", () => {
     expect(fixtureNames).toHaveLength(58);
   });
 
   for (const fixture of fixtures) {
-    it.skipIf(ourWasm === null)(`${fixture.name}: every arm pair agrees`, () => {
-      const results: NamedResult[] = [
-        expectedResult(fixture),
-        ...computedArms.map((arm) => ({ id: arm.id, label: arm.label, result: arm.run(fixture) }))
-      ];
+    it.skipIf(ourBuildsMissing)(`${fixture.name}: every arm pair agrees`, async () => {
+      const results: NamedResult[] = [expectedResult(fixture)];
+      for (const arm of computedArms) {
+        results.push({ id: arm.id, label: arm.label, result: await arm.run(fixture) });
+      }
       for (const named of results) {
         expect(named.result.hitTimeout, `${named.label} hitTimeout`).toBe(false);
       }
@@ -412,17 +443,20 @@ describe("four-arm differential over the VS Code fixtures", () => {
     });
   }
 
-  it.skipIf(ourWasm === null)(
+  it.skipIf(ourBuildsMissing)(
     "matches the TypeScript backend on 300 seeded generated cases",
-    () => {
+    async () => {
       const rng = makeRng(20261019);
       for (let index = 0; index < 300; index++) {
         const c = generatedCase(rng);
         const ours = ourDiffs(c);
+        const native = await ourNativeDiffs(c);
         const ts = tsDiffs(c);
         expect(ours.hitTimeout, `case ${index} hitTimeout`).toBe(false);
+        expect(native.hitTimeout, `case ${index} hitTimeout`).toBe(false);
         expect(ts.hitTimeout, `case ${index} hitTimeout`).toBe(false);
         expect(ours.diffs, `case ${index}`).toEqual(ts.diffs);
+        expect(native.diffs, `case ${index}`).toEqual(ts.diffs);
       }
     }
   );
