@@ -9,7 +9,7 @@ summary: >-
 
 # D22F2 — Generator lint follow-up
 
-Status: ready
+Status: claimed by Claude Haiku D22F2 on 2026-10-19 15:21
 Needs: 22e, 22g, D22F (integrated)
 Decisions: X13
 Kind: JavaScript oracle scripts and one TypeScript line · Size: ~60 changed lines (a guide, not a limit)
