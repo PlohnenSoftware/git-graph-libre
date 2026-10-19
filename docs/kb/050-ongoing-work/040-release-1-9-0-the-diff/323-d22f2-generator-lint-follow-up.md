@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D22F2 · ready · oracle scripts and one TS line · ~60 lines (a guide): clear
+  D22F2 · blocked (two findings) · oracle scripts and one TS line · ~60 lines (a guide): clear
   wave gate 6's remaining Sonar findings in the Phase 17 oracle generators
   (string patterns for `replaceAll`, shadowing, unused parameter, nested
   ternaries and similar) and D44's nested ternary in `diffTabPanel.ts`,
@@ -9,7 +9,7 @@ summary: >-
 
 # D22F2 — Generator lint follow-up
 
-Status: claimed by Claude Haiku D22F2 on 2026-10-19 15:21
+Status: blocked — S7723 (no Sonar message offline) and S1516 (line 84 does not match the slice); the other findings are committed
 Needs: 22e, 22g, D22F (integrated)
 Decisions: X13
 Kind: JavaScript oracle scripts and one TypeScript line · Size: ~60 changed lines (a guide, not a limit)
