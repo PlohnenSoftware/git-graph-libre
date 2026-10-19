@@ -107,6 +107,8 @@ const HAND = [
 
 const units = (s) => Array.from({ length: s.length }, (_, i) => s.charCodeAt(i).toString(16)).join(',');
 const unitsOfArray = (a) => a.map((u) => u.toString(16)).join('.');
+// Array.from(string) would walk code points; the elements are code units.
+const codeUnits = (s) => Array.from({ length: s.length }, (_, i) => s.charCodeAt(i));
 const pos = (p) => `${p.lineNumber}:${p.column}`;
 
 function randomRange(lines) {
@@ -139,7 +141,7 @@ function oneCase(lines, rangeArr, ws) {
     const ext = seq.extendToFullLines(r);
     queries.push(
       `${a}-${b}=${tr.startLineNumber},${tr.startColumn},${tr.endLineNumber},${tr.endColumn}` +
-        `/${seq.countLinesIn(r)}/${ext.start}-${ext.endExclusive}/${unitsOfArray(Array.from(seq.getText(r), (ch) => ch.charCodeAt(0)))}`,
+        `/${seq.countLinesIn(r)}/${ext.start}-${ext.endExclusive}/${unitsOfArray(codeUnits(seq.getText(r)))}`,
     );
   }
   const equal = [];
