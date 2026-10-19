@@ -9,7 +9,7 @@ summary: >-
 
 # D48 — Measure the tab against the diff editor
 
-Status: waiting on D46, D47
+Status: ready (display half: maintainer)
 Needs: D46, D47
 Decisions: —
 Kind: measurement and docs · Size budget: ≤ 120 changed lines
