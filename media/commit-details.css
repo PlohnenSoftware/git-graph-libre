@@ -158,13 +158,23 @@
   padding: 0;
   border: 0;
   color: var(--vscode-editor-foreground);
-  background-color: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle));
+  /* The header is pinned to the top of its pane while the body scrolls under
+     it (D51), so it must be opaque: the translucent tint is laid over the
+     details row's own tint, over the editor background. */
+  --ngg-details-header-tint: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle));
+  background-color: var(--vscode-editor-background);
+  background-image:
+    linear-gradient(var(--ngg-details-header-tint), var(--ngg-details-header-tint)),
+    linear-gradient(var(--ngg-neutral-overlay-subtle), var(--ngg-neutral-overlay-subtle));
+  position: sticky;
+  top: 0;
+  z-index: 1;
   cursor: pointer;
   font: inherit;
   text-align: left;
 }
 .commitDetailsToggle:hover {
-  background-color: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-medium));
+  --ngg-details-header-tint: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-medium));
 }
 .commitDetailsToggle:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
