@@ -7,7 +7,7 @@ summary: >-
 
 # D22 — Phase 17 port sub-slices
 
-Status: in progress — 22a integrated 425fb63, 22b integrated 153c10d; 22c and 22d claimed
+Status: in progress — 22a–22d integrated (last 22748ed); 22e and 22g ready, in parallel; 22f after both
 Needs: D21
 Decisions: X5 = (b); Phase 17 D1, D2 and D5
 Kind: Rust, the Rust arm applies · Size budget: per sub-slice, as listed
@@ -30,6 +30,8 @@ left out; 22a came out at 1.7×). 22h–22j are TypeScript, build and seam
 work, counted as the protocol counts any slice. A sub-slice over its budget
 is reported and held for the maintainer, as before.
 
+**Order (integrator, `2026-10-19`).** `computeMovedLines` imports neither the heuristics nor the main computer, so 22e and 22g run in parallel. 22f wires both into the flow, so it runs after them and takes over the full fixture match, moves included. Oracle generators print their corpus to stdout, as `gen-myers.mjs` does, so a rerun can be compared with `cmp`.
+
 | Sub | Content | Acceptance |
 | --- | --- | --- |
 | 22a | crate skeleton: core types, the UTF-16 text model, line splitting, the clock trait, the fixture-format printer (accepted at 499, X9) | unit tests |
@@ -37,8 +39,8 @@ is reported and held for the maintainer, as before.
 | 22c | `dynamicProgrammingDiffing` and `lineSequence` (≤200; source 113) | ported unit tests |
 | 22d | `linesSliceCharSequence`, with the helpers it needs from `utils` (≤350; source 190 + 59) | unit tests, including UTF-16 and emoji |
 | 22e | `heuristicSequenceOptimizations` (≤520; source 341) | unit tests |
-| 22f | the `defaultLinesDiffComputer` flow, without moves (≤350; source 222) | all 58 fixtures match without moves, in `cargo test` |
-| 22g | `computeMovedLines` (≤420; source 270) | all fixtures match exactly, moves included |
+| 22f | the `defaultLinesDiffComputer` flow, wiring in 22e's heuristics and 22g's moves (≤350; source 222) | all 58 fixtures match exactly, moves included, in `cargo test` |
+| 22g | `computeMovedLines` (≤420; source 270) | an oracle corpus against VS Code's own `computeMovedLines` |
 | 22h | the `wasm` feature build and the five-way Vitest comparison (≤200) | zero mismatches beyond the documented moves |
 | 22i | `pnpm run diff:parity` over real history (≤200) | results recorded in Phase 17 |
 | 22j | the `diff_texts` and `diff_file_at_revisions` napi exports, the TS seam, and removal of `load_commit_file_diff` (≤300) | seam parity test |
