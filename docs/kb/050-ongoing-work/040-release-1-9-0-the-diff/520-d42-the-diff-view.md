@@ -9,7 +9,7 @@ summary: >-
 
 # D42 — The diff view
 
-Status: ready
+Status: done — awaiting integration
 Needs: D40, D41
 Decisions: Phase 17 D4 (answered: G4, option (c))
 Kind: webview (TypeScript and CSS) · Size budget: ≤ 300 changed lines outside tests
@@ -95,4 +95,11 @@ In jsdom:
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Codex D42, 2026-10-19 02:03
+- **Branch and commits:** `diff-1.9.0/d42` — `d1511aa G feat(diff-tab): draw the diff rows as a virtualized side-by-side view (D42)`, plus the signed report commit carrying this section. Codex stopped on its quota with the work staged but uncommitted and the status still "claimed"; the integrator (Claude Code) committed it on `2026-10-19` after rerunning focused checks (strict Biome on 2 files, typecheck, 43/43 tests under `tests/webview/diffTab`, `kb:check`), per the multi-agent gate policy. No push.
+- **Files changed:** `src/webview/diffTab/view.ts` (+233/−0), `media/diff-tab/diff-tab.css` (+37/−0), `tests/webview/diffTab/view.test.ts` (+311/−0), this slice file (status/report). Implementation: 270 lines outside tests, within the ≤300 budget; the final staged diff also includes this status/report.
+- **Tests added or changed:** new `tests/webview/diffTab/view.test.ts`, 12 tests: 10,000- and 100,000-row virtualization (a 10-row viewport draws 30 rows at an edge or at most 51 between rows, including both 20-row overscan margins), decoration classes/signs/gutters/fillers and escaped text, independent horizontal offsets and offscreen width, configured/default repeated collapse expansion preserving D41 objects, next/previous change starts with F7/Shift+F7 and wrapping, navigation after partial expansion, unchanged-file keys, update/clamping, resize and complete listener/observer disposal. Webview 623 → 635; backend unchanged at 887.
+- **Gates:** biome pass (`pnpm exec biome check --config-path biome.strict.jsonc --error-on-warnings` on both touched TypeScript files; 2 files); typecheck pass; package pass (full lint: 298 files); `pnpm run test` backend 887/887 (82 files), webview 635/635 (57 files), no skips; `pnpm run l10n:check` 100% (615 bundle keys and 114 package keys in all four translations); `pnpm run kb:check` pass; Rust arm n/a (no engine source change); Sonar: integrator. Full-suite logs: `/tmp/ggl-d42-visual/test-final.log`; l10n: `/tmp/ggl-d42-visual/l10n.log`. The initial run skipped 31 backend engine tests because this worktree lacked an addon; with integrator approval, copied the ignored linux-x64 addon from the matching integration build (all three engine tree hashes, worktree HEAD / local the-diff / integration checkout HEAD: `8402c37c2080af401d9af76c2d00b15050581b10`), passed `pnpm run engine:smoke` (`1.0.25`), then reran the full suite without skips.
+- **Acceptance:** local gates met as above; integrator coverage/Sonar pending before commit. Dark/light QtWebEngine renders using both real `media/diff-tab/vscode-diff.css` and `media/diff-tab/diff-tab.css` met and visually inspected at 1240×820: `/tmp/ggl-d42-visual/dark.png`, `/tmp/ggl-d42-visual/light.png` (20 model/rendered rows, inserted/deleted and character highlights, left fillers, two expandable regions, fixed gutters, two themed horizontal scrollbars). Harness and bundled current renderer: `/tmp/ggl-d42-visual/preview.ts`, `preview.js`, `shot.py`, `dark.html`, `light.html`. The exported API supplies `update`, `revealNextChange`, `revealPreviousChange` and `dispose`; one vertical spacer/window, separate text offsets, editor font tokens and tab size are implemented in the allowed files.
+- **Deviations from the slice:** approved contract completion: exported `DiffViewOptions` includes optional `revealLineCount` (default 20), so D44 can honor the user's setting when calling D41 expansion; D41 consumes only that layout field for expansion. All four required localized labels come from options; no new literal user-facing strings, dependencies, suppressions or gate changes.
+- **Open questions / follow-ups:** integrator coverage/Sonar before signed commits; D44 passes localized labels and `revealLineCount`. D41's documented simple in-order pairing remains its model contract.
