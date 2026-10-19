@@ -44,6 +44,12 @@ impl OffsetRange {
             (i64::from(self.end_exclusive) + offset) as u32,
         )
     }
+    pub fn delta_start(self, offset: i64) -> Self {
+        Self::new((i64::from(self.start) + offset) as u32, self.end_exclusive)
+    }
+    pub fn delta_end(self, offset: i64) -> Self {
+        Self::new(self.start, (i64::from(self.end_exclusive) + offset) as u32)
+    }
     pub fn contains(self, offset: u32) -> bool {
         self.start <= offset && offset < self.end_exclusive
     }
@@ -61,6 +67,9 @@ impl OffsetRange {
             self.end_exclusive.min(other.end_exclusive),
         );
         (s <= e).then(|| Self::new(s, e))
+    }
+    pub fn intersects_or_touches(self, other: Self) -> bool {
+        self.start.max(other.start) <= self.end_exclusive.min(other.end_exclusive)
     }
 }
 
@@ -85,6 +94,10 @@ mod tests {
         );
         assert_eq!(r.intersect(OffsetRange::new(8, 9)), None);
         assert_eq!(r.delta(-3), OffsetRange::of_length(4));
+        assert_eq!(r.delta_start(1), OffsetRange::new(4, 7));
+        assert_eq!(r.delta_end(-1), OffsetRange::new(3, 6));
+        assert!(r.intersects_or_touches(OffsetRange::new(7, 9)));
+        assert!(!r.intersects_or_touches(OffsetRange::new(8, 9)));
     }
     #[test]
     #[should_panic(expected = "Invalid range")]
