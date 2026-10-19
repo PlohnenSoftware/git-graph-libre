@@ -851,6 +851,82 @@ describe("registerMessageHandlers", () => {
     expect(command?.[3]).toBe("example.ts (abcd ↔ Working Tree)");
   });
 
+  it("shows the working file on the right for viewDiff against the working tree", async () => {
+    resetVscodeMock();
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("viewDiff");
+
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "viewDiff",
+      repo,
+      commitHash: "abcdef1234567890",
+      oldRef: "abcdef1234567890",
+      newRef: "*",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+
+    expect(posts[posts.length - 1]).toEqual({ command: "viewDiff", success: true });
+    const command = executedCommands[executedCommands.length - 1];
+    expect(command?.[0]).toBe("vscode.diff");
+    expect(command?.[1]).toMatchObject({ path: "src/example.ts" });
+    // The right side is the file: URI (it carries an fsPath, unlike the
+    // diff document on the left, which carries a path instead).
+    expect(command?.[2]).toMatchObject({ fsPath: path.join(repo, "src/example.ts") });
+    expect(command?.[3]).toBe("example.ts (abcd ↔ Working Tree)");
+  });
+
+  it("opens the revision alone for a file deleted in the working tree", async () => {
+    resetVscodeMock();
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("viewDiff");
+
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "viewDiff",
+      repo,
+      commitHash: "abcdef1234567890",
+      oldRef: "abcdef1234567890",
+      newRef: "*",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "D"
+    });
+
+    expect(posts[posts.length - 1]).toEqual({ command: "viewDiff", success: true });
+    const command = executedCommands[executedCommands.length - 1];
+    expect(command?.[0]).toBe("vscode.open");
+    expect(command?.[1]).toMatchObject({ path: "src/example.ts" });
+    expect(command?.[2]).toEqual({ preview: true });
+  });
+
+  it("shows the working file on the left for a swapped viewDiff", async () => {
+    resetVscodeMock();
+    const { handlers, posts } = registerHandlersForTest();
+    const handler = handlers.get("viewDiff");
+
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "viewDiff",
+      repo,
+      commitHash: "abcdef1234567890",
+      oldRef: "*",
+      newRef: "abcdef1234567890",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+
+    expect(posts[posts.length - 1]).toEqual({ command: "viewDiff", success: true });
+    const command = executedCommands[executedCommands.length - 1];
+    expect(command?.[0]).toBe("vscode.diff");
+    expect(command?.[1]).toMatchObject({ fsPath: path.join(repo, "src/example.ts") });
+    expect(command?.[2]).toMatchObject({ path: "src/example.ts" });
+    expect(command?.[3]).toBe("example.ts (Working Tree ↔ abcd)");
+  });
+
   it("opens the VS Code Source Control view", async () => {
     resetVscodeMock();
     const { handlers, posts } = registerHandlersForTest();

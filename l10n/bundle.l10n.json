@@ -157,6 +157,7 @@
   "action.compareWithHead": "Compare with HEAD",
   "action.compareWith": "Compare With",
   "action.compareSelection": "Compare Selected Commits",
+  "action.compareCommitWithWorkingTree": "Compare with Working Tree",
   "action.dropCommit": "Drop Commit",
   "action.dropSelection": "Drop Selection",
   "action.dropStash": "Drop Stash",

@@ -157,6 +157,7 @@
   "action.compareWithHead": "与 HEAD 比较",
   "action.compareWith": "与另一提交比较",
   "action.compareSelection": "比较所选提交",
+  "action.compareCommitWithWorkingTree": "与工作树比较",
   "action.dropCommit": "删除提交",
   "action.dropSelection": "删除所选",
   "action.dropStash": "删除贮藏",

@@ -719,6 +719,12 @@ async function readCommitComparison(
   ) {
     return rerouteToCli("commitComparison", "blankRef", cliRead);
   }
+  // A working-tree comparison stays on the CLI: the engine's worktree diff
+  // reports no counts for modified files and lists untracked files that
+  // `git diff <commit>` does not (see `diff_against_worktree` in diff.rs).
+  if (args.baseRef === "*" || args.compareRef === "*") {
+    return rerouteToCli("commitComparison", "worktreeComparison", cliRead);
+  }
   const addon = provider();
   if (addon === null) return cliRead();
   try {

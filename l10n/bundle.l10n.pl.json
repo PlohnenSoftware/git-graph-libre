@@ -157,6 +157,7 @@
   "action.compareWithHead": "Porównaj z HEAD",
   "action.compareWith": "Porównaj z",
   "action.compareSelection": "Porównaj wybrane commity",
+  "action.compareCommitWithWorkingTree": "Porównaj z kopią roboczą",
   "action.dropCommit": "Usuń commit",
   "action.dropSelection": "Usuń zaznaczenie",
   "action.dropStash": "Usuń stash",

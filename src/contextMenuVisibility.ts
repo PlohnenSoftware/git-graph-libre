@@ -22,6 +22,7 @@ export const DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY = {
     compareWithHead: true,
     compareWith: true,
     compareSelection: true,
+    compareWithWorkingTree: true,
     checkout: true,
     cherryPick: true,
     revert: true,

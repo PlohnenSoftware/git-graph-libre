@@ -3106,6 +3106,8 @@ class GitGraphView {
     if (compareWithHeadItem !== null) menu.push(compareWithHeadItem);
     const compareWithItem = this.buildCompareWithMenuItem(hash, sourceElem);
     if (compareWithItem !== null) menu.push(compareWithItem);
+    const compareWithWorkingTreeItem = this.buildCompareWithWorkingTreeMenuItem(hash, sourceElem);
+    if (compareWithWorkingTreeItem !== null) menu.push(compareWithWorkingTreeItem);
     menu.push(...this.buildCommitChangeMenuItems(hash, sourceElem));
     this.appendHeadCommitMenuItems(menu, hash, sourceElem, { isHeadCommit, canDropCommit });
     menu.push(...this.buildCommitIntegrationMenuItems(hash, sourceElem));
@@ -3793,6 +3795,17 @@ class GitGraphView {
   }
   private canCompareWithHead(hash: string) {
     return this.commitHead !== null && hash !== "*" && hash !== this.commitHead;
+  }
+  private buildCompareWithWorkingTreeMenuItem(
+    hash: string,
+    sourceElem: HTMLElement
+  ): ContextMenuElement {
+    if (hash === "*") return null;
+    if (!this.isContextMenuActionVisible("commit", "compareWithWorkingTree")) return null;
+    return {
+      title: l10n.compareWithWorkingTree,
+      onClick: () => this.loadCommitComparisonWithWorkingTree(sourceElem, hash)
+    };
   }
   private buildCompareWithMenuItem(
     hash: string,
@@ -5632,6 +5645,13 @@ class GitGraphView {
       });
     }
   }
+  private loadCommitComparisonWithWorkingTree(sourceElem: HTMLElement, hash: string) {
+    // "*" is the uncommitted sentinel; as a compare ref it names the
+    // working tree, whose header label the comparison then shows.
+    this.loadCommitComparison(sourceElem, hash, hash, "*", {
+      compareLabel: l10n.workingTree
+    });
+  }
   private loadCommitComparison(
     sourceElem: HTMLElement,
     hash: string,
@@ -6306,8 +6326,13 @@ class GitGraphView {
         : {
             // A label is the ref name the user picked, so it resolves to the
             // same side (as `HEAD` already does) and names the diff title.
-            oldRef: comparison.baseLabel ?? comparison.baseRef,
-            newRef: comparison.compareLabel ?? comparison.compareRef
+            // The working tree's label is display text, not a ref, so its
+            // "*" side travels as itself and the handler titles it.
+            oldRef: comparison.baseRef === "*" ? "*" : (comparison.baseLabel ?? comparison.baseRef),
+            newRef:
+              comparison.compareRef === "*"
+                ? "*"
+                : (comparison.compareLabel ?? comparison.compareRef)
           }),
       oldFilePath: fileChange.oldFilePath,
       newFilePath: fileChange.newFilePath,

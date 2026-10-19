@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { GitCommitNode, GitRepoInfo } from "@/backend/types";
+import type { GitCommitDetails, GitCommitNode, GitRepoInfo } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import type * as GGL from "@/types";
 
@@ -273,6 +273,84 @@ describe("context menu visibility rendering", () => {
       expect(contextMenuItems()).not.toContain("Compare With…");
       expect(contextMenuItems().length).toBeGreaterThan(0);
     }
+  });
+
+  it("compares a commit with the working tree and diffs its files against it", async () => {
+    const vscodeMock = await bootWebview(defaultViewState);
+
+    document
+      .querySelector<HTMLElement>('tr.commit[data-hash="abc123"]')
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(contextMenuItems()).toContain("Compare with Working Tree");
+    const item = Array.from(
+      document.querySelectorAll<HTMLElement>("#contextMenu .contextMenuItem")
+    ).find((candidate) => candidate.textContent === "Compare with Working Tree");
+    item?.click();
+
+    expect(latestRequest(vscodeMock.sentMessages, "commitComparison")).toEqual({
+      command: "commitComparison",
+      repo: REPO,
+      commitHash: "abc123",
+      baseRef: "abc123",
+      compareRef: "*"
+    });
+    expect(vscodeMock.getState()?.expandedCommit).toMatchObject({
+      hash: "abc123",
+      comparison: { baseRef: "abc123", compareRef: "*", compareLabel: "Working Tree" }
+    });
+
+    const details: GitCommitDetails = {
+      hash: "abc123",
+      parents: [],
+      author: "Alice",
+      email: "alice@example.com",
+      authorDate: 1,
+      committer: "Alice",
+      committerEmail: "alice@example.com",
+      committerDate: 1,
+      body: "Comparison",
+      fileChanges: [
+        { oldFilePath: "file.txt", newFilePath: "file.txt", type: "M", additions: 1, deletions: 0 }
+      ]
+    };
+    receive({ command: "commitComparison", commitDetails: details, error: null });
+    expect(document.getElementById("commitDetails")?.textContent).toContain("Working Tree");
+
+    const file = document.querySelector<HTMLElement>(".gitFile");
+    expect(file).not.toBeNull();
+    file?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const viewDiffItem = Array.from(
+      document.querySelectorAll<HTMLElement>("#contextMenu .contextMenuItem")
+    ).find((candidate) => candidate.textContent === "View File Diff");
+    viewDiffItem?.click();
+    expect(latestRequest(vscodeMock.sentMessages, "viewDiff")).toEqual({
+      command: "viewDiff",
+      repo: REPO,
+      commitHash: "abc123",
+      oldRef: "abc123",
+      newRef: "*",
+      oldFilePath: "file.txt",
+      newFilePath: "file.txt",
+      type: "M"
+    });
+  });
+
+  it("hides Compare with Working Tree in the commit menu when disabled", async () => {
+    await bootWebview(
+      withVisibility({
+        commit: {
+          ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.commit,
+          compareWithWorkingTree: false
+        }
+      })
+    );
+
+    document
+      .querySelector<HTMLElement>('tr.commit[data-hash="abc123"]')
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+    expect(contextMenuItems()).not.toContain("Compare with Working Tree");
+    expect(contextMenuItems().length).toBeGreaterThan(0);
   });
 
   it("hides all disabled local branch actions", async () => {

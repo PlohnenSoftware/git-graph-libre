@@ -87,4 +87,87 @@ describe("commitComparison", () => {
       })
     );
   });
+
+  // A base commit holding two tracked files, then worktree edits on top:
+  // one modified, one deleted, plus an untracked file Git never lists.
+  function worktreeRepo() {
+    const repo = trackedRepo();
+    fs.writeFileSync(path.join(repo, "kept.txt"), "one\ntwo\n");
+    fs.writeFileSync(path.join(repo, "gone.txt"), "gone\n");
+    git(["add", "."], repo);
+    git(["commit", "-m", "add tracked files"], repo);
+    const baseHash = head(repo);
+    fs.writeFileSync(path.join(repo, "kept.txt"), "one\ntwo\nthree\n");
+    fs.rmSync(path.join(repo, "gone.txt"));
+    fs.writeFileSync(path.join(repo, "untracked.txt"), "untracked\n");
+    return { repo, baseHash };
+  }
+
+  it("compares a commit with the working tree, without listing untracked files", async () => {
+    const { repo, baseHash } = worktreeRepo();
+
+    const result = await commitComparison(simpleGit(repo), {
+      repo,
+      commitHash: baseHash,
+      baseRef: baseHash,
+      compareRef: "*",
+      dateType: "Author Date"
+    });
+
+    // Exactly `git diff --name-status --numstat <base>`: the modification
+    // and the deletion with their counts, never the untracked file.
+    expect(result.error).toBeNull();
+    expect(result.commitDetails?.hash).toBe(baseHash);
+    expect(result.commitDetails?.fileChanges).toHaveLength(2);
+    expect(result.commitDetails?.fileChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          newFilePath: "kept.txt",
+          type: "M",
+          additions: 1,
+          deletions: 0
+        }),
+        expect.objectContaining({
+          newFilePath: "gone.txt",
+          type: "D",
+          additions: 0,
+          deletions: 1
+        })
+      ])
+    );
+    expect(
+      result.commitDetails?.fileChanges.some((change) => change.newFilePath === "untracked.txt")
+    ).toBe(false);
+  });
+
+  it("reverses a working-tree comparison when the working tree is the base", async () => {
+    const { repo, baseHash } = worktreeRepo();
+
+    const result = await commitComparison(simpleGit(repo), {
+      repo,
+      commitHash: baseHash,
+      baseRef: "*",
+      compareRef: baseHash,
+      dateType: "Author Date"
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.commitDetails?.fileChanges).toHaveLength(2);
+    expect(result.commitDetails?.fileChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          newFilePath: "kept.txt",
+          type: "M",
+          additions: 0,
+          deletions: 1
+        }),
+        expect.objectContaining({
+          newFilePath: "gone.txt",
+          type: "A",
+          additions: 1,
+          deletions: 0
+        })
+      ])
+    );
+  });
 });

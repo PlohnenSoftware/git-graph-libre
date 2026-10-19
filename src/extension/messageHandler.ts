@@ -102,6 +102,47 @@ async function viewDiff(input: ViewDiffInput): Promise<boolean> {
   const newRevision = newRef ?? commitHash;
   const pathComponents = newFilePath.split("/");
   const fileName = pathComponents.at(-1);
+  // "*" names the working tree, on either side after a swap: that side is
+  // the file on disk, not a revision document. A file missing from the
+  // working tree (deleted on the right, added-back on the left) has no
+  // file to diff against, so its remaining side opens alone.
+  const worktreeSide = newRef === "*" ? "new" : oldRef === "*" ? "old" : null;
+  if (worktreeSide !== null) {
+    const absolutePath = resolveRepoFilePath(
+      repo,
+      worktreeSide === "new" ? newFilePath : oldFilePath
+    );
+    if (absolutePath === null) return false;
+    const revisionLabel = formatRevisionLabel(
+      worktreeSide === "new" ? oldRevision : newRevision,
+      shortHashLength
+    );
+    const workingTree = l10n.t("diff.workingTree");
+    const worktreeTitle = `${fileName} (${worktreeSide === "new" ? `${revisionLabel} ↔ ${workingTree}` : `${workingTree} ↔ ${revisionLabel}`})`;
+    const revisionUri = encodeDiffDocUri(
+      repo,
+      worktreeSide === "new" ? oldFilePath : newFilePath,
+      worktreeSide === "new" ? oldRevision : newRevision
+    );
+    const missingInWorktree = worktreeSide === "new" ? type === "D" : type === "A";
+    try {
+      if (missingInWorktree) {
+        await vscode.commands.executeCommand("vscode.open", revisionUri, { preview: true });
+      } else {
+        const fileUri = vscode.Uri.file(absolutePath);
+        await vscode.commands.executeCommand(
+          "vscode.diff",
+          worktreeSide === "new" ? revisionUri : fileUri,
+          worktreeSide === "new" ? fileUri : revisionUri,
+          worktreeTitle,
+          { preview: true }
+        );
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
   const title =
     oldRef === undefined && newRef === undefined
       ? `${fileName} (${formatDiffTitle(type, abbrevHash)})`

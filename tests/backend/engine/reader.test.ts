@@ -1794,6 +1794,39 @@ describe("createRepoReader loadCommitComparison", () => {
     expect(didEngineServeRead()).toBe(false);
   });
 
+  it.each([
+    ["the working tree as the compare side", { compareRef: "*" } as Partial<CommitComparisonArgs>],
+    ["the working tree as the base side", { baseRef: "*" } as Partial<CommitComparisonArgs>]
+  ])("reroutes %s to the CLI without calling compareCommits", async (_name, overrides) => {
+    const compare = vi.fn(async () => changesPayload);
+    const provider = vi.fn(
+      comparisonAddon({
+        details: async () => headerPayload,
+        compare,
+        counts: async () => "{}"
+      })
+    );
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    try {
+      const [viaReader, direct] = await Promise.all([
+        comparisonReader("auto", provider, overrides),
+        directComparison(overrides)
+      ]);
+
+      expect(compare).not.toHaveBeenCalled();
+      expect(viaReader).toEqual(direct);
+      expect(viaReader.error).toBeNull();
+      expect(comparisonReads.count).toBe(2);
+      expect(didEngineServeRead()).toBe(false);
+      expect(lines).toContainEqual(
+        expect.stringContaining("operation=commitComparison backend=cli reason=worktreeComparison")
+      );
+    } finally {
+      log.dispose();
+    }
+  });
+
   it("surfaces genuine engine failures and falls back on declines", async () => {
     const genuine = await comparisonReader(
       "auto",

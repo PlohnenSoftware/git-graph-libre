@@ -157,6 +157,7 @@
   "action.compareWithHead": "Vergelijken met HEAD",
   "action.compareWith": "Vergelijken met",
   "action.compareSelection": "Geselecteerde commits vergelijken",
+  "action.compareCommitWithWorkingTree": "Vergelijken met working tree",
   "action.dropCommit": "Commit verwijderen",
   "action.dropSelection": "Selectie verwijderen",
   "action.dropStash": "Stash verwijderen",
