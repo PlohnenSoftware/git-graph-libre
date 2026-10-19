@@ -7,7 +7,7 @@ summary: >-
 
 # D04b — Type-change presentation and actions
 
-Status: done — awaiting integration
+Status: integrated 4fb1eca
 Needs: D04a
 Decisions: X2 (b); split, icon and action policy approved 2026-10-19
 Kind: webview, icons, localization · Size budget: ≤180 changed lines outside tests, including generated icons
