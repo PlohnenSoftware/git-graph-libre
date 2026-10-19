@@ -712,6 +712,18 @@ describe("registerMessageHandlers", () => {
       "abcdef1234567890"
     );
 
+    // A type change keeps both of its sides, so its title is the ordinary
+    // two-revision one a modification gets, never "added/deleted in".
+    await handler?.({
+      command: "viewDiff",
+      repo,
+      commitHash: "abcdef1234567890",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "T"
+    });
+    expect(executedCommands[executedCommands.length - 1]?.[3]).toBe("example.ts (abcd^ ↔ abcd)");
+
     await handler?.({
       command: "viewDiff",
       repo,

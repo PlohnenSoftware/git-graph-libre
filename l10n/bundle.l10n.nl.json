@@ -554,6 +554,7 @@
   "uncommittedChanges": "Niet-gecommitte wijzigingen ({0})",
   "tooltip.binaryFile": "Dit is een binair bestand; de diff kan niet worden weergegeven.",
   "tooltip.renamedTo": " is hernoemd naar ",
+  "tooltip.typeChanged": "Type gewijzigd",
   "tooltip.addition": " toevoeging",
   "tooltip.additions": " toevoegingen",
   "tooltip.deletion": " verwijdering",

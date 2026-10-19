@@ -8,6 +8,7 @@ const path = require("node:path");
 const ICON_NAMES = [
   "alert",
   "arrow-down",
+  "arrow-switch",
   "arrow-up",
   "check",
   "copy",

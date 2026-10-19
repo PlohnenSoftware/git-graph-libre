@@ -18,5 +18,6 @@ export const svgIcons = {
   openFolder: octicon("file-directory-open-fill", "openFolderIcon"),
   closedFolder: octicon("file-directory-fill", "closedFolderIcon"),
   file: octicon("file", "fileIcon"),
+  typeChange: octicon("arrow-switch", "typeChangeIcon"),
   openFile: octicon("link-external", "fileActionIcon openFileIcon")
 };

@@ -411,6 +411,7 @@ function renderGitFileListItem(
     escapeHtml(gitFile.name),
     "</span>",
     renderRenameBadge(fileChange, l10n),
+    renderTypeChangeBadge(fileChange, l10n),
     renderAddDelSummary(fileChange, l10n),
     "</span>",
     renderGitFileActions(fileChange, l10n),
@@ -448,6 +449,21 @@ function renderRenameBadge(fileChange: GitFileChange, l10n: LocalizedStrings): s
   return ` <span class="gitFileRename" title="${escapeHtml(
     fileChange.oldFilePath + l10n.tooltipRenamedTo + fileChange.newFilePath
   )}">R</span>`;
+}
+
+// A type change (file, symlink and submodule trading places) keeps both of
+// its sides, so it carries its own badge beside the rename one: the switch
+// icon, the T status and the localized description.
+function renderTypeChangeBadge(fileChange: GitFileChange, l10n: LocalizedStrings): string {
+  if (fileChange.type !== "T") return "";
+  const description = escapeHtml(l10n.tooltipTypeChanged);
+  return [
+    ` <span class="gitFileTypeChange" title="${description}">`,
+    svgIcons.typeChange,
+    '<span class="gitFileTypeChangeStatus">T</span>',
+    `<span class="gitFileTypeChangeText">${description}</span>`,
+    "</span>"
+  ].join("");
 }
 
 function renderAddDelSummary(fileChange: GitFileChange, l10n: LocalizedStrings): string {

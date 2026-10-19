@@ -40,6 +40,7 @@ const l10n = {
   openFile: "Open file",
   tooltipBinaryFile: "Binary file",
   tooltipRenamedTo: " renamed to ",
+  tooltipTypeChanged: "Type changed",
   tooltipAddition: " addition",
   tooltipAdditions: " additions",
   tooltipDeletion: " deletion",
@@ -340,6 +341,70 @@ describe("commit details view rendering", () => {
     expect(renderGitFileTreeHtml(fileTree, fileChanges, l10n)).toContain(
       '<ul class="gitFolderContents hidden">'
     );
+  });
+
+  it("renders a type change with its badge in tree and list modes", () => {
+    const fileChanges: GitFileChange[] = [
+      {
+        oldFilePath: "src/<link>.ts",
+        newFilePath: "src/<link>.ts",
+        type: "T",
+        additions: 1,
+        deletions: 3
+      },
+      {
+        oldFilePath: "README.md",
+        newFilePath: "README.md",
+        type: "M",
+        additions: 1,
+        deletions: 1
+      }
+    ];
+
+    for (const html of [
+      renderGitFileTreeHtml(generateGitFileTree(fileChanges), fileChanges, l10n),
+      renderGitFileListHtml(fileChanges, l10n)
+    ]) {
+      const host = document.createElement("div");
+      host.innerHTML = html;
+
+      const row = host.querySelector<HTMLElement>('.gitFile[data-type="T"]');
+      expect(row?.classList.contains("T")).toBe(true);
+      expect(row?.classList.contains("gitDiffPossible")).toBe(true);
+      expect(row?.querySelector(".gitFileName")?.textContent).toContain("<link>.ts");
+      expect(row?.querySelector(".gitFileName img")).toBeNull();
+      const badge = row?.querySelector(".gitFileTypeChange");
+      expect(badge?.getAttribute("title")).toBe("Type changed");
+      expect(badge?.querySelector("svg.octicon-arrow-switch.typeChangeIcon")).not.toBeNull();
+      expect(badge?.querySelector(".gitFileTypeChangeStatus")?.textContent).toBe("T");
+      expect(badge?.querySelector(".gitFileTypeChangeText")?.textContent).toBe("Type changed");
+      expect(row?.querySelector(".gitFileAdditions")?.textContent).toBe("+1");
+      expect(row?.querySelector(".gitFileDeletions")?.textContent).toBe("-3");
+      expect(row?.querySelector(".gitFileOpenFile")).not.toBeNull();
+
+      const modified = host.querySelector<HTMLElement>('.gitFile[data-type="M"]');
+      expect(modified?.querySelector(".gitFileTypeChange")).toBeNull();
+    }
+  });
+
+  it("keeps a binary type change gated while still badging it", () => {
+    const fileChanges: GitFileChange[] = [
+      {
+        oldFilePath: "bin/tool",
+        newFilePath: "bin/tool",
+        type: "T",
+        additions: null,
+        deletions: null
+      }
+    ];
+    const host = document.createElement("div");
+    host.innerHTML = renderGitFileListHtml(fileChanges, l10n);
+
+    const row = host.querySelector<HTMLElement>('.gitFile[data-type="T"]');
+    expect(row?.getAttribute("title")).toBe("Binary file");
+    expect(row?.classList.contains("gitDiffPossible")).toBe(false);
+    expect(row?.querySelector(".gitFileAddDel")).toBeNull();
+    expect(row?.querySelector(".gitFileTypeChangeText")?.textContent).toBe("Type changed");
   });
 
   it("renders a flat changed-file list mode with full paths", () => {
@@ -664,6 +729,46 @@ describe("comparison header in the graph view", () => {
       commitHash: BRANCH_HASH,
       oldRef: "feature/old",
       newRef: "HEAD"
+    });
+  });
+
+  it("carries a type-changed comparison file into a file diff with T and both refs", async () => {
+    const vscode = await bootGraph();
+    document
+      .querySelector('.gitRef[data-name="feature/old"]')
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickMenuItem("Compare with HEAD");
+    receive({
+      command: "commitComparison",
+      commitDetails: {
+        ...commitDetails,
+        hash: BRANCH_HASH,
+        parents: [],
+        fileChanges: [
+          {
+            oldFilePath: "src/link.ts",
+            newFilePath: "src/link.ts",
+            type: "T",
+            additions: 1,
+            deletions: 3
+          }
+        ]
+      },
+      error: null
+    });
+
+    const row = document.querySelector<HTMLElement>('#commitDetails .gitFile[data-type="T"]');
+    expect(row?.querySelector(".gitFileTypeChangeText")?.textContent).toBe("Type changed");
+    row?.click();
+
+    expect(latestRequest(vscode.sentMessages, "viewDiff")).toMatchObject({
+      command: "viewDiff",
+      commitHash: BRANCH_HASH,
+      oldRef: "feature/old",
+      newRef: "HEAD",
+      oldFilePath: "src/link.ts",
+      newFilePath: "src/link.ts",
+      type: "T"
     });
   });
 

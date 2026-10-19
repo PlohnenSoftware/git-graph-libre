@@ -342,6 +342,9 @@ svg.fileIcon {
 .gitFile.D {
   color: var(--vscode-gitDecoration-deletedResourceForeground);
 }
+.gitFile.T {
+  color: var(--vscode-gitDecoration-renamedResourceForeground, var(--ngg-accent));
+}
 .gitFile.gitDiffPossible {
   cursor: pointer;
 }
@@ -363,6 +366,25 @@ svg.fileIcon {
 }
 .gitFileRename {
   cursor: help;
+}
+.gitFileTypeChange {
+  color: var(--vscode-editor-foreground);
+  margin-left: 8px;
+}
+.gitFileTypeChange {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+}
+.gitFileTypeChangeText {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+svg.typeChangeIcon {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  fill: currentColor;
 }
 .gitFileActions {
   display: inline-flex;

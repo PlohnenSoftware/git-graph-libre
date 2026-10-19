@@ -554,6 +554,7 @@
   "uncommittedChanges": "Uncommitted Changes ({0})",
   "tooltip.binaryFile": "This is a binary file, unable to view diff.",
   "tooltip.renamedTo": " was renamed to ",
+  "tooltip.typeChanged": "Type changed",
   "tooltip.addition": " addition",
   "tooltip.additions": " additions",
   "tooltip.deletion": " deletion",

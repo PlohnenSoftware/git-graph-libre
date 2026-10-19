@@ -554,6 +554,7 @@
   "uncommittedChanges": "未提交的更改（{0})",
   "tooltip.binaryFile": "此为二进制文件，无法查看差异。",
   "tooltip.renamedTo": " 重命名为 ",
+  "tooltip.typeChanged": "类型已更改",
   "tooltip.addition": " 处添加",
   "tooltip.additions": " 处添加",
   "tooltip.deletion": " 处删除",

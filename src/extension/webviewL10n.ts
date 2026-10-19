@@ -567,6 +567,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
 
     tooltipBinaryFile: translate("tooltip.binaryFile"),
     tooltipRenamedTo: translate("tooltip.renamedTo"),
+    tooltipTypeChanged: translate("tooltip.typeChanged"),
     tooltipAddition: translate("tooltip.addition"),
     tooltipAdditions: translate("tooltip.additions"),
     tooltipDeletion: translate("tooltip.deletion"),

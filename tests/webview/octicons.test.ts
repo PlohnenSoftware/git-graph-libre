@@ -25,6 +25,16 @@ describe("octicon", () => {
   });
 });
 
+describe("arrow-switch", () => {
+  it("is generated into the catalog and exposed as the type-change icon", () => {
+    document.body.innerHTML = octicon("arrow-switch") + svgIcons.typeChange;
+
+    const svgs = document.querySelectorAll("svg.octicon-arrow-switch");
+    expect(svgs).toHaveLength(2);
+    expect(document.querySelector("svg.octicon-arrow-switch.typeChangeIcon")).not.toBeNull();
+  });
+});
+
 describe("svgIcons", () => {
   it("keeps the class names the stylesheet targets on file-tree icons", () => {
     document.body.innerHTML =

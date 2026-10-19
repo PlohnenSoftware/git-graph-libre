@@ -4073,6 +4073,126 @@ describe("webview rendering", () => {
     headRow?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
 
+  it("routes a type-changed file through the modified-file actions", () => {
+    const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
+    expect(headRow).not.toBeNull();
+
+    headRow?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    receive({
+      command: "commitDetails",
+      commitDetails: {
+        ...firstCommitDetails,
+        fileChanges: [
+          {
+            oldFilePath: "src/example.ts",
+            newFilePath: "src/example.ts",
+            type: "T",
+            additions: 1,
+            deletions: 3
+          }
+        ]
+      },
+      error: null
+    });
+
+    const gitFile = document.querySelector<HTMLElement>('.gitFile[data-type="T"]');
+    expect(gitFile?.classList.contains("T")).toBe(true);
+    expect(gitFile?.querySelector("svg.octicon-arrow-switch")).not.toBeNull();
+    expect(gitFile?.textContent).toContain("Type changed");
+
+    gitFile?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "viewDiff",
+      repo: REPO,
+      commitHash: "abc123",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "T"
+    });
+
+    openFirstGitFileContextMenu();
+    clickContextMenuItem("View File at Revision");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "viewFileAtRevision",
+      repo: REPO,
+      commitHash: "abc123",
+      filePath: "src/example.ts"
+    });
+
+    openFirstGitFileContextMenu();
+    clickContextMenuItem("Compare with Working Tree");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "compareFileWithWorkingTree",
+      repo: REPO,
+      commitHash: "abc123",
+      filePath: "src/example.ts"
+    });
+
+    openFirstGitFileContextMenu();
+    clickContextMenuItem("Open File");
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "openFile",
+      repo: REPO,
+      filePath: "src/example.ts"
+    });
+
+    document
+      .querySelector<HTMLButtonElement>(".gitFileCopyPath")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "File Path",
+      data: "src/example.ts"
+    });
+
+    openFirstGitFileContextMenu();
+    clickContextMenuItem("Reset File to Revision");
+    expect(document.getElementById("dialogAction")).not.toBeNull();
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "resetFileToRevision",
+      repo: REPO,
+      commitHash: "abc123",
+      filePath: "src/example.ts"
+    });
+    dismissDialog();
+    headRow?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+
+  it("gates the diff of a binary type-changed file", () => {
+    const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
+    expect(headRow).not.toBeNull();
+
+    headRow?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    receive({
+      command: "commitDetails",
+      commitDetails: {
+        ...firstCommitDetails,
+        fileChanges: [
+          {
+            oldFilePath: "src/example.ts",
+            newFilePath: "src/example.ts",
+            type: "T",
+            additions: null,
+            deletions: null
+          }
+        ]
+      },
+      error: null
+    });
+
+    const sentBefore = vscodeMock.sentMessages.length;
+    document
+      .querySelector<HTMLElement>('.gitFile[data-type="T"]')
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(vscodeMock.sentMessages).toHaveLength(sentBefore);
+
+    openFirstGitFileContextMenu();
+    expect(contextMenuItem("View File Diff")).toBeUndefined();
+    expect(contextMenuItem("View File at Revision")).not.toBeUndefined();
+    headRow?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+
   it("collapses and expands commit detail sections with persisted state", () => {
     const headRow = document.querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]');
     expect(headRow).not.toBeNull();

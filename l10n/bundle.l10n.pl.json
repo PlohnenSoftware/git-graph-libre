@@ -554,6 +554,7 @@
   "uncommittedChanges": "Niezatwierdzone zmiany ({0})",
   "tooltip.binaryFile": "To jest plik binarny, nie można wyświetlić różnic.",
   "tooltip.renamedTo": " zmieniono nazwę na ",
+  "tooltip.typeChanged": "Zmiana typu",
   "tooltip.addition": " dodanie",
   "tooltip.additions": " dodania",
   "tooltip.deletion": " usunięcie",
