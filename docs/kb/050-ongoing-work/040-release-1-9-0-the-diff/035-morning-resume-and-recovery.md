@@ -1,11 +1,33 @@
 ---
 summary: >-
-  Morning handoff for 2026-10-19 at 07:00 Europe/Warsaw: recover Claude's
+  Morning handoff rescheduled to 2026-10-19 at 10:30 Europe/Warsaw: recover Claude's
   newer work and all worktrees before continuing, commit delegated slices
   frequently after focused checks, and preserve the integration gate.
 ---
 
 # Morning continuation and Claude recovery
+
+## Current schedule — supersedes the original 07:00 plan
+
+The maintainer rescheduled continuation to **2026-10-19 10:30 Europe/Warsaw**.
+The 07:00:06 system launch failed before Muse started: systemd-inhibit
+reported that the wake operation was still running. Added start.sh to
+retry inhibition during the resume transition, stopping retries once Muse
+has launched. A recovery Muse instance actually started at 08:03:13,
+produced a fresh log and snapshot, then was interrupted with SIGINT at
+the maintainer's request to defer work. Its service is terminal (exit 130,
+MainPID 0); preserve its edits and logs during the next recovery audit.
+
+The new user timer is ggl-resume-20261019-1030.timer, verified active for
+10:30. arm.sh uses the same new unit name/deadline and start.sh; its guard
+accepts 10:30 and rejects the old 07:00 deadline. The consumed launch
+marker was archived with a timestamp so the deferred run can start once.
+The system wake timer still needs administrator authentication: run
+`bash /home/zam/.local/state/ggl-resume-2026-10-19/arm.sh` to arm, lock and
+suspend, or add `--arm-only` to arm without sleeping. The noninteractive
+sudo attempt required a password; do not claim the new wake alarm is armed
+without checking its actual system timer state. A user timer alone cannot
+wake this machine. The older 07:00 details below are historical context.
 
 The maintainer requested a fresh, autonomous Muse Code instance with
 sandboxing disabled at **2026-10-19 07:00 Europe/Warsaw**. The launcher is
