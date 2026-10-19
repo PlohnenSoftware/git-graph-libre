@@ -11,6 +11,7 @@ pub mod diff_algorithm;
 pub mod fixture;
 pub mod line_range;
 pub mod lines_diff;
+pub mod myers_diff_algorithm;
 pub mod offset_range;
 pub mod position;
 pub mod range;
@@ -24,6 +25,7 @@ pub use diff_algorithm::{
 };
 pub use line_range::LineRange;
 pub use lines_diff::{LinesDiff, LinesDiffOptions, MovedText};
+pub use myers_diff_algorithm::MyersDiffAlgorithm;
 pub use offset_range::OffsetRange;
 pub use position::Position;
 pub use range::Range;
