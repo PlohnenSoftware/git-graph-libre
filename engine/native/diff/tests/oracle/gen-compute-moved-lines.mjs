@@ -209,8 +209,9 @@ for (let n = 0; n < 350; n++) {
   out.push(oneCase(base, mutate(base, { moves: 1 + rand(3), edits: rand(5), indels: rand(4) }), -1));
 }
 // Whole blocks with distinct lines, so real moves are likely.
+const everySeventhSuffix = (i) => (i % 7 === 0 ? ' x' : '');
 for (let n = 0; n < 150; n++) {
-  const base = block('line', 8 + rand(30)).map((l, i) => (rand(5) === 0 ? freshLine() : l + (i % 7 === 0 ? ' x' : '')));
+  const base = block('line', 8 + rand(30)).map((l, i) => (rand(5) === 0 ? freshLine() : l + everySeventhSuffix(i)));
   out.push(oneCase(base, mutate(base, { moves: 1 + rand(3), edits: rand(4), indels: rand(3) }), -1));
 }
 // Many small candidate moves: shuffles over a tiny pool of lines.
