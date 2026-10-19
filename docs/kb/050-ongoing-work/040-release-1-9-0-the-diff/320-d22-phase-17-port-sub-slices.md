@@ -7,14 +7,14 @@ summary: >-
 
 # D22 — Phase 17 port sub-slices
 
-Status: in progress — 22a–22e and 22g integrated (last b57e899), D22F integrated 39d841b; 22f ready
+Status: in progress — 22a–22g integrated (22f 8ab419f), D22F integrated 39d841b; 22j and 22h ready, 22i after both
 Needs: D21
 Decisions: X5 = (b); Phase 17 D1, D2 and D5
 Kind: Rust, the Rust arm applies · Size budget: per sub-slice, as listed
 Source: Phase 17 under Future work, "Architecture", "Slices" and "Exactness rules"
 
 **Read Phase 17 in full first.** Its exactness rules aren't optional:
-UTF-16 code units, text-model line splitting, `libm` log, an injectable
+UTF-16 code units, text-model line splitting, V8's `log` (X18), an injectable
 clock. The full port is committed 1.9.0 scope under X5 (`2026-10-19`).
 Each sub-slice is claimed and reported like a slice, by appending a
 `### 22x Report` heading to this file, and uses its own branch
@@ -64,6 +64,8 @@ match byte for byte after any split.
 The UI surface (Phase 17's slice 17.8) is planned: D4 is answered (G4,
 option (c), `2026-10-19`), and the GGL Diff tab is wave D, slices
 D40–D48. Only D45 and the slices after it need 22j.
+
+**Order after 22f (integrator, `2026-10-19`).** 22j's `diff_texts` export is what the Vitest suite's "our crate, native" arm calls, and D45 needs 22j, so 22j goes first and 22h runs beside it. 22h builds the `wasm` feature and the differential Vitest suite over the four arms that need no addon export (the fixtures' expected JSON, `@vscode/diff`'s TypeScript and WebAssembly backends, our WebAssembly build). 22i runs after both: it adds the native arm through 22j's export to that suite, making it five-way, and writes `pnpm run diff:parity` over all five.
 
 **Never use gix or Git's diff in this crate** (decision X7). It reproduces
 VS Code alone, and gix stays Git's.
@@ -164,7 +166,7 @@ Status: done — awaiting integration (over its production-line budget: held for
 
 ### 22f Report
 
-Status: done — awaiting integration
+Status: integrated 8ab419f
 
 - **Agent / date:** Claude Sonnet 5.5 (sub-agent 22f for the integrator), 2026-10-19.
 - **Branch and commits:** `diff-1.9.0/d22-f` from `the-diff` at `00f8cab`, all signed (`git log --format='%h %G? %s' 00f8cab..HEAD`): claim; `Math.log` as V8 computes it (`v8_math.rs`); its generator, data and test; `LineRange::to_offset_range`; `toRangeMapping2` with `getLineRangeMapping` (and VS Code's two unit tests); `lineRangeMappingFromRangeMappings`; `trim` made `pub(crate)`; `refineDiff`; the line-level steps; `computeMoves`; `computeDiff` with the panic-safe entry point; the fixture test; unit tests with the throwing input; the whole-flow oracle generator, data and test; two commits adding oracle cases for the 100-element rules; this report. No push.

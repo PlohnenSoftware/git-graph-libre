@@ -89,10 +89,12 @@ re-sync procedure below).
     in the output are UTF-16 columns, exactly as VS Code reports them.
   - **Lines split the way a VS Code text model splits them,** on `\r\n`, `\n`
     and `\r`, with line endings removed.
-  - **Floating point matches V8's.** The alignment score uses `Math.log`. Use
-    the `libm` crate's `log`, an fdlibm port like V8's, rather than the
-    platform's `ln`, and let the differential tests catch any last-bit tie
-    that still differs.
+  - **Floating point matches V8's.** The alignment score uses `Math.log`.
+    The port carries its own `math_log` (`src/v8_math.rs`), a transcription
+    of fdlibm's `e_log.c` as V8's `ieee754::log` has it: it matches V8 on all
+    1,000,001 inputs `1 + n` (n ≤ 1,000,000), where the platform's `ln`
+    differs on 9,276 and the `libm` crate (musl's rewrite) on 727 (22f, X18,
+    `2026-10-19`).
   - **Ordering:** reproduce the `Map`-based line identities and every
     sort's stability exactly.
   - **The clock is injectable.** `wasm32-unknown-unknown` has no
