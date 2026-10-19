@@ -106,7 +106,7 @@ function edit(line) {
     case 5: return line.replaceAll(' ', '\t');
     case 6: return line.replace('Bar', 'Qux').replace('count', 'Count');
     case 7: return ` ${line} `;
-    default: return line.length > 3 ? line.slice(0, line.length - 2) : `${line}zz`;
+    default: return line.length > 3 ? line.slice(0, -2) : `${line}zz`;
   }
 }
 
