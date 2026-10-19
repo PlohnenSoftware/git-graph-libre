@@ -22,6 +22,19 @@ never picks silently, and a choice once given covers only the dispatches
 the maintainer said it covers. Record the choice in the slice's report
 ("Agent / date") and in the integration log.
 
+The maintainer's choice for the rest of release 1.9.0 (`2026-10-19`):
+- **Agent type:** `general-purpose`.
+- **Model by difficulty:** Haiku for easy slices (docs, measurement,
+  mechanical edits); Sonnet for most slices; Opus only for hard work that
+  needs high-level thinking rather than just writing.
+- **Cheapest first:** start a slice on the cheaper model. If it fails or
+  stops blocked on difficulty, give the cleanup to the next model up
+  (Haiku → Sonnet → Opus) in the same worktree, with the first agent's
+  report.
+
+The five slices dispatched before this rule (D41F, D04a, D13, D21, D44)
+run on Opus, the inherited default.
+
 **For each slice marked `done — awaiting integration`, in dependency
 order:**
 
