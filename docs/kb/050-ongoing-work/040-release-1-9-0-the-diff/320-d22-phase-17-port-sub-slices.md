@@ -182,4 +182,5 @@ Status: integrated 8ab419f
 - **Open questions / follow-ups:** the `log` route and the notices for the fdlibm/V8 code (above); the 1.7 MB corpus (trim if X16's view is that 1.2 MB was the ceiling); the `delta_after` shift-limit gap from 22e.
 
 22j claimed by Claude Sonnet 5.5 (sub-agent 22j for the integrator) on 2026-10-19 15:42.
+22j reassigned to Muse Code (muse-wonder-full-1.0, general-purpose, inherited runtime model; no named-model selector) on 2026-10-19 15:56, continuing on top of the six signed commits the first agent left (`477ddce`–`d0ab146`), preserved exactly.
 
