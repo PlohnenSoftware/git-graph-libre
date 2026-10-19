@@ -123,9 +123,19 @@ pub fn remove_moves_in_same_diff(
     kept
 }
 
-/// `computeMovedLines`: the moved blocks of lines, as VS Code finds them.
-/// `hashed_*_lines` number equal trimmed lines alike; `changes` is the line
-/// diff. Returns no moves when the timeout expires partway.
+/// `computeMovedLines` (`computeMovedLines.ts` L17-L43), the entry point: the
+/// moved blocks of lines, as VS Code finds them. `hashed_*_lines` number equal
+/// trimmed lines alike; `changes` is the line diff. Returns no moves when the
+/// timeout expires partway. Helpers, in call order:
+/// 1. [`compute_moves_from_simple_deletions_to_simple_insertions`] (L55-L96,
+///    called at L25);
+/// 2. [`compute_unchanged_moves`] (L98-L255, called at L30), split further
+///    into [`collect_original_3_line_hashes`], [`compute_possible_mappings`],
+///    [`select_moves`] and [`extend_moves`];
+/// 3. [`join_close_consecutive_moves`] (L292-L316, called at L33);
+/// 4. [`is_long_enough_move`] (the filter callback at L35-L39, with
+///    `countWhere` L45-L53 inlined);
+/// 5. [`remove_moves_in_same_diff`] (L318-L329, called at L40).
 pub fn compute_moved_lines(
     changes: &[DetailedLineRangeMapping],
     original_lines: &TextModel,
@@ -161,24 +171,33 @@ pub fn compute_moved_lines(
 
     moves = join_close_consecutive_moves(moves);
     // Ignore too short moves
-    moves.retain(|current| {
-        let (start, end) = (
-            current.original.start_line_number - 1,
-            current.original.end_line_number_exclusive - 1,
-        );
-        // `slice` clamps to the lines, so a move past the end is just shorter.
-        let lines: Vec<&[u16]> = (start..end.min(original_lines.line_count()))
-            .map(|i| trim(original_lines.utf16_line(i + 1)))
-            .collect();
-        let original_text_length =
-            lines.iter().map(|l| l.len()).sum::<usize>() + lines.len().saturating_sub(1);
-        original_text_length >= 15 && lines.iter().filter(|l| l.len() >= 2).count() >= 2
-    });
+    moves.retain(|current| is_long_enough_move(current, original_lines));
     remove_moves_in_same_diff(changes, moves)
 }
 
-/// Returns the moves and, per index into `changes`, whether the change was
-/// consumed by one (VS Code's `excludedChanges` set).
+/// Split from `computeMovedLines` (`computeMovedLines.ts` L17-L43): the
+/// callback of the "Ignore too short moves" filter at L35-L39, with
+/// `countWhere` (L45-L53) inlined: the trimmed original lines of the move
+/// are at least 15 characters joined, and at least two have 2+ characters.
+fn is_long_enough_move(current: &LineRangeMapping, original_lines: &TextModel) -> bool {
+    let (start, end) = (
+        current.original.start_line_number - 1,
+        current.original.end_line_number_exclusive - 1,
+    );
+    // `slice` clamps to the lines, so a move past the end is just shorter.
+    let lines: Vec<&[u16]> = (start..end.min(original_lines.line_count()))
+        .map(|i| trim(original_lines.utf16_line(i + 1)))
+        .collect();
+    let original_text_length =
+        lines.iter().map(|l| l.len()).sum::<usize>() + lines.len().saturating_sub(1);
+    original_text_length >= 15 && lines.iter().filter(|l| l.len() >= 2).count() >= 2
+}
+
+/// `computeMovesFromSimpleDeletionsToSimpleInsertions`
+/// (`computeMovedLines.ts` L55-L96): pairs each pure deletion of 3+ lines with
+/// the most similar pure insertion. Returns the moves and, per index into
+/// `changes`, whether the change was consumed by one (VS Code's
+/// `excludedChanges` set). The search at L74-L81 is [`most_similar_insertion`].
 pub fn compute_moves_from_simple_deletions_to_simple_insertions(
     changes: &[DetailedLineRangeMapping],
     original_lines: &TextModel,
@@ -202,15 +221,7 @@ pub fn compute_moves_from_simple_deletions_to_simple_insertions(
         .collect();
 
     for deletion in &deletions {
-        let mut highest_similarity = -1.0;
-        let mut best = None;
-        for (idx, insertion) in insertions.iter().enumerate() {
-            let similarity = deletion.compute_similarity(insertion);
-            if similarity > highest_similarity {
-                highest_similarity = similarity;
-                best = Some(idx);
-            }
-        }
+        let (highest_similarity, best) = most_similar_insertion(deletion, &insertions);
         if let Some(idx) = best.filter(|_| highest_similarity > 0.90) {
             let insertion = insertions.remove(idx);
             moves.push(LineRangeMapping::new(deletion.range, insertion.range));
@@ -222,6 +233,26 @@ pub fn compute_moves_from_simple_deletions_to_simple_insertions(
         }
     }
     (moves, excluded_changes)
+}
+
+/// Split from `computeMovesFromSimpleDeletionsToSimpleInsertions`
+/// (`computeMovedLines.ts` L55-L96): the inner loop at L74-L81, the highest
+/// similarity (starting at -1, first one wins ties) and the index of the
+/// insertion that has it.
+fn most_similar_insertion(
+    deletion: &LineRangeFragment,
+    insertions: &[LineRangeFragment],
+) -> (f64, Option<usize>) {
+    let mut highest_similarity = -1.0;
+    let mut best = None;
+    for (idx, insertion) in insertions.iter().enumerate() {
+        let similarity = deletion.compute_similarity(insertion);
+        if similarity > highest_similarity {
+            highest_similarity = similarity;
+            best = Some(idx);
+        }
+    }
+    (highest_similarity, best)
 }
 
 struct PossibleMapping {
