@@ -169,3 +169,140 @@ impl DynamicProgrammingDiffing {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::DynamicProgrammingDiffing;
+    use crate::diff_algorithm::{IDiffAlgorithm, ISequence, ITimeout, InfiniteTimeout};
+
+    struct Elements(Vec<u32>);
+    impl ISequence for Elements {
+        fn get_element(&self, offset: u32) -> u32 {
+            self.0[offset as usize]
+        }
+        fn length(&self) -> u32 {
+            self.0.len() as u32
+        }
+        fn is_strongly_equal(&self, offset1: u32, offset2: u32) -> bool {
+            self.0[offset1 as usize] == self.0[offset2 as usize]
+        }
+    }
+
+    /// `isValid` succeeds `limit` times, then fails (a negative limit never fails).
+    struct CountingTimeout {
+        limit: i64,
+        calls: i64,
+    }
+    impl ITimeout for CountingTimeout {
+        fn is_valid(&mut self) -> bool {
+            self.calls += 1;
+            self.limit < 0 || self.calls <= self.limit
+        }
+    }
+
+    fn chars(text: &str) -> Elements {
+        Elements(text.encode_utf16().map(u32::from).collect())
+    }
+
+    /// `s1,e1,s2,e2` groups, as the oracle corpus prints them.
+    fn run(a: &Elements, b: &Elements, mode: &str, limit: i64) -> String {
+        let score = |o1: u32, o2: u32| {
+            let n = i64::from(a.0[o1 as usize]) * 7 + i64::from(b.0[o2 as usize]) * 3;
+            let sum = n + i64::from(o1) + i64::from(o2);
+            if sum % 5 == 0 {
+                0.1
+            } else {
+                0.99 + f64::from((o1 * 3 + o2) % 4) / 10.0
+            }
+        };
+        let mut timeout = CountingTimeout { limit, calls: 0 };
+        let result = DynamicProgrammingDiffing.compute_with_score(
+            a,
+            b,
+            &mut timeout,
+            (mode == "f").then_some(&score),
+        );
+        let diffs: Vec<_> = result
+            .diffs
+            .iter()
+            .map(|d| {
+                let (r1, r2) = (d.seq1_range, d.seq2_range);
+                format!(
+                    "{},{},{},{}",
+                    r1.start, r1.end_exclusive, r2.start, r2.end_exclusive
+                )
+            })
+            .collect();
+        format!("{}|{}", diffs.join(" "), result.hit_timeout)
+    }
+
+    // VS Code's `suite('myers')` test '1' has a dead `true ? Myers : DynamicProgramming`
+    // branch, so it never runs this algorithm; the value is what VS Code returns for it.
+    #[test]
+    fn vscode_myers_test_1_input() {
+        let (s1, s2) = (chars("hello world"), chars("hallo welt"));
+        assert_eq!(run(&s1, &s2, "u", -1), "1,2,1,2 7,9,7,8 10,11,9,10|false");
+    }
+
+    #[test]
+    fn trivial_cases_return_one_whole_diff() {
+        assert_eq!(run(&chars(""), &chars(""), "u", -1), "0,0,0,0|false");
+        assert_eq!(run(&chars("abc"), &chars(""), "u", -1), "0,3,0,0|false");
+        assert_eq!(run(&chars(""), &chars("abc"), "u", -1), "0,0,0,3|false");
+        assert_eq!(run(&chars("abc"), &chars("abc"), "u", -1), "|false");
+    }
+
+    #[test]
+    fn counts_utf16_units_not_characters() {
+        let (a, b) = (chars("a\u{1F600}b"), chars("axb"));
+        assert_eq!(run(&a, &b, "u", -1), "1,3,1,2|false");
+    }
+
+    #[test]
+    fn an_expired_timeout_gives_the_trivial_diff() {
+        let (a, b) = (chars("abcd"), chars("abcd"));
+        assert_eq!(run(&a, &b, "u", 3), "0,4,0,4|true");
+        assert_eq!(run(&a, &b, "u", 16), "|false");
+    }
+
+    #[test]
+    fn the_trait_method_scores_every_match_one() {
+        let (a, b) = (chars("hello world"), chars("hallo welt"));
+        let result = DynamicProgrammingDiffing.compute(&a, &b, &mut InfiniteTimeout);
+        assert_eq!(result.diffs.len(), 3);
+        assert!(!result.hit_timeout);
+    }
+
+    #[test]
+    fn matches_vscode_on_the_oracle_corpus() {
+        let parse = |list: &str| {
+            Elements(
+                list.split(',')
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.parse().unwrap())
+                    .collect(),
+            )
+        };
+        let mut cases = 0;
+        for line in include_str!("../tests/data/dynamic-programming-oracle.txt").lines() {
+            if line.starts_with('#') {
+                continue;
+            }
+            let mut parts = line.splitn(5, ';');
+            let (a, b, mode, limit, expected) = (
+                parts.next().unwrap(),
+                parts.next().unwrap(),
+                parts.next().unwrap(),
+                parts.next().unwrap().parse().unwrap(),
+                parts.next().unwrap(),
+            );
+            assert_eq!(
+                run(&parse(a), &parse(b), mode, limit),
+                expected,
+                "case {line}"
+            );
+            cases += 1;
+        }
+        assert_eq!(cases, 619);
+    }
+}
