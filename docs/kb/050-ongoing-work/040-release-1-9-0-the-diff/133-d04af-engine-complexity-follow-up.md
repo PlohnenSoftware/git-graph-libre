@@ -8,7 +8,7 @@ summary: >-
 
 # D04AF — Engine complexity follow-up
 
-Status: ready
+Status: done — awaiting integration
 Needs: D04a (integrated)
 Decisions: — (a follow-up the integrator opened to bring the wave gate to `OK`, as with D41F, D42F and D43F)
 Kind: Rust · Size budget: ≤ 60 changed lines outside tests
@@ -62,4 +62,11 @@ parity tests green against the rebuilt addon.
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Muse Code, 2026-10-19 10:55 Europe/Warsaw (claimed 10:53). Dispatched as general-purpose on the inherited runtime model — this runtime exposes no Haiku/Sonnet/Opus selector (easy-tier slice); the integrator records that constraint.
+- **Branch and commits:** `diff-1.9.0/d04af` — `832db4a G refactor(engine): extract modification_kind from classify (D04AF)`; plus this report commit
+- **Files changed:** `engine/native/core/src/diff.rs` +19/−11 (30 changed lines outside tests, inside the ≤60 budget), plus this slice file's status/report. Extracted `modification_kind(entry_mode, previous_entry_mode)` holding D04a's type-change check (`is_link`/`is_commit` comparison, verbatim) and the `TypeChanged`/`Modified` choice, with its explanatory comment moved to the helper's doc; `classify`'s `Modification` arm now calls it. No other file touched; no test needed changing.
+- **Tests added or changed:** none. D04a's Git-parity tests pass unchanged: Rust `type_changes_list_and_count_as_git_does` (all six directed transitions) and `lists_a_type_change_as_git_does` green; backend `parity.test.ts` (29) and `details.test.ts` (15) green against the rebuilt addon. Rust totals unchanged at 123 passed (incl. 1 doc test).
+- **Gates:** biome n/a (no TS/JSON touched); typecheck n/a (no TS touched); test backend focused 44/44 (`parity.test.ts` 29, `details.test.ts` 15, against the rebuilt addon), webview n/a; l10n n/a (no user-visible text); kb:check pass (run with this report); Rust arm pass (`engine:fmt`, `engine:lint`, `engine:check`, `engine:test` 123 passed incl. 1 doc test); `engine:build` + `engine:smoke` OK (engineVersion `1.0.26`, unchanged); Sonar: integrator
+- **Acceptance:** Rust arm and the checks above green, with numbers — met (above). The integrator's next Sonar scan shows no `S3776` in `diff.rs` — for the integrator to confirm; by construction `classify` loses the moved nested `if` and `||` sequence (the only branch the finding's count added over the limit, 17 against 16), while the extracted helper is a single top-level `if` over one `||`, so both functions sit below the limit. No exact new score is claimed here, since no Sonar scan was run in this worktree.
+- **Deviations from the slice:** none. No engine version bump, per step 2: behavior is byte-for-byte the same classification and counts (moved verbatim, proven by the unchanged parity tests), so TypeScript relies on no behavior an older binary lacks and the Phase 16 bump rule does not trigger; `engine:smoke` still reports `1.0.26`.
+- **Open questions / follow-ups:** none. Fresh coverage and the confirming Sonar scan are the integrator's wave gate.
