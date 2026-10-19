@@ -12,14 +12,13 @@ summary: >-
 
 # Release 1.9.0 — "The Diff"
 
-**Status: in progress `2026-10-19` on local `the-diff`; no pushing.
-Integrated and Sonar-clean (`OK`, wave gate 7): waves A–D complete (D44
-accepted under X8), the comparison wave D10–D15 with follow-ups, D20/D21,
-the Phase 17 port through 22f (all 58 fixtures exact, moves included),
-D30's preparation, and D50/D51. In flight: 22j (exports committed, TS seam
-remaining) and 22h (claimed), then 22i, then D45–D48. D07 still waits on a
-gix release. D90, D30's posting and D48's display half are the
-maintainer's.**
+**Status: release preparation complete on local `the-diff` (`2026-10-19`);
+no pushing. Every slice in scope is integrated — waves A–D, the whole
+Phase 17 port (22a–22j, five-arm parity recorded), D45–D47, D48's agent
+half, D50/D51 and all Sonar follow-ups — and the final wave gate is `OK`
+with 0 new issues. Remaining, all the maintainer's: D48's display half,
+D90 (changelog, version, tag, publication), D30's posting, and D07 when a
+gix release ships the fixes.**
 
 Everything about diffs that is open, in one release: what users asked for,
 what the roadmap left behind, and what the `2026-10-18` diff audit found
@@ -47,7 +46,7 @@ of VS Code's algorithm (Phase 17). The two are never mixed.
 | Don't hide type changes (file ↔ symlink) | diff audit: dropped by both backends | D04 (decision X2) |
 | `+N/−M` counts that match Git | Phase 16 candidate 6; the diff audit's root causes 1, 5 and 6 | D05 |
 | Take the upstream gix diff fixes | diff audit: rename limit, replacement refs, the Myers fix | D07 (blocked on a gix release) |
-| Hand Git-compatibility fixes to gitoxide | diff audit; the maintainer's "gix first" request | D22F3 | [Final Sonar follow-up](040-release-1-9-0-the-diff/324-d22f3-final-sonar-follow-up.md) | TS + scripts | 22f, 22j | H | ready |
+| Hand Git-compatibility fixes to gitoxide | diff audit; the maintainer's "gix first" request | D22F3 | [Final Sonar follow-up](040-release-1-9-0-the-diff/324-d22f3-final-sonar-follow-up.md) | TS + scripts | 22f, 22j | H | integrated 03ceb26 |
 | D30 |
 | Start VS Code's diff algorithm in the engine | Phase 17, slices 17.0 and 17.1; the full port is committed scope under X5 | D20, D21, D22 (decision X5) |
 | A light "GGL Diff" tab that looks like the diff editor, opened from Source Control and commit details, fed by the engine | the maintainer's request and Phase 17 D4 = G4 (c), `2026-10-19` | D40–D48; D45 onward need the port's 22j |
@@ -216,3 +215,5 @@ commit, the gate results with numbers, and the Sonar task id.
 - `2026-10-19` — D48 agent half integrated (`116380f`, rebased, then fast-forward; 3 commits, all `G`; docs only, `kb:check` green). Headline measurement, recorded in Phase 17: on this repository's only over-10,000-line change (`a484db7`, `graphify-out/graph.json`) the tab's engine hits the 5,000 ms cap on every run (`hitTimeout=1`), exactly where the `@vscode/diff` TypeScript proxy also times out, while its WebAssembly proxy completes in 2.58 s; the small case loads in 1.87 ms median process-cold. Integrator's caveat: the numbers were taken while 22i's parity sweep held one core busy, so treat the small-case milliseconds as upper bounds; click-to-paint remains the maintainer's display half on the same two cases. Whether the port's very-large-file timeout behavior wants a follow-up slice is the maintainer's call. SonarQube: next wave gate.
 - `2026-10-19` — 22i integrated (`fa1fe43`, rebased cleanly over D45–D48, then fast-forward; 7 commits, all `G`), completing D22 and the Phase 17 port. The first agent's unbounded this-repository sweep was killed by the integrator after ~83 minutes of CPU on generated-file pairs (its cancellation summary claimed report commits that do not exist in this repository — verified by `git cat-file`; only its three real commits stood, preserved exactly). The finisher bounded every arm at the editor's 5,000 ms cap and reran: git.git 220 pairs (ours 0 mismatches vs TypeScript; the package WebAssembly arm 13), this repository 754 pairs (ours 0 and 1, the 1 proven a cap-edge artifact), five-arm suite 61/61 with both builds present at integration. Results recorded at Phase 17's 17.6; the gitoxide sweep 17.6 names was not run (no local checkout) and stays open there. SonarQube: final wave gate next.
 - `2026-10-19` — **Final wave gate, first pass** (22j, 22h, D45, D46, D47, D48 agent half, 22i; HEAD `8fc80c8`): Rust arm clean with both builds present (`diff:wasm` first so no arm skips), package OK, `l10n:check` 100%, fresh `pnpm run test:coverage` 1858/1858 tests in 151 files at 91.41% lines (8435/9228). SonarQube task `fa616c30-a919-4685-bef6-e92c379281bf`, analysis `8e0fe631-46ac-44dd-bcca-1e33f76a07c7`: gate **ERROR** on one condition — 8 new violations (limit 5), 0 high, new coverage 93.3%, duplication 0.90%, 0 hotspots. Six findings sit in 22f's `gen-default-lines-diff-computer.mjs`, two `S4325` in 22j's `diffTexts.ts`. Opened D22F3 for them, with the byte-identical-corpus proof D22F/D22F2 set.
+- `2026-10-19` — D22F3 integrated (`03ceb26`, fast-forward; 9 commits, all `G`); the integrator independently reran the fixed generator: `cmp` byte-identical to the committed corpus (648 cases, 1 THROW).
+- `2026-10-19` — **Final wave gate, second pass** (D22F3; HEAD `03ceb26` before the graph refresh): typecheck green, fresh `pnpm run test:coverage` 1858/1858 tests in 151 files at 91.41% lines (8435/9228), `kb:check` green. SonarQube task `ffb9421f-275c-4e65-92d0-f92c194904db`, analysis `cf71cb80-7722-4e25-aaa2-94f19e30ab7a`: gate **OK** on all nine conditions — new coverage 93.3%, duplication 0.90%, 0 new violations, 0 high/blocker/reliability/security issues, 0 hotspots. With D07 blocked on a gix release and D48's display half, D90 and D30's posting with the maintainer, the agent-side release preparation is complete.

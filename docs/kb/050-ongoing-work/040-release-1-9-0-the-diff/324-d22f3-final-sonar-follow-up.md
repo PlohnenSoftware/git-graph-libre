@@ -9,7 +9,7 @@ summary: >-
 
 # D22F3 — Final Sonar follow-up
 
-Status: done — awaiting integration
+Status: integrated 03ceb26
 Needs: 22f, 22j (integrated)
 Decisions: X13 (fix the generators' valid findings)
 Kind: TypeScript + scripts · Size guide: ~80 changed lines outside tests
