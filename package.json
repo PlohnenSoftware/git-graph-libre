@@ -96,6 +96,7 @@
     "engine:build:all": "node engine/scripts/build-all.mjs",
     "engine:smoke": "node engine/scripts/smoke-addon.mjs",
     "diff:wasm": "cargo build --manifest-path engine/Cargo.toml -p git-graph-diff --features wasm --target wasm32-unknown-unknown --release && wasm-bindgen --target nodejs --out-dir engine/target/diff-wasm --out-name git_graph_diff engine/target/wasm32-unknown-unknown/release/git_graph_diff.wasm",
+    "diff:parity": "node scripts/diff-parity.mjs",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc -p ./src --noEmit --watch",
     "format": "biome format .",
