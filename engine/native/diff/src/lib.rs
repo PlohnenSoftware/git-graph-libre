@@ -7,6 +7,7 @@
 #![forbid(unsafe_code)]
 
 pub mod clock;
+pub mod diff_algorithm;
 pub mod fixture;
 pub mod line_range;
 pub mod lines_diff;
@@ -17,6 +18,10 @@ pub mod range_mapping;
 pub mod text;
 
 pub use clock::{Clock, SystemClock, Timeout};
+pub use diff_algorithm::{
+    DiffAlgorithmResult, IDiffAlgorithm, ISequence, ITimeout, InfiniteTimeout, OffsetPair,
+    SequenceDiff,
+};
 pub use line_range::LineRange;
 pub use lines_diff::{LinesDiff, LinesDiffOptions, MovedText};
 pub use offset_range::OffsetRange;
