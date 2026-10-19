@@ -9,7 +9,7 @@ summary: >-
 
 # D21 — Phase 17 oracle suite
 
-Status: waiting on D20
+Status: ready
 Needs: D20
 Decisions: —
 Kind: TypeScript tests and vendored fixtures · Size budget: ≤ 250 changed lines, not counting the fixtures

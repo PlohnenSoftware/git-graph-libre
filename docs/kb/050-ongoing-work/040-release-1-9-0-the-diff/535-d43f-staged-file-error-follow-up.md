@@ -6,7 +6,7 @@ summary: >-
 
 # D43F — Staged-file Error follow-up
 
-Status: done — awaiting integration
+Status: integrated 7d07111
 Needs: D43 (integrated)
 Decisions: separate follow-up approved by the maintainer 2026-10-19
 Kind: TypeScript · Size budget: ≤30 changed lines outside tests

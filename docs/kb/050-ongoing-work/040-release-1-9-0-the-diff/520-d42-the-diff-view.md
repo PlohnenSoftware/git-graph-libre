@@ -9,7 +9,7 @@ summary: >-
 
 # D42 — The diff view
 
-Status: done — awaiting integration
+Status: integrated 1593f4e
 Needs: D40, D41
 Decisions: Phase 17 D4 (answered: G4, option (c))
 Kind: webview (TypeScript and CSS) · Size budget: ≤ 300 changed lines outside tests

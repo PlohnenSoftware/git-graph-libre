@@ -8,7 +8,7 @@ summary: >-
 
 # D12 — "Compare with…" dialog
 
-Status: waiting on D10, D11
+Status: ready
 Needs: D10, D11
 Decisions: — (the direction is fixed: clicked commit → chosen ref)
 Kind: webview, plus l10n · Size budget: ≤ 220 changed lines outside tests

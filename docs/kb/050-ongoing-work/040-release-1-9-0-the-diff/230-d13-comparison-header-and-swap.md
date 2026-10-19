@@ -9,7 +9,7 @@ summary: >-
 
 # D13 — Comparison header and swap
 
-Status: waiting on D10
+Status: ready
 Needs: D10
 Decisions: —
 Kind: webview, plus l10n and CSS · Size budget: ≤ 200 changed lines outside tests

@@ -9,7 +9,7 @@ summary: >-
 
 # D10 — Compare two selected commits
 
-Status: done — awaiting integration
+Status: integrated 7dc038b
 Needs: —
 Decisions: X3
 Kind: webview, plus l10n · Size budget: ≤ 200 changed lines outside tests

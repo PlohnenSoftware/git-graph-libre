@@ -10,7 +10,7 @@ summary: >-
 
 # D44 — The GGL Diff tab
 
-Status: waiting on D42
+Status: ready
 Needs: D42
 Decisions: Phase 17 D4 (answered: G4, option (c))
 Kind: TypeScript, webview, build · Size budget: ≤ 300 changed lines outside tests
