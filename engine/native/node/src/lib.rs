@@ -12,6 +12,8 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
+mod diff_wire;
+
 use git_graph_core::types::{LogOptions, RefReadOptions, SearchOptions};
 use git_graph_core::{
     blob, config, details, diff, graph, log, refs, search, stash, stats, status, Error, ErrorKind,
@@ -214,6 +216,39 @@ pub async fn load_index_file(path: String, file: String) -> Result<String> {
     run(move || {
         let repo = RepoManager::global().get(&path)?;
         encode(&blob::index_file(&repo, &file)?)
+    })
+    .await
+}
+
+/// Diff two texts with the Phase 17 port of VS Code's algorithm, pure. `options_json` holds
+/// `ignoreTrimWhitespace`, `maxComputationTimeMs` (0 is no limit), `computeMoves` and
+/// `extendToSubwords`, each optional. Answers VS Code's `LinesDiff` as JSON, with UTF-16 columns.
+///
+/// A computation VS Code would throw on is an `Unsupported` error rather than a crash.
+#[napi]
+pub async fn diff_texts(
+    original: String,
+    modified: String,
+    options_json: String,
+) -> Result<String> {
+    run(move || diff_wire::diff_to_json(&original, &modified, &options_json)).await
+}
+
+/// Diff one file between two revisions, reading both blobs in process. `old_path` is the file's
+/// path at `from`, `new_path` its path at `to`; a side where it is absent reads as empty. A binary
+/// side answers the marker `load_commit_file` gives. Options and answer as for [`diff_texts`].
+#[napi]
+pub async fn diff_file_at_revisions(
+    path: String,
+    from: String,
+    to: String,
+    old_path: String,
+    new_path: String,
+    options_json: String,
+) -> Result<String> {
+    run(move || {
+        let repo = RepoManager::global().get(&path)?;
+        diff_wire::diff_files_to_json(&repo, &from, &to, &old_path, &new_path, &options_json)
     })
     .await
 }
