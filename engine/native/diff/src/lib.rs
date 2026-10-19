@@ -10,6 +10,7 @@ pub mod clock;
 pub mod diff_algorithm;
 pub mod fixture;
 pub mod line_range;
+pub mod line_sequence;
 pub mod lines_diff;
 pub mod myers_diff_algorithm;
 pub mod offset_range;
@@ -24,6 +25,7 @@ pub use diff_algorithm::{
     SequenceDiff,
 };
 pub use line_range::LineRange;
+pub use line_sequence::LineSequence;
 pub use lines_diff::{LinesDiff, LinesDiffOptions, MovedText};
 pub use myers_diff_algorithm::MyersDiffAlgorithm;
 pub use offset_range::OffsetRange;
