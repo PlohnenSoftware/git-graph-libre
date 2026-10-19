@@ -8,7 +8,7 @@ summary: >-
 
 # D42F — View Sonar follow-up
 
-Status: done — awaiting integration
+Status: integrated 6d72d31
 Needs: D42 (integrated)
 Decisions: — (a follow-up the integrator opened to bring the wave gate to `OK`, as with D41F and D43F)
 Kind: TypeScript · Size budget: ≤ 40 changed lines outside tests
