@@ -123,6 +123,60 @@ pub fn remove_moves_in_same_diff(
     kept
 }
 
+/// `computeMovedLines`: the moved blocks of lines, as VS Code finds them.
+/// `hashed_*_lines` number equal trimmed lines alike; `changes` is the line
+/// diff. Returns no moves when the timeout expires partway.
+pub fn compute_moved_lines(
+    changes: &[DetailedLineRangeMapping],
+    original_lines: &TextModel,
+    modified_lines: &TextModel,
+    hashed_original_lines: &[u32],
+    hashed_modified_lines: &[u32],
+    timeout: &mut dyn ITimeout,
+) -> Vec<LineRangeMapping> {
+    let (mut moves, excluded_changes) = compute_moves_from_simple_deletions_to_simple_insertions(
+        changes,
+        original_lines,
+        modified_lines,
+        timeout,
+    );
+    if !timeout.is_valid() {
+        return Vec::new();
+    }
+
+    let filtered_changes = changes
+        .iter()
+        .zip(&excluded_changes)
+        .filter(|(_, &excluded)| !excluded)
+        .map(|(c, _)| c)
+        .collect();
+    moves.extend(compute_unchanged_moves(
+        filtered_changes,
+        hashed_original_lines,
+        hashed_modified_lines,
+        original_lines,
+        modified_lines,
+        timeout,
+    ));
+
+    moves = join_close_consecutive_moves(moves);
+    // Ignore too short moves
+    moves.retain(|current| {
+        let (start, end) = (
+            current.original.start_line_number - 1,
+            current.original.end_line_number_exclusive - 1,
+        );
+        // `slice` clamps to the lines, so a move past the end is just shorter.
+        let lines: Vec<&[u16]> = (start..end.min(original_lines.line_count()))
+            .map(|i| trim(original_lines.utf16_line(i + 1)))
+            .collect();
+        let original_text_length =
+            lines.iter().map(|l| l.len()).sum::<usize>() + lines.len().saturating_sub(1);
+        original_text_length >= 15 && lines.iter().filter(|l| l.len() >= 2).count() >= 2
+    });
+    remove_moves_in_same_diff(changes, moves)
+}
+
 /// Returns the moves and, per index into `changes`, whether the change was
 /// consumed by one (VS Code's `excludedChanges` set).
 pub fn compute_moves_from_simple_deletions_to_simple_insertions(
@@ -535,5 +589,52 @@ mod tests {
             &mut InfiniteTimeout,
         );
         assert_eq!(moves, vec![lr(1, 5, 5, 9)]);
+    }
+
+    #[test]
+    fn a_moved_block_is_found_and_short_ones_are_ignored() {
+        use crate::line_range::LineRange;
+        let change = |a, b, c, d| {
+            DetailedLineRangeMapping::new(LineRange::new(a, b), LineRange::new(c, d), None)
+        };
+        let names = [
+            "head one",
+            "head two",
+            "moved first line",
+            "moved second line",
+            "moved third line",
+            "moved fourth line",
+            "tail one",
+            "tail two",
+        ];
+        let original = model(&names);
+        let modified = model(&[
+            names[0], names[1], names[6], names[7], names[2], names[3], names[4], names[5],
+        ]);
+        let (h_orig, h_mod) = ([1, 2, 3, 4, 5, 6, 7, 8], [1, 2, 7, 8, 3, 4, 5, 6]);
+        let changes = vec![change(3, 7, 3, 3), change(9, 9, 5, 9)];
+        let moves = compute_moved_lines(
+            &changes,
+            &original,
+            &modified,
+            &h_orig,
+            &h_mod,
+            &mut InfiniteTimeout,
+        );
+        assert_eq!(moves, vec![lr(3, 7, 5, 9)]);
+
+        // The same shape with tiny lines is below 15 characters: no move.
+        let tiny = model(&["a", "b", "c", "d"]);
+        let tiny_mod = model(&["c", "d", "a", "b"]);
+        let changes = vec![change(1, 3, 1, 1), change(5, 5, 3, 5)];
+        let none = compute_moved_lines(
+            &changes,
+            &tiny,
+            &tiny_mod,
+            &[1, 2, 3, 4],
+            &[3, 4, 1, 2],
+            &mut InfiniteTimeout,
+        );
+        assert!(none.is_empty());
     }
 }
