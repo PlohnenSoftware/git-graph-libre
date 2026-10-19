@@ -67,7 +67,10 @@ comparison-with-working-tree layering, none of which this project wires.
 
 ## License
 
-The engine is MIT licensed. The upstream workspace declares `license = "MIT"`,
+The upstream engine is MIT licensed; this project's changes to it are
+AGPL-3.0-or-later, so the engine here is declared
+`AGPL-3.0-or-later AND MIT` (decision X10, `2026-10-19`). The upstream
+workspace declares `license = "MIT"`,
 and the upstream `LICENSE` names "the Rust native engine (./native/)" among
 its "Original Contributions". That file's copyright line and permission
 notice are preserved here verbatim, as the MIT license requires:
