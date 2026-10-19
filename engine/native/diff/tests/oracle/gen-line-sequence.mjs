@@ -95,7 +95,7 @@ const cases = [
 	['    four', '\t\ttwo tabs', ' \t mixed', 'x'],
 	['', ' ', '\t', '  ', ''],
 	['\u00a0nbsp', '\u2003em', '\u3000ideographic', '\u{1F600} emoji', ' \u{1F600}'],
-	['a;b', 'c|d', 'e\\f', 'g\\ph', ' ;| '],
+	['a;b', 'c|d', String.raw`e\f`, String.raw`g\ph`, ' ;| '],
 	['{', '  if (x) {', '    y();', '  }', '}'],
 ];
 // Seeded random cases drawn from a small alphabet of indentation and text.
@@ -110,7 +110,7 @@ for (let i = 0; i < 80; i++) {
 
 // Fields are separated by `;` and list items by `|`, so both are escaped.
 const esc = (s) =>
-	s.replaceAll(/\\/g, '\\\\').replaceAll(/;/g, '\\c').replaceAll(/\|/g, '\\p').replaceAll(/\t/g, '\\t').replaceAll(/\n/g, '\\n');
+	s.replaceAll(/\\/g, String.raw`\\`).replaceAll(/;/g, String.raw`\c`).replaceAll(/\|/g, String.raw`\p`).replaceAll(/\t/g, String.raw`\t`).replaceAll(/\n/g, String.raw`\n`);
 
 const out = [
 	'# Oracle corpus for line_sequence.rs, one case per line: `n:lines;hashes;scores;strong;texts`.',
