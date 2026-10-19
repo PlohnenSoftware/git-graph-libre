@@ -7,10 +7,12 @@ name: engine
 on:
   push:
     paths:
+      - "tests/backend/vscodeDiff*.test.ts"
       - "engine/**"
       - ".github/workflows/engine.yml"
   pull_request:
     paths:
+      - "tests/backend/vscodeDiff*.test.ts"
       - "engine/**"
       - ".github/workflows/engine.yml"
 
@@ -45,10 +47,11 @@ jobs:
       - name: cargo fmt
         run: pnpm run engine:fmt
 
-  # Phase 17 (22h): the differential Vitest suite needs our WebAssembly build.
+  # Phase 17 (22h, 22i): the five-arm differential Vitest suite needs both of
+  # our builds, the WebAssembly one and the native addon; without either it
+  # skips every pair involving ours, so both are built and checked first.
   # `wasm-bindgen-cli` is pinned to the `wasm-bindgen` crate version in
-  # engine/native/diff/Cargo.toml, like the pinned zig. Without the build the
-  # suite skips our arm, so the step checks the output exists first.
+  # engine/native/diff/Cargo.toml, like the pinned zig.
   diff-wasm:
     name: diff crate wasm build and differential suite
     runs-on: ubuntu-latest
@@ -74,6 +77,12 @@ jobs:
 
       - name: Check the build exists
         run: test -f engine/target/diff-wasm/git_graph_diff.js
+
+      - name: Build the native addon
+        run: pnpm run engine:build
+
+      - name: Check the addon loads
+        run: pnpm run engine:smoke
 
       - name: Differential suite
         run: pnpm exec vitest run --project backend tests/backend/vscodeDiffDifferential.test.ts tests/backend/vscodeDiffOracles.test.ts
