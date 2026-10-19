@@ -8,7 +8,7 @@ summary: >-
 
 # D13F — Comparison Sonar follow-up
 
-Status: claimed by Muse Code (general-purpose) sub-agent D13F on 2026-10-19 11:02
+Status: done — awaiting integration
 Needs: D13 (integrated); dispatch after D12 integrates (both touch `src/webview/main.ts`)
 Decisions: — (a follow-up the integrator opened to bring the wave gate to `OK`, as with D41F, D42F and D43F)
 Kind: TypeScript · Size budget: ≤ 40 changed lines outside tests
@@ -64,4 +64,13 @@ then the full webview project).
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Muse Code (general-purpose) sub-agent D13F, 2026-10-19 11:04 Europe/Warsaw (inherited runtime model `muse-wonder-full-1.0`; this runtime has no named-model selector — the slice was classed easy-tier, for the integrator to record)
+- **Branch and commits:** `diff-1.9.0/d13f` — `557234e G docs(release): claim D13F comparison Sonar follow-up slice (D13F)`; `4271aff G refactor(compare): clear the comparison swap Sonar findings (D13F)`; this report in a further signed docs commit on the same branch. No push.
+- **Files changed:** `src/webview/main.ts` (+20 −5, 25 changed lines, within the ≤40 budget), this slice file (claim, status and report). Nothing else; `tests/webview/commitDetailsView.test.ts` unchanged.
+- **Tests added or changed:** none; no case was needed. The existing Swap case (`tests/webview/commitDetailsView.test.ts`, "swaps a comparison, exchanging refs and labels") already pins the sent `commitComparison` request (`baseRef: "HEAD"`, `compareRef: <branch hash>`) and the exchanged labels in state. Counts unchanged: `commitDetailsView` 22, webview project 673.
+- **Gates:** strict Biome clean on the touched file (`npx biome check --config-path biome.strict.jsonc --error-on-warnings src/webview/main.ts`, `Checked 1 file`, also clean staged before the code commit); `pnpm run typecheck` green (all three projects); `pnpm exec vitest run --project webview tests/webview/commitDetailsView.test.ts` 22/22; `pnpm exec vitest run --project webview` 673/673 in 59 files; backend project not run (no backend file touched; webview-only slice); `git diff --check` clean; l10n n/a (no user-visible text); kb:check green (run with this report); Rust arm n/a (no `engine/**` change); Sonar: integrator
+- **Acceptance:**
+  - Strict Biome clean, typecheck green, webview tests green: met (numbers above).
+  - The integrator's next Sonar scan shows neither finding: closed in the code, to be confirmed by the integrator's scan. The scan's lines 6132/6134 are the `swapCommitComparison` guard and call, now at `src/webview/main.ts:6247` after D12/D04b landed (found by content). `S6582`: the guard no longer reads `expanded.comparison`/`expanded.srcElem` behind an `expanded === null ||` check; it reads `expanded?.comparison` and `expanded?.srcElem` into locals and returns when `expanded` is null or either local is null/undefined — for the typed states (`comparison`/`srcElem` are `| null`, so `undefined` arises only from the chain when `expanded` is null) it returns in exactly the old three cases. `S2234`: the destructuring itself performs the exchange under explicit names (`baseRef: swappedCompareRef`, `compareRef: swappedBaseRef`, likewise the labels), and the call passes `swappedBaseRef, swappedCompareRef` in `loadCommitComparison`'s parameter order (`baseRef`, `compareRef` at `src/webview/main.ts:5638`). The sent request is byte-for-byte the old one — base and compare exchanged — as the unchanged Swap test proves. No rule suppression anywhere.
+- **Deviations from the slice:** none. Only `src/webview/main.ts` was touched outside this slice file, as *Touch* allows; no behavior change, no test change.
+- **Open questions / follow-ups:** none.
