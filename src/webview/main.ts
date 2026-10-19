@@ -6183,6 +6183,24 @@ class GitGraphView {
     return commitDetails.fileChanges[fileIndex] ?? null;
   }
 
+  // Null counts mean a binary file: no diff of either kind, as for a plain
+  // click (`gitDiffPossible` in the details view).
+  private pushFileDiffItems(menu: ContextMenuElement[], fileChange: GitFileChange) {
+    if (fileChange.additions === null || fileChange.deletions === null) return;
+    if (this.isContextMenuActionVisible("commitDetailsViewFile", "viewDiff")) {
+      menu.push({
+        title: l10n.viewFileDiff,
+        onClick: () => this.viewGitFileDiff(fileChange)
+      });
+    }
+    if (this.isContextMenuActionVisible("commitDetailsViewFile", "openDiffTab")) {
+      menu.push({
+        title: l10n.openInGglDiff,
+        onClick: () => this.openGitFileInDiffTab(fileChange)
+      });
+    }
+  }
+
   private buildGitFileContextMenu(
     fileChange: GitFileChange,
     sourceElem: HTMLElement
@@ -6190,22 +6208,7 @@ class GitGraphView {
     const menu: ContextMenuElement[] = [];
     const revisionFileExists = this.gitFileExistsAtRevision(fileChange);
 
-    // Null counts mean a binary file: no diff of either kind, as for a
-    // plain click (`gitDiffPossible` in the details view).
-    if (fileChange.additions !== null && fileChange.deletions !== null) {
-      if (this.isContextMenuActionVisible("commitDetailsViewFile", "viewDiff")) {
-        menu.push({
-          title: l10n.viewFileDiff,
-          onClick: () => this.viewGitFileDiff(fileChange)
-        });
-      }
-      if (this.isContextMenuActionVisible("commitDetailsViewFile", "openDiffTab")) {
-        menu.push({
-          title: l10n.openInGglDiff,
-          onClick: () => this.openGitFileInDiffTab(fileChange)
-        });
-      }
-    }
+    this.pushFileDiffItems(menu, fileChange);
 
     if (revisionFileExists) {
       menu.push(
