@@ -48,7 +48,11 @@ async function main() {
   });
 
   const webview = await esbuild.context({
-    entryPoints: { "web.min": "src/webview/main.ts", "startup.min": "src/webview/startup.ts" },
+    entryPoints: {
+      "web.min": "src/webview/main.ts",
+      "startup.min": "src/webview/startup.ts",
+      "diffTab.min": "src/webview/diffTab/main.ts"
+    },
     bundle: true,
     format: "iife",
     minify: production,

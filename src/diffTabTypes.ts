@@ -26,3 +26,57 @@ export type DiffTabLayout = {
   minimumLineCount: number;
   revealLineCount: number;
 };
+
+/** One side of a comparison: a file at a revision, staged, on disk, or nothing. */
+export type DiffTabSide =
+  | { kind: "revision"; ref: string; path: string }
+  | { kind: "index"; path: string }
+  | { kind: "workingTree"; path: string }
+  | { kind: "empty" };
+
+export type DiffTabRequest = {
+  repo: string;
+  left: DiffTabSide;
+  right: DiffTabSide;
+  title: string;
+};
+
+export type DiffTabPayload =
+  | {
+      kind: "diff";
+      originalLines: string[];
+      modifiedLines: string[];
+      changes: DiffTabChange[];
+    }
+  | { kind: "binary" }
+  | { kind: "tooLarge" }
+  | { kind: "error"; message: string };
+
+/** Where the tab's data comes from; the extension host implements it. */
+export type DiffTabSource = { load(request: DiffTabRequest): Promise<DiffTabPayload> };
+
+/** The tab's localized text; `hiddenLines` and `loadError` keep their `{0}`. */
+export type DiffTabLabels = {
+  hiddenLines: string;
+  showMoreAbove: string;
+  showMoreBelow: string;
+  showAll: string;
+  binaryFile: string;
+  tooLarge: string;
+  loadError: string;
+};
+
+/** Extension host to webview: one payload, with the settings and text to draw it. */
+export type DiffTabShowMessage = {
+  command: "show";
+  payload: DiffTabPayload;
+  layout: DiffTabLayout;
+  lineHeight: number;
+  tabSize: number;
+  labels: DiffTabLabels;
+};
+
+/** Webview to extension host. */
+export type DiffTabWebviewMessage =
+  | { command: "ready" }
+  | { command: "painted"; ms: number; rows: number };

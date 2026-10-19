@@ -625,5 +625,12 @@
   "startup.trustConfirm": "Zezwolić Git na korzystanie z repozytorium w {0}? Spowoduje to dodanie tylko tego folderu do globalnej listy safe.directory.",
   "startup.searchDepth": "Głębokość wyszukiwania",
   "startup.searchAgain": "Zastosuj i wyszukaj",
-  "startup.searchDepthHint": "0 sprawdza tylko foldery obszaru roboczego; 1 sprawdza też ich bezpośrednie podfoldery. Ustawienie jest zapisywane dla tego obszaru roboczego."
+  "startup.searchDepthHint": "0 sprawdza tylko foldery obszaru roboczego; 1 sprawdza też ich bezpośrednie podfoldery. Ustawienie jest zapisywane dla tego obszaru roboczego.",
+  "diffTab.hiddenLines": "Ukryte wiersze: {0}",
+  "diffTab.showMoreAbove": "Pokaż więcej powyżej",
+  "diffTab.showMoreBelow": "Pokaż więcej poniżej",
+  "diffTab.showAll": "Pokaż wszystko",
+  "diffTab.binaryFile": "To jest plik binarny; nie ma różnic tekstowych do pokazania.",
+  "diffTab.tooLarge": "Ten plik jest zbyt duży, by pokazać tu różnice (diffEditor.maxFileSize).",
+  "diffTab.loadError": "Nie można załadować różnic: {0}"
 }

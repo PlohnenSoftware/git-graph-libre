@@ -625,5 +625,12 @@
   "startup.trustConfirm": "允许 Git 使用位于 {0} 的仓库吗？这只会将此目录添加到您的全局 safe.directory 列表。",
   "startup.searchDepth": "搜索深度",
   "startup.searchAgain": "应用并搜索",
-  "startup.searchDepthHint": "0 仅检查工作区文件夹；1 还会检查其直接子文件夹。此设置保存在当前工作区中。"
+  "startup.searchDepthHint": "0 仅检查工作区文件夹；1 还会检查其直接子文件夹。此设置保存在当前工作区中。",
+  "diffTab.hiddenLines": "已隐藏 {0} 行",
+  "diffTab.showMoreAbove": "向上显示更多",
+  "diffTab.showMoreBelow": "向下显示更多",
+  "diffTab.showAll": "全部显示",
+  "diffTab.binaryFile": "此为二进制文件，没有可显示的文本差异。",
+  "diffTab.tooLarge": "此文件过大，无法在此显示差异 (diffEditor.maxFileSize)。",
+  "diffTab.loadError": "无法加载差异：{0}"
 }

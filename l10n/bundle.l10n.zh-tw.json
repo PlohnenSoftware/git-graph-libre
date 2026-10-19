@@ -625,5 +625,12 @@
   "startup.trustConfirm": "允許 Git 使用位於 {0} 的儲存庫嗎？這只會將此目錄新增至您的全域 safe.directory 清單。",
   "startup.searchDepth": "搜尋深度",
   "startup.searchAgain": "套用並搜尋",
-  "startup.searchDepthHint": "0 僅檢查工作區資料夾；1 還會檢查其直接子資料夾。此設定儲存在目前的工作區中。"
+  "startup.searchDepthHint": "0 僅檢查工作區資料夾；1 還會檢查其直接子資料夾。此設定儲存在目前的工作區中。",
+  "diffTab.hiddenLines": "已隱藏 {0} 行",
+  "diffTab.showMoreAbove": "向上顯示更多",
+  "diffTab.showMoreBelow": "向下顯示更多",
+  "diffTab.showAll": "全部顯示",
+  "diffTab.binaryFile": "此為二進位檔案，沒有可顯示的文字差異。",
+  "diffTab.tooLarge": "此檔案過大，無法在此顯示差異 (diffEditor.maxFileSize)。",
+  "diffTab.loadError": "無法載入差異：{0}"
 }

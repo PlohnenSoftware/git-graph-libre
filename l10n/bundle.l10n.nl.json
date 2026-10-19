@@ -625,5 +625,12 @@
   "startup.trustConfirm": "Git toestaan de repository op {0} te gebruiken? Hiermee wordt alleen deze map toegevoegd aan uw globale safe.directory-lijst.",
   "startup.searchDepth": "Zoekdiepte",
   "startup.searchAgain": "Toepassen en zoeken",
-  "startup.searchDepthHint": "0 controleert alleen werkruimtemappen; 1 controleert ook hun directe submappen. Opgeslagen voor deze werkruimte."
+  "startup.searchDepthHint": "0 controleert alleen werkruimtemappen; 1 controleert ook hun directe submappen. Opgeslagen voor deze werkruimte.",
+  "diffTab.hiddenLines": "{0} verborgen regels",
+  "diffTab.showMoreAbove": "Meer erboven weergeven",
+  "diffTab.showMoreBelow": "Meer eronder weergeven",
+  "diffTab.showAll": "Alles weergeven",
+  "diffTab.binaryFile": "Dit is een binair bestand; er is geen tekstdiff om weer te geven.",
+  "diffTab.tooLarge": "Dit bestand is te groot voor een diff hier (diffEditor.maxFileSize).",
+  "diffTab.loadError": "Kan de diff niet laden: {0}"
 }
