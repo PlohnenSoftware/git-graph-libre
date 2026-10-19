@@ -2,12 +2,12 @@
 // myers_diff_algorithm.rs: one case per line, `a;b;diffs|hit_timeout`, with the
 // expected output produced by VS Code's own MyersDiffAlgorithm.
 //
-// Run from the repository root (needs `gh`, network access and `pnpm install`):
+// Run from the repository root (needs Node 18+ with `fetch`, network access and `pnpm install`):
 //   node engine/native/diff/tests/oracle/gen-myers.mjs > engine/native/diff/tests/data/myers-oracle.txt
 // A rerun reproduces the committed file byte for byte (the seed is fixed).
 //
 // At run time it fetches diffAlgorithm.ts, myersDiffAlgorithm.ts and offsetRange.ts
-// from microsoft/vscode at the pinned commit
+// from raw.githubusercontent.com (microsoft/vscode) at the pinned commit
 // 28a562309973a386b2bdefae78127788a4742fe8 into a temp directory, bundles them
 // with the repository's esbuild, and runs them under Node. Nothing of VS Code is
 // vendored. The code it fetches is MIT, Copyright (c) Microsoft Corporation. This
@@ -15,7 +15,6 @@
 // tiny stand-ins for BugIndicatingError and forEachAdjacent, and counts V reads
 // past the allocation (VS Code's undefined/NaN case) with a counter patched into
 // the fetched source, reported on stderr.
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -23,6 +22,7 @@ import { dirname, join } from "node:path";
 import { build } from "esbuild";
 
 const COMMIT = "28a562309973a386b2bdefae78127788a4742fe8";
+const RAW = `https://raw.githubusercontent.com/microsoft/vscode/${COMMIT}/`;
 const ALGORITHMS = "src/vs/editor/common/diff/defaultLinesDiffComputer/algorithms";
 const FILES = [
   `${ALGORITHMS}/diffAlgorithm.ts`,
@@ -45,12 +45,11 @@ try {
     writeFileSync(target, text);
   };
   for (const file of FILES) {
-    const text = execFileSync(
-      "gh",
-      ["api", `repos/microsoft/vscode/contents/${file}?ref=${COMMIT}`, "--jq", ".content"],
-      { encoding: "utf8", maxBuffer: 1 << 26 },
-    );
-    put(`vscode/${file}`, Buffer.from(text, "base64").toString("utf8"));
+    const response = await fetch(`${RAW}${file}`);
+    if (!response.ok) {
+      throw new Error(`${response.status} fetching ${file}`);
+    }
+    put(`vscode/${file}`, await response.text());
   }
   put(
     "vscode/src/vs/base/common/errors.ts",
