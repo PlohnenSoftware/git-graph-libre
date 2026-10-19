@@ -8,7 +8,7 @@ summary: >-
 
 # D14F — Working-tree comparison Sonar follow-up
 
-Status: ready
+Status: claimed by Muse Code (general-purpose) sub-agent D14F on 2026-10-19 11:26
 Needs: D14 (integrated), D15
 Decisions: — (a follow-up the integrator opened to bring the wave gate to `OK`, as with D41F, D42F, D43F, D04AF and D13F)
 Kind: TypeScript · Size budget: ≤ 150 changed lines outside tests
