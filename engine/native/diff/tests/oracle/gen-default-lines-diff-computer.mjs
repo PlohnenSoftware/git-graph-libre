@@ -199,7 +199,7 @@ const HAND = [
   [['😀 emoji 😀', 'x', 'y'], ['😀 emoji 😁', 'x', 'y']],
   [['日本語のテキスト', '二行目'], ['日本語のテキスト！', '二行目']],
   [['é combining', 'z'], ['é combining', 'z']],
-  [['a\\b;c|d', 'x'], ['a\\b;c|e', 'x']],
+  [[String.raw`a\b;c|d`, 'x'], [String.raw`a\b;c|e`, 'x']],
 ];
 for (const [o, m, options] of HAND) out.push(oneCase(o, m, options));
 // A run of equal characters with one more of them: the diff shifts at most 100
