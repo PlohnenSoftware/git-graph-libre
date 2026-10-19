@@ -24,6 +24,7 @@ pub mod range;
 pub mod range_mapping;
 pub mod text;
 pub mod utils;
+pub mod v8_math;
 
 pub use clock::{Clock, SystemClock, Timeout};
 pub use compute_moved_lines::compute_moved_lines;
