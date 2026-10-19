@@ -8,7 +8,7 @@ summary: >-
 
 # D13F — Comparison Sonar follow-up
 
-Status: ready
+Status: claimed by Muse Code (general-purpose) sub-agent D13F on 2026-10-19 11:02
 Needs: D13 (integrated); dispatch after D12 integrates (both touch `src/webview/main.ts`)
 Decisions: — (a follow-up the integrator opened to bring the wave gate to `OK`, as with D41F, D42F and D43F)
 Kind: TypeScript · Size budget: ≤ 40 changed lines outside tests
