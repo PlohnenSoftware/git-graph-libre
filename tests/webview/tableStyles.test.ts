@@ -280,6 +280,21 @@ describe("commit table styles", () => {
     expect(css).toContain(".toolbarIconButton:disabled");
   });
 
+  it("pins each commit details section header while its body scrolls", () => {
+    const toggle = css.match(/^\.commitDetailsToggle \{[^}]+\}/m)?.[0] ?? "";
+    expect(toggle).toContain("position: sticky;");
+    expect(toggle).toContain("top: 0;");
+    expect(toggle).toContain("z-index: 1;");
+    // Opaque, or the scrolled content shows through the pinned header.
+    expect(toggle).toContain("background-color: var(--vscode-editor-background);");
+    expect(toggle).not.toMatch(/background(-color)?:\s*var\(--vscode-toolbar-hoverBackground/);
+    // The header must stay a direct child of the scrolling pane.
+    for (const id of ["commitDetailsSummary", "commitDetailsFiles"]) {
+      const pane = css.match(new RegExp(`^#${id} \\{[^}]+\\}`, "m"))?.[0] ?? "";
+      expect(pane).toMatch(/overflow-y: (auto|scroll);/);
+    }
+  });
+
   it("styles commit detail collapse controls with theme tokens", () => {
     expect(css).toContain(".commitDetailsToggle {");
     const commitDetailsToggleCss = css.match(/\.commitDetailsToggle \{[^}]+\}/)?.[0] ?? "";
