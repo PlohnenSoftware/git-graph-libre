@@ -9,6 +9,7 @@
 pub mod arrays_find;
 pub mod clock;
 pub mod compute_moved_lines;
+pub mod default_lines_diff_computer;
 pub mod diff_algorithm;
 pub mod dynamic_programming_diffing;
 pub mod fixture;
