@@ -8,6 +8,7 @@ use core::fmt;
 use crate::arrays_find::{
     find_first_idx_monotonous_or_arr_len, find_last_idx_monotonous, find_last_monotonous,
 };
+use crate::offset_range::OffsetRange;
 
 /// A range of lines (1-based), `[start_line_number, end_line_number_exclusive)`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -64,6 +65,13 @@ impl LineRange {
     pub fn intersects_or_touches(self, other: Self) -> bool {
         self.start_line_number <= other.end_line_number_exclusive
             && other.start_line_number <= self.end_line_number_exclusive
+    }
+    /// `toOffsetRange`: the same lines as 0-based offsets.
+    pub fn to_offset_range(self) -> OffsetRange {
+        OffsetRange::new(
+            self.start_line_number - 1,
+            self.end_line_number_exclusive - 1,
+        )
     }
 }
 
@@ -193,6 +201,10 @@ mod tests {
         );
         assert_eq!(r.intersect(LineRange::new(6, 8)), None);
         assert!(r.intersects_or_touches(LineRange::new(5, 8)));
+        assert_eq!(
+            r.to_offset_range(),
+            crate::offset_range::OffsetRange::new(1, 4)
+        );
     }
 
     #[test]
