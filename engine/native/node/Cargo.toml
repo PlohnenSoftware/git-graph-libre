@@ -11,6 +11,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 git-graph-core = { path = "../core" }
+git-graph-diff = { path = "../diff" }
 napi = { version = "3", default-features = false, features = ["napi4", "async", "serde-json"] }
 napi-derive = "3"
 serde.workspace = true

@@ -376,6 +376,7 @@ name = "git-graph-node"
 version = "1.0.26"
 dependencies = [
  "git-graph-core",
+ "git-graph-diff",
  "napi",
  "napi-build",
  "napi-derive",
