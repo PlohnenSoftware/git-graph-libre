@@ -75,7 +75,8 @@ vi.mock("vscode", () => ({
     registerTextDocumentContentProvider: () => ({ dispose: () => {} })
   },
   commands: {
-    registerCommand: () => ({ dispose: () => {} })
+    registerCommand: () => ({ dispose: () => {} }),
+    executeCommand: vi.fn(async () => {})
   },
   env: { language: "en" },
   ViewColumn: { One: 1 },
