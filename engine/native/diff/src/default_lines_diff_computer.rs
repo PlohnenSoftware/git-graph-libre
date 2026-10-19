@@ -297,3 +297,37 @@ impl AlignmentScan<'_> {
         self.scan_for_whitespace_changes(remaining, timeout);
     }
 }
+
+/// `DefaultLinesDiffComputer.computeMoves` (`defaultLinesDiffComputer.ts`
+/// L188-L215): `computeMovedLines` (L199-L206), then each move's inner
+/// changes from `refineDiff` over its two line ranges (L208-L212). The
+/// refinement's `hitTimeout` is dropped there, as in VS Code.
+fn compute_moves(
+    flow: Flow,
+    changes: &[DetailedLineRangeMapping],
+    hashed_original_lines: &[u32],
+    hashed_modified_lines: &[u32],
+    timeout: &mut dyn ITimeout,
+) -> Vec<MovedText> {
+    let moves = compute_moved_lines(
+        changes,
+        flow.original,
+        flow.modified,
+        hashed_original_lines,
+        hashed_modified_lines,
+        timeout,
+    );
+    let mut moves_with_diffs = Vec::with_capacity(moves.len());
+    for m in moves {
+        let diff = SequenceDiff::new(m.original.to_offset_range(), m.modified.to_offset_range());
+        let move_changes = refine_diff(flow, diff, timeout);
+        let mappings = line_range_mapping_from_range_mappings(
+            &move_changes.mappings,
+            flow.original,
+            flow.modified,
+            true,
+        );
+        moves_with_diffs.push(MovedText::new(m, mappings));
+    }
+    moves_with_diffs
+}
