@@ -210,6 +210,22 @@ describe("dialog styles", () => {
     expect(dialog).toContain("z-index: 401;");
   });
 
+  it("pins the settings popup head (title, close button, tabs) while the body scrolls", () => {
+    const popup = ruleFor(css, "#settingsWidget");
+    const head = ruleFor(css, ".settingsWidgetHead");
+    const panel = ruleFor(css, ".settingsTabPanel");
+
+    // The popup is the scroll container and carries no padding, so nothing
+    // scrolls visibly above the pinned head.
+    expect(popup).toContain("overflow: auto;");
+    expect(popup).toContain("padding: 0;");
+    expect(head).toContain("position: sticky;");
+    expect(head).toContain("top: 0;");
+    expect(head).toContain("z-index: 2;");
+    expect(head).toContain("background-color: var(--vscode-editorWidget-background");
+    expect(panel).toContain("padding: 0 16px 16px;");
+  });
+
   it("styles settings tabs and graph color editors with stable dimensions", () => {
     const tabs = ruleFor(css, ".settingsTabs");
     const tab = ruleFor(css, ".settingsTab");
