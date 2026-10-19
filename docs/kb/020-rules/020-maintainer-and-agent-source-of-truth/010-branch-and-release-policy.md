@@ -126,10 +126,16 @@ Workflow rules:
 - The Rust arm runs **only when `engine/**` changed**: `pnpm run engine:check`,
   `pnpm run engine:test`, `pnpm run engine:lint`, `pnpm run engine:fmt`
   (each with `--manifest-path engine/Cargo.toml`), plus the `engine.yml` CI
-  job on GitHub. Biome and SonarQube never see `engine/` — their configs are
-  allowlists that miss it, and `sonar.exclusions` names it explicitly — so a
+  job on GitHub. Biome never sees `engine/` (its allowlist misses it), so a
   slice that touches no Rust file skips this arm entirely, and a slice that
   does must pass it before committing alongside the TypeScript gates above.
+  **SonarQube does see `engine/native`** (corrected `2026-10-19`): since
+  `cba7ca6` (`2026-10-18`) `sonar.sources` and `sonar.tests` include it, with
+  `sonar.rust.cargo.manifestPaths=engine/Cargo.toml` and the Rust **Zam**
+  profile. So engine Rust, and scripts such as the Phase 17 oracle
+  generators under `engine/native/**/tests/oracle/`, count in the quality
+  gate like the TypeScript does. The `2026-09-22` exclusion (`6bf1705`) no
+  longer applies.
 - SonarQube's local new-code definition is `Previous Version`. The
   `sonar.projectVersion` value is therefore an analysis baseline, not only a
   package-release label. Advance it deliberately when starting a stricter local
