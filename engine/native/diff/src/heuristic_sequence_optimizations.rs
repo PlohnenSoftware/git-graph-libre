@@ -556,3 +556,202 @@ pub fn remove_very_short_matching_text_between_long_diffs(
     }
     new_diffs
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::range::Range;
+    use crate::text::TextModel;
+
+    const CORPUS: &str = include_str!("../tests/data/heuristic-sequence-optimizations-oracle.txt");
+
+    /// A sequence without boundary scores, like the generator's `PlainSequence`.
+    struct Plain(Vec<u32>);
+
+    impl ISequence for Plain {
+        fn get_element(&self, offset: u32) -> u32 {
+            self.0[offset as usize]
+        }
+        fn length(&self) -> u32 {
+            self.0.len() as u32
+        }
+        fn is_strongly_equal(&self, offset1: u32, offset2: u32) -> bool {
+            self.0.get(offset1 as usize) == self.0.get(offset2 as usize)
+        }
+    }
+
+    fn lines_of(field: &str) -> Vec<String> {
+        field
+            .split('|')
+            .map(|line| {
+                let units: Vec<u16> = line
+                    .split(',')
+                    .filter(|unit| !unit.is_empty())
+                    .map(|unit| u16::from_str_radix(unit, 16).unwrap())
+                    .collect();
+                String::from_utf16(&units).unwrap()
+            })
+            .collect()
+    }
+
+    fn numbers_of(field: &str) -> Vec<u32> {
+        field
+            .split(',')
+            .filter(|n| !n.is_empty())
+            .map(|n| n.parse().unwrap())
+            .collect()
+    }
+
+    fn range_of(field: &str) -> Range {
+        let n: Vec<u32> = field.split(',').map(|n| n.parse().unwrap()).collect();
+        Range::new(n[0], n[1], n[2], n[3])
+    }
+
+    fn diffs_of(field: &str) -> Vec<SequenceDiff> {
+        if field == "." {
+            return Vec::new();
+        }
+        let range = |part: &str| {
+            let (start, end) = part.split_once('-').unwrap();
+            OffsetRange::new(start.parse().unwrap(), end.parse().unwrap())
+        };
+        field
+            .split(' ')
+            .map(|diff| {
+                let (a, b) = diff.split_once(':').unwrap();
+                SequenceDiff::new(range(a), range(b))
+            })
+            .collect()
+    }
+
+    enum Scenario {
+        Chars(LinesSliceCharSequence, LinesSliceCharSequence),
+        Lines(Vec<String>, Vec<u32>, Vec<String>, Vec<u32>),
+        Plain(Plain, Plain),
+    }
+
+    fn open_scenario(fields: &[&str]) -> Scenario {
+        match fields[1] {
+            "C" => {
+                let slice = |lines: &str, range: &str| {
+                    let model = TextModel::from_lines(lines_of(lines));
+                    LinesSliceCharSequence::new(&model, range_of(range), fields[6] == "1")
+                };
+                Scenario::Chars(slice(fields[2], fields[3]), slice(fields[4], fields[5]))
+            }
+            "L" => Scenario::Lines(
+                lines_of(fields[2]),
+                numbers_of(fields[3]),
+                lines_of(fields[4]),
+                numbers_of(fields[5]),
+            ),
+            _ => Scenario::Plain(Plain(numbers_of(fields[2])), Plain(numbers_of(fields[3]))),
+        }
+    }
+
+    fn run(scenario: &Scenario, op: &str, diffs: &[SequenceDiff]) -> Vec<SequenceDiff> {
+        let word = |s: &LinesSliceCharSequence, i| s.find_word_containing(i);
+        let sub_word = |s: &LinesSliceCharSequence, i| s.find_sub_word_containing(i);
+        match (scenario, op) {
+            (Scenario::Chars(a, b), "optimize") => optimize_sequence_diffs(a, b, diffs),
+            (Scenario::Chars(a, b), "short") => remove_short_matches(a, b, diffs),
+            (Scenario::Chars(a, b), "extend-word") => {
+                extend_diffs_to_entire_word_if_appropriate(a, b, diffs, word, false)
+            }
+            (Scenario::Chars(a, b), "extend-word-force") => {
+                extend_diffs_to_entire_word_if_appropriate(a, b, diffs, word, true)
+            }
+            (Scenario::Chars(a, b), "extend-sub") => {
+                extend_diffs_to_entire_word_if_appropriate(a, b, diffs, sub_word, false)
+            }
+            (Scenario::Chars(a, b), "extend-sub-force") => {
+                extend_diffs_to_entire_word_if_appropriate(a, b, diffs, sub_word, true)
+            }
+            (Scenario::Chars(a, b), "very-short-text") => {
+                remove_very_short_matching_text_between_long_diffs(a, b, diffs)
+            }
+            (Scenario::Lines(l1, h1, l2, h2), _) => {
+                let (a, b) = (LineSequence::new(h1, l1), LineSequence::new(h2, l2));
+                match op {
+                    "optimize" => optimize_sequence_diffs(&a, &b, diffs),
+                    "short" => remove_short_matches(&a, &b, diffs),
+                    _ => remove_very_short_matching_lines_between_diffs(&a, &b, diffs),
+                }
+            }
+            (Scenario::Plain(a, b), "optimize") => optimize_sequence_diffs(a, b, diffs),
+            (Scenario::Plain(a, b), "short") => remove_short_matches(a, b, diffs),
+            _ => panic!("unknown operation {op}"),
+        }
+    }
+
+    fn fnv(values: impl Iterator<Item = f64>) -> String {
+        let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+        for value in values {
+            for byte in value.to_bits().to_le_bytes() {
+                hash = (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3);
+            }
+        }
+        format!("{hash:x}")
+    }
+
+    #[test]
+    fn weight_tables_match_v8() {
+        let line = CORPUS.lines().find(|l| l.starts_with("W;")).unwrap();
+        let f: Vec<&str> = line.split(';').collect();
+        let powers = fnv((0..=130).map(|x| f64::from(x).powf(1.5)));
+        let weights = (0..=130u32).flat_map(|x| (x..=130).map(move |y| diff_weight_of_caps(x, y)));
+        let threshold = MAX_WEIGHT_INPUT.powf(1.5).powf(1.5) * 1.3;
+        assert_eq!(f[1], "8646");
+        assert_eq!(f[2], powers, "Math.pow(x, 1.5)");
+        assert_eq!(f[3], fnv(weights), "the weight formula");
+        assert_eq!(f[4], format!("{:x}", threshold.to_bits()), "the threshold");
+    }
+
+    fn diff_weight_of_caps(x: u32, y: u32) -> f64 {
+        diff_weight(x, y)
+    }
+
+    #[test]
+    fn oracle_corpus() {
+        let mut scenario = None;
+        let mut cases = 0;
+        for line in CORPUS
+            .lines()
+            .filter(|l| !l.starts_with('#') && !l.starts_with("W;"))
+        {
+            let fields: Vec<&str> = line.split(';').collect();
+            if fields[0] == "S" {
+                scenario = Some(open_scenario(&fields));
+                continue;
+            }
+            let scenario = scenario.as_ref().unwrap();
+            let got = run(scenario, fields[1], &diffs_of(fields[2]));
+            assert_eq!(got, diffs_of(fields[3]), "{line}");
+            cases += 1;
+        }
+        assert!(cases > 5000, "{cases}");
+    }
+
+    // The examples in the TypeScript's comments, on elements: shifting an
+    // insertion to the left joins `{ Baz, Bar }` with `{ Baz, Bar, Foo }` style diffs.
+    #[test]
+    fn short_matches_join_across_one_or_two_elements() {
+        let plain = Plain(vec![0; 20]);
+        let d = |a, b, c, e| SequenceDiff::new(OffsetRange::new(a, b), OffsetRange::new(c, e));
+        let diffs = [d(0, 1, 0, 1), d(3, 4, 3, 4), d(8, 9, 8, 9)];
+        assert_eq!(
+            remove_short_matches(&plain, &plain, &diffs),
+            [d(0, 4, 0, 4), d(8, 9, 8, 9)]
+        );
+        assert!(optimize_sequence_diffs(&plain, &plain, &[]).is_empty());
+    }
+
+    #[test]
+    fn trim_uses_the_javascript_set() {
+        let units: Vec<u16> = " \u{a0}\u{feff}ab\u{3000}\n".encode_utf16().collect();
+        assert_eq!(trim_js(&units), [0x61, 0x62]);
+        assert!(trim_js(&[0x20, 0x09]).is_empty());
+        let nel: Vec<u16> = "\u{85}".encode_utf16().collect();
+        assert_eq!(trim_js(&nel).len(), 1);
+    }
+}
