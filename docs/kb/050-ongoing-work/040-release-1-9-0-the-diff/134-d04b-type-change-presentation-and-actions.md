@@ -51,7 +51,7 @@ this approved scope; stop if required. No new dependency.
   follow the approved policy; binary gating remains.
 - Icon generation/catalog coverage; dark/light screenshots inspected and
   paths reported. Protocol gates, 100% l10n, integrator coverage/Sonar OK
-  before commits. D04 completes only after both sub-slices integrate.
+  at integration. D04 completes only after both sub-slices integrate.
 
 ## Report
 

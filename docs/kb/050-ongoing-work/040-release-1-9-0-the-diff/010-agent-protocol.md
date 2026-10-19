@@ -105,10 +105,16 @@ These come from the knowledge base's Rules, and apply everywhere:
 - **Size:** keep each slice within its size budget. If it needs more, stop
   and propose a split in the report.
 
-## 5. Gates, in this order
+## 5. Slice checks and integration gates
 
-Run every gate that applies. Record each command's result with its numbers
-(files, tests, failures).
+**Maintainer instruction, `2026-10-19`:** multi-agent slices and sub-slices
+do not require the full gate before signed commits. Use focused checks
+appropriate to the change and commit small completed increments frequently.
+Record each command and its numbers honestly. Full gates apply at integration
+and to work without multi-agent delegation, as the standing KB rules say.
+
+The full gate checklist below belongs to the integrator; slice agents may
+run more of it when useful, but it is not a per-commit requirement:
 
 ```bash
 npx biome check --config-path biome.strict.jsonc --error-on-warnings <every touched .ts/.mjs/.json file>
@@ -120,8 +126,9 @@ pnpm run kb:check                   # when anything under docs/kb changed
 pnpm run engine:fmt && pnpm run engine:lint && pnpm run engine:check && pnpm run engine:test
 ```
 
-Coverage and SonarQube need the maintainer's server, so the integrator runs
-them; write `Sonar: integrator` in your report.
+The integrator runs fresh coverage and SonarQube on the combined integration
+result; write `Sonar: integrator` in your slice report. A slice commit does
+not claim that this integration gate has passed.
 
 If a gate fails outside your slice's area on a clean checkout of the
 integration branch, it's pre-existing. Record it and don't fix it. If it

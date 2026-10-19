@@ -14,11 +14,13 @@ always_read: true
 - Keep all new code and code touched in a slice compatible with
   `biome.strict.jsonc`; do not use the migration-friendly baseline as the quality
   target for fresh work.
-- Treat Biome and SonarQube as pre-commit gates for meaningful code slices:
-  strict Biome must be clean for touched/staged files, coverage must be generated
-  with `pnpm run test:coverage`, and the configured SonarQube quality gate must
-  be `OK` before committing. If the gate cannot be run, do not commit; record
-  why it is blocked and what risk remains.
+- Delegated multi-agent slices and sub-slices use focused checks and small,
+  frequent signed commits; they do not require the full gate before committing
+  (maintainer instruction, `2026-10-19`). Record exact checks and gaps.
+  The full gate, including fresh coverage and SonarQube `OK`, applies at
+  integration and to work without multi-agent delegation. See Branch and
+  release policy for its order. Strict Biome and all other quality rules
+  remain in force; never weaken a check to make a slice pass.
 - While touching a file in an agile cycle, fix existing local code issues in
   that file when they are reasonable to address in the slice, including findings
   reported by Biome, SonarQube, typechecking, and obvious maintainability

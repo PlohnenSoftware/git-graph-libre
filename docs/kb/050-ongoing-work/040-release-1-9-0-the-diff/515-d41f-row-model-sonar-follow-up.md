@@ -32,7 +32,7 @@ follow-up entry in D41's Report.
 
 All 27 existing row-model tests pass unchanged. Add a behavioral case only
 for an uncovered risk. Protocol gates pass; integrator fresh coverage and
-Sonar precede signed commit, with all three D41 findings closed. Report
+Sonar run at integration, with all three D41 findings closed. Report
 unrelated findings accurately.
 
 ## Report

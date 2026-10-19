@@ -32,7 +32,7 @@ follow-up entry in D43's Report.
 
 Existing staged-file/parity tests pass unchanged; add a behavioral case
 only if needed. Protocol gates pass with a matching addon. Integrator
-fresh coverage and Sonar precede signed commit; S6671 is closed. Report
+fresh coverage and Sonar run at integration; S6671 is closed. Report
 unrelated findings accurately.
 
 ## Report

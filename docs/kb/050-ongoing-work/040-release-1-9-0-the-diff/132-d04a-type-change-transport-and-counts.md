@@ -46,8 +46,8 @@ engine-version rule in Author Date through the engine.
 `src/backend/types/git.types.ts`, `src/backend/engine/details.ts`,
 `src/backend/engine/addon.ts` (version/comment only),
 `engine/native/core/src/diff.rs`, `engine/native/core/src/types.rs`,
-`engine/native/core/src/status.rs` (exhaustive match only), `engine/Cargo.toml`
-(workspace version only), `engine/Cargo.lock` (workspace package versions only),
+`engine/native/core/src/status.rs` (exhaustive match only), `engine/Cargo.toml`, `engine/package.json`
+(workspace/package version only), `engine/Cargo.lock` (workspace package versions only),
 matching backend/Rust tests and affected version fixtures.
 
 ## Tests and acceptance
@@ -63,7 +63,7 @@ matching backend/Rust tests and affected version fixtures.
 - Temp repositories with isolated global/system Git config; use plumbing
   for modes, requiring no symlink privilege or network clone.
 - Old engine version is rejected; rebuilt addon/smoke and all protocol
-  gates plus Rust arm pass. Integrator coverage/Sonar OK precede commits.
+  gates plus Rust arm pass. Focused slice checks precede signed commits; full coverage/Sonar OK is required at integration.
   D04b owns presentation/actions. Stop if the approved budget/scope cannot fit.
 
 ## Report

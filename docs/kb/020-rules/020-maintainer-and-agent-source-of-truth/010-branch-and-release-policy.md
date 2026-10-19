@@ -108,8 +108,15 @@ Workflow rules:
   findings. The default target is `pnpm run lint:strict:staged` after staging,
   or an equivalent `biome.strict.jsonc` command over the touched files before
   staging. Do not commit with known Biome failures in touched code.
-- For meaningful code slices, all gates run **before the commit**. The required
-  order is: strict Biome on touched files, full package/typecheck/lint, full
+- **Multi-agent gate policy (maintainer, `2026-10-19`):** delegated slices
+  and sub-slices do not require the full gate before their signed commits.
+  Run focused checks appropriate to the change, keep commits small and
+  frequent, and report exactly what ran. The integrator runs the full gate
+  on the combined result at integration. Work without multi-agent delegation
+  still requires the full pre-commit gate. No test, lint rule, threshold or
+  gate may be weakened.
+- For integration and work without multi-agent delegation, all gates run
+  **before the completed result is committed**. The required order is: strict Biome on touched files, full package/typecheck/lint, full
   tests, localization checks, fresh `pnpm run test:coverage`, then
   `pnpm run sonar:scan` and an explicit server-side quality-gate poll. Commit
   only after the SonarQube quality gate is `OK`. If any gate changes code, rerun
