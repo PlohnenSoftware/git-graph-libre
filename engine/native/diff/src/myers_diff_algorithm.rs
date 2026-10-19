@@ -20,6 +20,21 @@ use crate::offset_range::OffsetRange;
 pub struct MyersDiffAlgorithm;
 
 impl IDiffAlgorithm for MyersDiffAlgorithm {
+    /// `MyersDiffAlgorithm.compute` (`myersDiffAlgorithm.ts` L13-L103 at
+    /// `28a5623`). Split into helpers to stay under Sonar's complexity limit
+    /// (decision X12); in call order they replace:
+    ///
+    /// 1. `MyersSearch::new` for L36-L40, the `V` and `paths` setup (its
+    ///    snake walk is `MyersSearch::x_after_snake`, L23-L29);
+    /// 2. `MyersSearch::find_final_diagonal` for L31 and L42-L52 plus
+    ///    L74-L75, the `loop: while (true)` over `d` with the timeout check
+    ///    and the diagonal bounds, whose `for (k ...)` body is
+    /// 3. `MyersSearch::extend_diagonal` for L53-L72;
+    /// 4. `backtrack_diffs` for L77-L102, the walk back along the path that
+    ///    builds the `SequenceDiff` list.
+    ///
+    /// Left here: L13-L17 (the trivial early return), L20-L21 (`seqX`,
+    /// `seqY`) and the hand-off between the helpers.
     fn compute(
         &self,
         seq1: &dyn ISequence,
@@ -31,107 +46,176 @@ impl IDiffAlgorithm for MyersDiffAlgorithm {
             return DiffAlgorithmResult::trivial(seq1, seq2);
         }
         let (seq_x, seq_y) = (seq1, seq2); // x axis, y axis
-        let (len_x, len_y) = (i64::from(seq_x.length()), i64::from(seq_y.length()));
-        let (fx, fy) = (len_x as f64, len_y as f64);
-
-        let get_x_after_snake = |mut x: f64, mut y: f64| {
-            // A negative y reads `undefined` in the TypeScript: never equal.
-            while x < fx && y < fy && x >= 0.0 && y >= 0.0 {
-                if seq_x.get_element(x as u32) != seq_y.get_element(y as u32) {
-                    break;
-                }
-                x += 1.0;
-                y += 1.0;
+        let mut search = MyersSearch::new(seq_x, seq_y);
+        match search.find_final_diagonal(timeout) {
+            Some(final_k) => {
+                backtrack_diffs(seq_x, seq_y, &search.arena, search.paths.get(final_k))
             }
-            x
+            None => DiffAlgorithmResult::trivial_timed_out(seq_x, seq_y),
+        }
+    }
+}
+
+/// The state of the search over `d` (`V`, `paths` and the sequences) that the
+/// TypeScript keeps in `compute`'s locals and closure.
+struct MyersSearch<'a> {
+    seq_x: &'a dyn ISequence,
+    seq_y: &'a dyn ISequence,
+    len_x: i64,
+    len_y: i64,
+    fx: f64,
+    fy: f64,
+    // V[k]: X value of longest d-line that ends in diagonal k.
+    // d-line: path from (0,0) to (x,y) that uses exactly d non-diagonals.
+    // diagonal k: set of points (x,y) with x-y = k.
+    v: FastInt32Array,
+    paths: FastArrayNegativeIndices,
+    arena: Vec<SnakePath>,
+}
+
+impl<'a> MyersSearch<'a> {
+    /// Replaces L36-L40 of `MyersDiffAlgorithm.compute` (`myersDiffAlgorithm.ts`
+    /// at `28a5623`): `new FastInt32Array()`, `V.set(0, getXAfterSnake(0, 0))`,
+    /// and the `paths` array with its first `SnakePath`.
+    fn new(seq_x: &'a dyn ISequence, seq_y: &'a dyn ISequence) -> Self {
+        let (len_x, len_y) = (i64::from(seq_x.length()), i64::from(seq_y.length()));
+        let mut search = Self {
+            seq_x,
+            seq_y,
+            len_x,
+            len_y,
+            fx: len_x as f64,
+            fy: len_y as f64,
+            v: FastInt32Array::new(),
+            paths: FastArrayNegativeIndices::new(),
+            arena: Vec::new(),
         };
+        let first = search.x_after_snake(0.0, 0.0);
+        search.v.set(0, first);
+        let first = search.v.get(0);
+        let path = (first != 0.0).then(|| push_path(&mut search.arena, None, 0.0, 0.0, first));
+        search.paths.set(0, path);
+        search
+    }
 
+    /// Replaces the nested function `getXAfterSnake` of
+    /// `MyersDiffAlgorithm.compute` (`myersDiffAlgorithm.ts` L23-L29 at
+    /// `28a5623`): the `while` loop that extends a diagonal snake.
+    fn x_after_snake(&self, mut x: f64, mut y: f64) -> f64 {
+        // A negative y reads `undefined` in the TypeScript: never equal.
+        while x < self.fx && y < self.fy && x >= 0.0 && y >= 0.0 {
+            if self.seq_x.get_element(x as u32) != self.seq_y.get_element(y as u32) {
+                break;
+            }
+            x += 1.0;
+            y += 1.0;
+        }
+        x
+    }
+
+    /// Replaces the outer search of `MyersDiffAlgorithm.compute`
+    /// (`myersDiffAlgorithm.ts` at `28a5623`): L31 (`let d = 0`), the
+    /// `loop: while (true)` header and the `d++` and timeout check
+    /// (L42-L48), the bounds (L49-L51) and the `for (k ...)` header (L52),
+    /// with its `break loop` (L71-L73) turned into a return. The loop body is
+    /// `Self::extend_diagonal`. Gives the final `k` (the TypeScript's `k`
+    /// after the loop), or `None` when the timeout expired (L46-L48).
+    fn find_final_diagonal(&mut self, timeout: &mut dyn ITimeout) -> Option<i64> {
         let mut d: i64 = 0;
-        // V[k]: X value of longest d-line that ends in diagonal k.
-        // d-line: path from (0,0) to (x,y) that uses exactly d non-diagonals.
-        // diagonal k: set of points (x,y) with x-y = k.
-        let mut v = FastInt32Array::new();
-        v.set(0, get_x_after_snake(0.0, 0.0));
-
-        let mut arena: Vec<SnakePath> = Vec::new();
-        let mut paths = FastArrayNegativeIndices::new();
-        let first = v.get(0);
-        paths.set(
-            0,
-            (first != 0.0).then(|| push_path(&mut arena, None, 0.0, 0.0, first)),
-        );
-
-        let final_k = 'search: loop {
+        loop {
             d += 1;
             if !timeout.is_valid() {
-                return DiffAlgorithmResult::trivial_timed_out(seq_x, seq_y);
+                return None;
             }
             // The paper has `for (k = -d; k <= d; k += 2)`, but diagonals that
             // cannot influence the result can be ignored.
-            let lower_bound = -d.min(len_y + d % 2);
-            let upper_bound = d.min(len_x + d % 2);
+            let lower_bound = -d.min(self.len_y + d % 2);
+            let upper_bound = d.min(self.len_x + d % 2);
             for k in (lower_bound..=upper_bound).step_by(2) {
-                // The X values of (d-1)-lines give the X value of the longest d-lines.
-                // Top: a vertical non-diagonal (add a symbol in seqX).
-                let top = if k == upper_bound { -1.0 } else { v.get(k + 1) };
-                // Left: a horizontal non-diagonal (delete a symbol in seqX).
-                let left = if k == lower_bound {
-                    -1.0
-                } else {
-                    v.get(k - 1) + 1.0
-                };
-                let x = js_min(js_max(top, left), fx);
-                let y = x - k as f64;
-                if x > fx || y > fy {
-                    // This diagonal is irrelevant for the result.
-                    continue;
-                }
-                let new_max_x = get_x_after_snake(x, y);
-                v.set(k, new_max_x);
-                let last_path = if x == top {
-                    paths.get(k + 1)
-                } else {
-                    paths.get(k - 1)
-                };
-                let path = if new_max_x == x {
-                    last_path
-                } else {
-                    Some(push_path(&mut arena, last_path, x, y, new_max_x - x))
-                };
-                paths.set(k, path);
-
-                if v.get(k) == fx && v.get(k) - k as f64 == fy {
-                    break 'search k;
+                if self.extend_diagonal(k, lower_bound, upper_bound) {
+                    return Some(k);
                 }
             }
+        }
+    }
+
+    /// Replaces the body of the `for (k ...)` loop of
+    /// `MyersDiffAlgorithm.compute` (`myersDiffAlgorithm.ts` L53-L72 at
+    /// `28a5623`, minus the `step` counters, which nothing reads): the X
+    /// values of the (d-1)-lines, the new snake and its path, and the
+    /// `continue` for an irrelevant diagonal. Gives whether diagonal `k`
+    /// reaches the end of both sequences (the `break loop` test, L71).
+    fn extend_diagonal(&mut self, k: i64, lower_bound: i64, upper_bound: i64) -> bool {
+        // The X values of (d-1)-lines give the X value of the longest d-lines.
+        // Top: a vertical non-diagonal (add a symbol in seqX).
+        let top = if k == upper_bound {
+            -1.0
+        } else {
+            self.v.get(k + 1)
         };
+        // Left: a horizontal non-diagonal (delete a symbol in seqX).
+        let left = if k == lower_bound {
+            -1.0
+        } else {
+            self.v.get(k - 1) + 1.0
+        };
+        let x = js_min(js_max(top, left), self.fx);
+        let y = x - k as f64;
+        if x > self.fx || y > self.fy {
+            // This diagonal is irrelevant for the result.
+            return false;
+        }
+        let new_max_x = self.x_after_snake(x, y);
+        self.v.set(k, new_max_x);
+        let last_path = if x == top {
+            self.paths.get(k + 1)
+        } else {
+            self.paths.get(k - 1)
+        };
+        let path = if new_max_x == x {
+            last_path
+        } else {
+            Some(push_path(&mut self.arena, last_path, x, y, new_max_x - x))
+        };
+        self.paths.set(k, path);
+        self.v.get(k) == self.fx && self.v.get(k) - k as f64 == self.fy
+    }
+}
 
-        let mut path = paths.get(final_k);
-        let mut result = Vec::new();
-        let (mut last_aligning_pos_s1, mut last_aligning_pos_s2) = (seq_x.length(), seq_y.length());
-        loop {
-            let (end_x, end_y) = path.map_or((0, 0), |p| {
-                let p = &arena[p];
-                (to_offset(p.x + p.length), to_offset(p.y + p.length))
-            });
-            if end_x != last_aligning_pos_s1 || end_y != last_aligning_pos_s2 {
-                result.push(SequenceDiff::new(
-                    OffsetRange::new(end_x, last_aligning_pos_s1),
-                    OffsetRange::new(end_y, last_aligning_pos_s2),
-                ));
-            }
-            let Some(p) = path.map(|p| &arena[p]) else {
-                break;
-            };
-            last_aligning_pos_s1 = to_offset(p.x);
-            last_aligning_pos_s2 = to_offset(p.y);
-            path = p.prev;
+/// Replaces the back-walk of `MyersDiffAlgorithm.compute`
+/// (`myersDiffAlgorithm.ts` L77-L102 at `28a5623`): starting from the final
+/// path, it turns the gaps between snakes into `SequenceDiff`s (L77-L99),
+/// reverses them (L101) and wraps them in the result (L102).
+fn backtrack_diffs(
+    seq_x: &dyn ISequence,
+    seq_y: &dyn ISequence,
+    arena: &[SnakePath],
+    mut path: Option<usize>,
+) -> DiffAlgorithmResult {
+    let mut result = Vec::new();
+    let (mut last_aligning_pos_s1, mut last_aligning_pos_s2) = (seq_x.length(), seq_y.length());
+    loop {
+        let (end_x, end_y) = path.map_or((0, 0), |p| {
+            let p = &arena[p];
+            (to_offset(p.x + p.length), to_offset(p.y + p.length))
+        });
+        if end_x != last_aligning_pos_s1 || end_y != last_aligning_pos_s2 {
+            result.push(SequenceDiff::new(
+                OffsetRange::new(end_x, last_aligning_pos_s1),
+                OffsetRange::new(end_y, last_aligning_pos_s2),
+            ));
         }
-        result.reverse();
-        DiffAlgorithmResult {
-            diffs: result,
-            hit_timeout: false,
-        }
+        let Some(p) = path.map(|p| &arena[p]) else {
+            break;
+        };
+        last_aligning_pos_s1 = to_offset(p.x);
+        last_aligning_pos_s2 = to_offset(p.y);
+        path = p.prev;
+    }
+    result.reverse();
+    DiffAlgorithmResult {
+        diffs: result,
+        hit_timeout: false,
     }
 }
 
