@@ -11,12 +11,15 @@
 // UTF-16 text model of the original lines; the TypeScript's public `lines`
 // field has no reader outside the constructor, so it is not kept.
 use crate::diff_algorithm::ISequence;
+use crate::offset_range::OffsetRange;
+use crate::position::Position;
 use crate::range::Range;
 use crate::text::TextModel;
 use crate::utils::is_space;
 
 /// The characters of a range of lines as one sequence, with `\n` between lines.
 pub struct LinesSliceCharSequence {
+    range: Range,
     elements: Vec<u16>,
     first_element_offset_by_line_idx: Vec<u32>,
     line_start_offsets: Vec<u32>,
@@ -36,6 +39,7 @@ impl LinesSliceCharSequence {
     /// Panics where the TypeScript throws: a line number outside `lines`.
     pub fn new(lines: &TextModel, range: Range, consider_whitespace_changes: bool) -> Self {
         let mut seq = Self {
+            range,
             elements: Vec::new(),
             first_element_offset_by_line_idx: vec![0],
             line_start_offsets: Vec::new(),
@@ -160,6 +164,67 @@ impl LinesSliceCharSequence {
     }
 }
 
+/// `translateOffset`'s `preference`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Preference {
+    Left,
+    Right,
+}
+
+impl LinesSliceCharSequence {
+    /// Maps an element offset back to a position in the original lines.
+    pub fn translate_offset(&self, offset: u32, preference: Preference) -> Position {
+        // The last line whose first element is at or before `offset`; the
+        // offsets are strictly increasing and the first is 0.
+        let i = self
+            .first_element_offset_by_line_idx
+            .partition_point(|&value| value <= offset)
+            - 1;
+        let line_offset = offset - self.first_element_offset_by_line_idx[i];
+        let trimmed = if line_offset == 0 && preference == Preference::Left {
+            0
+        } else {
+            self.trimmed_ws_lengths_by_line_idx[i]
+        };
+        Position::new(
+            self.range.start_line_number + i as u32,
+            1 + self.line_start_offsets[i] + line_offset + trimmed,
+        )
+    }
+
+    pub fn translate_range(&self, range: OffsetRange) -> Range {
+        let pos1 = self.translate_offset(range.start, Preference::Right);
+        let pos2 = self.translate_offset(range.end_exclusive, Preference::Left);
+        if pos2 < pos1 {
+            return Range::from_positions(pos2, pos2);
+        }
+        Range::from_positions(pos1, pos2)
+    }
+
+    pub fn count_lines_in(&self, range: OffsetRange) -> u32 {
+        self.translate_offset(range.end_exclusive, Preference::Right)
+            .line_number
+            - self
+                .translate_offset(range.start, Preference::Right)
+                .line_number
+    }
+
+    pub fn extend_to_full_lines(&self, range: OffsetRange) -> OffsetRange {
+        let offsets = &self.first_element_offset_by_line_idx;
+        // findLastMonotonous(x <= start) ?? 0
+        let start = offsets
+            .partition_point(|&x| x <= range.start)
+            .checked_sub(1)
+            .map_or(0, |i| offsets[i]);
+        // findFirstMonotonous(end <= x) ?? elements.length
+        let end = offsets
+            .get(offsets.partition_point(|&x| x < range.end_exclusive))
+            .copied()
+            .unwrap_or(self.elements.len() as u32);
+        OffsetRange::new(start, end)
+    }
+}
+
 impl ISequence for LinesSliceCharSequence {
     fn get_element(&self, offset: u32) -> u32 {
         u32::from(self.elements[offset as usize])
@@ -239,5 +304,56 @@ mod tests {
         // Never between a carriage return and the line feed that follows it.
         let s = seq(&["a\r", "b"], Range::new(1, 1, 2, 2), true);
         assert_eq!(scores(&s), [20.0, 20.0, 0.0, 150.0, 20.0]);
+    }
+
+    fn pos(s: &LinesSliceCharSequence, offset: u32, pref: Preference) -> (u32, u32) {
+        let p = s.translate_offset(offset, pref);
+        (p.line_number, p.column)
+    }
+
+    #[test]
+    fn translating_offsets_and_ranges() {
+        // Elements: a b \n c d (the margins are trimmed off).
+        let lines = ["  ab", "  cd  "];
+        let s = seq(&lines, Range::new(1, 1, 2, 100), false);
+        assert_eq!(pos(&s, 0, Preference::Right), (1, 3));
+        assert_eq!(pos(&s, 0, Preference::Left), (1, 1));
+        assert_eq!(pos(&s, 2, Preference::Right), (1, 5));
+        assert_eq!(pos(&s, 3, Preference::Right), (2, 3));
+        assert_eq!(pos(&s, 3, Preference::Left), (2, 1));
+        assert_eq!(
+            s.translate_range(OffsetRange::new(3, 5)),
+            Range::new(2, 3, 2, 5)
+        );
+        assert_eq!(
+            s.translate_range(OffsetRange::new(2, 3)),
+            Range::new(1, 5, 2, 1)
+        );
+        // The end, translated to the left, lands before the start: collapse.
+        assert_eq!(
+            s.translate_range(OffsetRange::new(3, 3)),
+            Range::new(2, 1, 2, 1)
+        );
+        assert_eq!(s.count_lines_in(OffsetRange::new(0, 5)), 1);
+        assert_eq!(s.count_lines_in(OffsetRange::new(3, 5)), 0);
+    }
+
+    #[test]
+    fn translating_in_a_cut_slice_and_past_an_emoji() {
+        // The first line starts at column 3 ("\u{1F600}" is columns 2 and 3).
+        let s = seq(&["a\u{1F600}bc", "d"], Range::new(1, 4, 2, 2), true);
+        assert_eq!(elements(&s), [98, 99, 10, 100]);
+        assert_eq!(pos(&s, 0, Preference::Right), (1, 4));
+        assert_eq!(pos(&s, 2, Preference::Right), (1, 6));
+        assert_eq!(pos(&s, 3, Preference::Right), (2, 1));
+    }
+
+    #[test]
+    fn extending_to_full_lines() {
+        let s = seq(&["  ab", "  cd  "], Range::new(1, 1, 2, 100), false);
+        let extend = |a, b| s.extend_to_full_lines(OffsetRange::new(a, b));
+        assert_eq!(extend(1, 2), OffsetRange::new(0, 3));
+        assert_eq!(extend(3, 4), OffsetRange::new(3, 5));
+        assert_eq!(extend(0, 0), OffsetRange::new(0, 0));
     }
 }
