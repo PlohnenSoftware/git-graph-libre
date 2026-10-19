@@ -26,6 +26,8 @@ pub mod range_mapping;
 pub mod text;
 pub mod utils;
 pub mod v8_math;
+#[cfg(feature = "wasm")]
+pub mod wasm;
 
 pub use clock::{Clock, SystemClock, Timeout};
 pub use compute_moved_lines::compute_moved_lines;
