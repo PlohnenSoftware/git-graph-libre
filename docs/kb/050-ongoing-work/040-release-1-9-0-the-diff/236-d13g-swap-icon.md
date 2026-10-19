@@ -7,7 +7,7 @@ summary: >-
 
 # D13G — Swap icon
 
-Status: done — awaiting integration
+Status: integrated 6ade64e
 Needs: D13, D04b (both integrated)
 Decisions: X11 (a)
 Kind: webview · Size budget: ≤ 5 changed lines outside tests

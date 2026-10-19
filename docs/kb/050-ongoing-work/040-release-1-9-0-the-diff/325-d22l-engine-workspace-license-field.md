@@ -8,7 +8,7 @@ summary: >-
 
 # D22L — Engine workspace license field
 
-Status: done — awaiting integration
+Status: integrated 1cfe749
 Needs: —
 Decisions: X10 (a); Phase 17 D1 and D2
 Kind: engine metadata (Cargo and npm) · Size budget: ≤ 10 changed lines
@@ -53,8 +53,6 @@ MIT engine plus this project's AGPL-3.0-or-later changes.
   --format-version 1` reports the new license for every engine crate.
   Paste the three values into the report.
 - Strict Biome clean on `engine/package.json`; `kb:check` green.
-
-## Report
 
 ## Report
 
