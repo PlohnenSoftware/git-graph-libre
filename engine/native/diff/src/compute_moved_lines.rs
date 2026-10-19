@@ -14,8 +14,11 @@
 // file produces; `MovedText`'s inner changes come from `refineDiff` in
 // `defaultLinesDiffComputer.ts`. Where VS Code would throw (a `TypeError` on
 // an `undefined` line) this panics.
+use std::collections::HashMap;
+
 use crate::arrays_find::{find_last_idx_monotonous, MonotonousArray};
 use crate::diff_algorithm::{IDiffAlgorithm, ITimeout, SequenceDiff};
+use crate::line_range::{LineRange, LineRangeSet};
 use crate::lines_slice_char_sequence::{is_js_whitespace, LinesSliceCharSequence};
 use crate::myers_diff_algorithm::MyersDiffAlgorithm;
 use crate::range::Range;
@@ -167,6 +170,116 @@ pub fn compute_moves_from_simple_deletions_to_simple_insertions(
     (moves, excluded_changes)
 }
 
+struct PossibleMapping {
+    modified_line_range: LineRange,
+    original_line_range: LineRange,
+}
+
+/// The three consecutive line hashes starting at 1-based line `i`.
+fn three_line_key(hashed_lines: &[u32], i: u32) -> (u32, u32, u32) {
+    let i = i as usize;
+    (hashed_lines[i - 1], hashed_lines[i], hashed_lines[i + 1])
+}
+
+pub fn compute_unchanged_moves(
+    mut changes: Vec<&DetailedLineRangeMapping>,
+    hashed_original_lines: &[u32],
+    hashed_modified_lines: &[u32],
+    timeout: &mut dyn ITimeout,
+) -> Vec<LineRangeMapping> {
+    let mut moves = Vec::new();
+
+    let mut original_3_line_hashes: HashMap<(u32, u32, u32), Vec<LineRange>> = HashMap::new();
+    for change in &changes {
+        let mut i = change.original.start_line_number;
+        while i + 2 < change.original.end_line_number_exclusive {
+            original_3_line_hashes
+                .entry(three_line_key(hashed_original_lines, i))
+                .or_default()
+                .push(LineRange::new(i, i + 3));
+            i += 1;
+        }
+    }
+
+    let mut possible_mappings: Vec<PossibleMapping> = Vec::new();
+    changes.sort_by_key(|c| c.modified.start_line_number);
+    for change in &changes {
+        // Indices into `possible_mappings`, which later matches extend in place.
+        let mut last_mappings: Vec<usize> = Vec::new();
+        let mut i = change.modified.start_line_number;
+        while i + 2 < change.modified.end_line_number_exclusive {
+            let current_modified_range = LineRange::new(i, i + 3);
+            let mut next_mappings = Vec::new();
+            let key = three_line_key(hashed_modified_lines, i);
+            for &range in original_3_line_hashes.get(&key).into_iter().flatten() {
+                // does this match extend some last match?
+                let extended = last_mappings.iter().copied().find(|&m| {
+                    let last = &possible_mappings[m];
+                    last.original_line_range.end_line_number_exclusive + 1
+                        == range.end_line_number_exclusive
+                        && last.modified_line_range.end_line_number_exclusive + 1
+                            == current_modified_range.end_line_number_exclusive
+                });
+                if let Some(m) = extended {
+                    let last = &mut possible_mappings[m];
+                    last.original_line_range = LineRange::new(
+                        last.original_line_range.start_line_number,
+                        range.end_line_number_exclusive,
+                    );
+                    last.modified_line_range = LineRange::new(
+                        last.modified_line_range.start_line_number,
+                        current_modified_range.end_line_number_exclusive,
+                    );
+                    next_mappings.push(m);
+                } else {
+                    possible_mappings.push(PossibleMapping {
+                        modified_line_range: current_modified_range,
+                        original_line_range: range,
+                    });
+                    next_mappings.push(possible_mappings.len() - 1);
+                }
+            }
+            last_mappings = next_mappings;
+            i += 1;
+        }
+        if !timeout.is_valid() {
+            return Vec::new();
+        }
+    }
+
+    // Longest first; the sort is stable, like V8's.
+    possible_mappings.sort_by(|a, b| {
+        b.modified_line_range
+            .length()
+            .cmp(&a.modified_line_range.length())
+    });
+
+    let mut modified_set = LineRangeSet::new();
+    let mut original_set = LineRangeSet::new();
+    for mapping in &possible_mappings {
+        let diff_orig_to_mod = i64::from(mapping.modified_line_range.start_line_number)
+            - i64::from(mapping.original_line_range.start_line_number);
+        let modified_sections = modified_set.subtract_from(mapping.modified_line_range);
+        let original_translated_sections = original_set
+            .subtract_from(mapping.original_line_range)
+            .get_with_delta(diff_orig_to_mod);
+        let modified_intersected_sections =
+            modified_sections.get_intersection(&original_translated_sections);
+        for &s in modified_intersected_sections.ranges() {
+            if s.length() < 3 {
+                continue;
+            }
+            let original_line_range = s.delta(-diff_orig_to_mod);
+            moves.push(LineRangeMapping::new(original_line_range, s));
+            modified_set.add_range(s);
+            original_set.add_range(original_line_range);
+        }
+    }
+
+    moves.sort_by_key(|m| m.original.start_line_number);
+    moves
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -281,5 +394,21 @@ mod tests {
         );
         assert_eq!(moves, vec![lr(2, 5, 6, 9)]);
         assert_eq!(excluded, [true, false, true]);
+    }
+
+    #[test]
+    fn matching_three_line_windows_grow_into_one_move() {
+        use crate::line_range::LineRange;
+        let change = |a, b, c, d| {
+            DetailedLineRangeMapping::new(LineRange::new(a, b), LineRange::new(c, d), None)
+        };
+        let (deleted, inserted) = (change(1, 5, 1, 1), change(9, 9, 5, 9));
+        let moves = compute_unchanged_moves(
+            vec![&inserted, &deleted], // sorted by modified start inside
+            &[1, 2, 3, 4, 5, 6, 7, 8],
+            &[5, 6, 7, 8, 1, 2, 3, 4],
+            &mut InfiniteTimeout,
+        );
+        assert_eq!(moves, vec![lr(1, 5, 5, 9)]);
     }
 }
