@@ -20,7 +20,7 @@
   height: min(760px, calc(100vh - 32px));
   max-height: none;
   overflow: auto;
-  padding: 14px 16px 16px;
+  padding: 0;
   transform: translateX(-50%);
   border: 1px solid var(--vscode-editorWidget-border, var(--ngg-neutral-border-strong));
   border-radius: 8px;
@@ -34,6 +34,13 @@
 }
 #settingsWidget:focus {
   outline: none;
+}
+.settingsWidgetHead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 14px 16px 0;
+  background-color: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
 }
 .settingsWidgetHeader {
   display: flex;
@@ -104,6 +111,9 @@
 .settingsTab:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: -2px;
+}
+.settingsTabPanel {
+  padding: 0 16px 16px;
 }
 .settingsTabPanel[hidden] {
   display: none;
