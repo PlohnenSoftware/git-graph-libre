@@ -19,6 +19,7 @@ export const DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY = {
     addTag: true,
     createBranch: true,
     compareWithHead: true,
+    compareSelection: true,
     checkout: true,
     cherryPick: true,
     revert: true,

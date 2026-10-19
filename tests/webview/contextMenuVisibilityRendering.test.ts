@@ -89,7 +89,8 @@ function latestRequest<T extends GGL.RequestMessage["command"]>(
 
 async function bootWebview(
   viewState: GGL.GitGraphViewState,
-  initialState?: Parameters<typeof createVscodeMock>[0]
+  initialState?: Parameters<typeof createVscodeMock>[0],
+  loadedCommits = commits
 ) {
   vi.resetModules();
   const vscodeMock = createVscodeMock(initialState);
@@ -114,7 +115,7 @@ async function bootWebview(
   receive({
     command: "loadCommits",
     requestId: latestRequest(vscodeMock.sentMessages, "loadCommits").requestId,
-    commits,
+    commits: loadedCommits,
     head: "abc123",
     moreCommitsAvailable: false,
     hard: true,
@@ -225,6 +226,30 @@ describe("context menu visibility rendering", () => {
       ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
 
     expect(contextMenuItems()).toEqual([]);
+  });
+
+  it("hides the selected comparison when its commit visibility setting is disabled", async () => {
+    await bootWebview(
+      withVisibility({
+        commit: {
+          ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.commit,
+          compareSelection: false
+        }
+      }),
+      undefined,
+      [commits[0], { ...commits[0], hash: "def456", refs: [] }]
+    );
+    for (const hash of ["abc123", "def456"]) {
+      document
+        .querySelector<HTMLElement>(`tr.commit[data-hash="${hash}"]`)
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    }
+    document
+      .querySelector<HTMLElement>('tr.commit[data-hash="def456"]')
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+    expect(document.querySelectorAll(".commitSelected")).toHaveLength(2);
+    expect(contextMenuItems()).not.toContain("Compare Selected Commits");
   });
 
   it("hides all disabled local branch actions", async () => {

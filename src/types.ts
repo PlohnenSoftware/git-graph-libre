@@ -83,6 +83,7 @@ export type ContextMenuActionsVisibility = {
     addTag: boolean;
     createBranch: boolean;
     compareWithHead: boolean;
+    compareSelection: boolean;
     checkout: boolean;
     cherryPick: boolean;
     revert: boolean;

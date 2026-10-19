@@ -3070,7 +3070,7 @@ class GitGraphView {
   }
   private buildCommitContextMenu(hash: string, sourceElem: HTMLElement): ContextMenuElement[] {
     if (this.shouldShowSelectedCommitContextMenu(hash)) {
-      return this.buildSelectedCommitContextMenu(sourceElem);
+      return this.buildSelectedCommitContextMenu(hash, sourceElem);
     }
 
     const commitIndex = this.commitLookup[hash];
@@ -3198,9 +3198,23 @@ class GitGraphView {
       }
     });
   }
-  private buildSelectedCommitContextMenu(sourceElem: HTMLElement): ContextMenuElement[] {
+  private buildSelectedCommitContextMenu(
+    hash: string,
+    sourceElem: HTMLElement
+  ): ContextMenuElement[] {
     const menu: ContextMenuElement[] = [];
+    // getSelectedCommits orders by graph row, newest first, regardless of
+    // which row was selected first or which branch the commits belong to.
     const selectedCommits = this.getSelectedCommits();
+    if (selectedCommits.length === 2 && !selectedCommits.includes("*")) {
+      const [compareRef, baseRef] = selectedCommits;
+      menu.push(
+        this.visibleContextMenuItem("commit", "compareSelection", {
+          title: l10n.compareSelection,
+          onClick: () => this.loadCommitComparison(sourceElem, hash, baseRef, compareRef)
+        })
+      );
+    }
     if (selectedCommits.length < 2 || !this.selectedCommitsAreLoadedHeadChain(selectedCommits)) {
       return menu;
     }
@@ -5487,10 +5501,19 @@ class GitGraphView {
     });
   }
   private loadCommitComparisonWithHead(sourceElem: HTMLElement, hash: string) {
-    if (!this.canCompareWithHead(hash)) return;
+    if (this.canCompareWithHead(hash)) {
+      this.loadCommitComparison(sourceElem, hash, hash, "HEAD");
+    }
+  }
+  private loadCommitComparison(
+    sourceElem: HTMLElement,
+    hash: string,
+    baseRef: string,
+    compareRef: string
+  ) {
     const row = this.getCommitRowForElement(sourceElem);
     const id = row?.dataset.id;
-    if (row === null || id === undefined || this.commitHead === null) return;
+    if (row === null || id === undefined) return;
 
     this.hideCommitDetails();
     this.hideUncommittedDetails();
@@ -5500,7 +5523,7 @@ class GitGraphView {
       srcElem: row,
       commitDetails: null,
       fileTree: null,
-      comparison: { baseRef: hash, compareRef: "HEAD" },
+      comparison: { baseRef, compareRef },
       detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT,
       summaryOpen: true,
       filesOpen: true
@@ -5510,8 +5533,8 @@ class GitGraphView {
       command: "commitComparison",
       repo: this.currentRepo,
       commitHash: hash,
-      baseRef: hash,
-      compareRef: "HEAD"
+      baseRef,
+      compareRef
     });
   }
   public hideCommitDetails() {

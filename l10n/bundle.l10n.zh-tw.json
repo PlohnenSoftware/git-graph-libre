@@ -155,6 +155,7 @@
   "action.checkout": "檢出",
   "action.cherryPick": "揀選",
   "action.compareWithHead": "與 HEAD 比較",
+  "action.compareSelection": "比較所選提交",
   "action.dropCommit": "刪除提交",
   "action.dropSelection": "刪除所選",
   "action.dropStash": "刪除貯藏",

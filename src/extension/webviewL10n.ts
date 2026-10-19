@@ -224,6 +224,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     checkout: translate("action.checkout"),
     cherryPick: translate("action.cherryPick"),
     compareWithHead: translate("action.compareWithHead"),
+    compareSelection: translate("action.compareSelection"),
     dropCommit: translate("action.dropCommit"),
     dropSelection: translate("action.dropSelection"),
     dropStash: translate("action.dropStash"),

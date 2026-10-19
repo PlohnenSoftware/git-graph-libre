@@ -155,6 +155,7 @@
   "action.checkout": "Checkout",
   "action.cherryPick": "Cherry-pick",
   "action.compareWithHead": "Vergelijken met HEAD",
+  "action.compareSelection": "Geselecteerde commits vergelijken",
   "action.dropCommit": "Commit verwijderen",
   "action.dropSelection": "Selectie verwijderen",
   "action.dropStash": "Stash verwijderen",
