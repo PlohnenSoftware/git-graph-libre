@@ -469,4 +469,108 @@ mod tests {
         assert!(s.is_strongly_equal(5, 9)); // undefined === undefined
         assert!(!s.is_strongly_equal(0, 9));
     }
+
+    fn parse_units(list: &str) -> Vec<u16> {
+        list.split(',')
+            .filter(|s| !s.is_empty())
+            .map(|s| u16::from_str_radix(s, 16).unwrap())
+            .collect()
+    }
+
+    fn num_pair(text: &str, sep: char) -> (u32, u32) {
+        let (a, b) = text.split_once(sep).unwrap();
+        (a.parse().unwrap(), b.parse().unwrap())
+    }
+
+    fn span(r: Option<OffsetRange>) -> String {
+        r.map_or("x".to_string(), |r| {
+            format!("{}-{}", r.start, r.end_exclusive)
+        })
+    }
+
+    fn pos_str(p: Position) -> String {
+        format!("{}:{}", p.line_number, p.column)
+    }
+
+    /// The expected values come from running VS Code's TypeScript: see
+    /// `tests/oracle/gen-lines_slice_char_sequence.mjs`.
+    #[test]
+    fn matches_vscode_on_the_oracle_corpus() {
+        let mut cases = 0;
+        for line in include_str!("../tests/data/lines-slice-char-sequence-oracle.txt").lines() {
+            if line.starts_with('#') {
+                continue;
+            }
+            let f: Vec<&str> = line.split(';').collect();
+            assert_eq!(f.len(), 9, "{line}");
+            let lines: Vec<String> = f[0]
+                .split('|')
+                .map(|l| String::from_utf16(&parse_units(l)).unwrap())
+                .collect();
+            let r: Vec<u32> = f[1].split(',').map(|n| n.parse().unwrap()).collect();
+            let s = LinesSliceCharSequence::new(
+                &TextModel::from_lines(lines),
+                Range::new(r[0], r[1], r[2], r[3]),
+                f[2] == "1",
+            );
+            let ctx = format!("case {cases}: {line}");
+            let len = s.length();
+
+            let elements: Vec<String> = (0..len)
+                .map(|i| format!("{:x}", s.get_element(i)))
+                .collect();
+            assert_eq!(elements.join(","), f[3], "elements, {ctx}");
+            let scores: Vec<String> = (0..=len + 2)
+                .map(|i| s.boundary_score(i).to_string())
+                .collect();
+            assert_eq!(scores.join(","), f[4], "scores, {ctx}");
+            let translated: Vec<String> = (0..=len + 2)
+                .map(|i| {
+                    let (right, left) = (
+                        s.translate_offset(i, Preference::Right),
+                        s.translate_offset(i, Preference::Left),
+                    );
+                    format!("{}/{}", pos_str(right), pos_str(left))
+                })
+                .collect();
+            assert_eq!(translated.join(" "), f[5], "translateOffset, {ctx}");
+            let words: Vec<String> = (-1..=i64::from(len) + 1)
+                .map(|i| {
+                    format!(
+                        "{}~{}",
+                        span(s.find_word_containing(i)),
+                        span(s.find_sub_word_containing(i))
+                    )
+                })
+                .collect();
+            assert_eq!(words.join(" "), f[6], "words, {ctx}");
+
+            for query in f[7].split(' ') {
+                let (range, expected) = query.split_once('=').unwrap();
+                let (a, b) = num_pair(range, '-');
+                let range = OffsetRange::new(a, b);
+                let tr = s.translate_range(range);
+                let text: Vec<String> =
+                    s.get_text(range).iter().map(|u| format!("{u:x}")).collect();
+                let got = format!(
+                    "{},{},{},{}/{}/{}/{}",
+                    tr.start_line_number,
+                    tr.start_column,
+                    tr.end_line_number,
+                    tr.end_column,
+                    s.count_lines_in(range),
+                    span(Some(s.extend_to_full_lines(range))),
+                    text.join(".")
+                );
+                assert_eq!(got, expected, "range {range}, {ctx}");
+            }
+            for pair in f[8].split(' ') {
+                let (offsets, expected) = pair.split_once('=').unwrap();
+                let (a, b) = num_pair(offsets, '-');
+                assert_eq!(s.is_strongly_equal(a, b), expected == "1", "{pair}, {ctx}");
+            }
+            cases += 1;
+        }
+        assert_eq!(cases, 412);
+    }
 }
