@@ -9,7 +9,7 @@ summary: >-
 
 # D47 — Open the tab from commit details
 
-Status: ready
+Status: claimed by Muse Code (general-purpose) on 2026-10-19 16:37
 Needs: D45
 Decisions: Phase 17 D4 (answered: G4, option (c))
 Kind: webview and TypeScript · Size budget: ≤ 200 changed lines outside tests
