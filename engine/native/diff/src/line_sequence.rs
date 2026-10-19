@@ -135,6 +135,92 @@ mod tests {
         field.split(',').filter(|s| !s.is_empty()).collect()
     }
 
+    /// One decoded oracle line: the line count `n`, the lines, the hashes and
+    /// the expected score, strong-equality and text fields.
+    struct OracleCase<'a> {
+        n: usize,
+        lines: Vec<String>,
+        hashes: Vec<u32>,
+        scores: &'a str,
+        strong: &'a str,
+        texts: &'a str,
+    }
+
+    /// Splits one oracle corpus line (`n:lines;hashes;scores;strong;texts`).
+    /// Not part of the port: a test helper split from the corpus test (D22F).
+    fn parse_case(line: &str) -> OracleCase<'_> {
+        let mut parts = line.splitn(5, ';');
+        let (head, hashes, scores, strong, texts) = (
+            parts.next().unwrap(),
+            parts.next().unwrap(),
+            parts.next().unwrap(),
+            parts.next().unwrap(),
+            parts.next().unwrap(),
+        );
+        let (n, lines_field) = head.split_once(':').unwrap();
+        let n: usize = n.parse().unwrap();
+        let lines: Vec<String> = if n == 0 {
+            Vec::new()
+        } else {
+            lines_field.split('|').map(unescape).collect()
+        };
+        let hashes: Vec<u32> = list(hashes).iter().map(|h| h.parse().unwrap()).collect();
+        OracleCase {
+            n,
+            lines,
+            hashes,
+            scores,
+            strong,
+            texts,
+        }
+    }
+
+    /// Checks `length`, `get_element` and `get_boundary_score` against a case.
+    fn check_elements_and_scores(case: &OracleCase, line: &str) {
+        let seq = LineSequence::new(&case.hashes, &case.lines);
+        assert_eq!(seq.length() as usize, case.n, "{line}");
+        for (i, &hash) in case.hashes.iter().enumerate() {
+            assert_eq!(seq.get_element(i as u32), hash, "{line}");
+        }
+        let scores: Vec<f64> = list(case.scores)
+            .iter()
+            .map(|s| s.parse().unwrap())
+            .collect();
+        for (l, expected) in scores.iter().enumerate() {
+            assert_eq!(seq.get_boundary_score(l as u32), Some(*expected), "{line}");
+        }
+    }
+
+    /// Checks `is_strongly_equal` for every pair of lines of a case.
+    fn check_strong_equality(case: &OracleCase, line: &str) {
+        let seq = LineSequence::new(&case.hashes, &case.lines);
+        let mut bits = case.strong.chars();
+        for i in 0..case.n {
+            for j in 0..case.n {
+                let expected = bits.next() == Some('1');
+                assert_eq!(
+                    seq.is_strongly_equal(i as u32, j as u32),
+                    expected,
+                    "{line}"
+                );
+            }
+        }
+    }
+
+    /// Checks `get_text` for every range of a case.
+    fn check_texts(case: &OracleCase, line: &str) {
+        let seq = LineSequence::new(&case.hashes, &case.lines);
+        let mut expected_texts = case.texts.split('|');
+        for start in 0..=case.n {
+            for end in start..=case.n {
+                let range = OffsetRange::new(start as u32, end as u32);
+                let expected = unescape(expected_texts.next().unwrap());
+                assert_eq!(seq.get_text(range), expected, "{line}");
+            }
+        }
+        assert_eq!(expected_texts.next(), None, "{line}");
+    }
+
     #[test]
     fn matches_vscode_on_the_oracle_corpus() {
         let mut cases = 0;
@@ -142,51 +228,10 @@ mod tests {
             if line.starts_with('#') {
                 continue;
             }
-            let mut parts = line.splitn(5, ';');
-            let (head, hashes, scores, strong, texts) = (
-                parts.next().unwrap(),
-                parts.next().unwrap(),
-                parts.next().unwrap(),
-                parts.next().unwrap(),
-                parts.next().unwrap(),
-            );
-            let (n, lines_field) = head.split_once(':').unwrap();
-            let n: usize = n.parse().unwrap();
-            let lines: Vec<String> = if n == 0 {
-                Vec::new()
-            } else {
-                lines_field.split('|').map(unescape).collect()
-            };
-            let hashes: Vec<u32> = list(hashes).iter().map(|h| h.parse().unwrap()).collect();
-            let seq = LineSequence::new(&hashes, &lines);
-            assert_eq!(seq.length() as usize, n, "{line}");
-            for (i, &hash) in hashes.iter().enumerate() {
-                assert_eq!(seq.get_element(i as u32), hash, "{line}");
-            }
-            let scores: Vec<f64> = list(scores).iter().map(|s| s.parse().unwrap()).collect();
-            for (l, expected) in scores.iter().enumerate() {
-                assert_eq!(seq.get_boundary_score(l as u32), Some(*expected), "{line}");
-            }
-            let mut bits = strong.chars();
-            for i in 0..n {
-                for j in 0..n {
-                    let expected = bits.next() == Some('1');
-                    assert_eq!(
-                        seq.is_strongly_equal(i as u32, j as u32),
-                        expected,
-                        "{line}"
-                    );
-                }
-            }
-            let mut expected_texts = texts.split('|');
-            for start in 0..=n {
-                for end in start..=n {
-                    let range = OffsetRange::new(start as u32, end as u32);
-                    let expected = unescape(expected_texts.next().unwrap());
-                    assert_eq!(seq.get_text(range), expected, "{line}");
-                }
-            }
-            assert_eq!(expected_texts.next(), None, "{line}");
+            let case = parse_case(line);
+            check_elements_and_scores(&case, line);
+            check_strong_equality(&case, line);
+            check_texts(&case, line);
             cases += 1;
         }
         assert_eq!(cases, 90);
