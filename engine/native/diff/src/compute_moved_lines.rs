@@ -255,17 +255,37 @@ fn most_similar_insertion(
     (highest_similarity, best)
 }
 
+/// `PossibleMapping` (`computeMovedLines.ts` L117-L120).
 struct PossibleMapping {
     modified_line_range: LineRange,
     original_line_range: LineRange,
 }
 
-/// The three consecutive line hashes starting at 1-based line `i`.
+/// The line-number sets of lines already part of a move (`modifiedSet` and
+/// `originalSet`, `computeMovedLines.ts` L162-L163).
+#[derive(Default)]
+struct MovedSets {
+    original: LineRangeSet,
+    modified: LineRangeSet,
+}
+
+/// The three consecutive line hashes starting at 1-based line `i`: the
+/// template-string key built at `computeMovedLines.ts` L112 and L129.
 fn three_line_key(hashed_lines: &[u32], i: u32) -> (u32, u32, u32) {
     let i = i as usize;
     (hashed_lines[i - 1], hashed_lines[i], hashed_lines[i + 1])
 }
 
+/// `computeUnchangedMoves` (`computeMovedLines.ts` L98-L255): finds blocks of
+/// three or more lines that moved unchanged, grown over similar neighbors.
+/// `changes` is the list without the changes consumed by the simple-move
+/// pass. Helpers, in call order:
+/// 1. [`collect_original_3_line_hashes`] (L108-L115);
+/// 2. the `changes.sort` at L124 (inline here, stable like V8's);
+/// 3. [`compute_possible_mappings`] (L117-L158, with its timeout exit at
+///    L155-L157 returning no moves);
+/// 4. [`select_moves`] (L160-L187);
+/// 5. [`extend_moves`] (L189-L254).
 pub fn compute_unchanged_moves(
     mut changes: Vec<&DetailedLineRangeMapping>,
     hashed_original_lines: &[u32],
@@ -274,10 +294,37 @@ pub fn compute_unchanged_moves(
     modified_lines: &TextModel,
     timeout: &mut dyn ITimeout,
 ) -> Vec<LineRangeMapping> {
-    let mut moves = Vec::new();
+    let original_3_line_hashes = collect_original_3_line_hashes(&changes, hashed_original_lines);
+    changes.sort_by_key(|c| c.modified.start_line_number);
+    let Some(possible_mappings) = compute_possible_mappings(
+        &changes,
+        &original_3_line_hashes,
+        hashed_modified_lines,
+        timeout,
+    ) else {
+        return Vec::new();
+    };
+    let (mut moves, mut sets) = select_moves(possible_mappings);
+    extend_moves(
+        &mut moves,
+        &changes,
+        (original_lines, modified_lines),
+        &mut sets,
+        timeout,
+    );
+    moves
+}
 
+/// Split from `computeUnchangedMoves` (`computeMovedLines.ts` L98-L255):
+/// L108-L115, the `SetMap` of every three-line window of the original side of
+/// each change, keyed by its hashes (a `Vec` per key: the values are fresh
+/// objects, so VS Code's `Set` never merges any).
+fn collect_original_3_line_hashes(
+    changes: &[&DetailedLineRangeMapping],
+    hashed_original_lines: &[u32],
+) -> HashMap<(u32, u32, u32), Vec<LineRange>> {
     let mut original_3_line_hashes: HashMap<(u32, u32, u32), Vec<LineRange>> = HashMap::new();
-    for change in &changes {
+    for change in changes {
         let mut i = change.original.start_line_number;
         while i + 2 < change.original.end_line_number_exclusive {
             original_3_line_hashes
@@ -287,67 +334,126 @@ pub fn compute_unchanged_moves(
             i += 1;
         }
     }
+    original_3_line_hashes
+}
 
-    let mut possible_mappings: Vec<PossibleMapping> = Vec::new();
-    changes.sort_by_key(|c| c.modified.start_line_number);
-    for change in &changes {
-        // Indices into `possible_mappings`, which later matches extend in place.
-        let mut last_mappings: Vec<usize> = Vec::new();
-        let mut i = change.modified.start_line_number;
-        while i + 2 < change.modified.end_line_number_exclusive {
-            let current_modified_range = LineRange::new(i, i + 3);
-            let mut next_mappings = Vec::new();
-            let key = three_line_key(hashed_modified_lines, i);
-            for &range in original_3_line_hashes.get(&key).into_iter().flatten() {
-                // does this match extend some last match?
-                let extended = last_mappings.iter().copied().find(|&m| {
-                    let last = &possible_mappings[m];
-                    last.original_line_range.end_line_number_exclusive + 1
-                        == range.end_line_number_exclusive
-                        && last.modified_line_range.end_line_number_exclusive + 1
-                            == current_modified_range.end_line_number_exclusive
-                });
-                if let Some(m) = extended {
-                    let last = &mut possible_mappings[m];
-                    last.original_line_range = LineRange::new(
-                        last.original_line_range.start_line_number,
-                        range.end_line_number_exclusive,
-                    );
-                    last.modified_line_range = LineRange::new(
-                        last.modified_line_range.start_line_number,
-                        current_modified_range.end_line_number_exclusive,
-                    );
-                    next_mappings.push(m);
-                } else {
-                    possible_mappings.push(PossibleMapping {
-                        modified_line_range: current_modified_range,
-                        original_line_range: range,
-                    });
-                    next_mappings.push(possible_mappings.len() - 1);
-                }
-            }
-            last_mappings = next_mappings;
-            i += 1;
-        }
+/// Split from `computeUnchangedMoves` (`computeMovedLines.ts` L98-L255):
+/// L117-L158, every candidate mapping from a modified three-line window to
+/// matching original windows, extending the previous window's mapping where
+/// it continues it. `None` is the timeout exit at L155-L157 (VS Code returns
+/// no moves). The per-change body (L127-L153) is
+/// [`add_possible_mappings_for_change`].
+fn compute_possible_mappings(
+    changes: &[&DetailedLineRangeMapping],
+    original_3_line_hashes: &HashMap<(u32, u32, u32), Vec<LineRange>>,
+    hashed_modified_lines: &[u32],
+    timeout: &mut dyn ITimeout,
+) -> Option<Vec<PossibleMapping>> {
+    let mut possible_mappings = Vec::new();
+    for change in changes {
+        add_possible_mappings_for_change(
+            change.modified,
+            original_3_line_hashes,
+            hashed_modified_lines,
+            &mut possible_mappings,
+        );
         if !timeout.is_valid() {
-            return Vec::new();
+            return None;
         }
     }
+    Some(possible_mappings)
+}
 
-    // Longest first; the sort is stable, like V8's.
+/// Split from `computeUnchangedMoves` (`computeMovedLines.ts` L98-L255):
+/// the body of the `for (const change of changes)` loop at L127-L153, for a
+/// change whose modified range is `modified`. `last_mappings` (L127) holds
+/// indices into `possible_mappings`, which later windows extend in place.
+fn add_possible_mappings_for_change(
+    modified: LineRange,
+    original_3_line_hashes: &HashMap<(u32, u32, u32), Vec<LineRange>>,
+    hashed_modified_lines: &[u32],
+    possible_mappings: &mut Vec<PossibleMapping>,
+) {
+    let mut last_mappings: Vec<usize> = Vec::new();
+    let mut i = modified.start_line_number;
+    while i + 2 < modified.end_line_number_exclusive {
+        let key = three_line_key(hashed_modified_lines, i);
+        let original_ranges = original_3_line_hashes
+            .get(&key)
+            .map_or(&[][..], Vec::as_slice);
+        last_mappings = match_modified_window(
+            LineRange::new(i, i + 3),
+            original_ranges,
+            &last_mappings,
+            possible_mappings,
+        );
+        i += 1;
+    }
+}
+
+/// Split from `computeUnchangedMoves` (`computeMovedLines.ts` L98-L255):
+/// L132-L152, the `original3LineHashes.forEach` over the original windows
+/// that match one modified window. Returns the mappings (indices) it touched,
+/// in order, as `nextMappings`; the callback's `return` at L141 is the
+/// `if let` / `else` here.
+fn match_modified_window(
+    current_modified_range: LineRange,
+    original_ranges: &[LineRange],
+    last_mappings: &[usize],
+    possible_mappings: &mut Vec<PossibleMapping>,
+) -> Vec<usize> {
+    let mut next_mappings = Vec::new();
+    for &range in original_ranges {
+        // does this match extend some last match?
+        let extended = last_mappings.iter().copied().find(|&m| {
+            let last = &possible_mappings[m];
+            last.original_line_range.end_line_number_exclusive + 1
+                == range.end_line_number_exclusive
+                && last.modified_line_range.end_line_number_exclusive + 1
+                    == current_modified_range.end_line_number_exclusive
+        });
+        if let Some(m) = extended {
+            let last = &mut possible_mappings[m];
+            last.original_line_range = LineRange::new(
+                last.original_line_range.start_line_number,
+                range.end_line_number_exclusive,
+            );
+            last.modified_line_range = LineRange::new(
+                last.modified_line_range.start_line_number,
+                current_modified_range.end_line_number_exclusive,
+            );
+            next_mappings.push(m);
+        } else {
+            possible_mappings.push(PossibleMapping {
+                modified_line_range: current_modified_range,
+                original_line_range: range,
+            });
+            next_mappings.push(possible_mappings.len() - 1);
+        }
+    }
+    next_mappings
+}
+
+/// Split from `computeUnchangedMoves` (`computeMovedLines.ts` L98-L255):
+/// L160-L187, longest candidates first (a stable sort, like V8's), each
+/// reduced to the parts not yet in a move on either side, kept when 3+ lines
+/// remain, then the moves sorted by original start. Returns the moves and the
+/// sets of lines they cover.
+fn select_moves(mut possible_mappings: Vec<PossibleMapping>) -> (Vec<LineRangeMapping>, MovedSets) {
+    let mut moves = Vec::new();
     possible_mappings.sort_by(|a, b| {
         b.modified_line_range
             .length()
             .cmp(&a.modified_line_range.length())
     });
 
-    let mut modified_set = LineRangeSet::new();
-    let mut original_set = LineRangeSet::new();
+    let mut sets = MovedSets::default();
     for mapping in &possible_mappings {
         let diff_orig_to_mod = i64::from(mapping.modified_line_range.start_line_number)
             - i64::from(mapping.original_line_range.start_line_number);
-        let modified_sections = modified_set.subtract_from(mapping.modified_line_range);
-        let original_translated_sections = original_set
+        let modified_sections = sets.modified.subtract_from(mapping.modified_line_range);
+        let original_translated_sections = sets
+            .original
             .subtract_from(mapping.original_line_range)
             .get_with_delta(diff_orig_to_mod);
         let modified_intersected_sections =
@@ -358,107 +464,155 @@ pub fn compute_unchanged_moves(
             }
             let original_line_range = s.delta(-diff_orig_to_mod);
             moves.push(LineRangeMapping::new(original_line_range, s));
-            modified_set.add_range(s);
-            original_set.add_range(original_line_range);
+            sets.modified.add_range(s);
+            sets.original.add_range(original_line_range);
         }
     }
 
     moves.sort_by_key(|m| m.original.start_line_number);
-
-    const NO_CHANGE: &str = "a change touches every move (`!` in VS Code)";
-    let mut monotonous_changes = MonotonousArray::new(&changes);
-    for mv in &mut moves {
-        let (original, modified) = (mv.original, mv.modified);
-        let (o_start, o_end) = (
-            i64::from(original.start_line_number),
-            i64::from(original.end_line_number_exclusive),
-        );
-        let (m_start, m_end) = (
-            i64::from(modified.start_line_number),
-            i64::from(modified.end_line_number_exclusive),
-        );
-        let first_touching_change_orig = changes[monotonous_changes
-            .find_last_monotonous(|c| c.original.start_line_number <= original.start_line_number)
-            .expect(NO_CHANGE)];
-        let first_touching_change_mod = find_last_monotonous(&changes, |c| {
-            c.modified.start_line_number <= modified.start_line_number
-        })
-        .expect(NO_CHANGE);
-        let lines_above = (o_start
-            - i64::from(first_touching_change_orig.original.start_line_number))
-        .max(m_start - i64::from(first_touching_change_mod.modified.start_line_number));
-
-        let last_touching_change_orig = changes[monotonous_changes
-            .find_last_monotonous(|c| {
-                c.original.start_line_number < original.end_line_number_exclusive
-            })
-            .expect(NO_CHANGE)];
-        let last_touching_change_mod = find_last_monotonous(&changes, |c| {
-            c.modified.start_line_number < modified.end_line_number_exclusive
-        })
-        .expect(NO_CHANGE);
-        let lines_below = (i64::from(last_touching_change_orig.original.end_line_number_exclusive)
-            - o_end)
-            .max(i64::from(last_touching_change_mod.modified.end_line_number_exclusive) - m_end);
-
-        let extend_to_top = count_similar_lines(
-            lines_above,
-            |n| (o_start - n - 1, m_start - n - 1),
-            (original_lines, modified_lines),
-            (&original_set, &modified_set),
-            timeout,
-        );
-        if extend_to_top > 0 {
-            original_set.add_range(LineRange::new(
-                (o_start - extend_to_top) as u32,
-                original.start_line_number,
-            ));
-            modified_set.add_range(LineRange::new(
-                (m_start - extend_to_top) as u32,
-                modified.start_line_number,
-            ));
-        }
-        let extend_to_bottom = count_similar_lines(
-            lines_below,
-            |n| (o_end + n, m_end + n),
-            (original_lines, modified_lines),
-            (&original_set, &modified_set),
-            timeout,
-        );
-        if extend_to_bottom > 0 {
-            original_set.add_range(LineRange::new(
-                original.end_line_number_exclusive,
-                (o_end + extend_to_bottom) as u32,
-            ));
-            modified_set.add_range(LineRange::new(
-                modified.end_line_number_exclusive,
-                (m_end + extend_to_bottom) as u32,
-            ));
-        }
-        if extend_to_top > 0 || extend_to_bottom > 0 {
-            *mv = LineRangeMapping::new(
-                LineRange::new(
-                    (o_start - extend_to_top) as u32,
-                    (o_end + extend_to_bottom) as u32,
-                ),
-                LineRange::new(
-                    (m_start - extend_to_top) as u32,
-                    (m_end + extend_to_bottom) as u32,
-                ),
-            );
-        }
-    }
-    moves
+    (moves, sets)
 }
 
-/// One of `computeUnchangedMoves`'s two extension loops: how many lines, up
-/// to `limit`, can join a move. `line_numbers_at(n)` gives the original and
-/// modified line (1-based) at step `n`.
+/// Split from `computeUnchangedMoves` (`computeMovedLines.ts` L98-L255):
+/// L189-L254, the loop that grows each move over neighboring similar lines,
+/// replacing it in `moves`. `changes` is sorted by modified start (L124); one
+/// [`MonotonousArray`] serves every move (L189). Per move: the touching-change
+/// extents (L190-L204, [`lines_around_move`]) and the two extensions
+/// (L206-L252, [`extend_move`]).
+fn extend_moves(
+    moves: &mut [LineRangeMapping],
+    changes: &[&DetailedLineRangeMapping],
+    lines: (&TextModel, &TextModel),
+    sets: &mut MovedSets,
+    timeout: &mut dyn ITimeout,
+) {
+    let mut monotonous_changes = MonotonousArray::new(changes);
+    for mv in moves {
+        let (lines_above, lines_below) = lines_around_move(mv, changes, &mut monotonous_changes);
+        extend_move(mv, lines_above, lines_below, lines, sets, timeout);
+    }
+}
+
+/// Split from `computeUnchangedMoves` (`computeMovedLines.ts` L98-L255):
+/// L190-L204, how many lines `linesAbove` (L194-L197) and `linesBelow`
+/// (L201-L204) the changes touching `mv` reach beyond it. VS Code's `!` on the
+/// searches becomes a panic if no change touches the move.
+fn lines_around_move(
+    mv: &LineRangeMapping,
+    changes: &[&DetailedLineRangeMapping],
+    monotonous_changes: &mut MonotonousArray<'_, &DetailedLineRangeMapping>,
+) -> (i64, i64) {
+    const NO_CHANGE: &str = "a change touches every move (`!` in VS Code)";
+    let (original, modified) = (mv.original, mv.modified);
+    let first_touching_change_orig = changes[monotonous_changes
+        .find_last_monotonous(|c| c.original.start_line_number <= original.start_line_number)
+        .expect(NO_CHANGE)];
+    let first_touching_change_mod = find_last_monotonous(changes, |c| {
+        c.modified.start_line_number <= modified.start_line_number
+    })
+    .expect(NO_CHANGE);
+    let lines_above = (i64::from(original.start_line_number)
+        - i64::from(first_touching_change_orig.original.start_line_number))
+    .max(
+        i64::from(modified.start_line_number)
+            - i64::from(first_touching_change_mod.modified.start_line_number),
+    );
+
+    let last_touching_change_orig = changes[monotonous_changes
+        .find_last_monotonous(|c| c.original.start_line_number < original.end_line_number_exclusive)
+        .expect(NO_CHANGE)];
+    let last_touching_change_mod = find_last_monotonous(changes, |c| {
+        c.modified.start_line_number < modified.end_line_number_exclusive
+    })
+    .expect(NO_CHANGE);
+    let lines_below = (i64::from(last_touching_change_orig.original.end_line_number_exclusive)
+        - i64::from(original.end_line_number_exclusive))
+    .max(
+        i64::from(last_touching_change_mod.modified.end_line_number_exclusive)
+            - i64::from(modified.end_line_number_exclusive),
+    );
+    (lines_above, lines_below)
+}
+
+/// Split from `computeUnchangedMoves` (`computeMovedLines.ts` L98-L255):
+/// L206-L251, extending one move up (L206-L224) and down (L226-L244) over
+/// similar lines ([`count_similar_lines`]), recording the new lines in the
+/// sets and replacing the move (L246-L251).
+fn extend_move(
+    mv: &mut LineRangeMapping,
+    lines_above: i64,
+    lines_below: i64,
+    lines: (&TextModel, &TextModel),
+    sets: &mut MovedSets,
+    timeout: &mut dyn ITimeout,
+) {
+    let (original, modified) = (mv.original, mv.modified);
+    let (o_start, o_end) = (
+        i64::from(original.start_line_number),
+        i64::from(original.end_line_number_exclusive),
+    );
+    let (m_start, m_end) = (
+        i64::from(modified.start_line_number),
+        i64::from(modified.end_line_number_exclusive),
+    );
+    let extend_to_top = count_similar_lines(
+        lines_above,
+        |n| (o_start - n - 1, m_start - n - 1),
+        lines,
+        sets,
+        timeout,
+    );
+    if extend_to_top > 0 {
+        sets.original.add_range(LineRange::new(
+            (o_start - extend_to_top) as u32,
+            original.start_line_number,
+        ));
+        sets.modified.add_range(LineRange::new(
+            (m_start - extend_to_top) as u32,
+            modified.start_line_number,
+        ));
+    }
+    let extend_to_bottom = count_similar_lines(
+        lines_below,
+        |n| (o_end + n, m_end + n),
+        lines,
+        sets,
+        timeout,
+    );
+    if extend_to_bottom > 0 {
+        sets.original.add_range(LineRange::new(
+            original.end_line_number_exclusive,
+            (o_end + extend_to_bottom) as u32,
+        ));
+        sets.modified.add_range(LineRange::new(
+            modified.end_line_number_exclusive,
+            (m_end + extend_to_bottom) as u32,
+        ));
+    }
+    if extend_to_top > 0 || extend_to_bottom > 0 {
+        *mv = LineRangeMapping::new(
+            LineRange::new(
+                (o_start - extend_to_top) as u32,
+                (o_end + extend_to_bottom) as u32,
+            ),
+            LineRange::new(
+                (m_start - extend_to_top) as u32,
+                (m_end + extend_to_bottom) as u32,
+            ),
+        );
+    }
+}
+
+/// Split from `computeUnchangedMoves` (`computeMovedLines.ts` L98-L255): the
+/// body shared by the two extension loops, `extendToTop` (L207-L219) and
+/// `extendToBottom` (L227-L239): how many lines, up to `limit`, can join a
+/// move. `line_numbers_at(n)` gives the original and modified line (1-based)
+/// at step `n` (L208-L209, L228-L229).
 fn count_similar_lines(
     limit: i64,
     line_numbers_at: impl Fn(i64) -> (i64, i64),
     (original_lines, modified_lines): (&TextModel, &TextModel),
-    (original_set, modified_set): (&LineRangeSet, &LineRangeSet),
+    sets: &MovedSets,
     timeout: &mut dyn ITimeout,
 ) -> i64 {
     let contains =
@@ -471,7 +625,7 @@ fn count_similar_lines(
         {
             break;
         }
-        if contains(modified_set, mod_line) || contains(original_set, orig_line) {
+        if contains(&sets.modified, mod_line) || contains(&sets.original, orig_line) {
             break;
         }
         // A line below 1 is `undefined` in VS Code, and `undefined.trim()` throws.
