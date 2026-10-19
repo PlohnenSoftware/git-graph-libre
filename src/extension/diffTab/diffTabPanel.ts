@@ -114,8 +114,12 @@ function readViewSettings(): Pick<DiffTabShowMessage, "layout" | "lineHeight" | 
  * setting's description says, and VS Code never draws a line under 8 pixels.
  */
 function lineHeightInPixels(lineHeight: number, fontSize: number): number {
-  const pixels =
-    lineHeight === 0 ? fontSize * 1.5 : lineHeight < 8 ? lineHeight * fontSize : lineHeight;
+  let pixels = lineHeight;
+  if (lineHeight === 0) {
+    pixels = fontSize * 1.5;
+  } else if (lineHeight < 8) {
+    pixels = lineHeight * fontSize;
+  }
   return Math.max(8, Math.round(pixels));
 }
 
