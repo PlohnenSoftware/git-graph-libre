@@ -8,7 +8,7 @@ summary: >-
 
 # D42F — View Sonar follow-up
 
-Status: ready
+Status: done — awaiting integration
 Needs: D42 (integrated)
 Decisions: — (a follow-up the integrator opened to bring the wave gate to `OK`, as with D41F and D43F)
 Kind: TypeScript · Size budget: ≤ 40 changed lines outside tests
@@ -66,4 +66,13 @@ All existing view tests pass unchanged
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Muse Code D42F, 2026-10-19 10:37 (general-purpose, inherited runtime model `muse-wonder-full-1.0`; this runtime has no Haiku/Sonnet/Opus selector — the slice was classed easy/Haiku-tier by the maintainer's rule, for the integrator to record)
+- **Branch and commits:** `diff-1.9.0/d42f` — `a9013cb G refactor(diff-tab): clear the view's four Sonar findings (D42F)`; this report in a second signed docs commit on the same branch
+- **Files changed:** `src/webview/diffTab/view.ts` (+9 −5, 14 changed lines, within the ≤40 budget), this slice file (status and report)
+- **Tests added or changed:** none; no case was needed. The existing view tests already cover all three touched paths: the insert/delete/unchanged signs, previous-change wrapping to the last change, and the expand buttons' `data-expand`/`data-region` reads. Test counts unchanged: view 12, `tests/webview/diffTab` 44 in total
+- **Gates:** biome strict clean on the 1 touched `.ts` file (`pnpm exec biome check --config-path biome.strict.jsonc --error-on-warnings src/webview/diffTab/view.ts`, `Checked 1 file`); typecheck green (`pnpm run typecheck`, all three projects); test `pnpm exec vitest run --project webview tests/webview/diffTab` 44/44 in 3 files (view 12, rowModel 28, `diffTabCss` 4); l10n n/a (no user-visible text); kb:check green; Rust arm n/a; Sonar: integrator
+- **Acceptance:**
+  - Strict Biome clean on the touched file, typecheck green, the diffTab tests green: met (numbers above).
+  - The integrator's next Sonar scan shows none of the four findings: closed in the code, to be confirmed by the integrator's scan. `S7761` ×2: `onClick` narrows the `closest("button[data-expand]")` result with `instanceof HTMLElement` and reads `button?.dataset.expand` / `button?.dataset.region` in place of the two `getAttribute` calls. `S3358`: the nested sign ternary is now plain `if`/`else if` statements setting `signText` (`+` for insert, `−` for delete, empty otherwise — the same three outcomes, since `changed` is exactly `cell.change !== "none"`). `S7755`: `changes[changes.length - 1]` is now `changes.at(-1) ?? current`; the early return on an empty `changes` list makes the fallback unreachable, and it keeps `target` a `number` with no non-null assertion.
+- **Deviations from the slice:** none. Only `src/webview/diffTab/view.ts` was touched outside this slice file; no behavior change.
+- **Open questions / follow-ups:** none.
