@@ -91,6 +91,7 @@ wait for them.
 | D22 | [Phase 17 port sub-slices](040-release-1-9-0-the-diff/320-d22-phase-17-port-sub-slices.md) | Rust | D21, X5 | H | in progress: 22a–22e, 22g integrated; 22f ready |
 | D22L | [Engine workspace license field](040-release-1-9-0-the-diff/325-d22l-engine-workspace-license-field.md) | engine metadata | — | H | integrated 1cfe749 |
 | D22F | [Port Sonar follow-up](040-release-1-9-0-the-diff/322-d22f-port-sonar-follow-up.md) | Rust + scripts | 22b–22d | H | integrated 39d841b |
+| D22F2 | [Generator lint follow-up](040-release-1-9-0-the-diff/323-d22f2-generator-lint-follow-up.md) | scripts + TS | 22e, 22g, D22F | H | ready |
 | D30 | [Upstream gix contributions for Git compatibility](040-release-1-9-0-the-diff/400-d30-upstream-gix-git-compatibility.md) | gix fork | — | U | preparation integrated cb5fe70 (posting: maintainer) |
 | D40 | [Vendor the diff editor's stylesheet](040-release-1-9-0-the-diff/500-d40-vendor-the-diff-editor-stylesheet.md) | CSS, notices | — | I | integrated bfa769e |
 | D41 | [The diff row model](040-release-1-9-0-the-diff/510-d41-the-diff-row-model.md) | TS | — | I | integrated 01deb86 |
