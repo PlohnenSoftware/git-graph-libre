@@ -302,8 +302,8 @@ export function parseLinesDiff(text: string): LinesDiff | null {
   if (!Array.isArray(parsed.changes) || !parsed.changes.every(isWireChange)) return null;
   if (!Array.isArray(parsed.moves) || !parsed.moves.every(isWireMove)) return null;
   return {
-    changes: (parsed.changes as WireChange[]).map(mapChange),
-    moves: (parsed.moves as WireMove[]).map(mapMove),
+    changes: parsed.changes.map(mapChange),
+    moves: parsed.moves.map(mapMove),
     hitTimeout: parsed.hitTimeout
   };
 }
