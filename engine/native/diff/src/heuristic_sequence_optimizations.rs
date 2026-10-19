@@ -17,6 +17,9 @@ use crate::line_sequence::LineSequence;
 use crate::lines_slice_char_sequence::{is_js_whitespace, LinesSliceCharSequence};
 use crate::offset_range::OffsetRange;
 
+/// `optimizeSequenceDiffs` (`heuristicSequenceOptimizations.ts` L12-L20).
+/// Calls, in order: `join_sequence_diffs_by_shifting` twice (L14, L17), then
+/// `shift_sequence_diffs` (L18).
 pub fn optimize_sequence_diffs(
     sequence1: &dyn ISequence,
     sequence2: &dyn ISequence,
@@ -32,47 +35,74 @@ fn element_before(sequence: &dyn ISequence, offset: u32, d: i64) -> u32 {
     sequence.get_element((i64::from(offset) - d) as u32)
 }
 
-/// Fixes `{ Baz, Bar }` to `{ Baz, Bar, Foo }` being two diffs, not one.
+fn offset_after(offset: u32, d: i64) -> u32 {
+    (i64::from(offset) + d) as u32
+}
+
+/// `joinSequenceDiffsByShifting` (`heuristicSequenceOptimizations.ts`
+/// L34-L114): fixes `{ Baz, Bar }` to `{ Baz, Bar, Foo }` being two diffs.
+/// Calls, in order: `shift_left_and_join` (L39-L72, the first pass), then
+/// `shift_right_and_join` (L74-L113, the second pass). L35-L37, the empty
+/// input, is here.
 fn join_sequence_diffs_by_shifting(
     sequence1: &dyn ISequence,
     sequence2: &dyn ISequence,
     sequence_diffs: &[SequenceDiff],
 ) -> Vec<SequenceDiff> {
-    let Some((&first, rest)) = sequence_diffs.split_first() else {
+    if sequence_diffs.is_empty() {
         return Vec::new();
-    };
-    let mut result = vec![first];
+    }
+    let mut result = shift_left_and_join(sequence1, sequence2, sequence_diffs);
+    shift_right_and_join(sequence1, sequence2, &mut result)
+}
 
-    // First move them all to the left as much as possible and join them if possible
-    for &diff in rest {
-        let prev = result[result.len() - 1];
+/// How far `cur` can move left, one element at a time, while both sequences
+/// keep their elements (`joinSequenceDiffsByShifting` L49-L57 and `d--` at L57).
+fn count_left_shift(
+    sequence1: &dyn ISequence,
+    sequence2: &dyn ISequence,
+    cur: SequenceDiff,
+    length: i64,
+) -> i64 {
+    let mut d = 1;
+    while d <= length {
+        let (r1, r2) = (cur.seq1_range, cur.seq2_range);
+        if element_before(sequence1, r1.start, d) != element_before(sequence1, r1.end_exclusive, d)
+            || element_before(sequence2, r2.start, d)
+                != element_before(sequence2, r2.end_exclusive, d)
+        {
+            break;
+        }
+        d += 1;
+    }
+    d - 1
+}
+
+/// `joinSequenceDiffsByShifting` L39-L72: first move them all to the left as
+/// much as possible and join them if possible (the `result` array).
+fn shift_left_and_join(
+    sequence1: &dyn ISequence,
+    sequence2: &dyn ISequence,
+    sequence_diffs: &[SequenceDiff],
+) -> Vec<SequenceDiff> {
+    let mut result = vec![sequence_diffs[0]];
+    for &diff in &sequence_diffs[1..] {
+        let last = result.len() - 1;
+        let prev = result[last];
         let mut cur = diff;
         if cur.seq1_range.is_empty() || cur.seq2_range.is_empty() {
             let length = i64::from(cur.seq1_range.start) - i64::from(prev.seq1_range.end_exclusive);
-            let mut d = 1;
-            while d <= length {
-                if element_before(sequence1, cur.seq1_range.start, d)
-                    != element_before(sequence1, cur.seq1_range.end_exclusive, d)
-                    || element_before(sequence2, cur.seq2_range.start, d)
-                        != element_before(sequence2, cur.seq2_range.end_exclusive, d)
-                {
-                    break;
-                }
-                d += 1;
-            }
-            d -= 1;
-
+            let d = count_left_shift(sequence1, sequence2, cur, length);
             if d == length {
                 // Merge previous and current diff
-                let last = result.len() - 1;
                 result[last] = SequenceDiff::new(
                     OffsetRange::new(
                         prev.seq1_range.start,
-                        (i64::from(cur.seq1_range.end_exclusive) - length) as u32,
+                        offset_after(cur.seq1_range.end_exclusive, -length),
                     ),
                     OffsetRange::new(
                         prev.seq2_range.start,
-                        (i64::from(cur.seq2_range.end_exclusive) - length) as u32,
+                        offset_after(cur.seq2_range.end_exclusive, -length),
                     ),
                 );
                 continue;
@@ -81,37 +111,56 @@ fn join_sequence_diffs_by_shifting(
         }
         result.push(cur);
     }
+    result
+}
 
+/// How far `cur` can move right while both sequences stay strongly equal
+/// (`joinSequenceDiffsByShifting` L82-L90).
+fn count_right_shift(
+    sequence1: &dyn ISequence,
+    sequence2: &dyn ISequence,
+    cur: SequenceDiff,
+    length: i64,
+) -> i64 {
+    let mut d = 0;
+    while d < length {
+        let (r1, r2) = (cur.seq1_range, cur.seq2_range);
+        if !sequence1
+            .is_strongly_equal(offset_after(r1.start, d), offset_after(r1.end_exclusive, d))
+            || !sequence2
+                .is_strongly_equal(offset_after(r2.start, d), offset_after(r2.end_exclusive, d))
+        {
+            break;
+        }
+        d += 1;
+    }
+    d
+}
+
+/// `joinSequenceDiffsByShifting` L74-L113: then move them all to the right and
+/// join them again if possible (`result2`, with the merge written into
+/// `result` as the TypeScript does, and the last diff pushed at L109-L111).
+fn shift_right_and_join(
+    sequence1: &dyn ISequence,
+    sequence2: &dyn ISequence,
+    result: &mut [SequenceDiff],
+) -> Vec<SequenceDiff> {
     let mut result2 = Vec::new();
-    // Then move them all to the right and join them again if possible
     for i in 0..result.len() - 1 {
         let next = result[i + 1];
         let mut cur = result[i];
         if cur.seq1_range.is_empty() || cur.seq2_range.is_empty() {
             let length = i64::from(next.seq1_range.start) - i64::from(cur.seq1_range.end_exclusive);
-            let mut d = 0;
-            while d < length {
-                if !sequence1.is_strongly_equal(
-                    (i64::from(cur.seq1_range.start) + d) as u32,
-                    (i64::from(cur.seq1_range.end_exclusive) + d) as u32,
-                ) || !sequence2.is_strongly_equal(
-                    (i64::from(cur.seq2_range.start) + d) as u32,
-                    (i64::from(cur.seq2_range.end_exclusive) + d) as u32,
-                ) {
-                    break;
-                }
-                d += 1;
-            }
-
+            let d = count_right_shift(sequence1, sequence2, cur, length);
             if d == length {
                 // Merge previous and current diff, write to result!
                 result[i + 1] = SequenceDiff::new(
                     OffsetRange::new(
-                        (i64::from(cur.seq1_range.start) + length) as u32,
+                        offset_after(cur.seq1_range.start, length),
                         next.seq1_range.end_exclusive,
                     ),
                     OffsetRange::new(
-                        (i64::from(cur.seq2_range.start) + length) as u32,
+                        offset_after(cur.seq2_range.start, length),
                         next.seq2_range.end_exclusive,
                     ),
                 );
