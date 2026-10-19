@@ -194,6 +194,7 @@ describe("commit details view rendering", () => {
     expect(swap?.getAttribute("title")).toBe("Swap comparison");
     expect(swap?.getAttribute("aria-label")).toBe("Swap comparison");
     expect(swap?.querySelector("svg.commitDetailsComparisonSwapIcon")).not.toBeNull();
+    expect(swap?.querySelector("svg.octicon-arrow-switch")).not.toBeNull();
     const external = host.querySelector<HTMLButtonElement>(".commitDetailsComparisonExternalDiff");
     expect(external?.getAttribute("title")).toBe("Open in External Diff Tool");
     expect(external?.getAttribute("aria-label")).toBe("Open in External Diff Tool");

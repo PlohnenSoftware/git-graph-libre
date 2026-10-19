@@ -169,7 +169,7 @@ function renderComparisonHeader(
   const swapButton =
     `<button type="button" class="commitDetailsComparisonSwap commitDetailsComparisonSwapButton" ` +
     `title="${swapTitle}" aria-label="${swapTitle}">` +
-    `${octicon("sync", "commitDetailsComparisonSwapIcon")}</button>`;
+    `${octicon("arrow-switch", "commitDetailsComparisonSwapIcon")}</button>`;
   const externalTitle = escapeHtml(l10n.openInExternalDiffTool);
   const externalButton =
     `<button type="button" class="commitDetailsComparisonSwap commitDetailsComparisonExternalDiff" ` +
