@@ -9,7 +9,7 @@ summary: >-
 
 # D51 — Pin the commit details section headers
 
-Status: ready
+Status: claimed by Claude Sonnet D51 on 2026-10-19 15:01
 Needs: —
 Decisions: — (maintainer bug report, `2026-10-19`)
 Kind: webview (CSS, and TypeScript markup if needed) · Size budget: ≤ 120 changed lines outside tests
