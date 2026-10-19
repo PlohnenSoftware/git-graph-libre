@@ -20,6 +20,16 @@ function requireRef(value: string, label: string) {
   if (value.trim() === "") throw new Error(`${label} is required.`);
 }
 
+// "*" names the working tree: `git diff <commit>` with no second revision
+// compares that commit against the files on disk (untracked files stay
+// unlisted, as Git reports them). A swapped comparison puts the working
+// tree on the left instead, which is the same diff reversed with `-R`.
+function comparisonRevisions(input: CommitComparisonInput): string[] {
+  if (input.baseRef === "*") return ["-R", input.compareRef];
+  if (input.compareRef === "*") return [input.baseRef];
+  return [input.baseRef, input.compareRef];
+}
+
 async function fetchComparisonDiff(
   git: SimpleGit,
   arg: "--name-status" | "--numstat",
@@ -27,16 +37,7 @@ async function fetchComparisonDiff(
   repo: string | null,
   record?: GitCommandRecorder
 ): Promise<string[]> {
-  // "*" names the working tree: `git diff <commit>` with no second revision
-  // compares that commit against the files on disk (untracked files stay
-  // unlisted, as Git reports them). A swapped comparison puts the working
-  // tree on the left instead, which is the same diff reversed with `-R`.
-  const revisions =
-    input.baseRef === "*"
-      ? ["-R", input.compareRef]
-      : input.compareRef === "*"
-        ? [input.baseRef]
-        : [input.baseRef, input.compareRef];
+  const revisions = comparisonRevisions(input);
   const args = ["diff", arg, "-z", "--find-renames", "--diff-filter=AMDRT", ...revisions];
   const stdout = await runGitRaw(git, {
     label: arg === "--name-status" ? "commitComparison.nameStatus" : "commitComparison.numStat",

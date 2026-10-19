@@ -98,52 +98,15 @@ type ViewDiffInput = {
 async function viewDiff(input: ViewDiffInput): Promise<boolean> {
   const { repo, commitHash, oldFilePath, newFilePath, type, shortHashLength, oldRef, newRef } =
     input;
-  const abbrevHash = abbrevCommit(commitHash, shortHashLength);
   const oldRevision = oldRef ?? `${commitHash}^`;
   const newRevision = newRef ?? commitHash;
+  // "*" names the working tree, on either side after a swap: that side is
+  // the file on disk, not a revision document.
+  const side = worktreeSideOf(oldRef, newRef);
+  if (side !== null) return viewWorktreeDiff(input, side, oldRevision, newRevision);
+  const abbrevHash = abbrevCommit(commitHash, shortHashLength);
   const pathComponents = newFilePath.split("/");
   const fileName = pathComponents.at(-1);
-  // "*" names the working tree, on either side after a swap: that side is
-  // the file on disk, not a revision document. A file missing from the
-  // working tree (deleted on the right, added-back on the left) has no
-  // file to diff against, so its remaining side opens alone.
-  const worktreeSide = newRef === "*" ? "new" : oldRef === "*" ? "old" : null;
-  if (worktreeSide !== null) {
-    const absolutePath = resolveRepoFilePath(
-      repo,
-      worktreeSide === "new" ? newFilePath : oldFilePath
-    );
-    if (absolutePath === null) return false;
-    const revisionLabel = formatRevisionLabel(
-      worktreeSide === "new" ? oldRevision : newRevision,
-      shortHashLength
-    );
-    const workingTree = l10n.t("diff.workingTree");
-    const worktreeTitle = `${fileName} (${worktreeSide === "new" ? `${revisionLabel} ↔ ${workingTree}` : `${workingTree} ↔ ${revisionLabel}`})`;
-    const revisionUri = encodeDiffDocUri(
-      repo,
-      worktreeSide === "new" ? oldFilePath : newFilePath,
-      worktreeSide === "new" ? oldRevision : newRevision
-    );
-    const missingInWorktree = worktreeSide === "new" ? type === "D" : type === "A";
-    try {
-      if (missingInWorktree) {
-        await vscode.commands.executeCommand("vscode.open", revisionUri, { preview: true });
-      } else {
-        const fileUri = vscode.Uri.file(absolutePath);
-        await vscode.commands.executeCommand(
-          "vscode.diff",
-          worktreeSide === "new" ? revisionUri : fileUri,
-          worktreeSide === "new" ? fileUri : revisionUri,
-          worktreeTitle,
-          { preview: true }
-        );
-      }
-      return true;
-    } catch {
-      return false;
-    }
-  }
   const title =
     oldRef === undefined && newRef === undefined
       ? `${fileName} (${formatDiffTitle(type, abbrevHash)})`
@@ -156,6 +119,71 @@ async function viewDiff(input: ViewDiffInput): Promise<boolean> {
       title,
       { preview: true }
     );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+type WorktreeSide = "new" | "old";
+
+function worktreeSideOf(
+  oldRef: string | undefined,
+  newRef: string | undefined
+): WorktreeSide | null {
+  if (newRef === "*") return "new";
+  if (oldRef === "*") return "old";
+  return null;
+}
+
+function formatWorktreeDiffTitle(
+  fileName: string | undefined,
+  revisionLabel: string,
+  side: WorktreeSide
+) {
+  const workingTree = l10n.t("diff.workingTree");
+  const sides =
+    side === "new" ? `${revisionLabel} ↔ ${workingTree}` : `${workingTree} ↔ ${revisionLabel}`;
+  return `${fileName} (${sides})`;
+}
+
+async function viewWorktreeDiff(
+  input: ViewDiffInput,
+  side: WorktreeSide,
+  oldRevision: string,
+  newRevision: string
+): Promise<boolean> {
+  const isNew = side === "new";
+  const absolutePath = resolveRepoFilePath(
+    input.repo,
+    isNew ? input.newFilePath : input.oldFilePath
+  );
+  if (absolutePath === null) return false;
+  const revision = isNew ? oldRevision : newRevision;
+  const title = formatWorktreeDiffTitle(
+    input.newFilePath.split("/").at(-1),
+    formatRevisionLabel(revision, input.shortHashLength),
+    side
+  );
+  const revisionUri = encodeDiffDocUri(
+    input.repo,
+    isNew ? input.oldFilePath : input.newFilePath,
+    revision
+  );
+  // A file missing from the working tree (deleted on the right, added-back
+  // on the left) has no file to diff against, so its remaining side opens
+  // alone.
+  const missingInWorktree = isNew ? input.type === "D" : input.type === "A";
+  try {
+    if (missingInWorktree) {
+      await vscode.commands.executeCommand("vscode.open", revisionUri, { preview: true });
+    } else {
+      const fileUri = vscode.Uri.file(absolutePath);
+      const [leftUri, rightUri] = isNew ? [revisionUri, fileUri] : [fileUri, revisionUri];
+      await vscode.commands.executeCommand("vscode.diff", leftUri, rightUri, title, {
+        preview: true
+      });
+    }
     return true;
   } catch {
     return false;

@@ -3882,7 +3882,7 @@ class GitGraphView {
     errorReason: string | null
   ) {
     const pending = this.pendingCompareWith;
-    if (pending === null || pending.requestId !== requestId) return;
+    if (pending?.requestId !== requestId) return;
     this.pendingCompareWith = null;
     if (resolvedHash === null) {
       showErrorDialog(l10n.unableToResolveRef, errorReason, null);
