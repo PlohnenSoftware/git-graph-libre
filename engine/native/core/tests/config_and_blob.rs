@@ -214,4 +214,3 @@ fn a_path_outside_the_index_is_not_found() {
 
     assert_eq!(error.kind, git_graph_core::ErrorKind::NotFound);
 }
-
