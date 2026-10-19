@@ -111,10 +111,10 @@ These come from the knowledge base's Rules, and apply everywhere:
 - **Size is a guide, not a limit (maintainer, `2026-10-19`).** A slice's
   "Size budget: ≤ N" means about N lines (~N): a hint for how big the work
   should be, never a pass/fail criterion. Don't stop or split because you
-  went over it, and don't game it. What counts, in this order: cognitive
-  complexity and every other quality rule, speed, reliability, low coupling
-  and high cohesion. Report the line count honestly; the maintainer accepts
-  a longer implementation that serves those.
+  went over it, and don't game it. What counts, all equally important:
+  cognitive complexity and every other quality rule, speed, reliability, low
+  coupling and high cohesion. Report the line count honestly; the maintainer
+  accepts a longer implementation that serves those.
 
 ## 5. Slice checks and integration gates
 

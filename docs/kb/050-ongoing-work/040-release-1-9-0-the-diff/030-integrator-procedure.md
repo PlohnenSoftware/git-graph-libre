@@ -69,7 +69,7 @@ order:**
    with the reason added under its report, and stop.
    **Line counts are never a blocker (maintainer, `2026-10-19`).** State a
    slice's budget as a guide ("~N") when writing it, and accept a longer
-   implementation when it meets the quality rules. Judge by cognitive
+   implementation when it meets the quality rules. Judge, all equally, by cognitive
    complexity and the other rules, speed, reliability, coupling and cohesion.
    Ask for a rewrite only when the implementation is too complex or
    overthought, and give the rewrite to the next smarter model when one is
