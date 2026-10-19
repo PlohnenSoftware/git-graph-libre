@@ -9,7 +9,7 @@ summary: >-
 
 # D48 — Measure the tab against the diff editor
 
-Status: done — awaiting integration (agent half; display half remains the maintainer's)
+Status: agent half integrated 116380f (display half: maintainer)
 Needs: D46, D47
 Decisions: —
 Kind: measurement and docs · Size budget: ≤ 120 changed lines
