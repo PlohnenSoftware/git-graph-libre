@@ -25,6 +25,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AvatarManager } from "@/avatarManager";
 import type { GitClient } from "@/backend/gitClient";
 import type { Config } from "@/config";
+import type { DiffTabRequest } from "@/diffTabTypes";
 import { registerMessageHandlers } from "@/extension/messageHandler";
 import type { RepoManager } from "@/extension/repoManager";
 import type { WebviewBridge } from "@/extension/webviewBridge";
@@ -72,9 +73,13 @@ afterAll(() => {
 });
 
 describe("registerMessageHandlers", () => {
-  function registerHandlersForTest(activeRepo = repo, options: { extensionPath?: string } = {}) {
+  function registerHandlersForTest(
+    activeRepo = repo,
+    options: { extensionPath?: string; diffTabAvailable?: boolean } = {}
+  ) {
     const telemetryEvents: Array<{ feature: string; ok: boolean }> = [];
     const consentPrompts: number[] = [];
+    const openedDiffTabs: DiffTabRequest[] = [];
     const handlers = new Map<
       RequestMessage["command"],
       (msg: RequestMessage) => void | Promise<void>
@@ -144,7 +149,13 @@ describe("registerMessageHandlers", () => {
           consentPrompts.push(Date.now());
           return Promise.resolve();
         }
-      }
+      },
+      // The tab itself is captured, never opened: these tests pin the
+      // request the handler builds and the fallback when it cannot be fed.
+      openDiffTab: (request: DiffTabRequest) => {
+        openedDiffTabs.push(request);
+      },
+      isDiffTabAvailable: () => options.diffTabAvailable ?? true
     });
 
     return {
@@ -154,7 +165,8 @@ describe("registerMessageHandlers", () => {
       repoStates,
       repoFileWatcher,
       telemetryEvents,
-      consentPrompts
+      consentPrompts,
+      openedDiffTabs
     };
   }
 
@@ -925,6 +937,230 @@ describe("registerMessageHandlers", () => {
     expect(command?.[1]).toMatchObject({ fsPath: path.join(repo, "src/example.ts") });
     expect(command?.[2]).toMatchObject({ path: "src/example.ts" });
     expect(command?.[3]).toBe("example.ts (Working Tree ↔ abcd)");
+  });
+
+  it("builds the GGL Diff tab request with viewDiff's sides and titles", async () => {
+    resetVscodeMock();
+    const { handlers, posts, openedDiffTabs } = registerHandlersForTest();
+    const handler = handlers.get("openDiffTab");
+    const hash = "abcdef1234567890";
+
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "openDiffTab",
+      repo,
+      commitHash: hash,
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+    await handler?.({
+      command: "openDiffTab",
+      repo,
+      commitHash: hash,
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "A"
+    });
+    await handler?.({
+      command: "openDiffTab",
+      repo,
+      commitHash: hash,
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "D"
+    });
+    await handler?.({
+      command: "openDiffTab",
+      repo,
+      commitHash: hash,
+      oldFilePath: "src/before.ts",
+      newFilePath: "src/after.ts",
+      type: "R"
+    });
+    // Comparison labels travel as refs, exactly as viewDiff receives them.
+    await handler?.({
+      command: "openDiffTab",
+      repo,
+      commitHash: hash,
+      oldRef: "feature/old",
+      newRef: "HEAD",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "T"
+    });
+    // A stashed untracked file rides as <hash>^ / <hash>^3 (D03).
+    await handler?.({
+      command: "openDiffTab",
+      repo,
+      commitHash: hash,
+      oldRef: `${hash}^`,
+      newRef: `${hash}^3`,
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+
+    expect(posts[posts.length - 1]).toEqual({ command: "openDiffTab", success: true });
+    expect(openedDiffTabs).toEqual([
+      {
+        repo,
+        left: { kind: "revision", ref: `${hash}^`, path: "src/example.ts" },
+        right: { kind: "revision", ref: hash, path: "src/example.ts" },
+        title: "example.ts (abcd^ ↔ abcd)"
+      },
+      {
+        repo,
+        left: { kind: "empty" },
+        right: { kind: "revision", ref: hash, path: "src/example.ts" },
+        title: "example.ts (Added in abcd)"
+      },
+      {
+        repo,
+        left: { kind: "revision", ref: `${hash}^`, path: "src/example.ts" },
+        right: { kind: "empty" },
+        title: "example.ts (Deleted in abcd)"
+      },
+      {
+        repo,
+        left: { kind: "revision", ref: `${hash}^`, path: "src/before.ts" },
+        right: { kind: "revision", ref: hash, path: "src/after.ts" },
+        title: "after.ts (abcd^ ↔ abcd)"
+      },
+      {
+        repo,
+        left: { kind: "revision", ref: "feature/old", path: "src/example.ts" },
+        right: { kind: "revision", ref: "HEAD", path: "src/example.ts" },
+        title: "example.ts (feature/old ↔ HEAD)"
+      },
+      {
+        repo,
+        left: { kind: "revision", ref: `${hash}^`, path: "src/example.ts" },
+        right: { kind: "revision", ref: `${hash}^3`, path: "src/example.ts" },
+        title: "example.ts (abcd^ ↔ abcd^3)"
+      }
+    ]);
+    // The tab route never opens vscode.diff.
+    expect(executedCommands).toHaveLength(0);
+  });
+
+  it("opens working-tree comparisons in the tab on the '*' side", async () => {
+    resetVscodeMock();
+    const { handlers, openedDiffTabs } = registerHandlersForTest();
+    const handler = handlers.get("openDiffTab");
+    const hash = "abcdef1234567890";
+
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "openDiffTab",
+      repo,
+      commitHash: hash,
+      oldRef: hash,
+      newRef: "*",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+    // Deleted in the working tree: no file on disk, so the right side is
+    // empty where viewDiff opens the revision alone.
+    await handler?.({
+      command: "openDiffTab",
+      repo,
+      commitHash: hash,
+      oldRef: hash,
+      newRef: "*",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "D"
+    });
+    await handler?.({
+      command: "openDiffTab",
+      repo,
+      commitHash: hash,
+      oldRef: "*",
+      newRef: hash,
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+    // Swapped and added-back: the working-tree side is the missing one.
+    await handler?.({
+      command: "openDiffTab",
+      repo,
+      commitHash: hash,
+      oldRef: "*",
+      newRef: hash,
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "A"
+    });
+
+    expect(openedDiffTabs).toEqual([
+      {
+        repo,
+        left: { kind: "revision", ref: hash, path: "src/example.ts" },
+        right: { kind: "workingTree", path: "src/example.ts" },
+        title: "example.ts (abcd ↔ Working Tree)"
+      },
+      {
+        repo,
+        left: { kind: "revision", ref: hash, path: "src/example.ts" },
+        right: { kind: "empty" },
+        title: "example.ts (abcd ↔ Working Tree)"
+      },
+      {
+        repo,
+        left: { kind: "workingTree", path: "src/example.ts" },
+        right: { kind: "revision", ref: hash, path: "src/example.ts" },
+        title: "example.ts (Working Tree ↔ abcd)"
+      },
+      {
+        repo,
+        left: { kind: "empty" },
+        right: { kind: "revision", ref: hash, path: "src/example.ts" },
+        title: "example.ts (Working Tree ↔ abcd)"
+      }
+    ]);
+  });
+
+  it("falls back to viewDiff when the GGL Diff tab is unavailable", async () => {
+    resetVscodeMock();
+    const { handlers, posts, outputLines, openedDiffTabs } = registerHandlersForTest(repo, {
+      diffTabAvailable: false
+    });
+    const handler = handlers.get("openDiffTab");
+    const hash = "abcdef1234567890";
+
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "openDiffTab",
+      repo,
+      commitHash: hash,
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+
+    expect(posts[posts.length - 1]).toEqual({ command: "openDiffTab", success: true });
+    expect(openedDiffTabs).toHaveLength(0);
+    expect(outputLines).toContain("[diffTab] unavailable; falling back to vscode.diff");
+    const command = executedCommands[executedCommands.length - 1];
+    expect(command?.[0]).toBe("vscode.diff");
+    expect(command?.[3]).toBe("example.ts (abcd^ ↔ abcd)");
+
+    // The fallback is viewDiff itself, working-tree rules included: a file
+    // deleted on disk opens its revision alone.
+    await handler?.({
+      command: "openDiffTab",
+      repo,
+      commitHash: hash,
+      oldRef: hash,
+      newRef: "*",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "D"
+    });
+    expect(executedCommands[executedCommands.length - 1]?.[0]).toBe("vscode.open");
   });
 
   it("opens the VS Code Source Control view", async () => {
