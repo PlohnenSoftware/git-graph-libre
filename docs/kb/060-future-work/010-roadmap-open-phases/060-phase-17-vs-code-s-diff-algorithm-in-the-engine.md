@@ -233,6 +233,7 @@ the action falls back to `vscode.diff`.
   | --- | --- | --- | --- | --- | --- | --- |
   | git.git, newest 100 (`6de20f6092`) | 13/220 | 0/220 | 0/220 | 13/220 | 0/220 | 0/220 |
   | this repository, newest 250 (`bb9501d`) | 12/754 | 1/754 | 0/754 | 12/754 | 1/754 | 1/754 |
+  | gitoxide (`../gix`), newest 100 (`abdfc45db`) | 9/1580 | 0/1580 | 0/1580 | 9/1580 | 0/1580 | 0/1580 |
 
   git.git listed 222 files, compared 220 pairs (10 with a move) and
   skipped 2 non-UTF-8 (`t/t4201-shortlog.sh` twice), in 28.1 s wall;
@@ -276,9 +277,39 @@ the action falls back to `vscode.diff`.
   finished refined (hence 1/754 on each pair involving it, changes
   and moves alike). Which side of 5 s an arm lands on for such a pair
   depends on build speed and load, so this count can move between
-  runs without any algorithm change. The gitoxide sweep this slice
-  names was not run: there is no local gitoxide checkout; it remains
-  open with D5's CI wiring.
+  runs without any algorithm change.
+
+  The gitoxide sweep named in this slice was run the same day as a
+  22i follow-up, against the maintainer's fork at `../gix`
+  (read-only; HEAD `abdfc45db13606f552ab49bec57764a1b2fc8c2a` on
+  `fix/imara-myers-whole-file-occurrences`, 17,011 commits, status
+  verified unchanged before and after). Correction: the reason first
+  recorded here — no local gitoxide checkout — was wrong; the
+  checkout existed at `../gix` all along. Its newest 100 non-merge
+  commits listed 1,596 files, compared 1,580 pairs (10 with a move)
+  and skipped 16 binary (for example `b9093f8c`
+  `gix-discover/tests/fixtures/generated-archives/make_basic_repo_sha256.tar`),
+  with no non-UTF-8 and no over-bound skips, in 114.5 s wall; no arm
+  errored. Changes-pass `hitTimeout` counts: TypeScript 1, package
+  WebAssembly 0, our WebAssembly 1, our native 1 (moves pass: 1 and
+  1). Changes-pass timings in ms/pair: TypeScript 10.04, package
+  WebAssembly 1.53, ours 9.29 and 18.02 (debug); moves pass: 9.33
+  and 17.70. Every mismatch is again the package WebAssembly backend
+  against each of the other three arms (9/1580 on each such pair;
+  the examples show character-refinement differences — one
+  whole-range inner change where the other arms refine, for example
+  `87227527` on `gix-commitgraph/src/init.rs` and `cf55f83f` on a
+  `gix-ref` test file; `0115e902` on `gix/Cargo.toml` also merges
+  changes, 8 against 10; `794eeef8` on `gix-imara-diff/CHANGELOG.md`
+  starts an inner change a line earlier). Our two builds match the
+  TypeScript backend on all 1,580 pairs, changes and moves alike,
+  and each other. Cap edge: one pair hit the 5 s cap on the
+  TypeScript arm and both of ours but not on the fast package
+  WebAssembly arm; the three capped arms agree on it (their pairs
+  are 0/1580 and the canonical form carries `hitTimeout`), so the
+  cap creates no difference among them here. Full output:
+  `/tmp/ggl22i-gitoxide/parity-gitoxide-100.txt`. Only D5's CI wiring
+  remains open from that sentence.
 
   The first sweep of this repository ran with no computation limit
   (`maxComputationTimeMs` 0). The integrator killed it at about
@@ -292,8 +323,8 @@ the action falls back to `vscode.diff`.
   builds have zero mismatches against the TypeScript backend apart
   from that one cap-edge pair, moves included; every other mismatch
   in the table is the package WebAssembly backend differing from all
-  three other arms, now quantified on real history (13/220 and
-  12/754) rather than only on D21's fixtures.
+  three other arms, now quantified on real history (13/220, 12/754
+  and 9/1580) rather than only on D21's fixtures.
 - **17.7 Engine exports.**
   - `diff_texts` and `diff_file_at_revisions`; remove `load_commit_file_diff`.
   - A TypeScript seam with strict payload parsing.
