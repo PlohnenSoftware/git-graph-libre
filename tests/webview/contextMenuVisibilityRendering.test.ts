@@ -353,6 +353,91 @@ describe("context menu visibility rendering", () => {
     expect(contextMenuItems().length).toBeGreaterThan(0);
   });
 
+  it("opens a working-tree comparison file in the GGL Diff tab with the '*' side", async () => {
+    const vscodeMock = await bootWebview(defaultViewState);
+
+    document
+      .querySelector<HTMLElement>('tr.commit[data-hash="abc123"]')
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const compareItem = Array.from(
+      document.querySelectorAll<HTMLElement>("#contextMenu .contextMenuItem")
+    ).find((candidate) => candidate.textContent === "Compare with Working Tree");
+    compareItem?.click();
+
+    const details: GitCommitDetails = {
+      hash: "abc123",
+      parents: [],
+      author: "Alice",
+      email: "alice@example.com",
+      authorDate: 1,
+      committer: "Alice",
+      committerEmail: "alice@example.com",
+      committerDate: 1,
+      body: "Comparison",
+      fileChanges: [
+        { oldFilePath: "file.txt", newFilePath: "file.txt", type: "M", additions: 1, deletions: 0 }
+      ]
+    };
+    receive({ command: "commitComparison", commitDetails: details, error: null });
+
+    document
+      .querySelector<HTMLElement>(".gitFile")
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(contextMenuItems()).toContain("Open in GGL Diff");
+    const openTabItem = Array.from(
+      document.querySelectorAll<HTMLElement>("#contextMenu .contextMenuItem")
+    ).find((candidate) => candidate.textContent === "Open in GGL Diff");
+    openTabItem?.click();
+
+    expect(latestRequest(vscodeMock.sentMessages, "openDiffTab")).toEqual({
+      command: "openDiffTab",
+      repo: REPO,
+      commitHash: "abc123",
+      oldRef: "abc123",
+      newRef: "*",
+      oldFilePath: "file.txt",
+      newFilePath: "file.txt",
+      type: "M"
+    });
+  });
+
+  it("hides Open in GGL Diff in the file menu when its visibility switch is off", async () => {
+    await bootWebview(
+      withVisibility({
+        commitDetailsViewFile: {
+          ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.commitDetailsViewFile,
+          openDiffTab: false
+        }
+      })
+    );
+
+    document
+      .querySelector<HTMLElement>('tr.commit[data-hash="abc123"]')
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const details: GitCommitDetails = {
+      hash: "abc123",
+      parents: [],
+      author: "Alice",
+      email: "alice@example.com",
+      authorDate: 1,
+      committer: "Alice",
+      committerEmail: "alice@example.com",
+      committerDate: 1,
+      body: "Details",
+      fileChanges: [
+        { oldFilePath: "file.txt", newFilePath: "file.txt", type: "M", additions: 1, deletions: 0 }
+      ]
+    };
+    receive({ command: "commitDetails", commitDetails: details, error: null });
+
+    document
+      .querySelector<HTMLElement>(".gitFile")
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+    expect(contextMenuItems()).toContain("View File Diff");
+    expect(contextMenuItems()).not.toContain("Open in GGL Diff");
+  });
+
   it("hides all disabled local branch actions", async () => {
     await bootWebview(
       withVisibility({

@@ -107,6 +107,39 @@ describe("commit details list mode runtime", () => {
     setupHtml(viewState);
   });
 
+  async function showCommitDetails(details: GitCommitDetails) {
+    await import("@/webview/main");
+    receive({
+      command: "loadBranches",
+      requestId: latestLoadBranchesRequest(vscodeMock.sentMessages).requestId,
+      branches: ["main"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    });
+    receive({
+      command: "loadCommits",
+      requestId: latestLoadCommitsRequest(vscodeMock.sentMessages).requestId,
+      commits,
+      head: "abc123",
+      moreCommitsAvailable: false,
+      hard: true,
+      error: null
+    });
+    document
+      .querySelector<HTMLTableRowElement>('tr.commit[data-hash="abc123"]')
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({ command: "commitDetails", commitDetails: details, error: null });
+  }
+
+  function fileContextMenuItems(): HTMLElement[] {
+    document
+      .querySelector<HTMLElement>(".gitFileList .gitFile")
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    return Array.from(document.querySelectorAll<HTMLElement>("#contextMenu .contextMenuItem"));
+  }
+
   it("renders flat file paths and keeps diff opening wired", async () => {
     await import("@/webview/main");
 
@@ -233,6 +266,27 @@ describe("commit details list mode runtime", () => {
       type: "A"
     });
 
+    // The GGL Diff tab opens the same third-parent pair (D47).
+    document
+      .querySelector<HTMLElement>(".gitFileList .gitFile")
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const openInGglDiff = Array.from(
+      document.querySelectorAll("#contextMenu .contextMenuItem")
+    ).find((item) => item.textContent?.includes("Open in GGL Diff"));
+    expect(openInGglDiff).not.toBeUndefined();
+    openInGglDiff?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "openDiffTab",
+      repo: REPO,
+      commitHash: "abc123",
+      oldRef: "abc123^",
+      newRef: "abc123^3",
+      oldFilePath: "untracked.txt",
+      newFilePath: "untracked.txt",
+      type: "A"
+    });
+
     document
       .querySelector<HTMLElement>(".gitFileList .gitFile")
       ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
@@ -248,5 +302,66 @@ describe("commit details list mode runtime", () => {
       commitHash: "abc123^3",
       filePath: "untracked.txt"
     });
+  });
+
+  it("offers Open in GGL Diff beside View File Diff, with the same message fields", async () => {
+    await showCommitDetails(commitDetails);
+
+    const items = fileContextMenuItems();
+    const titles = items.map((item) => item.textContent ?? "");
+    const viewDiffIndex = titles.indexOf("View File Diff");
+    expect(viewDiffIndex).toBeGreaterThanOrEqual(0);
+    expect(titles[viewDiffIndex + 1]).toBe("Open in GGL Diff");
+
+    items[viewDiffIndex + 1]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "openDiffTab",
+      repo: REPO,
+      commitHash: "abc123",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+
+    // A plain click still opens vscode.diff through viewDiff.
+    document
+      .querySelector<HTMLElement>(".gitFileList .gitFile")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "viewDiff",
+      repo: REPO,
+      commitHash: "abc123",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+  });
+
+  it("offers no diff of either kind for a binary file", async () => {
+    await showCommitDetails({
+      ...commitDetails,
+      fileChanges: [
+        {
+          oldFilePath: "image.png",
+          newFilePath: "image.png",
+          type: "M",
+          additions: null,
+          deletions: null
+        }
+      ]
+    });
+
+    const titles = fileContextMenuItems().map((item) => item.textContent ?? "");
+    expect(titles).not.toContain("View File Diff");
+    expect(titles).not.toContain("Open in GGL Diff");
+
+    const sentBefore = vscodeMock.sentMessages.length;
+    document
+      .querySelector<HTMLElement>(".gitFileList .gitFile")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const diffCommands = vscodeMock.sentMessages
+      .slice(sentBefore)
+      .filter((msg) => msg.command === "viewDiff" || msg.command === "openDiffTab");
+    expect(diffCommands).toEqual([]);
   });
 });

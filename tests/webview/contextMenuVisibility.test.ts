@@ -25,6 +25,18 @@ describe("context menu action visibility", () => {
     expect(normalized.tag.delete).toBe(true);
   });
 
+  it("defaults the GGL Diff tab action to visible and honors hiding it", () => {
+    // `{}` is the raw settings-hub echo shape: the default must survive it.
+    expect(normalizeContextMenuActionsVisibility({}).commitDetailsViewFile.openDiffTab).toBe(true);
+
+    const normalized = normalizeContextMenuActionsVisibility({
+      commitDetailsViewFile: { openDiffTab: false }
+    });
+
+    expect(normalized.commitDetailsViewFile.openDiffTab).toBe(false);
+    expect(normalized.commitDetailsViewFile.viewDiff).toBe(true);
+  });
+
   it("ignores unknown groups, unknown actions, and non-boolean values", () => {
     const normalized = normalizeContextMenuActionsVisibility({
       unknownGroup: { copyHash: false },
