@@ -1,12 +1,11 @@
 ---
 summary: >-
-  D22 · wave C · stretch, needs D21 and X5 = (b) · Rust: Phase 17's port of
+  D22 · wave C · committed scope, needs D21 and X5 = (b) · Rust: Phase 17's port of
   VS Code's diff algorithm into `engine/native/diff`, cut into ten sub-slices
-  of about 150–300 lines each (17.2–17.8). Each has its own acceptance; any
-  not done and gated moves to the next release.
+  of about 150–300 lines each (17.2–17.8). Each has its own acceptance; the full port is required for 1.9.0 under the maintainer's X5 answer.
 ---
 
-# D22 — Phase 17 port sub-slices (stretch)
+# D22 — Phase 17 port sub-slices
 
 Status: waiting on D21 (X5 answered `2026-10-19`: full port in scope)
 Needs: D21
@@ -16,7 +15,8 @@ Source: Phase 17 under Future work, "Architecture", "Slices" and "Exactness rule
 
 **Read Phase 17 in full first.** Its exactness rules aren't optional:
 UTF-16 code units, text-model line splitting, `libm` log, an injectable
-clock. Each sub-slice is claimed and reported like a slice, by appending a
+clock. The full port is committed 1.9.0 scope under X5 (`2026-10-19`).
+Each sub-slice is claimed and reported like a slice, by appending a
 `### 22x Report` heading to this file, and uses its own branch
 `diff-1.9.0/d22<x>`.
 

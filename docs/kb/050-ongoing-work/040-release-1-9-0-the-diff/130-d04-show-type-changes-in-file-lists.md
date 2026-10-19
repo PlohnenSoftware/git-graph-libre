@@ -37,7 +37,7 @@ incorrect 1/1 counts for a file/gitlink transition.
 ## Acceptance
 
 D04 is complete only when both sub-slices integrate with all acceptance
-items met. The approved full draft is retained at /tmp/ggl-d04-revised-brief.md.
+items met. The two linked briefs are the durable approved implementation scope.
 
 ## Report
 

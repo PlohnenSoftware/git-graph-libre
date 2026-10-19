@@ -12,9 +12,10 @@ summary: >-
 
 # Release 1.9.0 — "The Diff"
 
-**Status: planned `2026-10-18`. No slice started. The maintainer must first
-create the integration branch and answer the decisions that gate some
-slices.**
+**Status: in progress `2026-10-19` on local `the-diff`; no pushing. Nine
+slices are integrated. D10, D20 and D42 are in progress in isolated
+worktrees. D04 was re-scoped with maintainer approval, and the full Phase 17
+port is committed release scope under X5.**
 
 Everything about diffs that is open, in one release: what users asked for,
 what the roadmap left behind, and what the `2026-10-18` diff audit found
@@ -42,7 +43,7 @@ of VS Code's algorithm (Phase 17). The two are never mixed.
 | `+N/−M` counts that match Git | Phase 16 candidate 6; the diff audit's root causes 1, 5 and 6 | D05 |
 | Take the upstream gix diff fixes | diff audit: rename limit, replacement refs, the Myers fix | D07 (blocked on a gix release) |
 | Hand Git-compatibility fixes to gitoxide | diff audit; the maintainer's "gix first" request | D30 |
-| Start VS Code's diff algorithm in the engine | Phase 17, slices 17.0 and 17.1; the port itself is a stretch goal | D20, D21, D22 (decision X5) |
+| Start VS Code's diff algorithm in the engine | Phase 17, slices 17.0 and 17.1; the full port is committed scope under X5 | D20, D21, D22 (decision X5) |
 | A light "GGL Diff" tab that looks like the diff editor, opened from Source Control and commit details, fed by the engine | the maintainer's request and Phase 17 D4 = G4 (c), `2026-10-19` | D40–D48; D45 onward need the port's 22j |
 
 **Out of scope:**
@@ -65,7 +66,9 @@ wait for them.
 | D01 | [Log engine hits for diff reads](040-release-1-9-0-the-diff/100-d01-log-engine-hits-for-diff-reads.md) | TS | — | A | integrated 2ddce22 |
 | D02 | [Correct stash details on the CLI path](040-release-1-9-0-the-diff/110-d02-correct-stash-details-on-the-cli-path.md) | TS | — | B | integrated c7349b2 |
 | D03 | [Diff stashed untracked files from the third parent](040-release-1-9-0-the-diff/120-d03-diff-stashed-untracked-files-from-the-third-parent.md) | TS | D02 | B | integrated 221e98c |
-| D04 | [Show type changes in file lists](040-release-1-9-0-the-diff/130-d04-show-type-changes-in-file-lists.md) | TS + Rust | X2 | C | waiting on re-scope for X2 (b) |
+| D04 | [Show type changes in file lists](040-release-1-9-0-the-diff/130-d04-show-type-changes-in-file-lists.md) | TS + Rust | D04a, D04b | C | approved split; awaiting sub-slices |
+| D04a | [Type-change transport and counts](040-release-1-9-0-the-diff/132-d04a-type-change-transport-and-counts.md) | TS + Rust | X2 (b) | C | ready |
+| D04b | [Type-change presentation and actions](040-release-1-9-0-the-diff/134-d04b-type-change-presentation-and-actions.md) | webview | D04a | C | waiting on D04a |
 | D05 | [Engine line counts that match Git](040-release-1-9-0-the-diff/140-d05-engine-line-counts-that-match-git.md) | Rust | — | D | integrated 79c5fb4 |
 | D06 | [Merge commits against their first parent](040-release-1-9-0-the-diff/150-d06-merge-commits-against-their-first-parent.md) | TS | X1 | C | integrated f70d006 |
 | D07 | [Upgrade gix for the upstream diff fixes](040-release-1-9-0-the-diff/160-d07-upgrade-gix-for-the-upstream-diff-fixes.md) | Rust | a gix release | D | blocked (external) |
@@ -77,12 +80,14 @@ wait for them.
 | D15 | [Open a comparison in the external diff tool](040-release-1-9-0-the-diff/250-d15-open-a-comparison-in-the-external-diff-tool.md) | TS + webview | X4, D13 | G | waiting on D13 |
 | D20 | [Phase 17 legal groundwork](040-release-1-9-0-the-diff/300-d20-phase-17-legal-groundwork.md) | docs | X5, P17-D1, P17-D3 | H | ready |
 | D21 | [Phase 17 oracle suite](040-release-1-9-0-the-diff/310-d21-phase-17-oracle-suite.md) | TS tests | D20 | H | waiting on D20 |
-| D22 | [Phase 17 port sub-slices (stretch)](040-release-1-9-0-the-diff/320-d22-phase-17-port-sub-slices.md) | Rust | D21, X5 | H | waiting on D21 |
+| D22 | [Phase 17 port sub-slices](040-release-1-9-0-the-diff/320-d22-phase-17-port-sub-slices.md) | Rust | D21, X5 | H | waiting on D21 |
 | D30 | [Upstream gix contributions for Git compatibility](040-release-1-9-0-the-diff/400-d30-upstream-gix-git-compatibility.md) | gix fork | — | U | ready (posting: maintainer) |
 | D40 | [Vendor the diff editor's stylesheet](040-release-1-9-0-the-diff/500-d40-vendor-the-diff-editor-stylesheet.md) | CSS, notices | — | I | integrated bfa769e |
 | D41 | [The diff row model](040-release-1-9-0-the-diff/510-d41-the-diff-row-model.md) | TS | — | I | integrated 01deb86 |
+| D41F | [Row-model Sonar follow-up](040-release-1-9-0-the-diff/515-d41f-row-model-sonar-follow-up.md) | TS | D41 | I | ready (approved) |
 | D42 | [The diff view](040-release-1-9-0-the-diff/520-d42-the-diff-view.md) | webview | D40, D41 | J | ready |
 | D43 | [Engine export for the staged copy of a file](040-release-1-9-0-the-diff/530-d43-engine-export-for-the-staged-copy-of-a-file.md) | Rust + TS | — | I | integrated 14ac021 |
+| D43F | [Staged-file Error follow-up](040-release-1-9-0-the-diff/535-d43f-staged-file-error-follow-up.md) | TS | D43 | I | ready (approved) |
 | D44 | [The GGL Diff tab](040-release-1-9-0-the-diff/540-d44-the-ggl-diff-tab.md) | TS + webview | D42 | J | waiting on D42 |
 | D45 | [Feed the tab from the engine](040-release-1-9-0-the-diff/550-d45-feed-the-tab-from-the-engine.md) | TS | D43, D44, 22j | J | waiting on D43, D44, 22j |
 | D46 | [Open the tab from Source Control](040-release-1-9-0-the-diff/560-d46-open-the-tab-from-source-control.md) | manifest + TS | D45 | K | waiting on D45 |
@@ -99,14 +104,14 @@ release; then D90.
 parallel. Then D42, then D44. D45 waits for the port's 22j as well, and
 D46 and D47 wait for D45 (they share `package.json` and the `l10n`
 bundles, so run them one after the other). D48 comes last. D40–D44 add
-no entry point, so they can be integrated before the port exists. If 22j
-misses 1.9.0, D45–D48 move to the next release with it, and the
-maintainer decides whether D40–D44 ship unreached or wait too.
+no entry point, so they can be integrated before the port exists. The maintainer committed the full port to 1.9.0 under X5 on `2026-10-19`;
+22j and its dependent tab slices remain required unless the maintainer
+explicitly changes that scope.
 
 ## Definition of done for 1.9.0
 
 - Every slice in scope is integrated, and each one's report is filled in.
-  Stretch slices that aren't done move to the next release with their files.
+  The full port is required under X5; only the maintainer may defer scope.
 - On the integration branch: the full gate in order (strict Biome,
   `pnpm run package`, `pnpm run test`, `pnpm run l10n:check` at 100%, fresh
   `pnpm run test:coverage`, `pnpm run sonar:scan` polled to `OK`), the Rust
@@ -134,3 +139,5 @@ commit, the gate results with numbers, and the Sonar task id.
 - `2026-10-19` — D41 integrated (`01deb86`, rebased from `diff-1.9.0/d41`, then fast-forward; commits `de51c98`, `01deb86`, both `G`). Gates on the result: strict Biome clean, typecheck green, tests backend 883/883 and webview 618/618, `kb:check` green. For D42: `expandCollapsed` works on the row objects `buildRows` returned, not on serialized copies (see D41's report). SonarQube: wave gate.
 - `2026-10-19` — D40 integrated (`bfa769e`, rebased from `diff-1.9.0/d40`, then fast-forward; commits `ecf22d2`, `bfa769e`, both `G`). Gates on the result: strict Biome clean, typecheck green, tests backend 883/883 and webview 622/622, `kb:check` green; `vsce ls --no-dependencies` lists the new CSS and notices (in the slice report). The vendored stylesheet records `microsoft/vscode` `1356222` as its MIT source. D42 flipped to `ready`. SonarQube: wave gate.
 - `2026-10-19` — D06 integrated (`f70d006`, rebased from `diff-1.9.0/d06`, then fast-forward; commits `aea4ce9`, `ef5479e`, `f70d006`, all `G`). Gates on the result: strict Biome clean, typecheck green, tests backend 887/887 and webview 623/623, `l10n:check` 100%, `kb:check` green. Follow-ups from its report, not folded in: a muted CSS rule for `.commitDetailsFirstParentNote` (no stylesheet was in *Touch*), and the note also shows for stashes and merge-commit comparisons until a marker is threaded through (D13 touches that surface). SonarQube: wave gate.
+
+- `2026-10-19` — Resumed audit on `d759ff4`: all 38 local release commits verify `G`; remote refs fetched, no remote main commits missing. Pending-wave gates: strict Biome 20 touched files, package (296 linted files), backend 887/887, webview 623/623, l10n 100% (615 bundle / 114 package keys), Rust arm 122 tests plus 1 doc test, fresh coverage 1510/1510 at 93.02% lines (7717/8296). Sonar task `3937ac5c-5eb7-4a9a-919c-189ef84c57a2`, analysis `df0e804e-9460-418b-9d3c-47996db0a289`: **ERROR** (new coverage 93.6%, duplication 0.0%, 4 findings: D41 complexity 18 and 20 versus 16 plus last-element access; D43 S6671 on typed child-process rejection). Maintainer explicitly approved separate D41F/D43F repairs, D04's two-part T scope, reassignment of unfinished D10/D20 worktrees, and release source/coverage uploads to the configured Sonar server. No slice commit precedes its integrator-run coverage/Sonar OK.
