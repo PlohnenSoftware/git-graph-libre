@@ -438,3 +438,121 @@ pub fn remove_very_short_matching_lines_between_diffs(
                 || after.seq1_range.length() + after.seq2_range.length() > 5)
     })
 }
+
+/// `String.prototype.trim` on UTF-16 text.
+fn trim_js(text: &[u16]) -> &[u16] {
+    let first = text.iter().position(|&unit| !is_js_whitespace(unit));
+    let last = text.iter().rposition(|&unit| !is_js_whitespace(unit));
+    first
+        .zip(last)
+        .map_or(&[], |(first, last)| &text[first..=last])
+}
+
+/// The `max` of the weight formula: `2 * 40 + 50`.
+const MAX_WEIGHT_INPUT: f64 = 130.0;
+
+/// `Math.pow(Math.pow(cap(a), 1.5) + Math.pow(cap(b), 1.5), 1.5)`, with `cap`
+/// at `MAX_WEIGHT_INPUT`, for the sizes (lines * 40 + length) of one diff's two sides.
+fn diff_weight(size1: u32, size2: u32) -> f64 {
+    let cap = |size: u32| f64::from(size).min(MAX_WEIGHT_INPUT).powf(1.5);
+    (cap(size1) + cap(size2)).powf(1.5)
+}
+
+fn should_join_text_between_long_diffs(
+    sequence1: &LinesSliceCharSequence,
+    sequence2: &LinesSliceCharSequence,
+    before: SequenceDiff,
+    after: SequenceDiff,
+) -> bool {
+    let unchanged_range = OffsetRange::new(before.seq1_range.end_exclusive, after.seq1_range.start);
+
+    let unchanged_line_count = sequence1.count_lines_in(unchanged_range);
+    if unchanged_line_count > 5 || unchanged_range.length() > 500 {
+        return false;
+    }
+
+    // `split(/\r\n|\r|\n/).length > 1` is true exactly when a line break occurs.
+    let unchanged_text = sequence1.get_text(unchanged_range);
+    let unchanged_text = trim_js(&unchanged_text);
+    if unchanged_text.len() > 20
+        || unchanged_text
+            .iter()
+            .any(|&unit| unit == 0x0A || unit == 0x0D)
+    {
+        return false;
+    }
+
+    let size = |sequence: &LinesSliceCharSequence, range: OffsetRange| {
+        sequence.count_lines_in(range) * 40 + range.length()
+    };
+    let weight = |diff: SequenceDiff| {
+        diff_weight(
+            size(sequence1, diff.seq1_range),
+            size(sequence2, diff.seq2_range),
+        )
+    };
+    weight(before) + weight(after) > MAX_WEIGHT_INPUT.powf(1.5).powf(1.5) * 1.3
+}
+
+pub fn remove_very_short_matching_text_between_long_diffs(
+    sequence1: &LinesSliceCharSequence,
+    sequence2: &LinesSliceCharSequence,
+    sequence_diffs: &[SequenceDiff],
+) -> Vec<SequenceDiff> {
+    let diffs = join_repeatedly(sequence_diffs.to_vec(), |before, after| {
+        should_join_text_between_long_diffs(sequence1, sequence2, before, after)
+    });
+
+    let mut new_diffs: Vec<SequenceDiff> = Vec::new();
+
+    // Remove short suffixes/prefixes
+    for (i, &cur) in diffs.iter().enumerate() {
+        let prev = i.checked_sub(1).map(|j| diffs[j]);
+        let next = diffs.get(i + 1).copied();
+        let mut new_diff = cur;
+
+        let should_mark_as_changed = |text: &[u16]| {
+            !text.is_empty()
+                && trim_js(text).len() <= 3
+                && cur.seq1_range.length() + cur.seq2_range.length() > 100
+        };
+
+        let full_range1 = sequence1.extend_to_full_lines(cur.seq1_range);
+        let prefix = sequence1.get_text(OffsetRange::new(full_range1.start, cur.seq1_range.start));
+        if should_mark_as_changed(&prefix) {
+            // `deltaStart(-prefix.length)` can take the second range below zero
+            // in the TypeScript; the intersection below clamps it back to the
+            // previous diff's end, so clamping at zero gives the same result.
+            let back = prefix.len() as u32;
+            new_diff = SequenceDiff::new(
+                new_diff.seq1_range.delta_start(-i64::from(back)),
+                OffsetRange::new(
+                    new_diff.seq2_range.start.saturating_sub(back),
+                    new_diff.seq2_range.end_exclusive,
+                ),
+            );
+        }
+        let suffix = sequence1.get_text(OffsetRange::new(
+            cur.seq1_range.end_exclusive,
+            full_range1.end_exclusive,
+        ));
+        if should_mark_as_changed(&suffix) {
+            new_diff = new_diff.delta_end(suffix.len() as i64);
+        }
+
+        let available_space = SequenceDiff::from_offset_pairs(
+            prev.map_or(OffsetPair::ZERO, |p| p.get_end_exclusives()),
+            next.map_or(OffsetPair::MAX, |n| n.get_starts()),
+        );
+        let result = new_diff
+            .intersect(available_space)
+            .expect("the diff lies in its available space");
+        match new_diffs.last_mut() {
+            Some(last) if result.get_starts() == last.get_end_exclusives() => {
+                *last = last.join(result);
+            }
+            _ => new_diffs.push(result),
+        }
+    }
+    new_diffs
+}
