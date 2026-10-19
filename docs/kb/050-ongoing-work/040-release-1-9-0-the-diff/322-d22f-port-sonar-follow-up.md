@@ -10,7 +10,7 @@ summary: >-
 
 # D22F — Port Sonar follow-up
 
-Status: ready
+Status: claimed by Claude Sonnet D22F on 2026-10-19 15:11
 Needs: 22b, 22c, 22d (integrated)
 Decisions: X12 (a), X13 (a)
 Kind: Rust in `engine/native/diff/` and its oracle scripts; the Rust arm applies · Size budget: ≤ 150 changed production lines
