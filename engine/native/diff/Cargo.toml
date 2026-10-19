@@ -6,4 +6,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+wasm = ["dep:wasm-bindgen"]
+
 [dependencies]
+wasm-bindgen = { version = "=0.2.129", optional = true }
