@@ -108,8 +108,13 @@ These come from the knowledge base's Rules, and apply everywhere:
   (`l10n/bundle.l10n.json`, `.nl`, `.pl`, `.zh-cn`, `.zh-tw`).
   `pnpm run l10n:check` must report 100%. If you can't translate, copy the
   English and say so in the report.
-- **Size:** keep each slice within its size budget. If it needs more, stop
-  and propose a split in the report.
+- **Size is a guide, not a limit (maintainer, `2026-10-19`).** A slice's
+  "Size budget: ≤ N" means about N lines (~N): a hint for how big the work
+  should be, never a pass/fail criterion. Don't stop or split because you
+  went over it, and don't game it. What counts, in this order: cognitive
+  complexity and every other quality rule, speed, reliability, low coupling
+  and high cohesion. Report the line count honestly; the maintainer accepts
+  a longer implementation that serves those.
 
 ## 5. Slice checks and integration gates
 
@@ -192,7 +197,6 @@ Stop and report with `Status: blocked — …` when any of these happens:
   check would have to be weakened);
 - the slice's facts no longer match the code (it moved or changed): report
   the difference;
-- the size budget would be exceeded;
 - any licensing doubt.
 
 Leave the worktree as it is, committed or not, so the integrator can see it.

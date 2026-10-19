@@ -28,7 +28,7 @@ acceptance require them. Each budget is about 1.5× the code lines of the
 VS Code source it translates (measured at `28a5623`, blanks and comments
 left out; 22a came out at 1.7×). 22h–22j are TypeScript, build and seam
 work, counted as the protocol counts any slice. A sub-slice over its budget
-is reported. Since X15 (`2026-10-19`) the integrator may accept an overrun of up to 1.5× the budget when the report shows X12 helper splits or required ported dependencies caused it, and records that; a larger one is held for the maintainer. 22g was accepted at 699 (X14).
+is reported. **Superseded the same day:** budgets are guides (~N), never pass/fail; see the agent protocol's Size rule. X14 and X15 stand as records.
 
 **Helpers (decisions X12, `2026-10-19`).** A ported function over Sonar's
 cognitive-complexity limit (16) is split into helpers in the same file. Each

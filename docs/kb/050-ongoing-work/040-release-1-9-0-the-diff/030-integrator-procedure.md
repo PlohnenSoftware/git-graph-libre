@@ -65,8 +65,15 @@ order:**
 
 1. **Read its report.** Check that every acceptance item is met with
    evidence, every commit shows `G`, and `git diff --stat` stays inside the
-   slice's *Touch* list and size budget. If anything fails, set the slice
-   back to `ready` with the reason added under its report, and stop.
+   slice's *Touch* list. If anything fails, set the slice back to `ready`
+   with the reason added under its report, and stop.
+   **Line counts are never a blocker (maintainer, `2026-10-19`).** State a
+   slice's budget as a guide ("~N") when writing it, and accept a longer
+   implementation when it meets the quality rules. Judge by cognitive
+   complexity and the other rules, speed, reliability, coupling and cohesion.
+   Ask for a rewrite only when the implementation is too complex or
+   overthought, and give the rewrite to the next smarter model when one is
+   available (Haiku → Sonnet → Opus).
 2. **Rebase it** onto the integration branch:
    ```bash
    git -C ../ggl-<id> rebase origin/<integration-branch>
