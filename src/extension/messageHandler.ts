@@ -23,6 +23,7 @@ import {
   squashCommitSelection,
   undoLastCommit
 } from "@/backend/actions/commit";
+import { openExternalDirDiff } from "@/backend/actions/externalDiff";
 import { resetFileToRevision } from "@/backend/actions/file";
 import { mergeBranch, mergeCommit } from "@/backend/actions/merge";
 import { rebaseCurrentBranch } from "@/backend/actions/rebase";
@@ -998,6 +999,26 @@ export function registerMessageHandlers(
       command: "openExternalUrl",
       success: await openExternalUrl(msg.url)
     });
+  });
+
+  bridge.onMessage("openExternalDirDiff", async (msg) => {
+    let configured = true;
+    let success = false;
+    try {
+      configured = (
+        await openExternalDirDiff(gitClient.getInstance(), {
+          repo: msg.repo,
+          baseRef: msg.baseRef,
+          compareRef: msg.compareRef,
+          gitPath: config.gitPath(),
+          recordGitCommand
+        })
+      ).configured;
+      success = configured;
+    } catch {
+      success = false;
+    }
+    bridge.post({ command: "openExternalDirDiff", configured, success });
   });
 
   return {

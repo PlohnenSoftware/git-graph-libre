@@ -167,10 +167,15 @@ function renderComparisonHeader(
   );
   const swapTitle = escapeHtml(l10n.swapComparison);
   const swapButton =
-    `<button type="button" class="commitDetailsComparisonSwap" ` +
+    `<button type="button" class="commitDetailsComparisonSwap commitDetailsComparisonSwapButton" ` +
     `title="${swapTitle}" aria-label="${swapTitle}">` +
     `${octicon("sync", "commitDetailsComparisonSwapIcon")}</button>`;
-  return `<div class="commitDetailsComparison"><span class="commitDetailsComparisonText">${text}</span>${swapButton}</div>`;
+  const externalTitle = escapeHtml(l10n.openInExternalDiffTool);
+  const externalButton =
+    `<button type="button" class="commitDetailsComparisonSwap commitDetailsComparisonExternalDiff" ` +
+    `title="${externalTitle}" aria-label="${externalTitle}">` +
+    `${octicon("link-external", "commitDetailsComparisonSwapIcon")}</button>`;
+  return `<div class="commitDetailsComparison"><span class="commitDetailsComparisonText">${text}</span>${swapButton}${externalButton}</div>`;
 }
 
 function renderCommitIdentity(name: string, email: string): string {

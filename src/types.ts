@@ -549,6 +549,18 @@ export type ResponseResolveRef = {
   error: GitQueryError | null;
 };
 
+export type RequestOpenExternalDirDiff = {
+  command: "openExternalDirDiff";
+  repo: string;
+  baseRef: string;
+  compareRef: string;
+};
+export type ResponseOpenExternalDirDiff = {
+  command: "openExternalDirDiff";
+  configured: boolean;
+  success: boolean;
+};
+
 export type RequestMessage =
   | RequestRepositoryRecovery
   | ActionRequest
@@ -570,6 +582,7 @@ export type RequestMessage =
   | RequestExportExtensionSettings
   | RequestImportExtensionSettings
   | RequestComponentStatus
+  | RequestOpenExternalDirDiff
   | RequestResolveRef
   | RequestSetTemporaryLanguage
   | RequestShowTelemetryConsent;
@@ -594,6 +607,7 @@ export type ResponseMessage =
   | ResponseExportExtensionSettings
   | ResponseImportExtensionSettings
   | ResponseComponentStatus
+  | ResponseOpenExternalDirDiff
   | ResponseRefresh
   | ResponseResolveRef
   | ResponseStartHistorySearch;

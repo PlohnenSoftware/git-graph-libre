@@ -35,6 +35,7 @@ const l10n = {
   comparedWithFirstParent: "Changes compared with the first parent",
   comparing: "Comparing {0} → {1}",
   swapComparison: "Swap comparison",
+  openInExternalDiffTool: "Open in External Diff Tool",
   detailResize: "Resize commit details",
   copyFilePath: "Copy file path",
   openFile: "Open file",
@@ -193,6 +194,11 @@ describe("commit details view rendering", () => {
     expect(swap?.getAttribute("title")).toBe("Swap comparison");
     expect(swap?.getAttribute("aria-label")).toBe("Swap comparison");
     expect(swap?.querySelector("svg.commitDetailsComparisonSwapIcon")).not.toBeNull();
+    const external = host.querySelector<HTMLButtonElement>(".commitDetailsComparisonExternalDiff");
+    expect(external?.getAttribute("title")).toBe("Open in External Diff Tool");
+    expect(external?.getAttribute("aria-label")).toBe("Open in External Diff Tool");
+    expect(external?.querySelector("svg.octicon-link-external")).not.toBeNull();
+    expect(external).not.toBe(swap);
     // The summary's own key/value labels are unchanged by the header.
     expect(
       Array.from(host.querySelectorAll(".commitDetailsSummaryKeyValues > b"), (label) =>
@@ -782,5 +788,65 @@ describe("comparison header in the graph view", () => {
     });
     expect(document.querySelector("#commitDetails")).not.toBeNull();
     expect(headerText()).toBeUndefined();
+    expect(document.querySelector(".commitDetailsComparisonExternalDiff")).toBeNull();
+  });
+
+  it("opens a comparison in the external diff tool by refs, without swapping", async () => {
+    const vscode = await bootGraph();
+    document
+      .querySelector('.gitRef[data-name="feature/old"]')
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickMenuItem("Compare with HEAD");
+    receiveComparison(BRANCH_HASH);
+    const comparisonRequests = vscode.sentMessages.filter(
+      (message) => message.command === "commitComparison"
+    ).length;
+
+    document.querySelector<HTMLButtonElement>(".commitDetailsComparisonExternalDiff")?.click();
+
+    // The refs go to the backend, never the picked branch-name label.
+    expect(latestRequest(vscode.sentMessages, "openExternalDirDiff")).toEqual({
+      command: "openExternalDirDiff",
+      repo: REPO,
+      baseRef: BRANCH_HASH,
+      compareRef: "HEAD"
+    });
+    expect(
+      vscode.sentMessages.filter((message) => message.command === "commitComparison")
+    ).toHaveLength(comparisonRequests);
+    expect(headerText()).toBe("Comparing feature/old → HEAD");
+  });
+
+  it("passes the working-tree sentinel through for a working-tree comparison", async () => {
+    const vscode = await bootGraph();
+    graphRow(PLAIN_HASH).dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickMenuItem("Compare with Working Tree");
+    receiveComparison(PLAIN_HASH);
+
+    document.querySelector<HTMLButtonElement>(".commitDetailsComparisonExternalDiff")?.click();
+
+    expect(latestRequest(vscode.sentMessages, "openExternalDirDiff")).toEqual({
+      command: "openExternalDirDiff",
+      repo: REPO,
+      baseRef: PLAIN_HASH,
+      compareRef: "*"
+    });
+  });
+
+  it("explains how to configure a tool when none is configured", async () => {
+    await bootGraph();
+    receive({ command: "openExternalDirDiff", configured: false, success: false });
+    expect(document.querySelector("#dialog")?.textContent).toContain("diff.tool");
+    expect(document.querySelector("#dialog")?.textContent).not.toContain(
+      "Unable to Open External Diff Tool"
+    );
+  });
+
+  it("reports a failed launch of a configured tool as an error", async () => {
+    await bootGraph();
+    receive({ command: "openExternalDirDiff", configured: true, success: false });
+    expect(document.querySelector("#dialog")?.textContent).toContain(
+      "Unable to Open External Diff Tool"
+    );
   });
 });

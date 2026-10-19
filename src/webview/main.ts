@@ -6103,8 +6103,11 @@ class GitGraphView {
       const open = sourceElem.getAttribute("aria-expanded") !== "true";
       this.setCommitDetailsSectionOpen(section, open);
     });
-    addListenerToClass("commitDetailsComparisonSwap", "click", () => {
+    addListenerToClass("commitDetailsComparisonSwapButton", "click", () => {
       this.swapCommitComparison();
+    });
+    addListenerToClass("commitDetailsComparisonExternalDiff", "click", () => {
+      this.openComparisonInExternalDiffTool();
     });
     addListenerToClass("gitFolder", "click", (e) => {
       const sourceElem = closestHTMLElement(e.target, ".gitFolder");
@@ -6286,6 +6289,19 @@ class GitGraphView {
     this.loadCommitComparison(srcElem, expanded.hash, swappedBaseRef, swappedCompareRef, {
       baseLabel: swappedBaseLabel,
       compareLabel: swappedCompareLabel
+    });
+  }
+
+  private openComparisonInExternalDiffTool() {
+    const comparison = this.expandedCommit?.comparison;
+    if (comparison === null || comparison === undefined) return;
+    // The refs, never their labels: a label is display text (a picked name
+    // or "Working Tree"), while the backend resolves refs to hashes.
+    sendMessage({
+      command: "openExternalDirDiff",
+      repo: this.currentRepo,
+      baseRef: comparison.baseRef,
+      compareRef: comparison.compareRef
     });
   }
 
@@ -6757,6 +6773,7 @@ const responseHandlers: ResponseHandlerMap = {
   loadRepos: (msg) => gitGraph.loadRepos(msg.repos, msg.lastActiveRepo),
   compareFileWithWorkingTree: (msg) =>
     handleSuccessFlagResponse(msg, l10n.unableToCompareFileWithWorkingTree),
+  openExternalDirDiff: handleExternalDirDiffResponse,
   openExternalUrl: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenExternalUrl),
   openFile: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenFile),
   openSourceControl: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenSourceControl),
@@ -6877,6 +6894,21 @@ function handleCreateArchiveResponse(
   setStatusStrip("error", l10n.unableToCreateArchive);
 }
 
+function handleExternalDirDiffResponse(
+  msg: Extract<GGL.ResponseMessage, { command: "openExternalDirDiff" }>
+) {
+  if (!msg.configured) {
+    showDialog(
+      dialogTitleHtml(escapeHtml(l10n.externalDiffToolNotConfigured)),
+      null,
+      l10n.dialogDismiss,
+      null,
+      null
+    );
+  } else if (msg.success === false) {
+    showErrorDialog(l10n.unableToOpenExternalDiffTool, null, null);
+  }
+}
 function handleSuccessFlagResponse(msg: { success: boolean }, errorMessage: string) {
   if (msg.success === false) showErrorDialog(errorMessage, null, null);
 }
