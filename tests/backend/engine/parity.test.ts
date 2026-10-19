@@ -1009,6 +1009,130 @@ describe("engine/CLI parity: commit details, comparison and files", () => {
     }
   }, 120000);
 
+  it("agrees on type changes in commits, comparisons, merges and stashes", async (context) => {
+    requireAddon(context);
+    // Modes are staged through plumbing (`--cacheinfo`, `commit-tree`), so no working-tree
+    // symlink or submodule checkout is needed and global/system config stays untouched.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-test-typechange-"));
+    try {
+      git(["init", "-b", "main"], dir);
+      git(["config", "user.email", "ada@x.com"], dir);
+      git(["config", "user.name", "Ada"], dir);
+      git(["config", "commit.gpgsign", "false"], dir);
+      const gitOut = (args: string[], input?: string): string =>
+        cp.execFileSync("git", args, { cwd: dir, encoding: "utf8", input }).trim();
+      const blob = (contents: string): string => gitOut(["hash-object", "-w", "--stdin"], contents);
+      const three = blob("one\ntwo\nthree\n");
+      const target = blob("target/path");
+      const subCommit = gitOut(["commit-tree", gitOut(["mktree"], ""), "-m", "sub"]);
+      const [file, link, gitlink] = ["100644", "120000", "160000"];
+      const commitEntries = (entries: [string, string, string][], message: string): string => {
+        for (const [mode, id, filePath] of entries) {
+          git(["update-index", "--add", "--cacheinfo", `${mode},${id},${filePath}`], dir);
+        }
+        git(["commit", "--quiet", "-m", message], dir);
+        return gitOut(["rev-parse", "HEAD"]);
+      };
+
+      const base = commitEntries(
+        [
+          [file, three, "flip file.txt"],
+          [link, target, "link-to-file"],
+          [file, three, "file-to-gitlink"]
+        ],
+        "base"
+      );
+      const changed = commitEntries(
+        [
+          [link, target, "flip file.txt"],
+          [file, three, "link-to-file"],
+          [gitlink, subCommit, "file-to-gitlink"]
+        ],
+        "change every type"
+      );
+      const typeRows = [
+        {
+          oldFilePath: "file-to-gitlink",
+          newFilePath: "file-to-gitlink",
+          type: "T",
+          additions: 1,
+          deletions: 3
+        },
+        {
+          oldFilePath: "flip file.txt",
+          newFilePath: "flip file.txt",
+          type: "T",
+          additions: 1,
+          deletions: 3
+        },
+        {
+          oldFilePath: "link-to-file",
+          newFilePath: "link-to-file",
+          type: "T",
+          additions: 3,
+          deletions: 1
+        }
+      ];
+
+      const commitResult = await expectDetailsParity(dir, changed, "type-change commit", true);
+      expect(commitResult.commitDetails?.fileChanges, "type-change commit rows").toEqual(typeRows);
+      await expectComparisonParity(dir, changed, base, changed, "type-change comparison");
+      await expectComparisonParity(dir, base, changed, base, "type-change comparison reversed");
+
+      // A merge whose tree carries the type changes, diffed against its first parent.
+      const changedTree = gitOut(["rev-parse", `${changed}^{tree}`]);
+      const merge = gitOut([
+        "commit-tree",
+        changedTree,
+        "-p",
+        base,
+        "-p",
+        changed,
+        "-m",
+        "merge type changes"
+      ]);
+      const mergeResult = await expectDetailsParity(dir, merge, "type-change merge", true);
+      expect(mergeResult.commitDetails?.fileChanges, "type-change merge rows").toEqual(typeRows);
+
+      // A stash built the way `git stash create` builds one: worktree tree over the base,
+      // an index commit, and an untracked-files root commit as the third parent.
+      const baseTree = gitOut(["rev-parse", `${base}^{tree}`]);
+      const indexCommit = gitOut(["commit-tree", baseTree, "-p", base, "-m", "index on main"]);
+      const untrackedTree = gitOut(
+        ["mktree"],
+        `100644 blob ${blob("untracked\n")}\tuntracked.txt\n`
+      );
+      const untrackedCommit = gitOut(["commit-tree", untrackedTree, "-m", "untracked on main"]);
+      const stash = gitOut([
+        "commit-tree",
+        changedTree,
+        "-p",
+        base,
+        "-p",
+        indexCommit,
+        "-p",
+        untrackedCommit,
+        "-m",
+        "WIP on main: type changes"
+      ]);
+      git(["stash", "store", "-m", "WIP on main: type changes", stash], dir);
+      const stashResult = await expectDetailsParity(dir, stash, "type-change stash", true);
+      expect(stashResult.commitDetails?.fileChanges, "type-change stash rows").toEqual([
+        ...typeRows,
+        {
+          oldFilePath: "untracked.txt",
+          newFilePath: "untracked.txt",
+          type: "A",
+          additions: 1,
+          deletions: 0,
+          untracked: true
+        }
+      ]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+
   it("agrees on rename and binary comparisons", async (context) => {
     requireAddon(context);
     const current = fixture.current;

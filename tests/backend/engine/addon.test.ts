@@ -311,13 +311,15 @@ describe("engine load status", () => {
   });
 
   it("names a binary from a different build, with both versions", () => {
-    const stale = { ...completeAddon(), engineVersion: () => "1.0.0" };
+    // The previous engine release: it drops type changes from history payloads, so the
+    // loader must refuse it into the CLI path rather than serve its answers as complete.
+    const stale = { ...completeAddon(), engineVersion: () => "1.0.25" };
     const load = resolveEngineLoad([LINUX], candidates, () => stale, "linux-x64");
     expect(load.status).toEqual({
       state: "unavailable",
       reason: "versionMismatch",
       platform: LINUX,
-      detail: `found 1.0.0, expected ${EXPECTED_ENGINE_VERSION}`
+      detail: `found 1.0.25, expected ${EXPECTED_ENGINE_VERSION}`
     });
   });
 

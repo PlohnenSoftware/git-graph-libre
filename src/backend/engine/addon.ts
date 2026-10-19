@@ -21,9 +21,10 @@ import type { EngineComponentStatus, EngineUnavailableReason } from "@/types";
  * Bump it whenever the TypeScript starts relying on engine behavior an older
  * binary would silently lack: `1.0.25` taught `load_commits` the
  * `useAuthorDate` option, which a `1.0.24` binary would ignore and answer
- * with committer dates.
+ * with committer dates. `1.0.26` lists type changes as `T` and counts them
+ * like Git, which a `1.0.25` binary drops from history payloads entirely.
  */
-export const EXPECTED_ENGINE_VERSION = "1.0.25";
+export const EXPECTED_ENGINE_VERSION = "1.0.26";
 
 /**
  * The napi surface slice 16.3 uses. Extended read by read in later slices —

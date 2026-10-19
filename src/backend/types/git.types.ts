@@ -174,6 +174,6 @@ export type GitRepoInfo = {
   config: GitRepoConfig;
 };
 
-export type GitFileChangeType = "A" | "M" | "D" | "R";
+export type GitFileChangeType = "A" | "M" | "D" | "R" | "T";
 export type DateType = "Author Date" | "Commit Date";
 export type GitResetMode = "soft" | "mixed" | "hard";

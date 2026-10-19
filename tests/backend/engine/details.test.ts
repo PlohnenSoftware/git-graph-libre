@@ -10,6 +10,7 @@ import {
   mapEngineFileChange,
   parseEngineCommitDetails,
   parseEngineCommitFile,
+  parseEngineFileChanges,
   parseEngineLineCounts,
   parseEngineStashEntries,
   stashEntryPayload
@@ -49,6 +50,22 @@ describe("parseEngineCommitDetails", () => {
     expect(parseEngineCommitDetails(text)).toBeNull();
   });
 
+  it("retains a type change in both payload shapes", () => {
+    const typeChanged = { ...CHANGE, oldFilePath: "a.txt", newFilePath: "a.txt", type: "T" };
+    const details = parseEngineCommitDetails(
+      JSON.stringify({ ...PAGE, fileChanges: [typeChanged] })
+    );
+    expect(details?.fileChanges).toEqual([typeChanged]);
+    expect(details?.fileChanges.map(mapEngineFileChange)).toEqual([
+      { oldFilePath: "a.txt", newFilePath: "a.txt", type: "T", additions: null, deletions: null }
+    ]);
+    expect(parseEngineFileChanges(JSON.stringify([typeChanged]))).toEqual([
+      { oldFilePath: "a.txt", newFilePath: "a.txt", type: "T", additions: null, deletions: null }
+    ]);
+    expect(parseEngineFileChanges(JSON.stringify([{ ...typeChanged, type: "C" }]))).toBeNull();
+    expect(parseEngineFileChanges("not json")).toBeNull();
+  });
+
   it("rejects mistyped fields and unknown file kinds", () => {
     expect(parseEngineCommitDetails(JSON.stringify({ ...PAGE, authorDate: "x" }))).toBeNull();
     expect(
@@ -70,6 +87,13 @@ describe("mapEngineFileChange", () => {
       oldFilePath: "a.txt",
       newFilePath: "b.txt",
       type: "R",
+      additions: null,
+      deletions: null
+    });
+    expect(mapEngineFileChange({ ...CHANGE, type: "T" })).toEqual({
+      oldFilePath: "a.txt",
+      newFilePath: "b.txt",
+      type: "T",
       additions: null,
       deletions: null
     });

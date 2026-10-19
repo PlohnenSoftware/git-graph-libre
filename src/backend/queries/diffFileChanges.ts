@@ -1,7 +1,7 @@
 import type { GitFileChange, GitFileChangeType } from "@/backend/types";
 
 const gitFieldSeparatorOutput = "\0";
-const diffStatusRegex = /^[AMDR](?:\d+)?$/;
+const diffStatusRegex = /^[AMDRT](?:\d+)?$/;
 const objectHashRegex = /^[0-9a-f]{40,64}$/i;
 
 function toPath(str: string) {

@@ -55,7 +55,7 @@ export async function stashFileChanges(
   const record = input.recordGitCommand;
   const baseChanges = await fetchDiffFileChanges(
     git,
-    ["diff-tree", "-z", "-r", "--root", "--find-renames", "--diff-filter=AMDR"],
+    ["diff-tree", "-z", "-r", "--root", "--find-renames", "--diff-filter=AMDRT"],
     [input.baseHash, input.stashHash],
     "stashDetails",
     repo,

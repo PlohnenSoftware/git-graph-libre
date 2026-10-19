@@ -32,7 +32,7 @@ async function fetchComparisonDiff(
     arg,
     "-z",
     "--find-renames",
-    "--diff-filter=AMDR",
+    "--diff-filter=AMDRT",
     input.baseRef,
     input.compareRef
   ];

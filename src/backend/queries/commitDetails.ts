@@ -36,7 +36,7 @@ async function fetchDiffTree(
     "-r",
     ...(firstParentOnly ? [] : ["-m", "--root"]),
     "--find-renames",
-    "--diff-filter=AMDR",
+    "--diff-filter=AMDRT",
     ...(firstParentOnly ? [`${commitHash}^1`, commitHash] : [commitHash])
   ];
   const stdout = await runGitRaw(git, {

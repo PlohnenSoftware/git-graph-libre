@@ -43,7 +43,7 @@ function isStringList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item): item is string => typeof item === "string");
 }
 
-const engineFileKinds = new Set(["A", "M", "D", "R", "U"]);
+const engineFileKinds = new Set(["A", "M", "D", "R", "T", "U"]);
 
 function isEngineFileChange(value: unknown): value is EngineFileChange {
   if (typeof value !== "object" || value === null) return false;
