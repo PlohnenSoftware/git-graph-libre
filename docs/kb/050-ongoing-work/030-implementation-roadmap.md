@@ -31,5 +31,5 @@ together):
 | 14 Reveal highlight: persistent blink and configurable color | Complete |
 | 15 Tag surfaces: signed-tag distinction and remote tag deletion | Complete |
 | 16 Rust engine backend | In progress (`2026-10-16`) — 16.1–16.9 done, shipped in `v1.8.0`; Author Date and the status indicator in `1.8.1`; upstream candidates 1–4 and 8 landed, signatures left the graph load with a one-off CLI reload and engine-failure telemetry; topo, numstat, encoding, remote-ref cases open |
-| 17 VS Code's diff algorithm in the engine | Planned (`2026-10-18`) — research, architecture, slices 17.0–17.8 and the legal plan written; D4 answered `2026-10-19` (the GGL Diff tab, 1.9.0 slices D40–D48); waiting on D1–D3 and D5; nothing implemented |
+| 17 VS Code's diff algorithm in the engine | In progress (`2026-10-19`) — D1–D3, D5 and D4 answered; 17.0 legal groundwork (D20) and 17.1 oracle suite (D21) integrated in 1.9.0 (TS = expected 58/58, WASM 56/58); the port (D22 sub-slices 22a–22j) is committed 1.9.0 scope under X5 |
 | Immediate TODOs bug backlog (BUG-1 … BUG-6, `2026-08-25`) | Complete (`2026-08-25`; see the per-entry implementation records) |

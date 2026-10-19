@@ -7,7 +7,7 @@ summary: >-
 
 # D22 — Phase 17 port sub-slices
 
-Status: waiting on D21 (X5 answered `2026-10-19`: full port in scope)
+Status: ready — 22a first (X5 answered `2026-10-19`: full port in scope)
 Needs: D21
 Decisions: X5 = (b); Phase 17 D1, D2 and D5
 Kind: Rust, the Rust arm applies · Size budget: per sub-slice, as listed

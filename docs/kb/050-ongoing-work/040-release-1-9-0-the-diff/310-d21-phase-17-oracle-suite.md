@@ -9,7 +9,7 @@ summary: >-
 
 # D21 — Phase 17 oracle suite
 
-Status: done — awaiting integration
+Status: integrated f0a5458
 Needs: D20
 Decisions: —
 Kind: TypeScript tests and vendored fixtures · Size budget: ≤ 250 changed lines, not counting the fixtures
