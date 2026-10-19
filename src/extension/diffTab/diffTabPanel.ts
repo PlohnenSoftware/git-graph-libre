@@ -18,10 +18,8 @@ export type DiffTabDeps = {
   outputChannel: Pick<vscode.OutputChannel, "appendLine">;
 };
 
-type DiffTab = { show(request: DiffTabRequest, loading: Promise<DiffTabPayload>): void };
-
 // One tab at a time, reused like the diff editor's preview tab.
-let current: DiffTab | undefined;
+let current: ReturnType<typeof createDiffTab> | undefined;
 
 /**
  * Open the GGL Diff tab, or retitle and reveal the one already open. The load
@@ -40,10 +38,10 @@ export function openDiffTab(
     })
   );
   current ??= createDiffTab(request.title, deps);
-  current.show(request, loading);
+  current(request, loading);
 }
 
-function createDiffTab(title: string, deps: DiffTabDeps): DiffTab {
+function createDiffTab(title: string, deps: DiffTabDeps) {
   // `retainContextWhenHidden` keeps the document alive while its tab is in
   // the background, so every open after the first is one message.
   const panel = vscode.window.createWebviewPanel(
@@ -63,26 +61,21 @@ function createDiffTab(title: string, deps: DiffTabDeps): DiffTab {
   let ready = false;
   let last: DiffTabShowMessage | undefined;
   let latestOpen = 0;
-  const post = (message: DiffTabShowMessage): void => {
-    void panel.webview.postMessage(message);
-  };
-  const tab: DiffTab = {
-    show(request, loading) {
-      const open = ++latestOpen;
-      panel.title = request.title;
-      panel.reveal(vscode.ViewColumn.Active);
-      void loading.then((payload) => {
-        if (open !== latestOpen || current !== tab) return;
-        last = { command: "show", payload, ...readViewSettings(), labels: readLabels() };
-        if (ready) post(last);
-      });
-    }
+  const show = (request: DiffTabRequest, loading: Promise<DiffTabPayload>): void => {
+    const open = ++latestOpen;
+    panel.title = request.title;
+    panel.reveal(vscode.ViewColumn.Active);
+    void loading.then((payload) => {
+      if (open !== latestOpen || current !== show) return;
+      last = { command: "show", payload, ...readViewSettings(), labels: readLabels() };
+      if (ready) void panel.webview.postMessage(last);
+    });
   };
   const received = panel.webview.onDidReceiveMessage((message: DiffTabWebviewMessage) => {
     if (message.command === "ready") {
       // Also after a reload or a restore: the new document needs the payload.
       ready = true;
-      if (last) post(last);
+      if (last) void panel.webview.postMessage(last);
     } else if (message.command === "painted") {
       deps.outputChannel.appendLine(
         `[diffTab] painted ms=${Math.round(Number(message.ms))} rows=${Number(message.rows)}`
@@ -91,9 +84,9 @@ function createDiffTab(title: string, deps: DiffTabDeps): DiffTab {
   });
   panel.onDidDispose(() => {
     received.dispose();
-    if (current === tab) current = undefined;
+    if (current === show) current = undefined;
   });
-  return tab;
+  return show;
 }
 
 function readViewSettings(): Pick<DiffTabShowMessage, "layout" | "lineHeight" | "tabSize"> {
@@ -101,6 +94,7 @@ function readViewSettings(): Pick<DiffTabShowMessage, "layout" | "lineHeight" | 
   const editor = vscode.workspace.getConfiguration("editor");
   const count = (value: unknown, fallback: number): number =>
     typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : fallback;
+  const editorCount = (key: string, fallback: number): number => count(editor.get(key), fallback);
   return {
     layout: {
       hideUnchanged: diffEditor.get("hideUnchangedRegions.enabled") === true,
@@ -108,11 +102,8 @@ function readViewSettings(): Pick<DiffTabShowMessage, "layout" | "lineHeight" | 
       minimumLineCount: count(diffEditor.get("hideUnchangedRegions.minimumLineCount"), 3),
       revealLineCount: count(diffEditor.get("hideUnchangedRegions.revealLineCount"), 20)
     },
-    lineHeight: lineHeightInPixels(
-      count(editor.get("lineHeight"), 0),
-      count(editor.get("fontSize"), 14)
-    ),
-    tabSize: count(editor.get("tabSize"), 4)
+    lineHeight: lineHeightInPixels(editorCount("lineHeight", 0), editorCount("fontSize", 14)),
+    tabSize: editorCount("tabSize", 4)
   };
 }
 
@@ -123,9 +114,8 @@ function readViewSettings(): Pick<DiffTabShowMessage, "layout" | "lineHeight" | 
  * setting's description says, and VS Code never draws a line under 8 pixels.
  */
 function lineHeightInPixels(lineHeight: number, fontSize: number): number {
-  let pixels = lineHeight;
-  if (lineHeight === 0) pixels = fontSize * 1.5;
-  else if (lineHeight < 8) pixels = lineHeight * fontSize;
+  const pixels =
+    lineHeight === 0 ? fontSize * 1.5 : lineHeight < 8 ? lineHeight * fontSize : lineHeight;
   return Math.max(8, Math.round(pixels));
 }
 

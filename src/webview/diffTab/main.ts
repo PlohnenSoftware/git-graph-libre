@@ -5,9 +5,7 @@ import { createDiffView } from "./view";
 
 const started = performance.now();
 // The global declaration types the graph's messages; this tab has its own.
-const host = acquireVsCodeApi() as unknown as {
-  postMessage(message: DiffTabWebviewMessage): void;
-};
+const host = acquireVsCodeApi() as unknown as { postMessage(msg: DiffTabWebviewMessage): void };
 const root = document.getElementById("diffTab") ?? document.body;
 let view: ReturnType<typeof createDiffView> | undefined;
 let painted = false;
@@ -39,11 +37,7 @@ function show({ payload, layout, lineHeight, tabSize, labels }: DiffTabShowMessa
   else showText(labels.loadError.replace("{0}", payload.message));
   if (!painted) {
     painted = true;
-    host.postMessage({
-      command: "painted",
-      ms: performance.now() - started,
-      rows: rowCount
-    });
+    host.postMessage({ command: "painted", ms: performance.now() - started, rows: rowCount });
   }
 }
 

@@ -34,20 +34,10 @@ export type DiffTabSide =
   | { kind: "workingTree"; path: string }
   | { kind: "empty" };
 
-export type DiffTabRequest = {
-  repo: string;
-  left: DiffTabSide;
-  right: DiffTabSide;
-  title: string;
-};
+export type DiffTabRequest = { repo: string; left: DiffTabSide; right: DiffTabSide; title: string };
 
 export type DiffTabPayload =
-  | {
-      kind: "diff";
-      originalLines: string[];
-      modifiedLines: string[];
-      changes: DiffTabChange[];
-    }
+  | { kind: "diff"; originalLines: string[]; modifiedLines: string[]; changes: DiffTabChange[] }
   | { kind: "binary" }
   | { kind: "tooLarge" }
   | { kind: "error"; message: string };
