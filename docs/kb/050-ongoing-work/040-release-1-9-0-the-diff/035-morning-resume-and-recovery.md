@@ -11,7 +11,8 @@ The maintainer requested a fresh, autonomous Muse Code instance with
 sandboxing disabled at **2026-10-19 07:00 Europe/Warsaw**. The launcher is
 local machine setup, not an extension feature. All release safety rules
 still apply, including signed commits, no pushes, no publication and no
-weakening checks. Do not suspend or reboot the machine as part of this job.
+weakening checks. The morning agent must not suspend or reboot the machine.
+The separate bedtime arming script suspends it only after verifying the wake timer.
 
 ## Recover current work before resuming
 
@@ -70,6 +71,12 @@ Private directory: `/home/zam/.local/state/ggl-resume-2026-10-19/`.
   private timestamped directory. Ignored build artifacts are excluded.
 - `arm.sh`: asks for administrator authentication through sudo, then arms
   a system timer with `WakeSystem=yes`, launching as user `zam`, not root.
+  By default it verifies the timer is active, can wake the machine and has
+  the exact future 07:00 deadline, saves fresh snapshots, locks user zam's
+  desktop session and runs `systemctl suspend`. Login and apps stay open.
+  It refuses to suspend if arming or validation fails. Re-running with the
+  matching active timer is supported. `--arm-only` omits sleep; `--check`
+  prints the plan without changing timers or power state.
 - `run-*.log`: output and errors; `snapshots/`: recovery copies. Never
   publish these private files or infer completion from their existence.
 
@@ -78,7 +85,9 @@ timer alone cannot wake this machine. System wake setup needs the user to
 run `bash /home/zam/.local/state/ggl-resume-2026-10-19/arm.sh` and authenticate;
 the attempted noninteractive system-timer setup was denied for lack of
 interactive authentication. Check actual timer state before claiming that
-wake is armed. Keep the desktop session logged in; sleep is supported by
+wake is armed. The normal arming command now locks and suspends the
+desktop without logging out, at the maintainer's explicit follow-up request.
+Keep the desktop session logged in; sleep is supported by
 the requested setup, shutdown/reboot recovery is not its guarantee.
 
 Launcher validation: Bash syntax, Python compilation and an actual Muse
@@ -86,3 +95,8 @@ headless echo-provider smoke test passed; it did not invoke a paid model
 or perform repository edits. The future real run must still authenticate
 and honor provider limits. On a blocker, save a precise handoff and leave
 all worktrees intact.
+
+Suspend-script verification: Bash syntax and six deadline/state guard cases
+passed (valid alarm accepted; inactive, non-waking, missing, wrong-time and
+past alarms refused). Checks did not actually suspend or lock the machine;
+administrator authentication is still required when the user runs arm.sh.
