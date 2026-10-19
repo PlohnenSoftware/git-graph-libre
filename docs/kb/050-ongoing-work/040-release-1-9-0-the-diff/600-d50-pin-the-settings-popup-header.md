@@ -8,7 +8,7 @@ summary: >-
 
 # D50 — Pin the settings popup's header
 
-Status: ready
+Status: claimed by Claude Sonnet D50 on 2026-10-19 15:01
 Needs: —
 Decisions: — (maintainer bug report, `2026-10-19`)
 Kind: webview (CSS, and TypeScript markup if needed) · Size budget: ≤ 120 changed lines outside tests
