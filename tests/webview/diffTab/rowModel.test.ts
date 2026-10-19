@@ -189,6 +189,39 @@ describe("buildRows", () => {
     ]);
   });
 
+  it("merges overlapping, touching and unsorted inner changes on one line", () => {
+    const rows = build(
+      ["abcdefghij"],
+      ["abcdefghij!", "xyz"],
+      [
+        change(1, 2, 1, 3, [
+          { original: span(1, 6, 1, 8), modified: span(1, 11, 1, 12) },
+          { original: span(1, 1, 1, 3), modified: span(1, 4, 1, 4) },
+          { original: span(1, 3, 1, 4), modified: span(2, 1, 2, 3) },
+          { original: span(1, 7, 1, 10), modified: span(1, 11, 1, 12) }
+        ])
+      ]
+    );
+    // Left: "ab" and the touching "c" merge, "fg" and the overlapping "ghi" merge.
+    expect(lineCells(rows, "left")[0]?.segments).toEqual([
+      { text: "abc", highlight: true },
+      { text: "de", highlight: false },
+      { text: "fghi", highlight: true },
+      { text: "j", highlight: false }
+    ]);
+    // Right: the empty span is dropped, the duplicate merges, and the
+    // second line's span touches only the second line.
+    expect(lineCells(rows, "right")[0]?.segments).toEqual([
+      { text: "abcdefghij", highlight: false },
+      { text: "!", highlight: true }
+    ]);
+    expect(lineCells(rows, "right")[1]?.segments).toEqual([
+      { text: "xy", highlight: true },
+      { text: "z", highlight: false }
+    ]);
+    expect(lineCells(rows, "left")[1]).toBeNull();
+  });
+
   it("shows an added file (empty original) as insertions with left fillers", () => {
     const rows = build([], ["one", "two"], [change(1, 1, 1, 3)]);
     expect(lineCells(rows, "left").map(cellText)).toEqual([null, null]);

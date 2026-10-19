@@ -37,26 +37,41 @@ export function splitLines(text: string): string[] {
   return text.split(/\r\n|\n|\r/);
 }
 
-function segmentsForLine(text: string, lineNumber: number, spans: CharSpan[]): DiffSegment[] {
+/** A half-open range of UTF-16 string indices within one line. */
+type Interval = { start: number; end: number };
+
+/** The part of `text` (line `lineNumber`) a span covers, or null if none. */
+function spanOnLine(span: CharSpan, lineNumber: number, text: string): Interval | null {
+  if (lineNumber < span.startLine || lineNumber > span.endLine) return null;
   const clamp = (column: number): number => Math.max(0, Math.min(column - 1, text.length));
-  const intervals: { start: number; end: number }[] = [];
-  for (const span of spans) {
-    if (lineNumber < span.startLine || lineNumber > span.endLine) continue;
-    const start = lineNumber === span.startLine ? clamp(span.startColumn) : 0;
-    const end = lineNumber === span.endLine ? clamp(span.endColumn) : text.length;
-    if (end > start) intervals.push({ start, end });
-  }
-  if (intervals.length === 0) return [{ text, highlight: false }];
+  const start = lineNumber === span.startLine ? clamp(span.startColumn) : 0;
+  const end = lineNumber === span.endLine ? clamp(span.endColumn) : text.length;
+  return end > start ? { start, end } : null;
+}
+
+/** Sort intervals in place and merge those that overlap or touch. */
+function mergeIntervals(intervals: Interval[]): Interval[] {
   intervals.sort((a, b) => a.start - b.start || a.end - b.end);
-  const merged = [intervals[0]];
-  for (const interval of intervals.slice(1)) {
-    const open = merged[merged.length - 1];
-    if (interval.start <= open.end) open.end = Math.max(open.end, interval.end);
+  const merged: Interval[] = [];
+  for (const interval of intervals) {
+    const open = merged.at(-1);
+    if (open !== undefined && interval.start <= open.end)
+      open.end = Math.max(open.end, interval.end);
     else merged.push(interval);
   }
+  return merged;
+}
+
+function segmentsForLine(text: string, lineNumber: number, spans: CharSpan[]): DiffSegment[] {
+  const intervals: Interval[] = [];
+  for (const span of spans) {
+    const interval = spanOnLine(span, lineNumber, text);
+    if (interval !== null) intervals.push(interval);
+  }
+  if (intervals.length === 0) return [{ text, highlight: false }];
   const segments: DiffSegment[] = [];
   let cursor = 0;
-  for (const interval of merged) {
+  for (const interval of mergeIntervals(intervals)) {
     if (interval.start > cursor)
       segments.push({ text: text.slice(cursor, interval.start), highlight: false });
     segments.push({ text: text.slice(interval.start, interval.end), highlight: true });
@@ -86,6 +101,25 @@ const changedCell = (
   change,
   segments: segmentsForLine(lines[lineNumber - 1] ?? "", lineNumber, spans)
 });
+
+/**
+ * The ported collapse rule: how many lines of an unchanged run stay visible
+ * above and below its collapsed middle. Edge runs collapse at context +
+ * minimum, keeping context lines only next to the change; middle runs at
+ * 2 * context + minimum; a run that is the whole file collapses entirely.
+ */
+function visibleEdges(
+  length: number,
+  atStart: boolean,
+  atEnd: boolean,
+  layout: DiffTabLayout
+): { top: number; bottom: number } {
+  const context = layout.contextLineCount;
+  const threshold = (atStart || atEnd ? context : 2 * context) + layout.minimumLineCount;
+  const collapses = layout.hideUnchanged && length > 0 && length >= threshold;
+  if (!collapses) return { top: length, bottom: 0 };
+  return { top: atStart ? 0 : context, bottom: atEnd ? 0 : context };
+}
 
 /**
  * Turn two texts' lines and their changes into side-by-side rows.
@@ -124,22 +158,8 @@ export function buildRows(
     hiddenRowsByCollapsed.set(collapsed, hidden);
     rows.push(collapsed);
   };
-  // Ported collapse rule: edge runs collapse at context + minimum, middle
-  // runs at 2 * context + minimum, the whole file entirely.
   const pushUnchangedRun = (length: number, atStart: boolean, atEnd: boolean): void => {
-    const context = layout.contextLineCount;
-    const minimum = layout.minimumLineCount;
-    let keepTop = length;
-    let keepBottom = 0;
-    if (layout.hideUnchanged && length > 0) {
-      if (atStart && atEnd) {
-        if (length >= context + minimum) keepTop = 0;
-      } else if (atStart) {
-        if (length >= context + minimum) [keepTop, keepBottom] = [0, context];
-      } else if (atEnd) {
-        if (length >= context + minimum) keepTop = context;
-      } else if (length >= 2 * context + minimum) [keepTop, keepBottom] = [context, context];
-    }
+    const { top: keepTop, bottom: keepBottom } = visibleEdges(length, atStart, atEnd, layout);
     const hiddenCount = length - keepTop - keepBottom;
     for (let i = 0; i < keepTop; i++)
       rows.push(unchangedRow(originalCursor + i, modifiedCursor + i));
