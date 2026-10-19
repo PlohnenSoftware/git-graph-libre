@@ -97,6 +97,16 @@ const CHAR_UPPER_Z: u32 = 90;
 const CHAR_0: u32 = 48;
 const CHAR_9: u32 = 57;
 
+fn is_word_char(code: u32) -> bool {
+    (CHAR_A..=CHAR_Z).contains(&code)
+        || (CHAR_UPPER_A..=CHAR_UPPER_Z).contains(&code)
+        || (CHAR_0..=CHAR_9).contains(&code)
+}
+
+fn is_upper_case(code: u32) -> bool {
+    (CHAR_UPPER_A..=CHAR_UPPER_Z).contains(&code)
+}
+
 /// `CharBoundaryCategory`; the discriminants are never compared, only matched.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum CharBoundaryCategory {
@@ -222,6 +232,69 @@ impl LinesSliceCharSequence {
             .copied()
             .unwrap_or(self.elements.len() as u32);
         OffsetRange::new(start, end)
+    }
+}
+
+impl LinesSliceCharSequence {
+    /// `getText`, as UTF-16 units: a range may split a surrogate pair, which a
+    /// Rust `String` cannot hold, and the callers only trim and measure it.
+    pub fn get_text(&self, range: OffsetRange) -> Vec<u16> {
+        self.elements[range.start as usize..range.end_exclusive as usize].to_vec()
+    }
+
+    /// `text`: the whole sequence.
+    pub fn text(&self) -> Vec<u16> {
+        self.elements.clone()
+    }
+
+    fn is_word_at(&self, offset: usize) -> bool {
+        is_word_char(u32::from(self.elements[offset]))
+    }
+
+    fn is_upper_at(&self, offset: usize) -> bool {
+        is_upper_case(u32::from(self.elements[offset]))
+    }
+
+    /// The word that contains the element at `offset`.
+    pub fn find_word_containing(&self, offset: i64) -> Option<OffsetRange> {
+        if offset < 0 || offset >= self.elements.len() as i64 {
+            return None;
+        }
+        let offset = offset as usize;
+        if !self.is_word_at(offset) {
+            return None;
+        }
+        let mut start = offset;
+        while start > 0 && self.is_word_at(start - 1) {
+            start -= 1;
+        }
+        let mut end = offset;
+        while end < self.elements.len() && self.is_word_at(end) {
+            end += 1;
+        }
+        Some(OffsetRange::new(start as u32, end as u32))
+    }
+
+    /// `fooBar` has the two sub-words `foo` and `bar`. Like the TypeScript, it
+    /// tests the uppercase rule on the element at `start`/`end` themselves, so
+    /// an uppercase `offset` gives an empty range.
+    pub fn find_sub_word_containing(&self, offset: i64) -> Option<OffsetRange> {
+        if offset < 0 || offset >= self.elements.len() as i64 {
+            return None;
+        }
+        let offset = offset as usize;
+        if !self.is_word_at(offset) {
+            return None;
+        }
+        let mut start = offset;
+        while start > 0 && self.is_word_at(start - 1) && !self.is_upper_at(start) {
+            start -= 1;
+        }
+        let mut end = offset;
+        while end < self.elements.len() && self.is_word_at(end) && !self.is_upper_at(end) {
+            end += 1;
+        }
+        Some(OffsetRange::new(start as u32, end as u32))
     }
 }
 
@@ -355,5 +428,41 @@ mod tests {
         assert_eq!(extend(1, 2), OffsetRange::new(0, 3));
         assert_eq!(extend(3, 4), OffsetRange::new(3, 5));
         assert_eq!(extend(0, 0), OffsetRange::new(0, 0));
+    }
+
+    #[test]
+    fn finding_words_and_sub_words() {
+        let s = seq(&["fooBar baz1"], Range::new(1, 1, 1, 100), true);
+        let word = |o| s.find_word_containing(o);
+        let sub = |o| s.find_sub_word_containing(o);
+        assert_eq!(word(0), Some(OffsetRange::new(0, 6)));
+        assert_eq!(word(10), Some(OffsetRange::new(7, 11)));
+        assert_eq!((word(6), word(-1), word(11)), (None, None, None));
+        assert_eq!(sub(1), Some(OffsetRange::new(0, 3)));
+        assert_eq!(sub(4), Some(OffsetRange::new(3, 6)));
+        assert_eq!(sub(3), Some(OffsetRange::new(3, 3))); // uppercase: empty
+        assert_eq!((sub(6), sub(-1), sub(11)), (None, None, None));
+    }
+
+    #[test]
+    fn words_are_ascii_only_and_text_is_in_units() {
+        // "e", a combining acute accent, an emoji, then "ab": only ASCII
+        // letters and digits are word characters.
+        let s = seq(&["e\u{301}\u{1F600}ab"], Range::new(1, 1, 1, 100), true);
+        assert_eq!(s.length(), 6);
+        assert_eq!(s.find_word_containing(0), Some(OffsetRange::new(0, 1)));
+        assert_eq!(s.find_word_containing(1), None);
+        assert_eq!(s.find_word_containing(2), None);
+        assert_eq!(s.find_word_containing(4), Some(OffsetRange::new(4, 6)));
+        assert_eq!(s.get_text(OffsetRange::new(2, 3)), [0xD83D]); // half a pair
+        assert_eq!(s.text(), [101, 0x301, 0xD83D, 0xDE00, 97, 98]);
+    }
+
+    #[test]
+    fn strong_equality_compares_units_and_the_undefined_past_the_end() {
+        let s = seq(&["aba"], Range::new(1, 1, 1, 100), true);
+        assert!(s.is_strongly_equal(0, 2) && !s.is_strongly_equal(0, 1));
+        assert!(s.is_strongly_equal(5, 9)); // undefined === undefined
+        assert!(!s.is_strongly_equal(0, 9));
     }
 }
