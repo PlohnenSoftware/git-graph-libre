@@ -79,3 +79,7 @@ Status: done — awaiting integration
 - **Deviations from the slice:** (1) Myers keeps x, y and V as `f64` with NaN-propagating `Math.max`/`Math.min`, because VS Code reads its `Int32Array` past the allocation (`undefined`, NaN) on diagonals outside the grid; the corpus has 179 such reads and a dropped-write/NaN-as-0 model reproduces VS Code on all of them. A NaN path reaching the result never happened in 620,000 random cases; the port asserts it in debug builds. (2) `OffsetPair.max` is `u32::MAX` (`Number.MAX_SAFE_INTEGER` there); 22e must avoid arithmetic on it that overflows. (3) The optional `getBoundaryScore` is `ISequence::get_boundary_score -> Option<f64>`, default `None`; 22e tests presence with `is_some()`. (4) `ISequence::get_element` returns `u32`, and `compute` takes `&dyn ISequence` and `&mut dyn ITimeout` (callers without a limit pass `&mut InfiniteTimeout`). (5) `offset_range.rs` and `lib.rs` (22a files) were extended, needed by `SequenceDiff`. (6) `forEachAdjacent` and `BugIndicatingError` are inlined as a loop and panics.
 - **Open questions / follow-ups:** none blocking.
 - **Follow-up (2026-10-19):** `engine/native/diff/tests/oracle/gen-myers.mjs` regenerates `tests/data/myers-oracle.txt` from VS Code's sources fetched at the pinned commit; a rerun matches the committed file byte for byte (`cmp`), with the same 179 reads past the allocation.
+
+### 22c Report
+
+Status: claimed by Claude Sonnet 22c on 2026-10-19 14:55
