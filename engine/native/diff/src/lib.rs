@@ -10,6 +10,7 @@ pub mod clock;
 pub mod diff_algorithm;
 pub mod dynamic_programming_diffing;
 pub mod fixture;
+pub mod heuristic_sequence_optimizations;
 pub mod line_range;
 pub mod line_sequence;
 pub mod lines_diff;
