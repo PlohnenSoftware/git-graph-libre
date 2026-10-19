@@ -30,7 +30,7 @@ pub use diff_algorithm::{
     SequenceDiff,
 };
 pub use dynamic_programming_diffing::{DynamicProgrammingDiffing, EqualityScore};
-pub use line_range::LineRange;
+pub use line_range::{LineRange, LineRangeSet};
 pub use line_sequence::LineSequence;
 pub use lines_diff::{LinesDiff, LinesDiffOptions, MovedText};
 pub use lines_slice_char_sequence::LinesSliceCharSequence;
