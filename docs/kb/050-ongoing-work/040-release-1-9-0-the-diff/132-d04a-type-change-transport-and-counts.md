@@ -7,7 +7,7 @@ summary: >-
 
 # D04a — Type-change transport and counts
 
-Status: done — awaiting integration
+Status: integrated a986823
 Needs: —
 Decisions: X2 (b); revised D04 scope approved 2026-10-19
 Kind: TypeScript and Rust · Size budget: ≤250 changed lines outside tests
