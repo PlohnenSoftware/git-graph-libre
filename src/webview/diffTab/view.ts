@@ -61,7 +61,10 @@ export function createDiffView(
     if (changed) gutter.classList.add(`gutter-${cell.change}`);
     gutter.textContent = String(cell.lineNumber);
     const sign = make(changed ? `${cell.change}-sign` : "diff-sign");
-    sign.textContent = changed ? (cell.change === "insert" ? "+" : "−") : "";
+    let signText = "";
+    if (cell.change === "insert") signText = "+";
+    else if (cell.change === "delete") signText = "−";
+    sign.textContent = signText;
     const clip = make("diff-text-clip");
     const text = make("diff-text");
     for (const segment of cell.segments) {
@@ -162,7 +165,7 @@ export function createDiffView(
     const target =
       direction > 0
         ? (changes.find((index) => index > current) ?? changes[0])
-        : (changes.findLast((index) => index < current) ?? changes[changes.length - 1]);
+        : (changes.findLast((index) => index < current) ?? changes.at(-1) ?? current);
     viewport.scrollTop = target * lineHeight;
     render();
   };
@@ -172,12 +175,13 @@ export function createDiffView(
     reveal(event.shiftKey ? -1 : 1);
   };
   const onClick = (event: MouseEvent): void => {
-    const button =
+    const found =
       event.target instanceof Element ? event.target.closest("button[data-expand]") : null;
-    const how = button?.getAttribute("data-expand");
+    const button = found instanceof HTMLElement ? found : null;
+    const how = button?.dataset.expand;
     if (how !== "above" && how !== "below" && how !== "all") return;
     container.focus({ preventScroll: true });
-    rows = expandCollapsed(rows, Number(button?.getAttribute("data-region")), how, expansionLayout);
+    rows = expandCollapsed(rows, Number(button?.dataset.region), how, expansionLayout);
     refresh();
   };
   const onHorizontal = horizontal.map((bar, side) => () => {
