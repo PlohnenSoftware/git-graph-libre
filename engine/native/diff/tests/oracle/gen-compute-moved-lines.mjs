@@ -109,9 +109,9 @@ function edit(line) {
 function moveBlock(lines, len) {
   const n = Math.min(len, lines.length);
   const from = rand(lines.length - n + 1);
-  const block = lines.splice(from, n);
+  const moved = lines.splice(from, n);
   const to = rand(lines.length + 1);
-  lines.splice(to, 0, ...block);
+  lines.splice(to, 0, ...moved);
 }
 
 function mutate(base, { moves, edits, indels }) {
