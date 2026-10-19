@@ -100,3 +100,11 @@ Suspend-script verification: Bash syntax and six deadline/state guard cases
 passed (valid alarm accepted; inactive, non-waking, missing, wrong-time and
 past alarms refused). Checks did not actually suspend or lock the machine;
 administrator authentication is still required when the user runs arm.sh.
+
+Bedtime follow-up: the user successfully armed the system wake timer, but
+the first suspend attempt stopped because this loginctl has no lock-user
+verb. Corrected arm.sh to resolve zam's Display session and use supported
+lock-session, refusing sleep if no desktop session exists. Confirmed the
+current display is active Wayland session 2 owned by zam, Bash syntax
+passes, and the system timer remains active with WakeSystem=yes for 07:00.
+The correction was checked without actually locking or suspending the PC.
