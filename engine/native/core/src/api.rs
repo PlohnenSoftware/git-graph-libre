@@ -230,11 +230,6 @@ impl Engine {
         crate::blob::commit_file(&self.repo, revision, path)
     }
 
-    /// The unified diff of one file in one commit, against its first parent.
-    pub fn file_diff(&self, hash: &str, path: &str) -> Result<String> {
-        crate::blob::commit_file_diff(&self.repo, hash, path)
-    }
-
     /* ---------- The working tree ---------- */
 
     /// The working tree's changes, staged and unstaged halves apart, conflicts flagged - what

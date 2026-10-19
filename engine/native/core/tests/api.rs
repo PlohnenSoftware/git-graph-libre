@@ -51,7 +51,6 @@ fn the_engine_facade_covers_the_host_workflow() {
     assert_eq!(files.len(), 1);
     assert_eq!(files[0].new_file_path, "a.txt");
     assert_eq!(files[0].kind, GitFileStatus::Modified);
-    assert!(engine.file_diff(&second, "a.txt").unwrap().contains("+two"));
 
     // A file at every kind of revision.
     assert_eq!(
