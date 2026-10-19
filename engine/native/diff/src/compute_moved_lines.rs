@@ -827,4 +827,98 @@ mod tests {
         );
         assert!(none.is_empty());
     }
+
+    /// `limit` successful `isValid` calls, then every call fails (-1: never).
+    struct CountingTimeout {
+        limit: i64,
+        calls: i64,
+    }
+    impl ITimeout for CountingTimeout {
+        fn is_valid(&mut self) -> bool {
+            let valid = self.limit < 0 || self.calls < self.limit;
+            self.calls += 1;
+            valid
+        }
+    }
+
+    fn parse_lines(field: &str) -> TextModel {
+        let lines = field.split('|').map(|line| {
+            let units: Vec<u16> = line
+                .split(',')
+                .filter(|u| !u.is_empty())
+                .map(|u| u16::from_str_radix(u, 16).unwrap())
+                .collect();
+            String::from_utf16(&units).unwrap()
+        });
+        TextModel::from_lines(lines.collect())
+    }
+
+    fn parse_numbers(field: &str) -> Vec<u32> {
+        field
+            .split(',')
+            .filter(|n| !n.is_empty())
+            .map(|n| n.parse().unwrap())
+            .collect()
+    }
+
+    /// `os,oe,ms,me` groups separated by spaces.
+    fn parse_mappings(field: &str) -> Vec<LineRangeMapping> {
+        field
+            .split(' ')
+            .filter(|g| !g.is_empty())
+            .map(|g| {
+                let n = parse_numbers(g);
+                lr(n[0], n[1], n[2], n[3])
+            })
+            .collect()
+    }
+
+    /// The expected values come from running VS Code's TypeScript: see
+    /// `tests/oracle/gen-compute-moved-lines.mjs`.
+    #[test]
+    fn matches_vscode_on_the_oracle_corpus() {
+        let (mut cases, mut with_moves, mut throws) = (0, 0, 0);
+        for line in include_str!("../tests/data/compute-moved-lines-oracle.txt").lines() {
+            if line.starts_with('#') {
+                continue;
+            }
+            let f: Vec<&str> = line.split(';').collect();
+            assert_eq!(f.len(), 7, "{line}");
+            let (original, modified) = (parse_lines(f[0]), parse_lines(f[1]));
+            let (h_original, h_modified) = (parse_numbers(f[2]), parse_numbers(f[3]));
+            let changes: Vec<DetailedLineRangeMapping> = parse_mappings(f[4])
+                .into_iter()
+                .map(|m| DetailedLineRangeMapping::new(m.original, m.modified, None))
+                .collect();
+            let limit: i64 = f[5].parse().unwrap();
+            let run = || {
+                let mut timeout = CountingTimeout { limit, calls: 0 };
+                compute_moved_lines(
+                    &changes,
+                    &original,
+                    &modified,
+                    &h_original,
+                    &h_modified,
+                    &mut timeout,
+                )
+            };
+            let ctx = format!("case {cases}: {line}");
+            if f[6] == "THROW" {
+                throws += 1;
+                assert!(
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(run)).is_err(),
+                    "{ctx}"
+                );
+            } else {
+                let moves = run();
+                with_moves += usize::from(!moves.is_empty());
+                assert_eq!(moves, parse_mappings(f[6]), "{ctx}");
+            }
+            cases += 1;
+        }
+        assert!(
+            cases > 600 && with_moves > 250 && throws > 0,
+            "{cases} {with_moves} {throws}"
+        );
+    }
 }
