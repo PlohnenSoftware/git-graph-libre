@@ -16,7 +16,7 @@
 // an `undefined` line) this panics.
 use std::collections::HashMap;
 
-use crate::arrays_find::{find_last_idx_monotonous, MonotonousArray};
+use crate::arrays_find::{find_last_idx_monotonous, find_last_monotonous, MonotonousArray};
 use crate::diff_algorithm::{IDiffAlgorithm, ITimeout, SequenceDiff};
 use crate::line_range::{LineRange, LineRangeSet};
 use crate::lines_slice_char_sequence::{is_js_whitespace, LinesSliceCharSequence};
@@ -185,6 +185,8 @@ pub fn compute_unchanged_moves(
     mut changes: Vec<&DetailedLineRangeMapping>,
     hashed_original_lines: &[u32],
     hashed_modified_lines: &[u32],
+    original_lines: &TextModel,
+    modified_lines: &TextModel,
     timeout: &mut dyn ITimeout,
 ) -> Vec<LineRangeMapping> {
     let mut moves = Vec::new();
@@ -277,7 +279,128 @@ pub fn compute_unchanged_moves(
     }
 
     moves.sort_by_key(|m| m.original.start_line_number);
+
+    const NO_CHANGE: &str = "a change touches every move (`!` in VS Code)";
+    let mut monotonous_changes = MonotonousArray::new(&changes);
+    for mv in &mut moves {
+        let (original, modified) = (mv.original, mv.modified);
+        let (o_start, o_end) = (
+            i64::from(original.start_line_number),
+            i64::from(original.end_line_number_exclusive),
+        );
+        let (m_start, m_end) = (
+            i64::from(modified.start_line_number),
+            i64::from(modified.end_line_number_exclusive),
+        );
+        let first_touching_change_orig = changes[monotonous_changes
+            .find_last_monotonous(|c| c.original.start_line_number <= original.start_line_number)
+            .expect(NO_CHANGE)];
+        let first_touching_change_mod = find_last_monotonous(&changes, |c| {
+            c.modified.start_line_number <= modified.start_line_number
+        })
+        .expect(NO_CHANGE);
+        let lines_above = (o_start
+            - i64::from(first_touching_change_orig.original.start_line_number))
+        .max(m_start - i64::from(first_touching_change_mod.modified.start_line_number));
+
+        let last_touching_change_orig = changes[monotonous_changes
+            .find_last_monotonous(|c| {
+                c.original.start_line_number < original.end_line_number_exclusive
+            })
+            .expect(NO_CHANGE)];
+        let last_touching_change_mod = find_last_monotonous(&changes, |c| {
+            c.modified.start_line_number < modified.end_line_number_exclusive
+        })
+        .expect(NO_CHANGE);
+        let lines_below = (i64::from(last_touching_change_orig.original.end_line_number_exclusive)
+            - o_end)
+            .max(i64::from(last_touching_change_mod.modified.end_line_number_exclusive) - m_end);
+
+        let extend_to_top = count_similar_lines(
+            lines_above,
+            |n| (o_start - n - 1, m_start - n - 1),
+            (original_lines, modified_lines),
+            (&original_set, &modified_set),
+            timeout,
+        );
+        if extend_to_top > 0 {
+            original_set.add_range(LineRange::new(
+                (o_start - extend_to_top) as u32,
+                original.start_line_number,
+            ));
+            modified_set.add_range(LineRange::new(
+                (m_start - extend_to_top) as u32,
+                modified.start_line_number,
+            ));
+        }
+        let extend_to_bottom = count_similar_lines(
+            lines_below,
+            |n| (o_end + n, m_end + n),
+            (original_lines, modified_lines),
+            (&original_set, &modified_set),
+            timeout,
+        );
+        if extend_to_bottom > 0 {
+            original_set.add_range(LineRange::new(
+                original.end_line_number_exclusive,
+                (o_end + extend_to_bottom) as u32,
+            ));
+            modified_set.add_range(LineRange::new(
+                modified.end_line_number_exclusive,
+                (m_end + extend_to_bottom) as u32,
+            ));
+        }
+        if extend_to_top > 0 || extend_to_bottom > 0 {
+            *mv = LineRangeMapping::new(
+                LineRange::new(
+                    (o_start - extend_to_top) as u32,
+                    (o_end + extend_to_bottom) as u32,
+                ),
+                LineRange::new(
+                    (m_start - extend_to_top) as u32,
+                    (m_end + extend_to_bottom) as u32,
+                ),
+            );
+        }
+    }
     moves
+}
+
+/// One of `computeUnchangedMoves`'s two extension loops: how many lines, up
+/// to `limit`, can join a move. `line_numbers_at(n)` gives the original and
+/// modified line (1-based) at step `n`.
+fn count_similar_lines(
+    limit: i64,
+    line_numbers_at: impl Fn(i64) -> (i64, i64),
+    (original_lines, modified_lines): (&TextModel, &TextModel),
+    (original_set, modified_set): (&LineRangeSet, &LineRangeSet),
+    timeout: &mut dyn ITimeout,
+) -> i64 {
+    let contains =
+        |set: &LineRangeSet, line: i64| u32::try_from(line).is_ok_and(|l| set.contains(l));
+    let mut extend = 0;
+    while extend < limit {
+        let (orig_line, mod_line) = line_numbers_at(extend);
+        if orig_line > i64::from(original_lines.line_count())
+            || mod_line > i64::from(modified_lines.line_count())
+        {
+            break;
+        }
+        if contains(modified_set, mod_line) || contains(original_set, orig_line) {
+            break;
+        }
+        // A line below 1 is `undefined` in VS Code, and `undefined.trim()` throws.
+        assert!(orig_line >= 1 && mod_line >= 1, "TypeError: undefined line");
+        if !are_lines_similar(
+            original_lines.utf16_line(orig_line as u32),
+            modified_lines.utf16_line(mod_line as u32),
+            timeout,
+        ) {
+            break;
+        }
+        extend += 1;
+    }
+    extend
 }
 
 #[cfg(test)]
@@ -407,6 +530,8 @@ mod tests {
             vec![&inserted, &deleted], // sorted by modified start inside
             &[1, 2, 3, 4, 5, 6, 7, 8],
             &[5, 6, 7, 8, 1, 2, 3, 4],
+            &model(&["a", "b", "c", "d", "e", "f", "g", "h"]),
+            &model(&["e", "f", "g", "h", "a", "b", "c", "d"]),
             &mut InfiniteTimeout,
         );
         assert_eq!(moves, vec![lr(1, 5, 5, 9)]);
