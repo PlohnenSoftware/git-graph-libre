@@ -7,7 +7,7 @@ summary: >-
 
 # D22 — Phase 17 port sub-slices
 
-Status: in progress — 22a integrated 425fb63, 22b integrated 75b6a30; 22c and 22d ready
+Status: in progress — 22a integrated 425fb63, 22b integrated 153c10d; 22c and 22d claimed
 Needs: D21
 Decisions: X5 = (b); Phase 17 D1, D2 and D5
 Kind: Rust, the Rust arm applies · Size budget: per sub-slice, as listed
