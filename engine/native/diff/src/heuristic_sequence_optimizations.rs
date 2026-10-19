@@ -234,3 +234,28 @@ fn shift_diff_to_better_position(
     }
     diff.delta(best_delta)
 }
+
+pub fn remove_short_matches(
+    _sequence1: &dyn ISequence,
+    _sequence2: &dyn ISequence,
+    sequence_diffs: &[SequenceDiff],
+) -> Vec<SequenceDiff> {
+    let mut result: Vec<SequenceDiff> = Vec::new();
+    for &s in sequence_diffs {
+        let Some(last) = result.last_mut() else {
+            result.push(s);
+            continue;
+        };
+        let gap1 = i64::from(s.seq1_range.start) - i64::from(last.seq1_range.end_exclusive);
+        let gap2 = i64::from(s.seq2_range.start) - i64::from(last.seq2_range.end_exclusive);
+        if gap1 <= 2 || gap2 <= 2 {
+            *last = SequenceDiff::new(
+                last.seq1_range.join(s.seq1_range),
+                last.seq2_range.join(s.seq2_range),
+            );
+        } else {
+            result.push(s);
+        }
+    }
+    result
+}
