@@ -10,7 +10,10 @@
 // `String.prototype.trim` and the regular expression `\s` share one character
 // set (`is_js_whitespace`), and lengths count UTF-16 code units. The word
 // `findParent` callbacks take an `i64`, like `findWordContaining`.
-use crate::diff_algorithm::{ISequence, SequenceDiff};
+use std::collections::VecDeque;
+
+use crate::diff_algorithm::{ISequence, OffsetPair, SequenceDiff};
+use crate::lines_slice_char_sequence::LinesSliceCharSequence;
 use crate::offset_range::OffsetRange;
 
 pub fn optimize_sequence_diffs(
@@ -255,6 +258,131 @@ pub fn remove_short_matches(
             );
         } else {
             result.push(s);
+        }
+    }
+    result
+}
+
+/// The state `scanWord` closes over in the TypeScript.
+struct WordScan<'a, F> {
+    sequence1: &'a LinesSliceCharSequence,
+    sequence2: &'a LinesSliceCharSequence,
+    find_parent: F,
+    force: bool,
+    equal_mappings: VecDeque<SequenceDiff>,
+    additional: Vec<SequenceDiff>,
+    last_point: OffsetPair,
+}
+
+impl<F: Fn(&LinesSliceCharSequence, i64) -> Option<OffsetRange>> WordScan<'_, F> {
+    fn scan_word(&mut self, pair: OffsetPair, equal_mapping: SequenceDiff) {
+        if pair.offset1 < self.last_point.offset1 || pair.offset2 < self.last_point.offset2 {
+            return;
+        }
+        let w1 = (self.find_parent)(self.sequence1, i64::from(pair.offset1));
+        let w2 = (self.find_parent)(self.sequence2, i64::from(pair.offset2));
+        let (Some(w1), Some(w2)) = (w1, w2) else {
+            return;
+        };
+        let mut w = SequenceDiff::new(w1, w2);
+        let equal_part = w
+            .intersect(equal_mapping)
+            .expect("the word meets its match");
+
+        let mut equal_chars1 = equal_part.seq1_range.length();
+        let mut equal_chars2 = equal_part.seq2_range.length();
+
+        // The words do not touch previous equals mappings, as we would have
+        // processed them already. But they might touch the next ones.
+        while let Some(&next) = self.equal_mappings.front() {
+            let intersects = next.seq1_range.intersects(w.seq1_range)
+                || next.seq2_range.intersects(w.seq2_range);
+            if !intersects {
+                break;
+            }
+
+            let v1 = (self.find_parent)(self.sequence1, i64::from(next.seq1_range.start));
+            let v2 = (self.find_parent)(self.sequence2, i64::from(next.seq2_range.start));
+            // Because there is an intersection, we know that the words are not empty.
+            let v = SequenceDiff::new(v1.expect("a word"), v2.expect("a word"));
+            let equal_part = v.intersect(next).expect("the word meets its match");
+
+            equal_chars1 += equal_part.seq1_range.length();
+            equal_chars2 += equal_part.seq2_range.length();
+
+            w = w.join(v);
+
+            if w.seq1_range.end_exclusive >= next.seq1_range.end_exclusive {
+                // The word extends beyond the next equal mapping.
+                self.equal_mappings.pop_front();
+            } else {
+                break;
+            }
+        }
+
+        // `(a + b) * 2 / 3` in the TypeScript, a float; for these integers
+        // `x < s * 2 / 3` and `x * 3 < s * 2` agree.
+        let equal_chars = equal_chars1 + equal_chars2;
+        let word_chars = w.seq1_range.length() + w.seq2_range.length();
+        if (self.force && equal_chars < word_chars) || equal_chars * 3 < word_chars * 2 {
+            self.additional.push(w);
+        }
+        self.last_point = w.get_end_exclusives();
+    }
+}
+
+/// `findParent` is `findWordContaining` or `findSubWordContaining`.
+pub fn extend_diffs_to_entire_word_if_appropriate(
+    sequence1: &LinesSliceCharSequence,
+    sequence2: &LinesSliceCharSequence,
+    sequence_diffs: &[SequenceDiff],
+    find_parent: impl Fn(&LinesSliceCharSequence, i64) -> Option<OffsetRange>,
+    force: bool,
+) -> Vec<SequenceDiff> {
+    let mut scan = WordScan {
+        sequence1,
+        sequence2,
+        find_parent,
+        force,
+        equal_mappings: SequenceDiff::invert(sequence_diffs, sequence1.length()).into(),
+        additional: Vec::new(),
+        last_point: OffsetPair::ZERO,
+    };
+    while let Some(next) = scan.equal_mappings.pop_front() {
+        if next.seq1_range.is_empty() {
+            continue;
+        }
+        scan.scan_word(next.get_starts(), next);
+        // The equal parts are not empty, so -1 gives us a character that is equal in both parts.
+        scan.scan_word(next.get_end_exclusives().delta(-1), next);
+    }
+    merge_sequence_diffs(sequence_diffs, &scan.additional)
+}
+
+fn merge_sequence_diffs(
+    sequence_diffs1: &[SequenceDiff],
+    sequence_diffs2: &[SequenceDiff],
+) -> Vec<SequenceDiff> {
+    let mut result: Vec<SequenceDiff> = Vec::new();
+    let (mut i, mut j) = (0, 0);
+    while i < sequence_diffs1.len() || j < sequence_diffs2.len() {
+        let next = match (sequence_diffs1.get(i), sequence_diffs2.get(j)) {
+            (Some(&sd1), sd2)
+                if sd2.is_none_or(|sd2| sd1.seq1_range.start < sd2.seq1_range.start) =>
+            {
+                i += 1;
+                sd1
+            }
+            _ => {
+                j += 1;
+                sequence_diffs2[j - 1]
+            }
+        };
+        match result.last_mut() {
+            Some(last) if last.seq1_range.end_exclusive >= next.seq1_range.start => {
+                *last = last.join(next);
+            }
+            _ => result.push(next),
         }
     }
     result
