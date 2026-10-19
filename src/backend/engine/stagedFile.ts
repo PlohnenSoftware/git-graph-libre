@@ -120,7 +120,7 @@ function showIndexFile(gitPath: string, repo: string, object: string): Promise<B
       ["show", object],
       { cwd: repo, encoding: "buffer", maxBuffer: 1024 * 1024 * 64 },
       (error, stdout) => {
-        if (error !== null) reject(error);
+        if (error instanceof Error) reject(error);
         else resolve(stdout);
       }
     );
