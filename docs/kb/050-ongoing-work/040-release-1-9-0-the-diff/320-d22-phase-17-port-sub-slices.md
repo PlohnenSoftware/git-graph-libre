@@ -20,18 +20,28 @@ Each sub-slice is claimed and reported like a slice, by appending a
 `### 22x Report` heading to this file, and uses its own branch
 `diff-1.9.0/d22<x>`.
 
+**Budgets (decision X9, `2026-10-19`).** For the Rust sub-slices (22a–22g),
+a budget counts **production lines**: non-blank lines that aren't comments,
+outside `#[cfg(test)]` modules and test files. License headers, doc
+comments and unit tests are left out, because the legal plan and the
+acceptance require them. Each budget is about 1.5× the code lines of the
+VS Code source it translates (measured at `28a5623`, blanks and comments
+left out; 22a came out at 1.7×). 22h–22j are TypeScript, build and seam
+work, counted as the protocol counts any slice. A sub-slice over its budget
+is reported and held for the maintainer, as before.
+
 | Sub | Content | Acceptance |
 | --- | --- | --- |
-| 22a | crate skeleton: core types, the UTF-16 text model, line splitting, the clock trait, the fixture-format printer (≤300 lines) | unit tests |
-| 22b | `diffAlgorithm` and `myersDiffAlgorithm` (≤250) | ported unit tests |
-| 22c | `dynamicProgrammingDiffing` and `lineSequence` (≤200) | ported unit tests |
-| 22d | `linesSliceCharSequence` (≤300) | unit tests, including UTF-16 and emoji |
-| 22e | `heuristicSequenceOptimizations` (≤350) | unit tests |
-| 22f | the `defaultLinesDiffComputer` flow, without moves (≤250) | all 58 fixtures match without moves, in `cargo test` |
-| 22g | `computeMovedLines` (≤300) | all fixtures match exactly, moves included |
+| 22a | crate skeleton: core types, the UTF-16 text model, line splitting, the clock trait, the fixture-format printer (accepted at 499, X9) | unit tests |
+| 22b | `diffAlgorithm` and `myersDiffAlgorithm` (≤450; source 284) | ported unit tests |
+| 22c | `dynamicProgrammingDiffing` and `lineSequence` (≤200; source 113) | ported unit tests |
+| 22d | `linesSliceCharSequence`, with the helpers it needs from `utils` (≤350; source 190 + 59) | unit tests, including UTF-16 and emoji |
+| 22e | `heuristicSequenceOptimizations` (≤520; source 341) | unit tests |
+| 22f | the `defaultLinesDiffComputer` flow, without moves (≤350; source 222) | all 58 fixtures match without moves, in `cargo test` |
+| 22g | `computeMovedLines` (≤420; source 270) | all fixtures match exactly, moves included |
 | 22h | the `wasm` feature build and the five-way Vitest comparison (≤200) | zero mismatches beyond the documented moves |
 | 22i | `pnpm run diff:parity` over real history (≤200) | results recorded in Phase 17 |
-| 22j | the `diff_texts` and `diff_file_at_revisions` napi exports, the TS seam, and removal of `load_commit_file_diff` (≤250) | seam parity test |
+| 22j | the `diff_texts` and `diff_file_at_revisions` napi exports, the TS seam, and removal of `load_commit_file_diff` (≤300) | seam parity test |
 
 The UI surface (Phase 17's slice 17.8) is planned: D4 is answered (G4,
 option (c), `2026-10-19`), and the GGL Diff tab is wave D, slices

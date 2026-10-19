@@ -82,12 +82,14 @@ wait for them.
 | D11 | [Resolve a ref for comparison](040-release-1-9-0-the-diff/210-d11-resolve-a-ref-for-comparison.md) | TS | — | F | integrated 70db6f9 |
 | D12 | ["Compare with…" dialog](040-release-1-9-0-the-diff/220-d12-compare-with-dialog.md) | webview | D10, D11 | E | integrated de81fc8 |
 | D13 | [Comparison header and swap](040-release-1-9-0-the-diff/230-d13-comparison-header-and-swap.md) | webview | D10 | E | integrated 3df8541 |
+| D13G | [Swap icon](040-release-1-9-0-the-diff/236-d13g-swap-icon.md) | webview | D13, D04b | E | ready (X11) |
 | D14 | [Compare with the working tree](040-release-1-9-0-the-diff/240-d14-compare-with-the-working-tree.md) | TS + webview | D13 | E | integrated db87dd6 |
 | D14F | [Working-tree comparison Sonar follow-up](040-release-1-9-0-the-diff/245-d14f-working-tree-sonar-follow-up.md) | TS | D14, D15 | E | integrated f5e6e79 |
 | D15 | [Open a comparison in the external diff tool](040-release-1-9-0-the-diff/250-d15-open-a-comparison-in-the-external-diff-tool.md) | TS + webview | X4, D13 | G | integrated fa957d6 |
 | D20 | [Phase 17 legal groundwork](040-release-1-9-0-the-diff/300-d20-phase-17-legal-groundwork.md) | docs | X5, P17-D1, P17-D3 | H | integrated 55eb184 |
 | D21 | [Phase 17 oracle suite](040-release-1-9-0-the-diff/310-d21-phase-17-oracle-suite.md) | TS tests | D20 | H | integrated f0a5458 |
 | D22 | [Phase 17 port sub-slices](040-release-1-9-0-the-diff/320-d22-phase-17-port-sub-slices.md) | Rust | D21, X5 | H | 22a done, held on budget (maintainer decision) |
+| D22L | [Engine workspace license field](040-release-1-9-0-the-diff/325-d22l-engine-workspace-license-field.md) | engine metadata | — | H | ready (X10) |
 | D30 | [Upstream gix contributions for Git compatibility](040-release-1-9-0-the-diff/400-d30-upstream-gix-git-compatibility.md) | gix fork | — | U | preparation integrated cb5fe70 (posting: maintainer) |
 | D40 | [Vendor the diff editor's stylesheet](040-release-1-9-0-the-diff/500-d40-vendor-the-diff-editor-stylesheet.md) | CSS, notices | — | I | integrated bfa769e |
 | D41 | [The diff row model](040-release-1-9-0-the-diff/510-d41-the-diff-row-model.md) | TS | — | I | integrated 01deb86 |
