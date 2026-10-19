@@ -33,6 +33,8 @@ decision is not ready.
 | X15 | Who decides a port sub-slice's budget overrun | (a) the integrator may accept up to 1.5× the budget when the report shows X12 splits or required dependencies caused it, and records it; (b) the maintainer, every time; (c) no budgets for the port | (a) | 22f–22j | **(a), `2026-10-19`**; superseded the same day: every line budget is now a guide (~N), never pass/fail (agent protocol, Size) |
 | X16 | 22e's oracle corpus is 1.2 MB | (a) keep; (b) trim | (a) | 22e | **(a), `2026-10-19`** |
 | X17 | Sonar counts the oracle generator scripts as uncovered source (new coverage 78.2% against 85%) | (a) exclude them from coverage like `scripts/**`; (b) classify them as test code; (c) keep counting them | (a) | the wave gate | **(a), `2026-10-19`**: `engine/native/**/tests/oracle/**` added to `sonar.coverage.exclusions`; Sonar still checks them for issues |
+| X18 | 22f: neither Rust's `ln` nor the `libm` crate matches V8's `Math.log`; a transcription of fdlibm's `e_log.c` (V8's `ieee754::log`) matches all 1,000,001 inputs tested | (a) keep the fdlibm port and add Sun's notice and V8's BSD-3-Clause, the engine license becoming `AGPL-3.0-or-later AND MIT AND BSD-3-Clause`; (b) the same, also naming `SunPro`; (c) the `libm` crate, accepting 727 mismatches | (a) | 22f | **(a), `2026-10-19`**: notices in `NOTICE.md` and `engine/NOTICE.md`; `engine/Cargo.toml` and `engine/package.json` updated |
+| X19 | 22f's whole-flow oracle corpus is 1.7 MB | (a) keep; (b) trim | (a) | 22f | **(a), `2026-10-19`** |
 
 **How to answer:** replace *open* with the choice, the date and any
 condition, for example `(a), 2026-10-20`. Then flip the gated slices to
