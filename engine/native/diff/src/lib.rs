@@ -8,6 +8,7 @@
 
 pub mod clock;
 pub mod diff_algorithm;
+pub mod dynamic_programming_diffing;
 pub mod fixture;
 pub mod line_range;
 pub mod line_sequence;
@@ -24,6 +25,7 @@ pub use diff_algorithm::{
     DiffAlgorithmResult, IDiffAlgorithm, ISequence, ITimeout, InfiniteTimeout, OffsetPair,
     SequenceDiff,
 };
+pub use dynamic_programming_diffing::{DynamicProgrammingDiffing, EqualityScore};
 pub use line_range::LineRange;
 pub use line_sequence::LineSequence;
 pub use lines_diff::{LinesDiff, LinesDiffOptions, MovedText};
