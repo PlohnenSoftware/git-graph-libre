@@ -6,7 +6,7 @@ members = ["native/core", "native/node", "native/diff"]
 version = "1.0.26"
 edition = "2021"
 rust-version = "1.82"
-license = "MIT"
+license = "AGPL-3.0-or-later AND MIT"
 
 [workspace.dependencies]
 gix = { version = "0.89", default-features = false }
