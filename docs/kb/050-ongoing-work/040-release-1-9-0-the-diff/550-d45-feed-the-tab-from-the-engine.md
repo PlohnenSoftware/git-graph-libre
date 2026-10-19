@@ -10,7 +10,7 @@ summary: >-
 
 # D45 — Feed the tab from the engine
 
-Status: done — awaiting integration
+Status: integrated 7808816
 Needs: D43, D44, D22 sub-slice 22j
 Decisions: X5 = (b), because 22j is part of the stretch
 Kind: TypeScript · Size budget: ≤ 220 changed lines outside tests
