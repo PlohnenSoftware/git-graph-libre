@@ -9,12 +9,12 @@ always_read: true
 
 # Graphify Map
 
-Regenerated on `2026-10-18` with `pnpm run kb:graph` from the working tree on
-top of `af5f841` (`built_at_commit`), with the knowledge base already split
-into `docs/kb/`: 3,915 nodes, 9,918 edges, and about 185 communities (the
-clustering moves by a few between runs). Of those, 267 nodes are the knowledge
-base's files and headings, and 892 edges are its own (`_origin: "kb"`, below):
-117 `contains` and 775 `mentions`. Refresh after code or knowledge-base changes with
+Regenerated on `2026-10-19` with `pnpm run kb:graph` on top of `d2cf268`
+(release 1.9.0 in progress, the Phase 17 port's 22a–22e and 22g in): 5,253
+nodes, 13,035 edges, and about 267 communities (the clustering moves by a few
+between runs). Of those, 670 nodes are the knowledge base's files and
+headings, and 1,448 edges are its own (`_origin: "kb"`, below): 124
+`contains` and 1,324 `mentions`. Refresh after code or knowledge-base changes with
 `pnpm run kb:graph`; if a query looks stale, compare `built_at_commit` against
 `git rev-parse HEAD` and inspect the working tree.
 
