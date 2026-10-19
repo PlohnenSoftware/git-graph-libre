@@ -9,7 +9,7 @@ summary: >-
 
 # D22F3 — Final Sonar follow-up
 
-Status: ready
+Status: claimed by Muse Code (general-purpose) sub-agent D22F3 on 2026-10-19 18:12
 Needs: 22f, 22j (integrated)
 Decisions: X13 (fix the generators' valid findings)
 Kind: TypeScript + scripts · Size guide: ~80 changed lines outside tests
