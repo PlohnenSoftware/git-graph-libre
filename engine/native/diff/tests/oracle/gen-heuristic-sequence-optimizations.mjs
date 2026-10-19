@@ -379,12 +379,12 @@ for (let n = 0; n < 60; n++) {
   const b = [unit.repeat(1 + rand(6)) + 'tail'];
   charScenario(a, fullRange(a), b, fullRange(b), true);
   const l = pick(['{', '', '  }', 'a']);
-  lineScenario([l, 'x', ...Array(rand(5)).fill(l), 'y'], [l, 'x', ...Array(rand(5)).fill(l), 'z', ...Array(rand(3)).fill(l), 'y']);
+  lineScenario([l, 'x', ...new Array(rand(5)).fill(l), 'y'], [l, 'x', ...new Array(rand(5)).fill(l), 'z', ...new Array(rand(3)).fill(l), 'y']);
 }
 // Runs longer than the shift limit of 100.
 for (let n = 0; n < 6; n++) {
   const l = pick(['{', 'a', '  }']);
-  const run = (k) => Array(k).fill(l);
+  const run = (k) => new Array(k).fill(l);
   lineScenario([...run(130 + rand(40)), 'x', 'y'], [...run(100 + rand(40)), 'x', 'y']);
   lineScenario(['x', ...run(120 + rand(40)), 'y'], ['x', ...run(105 + rand(70)), 'y']);
   const unit = pick(['ab', 'a ', 'xyz ']);
