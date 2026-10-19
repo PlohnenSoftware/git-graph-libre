@@ -9,7 +9,7 @@ summary: >-
 
 # D48 — Measure the tab against the diff editor
 
-Status: ready (display half: maintainer)
+Status: claimed by Muse Code (agent half only; display half: maintainer) on 2026-10-19 16:51
 Needs: D46, D47
 Decisions: —
 Kind: measurement and docs · Size budget: ≤ 120 changed lines
