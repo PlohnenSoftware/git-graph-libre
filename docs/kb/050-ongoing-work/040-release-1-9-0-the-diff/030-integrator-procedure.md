@@ -14,6 +14,14 @@ the only role that edits the release overview, merges slice branches, or
 runs SonarQube. The agent protocol's hard rules still apply, except that the
 integrator works on the integration branch from decision X6.
 
+**Choosing who works a slice (maintainer, `2026-10-19`).** When the
+integrator dispatches slices to sub-agents and more than one agent type or
+model is available (for example Opus, Sonnet or Haiku, or several agent
+definitions), it asks the maintainer which to use before dispatching. It
+never picks silently, and a choice once given covers only the dispatches
+the maintainer said it covers. Record the choice in the slice's report
+("Agent / date") and in the integration log.
+
 **For each slice marked `done — awaiting integration`, in dependency
 order:**
 
