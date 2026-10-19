@@ -19,6 +19,7 @@ pub mod position;
 pub mod range;
 pub mod range_mapping;
 pub mod text;
+pub mod utils;
 
 pub use clock::{Clock, SystemClock, Timeout};
 pub use diff_algorithm::{
