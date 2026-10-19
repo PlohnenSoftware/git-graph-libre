@@ -6,6 +6,7 @@
 // Changes (the Rust translation) are part of Git Graph Libre, AGPL-3.0-or-later.
 #![forbid(unsafe_code)]
 
+pub mod arrays_find;
 pub mod clock;
 pub mod diff_algorithm;
 pub mod dynamic_programming_diffing;
