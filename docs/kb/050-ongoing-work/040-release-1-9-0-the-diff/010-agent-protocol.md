@@ -32,16 +32,21 @@ the conflict.
 
 ## 2. Workspace
 
-- One git worktree and one branch per slice, created from the integration
-  branch the maintainer named in the decisions file (X6):
+- **The orchestrator prepares your workspace (maintainer, `2026-10-19`).**
+  Before dispatching you, it creates your branch `diff-1.9.0/<slice-id>`
+  from the newest local integration branch (`the-diff`, decision X6) and
+  checks it out in a worktree. The dispatch names that worktree. Don't
+  create a worktree or branch of your own, and don't rebase it.
+- First thing in the session, confirm the starting point:
 
   ```bash
-  git fetch origin
-  git worktree add ../ggl-<slice-id> -b diff-1.9.0/<slice-id> origin/<integration-branch>
-  cd ../ggl-<slice-id>
+  cd <the worktree the dispatch names>
+  git status --short                 # must be empty
+  git log -1 --format='%h %s'        # must equal the dispatch's base commit
   pnpm install --frozen-lockfile
   ```
 
+  If the worktree is dirty or on another base, stop and report.
 - Work only inside that worktree. Never edit the maintainer's main checkout.
 - Slices marked Rust also need `pnpm run engine:build` before TypeScript
   tests can load the engine.

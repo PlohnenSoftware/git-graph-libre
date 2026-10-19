@@ -35,6 +35,31 @@ The maintainer's choice for the rest of release 1.9.0 (`2026-10-19`):
 The five slices dispatched before this rule (D41F, D04a, D13, D21, D44)
 run on Opus, the inherited default.
 
+**Preparing a slice before dispatch (orchestrator's job, maintainer,
+`2026-10-19`).** Agents used to branch on their own, often from an
+integration branch that had moved on by the time they finished, which made
+every rebase harder. So the orchestrator prepares each starting point
+immediately before dispatching:
+
+1. In the main checkout, on `the-diff`: make sure it is clean and has
+   everything integrated so far. That is the newest base.
+2. Create the branch there: `git branch diff-1.9.0/<id> the-diff`.
+3. Check it out in a worktree, **recycling a finished one** when it is
+   free: its branch must be fully integrated
+   (`git merge-base --is-ancestor <old branch> the-diff`) and its
+   `git status` empty. Then
+   `git worktree move ../ggl-<old> ../ggl-<id>` and
+   `git -C ../ggl-<id> switch diff-1.9.0/<id>`. A recycled worktree keeps
+   its `node_modules` and the engine's `target/`, so setup and Rust
+   builds are faster. Otherwise:
+   `git worktree add ../ggl-<id> diff-1.9.0/<id>`.
+4. Dispatch with the worktree path and the base commit
+   (`git rev-parse --short the-diff`), so the agent can confirm it.
+
+Slices dispatched in parallel all start from the same base. Integrate
+them in dependency order; whichever comes second is rebased onto the
+first, as before.
+
 **For each slice marked `done — awaiting integration`, in dependency
 order:**
 
