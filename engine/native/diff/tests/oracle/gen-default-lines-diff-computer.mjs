@@ -214,8 +214,10 @@ for (let run = 96; run <= 108; run++) {
 // the change spans more than 100 elements (`removeVeryShortMatchingTextBetweenLongDiffs`).
 for (let total = 96; total <= 104; total++) {
   const [k1, k2] = [Math.floor(total / 2), Math.ceil(total / 2)];
-  out.push(oneCase(['top', `ab${'x'.repeat(k1)}`, 'end'], ['top', `ab${'y'.repeat(k2)}`, 'end'], { moves: false }));
-  out.push(oneCase(['top', `${'x'.repeat(k1)}ab `, 'end'], ['top', `${'y'.repeat(k2)}ab `, 'end'], { moves: false }));
+  out.push(
+    oneCase(['top', `ab${'x'.repeat(k1)}`, 'end'], ['top', `ab${'y'.repeat(k2)}`, 'end'], { moves: false }),
+    oneCase(['top', `${'x'.repeat(k1)}ab `, 'end'], ['top', `${'y'.repeat(k2)}ab `, 'end'], { moves: false }),
+  );
 }
 
 // Code-like text with moves, edits and insertions or deletions.
