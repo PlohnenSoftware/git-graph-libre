@@ -13,6 +13,7 @@
 use crate::diff_algorithm::ISequence;
 use crate::range::Range;
 use crate::text::TextModel;
+use crate::utils::is_space;
 
 /// The characters of a range of lines as one sequence, with `\n` between lines.
 pub struct LinesSliceCharSequence {
@@ -85,6 +86,80 @@ impl LinesSliceCharSequence {
     }
 }
 
+const CHAR_A: u32 = 97;
+const CHAR_Z: u32 = 122;
+const CHAR_UPPER_A: u32 = 65;
+const CHAR_UPPER_Z: u32 = 90;
+const CHAR_0: u32 = 48;
+const CHAR_9: u32 = 57;
+
+/// `CharBoundaryCategory`; the discriminants are never compared, only matched.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CharBoundaryCategory {
+    WordLower,
+    WordUpper,
+    WordNumber,
+    End,
+    Other,
+    Separator,
+    Space,
+    LineBreakCr,
+    LineBreakLf,
+}
+
+impl CharBoundaryCategory {
+    fn boundary_score(self) -> f64 {
+        match self {
+            Self::WordLower | Self::WordUpper | Self::WordNumber => 0.0,
+            Self::End | Self::LineBreakCr | Self::LineBreakLf => 10.0,
+            Self::Other => 2.0,
+            Self::Separator => 30.0,
+            Self::Space => 3.0,
+        }
+    }
+
+    /// `getCategory`; `None` is the TypeScript's `-1`, the end of the sequence.
+    fn of(char_code: Option<u32>) -> Self {
+        let Some(code) = char_code else {
+            return Self::End;
+        };
+        match code {
+            10 => Self::LineBreakLf,
+            13 => Self::LineBreakCr,
+            _ if is_space(code) => Self::Space,
+            CHAR_A..=CHAR_Z => Self::WordLower,
+            CHAR_UPPER_A..=CHAR_UPPER_Z => Self::WordUpper,
+            CHAR_0..=CHAR_9 => Self::WordNumber,
+            44 | 59 => Self::Separator, // ',' and ';'
+            _ => Self::Other,
+        }
+    }
+}
+
+impl LinesSliceCharSequence {
+    /// `getBoundaryScore`: how good a place `length` is to split the sequence.
+    pub fn boundary_score(&self, length: u32) -> f64 {
+        let at = |i: usize| self.elements.get(i).map(|&u| u32::from(u));
+        let prev = CharBoundaryCategory::of(length.checked_sub(1).and_then(|i| at(i as usize)));
+        let next = CharBoundaryCategory::of(at(length as usize));
+
+        if prev == CharBoundaryCategory::LineBreakCr && next == CharBoundaryCategory::LineBreakLf {
+            return 0.0; // don't break between \r and \n
+        }
+        if prev == CharBoundaryCategory::LineBreakLf {
+            return 150.0; // prefer the linebreak before the change
+        }
+        let mut score = 0.0;
+        if prev != next {
+            score += 10.0;
+            if prev == CharBoundaryCategory::WordLower && next == CharBoundaryCategory::WordUpper {
+                score += 1.0;
+            }
+        }
+        score + prev.boundary_score() + next.boundary_score()
+    }
+}
+
 impl ISequence for LinesSliceCharSequence {
     fn get_element(&self, offset: u32) -> u32 {
         u32::from(self.elements[offset as usize])
@@ -96,6 +171,10 @@ impl ISequence for LinesSliceCharSequence {
 
     /// `elements[offset1] === elements[offset2]`; two offsets past the end are
     /// both `undefined` and so equal, as in the TypeScript.
+    fn get_boundary_score(&self, length: u32) -> Option<f64> {
+        Some(self.boundary_score(length))
+    }
+
     fn is_strongly_equal(&self, offset1: u32, offset2: u32) -> bool {
         self.elements.get(offset1 as usize) == self.elements.get(offset2 as usize)
     }
@@ -143,5 +222,22 @@ mod tests {
         );
         assert_eq!(elements(&s), [120]);
         assert!(!is_js_whitespace(0x85) && !is_js_whitespace(0x200B));
+    }
+
+    fn scores(s: &LinesSliceCharSequence) -> Vec<f64> {
+        (0..=s.length()).map(|i| s.boundary_score(i)).collect()
+    }
+
+    #[test]
+    fn boundary_scores() {
+        let s = seq(&["ab,Cd", "x"], Range::new(1, 1, 2, 2), true);
+        // Elements: a b , C d \n x (the end counts as a category).
+        assert_eq!(scores(&s), [20.0, 0.0, 40.0, 40.0, 10.0, 20.0, 150.0, 20.0]);
+        assert_eq!(s.get_boundary_score(2), Some(40.0));
+        let s = seq(&["aB"], Range::new(1, 1, 1, 3), true);
+        assert_eq!(scores(&s), [20.0, 11.0, 20.0]);
+        // Never between a carriage return and the line feed that follows it.
+        let s = seq(&["a\r", "b"], Range::new(1, 1, 2, 2), true);
+        assert_eq!(scores(&s), [20.0, 20.0, 0.0, 150.0, 20.0]);
     }
 }
