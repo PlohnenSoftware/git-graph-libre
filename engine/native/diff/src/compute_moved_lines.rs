@@ -28,7 +28,7 @@ use crate::utils::{is_space, LineRangeFragment};
 
 /// `String.prototype.trim` on UTF-16 units (VS Code calls it at
 /// `computeMovedLines.ts` L36, L258; not a function of its own there).
-fn trim(line: &[u16]) -> &[u16] {
+pub(crate) fn trim(line: &[u16]) -> &[u16] {
     let start = line
         .iter()
         .position(|&u| !is_js_whitespace(u))
