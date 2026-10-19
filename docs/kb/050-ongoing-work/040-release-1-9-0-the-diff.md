@@ -12,10 +12,14 @@ summary: >-
 
 # Release 1.9.0 — "The Diff"
 
-**Status: in progress `2026-10-19` on local `the-diff`; no pushing. Nine
-slices are integrated. D10, D20 and D42 are in progress in isolated
-worktrees. D04 was re-scoped with maintainer approval, and the full Phase 17
-port is committed release scope under X5.**
+**Status: in progress `2026-10-19` on local `the-diff`; no pushing.
+Integrated and Sonar-clean (`OK`, wave gate 3): waves A–D except D44, the
+whole comparison wave D10–D15 with its follow-ups, D20/D21, and D30's
+preparation. Held for maintainer decisions: D44 (308 changed lines against
+its ≤300 budget after an honest simplification pass) and 22a (499 production
+lines against ≤300), which pauses the 22b–22j port chain and D45–D48 behind
+it. D07 still waits on a gix release. D90, D30's posting and D48's display
+half are the maintainer's.**
 
 Everything about diffs that is open, in one release: what users asked for,
 what the roadmap left behind, and what the `2026-10-18` diff audit found
@@ -92,7 +96,7 @@ wait for them.
 | D42 | [The diff view](040-release-1-9-0-the-diff/520-d42-the-diff-view.md) | webview | D40, D41 | J | integrated 1593f4e |
 | D43 | [Engine export for the staged copy of a file](040-release-1-9-0-the-diff/530-d43-engine-export-for-the-staged-copy-of-a-file.md) | Rust + TS | — | I | integrated 14ac021 |
 | D43F | [Staged-file Error follow-up](040-release-1-9-0-the-diff/535-d43f-staged-file-error-follow-up.md) | TS | D43 | I | integrated 7d07111 |
-| D44 | [The GGL Diff tab](040-release-1-9-0-the-diff/540-d44-the-ggl-diff-tab.md) | TS + webview | D42 | J | ready |
+| D44 | [The GGL Diff tab](040-release-1-9-0-the-diff/540-d44-the-ggl-diff-tab.md) | TS + webview | D42 | J | done 940d88b, held on budget (308/300, maintainer decision) |
 | D45 | [Feed the tab from the engine](040-release-1-9-0-the-diff/550-d45-feed-the-tab-from-the-engine.md) | TS | D43, D44, 22j | J | waiting on D43, D44, 22j |
 | D46 | [Open the tab from Source Control](040-release-1-9-0-the-diff/560-d46-open-the-tab-from-source-control.md) | manifest + TS | D45 | K | waiting on D45 |
 | D47 | [Open the tab from commit details](040-release-1-9-0-the-diff/570-d47-open-the-tab-from-commit-details.md) | webview + TS | D45 | L | waiting on D45 |
@@ -169,3 +173,5 @@ commit, the gate results with numbers, and the Sonar task id.
 - `2026-10-19` — D14F integrated (`f5e6e79`, fast-forward; commits `ac21845`, `5dec1aa`, `f5e6e79`, all `G`; 135 changed lines outside tests against the 150 budget, no test changed).
 - `2026-10-19` — **Wave gate 3** (D15, D14F; HEAD `f5e6e79`): strict Biome clean, `pnpm run package` OK, `l10n:check` 100%, fresh `pnpm run test:coverage` 1647/1647 tests in 144 files at 93.29% lines (8028/8605), `kb:check` green. SonarQube task `f4808462-1988-4a35-8371-29ab238a4d85`, analysis `557944f9-74c4-4a9b-8003-c980923e7897`: gate **OK** on all seven reported conditions — new coverage 93.9%, duplication 0.0%, 0 new violations, 0 high issues, 0 new hotspots. Wave gate 2's six findings are closed; the integration branch is Sonar-clean again.
 - `2026-10-19` — D30 preparation integrated (`cb5fe70`, rebased, then fast-forward; the agent's idle session was cancelled by the integrator only after its deliverable was fully committed and all three worktrees stood clean for ~50 minutes — nothing was lost). In the `../gix` fork, all `G`, nothing pushed: 30b on `feat/gix-diff-numstat-line-counts` (`07abe3f43`, `0fa7e82df`; +159/−1) and 30c's doc fix on `fix/gix-diff-rewrites-track-empty-default` (`b75d6f419`); 30d is a discussion draft only. The integrator independently reran `cargo test -p gix-diff` (102 passed) and the two `line_counts` tests against the recorded `git diff --numstat` values (passed); `just`/`cargo-nextest` are absent on this machine, so gitoxide's full `just test` was not run — recorded in the report. Posting 30a–30d stays the maintainer's.
+- `2026-10-19` — D44 budget follow-up: a genuine simplification pass (`7643558`, `940d88b`, both `G`) took the slice from 334 to **308 changed lines outside tests** (same numstat method, verified by the integrator), tests and bundle sizes identical. Its addendum prices every remaining lever and shows 300 is reachable only by two deliberate typing regressions, so the slice stays `blocked` for the maintainer: accept 308, split it, or direct one of the priced options. Worktree intact at `940d88b`.
+- `2026-10-19` — **10:30-run handoff (Muse integrator).** `the-diff` ends this run Sonar-`OK` with every dispatchable slice integrated (see the status note above and the table). Decisions only the maintainer can make, in the order they unblock work: (1) D44 at 308/300; (2) 22a at 499/300 — accept, re-cut, or adjust the D22 budgets — plus the engine workspace `license = "MIT"` field its report raises (the new crate declares `AGPL-3.0-or-later AND MIT` locally); (3) the recorded interpretation choices in D13's, D12's, D14's and D15's reports (labels-as-refs, datalist, swapped-`*` handling, launch-time configured check, `diff.guitool` precedence) and D04b's open one-line `sync`→`arrow-switch` glyph swap for D13's Swap button; (4) post D30a–d from the prepared branches/drafts. Claude-session recovery note: Claude's work was recovered from Git and the worktrees (complete); its session transcript (`5f80f5de-…`, last written 03:38) was identified but not read — this runtime requires the maintainer to select the exact session before any transcript is opened, and nothing in the recovery depended on it. The Codex processes from 01:51 in the main checkout were left untouched (idle; the checkout stayed clean). All worktrees are intact; nothing was pushed.
