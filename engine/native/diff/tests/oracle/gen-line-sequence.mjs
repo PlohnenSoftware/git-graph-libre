@@ -110,7 +110,7 @@ for (let i = 0; i < 80; i++) {
 
 // Fields are separated by `;` and list items by `|`, so both are escaped.
 const esc = (s) =>
-	s.replaceAll(/\\/g, String.raw`\\`).replaceAll(/;/g, String.raw`\c`).replaceAll(/\|/g, String.raw`\p`).replaceAll(/\t/g, String.raw`\t`).replaceAll(/\n/g, String.raw`\n`);
+	s.replaceAll('\\', String.raw`\\`).replaceAll(';', String.raw`\c`).replaceAll('|', String.raw`\p`).replaceAll('\t', String.raw`\t`).replaceAll('\n', String.raw`\n`);
 
 const out = [
 	'# Oracle corpus for line_sequence.rs, one case per line: `n:lines;hashes;scores;strong;texts`.',
