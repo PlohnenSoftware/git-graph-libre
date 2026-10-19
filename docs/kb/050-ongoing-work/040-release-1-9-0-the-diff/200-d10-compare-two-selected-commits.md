@@ -9,7 +9,7 @@ summary: >-
 
 # D10 — Compare two selected commits
 
-Status: ready
+Status: done — awaiting integration
 Needs: —
 Decisions: X3
 Kind: webview, plus l10n · Size budget: ≤ 200 changed lines outside tests
@@ -82,4 +82,44 @@ Gates pass, including `l10n:check` at 100%.
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Codex sub-agent D10, 2026-10-19 02:03
+- **Branch and commits:** `diff-1.9.0/d10` — `dd92ce4 G feat(compare): compare two selected commits (D10)`, plus the signed report commit carrying this section. Codex stopped on its quota with the work uncommitted; the integrator (Claude Code) committed it on `2026-10-19` after rerunning focused checks (strict Biome on 7 files, typecheck, 17/17 compare and visibility tests, `l10n:check` 100%, `kb:check`), per the multi-agent gate policy. No push.
+- **Files changed:** `src/webview/main.ts` +30/−7;
+  `src/contextMenuVisibility.ts`, `src/types.ts`,
+  `src/extension/webviewL10n.ts`, and each of the five
+  `l10n/bundle.l10n*.json` files +1/−0 each;
+  `tests/webview/contextMenuVisibilityRendering.test.ts` +27/−2;
+  new `tests/webview/compareSelection.test.ts` +249/−0;
+  this slice's status and report. All files are within *Touch*.
+- **Tests added or changed:** new selected-comparison suite, 0 → 8 cases;
+  context-menu visibility suite, 5 → 6 cases. Total webview tests 623 → 632.
+  The new cases cover Ctrl and Cmd, both selection orders, either host row,
+  unrelated/noncontiguous rows and graph order despite conflicting dates,
+  response rendering and `viewDiff` refs, one/three selections, the
+  uncommitted row, the visibility setting, and unchanged compare-with-HEAD
+  request values. Existing commit/ref compare-with-HEAD and squash/drop
+  regression tests also pass unchanged.
+- **Gates:** strict Biome clean (11 touched code/locale/test files);
+  `pnpm run typecheck` green; `pnpm run package` green (full lint 297 files);
+  `pnpm run test` initially backend 856 passed / 887 total, with 31
+  missing-addon skips, and webview 632/632. After `pnpm run engine:build`
+  succeeded, `pnpm exec vitest run --project backend` passed 887/887 with no
+  skips; final webview rerun passed 632/632. `pnpm run l10n:check` 100%
+  (616 bundle keys and 114 package keys for every locale); `pnpm run kb:check`
+  green; `git diff --check` clean. Rust arm n/a (no engine source changed).
+  Sonar: integrator (pending; no commit made before it).
+- **Acceptance:** local gates met, including localization at 100%. The new
+  menu is offered for exactly two real selected commits independently of
+  HEAD ancestry; it sends lower-row base → higher-row compare, attaches to
+  the right-clicked row, and retains those refs for file diffs. The HEAD
+  path retains its click-time guard and sends the original message shape.
+  Headless QtWebEngine/Xvfb layout preview with real `media/*.css`,
+  inspected at `/tmp/ggl-d10-visual/menu.png`, shows the complete menu label
+  without clipping. Pre-commit coverage/Sonar acceptance remains with the
+  integrator.
+- **Deviations from the slice:** none. Preserved and reviewed the prior
+  partial visibility/type/localization edits after the maintainer authorized
+  reassignment of the claim. The original HEAD loader is a thin guarded
+  wrapper around the new shared comparison loader.
+- **Open questions / follow-ups:** integrator coverage/Sonar, then signed
+  implementation/report commits and signature verification before integration.
