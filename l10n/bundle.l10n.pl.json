@@ -536,6 +536,8 @@
   "detail.summary": "Podsumowanie",
   "detail.files": "Pliki",
   "detail.comparedWithFirstParent": "Zmiany w porównaniu z pierwszym rodzicem",
+  "detail.comparing": "Porównanie {0} → {1}",
+  "detail.swapComparison": "Zamień strony porównania",
   "detail.collapseSummary": "Zwiń podsumowanie commita",
   "detail.expandSummary": "Rozwiń podsumowanie commita",
   "detail.collapseFiles": "Zwiń zmienione pliki",

@@ -126,8 +126,19 @@ function formatDiffTitle(type: GitFileChangeType, abbrevHash: string) {
   return `${abbrevHash}^ ↔ ${abbrevHash}`;
 }
 
+const HASH_REVISION = /^([0-9a-f]{7,64})([~^]\d*)?$/;
+
 function formatRevisionDiffTitle(oldRef: string, newRef: string, shortHashLength: number) {
-  return `${abbrevCommit(oldRef, shortHashLength)} ↔ ${abbrevCommit(newRef, shortHashLength)}`;
+  return `${formatRevisionLabel(oldRef, shortHashLength)} ↔ ${formatRevisionLabel(newRef, shortHashLength)}`;
+}
+
+// A comparison may name a side by the ref the user picked (`HEAD`, a branch
+// or a tag) instead of its hash; keep such labels whole and abbreviate only
+// hashes, preserving a `^`/`~` suffix (e.g. a stash's third parent).
+function formatRevisionLabel(ref: string, shortHashLength: number) {
+  const hash = HASH_REVISION.exec(ref);
+  if (hash === null) return ref;
+  return `${abbrevCommit(hash[1], shortHashLength)}${hash[2] ?? ""}`;
 }
 
 function resolveRepoFilePath(repo: string, filePath: string): string | null {

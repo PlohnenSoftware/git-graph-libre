@@ -143,13 +143,25 @@ declare global {
   };
   type DialogInputValue = string | boolean;
 
+  /**
+   * The two points a comparison shows. A label is what the user picked for
+   * that side (a branch or tag name, or `HEAD`); a side picked as a commit
+   * has none and shows its abbreviated hash.
+   */
+  interface CommitComparison {
+    baseRef: string;
+    compareRef: string;
+    baseLabel?: string;
+    compareLabel?: string;
+  }
+
   interface ExpandedCommit {
     id: number;
     hash: string;
     srcElem: HTMLElement | null;
     commitDetails: GitCommitDetails | null;
     fileTree: GitFolder | null;
-    comparison: { baseRef: string; compareRef: string } | null;
+    comparison: CommitComparison | null;
     detailsHeight: number;
     summaryOpen: boolean;
     filesOpen: boolean;

@@ -26,6 +26,7 @@ import {
   COMMIT_DETAILS_KEYBOARD_RESIZE_STEP,
   COMMIT_DETAILS_MAX_HEIGHT,
   COMMIT_DETAILS_MIN_HEIGHT,
+  type CommitComparisonDisplay,
   type CommitDetailsSection,
   clampCommitDetailsHeight,
   generateGitFileTree,
@@ -3734,7 +3735,9 @@ class GitGraphView {
       : this.buildBranchContextMenu(sourceElem, refName);
     const refCommitHash = this.getCommitHashForElement(sourceElem);
     const compareWithHeadItem =
-      refCommitHash === null ? null : this.buildCompareWithHeadMenuItem(refCommitHash, sourceElem);
+      refCommitHash === null
+        ? null
+        : this.buildCompareWithHeadMenuItem(refCommitHash, sourceElem, refName);
     if (compareWithHeadItem !== null) menu.push(compareWithHeadItem);
     const copyType = isTag ? "Tag Name" : "Branch Name";
     const copyTitle = isTag ? l10n.copyTagName : l10n.copyBranchName;
@@ -3749,13 +3752,17 @@ class GitGraphView {
     }
     return menu;
   }
-  private buildCompareWithHeadMenuItem(hash: string, sourceElem: HTMLElement): ContextMenuElement {
+  private buildCompareWithHeadMenuItem(
+    hash: string,
+    sourceElem: HTMLElement,
+    refName?: string
+  ): ContextMenuElement {
     if (!this.canCompareWithHead(hash)) return null;
     const group = this.contextMenuGroupForRef(sourceElem);
     if (!this.isContextMenuActionVisible(group, "compareWithHead")) return null;
     return {
       title: l10n.compareWithHead,
-      onClick: () => this.loadCommitComparisonWithHead(sourceElem, hash)
+      onClick: () => this.loadCommitComparisonWithHead(sourceElem, hash, refName)
     };
   }
   private canCompareWithHead(hash: string) {
@@ -5500,16 +5507,20 @@ class GitGraphView {
       commitHash: hash
     });
   }
-  private loadCommitComparisonWithHead(sourceElem: HTMLElement, hash: string) {
+  private loadCommitComparisonWithHead(sourceElem: HTMLElement, hash: string, baseLabel?: string) {
     if (this.canCompareWithHead(hash)) {
-      this.loadCommitComparison(sourceElem, hash, hash, "HEAD");
+      this.loadCommitComparison(sourceElem, hash, hash, "HEAD", {
+        baseLabel,
+        compareLabel: "HEAD"
+      });
     }
   }
   private loadCommitComparison(
     sourceElem: HTMLElement,
     hash: string,
     baseRef: string,
-    compareRef: string
+    compareRef: string,
+    labels: Pick<CommitComparison, "baseLabel" | "compareLabel"> = {}
   ) {
     const row = this.getCommitRowForElement(sourceElem);
     const id = row?.dataset.id;
@@ -5523,7 +5534,7 @@ class GitGraphView {
       srcElem: row,
       commitDetails: null,
       fileTree: null,
-      comparison: { baseRef, compareRef },
+      comparison: { baseRef, compareRef, ...labels },
       detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT,
       summaryOpen: true,
       filesOpen: true
@@ -5913,7 +5924,8 @@ class GitGraphView {
       },
       l10n,
       sections: expandedCommit,
-      issueLinking: this.getCurrentRepoState()?.issueLinking ?? null
+      issueLinking: this.getCurrentRepoState()?.issueLinking ?? null,
+      comparison: this.comparisonDisplayLabels(expandedCommit.comparison)
     });
     insertAfter(newElem, expandedRow);
     this.updateCommitDetailsResizeHandle();
@@ -5953,6 +5965,9 @@ class GitGraphView {
 
       const open = sourceElem.getAttribute("aria-expanded") !== "true";
       this.setCommitDetailsSectionOpen(section, open);
+    });
+    addListenerToClass("commitDetailsComparisonSwap", "click", () => {
+      this.swapCommitComparison();
     });
     addListenerToClass("gitFolder", "click", (e) => {
       const sourceElem = closestHTMLElement(e.target, ".gitFolder");
@@ -6112,6 +6127,26 @@ class GitGraphView {
     );
   }
 
+  private swapCommitComparison() {
+    const expanded = this.expandedCommit;
+    if (expanded === null || expanded.comparison === null || expanded.srcElem === null) return;
+    const { baseRef, compareRef, baseLabel, compareLabel } = expanded.comparison;
+    this.loadCommitComparison(expanded.srcElem, expanded.hash, compareRef, baseRef, {
+      baseLabel: compareLabel,
+      compareLabel: baseLabel
+    });
+  }
+
+  private comparisonDisplayLabels(
+    comparison: CommitComparison | null
+  ): CommitComparisonDisplay | null {
+    if (comparison === null) return null;
+    return {
+      base: comparison.baseLabel ?? this.displayHash(comparison.baseRef),
+      compare: comparison.compareLabel ?? this.displayHash(comparison.compareRef)
+    };
+  }
+
   private getExpandedFileRevision(fileChange: GitFileChange): string | null {
     if (this.expandedCommit === null) return null;
     if (this.expandedCommit.comparison === null) return this.expandedCommit.hash;
@@ -6136,7 +6171,12 @@ class GitGraphView {
       commitHash: hash,
       ...(comparison === null
         ? (untrackedRefs ?? {})
-        : { oldRef: comparison.baseRef, newRef: comparison.compareRef }),
+        : {
+            // A label is the ref name the user picked, so it resolves to the
+            // same side (as `HEAD` already does) and names the diff title.
+            oldRef: comparison.baseLabel ?? comparison.baseRef,
+            newRef: comparison.compareLabel ?? comparison.compareRef
+          }),
       oldFilePath: fileChange.oldFilePath,
       newFilePath: fileChange.newFilePath,
       type: fileChange.type

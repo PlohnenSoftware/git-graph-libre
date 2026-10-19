@@ -544,6 +544,8 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     detailSummary: translate("detail.summary"),
     detailFiles: translate("detail.files"),
     comparedWithFirstParent: translate("detail.comparedWithFirstParent"),
+    comparing: translate("detail.comparing"),
+    swapComparison: translate("detail.swapComparison"),
     detailCollapseSummary: translate("detail.collapseSummary"),
     detailExpandSummary: translate("detail.expandSummary"),
     detailCollapseFiles: translate("detail.collapseFiles"),

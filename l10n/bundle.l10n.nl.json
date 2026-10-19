@@ -536,6 +536,8 @@
   "detail.summary": "Samenvatting",
   "detail.files": "Bestanden",
   "detail.comparedWithFirstParent": "Wijzigingen vergeleken met de eerste parent",
+  "detail.comparing": "Vergelijking {0} → {1}",
+  "detail.swapComparison": "Vergelijking omkeren",
   "detail.collapseSummary": "Commitsamenvatting samenvouwen",
   "detail.expandSummary": "Commitsamenvatting uitvouwen",
   "detail.collapseFiles": "Gewijzigde bestanden samenvouwen",

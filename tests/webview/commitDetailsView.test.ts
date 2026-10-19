@@ -1,17 +1,22 @@
-import { describe, expect, it } from "vitest";
-import type { GitCommitDetails, GitFileChange } from "@/backend/types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { GitCommitDetails, GitCommitNode, GitFileChange, GitRepoInfo } from "@/backend/types";
+import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import type { LocalizedStrings } from "@/extension/webviewL10n";
+import type * as GGL from "@/types";
 import {
   alterGitFileTree,
   COMMIT_DETAILS_DEFAULT_HEIGHT,
   COMMIT_DETAILS_MAX_HEIGHT,
   COMMIT_DETAILS_MIN_HEIGHT,
+  type CommitComparisonDisplay,
   clampCommitDetailsHeight,
   generateGitFileTree,
   renderCommitDetailsRowHtml,
   renderGitFileListHtml,
   renderGitFileTreeHtml
 } from "@/webview/commitDetailsView";
+
+import { createVscodeMock, receive, setupHtml } from "./setup";
 
 const l10n = {
   detailCommit: "Commit: ",
@@ -28,6 +33,8 @@ const l10n = {
   detailCollapseFiles: "Collapse changed files",
   detailExpandFiles: "Expand changed files",
   comparedWithFirstParent: "Changes compared with the first parent",
+  comparing: "Comparing {0} → {1}",
+  swapComparison: "Swap comparison",
   detailResize: "Resize commit details",
   copyFilePath: "Copy file path",
   openFile: "Open file",
@@ -60,17 +67,29 @@ const commitDetails: GitCommitDetails = {
   ]
 };
 
-function renderSummaryHost(details: GitCommitDetails): HTMLTableRowElement {
+function renderSummaryHost(
+  details: GitCommitDetails,
+  comparison: CommitComparisonDisplay | null = null,
+  strings: LocalizedStrings = l10n
+): HTMLTableRowElement {
   const host = document.createElement("tr");
   host.innerHTML = renderCommitDetailsRowHtml({
     commitDetails: details,
     fileTree: generateGitFileTree(details.fileChanges),
     fileView: { mode: "tree" },
     avatars: {},
-    l10n,
-    sections: { detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT, summaryOpen: true, filesOpen: true }
+    l10n: strings,
+    sections: { detailsHeight: COMMIT_DETAILS_DEFAULT_HEIGHT, summaryOpen: true, filesOpen: true },
+    comparison
   });
   return host;
+}
+
+function comparisonRefs(host: HTMLElement): string[] {
+  return Array.from(
+    host.querySelectorAll(".commitDetailsComparison .commitDetailsComparisonRef"),
+    (ref) => ref.textContent ?? ""
+  );
 }
 
 function summaryLabels(details: GitCommitDetails): string[] {
@@ -159,6 +178,47 @@ describe("commit details view rendering", () => {
         ".commitDetailsFirstParentNote"
       )
     ).toBeNull();
+  });
+
+  it("renders the comparison header only for comparisons, above the summary", () => {
+    expect(renderSummaryHost(commitDetails).querySelector(".commitDetailsComparison")).toBeNull();
+
+    const host = renderSummaryHost(commitDetails, { base: "def45678", compare: "HEAD" });
+    const header = host.querySelector("#commitDetailsSummaryBody > .commitDetailsComparison");
+    expect(header?.textContent).toBe("Comparing def45678 → HEAD");
+    expect(comparisonRefs(host)).toEqual(["def45678", "HEAD"]);
+    expect(header?.nextElementSibling?.classList.contains("commitDetailsSummaryTop")).toBe(true);
+    const swap = host.querySelector<HTMLButtonElement>(".commitDetailsComparisonSwap");
+    expect(swap?.getAttribute("title")).toBe("Swap comparison");
+    expect(swap?.getAttribute("aria-label")).toBe("Swap comparison");
+    expect(swap?.querySelector("svg.commitDetailsComparisonSwapIcon")).not.toBeNull();
+    // The summary's own key/value labels are unchanged by the header.
+    expect(
+      Array.from(host.querySelectorAll(".commitDetailsSummaryKeyValues > b"), (label) =>
+        label.textContent?.trim()
+      )
+    ).toEqual(["Commit:", "Parents:", "Author:", "Author Date:", "Committer:", "Committer Date:"]);
+  });
+
+  it("escapes comparison labels and substitutes each placeholder once", () => {
+    const host = renderSummaryHost(commitDetails, { base: "{1}", compare: "a$&b<i>x</i>" });
+    expect(comparisonRefs(host)).toEqual(["{1}", "a$&b<i>x</i>"]);
+    expect(host.querySelector(".commitDetailsComparison i")).toBeNull();
+
+    // A translation may name the two sides in either order.
+    const reordered = renderSummaryHost(
+      commitDetails,
+      { base: "main", compare: "v2.0" },
+      { ...l10n, comparing: "{1} ← {0}" }
+    );
+    expect(reordered.querySelector(".commitDetailsComparison")?.textContent).toBe("v2.0 ← main");
+  });
+
+  it("does not claim a first-parent comparison for a compared merge commit", () => {
+    const merge = { ...commitDetails, parents: ["def456", "789abc"] };
+    const host = renderSummaryHost(merge, { base: "def45678", compare: "HEAD" });
+    expect(host.querySelector(".commitDetailsFirstParentNote")).toBeNull();
+    expect(renderSummaryHost(merge).querySelector(".commitDetailsFirstParentNote")).not.toBeNull();
   });
 
   it("renders one shared date when author and committer metadata matches", () => {
@@ -358,5 +418,264 @@ describe("commit details view rendering", () => {
     expect(renderGitFileTreeHtml(fileTree, fileChanges, l10n)).toContain(
       '<ul class="gitFolderContents hidden">'
     );
+  });
+});
+
+const REPO = "/workspace/comparison-header";
+const HEAD_HASH = "aaaaaaaa11111111";
+const BRANCH_HASH = "bbbbbbbb22222222";
+const TAG_HASH = "cccccccc33333333";
+const PLAIN_HASH = "dddddddd44444444";
+const graphViewState: GGL.GitGraphViewState = {
+  autoCenterCommitDetailsView: true,
+  commitDetailsCompactFolders: false,
+  commitDetailsFileViewMode: "tree",
+  uncommittedFileViewMode: "tree",
+  contextMenuActionsVisibility: DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY,
+  dateFormat: "Date & Time",
+  fetchAvatars: false,
+  showSignatureColumn: false,
+  graphColors: ["oklch(65% 0.16 250)"],
+  customBranchGlobPatterns: [],
+  graphFontSize: 13,
+  graphRowHeight: 24,
+  graphStyle: "rounded",
+  revealHighlightColor: "oklch(90% 0.25 150 / 0.42)",
+  includeReflog: false,
+  includeUnreachableCommits: false,
+  initialLoadCommits: 250,
+  lastActiveRepo: null,
+  loadMoreCommits: 750,
+  muteCommitsNotAncestorsOfHead: false,
+  muteMergeCommits: false,
+  boldCheckedOutCommit: false,
+  fetchTagsByDefault: true,
+  mergeNoFastForward: true,
+  pullBranchNoFastForward: false,
+  createBranchCheckout: true,
+  onlyFollowFirstParent: false,
+  repos: { [REPO]: { columnWidths: null } },
+  showCurrentBranchByDefault: false,
+  showRemoteBranches: true,
+  showStashes: true,
+  showTags: true,
+  shortHashLength: 8,
+  language: "en",
+  languages: [{ id: "en", label: "English" }]
+};
+
+function graphCommit(
+  hash: string,
+  parentHashes: string[],
+  refs: GitCommitNode["refs"] = []
+): GitCommitNode {
+  return {
+    hash,
+    parentHashes,
+    author: "Alice",
+    email: "alice@example.com",
+    date: 1,
+    message: `Commit ${hash}`,
+    refs
+  };
+}
+
+const graphCommits = [
+  graphCommit(HEAD_HASH, [BRANCH_HASH], [{ hash: HEAD_HASH, name: "main", type: "head" }]),
+  graphCommit(BRANCH_HASH, [TAG_HASH], [{ hash: BRANCH_HASH, name: "feature/old", type: "head" }]),
+  graphCommit(TAG_HASH, [PLAIN_HASH], [{ hash: TAG_HASH, name: "v1.0", type: "tag" }]),
+  graphCommit(PLAIN_HASH, [])
+];
+
+const graphRepoInfo: GitRepoInfo = {
+  isRepo: true,
+  head: "main",
+  headCommit: HEAD_HASH,
+  authors: ["Alice"],
+  tags: ["v1.0"],
+  remotes: [],
+  stashes: [],
+  stashCount: 0,
+  config: {
+    userName: { local: null, global: null },
+    userEmail: { local: null, global: null }
+  }
+};
+
+function latestRequest<T extends GGL.RequestMessage["command"]>(
+  messages: GGL.RequestMessage[],
+  command: T
+): Extract<GGL.RequestMessage, { command: T }> {
+  const message = messages.findLast((candidate) => candidate.command === command);
+  if (message === undefined) throw new Error(`Missing ${command} request`);
+  return message as Extract<GGL.RequestMessage, { command: T }>;
+}
+
+async function bootGraph() {
+  const vscode = createVscodeMock();
+  setupHtml(graphViewState);
+  await import("@/webview/main");
+  receive({
+    command: "loadRepoInfo",
+    requestId: latestRequest(vscode.sentMessages, "loadRepoInfo").requestId,
+    repoInfo: graphRepoInfo,
+    error: null
+  });
+  receive({
+    command: "loadBranches",
+    requestId: latestRequest(vscode.sentMessages, "loadBranches").requestId,
+    branches: ["main", "feature/old"],
+    head: "main",
+    hard: true,
+    isRepo: true,
+    error: null
+  });
+  receive({
+    command: "loadCommits",
+    requestId: latestRequest(vscode.sentMessages, "loadCommits").requestId,
+    commits: graphCommits,
+    head: HEAD_HASH,
+    moreCommitsAvailable: false,
+    hard: true,
+    error: null
+  });
+  return vscode;
+}
+
+function graphRow(hash: string): HTMLElement {
+  const element = document.querySelector<HTMLElement>(`tr[data-hash="${hash}"]`);
+  if (element === null) throw new Error(`Missing row ${hash}`);
+  return element;
+}
+
+function clickMenuItem(label: string) {
+  const item = Array.from(
+    document.querySelectorAll<HTMLElement>("#contextMenu .contextMenuItem")
+  ).find((candidate) => candidate.textContent === label);
+  if (item === undefined) throw new Error(`Missing menu item ${label}`);
+  item.click();
+}
+
+function receiveComparison(hash: string, parents: string[] = []) {
+  receive({
+    command: "commitComparison",
+    commitDetails: { ...commitDetails, hash, parents },
+    error: null
+  });
+}
+
+function headerText(): string | null | undefined {
+  return document.querySelector("#commitDetails .commitDetailsComparison")?.textContent;
+}
+
+describe("comparison header in the graph view", () => {
+  beforeEach(() => vi.resetModules());
+
+  it.each([
+    ["branch", "feature/old", BRANCH_HASH],
+    ["tag", "v1.0", TAG_HASH]
+  ])("names a %s compared with HEAD by its ref name", async (_kind, refName, hash) => {
+    const vscode = await bootGraph();
+    document
+      .querySelector(`.gitRef[data-name="${refName}"]`)
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickMenuItem("Compare with HEAD");
+
+    // The labels stay in the view; the backend still gets only the refs.
+    expect(latestRequest(vscode.sentMessages, "commitComparison")).toEqual({
+      command: "commitComparison",
+      repo: REPO,
+      commitHash: hash,
+      baseRef: hash,
+      compareRef: "HEAD"
+    });
+    expect(vscode.getState()?.expandedCommit?.comparison).toMatchObject({
+      baseRef: hash,
+      compareRef: "HEAD",
+      baseLabel: refName,
+      compareLabel: "HEAD"
+    });
+
+    receiveComparison(hash, [PLAIN_HASH, HEAD_HASH]);
+    expect(headerText()).toBe(`Comparing ${refName} → HEAD`);
+    expect(document.querySelector("#commitDetails .commitDetailsFirstParentNote")).toBeNull();
+  });
+
+  it("shows a commit compared with HEAD by its abbreviated hash", async () => {
+    await bootGraph();
+    graphRow(PLAIN_HASH).dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickMenuItem("Compare with HEAD");
+    receiveComparison(PLAIN_HASH);
+    expect(headerText()).toBe("Comparing dddddddd → HEAD");
+  });
+
+  it("shows two selected commits by abbreviated hashes, older first", async () => {
+    await bootGraph();
+    for (const hash of [BRANCH_HASH, PLAIN_HASH]) {
+      graphRow(hash).dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    }
+    graphRow(BRANCH_HASH).dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickMenuItem("Compare Selected Commits");
+    receiveComparison(BRANCH_HASH);
+    expect(headerText()).toBe("Comparing dddddddd → bbbbbbbb");
+  });
+
+  it("swaps a comparison, exchanging refs and labels", async () => {
+    const vscode = await bootGraph();
+    document
+      .querySelector('.gitRef[data-name="feature/old"]')
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickMenuItem("Compare with HEAD");
+    receiveComparison(BRANCH_HASH);
+    expect(headerText()).toBe("Comparing feature/old → HEAD");
+
+    document.querySelector<HTMLButtonElement>(".commitDetailsComparisonSwap")?.click();
+
+    expect(latestRequest(vscode.sentMessages, "commitComparison")).toEqual({
+      command: "commitComparison",
+      repo: REPO,
+      commitHash: BRANCH_HASH,
+      baseRef: "HEAD",
+      compareRef: BRANCH_HASH
+    });
+    expect(vscode.getState()?.expandedCommit?.comparison).toMatchObject({
+      baseRef: "HEAD",
+      compareRef: BRANCH_HASH,
+      baseLabel: "HEAD",
+      compareLabel: "feature/old"
+    });
+
+    receiveComparison(BRANCH_HASH);
+    expect(headerText()).toBe("Comparing HEAD → feature/old");
+  });
+
+  it("carries the comparison labels into a file diff", async () => {
+    const vscode = await bootGraph();
+    document
+      .querySelector('.gitRef[data-name="feature/old"]')
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickMenuItem("Compare with HEAD");
+    receiveComparison(BRANCH_HASH);
+
+    document.querySelector<HTMLElement>("#commitDetails .gitFile")?.click();
+
+    expect(latestRequest(vscode.sentMessages, "viewDiff")).toMatchObject({
+      command: "viewDiff",
+      commitHash: BRANCH_HASH,
+      oldRef: "feature/old",
+      newRef: "HEAD"
+    });
+  });
+
+  it("shows no header for plain commit details", async () => {
+    await bootGraph();
+    graphRow(PLAIN_HASH).dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "commitDetails",
+      commitDetails: { ...commitDetails, hash: PLAIN_HASH, parents: [] },
+      error: null
+    });
+    expect(document.querySelector("#commitDetails")).not.toBeNull();
+    expect(headerText()).toBeUndefined();
   });
 });

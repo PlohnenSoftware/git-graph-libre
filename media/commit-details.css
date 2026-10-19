@@ -185,6 +185,54 @@
 .commitDetailsPaneBody.hidden {
   display: none;
 }
+/* A comparison names its two points above the summary of the commit the
+   details are attached to, so the file list is never read as that commit's. */
+.commitDetailsComparison {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--vscode-widget-border, var(--ngg-neutral-border-subtle));
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+.commitDetailsComparisonText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.commitDetailsComparisonRef {
+  padding: 0 4px;
+  border-radius: 3px;
+  color: var(--vscode-editor-foreground);
+  background-color: var(--vscode-textCodeBlock-background, var(--ngg-neutral-overlay-muted));
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+.commitDetailsComparisonSwap {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  color: var(--vscode-icon-foreground, var(--ngg-neutral-icon));
+  background-color: var(--ngg-transparent);
+  cursor: pointer;
+}
+.commitDetailsComparisonSwap:hover {
+  background-color: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-muted));
+}
+.commitDetailsComparisonSwap:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+svg.commitDetailsComparisonSwapIcon {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
 .commitDetailsSummaryTop {
   display: inline-table;
   width: 100%;

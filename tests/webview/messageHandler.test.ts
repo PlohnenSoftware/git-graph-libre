@@ -723,6 +723,34 @@ describe("registerMessageHandlers", () => {
       type: "M"
     });
     expect(executedCommands[executedCommands.length - 1]?.[3]).toBe("example.ts (def4 ↔ HEAD)");
+
+    // A comparison side named by its picked ref keeps the whole label in
+    // the title, while a hash side still falls back to its abbreviation.
+    await handler?.({
+      command: "viewDiff",
+      repo,
+      commitHash: "def4567890abcdef",
+      oldRef: "feature/old",
+      newRef: "HEAD",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+    expect(executedCommands[executedCommands.length - 1]?.[3]).toBe(
+      "example.ts (feature/old ↔ HEAD)"
+    );
+
+    await handler?.({
+      command: "viewDiff",
+      repo,
+      commitHash: "def4567890abcdef",
+      oldRef: "def4567890abcdef^",
+      newRef: "def4567890abcdef^3",
+      oldFilePath: "src/example.ts",
+      newFilePath: "src/example.ts",
+      type: "M"
+    });
+    expect(executedCommands[executedCommands.length - 1]?.[3]).toBe("example.ts (def4^ ↔ def4^3)");
   });
 
   it("routes commit comparison queries", async () => {

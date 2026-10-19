@@ -536,6 +536,8 @@
   "detail.summary": "Summary",
   "detail.files": "Files",
   "detail.comparedWithFirstParent": "Changes compared with the first parent",
+  "detail.comparing": "Comparing {0} → {1}",
+  "detail.swapComparison": "Swap comparison",
   "detail.collapseSummary": "Collapse commit summary",
   "detail.expandSummary": "Expand commit summary",
   "detail.collapseFiles": "Collapse changed files",

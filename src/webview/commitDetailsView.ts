@@ -1,5 +1,6 @@
 import type { GitCommitDetails, GitFileChange } from "@/backend/types";
 import type { LocalizedStrings } from "@/extension/webviewL10n";
+import { octicon } from "@/octicons";
 import type { CommitDetailsFileViewMode, IssueLinkingConfig } from "@/types";
 
 import { escapeHtml } from "./utils/html";
@@ -14,6 +15,13 @@ type RenderCommitDetailsOptions = {
   l10n: LocalizedStrings;
   sections: CommitDetailsSectionState;
   issueLinking?: IssueLinkingConfig | null;
+  comparison?: CommitComparisonDisplay | null;
+};
+
+/** The two sides of a comparison as the header names them. */
+export type CommitComparisonDisplay = {
+  base: string;
+  compare: string;
 };
 
 type GenerateGitFileTreeOptions = {
@@ -54,9 +62,11 @@ export function renderCommitDetailsRowHtml({
   avatars,
   l10n,
   sections,
-  issueLinking
+  issueLinking,
+  comparison
 }: RenderCommitDetailsOptions): string {
   const resolvedFileView = fileView ?? defaultCommitDetailsFileView;
+  const resolvedComparison = comparison ?? null;
   return [
     '<td></td><td colspan="5">',
     renderCommitDetailsSummary(
@@ -64,7 +74,8 @@ export function renderCommitDetailsRowHtml({
       avatars,
       l10n,
       sections.summaryOpen,
-      issueLinking ?? null
+      issueLinking ?? null,
+      resolvedComparison
     ),
     renderCommitDetailsFiles(
       fileTree,
@@ -72,7 +83,9 @@ export function renderCommitDetailsRowHtml({
       l10n,
       sections.filesOpen,
       resolvedFileView,
-      commitDetails.parents.length > 1
+      // A comparison lists the files between its two points, whatever the
+      // attached commit's parents are.
+      resolvedComparison === null && commitDetails.parents.length > 1
     ),
     renderCommitDetailsResizeHandle(l10n, sections.detailsHeight),
     "</td>"
@@ -84,7 +97,8 @@ export function renderCommitDetailsSummary(
   avatars: AvatarImageCollection,
   l10n: LocalizedStrings,
   open = true,
-  issueLinking: IssueLinkingConfig | null = null
+  issueLinking: IssueLinkingConfig | null = null,
+  comparison: CommitComparisonDisplay | null = null
 ): string {
   const avatar = avatars[commitDetails.email];
   const topClass = `commitDetailsSummaryTop${typeof avatar === "string" ? " withAvatar" : ""}`;
@@ -120,6 +134,7 @@ export function renderCommitDetailsSummary(
       collapsed: l10n.detailExpandSummary
     }),
     `<div id="commitDetailsSummaryBody" class="${bodyClass}">`,
+    renderComparisonHeader(comparison, l10n),
     `<span class="${topClass}">`,
     '<span class="commitDetailsSummaryTopRow">',
     '<span class="commitDetailsSummaryKeyValues">',
@@ -134,6 +149,28 @@ export function renderCommitDetailsSummary(
     body,
     "</div></div>"
   ].join("");
+}
+
+// One pass over the template, so a ref named like a placeholder ("{1}")
+// is never substituted again, and a "$" in a ref name stays literal.
+function renderComparisonHeader(
+  comparison: CommitComparisonDisplay | null,
+  l10n: LocalizedStrings
+): string {
+  if (comparison === null) return "";
+  const sides = [comparison.base, comparison.compare].map(
+    (label) => `<span class="commitDetailsComparisonRef">${escapeHtml(label)}</span>`
+  );
+  const text = escapeHtml(l10n.comparing).replaceAll(
+    /\{([01])\}/g,
+    (_placeholder, index: string) => sides[Number(index)]
+  );
+  const swapTitle = escapeHtml(l10n.swapComparison);
+  const swapButton =
+    `<button type="button" class="commitDetailsComparisonSwap" ` +
+    `title="${swapTitle}" aria-label="${swapTitle}">` +
+    `${octicon("sync", "commitDetailsComparisonSwapIcon")}</button>`;
+  return `<div class="commitDetailsComparison"><span class="commitDetailsComparisonText">${text}</span>${swapButton}</div>`;
 }
 
 function renderCommitIdentity(name: string, email: string): string {
