@@ -9,7 +9,7 @@ summary: >-
 
 # D46 — Open the tab from Source Control
 
-Status: done — awaiting integration
+Status: integrated 23a65cc
 Needs: D45
 Decisions: Phase 17 D4 (answered: G4, option (c))
 Kind: `package.json` and TypeScript · Size budget: ≤ 200 changed lines outside tests
