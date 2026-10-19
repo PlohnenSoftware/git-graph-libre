@@ -27,7 +27,7 @@ pub struct LinesSliceCharSequence {
 }
 
 /// `String.prototype.trim`'s set: WhiteSpace and LineTerminator (ECMAScript).
-fn is_js_whitespace(unit: u16) -> bool {
+pub(crate) fn is_js_whitespace(unit: u16) -> bool {
     matches!(
         unit,
         0x09..=0x0D | 0x20 | 0xA0 | 0x1680 | 0x2000..=0x200A | 0x2028 | 0x2029 | 0x202F | 0x205F
