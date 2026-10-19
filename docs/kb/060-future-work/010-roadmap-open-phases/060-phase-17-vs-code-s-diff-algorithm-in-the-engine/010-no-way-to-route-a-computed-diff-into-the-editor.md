@@ -224,3 +224,95 @@ esbuild import closures from `monaco-editor` `0.57.0`, minified:
   the tab, is cold. D48 measures cold and warm opens separately.
 - A spike must measure "click to first paint" against `vscode.diff`, on a
   small file and on a file over 10,000 lines, before G4 is chosen.
+
+### D48 agent-half measurements (`2026-10-19`)
+
+Everything below is headless: no VS Code window was opened, so D48's step 3
+(click to colored hunks from a 60 fps recording, for the tab cold, the tab
+warm and `vscode.diff`) stands as written in the slice — **maintainer** —
+and D44's `painted ms=` could not be collected at all. What was measured is
+the tab's data path through the real code, plus compute-only proxies for
+the editor side, labeled as proxies.
+
+**Environment.** AMD Ryzen 9 5900X (24 threads), 31 GiB RAM, Linux
+7.2.9-2-cachyos, Node v26.11.1. Engine: `pnpm run engine:build:release`
+(release profile, 4,901,536 bytes; `engine:smoke` OK), `engineVersion()`
+1.0.26. Installed but never launched: VS Code Insiders 1.143.0-insider
+(`a0c6520`); the editor version for the display half is the maintainer's
+to record. Editor-side numbers use the pinned devDependency
+`@vscode/diff` 0.0.2-87 under Node. The tab bundle at this commit,
+`out/diffTab.min.js` from `node esbuild.js --production`, is 8,388 bytes.
+
+**Method** (stated in the scratch scripts before any run; scripts and raw
+JSONL kept outside the repo at `/tmp/d48-measure/`). An esbuild bundle in
+the `bench:backends` pattern ran D45's real
+`createEngineDiffTabSource(...).load()` with two `revision` sides — the
+request D47 builds — against this worktree read-only, with a `vscode`
+configuration stub returning nothing, so D45's fallbacks apply (VS Code's
+defaults: `ignoreTrimWhitespace` true, `maxComputationTime` 5000 ms,
+`maxFileSize` 50 MB). Primary numbers are the integer `read=`/`diff=`
+fields of the one `operation=diffTab` route line per load, captured
+through `setOperationLog`, with `performance.now()` float timings beside
+them. Every series is n=10: "cold" is ten fresh Node processes (addon
+load timed apart; process-cold, **not** a cold webview), "warm" is one
+process after 2 warmup loads (warmups printed and excluded). D41's
+`buildRows` ran on the warm payload with D44's fallback layout (context 3,
+minimum 3, reveal 20), `hideUnchanged` off and on. The proxies diffed the
+same two texts (read with `git show`, outside every measured path) under
+the same options as the tab (`computeMoves: false` included). Two harness
+smoke runs before the formal series are excluded and noted in D48's
+report; no run was repeated or re-picked.
+
+**Cases** (from this repository's history, picked before measuring). Small:
+`c89e637`, `src/contextMenuVisibility.ts`, 119 → 120 lines (+1 line; the
+most recent commit modifying a `src/` file under 200 lines on both sides).
+Large: `a484db7`, `graphify-out/graph.json`, 181,604 → 208,191 lines
+(+63,387/−36,800 by numstat; 389,797 split lines in the route line). The
+slice's suggested `pnpm-lock.yaml` does not qualify here: its history
+peaks at 7,126 lines, and at HEAD the only other file over 10,000 lines is
+an oracle corpus that was only ever added.
+
+The tab's own path (median of 10, worst in parentheses; route fields are
+whole milliseconds as logged):
+
+| Measurement | Small | Large |
+| --- | ---: | ---: |
+| `read=` cold / warm | 1 (1) / 0 (0) ms | 39.5 (42) / 32 (43) ms |
+| `diff=` cold / warm | 1 (1) / 1 (1) ms | 5114 (5122) / 5086.5 (5094) ms, `hitTimeout=1` every run |
+| whole `load()`, cold / warm (own timing) | 1.87 (2.14) / 0.75 (1.10) ms | 5170.6 (5179.4) / 5134.8 (5153.1) ms |
+| addon first load (cold processes) | 1.44 (1.62) ms | 1.43 (1.58) ms |
+| `buildRows`, `hideUnchanged` off / on | 0.036 (0.065) / 0.013 (0.176) ms, 121 / 9 rows | 64.5 (108.3) / 47.8 (182.3) ms, 208,192 rows either way |
+
+Compute and read pieces at float precision (median of 10, worst in
+parentheses). The two `@vscode/diff` rows are **proxies for the editor's
+algorithm cost only** — no text models, editor worker or rendering:
+
+| Measurement | Small | Large |
+| --- | ---: | ---: |
+| engine seam `diffTexts` (22j) | 0.58 (0.63) ms | 5086.8 (5091.4) ms, timeout, 1 change |
+| proxy: `@vscode/diff` TypeScript backend | 0.85 (1.25) ms | 5131.8 (5169.6) ms, timeout, 1 change |
+| proxy: `@vscode/diff` WebAssembly backend | 0.29 (0.55) ms | 2579.7 (2639.5) ms, **no timeout, 1,879 changes** |
+| engine read, both sides (`loadCommitFile` ×2) | 0.16 (0.42) ms | 17.3 (17.7) ms |
+
+The WebAssembly proxy's one-off `_initWasm()` cost 14.7 ms (small run) and
+18.1 ms (large run), once per process. On the small case every
+implementation agrees: 1 change, no timeout.
+
+**What this says, and what it doesn't.** On the small file the tab's whole
+data path costs about 1–2 ms process-cold and 0.75 ms warm, with row
+building under 0.1 ms, so a small-file win or loss against the diff editor
+will be decided by webview start-up and paint — exactly the maintainer's
+half — not by anything measured here. On the large file, the only change
+to a file over 10,000 lines in this history, both our Rust port and
+`@vscode/diff`'s TypeScript backend run into the 5,000 ms
+`diffEditor.maxComputationTime` cap on every one of the 10 runs and return
+one degenerate whole-file change (`hitTimeout=1` in every route line),
+while the same package's WebAssembly backend completes a real 1,879-change
+diff in about 2.58 s; the large `buildRows` row above therefore times the
+degenerate timeout payload (one change, nothing collapsible), not a
+completed large diff. Reading is not the problem at either size: both
+sides of the 13 MB pair cost 17 ms at the seam. In one sentence: headlessly
+the tab wins nothing yet — its data path is effectively free on small
+files, where paint will decide, and on this repository's one very large
+change it times out exactly where VS Code's `advanced` (TypeScript)
+algorithm does and where `advanced-wasm`, by this proxy, would not.
