@@ -8,7 +8,7 @@ summary: >-
 
 # D50 — Pin the settings popup's header
 
-Status: done — awaiting integration
+Status: integrated 05a220e
 Needs: —
 Decisions: — (maintainer bug report, `2026-10-19`)
 Kind: webview (CSS, and TypeScript markup if needed) · Size budget: ≤ 120 changed lines outside tests
