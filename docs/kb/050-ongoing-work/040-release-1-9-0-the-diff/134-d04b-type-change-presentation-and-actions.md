@@ -7,7 +7,7 @@ summary: >-
 
 # D04b — Type-change presentation and actions
 
-Status: ready
+Status: claimed by Muse Code (general-purpose) sub-agent D04b on 2026-10-19 10:49
 Needs: D04a
 Decisions: X2 (b); split, icon and action policy approved 2026-10-19
 Kind: webview, icons, localization · Size budget: ≤180 changed lines outside tests, including generated icons
