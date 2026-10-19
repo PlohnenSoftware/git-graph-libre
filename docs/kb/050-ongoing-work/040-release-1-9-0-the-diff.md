@@ -13,13 +13,13 @@ summary: >-
 # Release 1.9.0 — "The Diff"
 
 **Status: in progress `2026-10-19` on local `the-diff`; no pushing.
-Integrated and Sonar-clean (`OK`, wave gate 3): waves A–D except D44, the
-whole comparison wave D10–D15 with its follow-ups, D20/D21, and D30's
-preparation. Held for maintainer decisions: D44 (308 changed lines against
-its ≤300 budget after an honest simplification pass) and 22a (499 production
-lines against ≤300), which pauses the 22b–22j port chain and D45–D48 behind
-it. D07 still waits on a gix release. D90, D30's posting and D48's display
-half are the maintainer's.**
+Integrated and Sonar-clean (`OK`, wave gate 7): waves A–D complete (D44
+accepted under X8), the comparison wave D10–D15 with follow-ups, D20/D21,
+the Phase 17 port through 22f (all 58 fixtures exact, moves included),
+D30's preparation, and D50/D51. In flight: 22j (exports committed, TS seam
+remaining) and 22h (claimed), then 22i, then D45–D48. D07 still waits on a
+gix release. D90, D30's posting and D48's display half are the
+maintainer's.**
 
 Everything about diffs that is open, in one release: what users asked for,
 what the roadmap left behind, and what the `2026-10-18` diff audit found
@@ -101,7 +101,7 @@ wait for them.
 | D43 | [Engine export for the staged copy of a file](040-release-1-9-0-the-diff/530-d43-engine-export-for-the-staged-copy-of-a-file.md) | Rust + TS | — | I | integrated 14ac021 |
 | D43F | [Staged-file Error follow-up](040-release-1-9-0-the-diff/535-d43f-staged-file-error-follow-up.md) | TS | D43 | I | integrated 7d07111 |
 | D44 | [The GGL Diff tab](040-release-1-9-0-the-diff/540-d44-the-ggl-diff-tab.md) | TS + webview | D42 | J | integrated 496fa5c |
-| D45 | [Feed the tab from the engine](040-release-1-9-0-the-diff/550-d45-feed-the-tab-from-the-engine.md) | TS | D43, D44, 22j | J | waiting on D43, D44, 22j |
+| D45 | [Feed the tab from the engine](040-release-1-9-0-the-diff/550-d45-feed-the-tab-from-the-engine.md) | TS | D43, D44, 22j | J | waiting on 22j |
 | D46 | [Open the tab from Source Control](040-release-1-9-0-the-diff/560-d46-open-the-tab-from-source-control.md) | manifest + TS | D45 | K | waiting on D45 |
 | D47 | [Open the tab from commit details](040-release-1-9-0-the-diff/570-d47-open-the-tab-from-commit-details.md) | webview + TS | D45 | L | waiting on D45 |
 | D48 | [Measure the tab against the diff editor](040-release-1-9-0-the-diff/580-d48-measure-the-tab-against-the-diff-editor.md) | measurement | D46, D47 | — | waiting on D46, D47 (display half: maintainer) |
@@ -206,3 +206,4 @@ commit, the gate results with numbers, and the Sonar task id.
 - `2026-10-19` — D22F2 integrated (`8a654e8`, rebased cleanly onto `653360d`, then fast-forward; 15 commits, all `G`; Haiku). It fixed all 11 findings. It first stopped on the S7723 and S1516 ones because it couldn't read their Sonar messages offline, a missing fact rather than a difficulty, so no escalation was needed. The integrator sent it the exact server messages, and it finished in the same worktree. On the result, all five touched generators reproduce their corpora byte for byte; `diffTabPanel.ts`: strict Biome clean, typecheck green, 16/16. SonarQube: the next wave gate.
 - `2026-10-19` — **Wave gate 7** (D22F2, X17; HEAD `849adff`): `pnpm run package` OK, fresh `pnpm run test:coverage` 1672/1672 at 93.35% lines. SonarQube task `ed3cbb0e-615e-45bf-a3ac-50482c897764`, analysis `4d4bb550-6691-46c5-95ff-50edbf71c6de`: gate **OK** on all nine reported conditions. New coverage 93.9%, duplication 0.64%, 0 new violations, 0 high issues, 0 blocker issues, 0 reliability issues, 0 security issues, 0 hotspots to review. Two conditions are reported for the first time, so the server's gate definition appears to have gained them: blocker issues (0) and maintainability issues (41, OK). The integration branch is Sonar-clean again, with the port's 22a–22e and 22g in.
 - `2026-10-19` — 22f integrated (`8ab419f`, rebased cleanly onto `ab5853b`, then fast-forward; 19 commits, all `G`; Sonnet). All 58 fixtures match exactly with moves and their inner changes; all eight oracle generators reproduce their data byte for byte (six by `cmp`, two by a clean `git status`); Rust arm green (diff crate 72 unit tests plus the fixture and whole-flow oracle tests; the flaky `git-graph-core` test passed). 618 production lines against a guide of about 350, accepted under the size-as-guide rule (no function above complexity 8 by the report's estimate). Maintainer decisions X18 (keep the fdlibm `log` port; Sun's and V8's notices added, engine license `AGPL-3.0-or-later AND MIT AND BSD-3-Clause`) and X19 (keep the 1.7 MB corpus). Next: 22j and 22h in parallel, then 22i; D45 after 22j.
+- `2026-10-19` — **Integrator handover.** At the maintainer's request Muse Code resumed as integrator (its 10:30 run integrated waves A–G; Claude Code then took the release through decisions X8–X20, D44, the port's 22a–22f, D50/D51 and wave gate 7). Claude's session has been idle since 15:44 with both slice worktrees clean: 22j holds six signed commits (exports in, `load_commit_file_diff` removed, no TS seam or report yet) and 22h only its claim. Both were reassigned in place to Muse sub-agents (general-purpose, inherited runtime model — this runtime still has no Haiku/Sonnet/Opus selector, so Claude's Sonnet dispatches can't be matched; recorded in each report). Claude's terminal is still open in this checkout; it must not be resumed onto the moved branch. The stale status header above (wave gate 3) is corrected by this commit.
