@@ -95,6 +95,11 @@ add([1, 2, 3, 9, 9, 1, 2, 3], [1, 2, 3, 1, 2, 3]);
 add([1, 2, 3, 1, 2, 3], [1, 2, 3, 9, 9, 1, 2, 3], 'f');
 add([1, 2, 3, 4], [1, 2, 3, 4], 'u', 0);
 add([1, 2, 3, 4], [1, 2, 3, 4], 'u', 3);
+// VS Code's suite('myers') test '1' (its dead `true ? Myers : DynamicProgramming` branch).
+const units = (text) => Array.from({ length: text.length }, (_, i) => text.charCodeAt(i));
+add(units('hello world'), units('hallo welt'));
+add(units('hello world'), units('hallo welt'), 'f');
+add(units('a\u{1F600}b'), units('axb'));
 // Seeded random cases: small alphabets give many ties and repeats.
 for (let i = 0; i < 560; i++) {
 	const alphabet = 2 + next(4);
