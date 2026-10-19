@@ -442,6 +442,24 @@ fn count_against_gitlink(
     Some((diff.count_additions(), diff.count_removals()))
 }
 
+/// The status of a modification, distinguishing a type change from a plain content change.
+///
+/// A type change (regular file ↔ symlink ↔ gitlink) is what git spells `T`, as the CLI lists it
+/// under `--diff-filter=AMDRT`. The executable bit alone stays a modification; a file becoming
+/// a directory never gets here, the tree diff reports it as a deletion and additions.
+fn modification_kind(
+    entry_mode: &gix::object::tree::EntryMode,
+    previous_entry_mode: &gix::object::tree::EntryMode,
+) -> GitFileStatus {
+    let type_changed = entry_mode.is_link() != previous_entry_mode.is_link()
+        || entry_mode.is_commit() != previous_entry_mode.is_commit();
+    if type_changed {
+        GitFileStatus::TypeChanged
+    } else {
+        GitFileStatus::Modified
+    }
+}
+
 /// Turn one tree change into a file change record, or `None` for changes the view does not list.
 fn classify(change: &gix::object::tree::diff::Change<'_, '_, '_>) -> Option<GitFileChange> {
     use gix::object::tree::diff::Change;
@@ -491,21 +509,11 @@ fn classify(change: &gix::object::tree::diff::Change<'_, '_, '_>) -> Option<GitF
             if entry_mode.is_tree() {
                 return None;
             }
-            // A type change (regular file ↔ symlink ↔ gitlink) is what git spells `T`, as the CLI
-            // lists it under `--diff-filter=AMDRT`. The executable bit alone stays a modification;
-            // a file becoming a directory never gets here, the tree diff reports it as a deletion
-            // and additions.
-            let type_changed = entry_mode.is_link() != previous_entry_mode.is_link()
-                || entry_mode.is_commit() != previous_entry_mode.is_commit();
             let path = location.to_string();
             GitFileChange {
                 old_file_path: path.clone(),
                 new_file_path: path,
-                kind: if type_changed {
-                    GitFileStatus::TypeChanged
-                } else {
-                    GitFileStatus::Modified
-                },
+                kind: modification_kind(entry_mode, previous_entry_mode),
                 additions: None,
                 deletions: None,
             }
