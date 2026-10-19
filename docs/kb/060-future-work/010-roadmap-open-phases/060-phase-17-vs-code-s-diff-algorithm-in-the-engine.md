@@ -1,6 +1,6 @@
 ---
 summary: >-
-  Planned (`2026-10-18`), nothing implemented: port VS Code's MIT `advanced`
+  Implemented in 1.9.0 (`2026-10-19`, on `the-diff`, unpublished): port VS Code's MIT `advanced`
   diff algorithm (line diff, character refinement, heuristics, moved code)
   into a Rust crate in the engine, prove it against VS Code's 58 fixtures and
   against `@vscode/diff`'s TypeScript and WebAssembly backends (a pinned
@@ -12,7 +12,7 @@ summary: >-
 
 # Phase 17: VS Code's diff algorithm in the engine
 
-**Status: planned `2026-10-18`; nothing implemented. Decisions D1–D3 and D5
+**Status: implemented in release 1.9.0 (`2026-10-19`, D20–D22 and D40–D48 on `the-diff`, unpublished); this section stands as the design and results record. Decisions D1–D3 and D5
 below come first; D4 is answered (G4 (c), `2026-10-19`). Release 1.9.0 schedules 17.0 and 17.1 as D20 and D21, and the
 port as D22 (stretch). The maintainer confirmed this port over a gix-based
 display diff (1.9.0 decision X7, `2026-10-18`).**

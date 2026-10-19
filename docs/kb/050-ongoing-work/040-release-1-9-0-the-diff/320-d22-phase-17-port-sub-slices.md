@@ -7,7 +7,7 @@ summary: >-
 
 # D22 — Phase 17 port sub-slices
 
-Status: in progress — 22a–22h and 22j integrated (22h 0cd0d1d), D22F integrated 39d841b; 22i ready
+Status: complete — 22a–22j all integrated (22i fa1fe43); D22F/D22F2/D22L follow-ups integrated
 Needs: D21
 Decisions: X5 = (b); Phase 17 D1, D2 and D5
 Kind: Rust, the Rust arm applies · Size budget: per sub-slice, as listed
@@ -226,7 +226,7 @@ Status: integrated 0cd0d1d
 
 ### 22i Report
 
-Status: done — awaiting integration
+Status: integrated fa1fe43
 
 - **Agent / date:** Muse Code (muse-wonder-full-1.0, general-purpose, inherited runtime model; no named-model selector), 2026-10-19 18:07 Europe/Warsaw. The first three commits below are the first 22i agent's, preserved exactly; the rest are this finisher's.
 - **Branch and commits:** `diff-1.9.0/d22i`, all `G`, no push, no rebase (behind `the-diff`; the integrator rebases). Inherited: `19672ce G docs(release): claim 22i (D22i)`; `7fd9d90 G test(diff): the native fifth arm in the differential suite (D22i)`; `d64cb1e G feat(diff): pnpm run diff:parity over real history (D22i)`. This finisher: `f324547 G docs(release): reassign 22i after the killed run (D22i)`; `bb9501d G fix(diff): bound diff:parity at the editor time cap (D22i)`; `73f64cf G docs(diff): record the bounded parity results in Phase 17 (D22i)`; plus the signed report commit carrying this section.
