@@ -102,7 +102,7 @@ function edit(line) {
     case 2: return `${line}   `;
     case 3: return `  ${line}`;
     case 4: return line.trim();
-    default: return line.length > 3 ? line.slice(0, line.length - 2) : `${line}zz`;
+    default: return line.length > 3 ? line.slice(0, -2) : `${line}zz`;
   }
 }
 
