@@ -202,6 +202,12 @@ const HAND = [
   [['a\\b;c|d', 'x'], ['a\\b;c|e', 'x']],
 ];
 for (const [o, m, options] of HAND) out.push(oneCase(o, m, options));
+// A run of equal characters with one more of them: the diff shifts at most 100
+// elements to either side (`MAX_SHIFT_LIMIT`).
+for (let run = 96; run <= 108; run++) {
+  out.push(oneCase([`x${'a'.repeat(run)}y`], [`x${'a'.repeat(run + 1)}y`], { moves: false }));
+  out.push(oneCase([`x${'a'.repeat(run + 1)}y`], [`x${'a'.repeat(run)}y`], { moves: false }));
+}
 // A short unchanged affix next to a long change is absorbed into it only when
 // the change spans more than 100 elements (`removeVeryShortMatchingTextBetweenLongDiffs`).
 for (let total = 96; total <= 104; total++) {
