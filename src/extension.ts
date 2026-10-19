@@ -9,7 +9,11 @@ import { buildExtensionUri } from "./backend/utils/path";
 import { config } from "./config";
 import { DiffDocProvider } from "./diffDocProvider";
 import { createCommandManager } from "./extension/commandManager";
-import { setDiffTabAvailableContext } from "./extension/diffTab/engineSource";
+import { openDiffTab } from "./extension/diffTab/diffTabPanel";
+import {
+  createEngineDiffTabSource,
+  setDiffTabAvailableContext
+} from "./extension/diffTab/engineSource";
 import { explicitExtensionSettings } from "./extension/extensionSettings";
 import { registerMessageHandlers } from "./extension/messageHandler";
 import { createRepoManager } from "./extension/repoManager";
@@ -151,6 +155,16 @@ export function activate(context: vscode.ExtensionContext) {
     openGraphView,
     getCurrentPanel: () => currentPanel,
     trustRepository: createGitTrustCommand({ config, repoSearch, outputChannel: logger }),
+    openScmDiffTab: (request) =>
+      openDiffTab(
+        request,
+        createEngineDiffTabSource({
+          gitPath: config.gitPath,
+          backend: config.backend,
+          isVerified: (repo) => repoSearch.isVerified(repo)
+        }),
+        { extensionPath: context.extensionPath, outputChannel: logger }
+      ),
     telemetry
   });
 

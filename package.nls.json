@@ -9,6 +9,7 @@
   "command.removeRepo": "Remove Git Graph Repository",
   "command.showDiagnostics": "Show Git Graph Diagnostics",
   "command.trustRepository": "Trust Repository in Git…",
+  "command.openDiffTab": "Open in GGL Diff",
   "config.title": "Git Graph Libre",
   "config.autoCenterCommitDetailsView": "Automatically center the commit details view when it is opened.",
   "config.autoCenterCommitDetailsView.title": "Auto-center Commit Details",

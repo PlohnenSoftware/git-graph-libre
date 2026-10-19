@@ -9,6 +9,7 @@
   "command.removeRepo": "移除 Git 圖形存放庫",
   "command.showDiagnostics": "顯示 Git 圖形診斷",
   "command.trustRepository": "在 Git 中信任儲存庫…",
+  "command.openDiffTab": "在 GGL Diff 中開啟",
   "config.title": "Git Graph Libre",
   "config.autoCenterCommitDetailsView": "開啟提交詳情檢視時自動置中顯示。",
   "config.autoCenterCommitDetailsView.title": "自動置中提交詳情",

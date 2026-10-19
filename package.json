@@ -191,6 +191,24 @@
         "category": "Git Graph Libre",
         "command": "git-graph-libre.trustRepository",
         "title": "%command.trustRepository%"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.openDiffTab.workingTree",
+        "title": "%command.openDiffTab%",
+        "icon": "$(diff)"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.openDiffTab.index",
+        "title": "%command.openDiffTab%",
+        "icon": "$(diff)"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.openDiffTab.untracked",
+        "title": "%command.openDiffTab%",
+        "icon": "$(diff)"
       }
     ],
     "menus": {
@@ -199,6 +217,52 @@
           "command": "git-graph-libre.view",
           "group": "navigation",
           "when": "scmProvider == git"
+        }
+      ],
+      "scm/resourceState/context": [
+        {
+          "command": "git-graph-libre.openDiffTab.workingTree",
+          "group": "inline",
+          "when": "scmProvider == git && scmResourceGroup == workingTree && git-graph-libre.diffTabAvailable"
+        },
+        {
+          "command": "git-graph-libre.openDiffTab.workingTree",
+          "group": "navigation",
+          "when": "scmProvider == git && scmResourceGroup == workingTree && git-graph-libre.diffTabAvailable"
+        },
+        {
+          "command": "git-graph-libre.openDiffTab.index",
+          "group": "inline",
+          "when": "scmProvider == git && scmResourceGroup == index && git-graph-libre.diffTabAvailable"
+        },
+        {
+          "command": "git-graph-libre.openDiffTab.index",
+          "group": "navigation",
+          "when": "scmProvider == git && scmResourceGroup == index && git-graph-libre.diffTabAvailable"
+        },
+        {
+          "command": "git-graph-libre.openDiffTab.untracked",
+          "group": "inline",
+          "when": "scmProvider == git && scmResourceGroup == untracked && git-graph-libre.diffTabAvailable"
+        },
+        {
+          "command": "git-graph-libre.openDiffTab.untracked",
+          "group": "navigation",
+          "when": "scmProvider == git && scmResourceGroup == untracked && git-graph-libre.diffTabAvailable"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "git-graph-libre.openDiffTab.workingTree",
+          "when": "false"
+        },
+        {
+          "command": "git-graph-libre.openDiffTab.index",
+          "when": "false"
+        },
+        {
+          "command": "git-graph-libre.openDiffTab.untracked",
+          "when": "false"
         }
       ]
     },

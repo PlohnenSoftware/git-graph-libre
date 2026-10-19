@@ -9,6 +9,7 @@
   "command.removeRepo": "Usuń repozytorium Git Graph",
   "command.showDiagnostics": "Pokaż diagnostykę Git Graph",
   "command.trustRepository": "Zaufaj repozytorium w Git…",
+  "command.openDiffTab": "Otwórz w GGL Diff",
   "config.title": "Git Graph Libre",
   "config.autoCenterCommitDetailsView": "Automatycznie wyśrodkuj widok szczegółów commita po jego otwarciu.",
   "config.autoCenterCommitDetailsView.title": "Automatyczne centrowanie szczegółów commita",

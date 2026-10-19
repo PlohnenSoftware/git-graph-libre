@@ -8,10 +8,12 @@ import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { runGitRaw } from "@/backend/utils/gitRunner";
 import { getPathFromStr } from "@/backend/utils/path";
 import type { Config } from "@/config";
+import type { DiffTabRequest } from "@/diffTabTypes";
 import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
 import type { TelemetryReporter } from "@/telemetry";
 
+import { createScmDiffTabHandlers } from "./diffTab/scmCommands";
 import type { RepoManager } from "./repoManager";
 import type { WebviewPanel } from "./webviewPanel";
 
@@ -54,6 +56,8 @@ export type CommandManagerDeps = {
   getCurrentPanel(): WebviewPanel | undefined;
   /** Trust a repository Git rejects for ownership; see `createGitTrustCommand`. */
   trustRepository?: () => Promise<void>;
+  /** Open the GGL Diff tab from Source Control (D46); wired in `extension.ts`. */
+  openScmDiffTab?: (request: DiffTabRequest) => void;
   telemetry?: Pick<TelemetryReporter, "logFeature">;
 };
 
@@ -268,6 +272,13 @@ export function createCommandManager(deps: CommandManagerDeps) {
     register("git-graph-libre.clearAvatarCache", () => {
       deps.avatarManager.clearCache();
     });
+    for (const { id, handler } of createScmDiffTabHandlers({
+      getRepos: () => deps.repoManager.getRepos(),
+      openDiff: (request) => deps.openScmDiffTab?.(request),
+      showWarning: (message) => windowApi.showWarningMessage(message)
+    })) {
+      register(id, handler);
+    }
     return disposables;
   }
 

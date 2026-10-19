@@ -632,5 +632,8 @@
   "diffTab.showAll": "Alles weergeven",
   "diffTab.binaryFile": "Dit is een binair bestand; er is geen tekstdiff om weer te geven.",
   "diffTab.tooLarge": "Dit bestand is te groot voor een diff hier (diffEditor.maxFileSize).",
-  "diffTab.loadError": "Kan de diff niet laden: {0}"
+  "diffTab.loadError": "Kan de diff niet laden: {0}",
+  "diff.index": "Index",
+  "diff.empty": "Leeg",
+  "command.openDiffTab.noRepo": "Git Graph Libre kent geen repository die dit bestand bevat."
 }

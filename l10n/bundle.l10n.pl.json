@@ -632,5 +632,8 @@
   "diffTab.showAll": "Pokaż wszystko",
   "diffTab.binaryFile": "To jest plik binarny; nie ma różnic tekstowych do pokazania.",
   "diffTab.tooLarge": "Ten plik jest zbyt duży, by pokazać tu różnice (diffEditor.maxFileSize).",
-  "diffTab.loadError": "Nie można załadować różnic: {0}"
+  "diffTab.loadError": "Nie można załadować różnic: {0}",
+  "diff.index": "Indeks",
+  "diff.empty": "Puste",
+  "command.openDiffTab.noRepo": "Git Graph Libre nie zna repozytorium zawierającego ten plik."
 }

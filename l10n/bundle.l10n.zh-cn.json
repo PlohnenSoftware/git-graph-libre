@@ -632,5 +632,8 @@
   "diffTab.showAll": "全部显示",
   "diffTab.binaryFile": "此为二进制文件，没有可显示的文本差异。",
   "diffTab.tooLarge": "此文件过大，无法在此显示差异 (diffEditor.maxFileSize)。",
-  "diffTab.loadError": "无法加载差异：{0}"
+  "diffTab.loadError": "无法加载差异：{0}",
+  "diff.index": "索引",
+  "diff.empty": "空",
+  "command.openDiffTab.noRepo": "Git Graph Libre 不知道包含此文件的仓库。"
 }
