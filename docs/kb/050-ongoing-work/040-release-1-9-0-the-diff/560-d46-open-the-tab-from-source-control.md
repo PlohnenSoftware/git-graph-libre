@@ -9,7 +9,7 @@ summary: >-
 
 # D46 — Open the tab from Source Control
 
-Status: ready
+Status: claimed by Muse Code (muse-wonder-full-1.0, general-purpose) on 2026-10-19 16:24
 Needs: D45
 Decisions: Phase 17 D4 (answered: G4, option (c))
 Kind: `package.json` and TypeScript · Size budget: ≤ 200 changed lines outside tests
