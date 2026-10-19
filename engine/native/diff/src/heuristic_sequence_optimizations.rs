@@ -13,7 +13,8 @@
 use std::collections::VecDeque;
 
 use crate::diff_algorithm::{ISequence, OffsetPair, SequenceDiff};
-use crate::lines_slice_char_sequence::LinesSliceCharSequence;
+use crate::line_sequence::LineSequence;
+use crate::lines_slice_char_sequence::{is_js_whitespace, LinesSliceCharSequence};
 use crate::offset_range::OffsetRange;
 
 pub fn optimize_sequence_diffs(
@@ -386,4 +387,54 @@ fn merge_sequence_diffs(
         }
     }
     result
+}
+
+/// The shared `do { ... } while (counter++ < 10 && shouldRepeat)` loop: joins a
+/// diff to the previous result while `should_join(last, cur)`.
+fn join_repeatedly(
+    mut diffs: Vec<SequenceDiff>,
+    should_join: impl Fn(SequenceDiff, SequenceDiff) -> bool,
+) -> Vec<SequenceDiff> {
+    if diffs.is_empty() {
+        return diffs;
+    }
+    let mut counter = 0;
+    loop {
+        let mut should_repeat = false;
+        let mut result = vec![diffs[0]];
+        for &cur in &diffs[1..] {
+            let last = result.len() - 1;
+            if should_join(result[last], cur) {
+                should_repeat = true;
+                result[last] = result[last].join(cur);
+            } else {
+                result.push(cur);
+            }
+        }
+        diffs = result;
+        counter += 1;
+        if counter > 10 || !should_repeat {
+            return diffs;
+        }
+    }
+}
+
+pub fn remove_very_short_matching_lines_between_diffs(
+    sequence1: &LineSequence,
+    _sequence2: &LineSequence,
+    sequence_diffs: &[SequenceDiff],
+) -> Vec<SequenceDiff> {
+    join_repeatedly(sequence_diffs.to_vec(), |before, after| {
+        let unchanged_range =
+            OffsetRange::new(before.seq1_range.end_exclusive, after.seq1_range.start);
+        // `replace(/\s/g, '')`, counted in UTF-16 units.
+        let unchanged_text_without_ws = sequence1
+            .get_text(unchanged_range)
+            .encode_utf16()
+            .filter(|&unit| !is_js_whitespace(unit))
+            .count();
+        unchanged_text_without_ws <= 4
+            && (before.seq1_range.length() + before.seq2_range.length() > 5
+                || after.seq1_range.length() + after.seq2_range.length() > 5)
+    })
 }
