@@ -9,7 +9,7 @@ summary: >-
 
 # D14 — Compare with the working tree
 
-Status: done — awaiting integration
+Status: integrated db87dd6
 Needs: D13
 Decisions: —
 Kind: TypeScript (backend and webview) · Size budget: ≤ 220 changed lines outside tests
