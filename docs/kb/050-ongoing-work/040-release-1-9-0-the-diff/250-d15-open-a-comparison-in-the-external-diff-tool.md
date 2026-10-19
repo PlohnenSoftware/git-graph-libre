@@ -9,7 +9,7 @@ summary: >-
 
 # D15 — Open a comparison in the external diff tool
 
-Status: ready
+Status: claimed by Muse Code (general-purpose) on 2026-10-19 11:12
 Needs: D13
 Decisions: X4
 Kind: TypeScript (backend action and webview) · Size budget: ≤ 200 changed lines outside tests
