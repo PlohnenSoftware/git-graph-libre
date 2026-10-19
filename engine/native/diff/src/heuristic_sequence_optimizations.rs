@@ -328,6 +328,7 @@ fn shift_diff_to_better_position(
     ))
 }
 
+/// `removeShortMatches` (`heuristicSequenceOptimizations.ts` L203-L220).
 pub fn remove_short_matches(
     _sequence1: &dyn ISequence,
     _sequence2: &dyn ISequence,
@@ -353,7 +354,9 @@ pub fn remove_short_matches(
     result
 }
 
-/// The state `scanWord` closes over in the TypeScript.
+/// The state `scanWord` closes over in `extendDiffsToEntireWordIfAppropriate`
+/// (`heuristicSequenceOptimizations.ts` L229-L233: `equalMappings`,
+/// `additional`, `lastPoint`; `findParent` and `force` are its parameters).
 struct WordScan<'a, F> {
     sequence1: &'a LinesSliceCharSequence,
     sequence2: &'a LinesSliceCharSequence,
@@ -365,6 +368,7 @@ struct WordScan<'a, F> {
 }
 
 impl<F: Fn(&LinesSliceCharSequence, i64) -> Option<OffsetRange>> WordScan<'_, F> {
+    /// `scanWord` (`heuristicSequenceOptimizations.ts` L235-L285), whole.
     fn scan_word(&mut self, pair: OffsetPair, equal_mapping: SequenceDiff) {
         if pair.offset1 < self.last_point.offset1 || pair.offset2 < self.last_point.offset2 {
             return;
@@ -421,7 +425,11 @@ impl<F: Fn(&LinesSliceCharSequence, i64) -> Option<OffsetRange>> WordScan<'_, F>
     }
 }
 
-/// `findParent` is `findWordContaining` or `findSubWordContaining`.
+/// `extendDiffsToEntireWordIfAppropriate` (`heuristicSequenceOptimizations.ts`
+/// L222-L299); `find_parent` is `findWordContaining` or `findSubWordContaining`.
+/// Sets up the `WordScan` state (L229-L233), runs the loop over the equal
+/// mappings (L287-L295) calling `WordScan::scan_word` (L235-L285), then
+/// `merge_sequence_diffs` (L297-L298).
 pub fn extend_diffs_to_entire_word_if_appropriate(
     sequence1: &LinesSliceCharSequence,
     sequence2: &LinesSliceCharSequence,
@@ -449,6 +457,7 @@ pub fn extend_diffs_to_entire_word_if_appropriate(
     merge_sequence_diffs(sequence_diffs, &scan.additional)
 }
 
+/// `mergeSequenceDiffs` (`heuristicSequenceOptimizations.ts` L301-L323).
 fn merge_sequence_diffs(
     sequence_diffs1: &[SequenceDiff],
     sequence_diffs2: &[SequenceDiff],
@@ -478,8 +487,12 @@ fn merge_sequence_diffs(
     result
 }
 
-/// The shared `do { ... } while (counter++ < 10 && shouldRepeat)` loop: joins a
-/// diff to the previous result while `should_join(last, cur)`.
+/// The `do { ... } while (counter++ < 10 && shouldRepeat)` loop shared by
+/// `removeVeryShortMatchingLinesBetweenDiffs` (`heuristicSequenceOptimizations.ts`
+/// L331-L367) and `removeVeryShortMatchingTextBetweenLongDiffs` (L378-L438),
+/// including the empty-input return (L327-L329, L374-L376). It joins a diff to
+/// the previous result while `should_join(last, cur)`, the TypeScript's
+/// `shouldJoinDiffs` closure.
 fn join_repeatedly(
     mut diffs: Vec<SequenceDiff>,
     should_join: impl Fn(SequenceDiff, SequenceDiff) -> bool,
@@ -508,6 +521,9 @@ fn join_repeatedly(
     }
 }
 
+/// `removeVeryShortMatchingLinesBetweenDiffs` (`heuristicSequenceOptimizations.ts`
+/// L325-L370). Calls `join_repeatedly` (L326-L368 loop), with the closure
+/// below as its `shouldJoinDiffs` (L344-L355).
 pub fn remove_very_short_matching_lines_between_diffs(
     sequence1: &LineSequence,
     _sequence2: &LineSequence,
@@ -528,7 +544,8 @@ pub fn remove_very_short_matching_lines_between_diffs(
     })
 }
 
-/// `String.prototype.trim` on UTF-16 text.
+/// `String.prototype.trim` on UTF-16 text, as `.trim()` at
+/// `heuristicSequenceOptimizations.ts` L399 and L447.
 fn trim_js(text: &[u16]) -> &[u16] {
     let first = text.iter().position(|&unit| !is_js_whitespace(unit));
     let last = text.iter().rposition(|&unit| !is_js_whitespace(unit));
@@ -537,9 +554,10 @@ fn trim_js(text: &[u16]) -> &[u16] {
         .map_or(&[], |(first, last)| &text[first..=last])
 }
 
-/// The `max` of the weight formula: `2 * 40 + 50`.
+/// The `max` of the weight formula (`heuristicSequenceOptimizations.ts` L416): `2 * 40 + 50`.
 const MAX_WEIGHT_INPUT: f64 = 130.0;
 
+/// The `cap` and pow terms of L421-L422 (`removeVeryShortMatchingTextBetweenLongDiffs`):
 /// `Math.pow(Math.pow(cap(a), 1.5) + Math.pow(cap(b), 1.5), 1.5)`, with `cap`
 /// at `MAX_WEIGHT_INPUT`, for the sizes (lines * 40 + length) of one diff's two sides.
 fn diff_weight(size1: u32, size2: u32) -> f64 {
@@ -547,6 +565,9 @@ fn diff_weight(size1: u32, size2: u32) -> f64 {
     (cap(size1) + cap(size2)).powf(1.5)
 }
 
+/// `shouldJoinDiffs` of `removeVeryShortMatchingTextBetweenLongDiffs`
+/// (`heuristicSequenceOptimizations.ts` L391-L426): the size and text limits
+/// (L392-L402), the line counts (L404-L412) and the weight test (L416-L425).
 fn should_join_text_between_long_diffs(
     sequence1: &LinesSliceCharSequence,
     sequence2: &LinesSliceCharSequence,
@@ -583,6 +604,61 @@ fn should_join_text_between_long_diffs(
     weight(before) + weight(after) > MAX_WEIGHT_INPUT.powf(1.5).powf(1.5) * 1.3
 }
 
+/// The per-diff body of the `forEachWithNeighbors` callback of
+/// `removeVeryShortMatchingTextBetweenLongDiffs` (`heuristicSequenceOptimizations.ts`
+/// L443-L470): marks a short prefix or suffix on the line as changed (L444-L458),
+/// then limits the result to the space between `prev` and `next` (L460-L464).
+fn extend_over_short_affixes(
+    sequence1: &LinesSliceCharSequence,
+    prev: Option<SequenceDiff>,
+    cur: SequenceDiff,
+    next: Option<SequenceDiff>,
+) -> SequenceDiff {
+    let mut new_diff = cur;
+
+    let should_mark_as_changed = |text: &[u16]| {
+        !text.is_empty()
+            && trim_js(text).len() <= 3
+            && cur.seq1_range.length() + cur.seq2_range.length() > 100
+    };
+
+    let full_range1 = sequence1.extend_to_full_lines(cur.seq1_range);
+    let prefix = sequence1.get_text(OffsetRange::new(full_range1.start, cur.seq1_range.start));
+    if should_mark_as_changed(&prefix) {
+        // `deltaStart(-prefix.length)` can take the second range below zero
+        // in the TypeScript; the intersection below clamps it back to the
+        // previous diff's end, so clamping at zero gives the same result.
+        let back = prefix.len() as u32;
+        new_diff = SequenceDiff::new(
+            new_diff.seq1_range.delta_start(-i64::from(back)),
+            OffsetRange::new(
+                new_diff.seq2_range.start.saturating_sub(back),
+                new_diff.seq2_range.end_exclusive,
+            ),
+        );
+    }
+    let suffix = sequence1.get_text(OffsetRange::new(
+        cur.seq1_range.end_exclusive,
+        full_range1.end_exclusive,
+    ));
+    if should_mark_as_changed(&suffix) {
+        new_diff = new_diff.delta_end(suffix.len() as i64);
+    }
+
+    let available_space = SequenceDiff::from_offset_pairs(
+        prev.map_or(OffsetPair::ZERO, |p| p.get_end_exclusives()),
+        next.map_or(OffsetPair::MAX, |n| n.get_starts()),
+    );
+    new_diff
+        .intersect(available_space)
+        .expect("the diff lies in its available space")
+}
+
+/// `removeVeryShortMatchingTextBetweenLongDiffs` (`heuristicSequenceOptimizations.ts`
+/// L372-L473). Calls, in order: `join_repeatedly` with
+/// `should_join_text_between_long_diffs` (L374-L438), then, for each diff with
+/// its neighbors (`forEachWithNeighbors`, L440-L470), `extend_over_short_affixes`
+/// and the joining of touching results into `newDiffs` (L465-L469, here).
 pub fn remove_very_short_matching_text_between_long_diffs(
     sequence1: &LinesSliceCharSequence,
     sequence2: &LinesSliceCharSequence,
@@ -593,49 +669,9 @@ pub fn remove_very_short_matching_text_between_long_diffs(
     });
 
     let mut new_diffs: Vec<SequenceDiff> = Vec::new();
-
-    // Remove short suffixes/prefixes
     for (i, &cur) in diffs.iter().enumerate() {
         let prev = i.checked_sub(1).map(|j| diffs[j]);
-        let next = diffs.get(i + 1).copied();
-        let mut new_diff = cur;
-
-        let should_mark_as_changed = |text: &[u16]| {
-            !text.is_empty()
-                && trim_js(text).len() <= 3
-                && cur.seq1_range.length() + cur.seq2_range.length() > 100
-        };
-
-        let full_range1 = sequence1.extend_to_full_lines(cur.seq1_range);
-        let prefix = sequence1.get_text(OffsetRange::new(full_range1.start, cur.seq1_range.start));
-        if should_mark_as_changed(&prefix) {
-            // `deltaStart(-prefix.length)` can take the second range below zero
-            // in the TypeScript; the intersection below clamps it back to the
-            // previous diff's end, so clamping at zero gives the same result.
-            let back = prefix.len() as u32;
-            new_diff = SequenceDiff::new(
-                new_diff.seq1_range.delta_start(-i64::from(back)),
-                OffsetRange::new(
-                    new_diff.seq2_range.start.saturating_sub(back),
-                    new_diff.seq2_range.end_exclusive,
-                ),
-            );
-        }
-        let suffix = sequence1.get_text(OffsetRange::new(
-            cur.seq1_range.end_exclusive,
-            full_range1.end_exclusive,
-        ));
-        if should_mark_as_changed(&suffix) {
-            new_diff = new_diff.delta_end(suffix.len() as i64);
-        }
-
-        let available_space = SequenceDiff::from_offset_pairs(
-            prev.map_or(OffsetPair::ZERO, |p| p.get_end_exclusives()),
-            next.map_or(OffsetPair::MAX, |n| n.get_starts()),
-        );
-        let result = new_diff
-            .intersect(available_space)
-            .expect("the diff lies in its available space");
+        let result = extend_over_short_affixes(sequence1, prev, cur, diffs.get(i + 1).copied());
         match new_diffs.last_mut() {
             Some(last) if result.get_starts() == last.get_end_exclusives() => {
                 *last = last.join(result);
@@ -788,16 +824,12 @@ mod tests {
         let line = CORPUS.lines().find(|l| l.starts_with("W;")).unwrap();
         let f: Vec<&str> = line.split(';').collect();
         let powers = fnv((0..=130).map(|x| f64::from(x).powf(1.5)));
-        let weights = (0..=130u32).flat_map(|x| (x..=130).map(move |y| diff_weight_of_caps(x, y)));
+        let weights = (0..=130u32).flat_map(|x| (x..=130).map(move |y| diff_weight(x, y)));
         let threshold = MAX_WEIGHT_INPUT.powf(1.5).powf(1.5) * 1.3;
         assert_eq!(f[1], "8646");
         assert_eq!(f[2], powers, "Math.pow(x, 1.5)");
         assert_eq!(f[3], fnv(weights), "the weight formula");
         assert_eq!(f[4], format!("{:x}", threshold.to_bits()), "the threshold");
-    }
-
-    fn diff_weight_of_caps(x: u32, y: u32) -> f64 {
-        diff_weight(x, y)
     }
 
     #[test]
