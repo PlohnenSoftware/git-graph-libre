@@ -82,7 +82,7 @@ const TEMPLATES = [
   (a, b) => `const ${a} = compute(${b}, ${a});`,
   (a, b) => `if (${a} > ${b}) { return ${a}; }`,
   (a, b) => `${a}.push(${b});`,
-  (a, b) => `for (let i = 0; i < ${a}.length; i++) {`,
+  (a) => `for (let i = 0; i < ${a}.length; i++) {`,
   (a, b) => `  ${b} += ${a}[i] * 2;`,
   () => '}',
   () => '',
