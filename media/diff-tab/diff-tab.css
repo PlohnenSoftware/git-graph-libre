@@ -1,0 +1,37 @@
+.ggl-diff {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--vscode-editor-background, oklch(20% 0 0));
+  color: var(--vscode-editor-foreground, oklch(88% 0 0));
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: var(--vscode-editor-font-size, 14px);
+  font-weight: var(--vscode-editor-font-weight, 400);
+  line-height: var(--diff-line-height);
+}
+.ggl-diff .diff-viewport { flex: 1; min-height: 0; overflow-y: scroll; overflow-x: hidden; }
+.ggl-diff .diff-spacer { position: relative; }
+.ggl-diff .diff-row { position: absolute; width: 100%; height: var(--diff-line-height); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.ggl-diff .diff-half { display: flex; min-width: 0; overflow: hidden; }
+.ggl-diff .diff-side-1 { border-left: 1px solid var(--vscode-diffEditor-border, oklch(50% 0 0 / 0.3)); }
+.ggl-diff .diff-gutter { width: var(--diff-gutter-width); flex: none; text-align: right; box-sizing: border-box; padding-right: 8px; color: var(--vscode-editorLineNumber-foreground, oklch(60% 0 0)); }
+.ggl-diff .diff-gutter, .ggl-diff .diff-sign, .ggl-diff .insert-sign, .ggl-diff .delete-sign { user-select: none; }
+.ggl-diff .diff-sign, .ggl-diff .insert-sign, .ggl-diff .delete-sign { width: 20px; flex: none; justify-content: center; }
+.ggl-diff .diff-text-clip { min-width: 0; flex: 1; overflow: hidden; }
+.ggl-diff .diff-text { width: max-content; white-space: pre; padding: 0 8px; user-select: text; }
+.ggl-diff .diff-side-0 .diff-text { transform: translateX(calc(-1 * var(--diff-scroll-0, 0px))); }
+.ggl-diff .diff-side-1 .diff-text { transform: translateX(calc(-1 * var(--diff-scroll-1, 0px))); }
+.ggl-diff .diff-scrollbars { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); flex: none; }
+.ggl-diff .diff-horizontal { margin-left: calc(var(--diff-gutter-width) + 20px); overflow-x: scroll; overflow-y: hidden; }
+.ggl-diff .diff-horizontal-track { height: 1px; }
+.ggl-diff .diff-row.diff-hidden-lines { display: block; transform: none; font: inherit; }
+.ggl-diff .diff-hidden-lines .center { height: 100%; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.ggl-diff button { border: 0; padding: 0 4px; background: var(--vscode-button-secondaryBackground, oklch(35% 0 0)); color: var(--vscode-button-secondaryForeground, oklch(90% 0 0)); font: inherit; line-height: inherit; cursor: pointer; }
+.ggl-diff button:hover { background: var(--vscode-button-secondaryHoverBackground, oklch(42% 0 0)); }
+.ggl-diff button:focus-visible { outline: 1px solid var(--vscode-focusBorder, oklch(70% 0.15 240)); outline-offset: -1px; }
+.ggl-diff ::-webkit-scrollbar { width: 14px; height: 14px; background: var(--vscode-editor-background, oklch(20% 0 0)); }
+.ggl-diff ::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background, oklch(60% 0 0 / 0.4)); }
+.ggl-diff ::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground, oklch(60% 0 0 / 0.6)); }
+.ggl-diff ::-webkit-scrollbar-thumb:active { background: var(--vscode-scrollbarSlider-activeBackground, oklch(60% 0 0 / 0.8)); }
