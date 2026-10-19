@@ -7,7 +7,7 @@ summary: >-
 
 # D22 — Phase 17 port sub-slices
 
-Status: in progress — 22a–22g and 22j integrated (22j 0ca19fc), D22F integrated 39d841b; 22h in flight, 22i after both
+Status: in progress — 22a–22h and 22j integrated (22h 0cd0d1d), D22F integrated 39d841b; 22i ready
 Needs: D21
 Decisions: X5 = (b); Phase 17 D1, D2 and D5
 Kind: Rust, the Rust arm applies · Size budget: per sub-slice, as listed
@@ -207,7 +207,7 @@ Status: integrated 0ca19fc
 
 ### 22h Report
 
-Status: done — awaiting integration
+Status: integrated 0cd0d1d
 
 - **Agent / date:** Muse Code (muse-wonder-full-1.0, general-purpose, inherited runtime model; no named-model selector), 2026-10-19 16:03 Europe/Warsaw.
 - **Branch and commits:** `diff-1.9.0/d22h` on top of the preserved claim `324c5d1` — `6ef473a G` reassignment note; `899785d G` wasm feature + pin; `2995013 G` wasm-bindgen surface; `e97231e G` `diff:wasm` script; `d554607 G` differential suite; plus the signed report commit carrying this section. No push.
