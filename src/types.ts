@@ -77,12 +77,14 @@ export type ContextMenuActionsVisibility = {
     createPullRequest: boolean;
     createArchive: boolean;
     compareWithHead: boolean;
+    compareWith: boolean;
     copyName: boolean;
   };
   commit: {
     addTag: boolean;
     createBranch: boolean;
     compareWithHead: boolean;
+    compareWith: boolean;
     compareSelection: boolean;
     checkout: boolean;
     cherryPick: boolean;
@@ -117,6 +119,7 @@ export type ContextMenuActionsVisibility = {
     createPullRequest: boolean;
     createArchive: boolean;
     compareWithHead: boolean;
+    compareWith: boolean;
     copyName: boolean;
   };
   stash: {
@@ -134,6 +137,7 @@ export type ContextMenuActionsVisibility = {
     fetchTags: boolean;
     createArchive: boolean;
     compareWithHead: boolean;
+    compareWith: boolean;
     copyName: boolean;
   };
   uncommittedChanges: {

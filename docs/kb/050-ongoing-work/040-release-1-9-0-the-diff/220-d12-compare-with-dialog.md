@@ -8,7 +8,7 @@ summary: >-
 
 # D12 — "Compare with…" dialog
 
-Status: ready
+Status: claimed by Muse Code (general-purpose) sub-agent D12 on 2026-10-19 10:50 Europe/Warsaw
 Needs: D10, D11
 Decisions: — (the direction is fixed: clicked commit → chosen ref)
 Kind: webview, plus l10n · Size budget: ≤ 220 changed lines outside tests

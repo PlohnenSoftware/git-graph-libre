@@ -13,12 +13,14 @@ export const DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY = {
     createPullRequest: true,
     createArchive: true,
     compareWithHead: true,
+    compareWith: true,
     copyName: true
   },
   commit: {
     addTag: true,
     createBranch: true,
     compareWithHead: true,
+    compareWith: true,
     compareSelection: true,
     checkout: true,
     cherryPick: true,
@@ -53,6 +55,7 @@ export const DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY = {
     createPullRequest: true,
     createArchive: true,
     compareWithHead: true,
+    compareWith: true,
     copyName: true
   },
   stash: {
@@ -70,6 +73,7 @@ export const DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY = {
     fetchTags: true,
     createArchive: true,
     compareWithHead: true,
+    compareWith: true,
     copyName: true
   },
   uncommittedChanges: {

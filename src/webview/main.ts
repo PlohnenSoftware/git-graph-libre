@@ -180,6 +180,17 @@ function formatQueryError(error: GitQueryError | null): string | null {
   return parts.join("\n");
 }
 
+/**
+ * The comparison-header label for a typed "Compare with…" ref: the text the
+ * user picked, unless it is (a prefix of) the resolved hash — a raw hash
+ * shows as its abbreviation instead.
+ */
+function compareWithLabel(ref: string, resolvedHash: string): string | undefined {
+  const isHash =
+    /^[0-9a-f]+$/i.test(ref) && resolvedHash.toLowerCase().startsWith(ref.toLowerCase());
+  return isHash ? undefined : ref;
+}
+
 function createEmptyGitConfig(): GitRepoConfig {
   return {
     userName: { local: null, global: null },
@@ -316,6 +327,14 @@ class GitGraphView {
   private activeLoadExtensionSettingsRequestId: number | null = null;
   private activeLoadBranchesRequestId: number | null = null;
   private activeLoadCommitsRequestId: number | null = null;
+  /** The "Compare with…" submission still awaiting its `resolveRef` reply. */
+  private pendingCompareWith: {
+    requestId: number;
+    sourceElem: HTMLElement;
+    hash: string;
+    ref: string;
+    baseLabel?: string;
+  } | null = null;
 
   constructor(
     repos: GGL.GitRepoSet,
@@ -3085,6 +3104,8 @@ class GitGraphView {
     const menu = this.buildCommitCreateMenuItems(hash, sourceElem);
     const compareWithHeadItem = this.buildCompareWithHeadMenuItem(hash, sourceElem);
     if (compareWithHeadItem !== null) menu.push(compareWithHeadItem);
+    const compareWithItem = this.buildCompareWithMenuItem(hash, sourceElem);
+    if (compareWithItem !== null) menu.push(compareWithItem);
     menu.push(...this.buildCommitChangeMenuItems(hash, sourceElem));
     this.appendHeadCommitMenuItems(menu, hash, sourceElem, { isHeadCommit, canDropCommit });
     menu.push(...this.buildCommitIntegrationMenuItems(hash, sourceElem));
@@ -3739,6 +3760,11 @@ class GitGraphView {
         ? null
         : this.buildCompareWithHeadMenuItem(refCommitHash, sourceElem, refName);
     if (compareWithHeadItem !== null) menu.push(compareWithHeadItem);
+    const compareWithItem =
+      refCommitHash === null
+        ? null
+        : this.buildCompareWithMenuItem(refCommitHash, sourceElem, refName);
+    if (compareWithItem !== null) menu.push(compareWithItem);
     const copyType = isTag ? "Tag Name" : "Branch Name";
     const copyTitle = isTag ? l10n.copyTagName : l10n.copyBranchName;
     const copyGroup = this.contextMenuCopyGroupForRef(sourceElem, isTag);
@@ -3767,6 +3793,97 @@ class GitGraphView {
   }
   private canCompareWithHead(hash: string) {
     return this.commitHead !== null && hash !== "*" && hash !== this.commitHead;
+  }
+  private buildCompareWithMenuItem(
+    hash: string,
+    sourceElem: HTMLElement,
+    refName?: string
+  ): ContextMenuElement {
+    if (hash === "*") return null;
+    const group = this.contextMenuGroupForRef(sourceElem);
+    if (!this.isContextMenuActionVisible(group, "compareWith")) return null;
+    return {
+      title: l10n.compareWith + ELLIPSIS,
+      onClick: () => this.showCompareWithDialog(hash, sourceElem, refName)
+    };
+  }
+  private showCompareWithDialog(hash: string, sourceElem: HTMLElement, baseLabel?: string) {
+    const base = escapeHtml(baseLabel ?? this.displayHash(hash));
+    showFormDialog(
+      l10n.dialogCompareWithTitle.replace("{0}", `<b><i>${base}</i></b>`),
+      [
+        {
+          type: "text",
+          name: "",
+          default: "",
+          placeholder: l10n.dialogCompareWithPlaceholder,
+          required: true
+        }
+      ],
+      l10n.compareWith,
+      (values) => this.requestCompareWithResolution(hash, sourceElem, values[0], baseLabel),
+      sourceElem
+    );
+    this.attachCompareWithSuggestions();
+  }
+  // No DialogInput type offers suggestions, so the dialog's plain text input
+  // gains a native <datalist> once it is in the DOM: HEAD first, then the
+  // loaded local branches, remote branches and tags. Free text (a SHA or an
+  // expression like HEAD~2) stays typeable beside the suggestions.
+  private attachCompareWithSuggestions() {
+    const input = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    if (input === null) return;
+    const list = document.createElement("datalist");
+    list.id = "compareWithSuggestions";
+    for (const suggestion of this.compareWithSuggestions()) {
+      const option = document.createElement("option");
+      option.value = suggestion;
+      list.append(option);
+    }
+    input.setAttribute("list", list.id);
+    input.after(list);
+    input.focus();
+  }
+  private compareWithSuggestions(): string[] {
+    const localBranches = this.gitBranches.filter((branch) => !branch.startsWith("remotes/"));
+    const remoteBranches = this.gitBranches
+      .filter((branch) => branch.startsWith("remotes/"))
+      .map((branch) => branch.substring(8));
+    return [...new Set(["HEAD", ...localBranches, ...remoteBranches, ...this.gitTags])];
+  }
+  private requestCompareWithResolution(
+    hash: string,
+    sourceElem: HTMLElement,
+    enteredRef: string,
+    baseLabel?: string
+  ) {
+    const ref = enteredRef.trim();
+    if (ref === "") return;
+    const requestId = this.createRequestId();
+    this.pendingCompareWith = { requestId, sourceElem, hash, ref, baseLabel };
+    sendMessage({ command: "resolveRef", repo: this.currentRepo, ref, requestId });
+  }
+  public loadResolvedComparison(
+    requestId: number,
+    resolvedHash: string | null,
+    errorReason: string | null
+  ) {
+    const pending = this.pendingCompareWith;
+    if (pending === null || pending.requestId !== requestId) return;
+    this.pendingCompareWith = null;
+    if (resolvedHash === null) {
+      showErrorDialog(l10n.unableToResolveRef, errorReason, null);
+      return;
+    }
+    // The graph may have re-rendered while Git resolved the ref; prefer the
+    // live row for the clicked commit over the element captured at submit.
+    const sourceElem =
+      document.querySelector<HTMLElement>(`tr.commit[data-hash="${pending.hash}"]`) ??
+      pending.sourceElem;
+    this.loadCommitComparison(sourceElem, pending.hash, pending.hash, resolvedHash, {
+      baseLabel: pending.baseLabel,
+      compareLabel: compareWithLabel(pending.ref, resolvedHash)
+    });
   }
   private contextMenuCopyGroupForRef(
     sourceElem: HTMLElement,
@@ -6604,6 +6721,8 @@ const responseHandlers: ResponseHandlerMap = {
   openFile: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenFile),
   openSourceControl: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenSourceControl),
   refresh: () => gitGraph.refresh(false),
+  resolveRef: (msg) =>
+    gitGraph.loadResolvedComparison(msg.requestId, msg.hash, formatQueryError(msg.error)),
   searchCommits: (msg) =>
     gitGraph.loadSearchCommitResults(msg.requestId, msg.results, formatQueryError(msg.error)),
   startHistorySearch: () => gitGraph.startHistorySearch(),
@@ -7194,7 +7313,11 @@ function bindFormDialogInputs(inputs: DialogInput[], textRefInput: number, actio
   bindDialogInputDependencies(inputs, refreshActionState);
   for (let i = 0; i < inputs.length; i++) {
     if (!isRequiredDialogInput(inputs[i])) continue;
-    document.getElementById(`dialogInput${i}`)?.addEventListener("keyup", refreshActionState);
+    const elem = document.getElementById(`dialogInput${i}`);
+    elem?.addEventListener("keyup", refreshActionState);
+    // Picking a <datalist> suggestion or pasting with the mouse fires
+    // `input` without any key, and must unblock the action the same way.
+    elem?.addEventListener("input", refreshActionState);
   }
   refreshActionState();
 }

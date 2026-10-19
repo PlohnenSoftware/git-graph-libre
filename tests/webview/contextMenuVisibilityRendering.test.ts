@@ -197,6 +197,7 @@ describe("context menu visibility rendering", () => {
           push: false,
           fetchTags: false,
           compareWithHead: false,
+          compareWith: false,
           copyName: false
         }
       })
@@ -250,6 +251,28 @@ describe("context menu visibility rendering", () => {
 
     expect(document.querySelectorAll(".commitSelected")).toHaveLength(2);
     expect(contextMenuItems()).not.toContain("Compare Selected Commits");
+  });
+
+  it("hides Compare With in the commit, branch and tag menus when disabled", async () => {
+    await bootWebview(
+      withVisibility({
+        commit: { ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.commit, compareWith: false },
+        branch: { ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.branch, compareWith: false },
+        remoteBranch: {
+          ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.remoteBranch,
+          compareWith: false
+        },
+        tag: { ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.tag, compareWith: false }
+      })
+    );
+
+    for (const selector of ['tr.commit[data-hash="abc123"]', ".gitRef.head", ".gitRef.tag"]) {
+      document
+        .querySelector<HTMLElement>(selector)
+        ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+      expect(contextMenuItems()).not.toContain("Compare With…");
+      expect(contextMenuItems().length).toBeGreaterThan(0);
+    }
   });
 
   it("hides all disabled local branch actions", async () => {

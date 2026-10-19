@@ -175,6 +175,7 @@ describe("remote branch context menu visibility", () => {
       "Pull Branch…",
       "Create Archive",
       "Compare with HEAD",
+      "Compare With…",
       "Copy Branch Name to Clipboard"
     ]);
   });
