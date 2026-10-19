@@ -77,6 +77,7 @@ function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | nu
   };
 
   const openGraphView = vi.fn();
+  const openScmDiffTab = vi.fn();
   const currentPanel = {
     startHistorySearch: vi.fn()
   };
@@ -92,6 +93,7 @@ function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | nu
     repoManager,
     avatarManager: { clearCache },
     openGraphView,
+    openScmDiffTab,
     getCurrentPanel: () => currentPanel as unknown as WebviewPanel,
     telemetry: {
       logFeature: (feature: string, ok: boolean) => {
@@ -101,10 +103,10 @@ function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | nu
   });
   manager.registerAll();
 
-  async function run(command: string) {
+  async function run(command: string, ...args: unknown[]) {
     const handler = handlers.get(command);
     if (!handler) throw new Error(`Missing command: ${command}`);
-    await handler();
+    await handler(...args);
   }
 
   return {
@@ -117,6 +119,7 @@ function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | nu
     handlers,
     manager,
     openGraphView,
+    openScmDiffTab,
     outputChannel,
     outputLines,
     run,
@@ -135,6 +138,9 @@ describe("command manager", () => {
     expect([...handlers.keys()].toSorted()).toEqual([
       "git-graph-libre.addRepo",
       "git-graph-libre.clearAvatarCache",
+      "git-graph-libre.openDiffTab.index",
+      "git-graph-libre.openDiffTab.untracked",
+      "git-graph-libre.openDiffTab.workingTree",
       "git-graph-libre.removeRepo",
       "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
@@ -150,6 +156,9 @@ describe("command manager", () => {
     ).toEqual([
       "git-graph-libre.addRepo",
       "git-graph-libre.clearAvatarCache",
+      "git-graph-libre.openDiffTab.index",
+      "git-graph-libre.openDiffTab.untracked",
+      "git-graph-libre.openDiffTab.workingTree",
       "git-graph-libre.removeRepo",
       "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
@@ -157,6 +166,28 @@ describe("command manager", () => {
       "git-graph-libre.view",
       "git-graph-libre.viewActiveEditorRepo"
     ]);
+  });
+
+  it("opens the GGL Diff tab for a Source Control resource, through register", async () => {
+    const { openScmDiffTab, run, telemetryEvents } = makeHarness({
+      "/workspace/project": { columnWidths: null }
+    });
+
+    await run("git-graph-libre.openDiffTab.workingTree", {
+      resourceUri: { fsPath: "/workspace/project/src/file.ts" }
+    });
+
+    expect(openScmDiffTab).toHaveBeenCalledWith({
+      repo: "/workspace/project",
+      left: { kind: "index", path: "src/file.ts" },
+      right: { kind: "workingTree", path: "src/file.ts" },
+      title: "file.ts (Index ↔ Working Tree)"
+    });
+    // Through `register`, so the telemetry wrapper reports the outcome.
+    expect(telemetryEvents).toContainEqual({
+      feature: "git-graph-libre.openDiffTab.workingTree",
+      ok: true
+    });
   });
 
   it("opens the longest matching known repository for the active editor", async () => {
