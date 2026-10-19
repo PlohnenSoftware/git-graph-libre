@@ -1,73 +1,44 @@
 ---
 summary: >-
-  D04 · wave A · gated on X2 · TypeScript + Rust · ≤250 lines: stop hiding
-  type changes (file ↔ symlink ↔ submodule), which both backends drop today,
-  so such a commit lists nothing. List them as `M` with a type-changed
-  marker, if X2 is (a).
+  D04 · revised scope approved 2026-10-19 for X2 (b): new T status and
+  arrow-switch icon, in D04a (transport/counts) and D04b (presentation/actions).
 ---
 
 # D04 — Show type changes in file lists
 
-Status: waiting on re-scope for X2 (b) — steps below cover (a) only
-Needs: —
-Decisions: X2
-Kind: TypeScript + Rust (the Rust arm applies) · Size budget: ≤ 250 changed lines outside tests
-Source: the "Diff parity against real history" record under Phase 16, root cause 11
+Status: waiting on D04a and D04b — revised scope approved by the maintainer 2026-10-19
+Needs: D04a, D04b
+Decisions: X2 (b); split, budgets, icon and action policy approved in the release-orchestration conversation 2026-10-19
 
-## Goal
+## Approved scope
 
-A commit that turns a file into a symlink (or a submodule, or back) lists
-that path, the same way on both backends.
+Replace the original M/tooltip proposal with a real T status on both
+history backends, Git-compatible counts, a dedicated arrow-switch Octicon
+and localized Type changed text. Do not claim this umbrella; claim one
+ready sub-slice under the agent protocol.
 
-## Read first
+1. [D04a — Type-change transport and counts](132-d04a-type-change-transport-and-counts.md): at most 250 changed lines outside tests.
+2. [D04b — Type-change presentation and actions](134-d04b-type-change-presentation-and-actions.md): at most 180 outside tests, including generated icons; after D04a.
 
-- [The agent protocol](010-agent-protocol.md), and the answer to X2
-- `src/backend/queries/commitDetails.ts` and `commitComparison.ts`, both of
-  which pass `--diff-filter=AMDR`
-- `src/backend/queries/diffFileChanges.ts`: `diffStatusRegex = /^[AMDR](?:\d+)?$/`
-- `engine/native/core/src/diff.rs`: `classify`, which returns `None` when
-  `is_link()` or `is_commit()` differs between the two sides
-- `src/backend/engine/details.ts`: the engine payload parser
+T follows existing M-style actions: both historical sides exist, explicit
+comparison refs remain intact and ordinary two-revision titles apply.
+Synthetic gitlink content and object-kind-specific hiding of Open actions
+are outside this scope. Existing worktree classifiers/staging behavior
+remain unchanged. No new dependency.
 
-## Steps (for X2 = (a); stop if X2 says otherwise)
-
-1. CLI: use `--diff-filter=AMDRT` in both queries. In
-   `addFileChangesFromNameStatus`, accept `T` and emit
-   `{ type: "M", typeChanged: true }`.
-2. Engine: in `classify`, return `Modified` with a new serialized field
-   `typeChanged: true` instead of `None`. In `line_counts`, count these like
-   any modification. Add `typeChanged?: true` to `GitFileChange` and to the
-   strict engine parser.
-3. Bump the engine version (`engine/Cargo.toml` and
-   `EXPECTED_ENGINE_VERSION`), because the TypeScript now relies on a field
-   an older binary lacks. This is the KB rule in "Author Date through the
-   engine".
-4. Webview: a tooltip `l10n.typeChanged` ("Type changed") on such rows, in
-   all five bundles. No new status icon.
-
-## Touch
-
-`src/backend/queries/commitDetails.ts`, `src/backend/queries/commitComparison.ts`,
-`src/backend/queries/diffFileChanges.ts`, `src/backend/types/git.types.ts`,
-`src/backend/engine/details.ts`, `src/backend/engine/addon.ts` (version
-only), `engine/native/core/src/diff.rs`, `engine/native/core/src/types.rs`,
-`engine/Cargo.toml` (version only), `engine/native/core/tests/git_parity.rs`,
-`src/webview/main.ts` or `src/webview/commitDetailsView.ts` (tooltip only),
-`src/extension/webviewL10n.ts`, `l10n/bundle.l10n*.json`, and the matching
-tests
-
-## Tests
-
-- `git_parity.rs`: a commit turning `a.txt` into a symlink is listed as
-  modified with `typeChanged`, and its counts equal `git diff-tree --numstat`.
-- TypeScript parity test: CLI and engine agree on the same fixture.
-- Parser tests for `T`.
+The expanded scope covers the third history filter in stashDetails.ts,
+the exhaustive Rust status match, icon generation and shared rendering,
+and all six directed file/symlink/gitlink transitions. Isolated temp
+fixtures show a three-line file to symlink or gitlink counts +1/-3,
+the reverse +3/-1, symlink/gitlink 1/1, identical-byte file/symlink 0/0,
+and binary null/null. D05's ordinary gitlink helper alone would give
+incorrect 1/1 counts for a file/gitlink transition.
 
 ## Acceptance
 
-Gates and the Rust arm pass, and the symlink fixture lists the file on both
-backends.
+D04 is complete only when both sub-slices integrate with all acceptance
+items met. The approved full draft is retained at /tmp/ggl-d04-revised-brief.md.
 
 ## Report
 
-_(not started)_
+_(awaiting sub-slices)_
