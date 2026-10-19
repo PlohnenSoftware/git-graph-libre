@@ -251,9 +251,9 @@ function lineScenario(lines1, lines2) {
   out.push(`S;L;${linesOf(lines1)};${h1.join(',')};${linesOf(lines2)};${h2.join(',')}`);
   const myers = new MyersDiffAlgorithm().compute(s1, s2).diffs;
   const ops = [
-    ['optimize', (d) => vs.optimizeSequenceDiffs(s1, s2, d)],
-    ['short', (d) => vs.removeShortMatches(s1, s2, d)],
-    ['very-short-lines', (d) => vs.removeVeryShortMatchingLinesBetweenDiffs(s1, s2, d)],
+    ['optimize', (seqDiffs) => vs.optimizeSequenceDiffs(s1, s2, seqDiffs)],
+    ['short', (seqDiffs) => vs.removeShortMatches(s1, s2, seqDiffs)],
+    ['very-short-lines', (seqDiffs) => vs.removeVeryShortMatchingLinesBetweenDiffs(s1, s2, seqDiffs)],
   ];
   let d = myers;
   for (const [name, fn] of ops) d = emit(name, d, fn); // the flow, staged
