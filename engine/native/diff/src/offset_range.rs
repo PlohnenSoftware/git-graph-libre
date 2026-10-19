@@ -68,6 +68,10 @@ impl OffsetRange {
         );
         (s <= e).then(|| Self::new(s, e))
     }
+    /// Strict: always `false` when either range is empty.
+    pub fn intersects(self, other: Self) -> bool {
+        self.start.max(other.start) < self.end_exclusive.min(other.end_exclusive)
+    }
     pub fn intersects_or_touches(self, other: Self) -> bool {
         self.start.max(other.start) <= self.end_exclusive.min(other.end_exclusive)
     }
@@ -96,6 +100,8 @@ mod tests {
         assert_eq!(r.delta(-3), OffsetRange::of_length(4));
         assert_eq!(r.delta_start(1), OffsetRange::new(4, 7));
         assert_eq!(r.delta_end(-1), OffsetRange::new(3, 6));
+        assert!(r.intersects(OffsetRange::new(6, 9)) && !r.intersects(OffsetRange::new(7, 9)));
+        assert!(!r.intersects(OffsetRange::empty_at(4)));
         assert!(r.intersects_or_touches(OffsetRange::new(7, 9)));
         assert!(!r.intersects_or_touches(OffsetRange::new(8, 9)));
     }
