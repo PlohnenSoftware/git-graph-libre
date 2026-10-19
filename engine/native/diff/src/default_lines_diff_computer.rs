@@ -11,8 +11,11 @@
 // follow the `Map` numbering of JavaScript-trimmed lines. Where VS Code throws,
 // the inner functions panic and the public entry point turns the panic into an
 // error.
+use core::fmt;
 use std::collections::HashMap;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 
+use crate::clock::{Clock, Timeout};
 use crate::compute_moved_lines::{compute_moved_lines, trim};
 use crate::diff_algorithm::{
     DiffAlgorithmResult, IDiffAlgorithm, ISequence, ITimeout, SequenceDiff,
@@ -20,6 +23,7 @@ use crate::diff_algorithm::{
 use crate::dynamic_programming_diffing::DynamicProgrammingDiffing;
 use crate::heuristic_sequence_optimizations::{
     extend_diffs_to_entire_word_if_appropriate, optimize_sequence_diffs, remove_short_matches,
+    remove_very_short_matching_lines_between_diffs,
     remove_very_short_matching_text_between_long_diffs,
 };
 use crate::line_range::LineRange;
@@ -28,6 +32,7 @@ use crate::lines_diff::{LinesDiff, LinesDiffOptions, MovedText};
 use crate::lines_slice_char_sequence::LinesSliceCharSequence;
 use crate::myers_diff_algorithm::MyersDiffAlgorithm;
 use crate::offset_range::OffsetRange;
+use crate::position::Position;
 use crate::range::Range;
 use crate::range_mapping::{
     line_range_mapping_from_range_mappings, DetailedLineRangeMapping, LineRangeMapping,
@@ -330,4 +335,135 @@ fn compute_moves(
         moves_with_diffs.push(MovedText::new(m, mappings));
     }
     moves_with_diffs
+}
+
+/// The "make sure all ranges are valid" `assertFn` of `computeDiff`
+/// (`defaultLinesDiffComputer.ts` L154-L183), run as a debug assertion: every
+/// change has inner changes, whose positions lie inside their lines, and line
+/// ranges that lie inside their texts (`validatePosition`, `validateRange`).
+fn changes_are_valid(
+    changes: &[DetailedLineRangeMapping],
+    original: &TextModel,
+    modified: &TextModel,
+) -> bool {
+    let position_valid = |p: Position, text: &TextModel| {
+        (1..=text.line_count()).contains(&p.line_number)
+            && (1..=text.utf16_line(p.line_number).len() as u32 + 1).contains(&p.column)
+    };
+    let range_valid = |r: Range, text: &TextModel| {
+        position_valid(r.start_position(), text) && position_valid(r.end_position(), text)
+    };
+    let lines_valid = |r: LineRange, text: &TextModel| {
+        let lines = 1..=text.line_count() + 1;
+        lines.contains(&r.start_line_number) && lines.contains(&r.end_line_number_exclusive)
+    };
+    changes.iter().all(|c| {
+        c.inner_changes.as_ref().is_some_and(|inner| {
+            inner.iter().all(|ic| {
+                range_valid(ic.modified_range, modified) && range_valid(ic.original_range, original)
+            })
+        }) && lines_valid(c.modified, modified)
+            && lines_valid(c.original, original)
+    })
+}
+
+/// `DefaultLinesDiffComputer.computeDiff` (`defaultLinesDiffComputer.ts`
+/// L27-L186), without the panic guard: it panics where VS Code throws, so
+/// callers outside tests use [`compute_diff`]. A `max_computation_time_ms` of 0
+/// (an `InfiniteTimeout`) is the caller's `timeout`. Helpers, in call order:
+/// 1. [`trivial_diff`] (L28-L45);
+/// 2. [`number_trimmed_lines`] (L50-L61), with the `LineSequence`s of L63-L64;
+/// 3. [`align_lines`] (L66-L87), then `optimizeSequenceDiffs` and
+///    `removeVeryShortMatchingLinesBetweenDiffs` (L89-L92, here);
+/// 4. [`AlignmentScan::refine_alignments`] (L94-L142), using
+///    [`refine_diff`] and the whitespace scan;
+/// 5. `lineRangeMappingFromRangeMappings` (L144-L147, here);
+/// 6. [`compute_moves`] (L149-L152);
+/// 7. [`changes_are_valid`] (L154-L183), as a debug assertion.
+pub fn compute_diff_with_timeout(
+    original: &TextModel,
+    modified: &TextModel,
+    options: LinesDiffOptions,
+    timeout: &mut dyn ITimeout,
+) -> LinesDiff {
+    if let Some(trivial) = trivial_diff(original, modified) {
+        return trivial;
+    }
+    let flow = Flow {
+        original,
+        modified,
+        consider_whitespace_changes: !options.ignore_trim_whitespace,
+        extend_to_subwords: options.extend_to_subwords,
+    };
+    let (original_hashes, modified_hashes) = number_trimmed_lines(original, modified);
+    let sequence1 = LineSequence::new(&original_hashes, original.lines());
+    let sequence2 = LineSequence::new(&modified_hashes, modified.lines());
+
+    let alignment = align_lines(flow, &sequence1, &sequence2, timeout);
+    let mut line_alignments = optimize_sequence_diffs(&sequence1, &sequence2, &alignment.diffs);
+    line_alignments =
+        remove_very_short_matching_lines_between_diffs(&sequence1, &sequence2, &line_alignments);
+
+    let mut scan = AlignmentScan {
+        flow,
+        alignments: Vec::new(),
+        hit_timeout: alignment.hit_timeout,
+        seq1_last_start: 0,
+        seq2_last_start: 0,
+    };
+    scan.refine_alignments(&line_alignments, timeout);
+
+    let changes =
+        line_range_mapping_from_range_mappings(&scan.alignments, original, modified, false);
+    let moves = if options.compute_moves {
+        compute_moves(flow, &changes, &original_hashes, &modified_hashes, timeout)
+    } else {
+        Vec::new()
+    };
+    debug_assert!(changes_are_valid(&changes, original, modified));
+    LinesDiff {
+        changes,
+        moves,
+        hit_timeout: scan.hit_timeout,
+    }
+}
+
+/// Where VS Code's `computeDiff` throws (a `TypeError` on an `undefined` line,
+/// a `BugIndicatingError`), the port panics; this is that panic's message,
+/// returned instead of unwinding into the caller.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DiffError {
+    pub message: String,
+}
+
+impl fmt::Display for DiffError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "diff computation failed: {}", self.message)
+    }
+}
+
+impl std::error::Error for DiffError {}
+
+/// The public entry point: `computeDiff` as VS Code runs it, timing out by
+/// `clock` (a limit of 0 never expires), and returning a [`DiffError`] where
+/// VS Code throws. A panic never leaves this function: the unwind is caught,
+/// so a caller can fall back (the engine is built with `panic = "unwind"`).
+/// The default panic hook still prints the panic message to stderr.
+pub fn compute_diff<C: Clock>(
+    original: &TextModel,
+    modified: &TextModel,
+    options: LinesDiffOptions,
+    clock: &C,
+) -> Result<LinesDiff, DiffError> {
+    let mut timeout = Timeout::new(clock, options.max_computation_time_ms);
+    catch_unwind(AssertUnwindSafe(|| {
+        compute_diff_with_timeout(original, modified, options, &mut timeout)
+    }))
+    .map_err(|payload| DiffError {
+        message: payload
+            .downcast_ref::<String>()
+            .cloned()
+            .or_else(|| payload.downcast_ref::<&str>().map(|s| (*s).to_string()))
+            .unwrap_or_else(|| "unknown panic".to_string()),
+    })
 }

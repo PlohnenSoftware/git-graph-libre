@@ -29,6 +29,7 @@ pub mod v8_math;
 
 pub use clock::{Clock, SystemClock, Timeout};
 pub use compute_moved_lines::compute_moved_lines;
+pub use default_lines_diff_computer::{compute_diff, compute_diff_with_timeout, DiffError};
 pub use diff_algorithm::{
     DiffAlgorithmResult, IDiffAlgorithm, ISequence, ITimeout, InfiniteTimeout, OffsetPair,
     SequenceDiff,
