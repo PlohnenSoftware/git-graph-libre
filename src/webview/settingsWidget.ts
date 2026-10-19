@@ -549,13 +549,15 @@ function tabHiddenAttr(activeTab: SettingsWidgetTab, tab: SettingsWidgetTab) {
 
 export function renderSettingsWidget(model: SettingsWidgetModel) {
   const labels = model.labels;
-  return `<div class="settingsWidgetHeader">
+  return `<div class="settingsWidgetHead">
+    <div class="settingsWidgetHeader">
       <h2>${escapeHtml(labels.title)}</h2>
       <button id="settingsCloseBtn" class="settingsCloseButton" type="button" title="${escapeHtml(labels.close)}" aria-label="${escapeHtml(labels.close)}">${octicon("x")}</button>
     </div>
     <div class="settingsTabs" role="tablist" aria-label="${escapeHtml(labels.title)}">
       <button id="settingsRepositoryTab" class="settingsTab" role="tab" type="button" aria-selected="${tabSelectedAttr(model.activeTab, "repository")}" aria-controls="settingsRepositoryPanel" tabindex="${model.activeTab === "repository" ? "0" : "-1"}" data-settings-tab="repository">${escapeHtml(labels.repositoryTab)}</button>
       <button id="settingsExtensionTab" class="settingsTab" role="tab" type="button" aria-selected="${tabSelectedAttr(model.activeTab, "extension")}" aria-controls="settingsExtensionPanel" tabindex="${model.activeTab === "extension" ? "0" : "-1"}" data-settings-tab="extension">${escapeHtml(labels.extensionTab)}</button>
+    </div>
     </div>
     <div id="settingsRepositoryPanel" class="settingsTabPanel" role="tabpanel" aria-labelledby="settingsRepositoryTab"${tabHiddenAttr(model.activeTab, "repository")}>
       ${renderRepositoryTab(model)}
