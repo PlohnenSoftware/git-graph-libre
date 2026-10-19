@@ -30,6 +30,14 @@ left out; 22a came out at 1.7×). 22h–22j are TypeScript, build and seam
 work, counted as the protocol counts any slice. A sub-slice over its budget
 is reported and held for the maintainer, as before.
 
+**Helpers (decisions X12, `2026-10-19`).** A ported function over Sonar's
+cognitive-complexity limit (16) is split into helpers in the same file. Each
+helper's doc comment names the VS Code function it comes from (file and
+function at `28a5623`) and exactly which lines and which part of that
+function it replaces. The entry point lists its helpers in call order, so a
+re-sync can map every upstream line to its Rust home. The oracle corpora must
+match byte for byte after any split.
+
 **Order (integrator, `2026-10-19`).** `computeMovedLines` imports neither the heuristics nor the main computer, so 22e and 22g run in parallel. 22f wires both into the flow, so it runs after them and takes over the full fixture match, moves included. Oracle generators print their corpus to stdout, as `gen-myers.mjs` does, so a rerun can be compared with `cmp`.
 
 | Sub | Content | Acceptance |

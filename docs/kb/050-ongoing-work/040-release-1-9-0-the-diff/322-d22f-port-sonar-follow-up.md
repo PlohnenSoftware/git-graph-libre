@@ -42,10 +42,18 @@ The paths in the second column are under `engine/native/diff/`.
    keeping VS Code's function names for the entry points and naming the
    helpers after what they do. Count cognitive complexity the way Sonar's
    S3776 does, and say in the report how you estimated it.
-2. Behavior must not change: every oracle corpus test (Myers,
+2. **Document every helper precisely (maintainer, `2026-10-19`).** Each
+   helper's doc comment names the VS Code function it was split from (file
+   and function, at `28a5623`) and exactly which part of that function it
+   replaces: the lines (`myersDiffAlgorithm.ts` L<from>–L<to>) and a short
+   description, for example "the inner `while` loop that extends a diagonal
+   snake". The entry point's doc comment lists its helpers in call order,
+   so someone re-syncing from a newer VS Code commit can map every upstream
+   line to its Rust home.
+3. Behavior must not change: every oracle corpus test (Myers,
    dynamic programming, line sequence, char sequence) and every unit test
    passes unchanged.
-3. Fix the generator findings as the table says. After the change, every
+4. Fix the generator findings as the table says. After the change, every
    generator still reproduces its committed corpus byte for byte. For a
    generator that prints to stdout, check with
    `node <gen> | cmp - <data>`. For one that writes its own file, check
