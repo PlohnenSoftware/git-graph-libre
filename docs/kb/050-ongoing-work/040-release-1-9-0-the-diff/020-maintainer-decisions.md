@@ -32,6 +32,7 @@ decision is not ready.
 | X14 | 22g is 699 production lines against ≤420 (192 of them dependencies the sizing never counted, plus the X12 helper splits) | (a) accept; (b) split off the dependencies; (c) trim | (a) | 22g | **(a), `2026-10-19`** |
 | X15 | Who decides a port sub-slice's budget overrun | (a) the integrator may accept up to 1.5× the budget when the report shows X12 splits or required dependencies caused it, and records it; (b) the maintainer, every time; (c) no budgets for the port | (a) | 22f–22j | **(a), `2026-10-19`**; superseded the same day: every line budget is now a guide (~N), never pass/fail (agent protocol, Size) |
 | X16 | 22e's oracle corpus is 1.2 MB | (a) keep; (b) trim | (a) | 22e | **(a), `2026-10-19`** |
+| X17 | Sonar counts the oracle generator scripts as uncovered source (new coverage 78.2% against 85%) | (a) exclude them from coverage like `scripts/**`; (b) classify them as test code; (c) keep counting them | (a) | the wave gate | **(a), `2026-10-19`**: `engine/native/**/tests/oracle/**` added to `sonar.coverage.exclusions`; Sonar still checks them for issues |
 
 **How to answer:** replace *open* with the choice, the date and any
 condition, for example `(a), 2026-10-20`. Then flip the gated slices to
