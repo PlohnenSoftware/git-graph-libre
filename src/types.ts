@@ -383,6 +383,21 @@ export type ResponseViewDiff = {
   success: boolean;
 };
 
+export type RequestOpenDiffTab = {
+  command: "openDiffTab";
+  repo: string;
+  commitHash: string;
+  oldRef?: string;
+  newRef?: string;
+  oldFilePath: string;
+  newFilePath: string;
+  type: GitFileChangeType;
+};
+export type ResponseOpenDiffTab = {
+  command: "openDiffTab";
+  success: boolean;
+};
+
 export type RequestViewFileAtRevision = {
   command: "viewFileAtRevision";
   repo: string;
@@ -572,6 +587,7 @@ export type RequestMessage =
   | RequestSaveRepoState
   | RequestCopyToClipboard
   | RequestViewDiff
+  | RequestOpenDiffTab
   | RequestViewFileAtRevision
   | RequestCompareFileWithWorkingTree
   | RequestOpenFile
@@ -596,6 +612,7 @@ export type ResponseMessage =
   | ResponseLoadRepos
   | ResponseCopyToClipboard
   | ResponseViewDiff
+  | ResponseOpenDiffTab
   | ResponseViewFileAtRevision
   | ResponseCompareFileWithWorkingTree
   | ResponseOpenFile
