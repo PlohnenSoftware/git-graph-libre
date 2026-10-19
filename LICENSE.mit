@@ -59,8 +59,11 @@ not be; NOTICE.md records why:
 Microsoft Corporation — https://github.com/microsoft/vscode
 VS Code's diff editor styles: `src/vs/editor/browser/widget/diffEditor/style.css`
 at commit 1356222d342e6a7b2dd5603107bcdb60a6d0653b, trimmed and re-rooted under
-`.ggl-diff` in `media/diff-tab/vscode-diff.css` (see NOTICE.md). Its copyright
-lines and permission notice, preserved verbatim:
+`.ggl-diff` in `media/diff-tab/vscode-diff.css` (see NOTICE.md). Phase 17's
+planned Rust translation of the `advanced` diff algorithm and its 58 fixtures
+come from the same repository at commit 28a562309973a386b2bdefae78127788a4742fe8.
+Source paths and the port's AGPL boundary are recorded in NOTICE.md and
+engine/NOTICE.md. The copyright lines and permission notice, preserved verbatim:
 
 Copyright (c) 2015 - present Microsoft Corporation
 Copyright (c) Microsoft Corporation. All rights reserved.

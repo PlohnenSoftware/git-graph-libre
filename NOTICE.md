@@ -169,6 +169,23 @@ icon-font rules were dropped because the webview draws its signs as text.
 Changes made here are AGPL-3.0-or-later. The copyright and permission notices
 are preserved in [LICENSE.mit](LICENSE.mit).
 
+### VS Code's diff algorithm (`engine/native/diff/`)
+
+Phase 17 plans a Rust translation from [microsoft/vscode](https://github.com/microsoft/vscode/tree/28a562309973a386b2bdefae78127788a4742fe8/src/vs/editor/common/diff)
+at commit `28a562309973a386b2bdefae78127788a4742fe8`:
+`defaultLinesDiffComputer/{defaultLinesDiffComputer,heuristicSequenceOptimizations,linesSliceCharSequence,lineSequence,computeMovedLines,utils}.ts`,
+its `algorithms/{diffAlgorithm,myersDiffAlgorithm,dynamicProgrammingDiffing}.ts`,
+`rangeMapping.ts`, `linesDiffComputer.ts`, and range types in
+`src/vs/editor/common/core/`. Its 58 golden-test fixtures come from
+`src/vs/editor/test/node/diffing/fixtures/` at the same commit. All are MIT;
+Microsoft's copyright and permission notices are preserved in [LICENSE.mit](LICENSE.mit).
+The port is AGPL-3.0-or-later with those original notices kept (D1,
+`2026-10-19`), internal to this repository, with no separate publication (D2).
+D20 adds legal groundwork only; later slices add the port and fixtures.
+
+`@vscode/diff` (exact devDependency `0.0.2-87`, MIT, Copyright (c) Microsoft
+Corporation) is a development test oracle, excluded from the distributed VSIX.
+
 The upstream projects above remain available under the MIT license from their
 own repositories. The modifications and additions made in this fork are
 available only under the AGPL-3.0-or-later.

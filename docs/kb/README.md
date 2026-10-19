@@ -36,9 +36,10 @@ it, so a query about code also finds the sections that discuss it.
 8. [Licensing](030-licensing/010-licensing.md)
 9. [`vscode-git-graph-rs` licensing verdict (`2026-09-22`)](030-licensing/010-licensing/010-vscode-git-graph-rs-licensing-verdict.md)
 10. [License review of the graph and stash UI slices (`2026-09-09`)](030-licensing/010-licensing/020-license-review-of-the-graph-and-stash-ui-slices.md)
-11. [Graphify Map](040-reference/010-graphify-map.md)
-12. [Near-Term Work Order](050-ongoing-work/020-near-term-work-order.md)
-13. [Implementation Roadmap](050-ongoing-work/030-implementation-roadmap.md)
+11. [VS Code diff-algorithm licensing verdict (`2026-10-19`)](030-licensing/010-licensing/030-vs-code-diff-algorithm-licensing-verdict.md)
+12. [Graphify Map](040-reference/010-graphify-map.md)
+13. [Near-Term Work Order](050-ongoing-work/020-near-term-work-order.md)
+14. [Implementation Roadmap](050-ongoing-work/030-implementation-roadmap.md)
 
 **Mission**: why the project exists, and the license rule everything else follows.
 
@@ -58,6 +59,7 @@ it, so a query about code also finds the sections that discuss it.
 - [Licensing](030-licensing/010-licensing.md) (*always read*) — License verdicts and clean-room records that bind all work; the rules they apply are in Mission, the notices in `NOTICE.md`, `LICENSE.mit` and `engine/NOTICE.md`.
   - [`vscode-git-graph-rs` licensing verdict (`2026-09-22`)](030-licensing/010-licensing/010-vscode-git-graph-rs-licensing-verdict.md) (*always read*) — Standing verdict: the `src/` and `web/` layers of `vscode-git-graph-rs` forbid redistribution, so never read or copy them; `native/` is MIT and usable except `native/core/src/gerrit.rs`; any future sync is a manual license audit.
   - [License review of the graph and stash UI slices (`2026-09-09`)](030-licensing/010-licensing/020-license-review-of-the-graph-and-stash-ui-slices.md) (*always read*) — Clean-room review (`2026-09-09`): a borrowed stash-node shape removed and identifiers renamed. Standing rules: derive constants from this project's own geometry; pair token scans with an identifier census.
+  - [VS Code diff-algorithm licensing verdict (`2026-10-19`)](030-licensing/010-licensing/030-vs-code-diff-algorithm-licensing-verdict.md) (*always read*) — Standing verdict (`2026-10-19`): VS Code's MIT `advanced` diff algorithm may be translated into the engine under AGPL-3.0-or-later with Microsoft's MIT notices (D1), internal only (D2); exact development oracle `@vscode/diff` `0.0.2-87` (D3), excluded from the VSIX.
 
 **Reference**: standing guidance to read when a task touches its area.
 

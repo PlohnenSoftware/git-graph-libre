@@ -95,6 +95,45 @@ notice are preserved here verbatim, as the MIT license requires:
 The MIT grant of permission to sublicense is what allows this material into a
 copyleft-licensed whole. It continues to cover the engine.
 
+## VS Code's diff algorithm — Phase 17 (legal groundwork only)
+
+The planned Rust translation in `native/diff` comes from
+[microsoft/vscode](https://github.com/microsoft/vscode/tree/28a562309973a386b2bdefae78127788a4742fe8/src/vs/editor/common/diff),
+commit `28a562309973a386b2bdefae78127788a4742fe8`, MIT. Files under
+`src/vs/editor/common/diff/` are
+`defaultLinesDiffComputer/{defaultLinesDiffComputer,heuristicSequenceOptimizations,linesSliceCharSequence,lineSequence,computeMovedLines,utils}.ts`,
+its `algorithms/{diffAlgorithm,myersDiffAlgorithm,dynamicProgrammingDiffing}.ts`,
+`rangeMapping.ts`, `linesDiffComputer.ts`, and range types in
+`src/vs/editor/common/core/`. The 58 fixtures will come from
+`src/vs/editor/test/node/diffing/fixtures/` at the same commit and license.
+D1 (`2026-10-19`): AGPL-3.0-or-later for the port, retaining Microsoft's MIT
+notice for the original. D2: internal only, no separate publication.
+Rust headers, fixtures README and crate license metadata arrive with those slices.
+`@vscode/diff` `0.0.2-87` is a development-only MIT oracle, excluded from the VSIX.
+This engine notice is not packaged; root `LICENSE.mit` and `NOTICE.md` ship instead.
+VS Code's source notice is preserved here verbatim:
+
+> Copyright (c) 2015 - present Microsoft Corporation
+> Copyright (c) Microsoft Corporation. All rights reserved.
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all
+> copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+> SOFTWARE.
+
 ## What was deliberately not imported
 
 The upstream project is a Visual Studio Code extension whose webview and
