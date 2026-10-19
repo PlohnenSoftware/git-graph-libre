@@ -178,6 +178,7 @@
   "action.copyAbsoluteFilePath": "複製絕對檔案路徑到剪貼簿",
   "action.copyRelativeFilePath": "複製相對檔案路徑到剪貼簿",
   "action.viewFileDiff": "檢視檔案差異",
+  "action.openInGglDiff": "在 GGL Diff 中開啟",
   "action.viewFileAtRevision": "檢視此修訂版本的檔案",
   "action.compareFileWithWorkingTree": "與工作樹比較",
   "action.resetFileToRevision": "將檔案重設到修訂版本",

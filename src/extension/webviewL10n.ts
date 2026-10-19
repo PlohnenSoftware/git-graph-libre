@@ -249,6 +249,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     copyAbsoluteFilePath: translate("action.copyAbsoluteFilePath"),
     copyRelativeFilePath: translate("action.copyRelativeFilePath"),
     viewFileDiff: translate("action.viewFileDiff"),
+    openInGglDiff: translate("action.openInGglDiff"),
     viewFileAtRevision: translate("action.viewFileAtRevision"),
     compareFileWithWorkingTree: translate("action.compareFileWithWorkingTree"),
     resetFileToRevision: translate("action.resetFileToRevision"),

@@ -178,6 +178,7 @@
   "action.copyAbsoluteFilePath": "复制绝对文件路径到剪贴板",
   "action.copyRelativeFilePath": "复制相对文件路径到剪贴板",
   "action.viewFileDiff": "查看文件差异",
+  "action.openInGglDiff": "在 GGL Diff 中打开",
   "action.viewFileAtRevision": "查看此修订版的文件",
   "action.compareFileWithWorkingTree": "与工作树比较",
   "action.resetFileToRevision": "将文件重置到修订版",

@@ -178,6 +178,7 @@
   "action.copyAbsoluteFilePath": "Absoluut bestandspad naar klembord kopiëren",
   "action.copyRelativeFilePath": "Relatief bestandspad naar klembord kopiëren",
   "action.viewFileDiff": "Bestandsdiff weergeven",
+  "action.openInGglDiff": "Openen in GGL Diff",
   "action.viewFileAtRevision": "Bestand bij revisie weergeven",
   "action.compareFileWithWorkingTree": "Vergelijken met working tree",
   "action.resetFileToRevision": "Bestand naar revisie resetten",

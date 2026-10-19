@@ -178,6 +178,7 @@
   "action.copyAbsoluteFilePath": "Kopiuj bezwzględną ścieżkę pliku do schowka",
   "action.copyRelativeFilePath": "Kopiuj względną ścieżkę pliku do schowka",
   "action.viewFileDiff": "Pokaż różnice pliku",
+  "action.openInGglDiff": "Otwórz w GGL Diff",
   "action.viewFileAtRevision": "Pokaż plik w tej rewizji",
   "action.compareFileWithWorkingTree": "Porównaj z kopią roboczą",
   "action.resetFileToRevision": "Przywróć plik do rewizji",

@@ -178,6 +178,7 @@
   "action.copyAbsoluteFilePath": "Copy Absolute File Path to Clipboard",
   "action.copyRelativeFilePath": "Copy Relative File Path to Clipboard",
   "action.viewFileDiff": "View File Diff",
+  "action.openInGglDiff": "Open in GGL Diff",
   "action.viewFileAtRevision": "View File at Revision",
   "action.compareFileWithWorkingTree": "Compare with Working Tree",
   "action.resetFileToRevision": "Reset File to Revision",

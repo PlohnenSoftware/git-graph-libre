@@ -6190,15 +6190,21 @@ class GitGraphView {
     const menu: ContextMenuElement[] = [];
     const revisionFileExists = this.gitFileExistsAtRevision(fileChange);
 
-    if (
-      fileChange.additions !== null &&
-      fileChange.deletions !== null &&
-      this.isContextMenuActionVisible("commitDetailsViewFile", "viewDiff")
-    ) {
-      menu.push({
-        title: l10n.viewFileDiff,
-        onClick: () => this.viewGitFileDiff(fileChange)
-      });
+    // Null counts mean a binary file: no diff of either kind, as for a
+    // plain click (`gitDiffPossible` in the details view).
+    if (fileChange.additions !== null && fileChange.deletions !== null) {
+      if (this.isContextMenuActionVisible("commitDetailsViewFile", "viewDiff")) {
+        menu.push({
+          title: l10n.viewFileDiff,
+          onClick: () => this.viewGitFileDiff(fileChange)
+        });
+      }
+      if (this.isContextMenuActionVisible("commitDetailsViewFile", "openDiffTab")) {
+        menu.push({
+          title: l10n.openInGglDiff,
+          onClick: () => this.openGitFileInDiffTab(fileChange)
+        });
+      }
     }
 
     if (revisionFileExists) {
@@ -6324,6 +6330,17 @@ class GitGraphView {
   }
 
   private viewGitFileDiff(fileChange: GitFileChange) {
+    this.sendFileDiffMessage("viewDiff", fileChange);
+  }
+
+  private openGitFileInDiffTab(fileChange: GitFileChange) {
+    this.sendFileDiffMessage("openDiffTab", fileChange);
+  }
+
+  // One builder for both diff surfaces, so "Open in GGL Diff" always opens
+  // the same two revisions "View Diff" would (comparison labels as refs,
+  // "*" for the working tree, "<hash>^3" for a stashed untracked file).
+  private sendFileDiffMessage(command: "viewDiff" | "openDiffTab", fileChange: GitFileChange) {
     if (this.expandedCommit === null) return;
     const comparison = this.expandedCommit.comparison;
     const hash = this.expandedCommit.hash;
@@ -6334,7 +6351,7 @@ class GitGraphView {
         ? { oldRef: `${hash}^`, newRef: `${hash}^3` }
         : null;
     sendMessage({
-      command: "viewDiff",
+      command,
       repo: this.currentRepo,
       commitHash: hash,
       ...(comparison === null
@@ -6785,6 +6802,7 @@ const responseHandlers: ResponseHandlerMap = {
   startHistorySearch: () => gitGraph.startHistorySearch(),
   tagDetails: handleTagDetailsResponse,
   uncommittedDetails: handleUncommittedDetailsResponse,
+  openDiffTab: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewDiff),
   viewDiff: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewDiff),
   viewFileAtRevision: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewFileAtRevision)
 };
