@@ -81,7 +81,7 @@ const pick = (list) => list[rand(list.length)];
 // space and the tab, combining marks, astral characters, a ZWJ sequence, CJK.
 const PIECES = [
   'a', 'b', 'z', 'foo', 'Bar', 'XML', 'x1', '42', '0', ' ', ' ', '  ', '\t', ',', ';', '.', '(', ')', '_', '-',
-  'é', 'é', ' ', '　', ' ', '﻿', '\u0085', '​', '\r',
+  'é', 'é', ' ', '　', '\u2028', '﻿', '\u0085', '​', '\r',
   '\u{1F600}', '\u{1F468}‍\u{1F469}', '\u{10000}', '中文', 'ZeroX',
 ];
 const randomLine = () => {
