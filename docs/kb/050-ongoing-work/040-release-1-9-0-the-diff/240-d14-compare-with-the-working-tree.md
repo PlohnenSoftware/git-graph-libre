@@ -9,7 +9,7 @@ summary: >-
 
 # D14 — Compare with the working tree
 
-Status: waiting on D13
+Status: ready
 Needs: D13
 Decisions: —
 Kind: TypeScript (backend and webview) · Size budget: ≤ 220 changed lines outside tests

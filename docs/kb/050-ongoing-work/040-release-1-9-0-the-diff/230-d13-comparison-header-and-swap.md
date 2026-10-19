@@ -9,7 +9,7 @@ summary: >-
 
 # D13 — Comparison header and swap
 
-Status: done — awaiting integration
+Status: integrated 3df8541
 Needs: D10
 Decisions: —
 Kind: webview, plus l10n and CSS · Size budget: ≤ 200 changed lines outside tests

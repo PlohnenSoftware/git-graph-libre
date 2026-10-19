@@ -9,7 +9,7 @@ summary: >-
 
 # D15 — Open a comparison in the external diff tool
 
-Status: waiting on D13
+Status: ready
 Needs: D13
 Decisions: X4
 Kind: TypeScript (backend action and webview) · Size budget: ≤ 200 changed lines outside tests
