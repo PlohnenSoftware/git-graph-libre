@@ -31,14 +31,6 @@ pub fn optimize_sequence_diffs(
     shift_sequence_diffs(sequence1, sequence2, result)
 }
 
-fn element_before(sequence: &dyn ISequence, offset: u32, d: i64) -> u32 {
-    sequence.get_element((i64::from(offset) - d) as u32)
-}
-
-fn offset_after(offset: u32, d: i64) -> u32 {
-    (i64::from(offset) + d) as u32
-}
-
 /// `joinSequenceDiffsByShifting` (`heuristicSequenceOptimizations.ts`
 /// L34-L114): fixes `{ Baz, Bar }` to `{ Baz, Bar, Foo }` being two diffs.
 /// Calls, in order: `shift_left_and_join` (L39-L72, the first pass), then
@@ -66,10 +58,12 @@ fn count_left_shift(
 ) -> i64 {
     let mut d = 1;
     while d <= length {
-        let (r1, r2) = (cur.seq1_range, cur.seq2_range);
-        if element_before(sequence1, r1.start, d) != element_before(sequence1, r1.end_exclusive, d)
-            || element_before(sequence2, r2.start, d)
-                != element_before(sequence2, r2.end_exclusive, d)
+        let (start, end) = (
+            cur.get_starts().delta(-d),
+            cur.get_end_exclusives().delta(-d),
+        );
+        if sequence1.get_element(start.offset1) != sequence1.get_element(end.offset1)
+            || sequence2.get_element(start.offset2) != sequence2.get_element(end.offset2)
         {
             break;
         }
@@ -95,15 +89,9 @@ fn shift_left_and_join(
             let d = count_left_shift(sequence1, sequence2, cur, length);
             if d == length {
                 // Merge previous and current diff
-                result[last] = SequenceDiff::new(
-                    OffsetRange::new(
-                        prev.seq1_range.start,
-                        offset_after(cur.seq1_range.end_exclusive, -length),
-                    ),
-                    OffsetRange::new(
-                        prev.seq2_range.start,
-                        offset_after(cur.seq2_range.end_exclusive, -length),
-                    ),
+                result[last] = SequenceDiff::from_offset_pairs(
+                    prev.get_starts(),
+                    cur.get_end_exclusives().delta(-length),
                 );
                 continue;
             }
@@ -124,11 +112,9 @@ fn count_right_shift(
 ) -> i64 {
     let mut d = 0;
     while d < length {
-        let (r1, r2) = (cur.seq1_range, cur.seq2_range);
-        if !sequence1
-            .is_strongly_equal(offset_after(r1.start, d), offset_after(r1.end_exclusive, d))
-            || !sequence2
-                .is_strongly_equal(offset_after(r2.start, d), offset_after(r2.end_exclusive, d))
+        let (start, end) = (cur.get_starts().delta(d), cur.get_end_exclusives().delta(d));
+        if !sequence1.is_strongly_equal(start.offset1, end.offset1)
+            || !sequence2.is_strongly_equal(start.offset2, end.offset2)
         {
             break;
         }
@@ -154,15 +140,9 @@ fn shift_right_and_join(
             let d = count_right_shift(sequence1, sequence2, cur, length);
             if d == length {
                 // Merge previous and current diff, write to result!
-                result[i + 1] = SequenceDiff::new(
-                    OffsetRange::new(
-                        offset_after(cur.seq1_range.start, length),
-                        next.seq1_range.end_exclusive,
-                    ),
-                    OffsetRange::new(
-                        offset_after(cur.seq2_range.start, length),
-                        next.seq2_range.end_exclusive,
-                    ),
+                result[i + 1] = SequenceDiff::from_offset_pairs(
+                    cur.get_starts().delta(length),
+                    next.get_end_exclusives(),
                 );
                 continue;
             }
@@ -343,10 +323,7 @@ pub fn remove_short_matches(
         let gap1 = i64::from(s.seq1_range.start) - i64::from(last.seq1_range.end_exclusive);
         let gap2 = i64::from(s.seq2_range.start) - i64::from(last.seq2_range.end_exclusive);
         if gap1 <= 2 || gap2 <= 2 {
-            *last = SequenceDiff::new(
-                last.seq1_range.join(s.seq1_range),
-                last.seq2_range.join(s.seq2_range),
-            );
+            *last = last.join(s);
         } else {
             result.push(s);
         }
