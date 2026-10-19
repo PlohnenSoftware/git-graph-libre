@@ -39,6 +39,7 @@ export const DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY = {
   },
   commitDetailsViewFile: {
     viewDiff: true,
+    openDiffTab: true,
     viewFileAtRevision: true,
     compareWithWorkingTree: true,
     openFile: true,

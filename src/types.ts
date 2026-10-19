@@ -103,6 +103,7 @@ export type ContextMenuActionsVisibility = {
   };
   commitDetailsViewFile: {
     viewDiff: boolean;
+    openDiffTab: boolean;
     viewFileAtRevision: boolean;
     compareWithWorkingTree: boolean;
     openFile: boolean;
