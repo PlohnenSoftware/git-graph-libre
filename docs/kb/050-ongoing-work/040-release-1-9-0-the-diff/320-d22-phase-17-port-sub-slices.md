@@ -118,3 +118,9 @@ Status: done — awaiting integration
 - **Acceptance:** unit tests including UTF-16 and emoji — met; oracle corpus exact — met.
 - **Deviations from the slice:** (1) `LinesSliceCharSequence::new` takes `&TextModel` (22a's UTF-16 lines) instead of `string[]`, and the TypeScript's public `lines` field is dropped: nothing reads it. (2) `get_text` and `text` return `Vec<u16>`, because a range may split a surrogate pair, which a Rust `String` cannot hold; the callers in 22e only trim and measure. (3) `find_word_containing` and `find_sub_word_containing` take an `i64` offset, since the TypeScript accepts -1 and out-of-range values. (4) `translate_offset` takes a `Preference` enum (`Left`, `Right`) for the string literal. (5) `get_boundary_score` is `Some(..)` via an inherent `boundary_score -> f64`; a `length` past the end reads `undefined` as category Other, as VS Code does. (6) `is_strongly_equal` compares `Option`s, so two offsets past the end are equal (`undefined === undefined`). (7) `utils.rs` holds only `is_space` (the one helper `LinesSliceCharSequence` needs); `Array2D` (22c) and `LineRangeFragment` (22g) are left to those slices. 22c may also create `utils.rs`: expect a trivial merge there and in `lib.rs`. (8) `OffsetRange::delta*` and friends were not touched.
 - **Open questions / follow-ups:** none blocking. Note for 22g: `computeMovedLines` builds `new Range(1, 1, 1, line.length)` (end column without +1), which this constructor handles through its end-column clamp.
+
+22e claimed by Claude Sonnet 5.5 (sub-agent 22e for the integrator) on 2026-10-19.
+
+### 22e Report
+
+Status: claimed by Claude Sonnet 22e on 2026-10-19 15:04
