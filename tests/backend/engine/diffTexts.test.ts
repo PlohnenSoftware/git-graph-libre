@@ -540,3 +540,128 @@ describe("diffFileAtRevisions against a real repository", () => {
     expect(binary).toEqual({ binary: true });
   });
 });
+
+/* ---------- A seeded generated set, and a throwing input ---------- */
+
+/** A linear congruential generator, so the generated set is the same on every run. */
+function seededRandom(seed: number): () => number {
+  let state = seed;
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 0x1_0000_0000;
+  };
+}
+
+const LINE_POOL = [
+  "function total(x, y) {",
+  "\treturn count + delta;",
+  "}",
+  "",
+  "  value += alpha[i] * 2;",
+  "let égamma = 'items\u{1F600}';",
+  "// result handling",
+  "const camelCaseName = snake_case_name;"
+];
+
+function generatedPair(random: () => number): { original: string; modified: string } {
+  const pick = () => LINE_POOL[Math.floor(random() * LINE_POOL.length)] as string;
+  const original = Array.from({ length: 3 + Math.floor(random() * 25) }, pick);
+  const modified = original.flatMap((line) => {
+    const roll = random();
+    if (roll < 0.15) return [];
+    if (roll < 0.3) return [line, pick()];
+    if (roll < 0.45) return [`${line}  `];
+    return [line];
+  });
+  return { original: original.join("\n"), modified: modified.join("\n") };
+}
+
+describe("seam parity on a seeded generated set", () => {
+  it("matches @vscode/diff's TypeScript backend on 60 generated pairs", async (context) => {
+    const addon = loadEngineAddon();
+    if (typeof addon?.diffTexts !== "function") {
+      context.skip("Engine addon with diffTexts not built — run pnpm run engine:build.");
+      return;
+    }
+    const random = seededRandom(22);
+    for (let index = 0; index < 60; index++) {
+      const { original, modified } = generatedPair(random);
+      const ignoreTrimWhitespace = index % 2 === 0;
+      const seam = await diffTexts(
+        original,
+        modified,
+        { ignoreTrimWhitespace },
+        { backend: () => "auto", addonProvider: () => addon }
+      );
+      const originalLines = original.split("\n");
+      const modifiedLines = modified.split("\n");
+      expect(seam, `case ${index}`).not.toBeNull();
+      expect(canonical(seam as LinesDiff, originalLines, modifiedLines), `case ${index}`).toEqual(
+        tsCanonical(originalLines, modifiedLines, ignoreTrimWhitespace)
+      );
+    }
+  });
+});
+
+describe("a throwing input", () => {
+  // One of 22g's cases on which VS Code's computeMovedLines throws; the Rust test
+  // `a_throwing_input_becomes_an_error_not_a_panic` uses the same texts.
+  const original = [
+    "}",
+    "",
+    "  value += alpha[i] * 2;",
+    "\treturn count + result;",
+    "",
+    "function totalgamma(x, y) {",
+    "\treturn count + delta;",
+    "}",
+    "let égamma = 'items\u{1F600}';",
+    "// result handling",
+    "",
+    "  "
+  ].join("\n");
+  const modified = [
+    "// result handling",
+    "",
+    "  ",
+    "",
+    "for (let i = 0; i < index.length; i++) {",
+    "}",
+    "",
+    "  value += alpha[i] * 2;",
+    "\treturn count + result;",
+    "// value handling",
+    "function totalgamma(x, y) {   ",
+    "\treturn count + delta;",
+    "}"
+  ].join("\n");
+
+  it("rejects from the addon as an Unsupported error and the seam answers null", async (context) => {
+    const addon = loadEngineAddon();
+    if (typeof addon?.diffTexts !== "function") {
+      context.skip("Engine addon with diffTexts not built — run pnpm run engine:build.");
+      return;
+    }
+    await expect(
+      addon.diffTexts(original, modified, JSON.stringify({ computeMoves: true }))
+    ).rejects.toThrow(/^Unsupported: /);
+    const seam = await diffTexts(
+      original,
+      modified,
+      { computeMoves: true },
+      { backend: () => "auto", addonProvider: () => addon }
+    );
+    expect(seam).toBeNull();
+    // Without moves the same texts diff normally, as in VS Code.
+    const plain = await diffTexts(
+      original,
+      modified,
+      {},
+      {
+        backend: () => "auto",
+        addonProvider: () => addon
+      }
+    );
+    expect(plain?.changes.length).toBeGreaterThan(0);
+  });
+});
