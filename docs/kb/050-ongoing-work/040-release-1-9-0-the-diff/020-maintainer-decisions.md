@@ -29,6 +29,9 @@ decision is not ready.
 | X11 | The judgment calls recorded in D12–D15's reports, and D13's Swap icon | (a) accept all and switch the icon to `arrow-switch`; (b) maintainer reviews; (c) walk through each | (a) | D13G | **(a), `2026-10-19`**: labels travel as refs; the native `<datalist>` in "Compare with…"; the swapped working-tree side through `git diff -R`; the launch-time configured-tool check and `diff.guitool` precedence; and D14's and D15's other recorded choices, all accepted as recorded |
 | X12 | Ported Rust functions over Sonar's cognitive-complexity limit (16) | (a) refactor into helpers in the same file; (b) keep VS Code's structure and accept the findings; (c) a scoped Sonar exclusion | (a) | D22F, 22e–22g | **(a), `2026-10-19`**: split into helpers, oracles still byte-identical; new sub-slices write under 16 from the start |
 | X13 | Sonar findings in the oracle generators | (a) fix the valid ones and mark the `charCodeAt` `S7758` false positive; (b) treat the generators as test code; (c) exclude them | (a) | D22F | **(a), `2026-10-19`**: `replaceAll`, `fetch` instead of `gh`; `charCodeAt` stays (UTF-16 code units) |
+| X14 | 22g is 699 production lines against ≤420 (192 of them dependencies the sizing never counted, plus the X12 helper splits) | (a) accept; (b) split off the dependencies; (c) trim | (a) | 22g | **(a), `2026-10-19`** |
+| X15 | Who decides a port sub-slice's budget overrun | (a) the integrator may accept up to 1.5× the budget when the report shows X12 splits or required dependencies caused it, and records it; (b) the maintainer, every time; (c) no budgets for the port | (a) | 22f–22j | **(a), `2026-10-19`** |
+| X16 | 22e's oracle corpus is 1.2 MB | (a) keep; (b) trim | (a) | 22e | **(a), `2026-10-19`** |
 
 **How to answer:** replace *open* with the choice, the date and any
 condition, for example `(a), 2026-10-20`. Then flip the gated slices to

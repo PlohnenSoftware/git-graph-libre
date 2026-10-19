@@ -7,7 +7,7 @@ summary: >-
 
 # D22 — Phase 17 port sub-slices
 
-Status: in progress — 22a–22d integrated (last 22748ed); 22e and 22g ready, in parallel; 22f after both
+Status: in progress — 22a–22e and 22g integrated (last b57e899), D22F integrated 39d841b; 22f ready
 Needs: D21
 Decisions: X5 = (b); Phase 17 D1, D2 and D5
 Kind: Rust, the Rust arm applies · Size budget: per sub-slice, as listed
@@ -28,7 +28,7 @@ acceptance require them. Each budget is about 1.5× the code lines of the
 VS Code source it translates (measured at `28a5623`, blanks and comments
 left out; 22a came out at 1.7×). 22h–22j are TypeScript, build and seam
 work, counted as the protocol counts any slice. A sub-slice over its budget
-is reported and held for the maintainer, as before.
+is reported. Since X15 (`2026-10-19`) the integrator may accept an overrun of up to 1.5× the budget when the report shows X12 helper splits or required ported dependencies caused it, and records that; a larger one is held for the maintainer. 22g was accepted at 699 (X14).
 
 **Helpers (decisions X12, `2026-10-19`).** A ported function over Sonar's
 cognitive-complexity limit (16) is split into helpers in the same file. Each
@@ -39,6 +39,14 @@ re-sync can map every upstream line to its Rust home. The oracle corpora must
 match byte for byte after any split.
 
 **Order (integrator, `2026-10-19`).** `computeMovedLines` imports neither the heuristics nor the main computer, so 22e and 22g run in parallel. 22f wires both into the flow, so it runs after them and takes over the full fixture match, moves included. Oracle generators print their corpus to stdout, as `gen-myers.mjs` does, so a rerun can be compared with `cmp`.
+
+**Carried into 22f (integrator, `2026-10-19`).** These come from the reports of 22b–22g:
+- `MovedText`'s inner changes come from `refineDiff` in `defaultLinesDiffComputer.ts`, so 22g's corpus compares line ranges only and 22f covers the rest.
+- On 10 of 22g's oracle cases VS Code's `computeMovedLines` throws a `TypeError`, and 22e's generator skipped 136 synthetic cases that throw. The Rust port panics in the same places. A panic must never reach the extension host, so 22f's entry point has to turn it into an error (with `catch_unwind` or by avoiding the panic) that 22j can map to a fallback.
+- JavaScript's Unicode-aware `trim` and the `Map` line-identity numbering live in `defaultLinesDiffComputer.ts` (22c's notes).
+- The alignment score `1 + Math.log(1 + len)` must match V8: settle `log` against V8's results without a new dependency (D1/X9) or record why one is needed.
+- 22e's mutation check found two thresholds the corpus barely reaches (`deltaAfter < 50` and the `> 100` prefix rule); the 58 fixtures should cover them.
+- Signatures to wire: lines as `&TextModel`, hashes as `&[u32]`, `find_word_containing` takes `i64`, `get_boundary_score` returns `Option<f64>`.
 
 | Sub | Content | Acceptance |
 | --- | --- | --- |
