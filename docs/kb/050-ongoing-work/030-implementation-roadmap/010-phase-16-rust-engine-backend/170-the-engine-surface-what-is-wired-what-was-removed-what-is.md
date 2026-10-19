@@ -51,7 +51,6 @@ intent; each is a function whose consumer does not exist *yet*:
 | `activity_heatmap`, `author_stats` | **a Statistics tab** — see below |
 | `load_uncommitted_details` | the `*` row, if it moves off the CLI (16.6) |
 | `count_uncommitted_changes` | that row's count — redundant while `load_commits` builds it |
-| `load_commit_file_diff` | a unified-diff renderer, replacing VS Code's diff editor |
 | `new_path_of_renamed_file` | rename tracking between a commit and the working tree |
 | `load_commit_bodies`, `load_commit_summaries` | batch message reads, if a view ever wants them |
 | `count_commits_before` | anything needing `rev-list` counts |
@@ -88,3 +87,15 @@ When the engine cannot serve it — the `git-cli` backend, no loadable addon,
 or an addon without `diffTexts` — the tab is not offered: the
 `git-graph-libre.diffTabAvailable` context key is false, and entry points
 hide or fall back to VS Code's own diff editor, never to a CLI-computed tab.
+
+**Replaced (`2026-10-19`, release 1.9.0, D22j).** `load_commit_file_diff`, the unwired
+unified-diff export kept above "for a unified-diff renderer", is removed together with
+`blob::commit_file_diff`, `Engine::file_diff` and their tests, per the replacement rule. Two
+exports of the Phase 17 port take its place: `diff_texts` (pure) and `diff_file_at_revisions`
+(reads both blobs in process; a binary side answers `load_commit_file`'s marker). Both answer
+VS Code's `LinesDiff` shape as JSON and run the port's panic-safe `compute_diff`, so a
+computation VS Code would throw on arrives as an `Unsupported` error. The TypeScript seam
+(`src/backend/engine/diffTexts.ts`) maps any failure to null. Both are optional in
+`EngineAddon`, like `load_index_file`, so the engine version stays `1.0.26`. Like the planned
+Statistics tab, they have no CLI twin: the GGL Diff tab built on them is an engine-only
+feature, the exception to design rule 2 that D45 records.
