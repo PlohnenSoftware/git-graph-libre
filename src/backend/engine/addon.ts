@@ -103,6 +103,29 @@ export type EngineAddon = {
    */
   loadIndexFile?(repoPath: string, file: string): Promise<string>;
   /**
+   * `diff_texts` encoded as JSON: VS Code's `LinesDiff` for two texts,
+   * computed by the Phase 17 port, with UTF-16 columns. Options are the
+   * JSON built by `diffTexts.ts`. Optional and deliberately absent from the
+   * shape check below, like `loadIndexFile`: binaries built before it still
+   * load and the seam answers "unavailable" — no engine version bump. A
+   * computation VS Code would throw on rejects with an `Unsupported` error.
+   */
+  diffTexts?(original: string, modified: string, optionsJson: string): Promise<string>;
+  /**
+   * `diff_file_at_revisions` encoded as JSON: one file diffed between two
+   * revisions, both blobs read in process, or the `load_commit_file` binary
+   * marker when a side is binary. Optional, for the same reason as
+   * `diffTexts` above.
+   */
+  diffFileAtRevisions?(
+    repoPath: string,
+    from: string,
+    to: string,
+    oldPath: string,
+    newPath: string,
+    optionsJson: string
+  ): Promise<string>;
+  /**
    * `config_list` encoded as JSON: the entries of one location (local or
    * global), last value per key. A file carrying `include`/`includeIf`
    * directives declines, so the CLI resolves them.
