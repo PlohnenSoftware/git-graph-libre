@@ -26,6 +26,7 @@ pub mod text;
 pub mod utils;
 
 pub use clock::{Clock, SystemClock, Timeout};
+pub use compute_moved_lines::compute_moved_lines;
 pub use diff_algorithm::{
     DiffAlgorithmResult, IDiffAlgorithm, ISequence, ITimeout, InfiniteTimeout, OffsetPair,
     SequenceDiff,

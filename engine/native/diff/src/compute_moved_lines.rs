@@ -26,7 +26,8 @@ use crate::range_mapping::{DetailedLineRangeMapping, LineRangeMapping};
 use crate::text::TextModel;
 use crate::utils::{is_space, LineRangeFragment};
 
-/// `String.prototype.trim` on UTF-16 units.
+/// `String.prototype.trim` on UTF-16 units (VS Code calls it at
+/// `computeMovedLines.ts` L36, L258; not a function of its own there).
 fn trim(line: &[u16]) -> &[u16] {
     let start = line
         .iter()
@@ -39,7 +40,9 @@ fn trim(line: &[u16]) -> &[u16] {
     &line[start..end]
 }
 
-pub fn are_lines_similar(line1: &[u16], line2: &[u16], timeout: &mut dyn ITimeout) -> bool {
+/// `areLinesSimilar` (`computeMovedLines.ts` L257-L290, whole function; its
+/// inner `countNonWsChars`, L277-L285, is inline).
+fn are_lines_similar(line1: &[u16], line2: &[u16], timeout: &mut dyn ITimeout) -> bool {
     if trim(line1) == trim(line2) {
         return true;
     }
@@ -72,7 +75,8 @@ pub fn are_lines_similar(line1: &[u16], line2: &[u16], timeout: &mut dyn ITimeou
         && longer_line_length > 10
 }
 
-pub fn join_close_consecutive_moves(mut moves: Vec<LineRangeMapping>) -> Vec<LineRangeMapping> {
+/// `joinCloseConsecutiveMoves` (`computeMovedLines.ts` L292-L316, whole).
+fn join_close_consecutive_moves(mut moves: Vec<LineRangeMapping>) -> Vec<LineRangeMapping> {
     if moves.is_empty() {
         return moves;
     }
@@ -96,7 +100,8 @@ pub fn join_close_consecutive_moves(mut moves: Vec<LineRangeMapping>) -> Vec<Lin
     result
 }
 
-pub fn remove_moves_in_same_diff(
+/// `removeMovesInSameDiff` (`computeMovedLines.ts` L318-L329, whole).
+fn remove_moves_in_same_diff(
     changes: &[DetailedLineRangeMapping],
     moves: Vec<LineRangeMapping>,
 ) -> Vec<LineRangeMapping> {
@@ -198,7 +203,7 @@ fn is_long_enough_move(current: &LineRangeMapping, original_lines: &TextModel) -
 /// the most similar pure insertion. Returns the moves and, per index into
 /// `changes`, whether the change was consumed by one (VS Code's
 /// `excludedChanges` set). The search at L74-L81 is [`most_similar_insertion`].
-pub fn compute_moves_from_simple_deletions_to_simple_insertions(
+fn compute_moves_from_simple_deletions_to_simple_insertions(
     changes: &[DetailedLineRangeMapping],
     original_lines: &TextModel,
     modified_lines: &TextModel,
@@ -286,7 +291,7 @@ fn three_line_key(hashed_lines: &[u32], i: u32) -> (u32, u32, u32) {
 ///    L155-L157 returning no moves);
 /// 4. [`select_moves`] (L160-L187);
 /// 5. [`extend_moves`] (L189-L254).
-pub fn compute_unchanged_moves(
+fn compute_unchanged_moves(
     mut changes: Vec<&DetailedLineRangeMapping>,
     hashed_original_lines: &[u32],
     hashed_modified_lines: &[u32],
