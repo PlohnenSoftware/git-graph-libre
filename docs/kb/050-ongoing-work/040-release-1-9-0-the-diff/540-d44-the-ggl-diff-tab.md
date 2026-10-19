@@ -10,7 +10,7 @@ summary: >-
 
 # D44 — The GGL Diff tab
 
-Status: blocked — 308 changed lines outside tests after simplification, 8 over the ≤300 budget, awaiting a maintainer decision (claimed by Claude Code sub-agent D44 on 2026-10-19 02:23; reassigned to Muse Spark on 2026-10-19 10:38 after the first agent stopped inactive with the implementation uncommitted — work preserved, reviewed and verified; budget follow-up reassigned to Muse Code on 2026-10-19 12:15)
+Status: integrated 496fa5c (308 lines accepted, X8)
 Needs: D42
 Decisions: Phase 17 D4 (answered: G4, option (c))
 Kind: TypeScript, webview, build · Size budget: ≤ 300 changed lines outside tests
