@@ -218,20 +218,6 @@ pub async fn load_index_file(path: String, file: String) -> Result<String> {
     .await
 }
 
-/// The unified diff of one file between a commit and its first parent.
-#[napi]
-pub async fn load_commit_file_diff(
-    path: String,
-    commit_hash: String,
-    file: String,
-) -> Result<String> {
-    run(move || {
-        let repo = RepoManager::global().get(&path)?;
-        blob::commit_file_diff(&repo, &commit_hash, &file)
-    })
-    .await
-}
-
 /// The full commit message of each of the given commits, keyed by hash, as a JSON object.
 #[napi]
 pub async fn load_commit_bodies(path: String, hashes: Vec<String>) -> Result<String> {
