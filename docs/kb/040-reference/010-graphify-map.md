@@ -1,6 +1,6 @@
 ---
 summary: >-
-  The graphify graph of code and knowledge base, regenerated `2026-10-18` with
+  The graphify graph of code and knowledge base, regenerated `2026-10-19` with
   `pnpm run kb:graph` (`graphify update`, the knowledge base's own `contains`
   and `mentions` edges, re-clustering, `graphify tree`); the `graphify-out/`
   artifacts, how the knowledge base sits in the graph, and query examples.
