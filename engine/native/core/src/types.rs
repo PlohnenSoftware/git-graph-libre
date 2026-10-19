@@ -211,6 +211,10 @@ pub enum GitFileStatus {
     Deleted,
     #[serde(rename = "R")]
     Renamed,
+    /// The path changed between a regular file, a symlink and a gitlink: git's `T`. An
+    /// executable-bit change alone stays [`GitFileStatus::Modified`].
+    #[serde(rename = "T")]
+    TypeChanged,
     #[serde(rename = "U")]
     Untracked,
 }

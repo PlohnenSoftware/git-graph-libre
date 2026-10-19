@@ -492,7 +492,7 @@ fn reports_statuses_only_against_the_working_tree() {
 }
 
 #[test]
-fn drops_a_type_change_like_the_cli_filter_does() {
+fn lists_a_type_change_as_git_does() {
     require_git!();
     let mut repo = TestRepo::new();
     repo.commit_file("keep.txt", "one\n", "first");
@@ -517,12 +517,14 @@ fn drops_a_type_change_like_the_cli_filter_does() {
 
     let engine = open(&repo);
     let changes = diff::diff_commit(&engine, &hash).unwrap();
-    assert!(
-        !changes
-            .iter()
-            .any(|change| change.new_file_path == "gone.txt"),
-        "a regular-file-to-symlink type change is not one of the listed statuses: {changes:?}"
-    );
+    // git lists the path once, as `T` (the CLI asks for it with `--diff-filter=AMDRT`).
+    let name_status = repo.git(&["diff-tree", "-r", "--no-commit-id", "--name-status", &hash]);
+    assert_eq!(name_status.trim(), "T\tgone.txt");
+    assert_eq!(changes.len(), 1, "{changes:?}");
+    assert_eq!(changes[0].kind, GitFileStatus::TypeChanged);
+    assert_eq!(changes[0].old_file_path, "gone.txt");
+    assert_eq!(changes[0].new_file_path, "gone.txt");
+    assert_eq!(serde_json::to_value(changes[0].kind).unwrap(), "T");
 }
 
 #[test]

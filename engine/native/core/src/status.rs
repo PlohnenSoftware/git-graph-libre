@@ -301,6 +301,9 @@ fn status_name(status: GitFileStatus) -> &'static str {
         GitFileStatus::Modified => "modified",
         GitFileStatus::Deleted => "deleted",
         GitFileStatus::Renamed => "renamed",
+        // Git's own word in `git status`; only tree diffs classify a type change, so the
+        // working-tree classifiers above never hand one to this match.
+        GitFileStatus::TypeChanged => "typechange",
         GitFileStatus::Untracked => "untracked",
     }
 }

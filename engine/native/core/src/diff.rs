@@ -280,19 +280,17 @@ pub fn line_counts(
         if !wanted.contains(change.location().to_str_lossy().as_ref()) {
             return Ok(std::ops::ControlFlow::Continue(()));
         }
-        let mut counts = GitLineCounts {
-            additions: None,
-            deletions: None,
+        let lines = if let Some(lines) = gitlink_counts(&change) {
+            Some(lines)
+        } else if let Some(type_change) = gitlink_type_change(&change) {
+            count_against_gitlink(&mut cache, &git.objects, change.location(), type_change)
+        } else {
+            change.diff(&mut cache).ok().and_then(count_lines)
         };
-        if let Some((additions, deletions)) = gitlink_counts(&change) {
-            counts.additions = Some(additions);
-            counts.deletions = Some(deletions);
-        } else if let Ok(platform) = change.diff(&mut cache) {
-            if let Some((additions, deletions)) = count_lines(platform) {
-                counts.additions = Some(additions);
-                counts.deletions = Some(deletions);
-            }
-        }
+        let counts = GitLineCounts {
+            additions: lines.map(|(additions, _)| additions),
+            deletions: lines.map(|(_, deletions)| deletions),
+        };
         counted.insert(change.location().to_string(), counts);
         Ok(std::ops::ControlFlow::Continue(()))
     });
@@ -330,7 +328,8 @@ fn count_lines(platform: gix::object::blob::diff::Platform<'_>) -> Option<(u32, 
 
 /// The counts git reports for a gitlink (submodule), whose diff is its one `Subproject commit`
 /// line: `(1, 0)` when added, `(0, 1)` when deleted and `(1, 1)` when moved to another commit.
-/// `None` for a change no side of which is a gitlink.
+/// `None` for a change no side of which is a gitlink, and for a type change between a gitlink and
+/// a file or symlink, which [`count_against_gitlink`] counts against the other side's content.
 fn gitlink_counts(change: &gix::object::tree::diff::Change<'_, '_, '_>) -> Option<(u32, u32)> {
     use gix::object::tree::diff::Change;
 
@@ -341,7 +340,7 @@ fn gitlink_counts(change: &gix::object::tree::diff::Change<'_, '_, '_>) -> Optio
             entry_mode,
             previous_entry_mode,
             ..
-        } if entry_mode.is_commit() || previous_entry_mode.is_commit() => Some((1, 1)),
+        } if entry_mode.is_commit() && previous_entry_mode.is_commit() => Some((1, 1)),
         Change::Rewrite {
             entry_mode,
             source_entry_mode,
@@ -358,6 +357,89 @@ fn gitlink_counts(change: &gix::object::tree::diff::Change<'_, '_, '_>) -> Optio
         }
         _ => None,
     }
+}
+
+/// A type change between a gitlink and a file or symlink: the gitlink's commit, and the blob on
+/// the other side with its kind and its side of the diff.
+struct GitlinkTypeChange {
+    commit: gix::ObjectId,
+    blob: gix::ObjectId,
+    blob_kind: gix::object::tree::EntryKind,
+    blob_side: gix::diff::blob::ResourceKind,
+}
+
+/// The [`GitlinkTypeChange`] a change is, or `None` for any other change.
+fn gitlink_type_change(
+    change: &gix::object::tree::diff::Change<'_, '_, '_>,
+) -> Option<GitlinkTypeChange> {
+    use gix::diff::blob::ResourceKind;
+    use gix::object::tree::diff::Change;
+
+    let Change::Modification {
+        previous_entry_mode,
+        previous_id,
+        entry_mode,
+        id,
+        ..
+    } = change
+    else {
+        return None;
+    };
+    match (previous_entry_mode.is_commit(), entry_mode.is_commit()) {
+        (false, true) => Some(GitlinkTypeChange {
+            commit: id.detach(),
+            blob: previous_id.detach(),
+            blob_kind: previous_entry_mode.kind(),
+            blob_side: ResourceKind::OldOrSource,
+        }),
+        (true, false) => Some(GitlinkTypeChange {
+            commit: previous_id.detach(),
+            blob: id.detach(),
+            blob_kind: entry_mode.kind(),
+            blob_side: ResourceKind::NewOrDestination,
+        }),
+        _ => None,
+    }
+}
+
+/// Count a gitlink type change the way `git diff --numstat` does: the gitlink's one
+/// `Subproject commit <hash>` line against the other side's real content, so a three-line file
+/// becoming a submodule counts `(1, 3)`. `None` when the other side is binary, as git prints
+/// dashes for it.
+fn count_against_gitlink(
+    cache: &mut gix::diff::blob::Platform,
+    objects: &impl gix::objs::FindObjectOrHeader,
+    path: &bstr::BStr,
+    change: GitlinkTypeChange,
+) -> Option<(u32, u32)> {
+    use gix::diff::blob::platform::resource::Data;
+    use gix::diff::blob::{sources::byte_lines, Diff, InternedInput, ResourceKind};
+
+    // gix's resource cache refuses a gitlink, so only the blob side goes through it, which still
+    // applies the attributes and the binary check a two-sided diff would.
+    cache
+        .set_resource(
+            change.blob,
+            change.blob_kind,
+            path,
+            change.blob_side,
+            objects,
+        )
+        .ok()?;
+    let algorithm = cache.options.algorithm.unwrap_or_default();
+    let Data::Buffer { buf, .. } = cache.resource(change.blob_side)?.data else {
+        return None;
+    };
+    let subproject = format!("Subproject commit {}\n", change.commit);
+    let (old, new) = match change.blob_side {
+        ResourceKind::OldOrSource => (buf, subproject.as_bytes()),
+        ResourceKind::NewOrDestination => (subproject.as_bytes(), buf),
+    };
+    let diff = Diff::compute(
+        algorithm,
+        &InternedInput::new(byte_lines(old), byte_lines(new)),
+    );
+    Some((diff.count_additions(), diff.count_removals()))
 }
 
 /// Turn one tree change into a file change record, or `None` for changes the view does not list.
@@ -409,19 +491,21 @@ fn classify(change: &gix::object::tree::diff::Change<'_, '_, '_>) -> Option<GitF
             if entry_mode.is_tree() {
                 return None;
             }
-            // A type change (regular file ↔ symlink ↔ gitlink) is what git spells `T`; it is not
-            // one of the statuses the view lists (`--diff-filter=AMDR` drops it on the CLI side),
-            // so it is dropped here as well to keep the two backends in agreement.
-            if entry_mode.is_link() != previous_entry_mode.is_link()
-                || entry_mode.is_commit() != previous_entry_mode.is_commit()
-            {
-                return None;
-            }
+            // A type change (regular file ↔ symlink ↔ gitlink) is what git spells `T`, as the CLI
+            // lists it under `--diff-filter=AMDRT`. The executable bit alone stays a modification;
+            // a file becoming a directory never gets here, the tree diff reports it as a deletion
+            // and additions.
+            let type_changed = entry_mode.is_link() != previous_entry_mode.is_link()
+                || entry_mode.is_commit() != previous_entry_mode.is_commit();
             let path = location.to_string();
             GitFileChange {
                 old_file_path: path.clone(),
                 new_file_path: path,
-                kind: GitFileStatus::Modified,
+                kind: if type_changed {
+                    GitFileStatus::TypeChanged
+                } else {
+                    GitFileStatus::Modified
+                },
                 additions: None,
                 deletions: None,
             }

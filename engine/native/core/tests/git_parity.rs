@@ -399,3 +399,192 @@ fn a_submodule_counts_as_git_counts_it() {
     assert_eq!(engine_counts(&engine, &added, "sub"), (Some(1), Some(0)));
     assert_eq!(engine_counts(&engine, &moved, "sub"), (Some(1), Some(1)));
 }
+
+/* ---------- Type changes ---------- */
+
+/// One file row: status letter, path and `+N/-M`, `None` being numstat's dash.
+type Row = (String, String, Option<u32>, Option<u32>);
+
+/// Write a blob through plumbing, so no symlink or submodule needs to exist on disk.
+fn write_blob(repo: &TestRepo, contents: &str) -> String {
+    repo.git_stdin(&["hash-object", "-w", "--stdin"], contents)
+        .trim()
+        .to_string()
+}
+
+/// A commit for a gitlink to name; it never needs to be checked out.
+fn write_gitlink_commit(repo: &TestRepo, message: &str) -> String {
+    let tree = repo.git_stdin(&["mktree"], "").trim().to_string();
+    repo.git(&["commit-tree", &tree, "-m", message])
+        .trim()
+        .to_string()
+}
+
+/// Stage `(mode, id, path)` entries and commit the index as it stands.
+fn commit_entries(repo: &TestRepo, entries: &[(&str, &str, &str)], message: &str) -> String {
+    for (mode, id, path) in entries {
+        let entry = format!("{mode},{id},{path}");
+        repo.git(&["update-index", "--add", "--cacheinfo", &entry]);
+    }
+    repo.git(&["commit", "--quiet", "-m", message]);
+    repo.head()
+}
+
+/// What `git diff --name-status` and `--numstat` report for `from..to`.
+fn git_rows(repo: &TestRepo, from: &str, to: &str) -> Vec<Row> {
+    let numstat = repo.git(&["diff", "--numstat", "--find-renames", from, to]);
+    let counts: std::collections::HashMap<&str, (Option<u32>, Option<u32>)> = numstat
+        .lines()
+        .filter_map(|line| {
+            let mut fields = line.splitn(3, '\t');
+            let (added, deleted) = (fields.next()?, fields.next()?);
+            Some((fields.next()?, (added.parse().ok(), deleted.parse().ok())))
+        })
+        .collect();
+    repo.git(&["diff", "--name-status", "--find-renames", from, to])
+        .lines()
+        .map(|line| {
+            let (status, path) = line.split_once('\t').expect("a name-status line");
+            let (added, deleted) = counts[path];
+            (status.to_string(), path.to_string(), added, deleted)
+        })
+        .collect()
+}
+
+/// The engine's rows for the same diff; `from` is `None` for a commit against its first parent.
+fn engine_rows(engine: &Repo, from: Option<&str>, to: &str) -> Vec<Row> {
+    let changes = match from {
+        Some(from) => diff::diff_revisions(engine, from, to),
+        None => diff::diff_commit(engine, to),
+    }
+    .unwrap();
+    let paths: Vec<String> = changes.iter().map(|c| c.new_file_path.clone()).collect();
+    let counts = diff::line_counts(engine, from, to, &paths).unwrap();
+    let mut rows: Vec<Row> = changes
+        .iter()
+        .map(|change| {
+            let letter = serde_json::to_value(change.kind).unwrap();
+            let settled = counts[&change.new_file_path];
+            (
+                letter.as_str().unwrap().to_string(),
+                change.new_file_path.clone(),
+                settled.additions,
+                settled.deletions,
+            )
+        })
+        .collect();
+    rows.sort_by(|a, b| a.1.cmp(&b.1));
+    rows
+}
+
+fn row(status: &str, path: &str, added: Option<u32>, deleted: Option<u32>) -> Row {
+    (status.to_string(), path.to_string(), added, deleted)
+}
+
+#[test]
+fn type_changes_list_and_count_as_git_does() {
+    require_git!();
+    let repo = TestRepo::new();
+    let three = write_blob(&repo, "one\ntwo\nthree\n");
+    let edited = write_blob(&repo, "one\ntwo\nthree\nfour\n");
+    let target = write_blob(&repo, "target/path");
+    let retarget = write_blob(&repo, "other/target");
+    let binary = write_blob(&repo, "a\0b\n");
+    let sub = write_gitlink_commit(&repo, "sub one");
+    let sub2 = write_gitlink_commit(&repo, "sub two");
+    let sub3 = write_gitlink_commit(&repo, "sub three");
+    let (file, link, gitlink, exec) = ("100644", "120000", "160000", "100755");
+
+    let before = commit_entries(
+        &repo,
+        &[
+            (file, &three, "file-to-link"),
+            (file, &three, "file-to-gitlink"),
+            (link, &target, "link-to-file"),
+            (link, &target, "link-to-gitlink"),
+            (gitlink, &sub, "gitlink-to-file"),
+            (gitlink, &sub, "gitlink-to-link"),
+            (file, &target, "same-bytes"),
+            (file, &binary, "binary-to-link"),
+            (file, &binary, "binary-to-gitlink"),
+            (file, &three, "executable"),
+            (gitlink, &sub, "gitlink-update"),
+        ],
+        "before",
+    );
+    let changed = commit_entries(
+        &repo,
+        &[
+            (link, &target, "file-to-link"),
+            (gitlink, &sub, "file-to-gitlink"),
+            (file, &three, "link-to-file"),
+            (gitlink, &sub2, "link-to-gitlink"),
+            (file, &three, "gitlink-to-file"),
+            (link, &retarget, "gitlink-to-link"),
+            (link, &target, "same-bytes"),
+            (link, &target, "binary-to-link"),
+            (gitlink, &sub, "binary-to-gitlink"),
+            (exec, &three, "executable"),
+            (gitlink, &sub2, "gitlink-update"),
+        ],
+        "change every type",
+    );
+    // Then ordinary modifications on top: T followed by M, and D05's gitlink add and delete.
+    repo.git(&["rm", "--cached", "--quiet", "gitlink-update"]);
+    let after = commit_entries(
+        &repo,
+        &[
+            (link, &retarget, "file-to-link"),
+            (file, &edited, "gitlink-to-file"),
+            (gitlink, &sub3, "link-to-gitlink"),
+            (gitlink, &sub3, "gitlink-added"),
+        ],
+        "modify on top",
+    );
+
+    // git's own answers, pinned: a gitlink diffs as its one `Subproject commit` line, a symlink as
+    // its target, identical bytes count nothing, and a binary side counts as binary.
+    let expected = vec![
+        row("T", "binary-to-gitlink", None, None),
+        row("T", "binary-to-link", None, None),
+        row("M", "executable", Some(0), Some(0)),
+        row("T", "file-to-gitlink", Some(1), Some(3)),
+        row("T", "file-to-link", Some(1), Some(3)),
+        row("T", "gitlink-to-file", Some(3), Some(1)),
+        row("T", "gitlink-to-link", Some(1), Some(1)),
+        row("M", "gitlink-update", Some(1), Some(1)),
+        row("T", "link-to-file", Some(3), Some(1)),
+        row("T", "link-to-gitlink", Some(1), Some(1)),
+        row("T", "same-bytes", Some(0), Some(0)),
+    ];
+    assert_eq!(git_rows(&repo, &before, &changed), expected);
+    assert_eq!(
+        git_rows(&repo, &changed, &after),
+        vec![
+            row("M", "file-to-link", Some(1), Some(1)),
+            row("A", "gitlink-added", Some(1), Some(0)),
+            row("M", "gitlink-to-file", Some(1), Some(0)),
+            row("D", "gitlink-update", Some(0), Some(1)),
+            row("M", "link-to-gitlink", Some(1), Some(1)),
+        ]
+    );
+
+    let engine = open(&repo);
+    for (from, to) in [
+        (&before, &changed),
+        (&changed, &after),
+        (&before, &after),
+        (&after, &before),
+    ] {
+        assert_eq!(
+            engine_rows(&engine, Some(from), to),
+            git_rows(&repo, from, to),
+            "comparison {from}..{to}"
+        );
+    }
+    assert_eq!(engine_rows(&engine, None, &changed), expected);
+    assert_eq!(
+        engine_rows(&engine, None, &after),
+        git_rows(&repo, &changed, &after)
+    );
+}
