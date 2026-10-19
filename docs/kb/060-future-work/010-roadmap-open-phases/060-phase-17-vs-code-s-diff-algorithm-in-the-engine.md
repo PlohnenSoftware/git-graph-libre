@@ -140,6 +140,7 @@ re-sync procedure below).
    fixtures, since the package can't produce them. As a by-product this
    finally answers whether `@vscode/diff`'s TypeScript and WebAssembly
    backends really are identical: so far that rests on Microsoft's word.
+   **Result (22h, `2026-10-19`):** `tests/backend/vscodeDiffDifferential.test.ts` runs the expected JSON, both package backends and our WebAssembly build on the 58 fixtures and a seeded 300-case corpus: zero mismatches between the expected files, the package's TypeScript backend and our build (moves included for ours, exact on all 58). The package's WebAssembly backend differs on exactly `noisy-move1` and `ts-example1`, the same two D21 pinned, so **its TypeScript and WebAssembly backends are not identical**. Rough time for the 58 fixtures (Node 26, opt-level `s`): package TypeScript 190 ms, package WebAssembly 26 ms, ours WebAssembly 115 ms (including JSON in and out). CI: the `diff-wasm` job in `engine.yml`, `wasm-bindgen-cli` 0.2.129 pinned to the crate.
 4. **`pnpm run diff:parity`,** a benchmark-style script outside the default
    test run, like `bench:backends`. It diffs file pairs from real history
    (the last N commits of a repository given by an environment variable) on
