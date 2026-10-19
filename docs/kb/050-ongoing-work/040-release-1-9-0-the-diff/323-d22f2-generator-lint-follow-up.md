@@ -9,7 +9,7 @@ summary: >-
 
 # D22F2 — Generator lint follow-up
 
-Status: done — awaiting integration
+Status: integrated 8a654e8
 Needs: 22e, 22g, D22F (integrated)
 Decisions: X13
 Kind: JavaScript oracle scripts and one TypeScript line · Size: ~60 changed lines (a guide, not a limit)
