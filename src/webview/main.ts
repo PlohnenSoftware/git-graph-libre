@@ -6246,11 +6246,26 @@ class GitGraphView {
 
   private swapCommitComparison() {
     const expanded = this.expandedCommit;
-    if (expanded === null || expanded.comparison === null || expanded.srcElem === null) return;
-    const { baseRef, compareRef, baseLabel, compareLabel } = expanded.comparison;
-    this.loadCommitComparison(expanded.srcElem, expanded.hash, compareRef, baseRef, {
-      baseLabel: compareLabel,
-      compareLabel: baseLabel
+    const comparison = expanded?.comparison;
+    const srcElem = expanded?.srcElem;
+    if (
+      expanded === null ||
+      comparison === null ||
+      comparison === undefined ||
+      srcElem === null ||
+      srcElem === undefined
+    ) {
+      return;
+    }
+    const {
+      baseRef: swappedCompareRef,
+      compareRef: swappedBaseRef,
+      baseLabel: swappedCompareLabel,
+      compareLabel: swappedBaseLabel
+    } = comparison;
+    this.loadCommitComparison(srcElem, expanded.hash, swappedBaseRef, swappedCompareRef, {
+      baseLabel: swappedBaseLabel,
+      compareLabel: swappedCompareLabel
     });
   }
 
