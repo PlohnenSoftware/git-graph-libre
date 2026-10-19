@@ -30,8 +30,11 @@ Artifacts in this repository:
   shows the knowledge base too; open it with
   `xdg-open graphify-out/graph.html`. It loads `vis-network` from
   `unpkg.com`, so it needs a network connection. Above 5,000 nodes (or
-  `GRAPHIFY_VIZ_NODE_LIMIT`) graphify writes a community-level summary
-  instead. Being regenerated output, it is ignored.
+  `GRAPHIFY_VIZ_NODE_LIMIT`) graphify skips it. The graph passed that on
+  `2026-10-19` (5,253 nodes), so `kb:graph` now sets
+  `GRAPHIFY_VIZ_NODE_LIMIT=8000` for its `cluster-only` step. It is tracked
+  (about 5.7 MB) at the maintainer's choice; the `.gitignore` line that
+  ignored it was removed.
 - `graphify-out/manifest.json`: the per-file extraction cache keyed by mtime,
   ignored alongside `.graphify_*` and `cache/`.
 - `graphify-out/<date>/`: the dated backup graphify takes before a rewrite,
