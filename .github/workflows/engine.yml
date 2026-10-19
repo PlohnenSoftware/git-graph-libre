@@ -44,3 +44,36 @@ jobs:
 
       - name: cargo fmt
         run: pnpm run engine:fmt
+
+  # Phase 17 (22h): the differential Vitest suite needs our WebAssembly build.
+  # `wasm-bindgen-cli` is pinned to the `wasm-bindgen` crate version in
+  # engine/native/diff/Cargo.toml, like the pinned zig. Without the build the
+  # suite skips our arm, so the step checks the output exists first.
+  diff-wasm:
+    name: diff crate wasm build and differential suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+
+      - run: corepack enable
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: rustup target add wasm32-unknown-unknown
+
+      - name: Install wasm-bindgen-cli (same version as the crate)
+        run: cargo install --locked wasm-bindgen-cli --version 0.2.129
+
+      - name: Build the diff crate for Node
+        run: pnpm run diff:wasm
+
+      - name: Check the build exists
+        run: test -f engine/target/diff-wasm/git_graph_diff.js
+
+      - name: Differential suite
+        run: pnpm exec vitest run --project backend tests/backend/vscodeDiffDifferential.test.ts tests/backend/vscodeDiffOracles.test.ts
