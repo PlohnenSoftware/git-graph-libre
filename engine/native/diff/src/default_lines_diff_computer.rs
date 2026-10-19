@@ -467,3 +467,128 @@ pub fn compute_diff<C: Clock>(
             .unwrap_or_else(|| "unknown panic".to_string()),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        compute_diff, line_equality_score, number_trimmed_lines, trivial_diff, DiffError, Flow,
+    };
+    use crate::clock::SystemClock;
+    use crate::lines_diff::LinesDiffOptions;
+    use crate::text::TextModel;
+    use crate::v8_math::math_log;
+
+    fn options(compute_moves: bool) -> LinesDiffOptions {
+        LinesDiffOptions {
+            ignore_trim_whitespace: false,
+            max_computation_time_ms: 0,
+            compute_moves,
+            extend_to_subwords: false,
+        }
+    }
+
+    fn model(lines: &[&str]) -> TextModel {
+        TextModel::from_lines(lines.iter().map(|l| (*l).to_string()).collect())
+    }
+
+    #[test]
+    fn equal_short_texts_have_no_changes() {
+        let (a, b) = (model(&["same"]), model(&["same"]));
+        assert!(trivial_diff(&a, &b).unwrap().changes.is_empty());
+        let empty = model(&[""]);
+        assert!(trivial_diff(&empty, &empty).unwrap().changes.is_empty());
+        assert!(trivial_diff(&model(&["a", "b"]), &model(&["a", "b"])).is_none());
+    }
+
+    #[test]
+    fn a_single_empty_line_changes_the_whole_text() {
+        let diff = trivial_diff(&model(&[""]), &model(&["ab", "c\u{1F600}"])).unwrap();
+        let change = &diff.changes[0];
+        assert_eq!((change.original.length(), change.modified.length()), (1, 2));
+        let inner = &change.inner_changes.as_ref().unwrap()[0];
+        // The modified end column counts the emoji as two UTF-16 units.
+        assert_eq!(inner.original_range.to_string(), "[1,1 -> 1,1]");
+        assert_eq!(inner.modified_range.to_string(), "[1,1 -> 2,4]");
+    }
+
+    #[test]
+    fn lines_are_numbered_by_first_occurrence_of_their_javascript_trim() {
+        let original = model(&["  a", "b\u{a0}", "a"]);
+        let modified = model(&["\u{3000}b", "c", "a "]);
+        let (h1, h2) = number_trimmed_lines(&original, &modified);
+        assert_eq!((h1, h2), (vec![0, 1, 0], vec![1, 2, 0]));
+    }
+
+    #[test]
+    fn equal_lines_score_by_length_and_others_by_a_constant() {
+        let (a, b) = (model(&["abc", "", "x"]), model(&["abc", "", "y"]));
+        let flow = Flow {
+            original: &a,
+            modified: &b,
+            consider_whitespace_changes: true,
+            extend_to_subwords: false,
+        };
+        assert_eq!(line_equality_score(flow, 0, 0), 1.0 + math_log(1.0 + 3.0));
+        assert_eq!(line_equality_score(flow, 1, 1), 0.1);
+        assert_eq!(line_equality_score(flow, 2, 2), 0.99);
+    }
+
+    #[test]
+    fn a_whitespace_only_change_is_refined_unless_ignored() {
+        let (a, b) = (model(&["a", " b", "c"]), model(&["a", "b", "c"]));
+        let mut with = options(false);
+        let diff = compute_diff(&a, &b, with, &SystemClock::new()).unwrap();
+        assert_eq!(diff.changes.len(), 1);
+        with.ignore_trim_whitespace = true;
+        assert!(compute_diff(&a, &b, with, &SystemClock::new())
+            .unwrap()
+            .changes
+            .is_empty());
+    }
+
+    /// One of 22g's oracle cases on which VS Code's `computeMovedLines` throws a
+    /// `TypeError` (an `undefined` line in the extension loop): the unguarded
+    /// flow panics there, and `compute_diff` returns an error instead.
+    #[test]
+    fn a_throwing_input_becomes_an_error_not_a_panic() {
+        let original = model(&[
+            "}",
+            "",
+            "  value += alpha[i] * 2;",
+            "\treturn count + result;",
+            "",
+            "function totalgamma(x, y) {",
+            "\treturn count + delta;",
+            "}",
+            "let égamma = 'items\u{1F600}';",
+            "// result handling",
+            "",
+            "  ",
+        ]);
+        let modified = model(&[
+            "// result handling",
+            "",
+            "  ",
+            "",
+            "for (let i = 0; i < index.length; i++) {",
+            "}",
+            "",
+            "  value += alpha[i] * 2;",
+            "\treturn count + result;",
+            "// value handling",
+            "function totalgamma(x, y) {   ",
+            "\treturn count + delta;",
+            "}",
+        ]);
+        let clock = SystemClock::new();
+        let error: DiffError = compute_diff(&original, &modified, options(true), &clock)
+            .expect_err("VS Code throws on this input");
+        assert!(!error.message.is_empty());
+        assert!(error.to_string().starts_with("diff computation failed: "));
+        // Without moves the same texts diff normally, as in VS Code.
+        assert!(!compute_diff(&original, &modified, options(false), &clock)
+            .unwrap()
+            .changes
+            .is_empty());
+    }
+}
