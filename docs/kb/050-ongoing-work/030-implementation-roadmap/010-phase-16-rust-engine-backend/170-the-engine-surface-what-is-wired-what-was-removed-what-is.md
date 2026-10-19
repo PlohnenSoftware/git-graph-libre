@@ -76,3 +76,15 @@ exception to design rule 2 and must be recorded as one when it happens —
 including what the view does when the engine is unavailable, which for every
 other read is "fall back to the CLI" and here would have to be "the tab is not
 offered".
+
+**Wired: the GGL Diff tab (`2026-10-19`, D45).** The same exception, taken.
+The tab's source (`src/extension/diffTab/engineSource.ts`) reads each side
+with the usual engine-or-CLI reads, but the diff itself only exists in the
+engine: it is the Phase 17 port of VS Code's algorithm, and Git's CLI diff is
+a different algorithm that must never be mixed into what a diff *looks like*
+(decision X7), so there is no CLI implementation to agree with and design
+rule 3's parity test is against VS Code's own fixtures instead (D21, 22j).
+When the engine cannot serve it — the `git-cli` backend, no loadable addon,
+or an addon without `diffTexts` — the tab is not offered: the
+`git-graph-libre.diffTabAvailable` context key is false, and entry points
+hide or fall back to VS Code's own diff editor, never to a CLI-computed tab.
