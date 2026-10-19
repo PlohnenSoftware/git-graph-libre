@@ -21,7 +21,7 @@ use crate::myers_diff_algorithm::MyersDiffAlgorithm;
 use crate::range::Range;
 use crate::range_mapping::{DetailedLineRangeMapping, LineRangeMapping};
 use crate::text::TextModel;
-use crate::utils::is_space;
+use crate::utils::{is_space, LineRangeFragment};
 
 /// `String.prototype.trim` on UTF-16 units.
 fn trim(line: &[u16]) -> &[u16] {
@@ -120,6 +120,53 @@ pub fn remove_moves_in_same_diff(
     kept
 }
 
+/// Returns the moves and, per index into `changes`, whether the change was
+/// consumed by one (VS Code's `excludedChanges` set).
+pub fn compute_moves_from_simple_deletions_to_simple_insertions(
+    changes: &[DetailedLineRangeMapping],
+    original_lines: &TextModel,
+    modified_lines: &TextModel,
+    timeout: &mut dyn ITimeout,
+) -> (Vec<LineRangeMapping>, Vec<bool>) {
+    let mut moves = Vec::new();
+    let mut excluded_changes = vec![false; changes.len()];
+    let deletions: Vec<LineRangeFragment> = changes
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.modified.is_empty() && c.original.length() >= 3)
+        .map(|(i, c)| LineRangeFragment::new(c.original, original_lines, i))
+        .collect();
+    // A `Set` iterates in insertion order and deleting keeps the order.
+    let mut insertions: Vec<LineRangeFragment> = changes
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.original.is_empty() && c.modified.length() >= 3)
+        .map(|(i, c)| LineRangeFragment::new(c.modified, modified_lines, i))
+        .collect();
+
+    for deletion in &deletions {
+        let mut highest_similarity = -1.0;
+        let mut best = None;
+        for (idx, insertion) in insertions.iter().enumerate() {
+            let similarity = deletion.compute_similarity(insertion);
+            if similarity > highest_similarity {
+                highest_similarity = similarity;
+                best = Some(idx);
+            }
+        }
+        if let Some(idx) = best.filter(|_| highest_similarity > 0.90) {
+            let insertion = insertions.remove(idx);
+            moves.push(LineRangeMapping::new(deletion.range, insertion.range));
+            excluded_changes[deletion.source] = true;
+            excluded_changes[insertion.source] = true;
+        }
+        if !timeout.is_valid() {
+            break;
+        }
+    }
+    (moves, excluded_changes)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -194,5 +241,45 @@ mod tests {
             remove_moves_in_same_diff(&changes, moves),
             vec![lr(1, 2, 1, 2), lr(3, 4, 22, 24)]
         );
+    }
+
+    fn model(lines: &[&str]) -> TextModel {
+        TextModel::from_lines(lines.iter().map(|l| l.to_string()).collect())
+    }
+
+    #[test]
+    fn a_deleted_block_matches_the_most_similar_inserted_block() {
+        use crate::line_range::LineRange;
+        let original = model(&[
+            "keep",
+            "alpha one",
+            "alpha two",
+            "alpha three",
+            "keep too",
+            "z",
+        ]);
+        let modified = model(&[
+            "keep",
+            "keep too",
+            "beta",
+            "beta",
+            "beta",
+            "alpha one",
+            "alpha two",
+            "alpha three",
+            "z",
+        ]);
+        let change = |a, b, c, d| {
+            DetailedLineRangeMapping::new(LineRange::new(a, b), LineRange::new(c, d), None)
+        };
+        let changes = vec![change(2, 5, 2, 2), change(6, 6, 3, 6), change(6, 6, 6, 9)];
+        let (moves, excluded) = compute_moves_from_simple_deletions_to_simple_insertions(
+            &changes,
+            &original,
+            &modified,
+            &mut InfiniteTimeout,
+        );
+        assert_eq!(moves, vec![lr(2, 5, 6, 9)]);
+        assert_eq!(excluded, [true, false, true]);
     }
 }
