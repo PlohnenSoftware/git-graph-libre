@@ -7,7 +7,7 @@ summary: >-
 
 # D22 — Phase 17 port sub-slices
 
-Status: in progress — 22a–22g integrated (22f 8ab419f), D22F integrated 39d841b; 22j and 22h ready, 22i after both
+Status: in progress — 22a–22g and 22j integrated (22j 0ca19fc), D22F integrated 39d841b; 22h in flight, 22i after both
 Needs: D21
 Decisions: X5 = (b); Phase 17 D1, D2 and D5
 Kind: Rust, the Rust arm applies · Size budget: per sub-slice, as listed
@@ -186,7 +186,7 @@ Status: integrated 8ab419f
 
 ### 22j Report
 
-Status: done — awaiting integration
+Status: integrated 0ca19fc
 
 - **Agent / date:** Muse Code (muse-wonder-full-1.0, general-purpose, inherited runtime model; no Haiku/Sonnet/Opus selector in this runtime — Claude dispatched this slice on Sonnet, and the integrator records the difference), 2026-10-19. The first six commits below are the previous agent's (Claude Sonnet 5.5), preserved exactly; the rest are this agent's.
 - **Branch and commits:** `diff-1.9.0/d22j`, all `G`, no push. Inherited: `477ddce` claim; `bfaa944` remove the unified-diff path from core; `93cd50a` remove the `load_commit_file_diff` export; `efa2193` style; `e2a449f` `git-graph-diff` as a path dependency of the node crate; `d0ab146` `diff_texts` and `diff_file_at_revisions` exports (`engine/native/node/src/diff_wire.rs`). This agent: `6b67959` reassignment note; `abff482` optional `diffTexts`/`diffFileAtRevisions` in `addon.ts`; `4b719cd` the `diffTexts.ts` seam; `81521f2` seam routing and parity tests; plus the signed report commit carrying this section.
