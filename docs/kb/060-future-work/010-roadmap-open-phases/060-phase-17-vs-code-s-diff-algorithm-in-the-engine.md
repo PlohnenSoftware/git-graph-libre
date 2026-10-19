@@ -207,6 +207,93 @@ the action falls back to `vscode.diff`.
   `pnpm run diff:parity`, and run it on this repository, git.git and
   gitoxide with the results recorded here. *Acceptance:* zero mismatches
   apart from documented moves, with timings against both package backends.
+
+  **Results (`2026-10-19`, 22h and 22i).** The Vitest suite is five-way
+  (`tests/backend/vscodeDiffDifferential.test.ts`: the expected JSON,
+  both package backends, our WebAssembly, our native through 22j's
+  seam), 61/61 with no skips when both of our builds exist; its
+  per-pair verdicts are in the 22h and 22i reports in D22.
+  `pnpm run diff:parity` (`scripts/diff-parity.mjs` over
+  `tests/backend/engine/diffParity.bench.ts`) diffs every changed file
+  of the newest `GGL_PARITY_COMMITS` non-merge commits of
+  `GGL_PARITY_REPO`, each against its first parent, on the four
+  computing arms, with `ignoreTrimWhitespace` and `extendToSubwords`
+  off and `maxComputationTimeMs` 5000 — VS Code's
+  `diffEditor.maxComputationTime` default, the setting D45 feeds the
+  tab from — on every arm; `hitTimeout` is counted per arm. Binary,
+  non-UTF-8 and over-50,000-line pairs are skipped and counted. Swept
+  repositories are read only (`git log`/`diff`/`show`). Runs below:
+  Node v26.11.1, engine 1.0.26, `@vscode/diff` 0.0.2-87; our native
+  arm is the debug addon `pnpm run engine:build` makes and our
+  WebAssembly arm the release `pnpm run diff:wasm` build, so native
+  timings (and which side of the cap it lands on) are debug-build
+  numbers, never a performance claim.
+
+  | Sweep | TS vs pkg Wasm | TS vs our Wasm | TS vs our native | pkg Wasm vs ours (each) | our Wasm vs native | moves (ours) |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | git.git, newest 100 (`6de20f6092`) | 13/220 | 0/220 | 0/220 | 13/220 | 0/220 | 0/220 |
+  | this repository, newest 250 (`bb9501d`) | 12/754 | 1/754 | 0/754 | 12/754 | 1/754 | 1/754 |
+
+  git.git listed 222 files, compared 220 pairs (10 with a move) and
+  skipped 2 non-UTF-8 (`t/t4201-shortlog.sh` twice), in 28.1 s wall;
+  no arm errored and none hit the cap. Changes-pass timings in
+  ms/pair: TypeScript 12.68, package WebAssembly 3.21, ours 11.61
+  (WebAssembly) and 38.36 (native, debug). This bounded rerun
+  reproduces the first agent's completed unbounded git.git sweep
+  exactly — every count and every printed example identical (`diff`
+  clean apart from the options, timing and verdict lines) — because
+  the cap never engaged there. All 13 package-WebAssembly mismatches
+  in its examples are character-refinement differences on `po/*.po`
+  files (for example `0a961ebf` `po/fr.po`, one inner column ending
+  at 13 where the other three arms end at 14): on real history, as on
+  D21's two fixtures, the package's WebAssembly backend is the
+  outlier, and our two builds side with its TypeScript backend
+  everywhere.
+
+  This repository listed 757 files, compared 754 pairs (9 with a
+  move) and skipped 3 over the line bound (all
+  `graphify-out/graph.json`, 181,605–208,192 lines), in 202.9 s wall;
+  no arm errored. Changes-pass `hitTimeout` counts: TypeScript 4,
+  package WebAssembly 0, our WebAssembly 3, our native 4 (moves pass:
+  3 and 4). Changes-pass timings in ms/pair: TypeScript 39.06,
+  package WebAssembly 2.08, ours 35.30 and 66.28 (debug); the capped
+  pairs each contribute their full 5 s to the slower arms' totals.
+  The package WebAssembly backend's 12 mismatches again mix genuine
+  refinement differences (for example `8ab419fb` on the D22 file,
+  column 1 where the other arms start at column 9) with
+  `hitTimeout`-flag-only differences (`a484db78` on both graphify
+  HTML files: changes agree, only the flag differs — the fast arm
+  finished what the others capped). The one mismatch touching our
+  builds is a cap-edge artifact, verified pair by pair: on
+  `7cf2d831` `graphify-out/GRAPH_TREE.html` (364 lines, line 88 is
+  260,258 characters) an isolated bounded probe finished the
+  TypeScript arm in 2.7 s and our WebAssembly in 4.4–4.6 s with
+  identical changes (94 inner changes, canonical forms equal, no
+  timeout), while our debug native arm hit the cap at 5.0 s and
+  returned the unrefined whole-line change; in the sweep the
+  TypeScript arm landed on the timed-out side with the native arm
+  (hence TypeScript vs native 0/754) and only the WebAssembly arm
+  finished refined (hence 1/754 on each pair involving it, changes
+  and moves alike). Which side of 5 s an arm lands on for such a pair
+  depends on build speed and load, so this count can move between
+  runs without any algorithm change. The gitoxide sweep this slice
+  names was not run: there is no local gitoxide checkout; it remains
+  open with D5's CI wiring.
+
+  The first sweep of this repository ran with no computation limit
+  (`maxComputationTimeMs` 0). The integrator killed it at about
+  83 minutes of single-core CPU, spent on generated-file pairs whose
+  few lines run to megabytes each (`graphify-out/graph.html`: ~320
+  lines, the longest 3.3 MB), which the 50,000-line skip by
+  construction cannot catch; the script prints results only at the
+  end, so nothing had flushed and no results were lost — there were
+  none yet to lose, only the header survives. The bounded rerun
+  above supersedes it. Read against this slice's acceptance: our
+  builds have zero mismatches against the TypeScript backend apart
+  from that one cap-edge pair, moves included; every other mismatch
+  in the table is the package WebAssembly backend differing from all
+  three other arms, now quantified on real history (13/220 and
+  12/754) rather than only on D21's fixtures.
 - **17.7 Engine exports.**
   - `diff_texts` and `diff_file_at_revisions`; remove `load_commit_file_diff`.
   - A TypeScript seam with strict payload parsing.
