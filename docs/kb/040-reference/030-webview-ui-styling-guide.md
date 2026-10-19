@@ -58,6 +58,14 @@ may not define the token):
   flush-left rows around it; and a row containing a `textarea` top-aligns its
   label, since a label centered against a tall control floats away from the
   text it names.
+- **A header never scrolls away with its content** (`2026-10-19`, D50/D51).
+  A popup's title row and close button, and a pane's section header, stay
+  pinned while the body scrolls: `position: sticky; top: 0` on the header,
+  with an opaque theme background (for example `--vscode-editorWidget-background`
+  or `--vscode-editor-background`, translucent tints layered on top) so
+  content doesn't show through. Prefer sticky over moving the scroll to a
+  new body element when the container is re-rendered with `innerHTML`,
+  which would reset that element's scroll position.
 - **Every dialog opens with a `.dialogTitle` and shares one width floor.**
   All five content builders (`showConfirmationDialog`, `showFormDialog` via
   `renderDialogForm`, `showErrorDialog`, `showActionRunningDialog`, and the tag
