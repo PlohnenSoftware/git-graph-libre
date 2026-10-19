@@ -10,7 +10,7 @@ summary: >-
 
 # D45 — Feed the tab from the engine
 
-Status: ready
+Status: claimed by Muse Code (muse-wonder-full-1.0, general-purpose, inherited runtime model) on 2026-10-19 16:08
 Needs: D43, D44, D22 sub-slice 22j
 Decisions: X5 = (b), because 22j is part of the stretch
 Kind: TypeScript · Size budget: ≤ 220 changed lines outside tests
