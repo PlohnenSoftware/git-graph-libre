@@ -27,7 +27,8 @@ the conflict.
 5. **Claim it.** In the slice file only, change the status line to
    `Status: claimed by <your agent name> on <YYYY-MM-DD HH:MM>`. Never claim
    more than one slice at a time. Never touch a slice that someone else has
-   claimed.
+   claimed. Commit the claim on its own right away
+   (see Commits).
 
 ## 2. Workspace
 
@@ -136,7 +137,15 @@ fails because of your change, fix it.
 
 ## 6. Commits
 
-- One branch per slice, and one or a few small signed commits.
+- One branch per slice.
+- **Commit every change as soon as it is made, however small
+  (maintainer, `2026-10-19`).** History is kept on purpose, so a small
+  change gets its own signed commit even where you would normally fold it
+  into a bigger one: the claim (the `Status:` line), each small fix or
+  edit, each test added, the report, and the final status. Don't save
+  small edits up to commit together at the end. Larger work follows the
+  usual workflow: frequent small commits, each a coherent step that passes
+  the focused checks.
 - Message: `<type>(<area>): <what> (D<nn>)`, for example
   `fix(details): list stash files like git stash show (D02)`. The body says
   why, and what you checked.
