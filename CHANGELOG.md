@@ -69,6 +69,24 @@ Libre's own, and diff details that match Git.
   folder found on disk. Both are in the Command Palette, beside **Show
   diagnostics** on the startup screen, and in the Hidden menu. The log
   stays on your machine; nothing is sent.
+- **Copy a diagnostics report.** **Git Graph Libre: Copy Diagnostics
+  Report** puts what a bug report needs in one place: editor, extension,
+  operating system, Git, the Rust engine and which backend answered, the
+  names of the settings you changed (never their values), your
+  repositories and their remotes, and the recent log. Copy it to the
+  clipboard, open it as a document to review first (with folder names
+  only, if you prefer), or open a prefilled GitHub issue. Credentials in
+  URLs are redacted, no config contents are included, and nothing is sent
+  until you paste or submit it yourself. **Show Diagnostics** now writes the
+  same report, and the status popup links to it and to the log
+  ([#31](https://github.com/PlohnenSoftware/git-graph-libre/issues/31)).
+- **The log explains a failure on its own.** Each window's log now opens
+  with what the extension runs with: versions, platform, time zone offset,
+  backend, Git and the engine. Every graph and repository-info load writes
+  a result line with counts and any error, a read the engine hands to Git
+  says exactly why, and an error the webview received or a failure screen
+  it showed is recorded too. Counts and fixed names only, with credentials
+  redacted.
 - **Every diff read names its backend.** Git Graph Libre's output now logs
   a line, with a file count, whenever the Rust engine serves file text,
   commit details or a comparison. Until now only reads that went to the Git

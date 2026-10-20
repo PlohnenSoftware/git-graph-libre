@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D62F · ready · TypeScript · ~10 lines: clear the one SonarQube finding wave
+  D62F · integrated · TypeScript · ~10 lines: clear the one SonarQube finding wave
   O's gate found in D62's `src/backend/engine/index.ts` (S4624, a nested
   template literal in `rerouteToCli`'s `[route]` line). The line's text and
   every test stay exactly as D62 left them.
@@ -8,7 +8,7 @@ summary: >-
 
 # D62F — Route-line Sonar follow-up
 
-Status: done — awaiting integration
+Status: integrated eb282e4
 Needs: D62
 Decisions: —
 Kind: TypeScript · Size budget: ~10 changed lines outside tests
