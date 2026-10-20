@@ -396,6 +396,58 @@ fn a_crlf_to_lf_conversion_counts_every_line_as_git_does() {
     assert_eq!(engine_counts(&engine, &hash, "a.txt"), (Some(3), Some(3)));
 }
 
+/// Ten lines unique to file `n`; `edited` rewrites one of them, leaving the file 90% the same.
+fn rename_fixture_text(n: usize, edited: bool) -> String {
+    (0..10)
+        .map(|line| {
+            if edited && line == 9 {
+                format!("file {n} line {line} was edited\n")
+            } else {
+                format!("file {n} line {line} carries its own distinct text\n")
+            }
+        })
+        .collect()
+}
+
+#[test]
+fn many_candidate_pairs_still_pair_every_inexact_rename_as_git_does() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    for n in 0..40 {
+        repo.write(&format!("old/f{n}.txt"), &rename_fixture_text(n, false));
+    }
+    repo.commit("forty files");
+    // Thirty of them move and change one line each; ten are deleted. That is 40 sources against
+    // 30 destinations, 1,200 pairs, which gix 0.89 counted against an unsquared limit of 1,000.
+    for n in 0..40 {
+        repo.remove(&format!("old/f{n}.txt"));
+    }
+    for n in 0..30 {
+        repo.write(&format!("new/f{n}.txt"), &rename_fixture_text(n, true));
+    }
+    let hash = repo.commit("move thirty files and delete ten");
+
+    let expected = repo.git(&[
+        "diff-tree",
+        "-r",
+        "--no-commit-id",
+        "--name-status",
+        "--find-renames",
+        &hash,
+    ]);
+    let git_renames = expected.lines().filter(|l| l.starts_with('R')).count();
+    assert_eq!(git_renames, 30, "{expected}");
+
+    let engine = open(&repo);
+    let changes = diff::diff_commit(&engine, &hash).unwrap();
+    let renames = changes
+        .iter()
+        .filter(|change| change.kind == GitFileStatus::Renamed)
+        .count();
+    assert_eq!(renames, 30, "{changes:?}");
+    assert_eq!(changes.len(), 40, "30 renames and 10 deletes: {changes:?}");
+}
+
 #[test]
 fn a_renamed_empty_file_is_one_rename_as_git_reports_it() {
     require_git!();
