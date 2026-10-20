@@ -6,7 +6,10 @@ summary: >-
   x64/arm64) with `engine/scripts/verify-vsix.mjs`: six binaries present,
   exports, version against `Cargo.toml` and `EXPECTED_ENGINE_VERSION`, a real
   read; the 2.28 legs caught a host-linked `GLIBC_2.39` build; manual runs are
-  dry runs; free on the public repository.
+  dry runs; free on the public repository. Since `2026-10-20` (D66) a tolerant
+  release gate lets up to two legs that never got a runner publish after one
+  retry each, while any leg that ran and failed blocks; manual runs take
+  `tag`, `publish`, `skip_legs` and `max_not_run`.
 ---
 
 # Verifying the packaged VSIX on every platform (`2026-10-17`)
@@ -95,3 +98,51 @@ platform look like a slow one.
 - **Not covered:** anything older than glibc 2.28, which VS Code itself does not run on. The first remote run (`2026-10-17`, Actions run `39053275791`) passed eight legs; both Windows legs loaded and read with the engine, then went red on cleanup — `EPERM` unlinking the still-loaded `git-graph.node`, because Windows locks a loaded DLL until the process exits and a Node addon cannot be unloaded.
   Cleanup is therefore best-effort and never fails a passed check: `cleanupWorkDirectory` removes only the fixture repository on `win32`, leaves the binary in the temporary directory for the OS, and swallows any other removal failure; `verifyVsix.test.ts` pins both branches. The fix is local and unit-proven only.
   A fresh manual dry-run dispatch before the next tag remains the remote proof for Windows — re-running the failed run would only reuse the old commit.
+
+## The release gate that tolerates runner shortages (`2026-10-20`, D66)
+
+**Why.** The `v1.9.0` release run `39461675485` stalled: GitHub had no macOS
+arm64 runner, twice ("The job was not acquired by Runner of type hosted even
+after multiple attempts"), and `release` needed every leg, so nothing was
+published over a platform the VSIX was never tested on for lack of a machine.
+Such a leg is `completed`, `cancelled`, `runner_id` 0, no steps.
+
+- **Outcomes of a leg:** passed; **failed** (it ran, a non-zero `runner_id` or
+  any step, and did not succeed, a `timeout-minutes` overrun included, which
+  fails the release at once); **not run** (runner 0 and no steps whatever the
+  conclusion, or still queued 30 minutes after creation,
+  `VERIFY_QUEUE_TIMEOUT_MINUTES` as a repository variable); **skipped**
+  (named in `skip_legs`, never scheduled).
+- **Retry:** the gate dispatches `verify-vsix.yml` once per not-run leg
+  (`workflow_dispatch` works with `GITHUB_TOKEN`) with `legs` of that one leg,
+  `artifact_run_id` (this run, so the retry downloads the same VSIX with
+  `run-id` and `github-token`) and a `retry_token` in `run-name`, which is how
+  the gate finds the run. The retry's outcome replaces the leg's, same rules.
+- **Decision:** any failed leg fails the gate; more than `max_not_run`
+  (default 2) not-run legs after retries fail it with a "Re-run failed jobs"
+  message; otherwise it passes. A job summary lists every leg, outcome, retry
+  and links.
+- **Where:** `.github/verify-vsix-legs.json` (the one leg list), `plan` job
+  (applies `skip_legs`, an unknown name fails), `verify` (the matrix,
+  `fromJSON(inputs.legs)`), `verify-gate` (needs `plan` and `package`, not
+  `verify`; `actions: write`, 90-minute timeout), `release` (needs
+  `[package, verify-gate]`). The logic is `scripts/release-verify-gate.mjs`
+  (pure `evaluateGate`, tested in `tests/backend/releaseVerifyGate.test.ts`).
+- **Manual runs** (Actions, "Run workflow", or `gh workflow run`):
+  - dry run: `gh workflow run publish.yml --ref main` (builds `main`, verifies,
+    publishes nothing); add `-f tag=v1.9.0` to build that tag instead;
+  - publish an existing tag: `gh workflow run publish.yml --ref main -f
+    tag=v1.9.0 -f publish=true`; the tag must equal `v` plus `package.json`'s
+    version at that tag, and `--skip-duplicate` still makes a repeat harmless;
+  - `-f skip_legs="macOS arm64,Windows arm64"` leaves named legs out;
+    `-f max_not_run=1` tightens the tolerance.
+- **A tag push uses the workflow files at the tagged commit.** A fix to these
+  workflows therefore reaches a tag that already exists only through a manual
+  run from `main` with `tag` set. For that reason `plan` and `verify-gate` run
+  the script and leg list from the run's own commit (older tags lack them),
+  while `native`, `package`, `verify` and `release` check out `tag`.
+  `native-build.yml` gained an optional `ref` input for it.
+- **Known limits:** a leg queued past the timeout is only counted, not
+  cancelled, so it may still run later; the run can show red (`verify`) while
+  the gate and the release are green; a not-run leg is a platform not tested
+  for that release, which the summary states.
