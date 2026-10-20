@@ -64,3 +64,9 @@ Verified in the `fix` worktree based on `b18561d`:
 No manual VS Code click-through was performed; the regression tests exercise
 registered commands and real Git-root discovery. The fix stays on the local
 `fix` branch for review; publishing or integrating it is separate work.
+
+**Integrated into `the-diff` on `2026-10-20` as `bcb99ea`** (Claude Code, at
+the maintainer's request), rebased from `044320a` with its original dates.
+Its changelog line moved from `[Unreleased]` into `[1.9.0]` under Fixed,
+since 1.9.0 is not tagged yet, so the fix ships with it. The gate over the
+combined tree is in the release 1.9.0 overview's integration log.
