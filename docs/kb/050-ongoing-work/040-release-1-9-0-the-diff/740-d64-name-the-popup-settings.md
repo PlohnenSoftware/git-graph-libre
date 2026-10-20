@@ -8,7 +8,7 @@ summary: >-
 
 # D64 — Name the popup "Settings"
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 slice agent on 2026-10-20 18:35
 Needs: —
 Decisions: — (maintainer, `2026-10-20`: "rename Repository settings to just
 settings … because there are extension settings too")
