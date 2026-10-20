@@ -1543,7 +1543,8 @@ class GitGraphView {
   private normalizeSettingsWidgetTab(
     tab: GGL.SettingsWidgetTab | undefined
   ): GGL.SettingsWidgetTab {
-    return tab === "extension" ? "extension" : "repository";
+    if (tab === "extension" || tab === "contributors") return tab;
+    return "repository";
   }
 
   private getCurrentRepoState(): GGL.GitRepoState | null {
@@ -1910,6 +1911,14 @@ class GitGraphView {
         close: l10n.settingsClose,
         repositoryTab: l10n.settingsRepositoryTab,
         extensionTab: l10n.settingsExtensionTab,
+        contributorsTab: l10n.settingsContributorsTab,
+        contributorsThanks: l10n.settingsContributorsThanks,
+        contributorsEraLibre: l10n.settingsContributorsEraLibre,
+        contributorsEraFork: l10n.settingsContributorsEraFork,
+        contributorsEraOriginal: l10n.settingsContributorsEraOriginal,
+        contributorsEraEngine: l10n.settingsContributorsEraEngine,
+        contributorsAgents: l10n.settingsContributorsAgents,
+        contributorsAgentsNote: l10n.settingsContributorsAgentsNote,
         general: l10n.settingsGeneral,
         repositoryName: l10n.settingsRepositoryName,
         edit: l10n.settingsEdit,

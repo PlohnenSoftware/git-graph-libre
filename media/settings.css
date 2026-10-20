@@ -381,3 +381,28 @@
     max-width: 100%;
   }
 }
+
+.settingsContributorsThanks {
+  margin: 0 0 10px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+.settingsContributorList {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 0;
+  list-style: none;
+}
+.settingsContributorsAgents {
+  min-width: 0;
+}
+.settingsContributorsNote {
+  margin: 0;
+  padding: 8px 0 0;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+.settingsContributorMeta {
+  margin-left: 6px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-size: 12px;
+}

@@ -247,4 +247,30 @@ describe("repository settings widget actions", () => {
     click("settingsRepositoryTab");
     expect(document.getElementById("settingsRepositoryPanel")?.hasAttribute("hidden")).toBe(false);
   });
+
+  it("reaches the contributors tab with the arrow keys and wraps back", async () => {
+    await bootWithSettingsOpen();
+    const press = (id: string, key: string) =>
+      document
+        .getElementById(id)
+        ?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+
+    press("settingsRepositoryTab", "ArrowRight");
+    press("settingsExtensionTab", "ArrowRight");
+    expect(document.getElementById("settingsContributorsPanel")?.hasAttribute("hidden")).toBe(
+      false
+    );
+    expect(document.getElementById("settingsExtensionPanel")?.hasAttribute("hidden")).toBe(true);
+    expect(document.getElementById("settingsContributorsTab")?.getAttribute("aria-selected")).toBe(
+      "true"
+    );
+
+    press("settingsContributorsTab", "ArrowRight");
+    expect(document.getElementById("settingsRepositoryPanel")?.hasAttribute("hidden")).toBe(false);
+
+    press("settingsRepositoryTab", "End");
+    expect(document.getElementById("settingsContributorsPanel")?.hasAttribute("hidden")).toBe(
+      false
+    );
+  });
 });

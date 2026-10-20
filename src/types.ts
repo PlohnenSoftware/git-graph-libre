@@ -173,7 +173,7 @@ export type CustomBranchGlobPattern = {
   glob: string;
 };
 
-export type SettingsWidgetTab = "repository" | "extension";
+export type SettingsWidgetTab = "repository" | "extension" | "contributors";
 export type ExtensionSettingType = "boolean" | "number" | "string" | "array" | "object";
 export type ExtensionSettingScope = "default" | "global" | "workspace" | "workspaceFolder";
 export type ExtensionSetting = {

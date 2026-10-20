@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { GitRepoConfig } from "@/backend/types";
 import type { ExtensionSetting, GitRepoState } from "@/types";
+import { COAUTHOR_AGENTS, CONTRIBUTOR_ERAS } from "@/webview/contributors";
 import { renderSettingsWidget, type SettingsWidgetModel } from "@/webview/settingsWidget";
 
 const repoState: GitRepoState = { columnWidths: null };
@@ -15,6 +16,14 @@ const labels: SettingsWidgetModel["labels"] = {
   close: "Close settings",
   repositoryTab: "Repository",
   extensionTab: "Extension",
+  contributorsTab: "Contributors",
+  contributorsThanks: "Thanks to everyone.",
+  contributorsEraLibre: "Libre era",
+  contributorsEraFork: "Fork era",
+  contributorsEraOriginal: "Original era",
+  contributorsEraEngine: "Engine era",
+  contributorsAgents: "AI agents",
+  contributorsAgentsNote: "Agents co-authored commits.",
   general: "General",
   repositoryName: "Repository name",
   edit: "Edit",
@@ -116,6 +125,32 @@ function render(extensionSettings: ExtensionSetting[] | null) {
 }
 
 describe("settings widget rendering", () => {
+  it("renders the contributors tab with its role, aria wiring and panel", () => {
+    const html = render(null);
+
+    expect(html).toContain('id="settingsContributorsTab"');
+    expect(html).toContain('data-settings-tab="contributors"');
+    expect(html).toContain('aria-controls="settingsContributorsPanel"');
+    expect(html).toMatch(
+      /id="settingsContributorsPanel"[^>]*role="tabpanel"[^>]*aria-labelledby="settingsContributorsTab" hidden/
+    );
+    expect(html).toContain("Thanks to everyone.");
+  });
+
+  it("lists every era, every person, and the AI agents section", () => {
+    const html = render(null);
+
+    for (const heading of ["Libre era", "Fork era", "Original era", "Engine era", "AI agents"]) {
+      expect(html).toContain(`<h3>${heading}</h3>`);
+    }
+    expect(html).toContain("Agents co-authored commits.");
+    for (const person of CONTRIBUTOR_ERAS.flatMap((era) => era.people)) {
+      expect(html).toContain(`<li>${person}</li>`);
+    }
+    for (const agent of COAUTHOR_AGENTS) expect(html).toContain(agent.name);
+    expect(html).toContain("Anthropic · Opus 5, Opus 5.5, Sonnet 5, Sonnet 5.5, Haiku 5.5");
+  });
+
   it("renders the extension tab loading state", () => {
     const html = render(null);
 

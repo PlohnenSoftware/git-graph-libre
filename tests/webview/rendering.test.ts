@@ -1279,11 +1279,12 @@ describe("webview rendering", () => {
     document
       .getElementById("settingsRepositoryTab")
       ?.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
-    expect(document.getElementById("settingsExtensionTab")?.getAttribute("aria-selected")).toBe(
+    // The Contributors tab is now the last tab, so End lands there.
+    expect(document.getElementById("settingsContributorsTab")?.getAttribute("aria-selected")).toBe(
       "true"
     );
     document
-      .getElementById("settingsExtensionTab")
+      .getElementById("settingsContributorsTab")
       ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
     expect(document.getElementById("settingsRepositoryTab")?.getAttribute("aria-selected")).toBe(
       "true"

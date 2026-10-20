@@ -7,6 +7,12 @@ import type {
   SettingsWidgetTab
 } from "@/types";
 
+import {
+  COAUTHOR_AGENTS,
+  CONTRIBUTOR_ERAS,
+  type CoauthorAgent,
+  type ContributorEra
+} from "./contributors";
 import { escapeHtml } from "./utils/html";
 import { toOklch } from "./utils/oklchColor";
 
@@ -24,6 +30,14 @@ type SettingsLabels = {
   close: string;
   repositoryTab: string;
   extensionTab: string;
+  contributorsTab: string;
+  contributorsThanks: string;
+  contributorsEraLibre: string;
+  contributorsEraFork: string;
+  contributorsEraOriginal: string;
+  contributorsEraEngine: string;
+  contributorsAgents: string;
+  contributorsAgentsNote: string;
   general: string;
   repositoryName: string;
   edit: string;
@@ -539,6 +553,54 @@ function scopeLabel(scope: ExtensionSetting["scope"], labels: SettingsLabels) {
   return scopeLabels[scope];
 }
 
+function eraHeading(id: ContributorEra["id"], labels: SettingsLabels) {
+  const headings = {
+    libre: labels.contributorsEraLibre,
+    fork: labels.contributorsEraFork,
+    original: labels.contributorsEraOriginal,
+    engine: labels.contributorsEraEngine
+  };
+  return headings[id];
+}
+
+function agentDetail(agent: CoauthorAgent) {
+  const variants = agent.variants.join(", ");
+  return [agent.maker, variants].filter((part) => part !== undefined && part !== "").join(" · ");
+}
+
+function renderAgentItem(agent: CoauthorAgent) {
+  const detail = agentDetail(agent);
+  const detailHtml =
+    detail === "" ? "" : ` <span class="settingsContributorMeta">${escapeHtml(detail)}</span>`;
+  return `<li>${escapeHtml(agent.name)}${detailHtml}</li>`;
+}
+
+function renderPersonItem(person: string) {
+  return `<li>${escapeHtml(person)}</li>`;
+}
+
+function renderEraSection(era: ContributorEra, labels: SettingsLabels) {
+  const items = era.people.map(renderPersonItem).join("");
+  return `<section class="settingsSection settingsContributorsSection">
+      <h3>${escapeHtml(eraHeading(era.id, labels))}</h3>
+      <ul class="settingsContributorList">${items}</ul>
+    </section>`;
+}
+
+function renderContributorsTab(labels: SettingsLabels) {
+  const eras = CONTRIBUTOR_ERAS.map((era) => renderEraSection(era, labels)).join("");
+  const agents = COAUTHOR_AGENTS.map(renderAgentItem).join("");
+  return `<p class="settingsContributorsThanks">${escapeHtml(labels.contributorsThanks)}</p>
+    ${eras}
+    <section class="settingsSection settingsContributorsSection">
+      <h3>${escapeHtml(labels.contributorsAgents)}</h3>
+      <div class="settingsContributorsAgents">
+        <p class="settingsContributorsNote">${escapeHtml(labels.contributorsAgentsNote)}</p>
+        <ul class="settingsContributorList">${agents}</ul>
+      </div>
+    </section>`;
+}
+
 function tabSelectedAttr(activeTab: SettingsWidgetTab, tab: SettingsWidgetTab) {
   return activeTab === tab ? "true" : "false";
 }
@@ -557,6 +619,7 @@ export function renderSettingsWidget(model: SettingsWidgetModel) {
     <div class="settingsTabs" role="tablist" aria-label="${escapeHtml(labels.title)}">
       <button id="settingsRepositoryTab" class="settingsTab" role="tab" type="button" aria-selected="${tabSelectedAttr(model.activeTab, "repository")}" aria-controls="settingsRepositoryPanel" tabindex="${model.activeTab === "repository" ? "0" : "-1"}" data-settings-tab="repository">${escapeHtml(labels.repositoryTab)}</button>
       <button id="settingsExtensionTab" class="settingsTab" role="tab" type="button" aria-selected="${tabSelectedAttr(model.activeTab, "extension")}" aria-controls="settingsExtensionPanel" tabindex="${model.activeTab === "extension" ? "0" : "-1"}" data-settings-tab="extension">${escapeHtml(labels.extensionTab)}</button>
+      <button id="settingsContributorsTab" class="settingsTab" role="tab" type="button" aria-selected="${tabSelectedAttr(model.activeTab, "contributors")}" aria-controls="settingsContributorsPanel" tabindex="${model.activeTab === "contributors" ? "0" : "-1"}" data-settings-tab="contributors">${escapeHtml(labels.contributorsTab)}</button>
     </div>
     </div>
     <div id="settingsRepositoryPanel" class="settingsTabPanel" role="tabpanel" aria-labelledby="settingsRepositoryTab"${tabHiddenAttr(model.activeTab, "repository")}>
@@ -564,5 +627,8 @@ export function renderSettingsWidget(model: SettingsWidgetModel) {
     </div>
     <div id="settingsExtensionPanel" class="settingsTabPanel" role="tabpanel" aria-labelledby="settingsExtensionTab"${tabHiddenAttr(model.activeTab, "extension")}>
       ${renderExtensionTab(model)}
+    </div>
+    <div id="settingsContributorsPanel" class="settingsTabPanel" role="tabpanel" aria-labelledby="settingsContributorsTab"${tabHiddenAttr(model.activeTab, "contributors")}>
+      ${renderContributorsTab(labels)}
     </div>`;
 }
