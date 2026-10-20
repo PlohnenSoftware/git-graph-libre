@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D65G · ready · notices + data + changelog · ~15 lines: Thomas KT Chan
+  D65G · integrated · notices + data + changelog · ~15 lines: Thomas KT Chan
   (`cktgh`) wrote PRs #22–#25, merged `2026-10-16` into 1.8.0, but no roster
   or changelog credits them, so D65's Contributors tab can't either. Add them
   to `NOTICE.md`'s AGPL roster, to the tab's data, and to `[1.8.0]`.
@@ -8,7 +8,7 @@ summary: >-
 
 # D65G — Credit Thomas KT Chan
 
-Status: done — awaiting integration
+Status: integrated 7aab64c
 Needs: D65
 Decisions: — (the maintainer asked for every contributor to be listed;
 `NOTICE.md` compiles its roster from the git author records, and this author
