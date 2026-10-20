@@ -9,7 +9,7 @@ summary: >-
 
 # D62 — Log results, decline causes and a session header
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 on 2026-10-20 12:00
 Needs: D60, D61
 Decisions: — (the maintainer's own proposal in issue #31, "Log entries to add" 1–4)
 Kind: TypeScript (extension host, backend seam) · Size budget: ~250 changed lines outside tests
