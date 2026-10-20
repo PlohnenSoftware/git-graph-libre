@@ -9,7 +9,7 @@ summary: >-
 
 # D60 — A missing global Git config keeps the remotes
 
-Status: claimed by Claude Sonnet 5.5 slice agent on 2026-10-20 12:00
+Status: done — awaiting integration
 Needs: —
 Decisions: — (the maintainer's own proposal in issue #30: Fix 1, Fix 2 and
 Fix 3; the orchestrator chose how Fix 1 classifies the failure, see Facts)
@@ -103,4 +103,11 @@ their tests under `tests/backend/` and `tests/webview/`
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Claude Sonnet 5.5 slice agent, 2026-10-20 12:30
+- **Branch and commits:** `diff-1.9.0/d60` — `2500e05 G docs(release): claim slice D60`; `4cbedd0 G fix(config): treat an absent scoped Git config as empty on both backends (D60)`; `6dc572a G fix(webview): apply loaded repo info whatever the error says (D60)`
+- **Files changed:** `src/backend/utils/gitConfigPaths.ts` (new, +80); `src/backend/engine/repoInfo.ts` (+~15/−~70, resolvers moved out); `src/backend/queries/loadRepoInfo.ts` (+6/−1); `src/webview/main.ts` (+5/−8); tests: `tests/backend/engine/repoInfo.test.ts`, `tests/backend/engine/parity.test.ts`, `tests/backend/queries/loadRepoInfo/get.test.ts`, `tests/webview/fetchDialogDefaults.test.ts`
+- **Tests added or changed:** CLI: absent global keeps remotes with null error and empty global identity, corrupt global errors, directory-as-global errors; engine: absent-global case now asserts empty global identity without calling `configList(repo, false)`; util: `isScopedGitConfigAbsent` cases; parity: absent global now served by the engine and equal to the CLI; webview: errored response keeps Fetch visible. Backend 1054 passed/60 skipped (1114) before, 1058/60 (1118) after; webview 760 before, 761 after.
+- **Gates:** biome strict clean on all touched .ts; typecheck clean; test backend 1058/1118 (60 skipped, pre-existing), webview 761/761; l10n n/a (no text change); kb:check clean; Rust arm n/a; Sonar: integrator
+- **Acceptance:** met, see test list above; engine no longer reroutes for an absent file (parity `served` true).
+- **Deviations from the slice:** removed the now-unused `errorReason` parameter of `GitGraphView.loadRepoInfo` and its argument at the one call site in `src/webview/main.ts` (strict Biome flags an unused parameter).
+- **Open questions / follow-ups:** none. With a corrupt global file, `git remote -v` itself fails, so remotes stay empty there (expected; not asserted).
