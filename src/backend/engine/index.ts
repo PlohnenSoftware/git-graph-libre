@@ -25,7 +25,7 @@ import type { DateType, GitCommitDetails, GitFileChange, QueryResult } from "@/b
 import { getRemoteUrl } from "@/backend/utils/git";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { uniqueNonEmpty } from "@/backend/utils/logFilters";
-import { logBackendRoute } from "@/backend/utils/operationLog";
+import { logBackendRoute, noteServedBy } from "@/backend/utils/operationLog";
 import { toGitQueryError } from "@/backend/utils/queryError";
 import type {
   EngineBackend,
@@ -216,9 +216,11 @@ function noteEngineThrow(
   const declined = isEngineFallbackError(error);
   if (declined) {
     engineDeclinedRead = true;
+    noteServedBy("cli");
     logBackendRoute(operation, `backend=cli reason=engineDeclined kind=${declineKind(error)}`);
   } else {
     engineFailedRead = true;
+    noteServedBy(onFailure === "fails" ? "engine" : "cli");
     logBackendRoute(
       operation,
       onFailure === "fails"
@@ -232,12 +234,22 @@ function noteEngineThrow(
 /** Record an engine answer this version cannot read; the read fails. */
 function noteMalformedPayload(operation: string): void {
   engineFailedRead = true;
+  noteServedBy("engine");
   logBackendRoute(operation, "result=failed reason=malformedPayload");
 }
 
 /** Log why a read the engine could have served goes to the CLI instead. */
-function rerouteToCli<T>(operation: string, reason: string, read: () => Promise<T>): Promise<T> {
-  logBackendRoute(operation, `backend=cli reason=${reason}`);
+function rerouteToCli<T>(
+  operation: string,
+  reason: string,
+  read: () => Promise<T>,
+  cause?: string
+): Promise<T> {
+  noteServedBy("cli");
+  logBackendRoute(
+    operation,
+    `backend=cli reason=${reason}${cause === undefined ? "" : ` cause=${cause}`}`
+  );
   return read();
 }
 
@@ -406,9 +418,12 @@ async function readRepoInfo(
       { git: args.git, repo: args.repoPath, recordGitCommand: args.recordGitCommand, addon },
       info
     );
-    if (composed === null) return rerouteToCli("loadRepoInfo", "composeDeclined", cliRead);
+    if (!composed.ok) {
+      return rerouteToCli("loadRepoInfo", "composeDeclined", cliRead, composed.cause);
+    }
     engineServedRead = true;
-    return composed;
+    noteServedBy("engine");
+    return composed.value;
   } catch (error: unknown) {
     if (!noteEngineThrow(error, "loadRepoInfo")) {
       return {
@@ -429,6 +444,7 @@ async function readCommits(
 ): Promise<QueryResult<"loadCommits">> {
   const cliRead = (route: GraphLoadRoute): Promise<QueryResult<"loadCommits">> => {
     lastGraphLoad = route;
+    noteServedBy("cli");
     logBackendRoute("loadCommits", `backend=cli reason=${route}`);
     return loadCommits(args.git, {
       branchName: args.branchName,
@@ -501,6 +517,7 @@ async function readCommits(
       return cliRead("handedBack");
     }
     engineServedRead = true;
+    noteServedBy("engine");
     return {
       commits: nodes,
       head: data.head,

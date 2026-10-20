@@ -137,6 +137,13 @@ export function mapEngineStash(stash: EngineStash): GitStash | null {
   };
 }
 
+/**
+ * What a compose fill answers: its value, or the fixed cause naming the fill
+ * and why it could not answer. The cause reaches the `[route]` log line, so
+ * it is a category (`configFill:unresolvablePath`), never a message or path.
+ */
+export type FillOutcome<T> = { ok: true; value: T } | { ok: false; cause: string };
+
 export type EngineRepoInfoFills = {
   git: SimpleGit;
   repo: string;
@@ -162,20 +169,31 @@ export function parseEngineConfigList(text: string): Record<string, string> | nu
   return map;
 }
 
+/** The category an engine config throw falls under, from its prefix and message only. */
+function configThrowCause(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("include directives")) return "configFill:includeDirective";
+  const declined = message.startsWith("Unsupported:") || message.startsWith("NotARepository:");
+  return declined ? "configFill:engineDeclined" : "configFill:engineFailed";
+}
+
 /**
- * User identity from the engine's `config_list` (local plus global), or null
- * when the CLI fill must run instead: an unresolvable scope path, any throw
- * including the include-directive decline, or a malformed payload. Null rolls
- * up to the whole CLI read, which reproduces the exact CLI shape. A scope
- * whose file is absent answers empty identity, as the CLI query does.
+ * User identity from the engine's `config_list` (local plus global), or the
+ * cause the CLI fill must run instead: an unresolvable scope path, any throw
+ * (the include-directive decline among them), or a malformed payload. A
+ * declined outcome rolls up to the whole CLI read, which reproduces the exact
+ * CLI shape. A scope whose file is absent answers empty identity, as the CLI
+ * query does.
  */
 export async function loadEngineConfig(
   addon: Pick<EngineAddon, "configList">,
   repo: string
-): Promise<GitRepoConfig | null> {
+): Promise<FillOutcome<GitRepoConfig>> {
   const globalPath = resolveGlobalGitConfigPath();
   const localPath = resolveLocalGitConfigPath(repo);
-  if (globalPath === null || localPath === null) return null;
+  if (globalPath === null || localPath === null) {
+    return { ok: false, cause: "configFill:unresolvablePath" };
+  }
   let localText: string | null;
   let globalText: string | null;
   try {
@@ -183,34 +201,40 @@ export async function loadEngineConfig(
       isFile(localPath) ? addon.configList(repo, true) : null,
       isFile(globalPath) ? addon.configList(repo, false) : null
     ]);
-  } catch {
-    return null;
+  } catch (error: unknown) {
+    return { ok: false, cause: configThrowCause(error) };
   }
   const local = localText === null ? {} : parseEngineConfigList(localText);
   const global = globalText === null ? {} : parseEngineConfigList(globalText);
-  if (local === null || global === null) return null;
+  if (local === null || global === null) return { ok: false, cause: "configFill:malformedPayload" };
   return {
-    userName: { local: local["user.name"] ?? null, global: global["user.name"] ?? null },
-    userEmail: { local: local["user.email"] ?? null, global: global["user.email"] ?? null }
+    ok: true,
+    value: {
+      userName: { local: local["user.name"] ?? null, global: global["user.name"] ?? null },
+      userEmail: { local: local["user.email"] ?? null, global: global["user.email"] ?? null }
+    }
   };
 }
 
 /**
  * The config piece of the composition: the engine fill when an addon is
- * present, the CLI fill otherwise. Null rolls up to the whole CLI read —
- * a CLI fill mixed into an engine composition would misattribute the
- * served flag and could ship a half-engine shape the parity table never
+ * present, the CLI fill otherwise. A declined outcome rolls up to the whole
+ * CLI read — a CLI fill mixed into an engine composition would misattribute
+ * the served flag and could ship a half-engine shape the parity table never
  * approved.
  */
 async function loadFillConfig(
   fills: EngineRepoInfoFills
-): Promise<Awaited<ReturnType<typeof loadConfig>> | null> {
+): Promise<FillOutcome<Awaited<ReturnType<typeof loadConfig>>>> {
   if (fills.addon !== undefined && fills.addon !== null) {
-    const value = await loadEngineConfig(fills.addon, fills.repo);
-    if (value === null) return null;
-    return { value, error: null };
+    const outcome = await loadEngineConfig(fills.addon, fills.repo);
+    if (!outcome.ok) return outcome;
+    return { ok: true, value: { value: outcome.value, error: null } };
   }
-  return loadConfig(fills.git, { repo: fills.repo, record: fills.recordGitCommand });
+  return {
+    ok: true,
+    value: await loadConfig(fills.git, { repo: fills.repo, record: fills.recordGitCommand })
+  };
 }
 
 /**
@@ -323,14 +347,14 @@ async function engineAuthors(
 
 /**
  * Compose the project shape from one engine payload plus the CLI fills.
- * Piece order and error precedence mirror the CLI implementation. Null
- * signals an unmappable stash or an engine config the CLI must serve:
- * fall back, do not ship partial.
+ * Piece order and error precedence mirror the CLI implementation. A declined
+ * outcome (with its cause) signals an unmappable stash or an engine config
+ * the CLI must serve: fall back, do not ship partial.
  */
 export async function composeEngineRepoInfo(
   fills: EngineRepoInfoFills,
   info: EngineRepoInfo
-): Promise<QueryResult<"loadRepoInfo"> | null> {
+): Promise<FillOutcome<QueryResult<"loadRepoInfo">>> {
   const context = { repo: fills.repo, record: fills.recordGitCommand };
   const addon = fills.addon ?? null;
   // With an addon present none of these spawn `git`: the engine answers the
@@ -364,12 +388,12 @@ export async function composeEngineRepoInfo(
           authors === null ? loadAuthors(fills.git, context) : { value: authors, error: null }
         )
   ]);
-  if (configResult === null) return null;
+  if (!configResult.ok) return configResult;
 
   const stashes: GitStash[] = [];
   for (const stash of info.stashes) {
     const mapped = mapEngineStash(stash);
-    if (mapped === null) return null;
+    if (mapped === null) return { ok: false, cause: "stashMapping:unmappableSelector" };
     stashes.push(mapped);
   }
 
@@ -382,10 +406,14 @@ export async function composeEngineRepoInfo(
     remotes: remotesResult.value,
     stashes,
     stashCount: stashes.length,
-    config: configResult.value
+    config: configResult.value.value
   };
   return {
-    repoInfo,
-    error: headResult.error ?? remotesResult.error ?? configResult.error ?? authorsResult.error
+    ok: true,
+    value: {
+      repoInfo,
+      error:
+        headResult.error ?? remotesResult.error ?? configResult.value.error ?? authorsResult.error
+    }
   };
 }

@@ -147,13 +147,14 @@ describe("composeEngineRepoInfo", () => {
       loadRepoInfo(simpleGit(repo), { repo })
     ]);
 
-    expect(composed).not.toBeNull();
-    expect(composed?.error).toBeNull();
+    expect(composed.ok).toBe(true);
+    if (!composed.ok) return;
+    expect(composed.value.error).toBeNull();
     expect(cli.error).toBeNull();
-    expect(composed?.repoInfo).toEqual(cli.repoInfo);
+    expect(composed.value.repoInfo).toEqual(cli.repoInfo);
   });
 
-  it("returns null when a stash cannot be mapped", async () => {
+  it("declines with a cause when a stash cannot be mapped", async () => {
     const composed = await composeEngineRepoInfo(
       { git: simpleGit(repo), repo },
       {
@@ -161,7 +162,7 @@ describe("composeEngineRepoInfo", () => {
         stashes: [{ ...STASH, selector: "refs/heads/main" }]
       }
     );
-    expect(composed).toBeNull();
+    expect(composed).toEqual({ ok: false, cause: "stashMapping:unmappableSelector" });
   });
 });
 
@@ -289,8 +290,11 @@ describe("loadEngineConfig", () => {
     const configListSpy = vi.spyOn(addon, "configList");
 
     expect(await loadEngineConfig(addon, repo)).toEqual({
-      userName: { local: "Ada", global: "Grace" },
-      userEmail: { local: "ada@x.com", global: "grace@x.com" }
+      ok: true,
+      value: {
+        userName: { local: "Ada", global: "Grace" },
+        userEmail: { local: "ada@x.com", global: "grace@x.com" }
+      }
     });
     expect(configListSpy).toHaveBeenCalledWith(repo, true);
     expect(configListSpy).toHaveBeenCalledWith(repo, false);
@@ -299,18 +303,56 @@ describe("loadEngineConfig", () => {
   it("missing keys read as null", async () => {
     const addon = configAddon({}, {});
     expect(await loadEngineConfig(addon, repo)).toEqual({
-      userName: { local: null, global: null },
-      userEmail: { local: null, global: null }
+      ok: true,
+      value: {
+        userName: { local: null, global: null },
+        userEmail: { local: null, global: null }
+      }
     });
   });
 
-  it("returns null on a decline, a genuine failure, or a malformed payload", async () => {
-    const declined = configAddon({}, {}, new Error("Unsupported: includes"));
+  it("declines with a cause for each way the engine cannot answer", async () => {
+    const include = configAddon(
+      {},
+      {},
+      new Error("Unsupported: The configuration file contains include directives")
+    );
+    const declined = configAddon({}, {}, new Error("Unsupported: something else"));
     const failed = configAddon({}, {}, new Error("Git: corrupt config"));
     const malformed = { configList: async () => "not json" };
-    await expect(loadEngineConfig(declined, repo)).resolves.toBeNull();
-    await expect(loadEngineConfig(failed, repo)).resolves.toBeNull();
-    await expect(loadEngineConfig(malformed, repo)).resolves.toBeNull();
+    await expect(loadEngineConfig(include, repo)).resolves.toEqual({
+      ok: false,
+      cause: "configFill:includeDirective"
+    });
+    await expect(loadEngineConfig(declined, repo)).resolves.toEqual({
+      ok: false,
+      cause: "configFill:engineDeclined"
+    });
+    await expect(loadEngineConfig(failed, repo)).resolves.toEqual({
+      ok: false,
+      cause: "configFill:engineFailed"
+    });
+    await expect(loadEngineConfig(malformed, repo)).resolves.toEqual({
+      ok: false,
+      cause: "configFill:malformedPayload"
+    });
+  });
+
+  it("declines with unresolvablePath when no global config path can be resolved", async () => {
+    const saved = { home: process.env.HOME, profile: process.env.USERPROFILE };
+    delete process.env.GIT_CONFIG_GLOBAL;
+    delete process.env.HOME;
+    delete process.env.USERPROFILE;
+    try {
+      await expect(loadEngineConfig(configAddon({}, {}), repo)).resolves.toEqual({
+        ok: false,
+        cause: "configFill:unresolvablePath"
+      });
+    } finally {
+      process.env.GIT_CONFIG_GLOBAL = globalFile;
+      if (saved.home !== undefined) process.env.HOME = saved.home;
+      if (saved.profile !== undefined) process.env.USERPROFILE = saved.profile;
+    }
   });
 
   it("answers empty global identity, engine-side, when the global file is absent", async () => {
@@ -319,8 +361,11 @@ describe("loadEngineConfig", () => {
       const addon = configAddon({ "user.name": "Ada" }, { "user.name": "never read" });
       const configListSpy = vi.spyOn(addon, "configList");
       await expect(loadEngineConfig(addon, repo)).resolves.toEqual({
-        userName: { local: "Ada", global: null },
-        userEmail: { local: null, global: null }
+        ok: true,
+        value: {
+          userName: { local: "Ada", global: null },
+          userEmail: { local: null, global: null }
+        }
       });
       expect(configListSpy).not.toHaveBeenCalledWith(repo, false);
     } finally {
@@ -329,7 +374,11 @@ describe("loadEngineConfig", () => {
   });
 
   it("rolls the composition back to the whole CLI read when the fill declines", async () => {
-    const addon = configAddon({}, {}, new Error("Unsupported: includes"));
+    const addon = configAddon(
+      {},
+      {},
+      new Error("Unsupported: The configuration file contains include directives")
+    );
     const composed = await composeEngineRepoInfo(
       { git: simpleGit(repo), repo, addon },
       {
@@ -341,7 +390,7 @@ describe("loadEngineConfig", () => {
         error: null
       }
     );
-    expect(composed).toBeNull();
+    expect(composed).toEqual({ ok: false, cause: "configFill:includeDirective" });
   });
 
   it("composes the engine config fill without config git calls", async () => {
@@ -362,7 +411,7 @@ describe("loadEngineConfig", () => {
       { branches: [], head: "main", remotes: [], stashes: [], tags: [], error: null }
     );
 
-    expect(composed?.repoInfo.config).toEqual({
+    expect(composed.ok && composed.value.repoInfo.config).toEqual({
       userName: { local: "Ada", global: "Grace" },
       userEmail: { local: "ada@x.com", global: "grace@x.com" }
     });

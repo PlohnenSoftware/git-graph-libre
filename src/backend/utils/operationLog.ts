@@ -1,6 +1,13 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
-type RequestContext = { id: number; command: string; clientId?: number | null };
+export type ServedBy = "engine" | "cli";
+type RequestContext = {
+  id: number;
+  command: string;
+  clientId?: number | null;
+  /** The backend that last answered inside this request; the CLI until told otherwise. */
+  servedBy?: ServedBy;
+};
 const requests = new AsyncLocalStorage<RequestContext>();
 let nextId = 0;
 let output: ((line: string) => void) | undefined;
@@ -33,6 +40,69 @@ export function runDetached<T>(operation: () => T): T {
 
 export function logBackendRoute(operation: string, reason: string): void {
   output?.(`[route] ${operationContext()} operation=${operation} ${reason}`);
+}
+
+/** Records which backend answered the current request, for its `[result]` line. */
+export function noteServedBy(backend: ServedBy): void {
+  const context = requests.getStore();
+  if (context) context.servedBy = backend;
+}
+
+/** One line of Git's own error text, so a multi-line message stays one log line. */
+function firstLine(message: string): string {
+  const line = message.split("\n", 1)[0] ?? "";
+  return line.trim();
+}
+
+function errorField(error: { message: string } | null): string {
+  return error === null ? "none" : JSON.stringify(firstLine(error.message));
+}
+
+/**
+ * The outcome of one main read: counts and the error text Git already
+ * printed, never a name, path or value. `fields` is preformatted counts.
+ */
+function logReadResult(fields: string, error: { message: string } | null): void {
+  const servedBy = requests.getStore()?.servedBy ?? "cli";
+  output?.(
+    `[result] ${operationContext()} ${fields} error=${errorField(error)} servedBy=${servedBy}`
+  );
+}
+
+export function describeRepoInfoCounts(result: {
+  repoInfo: { remotes: unknown[]; authors: unknown[]; tags: unknown[]; stashes: unknown[] };
+}): string {
+  const { remotes, authors, tags, stashes } = result.repoInfo;
+  return `remotes=${remotes.length} authors=${authors.length} tags=${tags.length} stashes=${stashes.length}`;
+}
+
+export function describeCommitCounts(result: {
+  commits: unknown[];
+  moreCommitsAvailable: boolean;
+}): string {
+  return `commits=${result.commits.length} moreAvailable=${result.moreCommitsAvailable}`;
+}
+
+/**
+ * The hop from "the backend answered" to "the user saw it": the command and
+ * a fixed category name only.
+ */
+export function logApplication(command: string, category: string): void {
+  output?.(`[application] ${operationContext()} response=${command} category=${category}`);
+}
+
+/**
+ * What the host sends the webview for a main read: the `[result]` line, and
+ * one application line when the response carries an error, so the log shows
+ * the backend answered and then what the user was handed.
+ */
+export function logReadResponse(
+  command: string,
+  fields: string,
+  error: { message: string } | null
+): void {
+  logReadResult(fields, error);
+  if (error !== null) logApplication(command, "errorResponse");
 }
 
 export async function traceRequest<T>(
