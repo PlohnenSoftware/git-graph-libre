@@ -9,7 +9,7 @@ summary: >-
 
 # D07 — Upgrade gix for the upstream diff fixes
 
-Status: blocked (external) — waiting on a gix release containing the fixes below
+Status: blocked (external) — waiting on a gix release containing the fixes below. Checked `2026-10-20`: all three are on gitoxide `main` (`1b6d8da7a` `2026-10-10`, `e571a9273` `2026-10-14`, the Myers fix as `ad129e12f2` `2026-10-19`, from the maintainer's gitoxide#3069 via #3074), and none is in a release: crates.io's newest gix is `0.89.0`, the version the engine uses
 Needs: a crates.io release of `gix` newer than `0.89`
 Decisions: —
 Kind: Rust (the Rust arm applies) · Size budget: ≤ 100 changed lines outside tests and `Cargo.lock`
