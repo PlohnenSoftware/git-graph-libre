@@ -9,7 +9,7 @@ summary: >-
 
 # D60 — A missing global Git config keeps the remotes
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 slice agent on 2026-10-20 12:00
 Needs: —
 Decisions: — (the maintainer's own proposal in issue #30: Fix 1, Fix 2 and
 Fix 3; the orchestrator chose how Fix 1 classifies the failure, see Facts)
