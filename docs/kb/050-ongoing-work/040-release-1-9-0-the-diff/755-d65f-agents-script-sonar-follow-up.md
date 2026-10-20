@@ -9,7 +9,7 @@ summary: >-
 
 # D65F — Agents-script Sonar follow-up
 
-Status: ready
+Status: claimed by claude-haiku-5-5 (D65F slice agent) on 2026-10-20 18:43
 Needs: D65
 Decisions: — (the orchestrator's fix for S4036, below)
 Kind: script + manifest · Size budget: ~25 changed lines outside tests
