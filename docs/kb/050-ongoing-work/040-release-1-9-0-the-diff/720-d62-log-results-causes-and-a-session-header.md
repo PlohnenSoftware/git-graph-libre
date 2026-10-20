@@ -9,7 +9,7 @@ summary: >-
 
 # D62 — Log results, decline causes and a session header
 
-Status: claimed by Claude Sonnet 5.5 on 2026-10-20 12:00
+Status: done — awaiting integration
 Needs: D60, D61
 Decisions: — (the maintainer's own proposal in issue #31, "Log entries to add" 1–4)
 Kind: TypeScript (extension host, backend seam) · Size budget: ~250 changed lines outside tests
@@ -90,4 +90,17 @@ small new module under `src/extension/` for the header if it keeps
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Claude Sonnet 5.5, 2026-10-20 18:00
+- **Branch and commits:** `diff-1.9.0/d62`
+  - `2467898 G docs(release): claim D62`
+  - `d455594 G feat(log): add [result] lines and decline causes to the backend seam`
+  - `a6d9507 G feat(log): write a session header at activation`
+  - `c21f67f G feat(log): log read results and error responses in the message handler`
+  - `bf696e4 G feat(log): log the failure screen the user was shown`
+  - then two signed fixes: never throw describing a result without repository info; cover the header at activation (hashes in `git log b705fdc..HEAD`)
+- **Files changed:** about +733/−56 over 14 files before this report (`git diff --stat b705fdc`): `operationLog.ts` +75, `engine/index.ts` +27, `engine/repoInfo.ts` +86/−, `sessionHeader.ts` +90 (new), `extension.ts` +18, `messageHandler.ts` +10, `repositoryRecovery.ts` +3; tests: `readResults.test.ts` +193 (new), `sessionHeader.test.ts` +79 (new), `messageHandler.test.ts` +83, `repoInfo.test.ts` +87, `gitPathRescan.test.ts` +17, `repositoryRecovery.test.ts` +19. About 310 source lines.
+- **Tests added or changed:** new `readResults.test.ts` (9), `sessionHeader.test.ts` (9 incl. offsets), two `messageHandler.test.ts` cases (the #30 chain; loadCommits result plus an action error), one `repositoryRecovery.test.ts` case, one activation case in `gitPathRescan.test.ts`; `repoInfo.test.ts` adapted to the new outcome shape (`{ok,value}`/`{ok:false,cause}`) with new cause cases. Counts: backend 1063 (D61 report) to 1088 passed (1148 with 60 skipped); webview 767 (D61 report) to 770.
+- **Gates:** biome strict clean on 13 touched .ts; typecheck clean; test backend 1088/1148 (60 skipped), webview 770/770; l10n 100% (no text changed); kb:check passed; Rust arm n/a; Sonar: integrator
+- **Acceptance:** Session header once per activation (extension, host, app, platform, arch, reduced OS version, UTC offset, log file, backend, Git version, engine line): met. `[result]` lines for both reads with counts, error and `servedBy` (engine and cli both tested), no names (fixture with branch, tag, author, remote names asserted absent): met. Decline causes with old `reason=` unchanged: met. Application lines for error responses and failure screens: met. #30 shape test (erroring global config on `loadRepoInfo`) shows request, result and application lines in order: met. No telemetry change: met.
+- **Deviations from the slice:** (1) `loadEngineConfig` and `composeEngineRepoInfo` now return `{ok:true,value}|{ok:false,cause}`, so existing repoInfo tests were adapted. (2) No Linux C library line (not computed anywhere). (3) The header's `[session] engine` line is written after `git --version` answers, so the engine addon is now loaded at activation under `auto`, not at first graph open; the later `[engine]` line is unchanged. (4) Application lines cover error responses of `loadRepoInfo`, `loadCommits`, `loadBranches` and every `registerAction` action, plus the six failure screens; `webviewPanel.ts` untouched. (5) `[application]` uses `response=<command>` because the request context already carries `command=`.
+- **Open questions / follow-ups:** The `[result]` error field carries the first line of the message Git printed, which can include a path or URL Git echoed. `servedBy` for a failed engine read says `engine`.
