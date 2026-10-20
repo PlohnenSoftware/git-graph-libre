@@ -9,7 +9,7 @@ summary: >-
 
 # D61 — Log retention and the log file
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 on 2026-10-20 12:00
 Needs: —
 Decisions: — (the maintainer's own proposal in issue #31; the orchestrator
 chose the file mirror, see Facts)
