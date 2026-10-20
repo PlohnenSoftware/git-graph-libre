@@ -29,11 +29,59 @@ name: verify
 #     needing, say, GLIBC_2.29 loads everywhere recent and fails here — and
 #     glibc is backward compatible, so passing on 2.28 covers every later one.
 
+# The legs come from `.github/verify-vsix-legs.json` through the `legs` input,
+# so `publish.yml`'s plan job can leave named legs out, and the release gate
+# can run one leg again. Two ways in:
+#   - `workflow_call`, from `publish.yml`: the VSIX is this run's own artifact.
+#   - `workflow_dispatch`, the gate's one automatic retry of a leg that never
+#     got a runner: `artifact_run_id` names the run whose `vsix` artifact to
+#     verify, and `retry_token` goes into `run-name` so the gate finds this run.
+# `checkout_ref` is the tag a manual run builds; empty means the triggering ref.
+
+run-name: ${{ inputs.retry_token && format('verify retry {0}', inputs.retry_token) || 'verify' }}
+
 on:
   workflow_call:
+    inputs:
+      legs:
+        description: JSON array of legs (name, runner, image, args)
+        type: string
+        required: true
+      artifact_run_id:
+        description: Run whose vsix artifact to verify; empty for this run
+        type: string
+        default: ""
+      retry_token:
+        description: Unused from a caller; kept so both triggers share inputs
+        type: string
+        default: ""
+      checkout_ref:
+        description: Tag or ref to check out; empty for the triggering ref
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      legs:
+        description: JSON array of legs (name, runner, image, args)
+        type: string
+        required: true
+      artifact_run_id:
+        description: Run whose vsix artifact to verify; empty for this run
+        type: string
+        default: ""
+      retry_token:
+        description: Set by the release gate to find this run
+        type: string
+        default: ""
+      checkout_ref:
+        description: Tag or ref to check out; empty for the triggering ref
+        type: string
+        default: ""
 
+# `actions: read` is what downloading another run's artifact needs.
 permissions:
   contents: read
+  actions: read
 
 jobs:
   load:
@@ -44,37 +92,7 @@ jobs:
       # Every platform reports, so one failure shows the whole picture.
       fail-fast: false
       matrix:
-        include:
-          - name: Linux x64 (glibc)
-            runner: ubuntu-24.04
-            args: --libc gnu
-          - name: Linux arm64 (glibc)
-            runner: ubuntu-24.04-arm
-            args: --libc gnu
-          - name: Linux x64 (glibc 2.28, Debian 10)
-            runner: ubuntu-24.04
-            image: node:18-buster-slim
-            args: --libc gnu --glibc 2.28
-          - name: Linux arm64 (glibc 2.28, Debian 10)
-            runner: ubuntu-24.04-arm
-            image: node:18-buster-slim
-            args: --libc gnu --glibc 2.28
-          - name: Linux x64 (musl)
-            runner: ubuntu-24.04
-            image: node:22-alpine
-            args: --libc musl
-          - name: Linux arm64 (musl)
-            runner: ubuntu-24.04-arm
-            image: node:22-alpine
-            args: --libc musl
-          - name: macOS x64
-            runner: macos-15-intel
-          - name: macOS arm64
-            runner: macos-15
-          - name: Windows x64
-            runner: windows-2025
-          - name: Windows arm64
-            runner: windows-11-arm
+        include: ${{ fromJSON(inputs.legs) }}
     steps:
       # Only what the check reads: itself, and the two files that say which
       # engine version this commit expects.
@@ -85,12 +103,24 @@ jobs:
             engine/Cargo.toml
             src/backend/engine/addon.ts
           sparse-checkout-cone-mode: false
+          ref: ${{ inputs.checkout_ref || '' }}
 
       - name: Download VSIX
+        if: ${{ !inputs.artifact_run_id }}
         uses: actions/download-artifact@v8.0.2
         with:
           name: vsix
           path: dist/
+
+      # A retry runs in its own run, so it reads the gate's run's artifact.
+      - name: Download VSIX from the run being gated
+        if: ${{ inputs.artifact_run_id }}
+        uses: actions/download-artifact@v8.0.2
+        with:
+          name: vsix
+          path: dist/
+          run-id: ${{ inputs.artifact_run_id }}
+          github-token: ${{ github.token }}
 
       # Node 22 is the line VS Code's Electron runs the extension on.
       - name: Setup Node.js
