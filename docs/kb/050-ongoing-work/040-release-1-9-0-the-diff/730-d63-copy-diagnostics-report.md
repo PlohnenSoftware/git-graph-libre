@@ -10,7 +10,7 @@ summary: >-
 
 # D63 — Copy Diagnostics Report
 
-Status: claimed by Claude Sonnet 5.5 on 2026-10-20 20:00
+Status: done — awaiting integration
 Needs: D61, D62
 Decisions: — (the maintainer's own proposal in issue #31, "Commands" 1 and 3,
 and its privacy guardrails)
@@ -93,4 +93,39 @@ startup screen), `src/extension/webviewL10n.ts`, their tests
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Claude Sonnet 5.5, 2026-10-20 20:30
+- **Branch and commits:** `diff-1.9.0/d63`
+  - `dc85293 G docs(release): claim D63`
+  - `eaac1b8 G feat(diagnostics): add the redacting diagnostics report builder (D63)`
+  - `6c580d7 G feat(commands): add Copy Diagnostics Report and a full showDiagnostics (D63)`
+  - `462b0a5 G feat(status): link the status popup to the report and the log (D63)`
+  - then the report commit (hashes in `git log f182aea..HEAD`)
+- **Files changed:** 22 files, +1089/−23 before this report (`git diff --stat dc85293..HEAD`): `diagnosticsReport.ts` +373 (new), `commandManager.ts` +132/−, `componentStatus.ts` (webview) +36/−, `repositoryRecovery.ts` +3, `webviewL10n.ts` +2, `types.ts` +1, `extension.ts` +1, `package.json` +5, five `package.nls*.json` +1 each, five `l10n/bundle*.json` +10 each; tests: `diagnosticsReport.test.ts` +313 (new), `commandManager.test.ts` +152/−, `componentStatus.test.ts` +38, `repositoryRecovery.test.ts` +1. About 550 source lines (over the ~300 budget, a hint only).
+- **Tests added or changed:** backend 1089 to 1108 passed (+19: 18 in the new `diagnosticsReport.test.ts`, 1 `copyDiagnostics` row in `repositoryRecovery.test.ts`); webview 770 to 780 (+10: 8 Copy Diagnostics Report cases and 2 popup link cases). Changed fixtures: the two registered-command lists, the `showDiagnostics` assertions (now the full report), the harness's window API and config.
+- **Gates:** biome strict clean on 22 touched .ts/.json files; typecheck clean; test backend 1108/1168 (60 skipped), webview 780/780; l10n 100% in all four other bundles; kb:check passed; Rust arm n/a; Sonar: integrator
+- **Acceptance:** Issue #31 first checkbox (complete template-shaped report from the Command Palette, no terminal): met (command in `package.json`, five quick-pick branches tested; native/Flatpak/Snap not exercised by hand). Fourth (no tokens, URL credentials, setting values or config contents; redaction tested): met (token, userinfo and query token in remotes and in log lines; setting names only; config file with a name and email asserted absent along with its path). Fifth (no telemetry change): met (the command is counted only by the existing `register`, asserted in a test; `src/telemetry/**` untouched; `explicitExtensionSettings` is reused for the setting names). Popup links send their messages: met. `showDiagnostics` writes the report: met. Quick pick with clipboard (notes paths included), untitled document (full paths, folder names only) and prefilled issue with long-URL clipboard fallback: met.
+- **Deviations from the slice:**
+  (1) The report has no per-repository last `[result]` summary, because `[result]` lines carry no repository (D62 logs no names). Instead a "Last read results" section holds the newest `[result]` line per command.
+  (2) The prefilled issue uses folder names only (it goes to a public page) and prepends the bug template's headings, because GitHub ignores the template when a body is given. At 200 log lines the URL is nearly always over the 6000-character limit, so in practice that choice falls back to the clipboard with a message; the slice specified this behavior.
+  (3) The popup links are anchors (`href="#"`, `role="button"`) rather than styled buttons, because `media/toolbar.css` is outside the Touch list; they get VS Code's default link style. `src/webview/main.ts` is untouched: `componentStatus.ts` posts through the shared `utils/vscode` module, and its test hoists a stand-in `acquireVsCodeApi`.
+  (4) `showDiagnostics` output changed from the seven `key=value` lines to the full report (as the slice asks), so the old assertions changed.
+  (5) The report is English, not l10n'd, as it goes to a GitHub issue. All UI strings (quick pick, messages, popup links, command title) are l10n'd; the nl, pl, zh-cn and zh-tw translations are mine, not reviewed by a native speaker.
+  (6) Folder-names mode also replaces the home directory with `~` and repository paths with folder names in the log tail; full mode leaves the log as written (credentials still redacted).
+  (7) `git remote -v` is run per known repository (capped listing at 25) through `runGitRaw`, so each run also appears in the Git command log.
+- **Open questions / follow-ups:** The report's remote-URL redaction also masks any query string, which is stricter than `redactText`. Paths Git echoed inside log lines are only anonymized in folder-names mode. The startup screen's component details do not show the new links (it already has the log buttons; a Copy Diagnostics Report button there is not in this slice).
+
+Excerpt of a generated report from a test fixture (full-path mode; the remotes held `https://alice:ghp_SECRETTOKEN0123456789@github.com/acme/repo.git` and `https://ghp_SECRETTOKEN0123456789@example.com/acme/repo.git?access_token=ghp_SECRETTOKEN0123456789`, the log held `url=https://bob:hunter2@host/x.git`):
+
+```text
+## Repositories
+
+Count: 1
+
+Repository paths are included. Edit them out before sharing if needed.
+
+- /home/alice/work/secret-project
+  - Remote `origin`: https://<redacted>@github.com/acme/repo.git
+  - Remote `mirror`: https://<redacted>@example.com/acme/repo.git?<redacted>
+...
+[2026-10-20 10:00:01.000] [git:query] cwd=/home/alice/work/secret-project url=https://<redacted>@host/x.git
+```
