@@ -8,6 +8,8 @@
   "command.addRepo": "添加 Git 图形仓库",
   "command.removeRepo": "移除 Git 图形仓库",
   "command.showDiagnostics": "显示 Git 图形诊断",
+  "command.openLogFile": "打开 Git Graph Libre 日志文件",
+  "command.copyRecentLog": "复制最近的 Git Graph Libre 日志",
   "command.trustRepository": "在 Git 中信任仓库…",
   "command.openDiffTab": "在 GGL Diff 中打开",
   "config.title": "Git Graph Libre",

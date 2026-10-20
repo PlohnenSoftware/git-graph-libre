@@ -190,6 +190,16 @@
       },
       {
         "category": "Git Graph Libre",
+        "command": "git-graph-libre.openLogFile",
+        "title": "%command.openLogFile%"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.copyRecentLog",
+        "title": "%command.copyRecentLog%"
+      },
+      {
+        "category": "Git Graph Libre",
         "command": "git-graph-libre.trustRepository",
         "title": "%command.trustRepository%"
       },

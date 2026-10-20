@@ -8,6 +8,8 @@
   "command.addRepo": "Add Git Graph Repository",
   "command.removeRepo": "Remove Git Graph Repository",
   "command.showDiagnostics": "Show Git Graph Diagnostics",
+  "command.openLogFile": "Open Git Graph Libre Log File",
+  "command.copyRecentLog": "Copy Recent Git Graph Libre Log",
   "command.trustRepository": "Trust Repository in Git…",
   "command.openDiffTab": "Open in GGL Diff",
   "config.title": "Git Graph Libre",

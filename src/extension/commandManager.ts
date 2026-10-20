@@ -15,6 +15,8 @@ import type { TelemetryReporter } from "@/telemetry";
 
 import { createScmDiffTabHandlers } from "./diffTab/scmCommands";
 import type { RepoManager } from "./repoManager";
+import { copyToClipboard } from "./utils/clipboard";
+import type { Logger } from "./utils/logger";
 import type { WebviewPanel } from "./webviewPanel";
 
 type CommandApi = Pick<typeof vscode.commands, "registerCommand">;
@@ -33,8 +35,14 @@ type WindowApi = {
     options: vscode.QuickPickOptions
   ): Thenable<RepoQuickPickItem | undefined>;
   showWarningMessage(message: string): Thenable<unknown>;
+  /** Opens a file on disk in an editor tab. */
+  openFile(filePath: string): Thenable<unknown>;
 };
 type OutputChannel = Pick<vscode.OutputChannel, "appendLine" | "show">;
+type LogAccess = Pick<Logger, "flush" | "logFilePath" | "recentLines">;
+
+/** Lines "Copy Recent Log" puts on the clipboard. */
+const COPIED_LOG_LINES = 200;
 
 type RegisteredCommand = {
   id: string;
@@ -46,6 +54,10 @@ export type CommandManagerDeps = {
   windowApi?: WindowApi;
   extensionVersion: string;
   outputChannel: OutputChannel;
+  /** The logger's file mirror and ring buffer (D61); the logs commands need both. */
+  logAccess?: LogAccess;
+  /** Writes text to the clipboard; defaults to VS Code's. */
+  copyText?: (text: string) => Promise<boolean>;
   config: Config;
   extensionState: ExtensionState;
   repoManager: RepoManager;
@@ -128,7 +140,11 @@ function createVsCodeWindowApi(): WindowApi {
     showOpenDialog: (options) => vscode.window.showOpenDialog(options),
     showQuickPick: (items, options) =>
       vscode.window.showQuickPick<RepoQuickPickItem>(items, options),
-    showWarningMessage: (message) => vscode.window.showWarningMessage(message)
+    showWarningMessage: (message) => vscode.window.showWarningMessage(message),
+    openFile: async (filePath) => {
+      const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+      return vscode.window.showTextDocument(document, { preview: false });
+    }
   };
 }
 
@@ -281,6 +297,31 @@ export function createCommandManager(deps: CommandManagerDeps) {
     await windowApi.showInformationMessage(l10n.t("command.diagnostics.written"));
   }
 
+  async function openLogFile() {
+    await deps.logAccess?.flush();
+    const filePath = deps.logAccess?.logFilePath();
+    if (filePath === undefined) {
+      deps.outputChannel.show(true);
+      await windowApi.showWarningMessage(l10n.t("command.openLogFile.unavailable"));
+      return;
+    }
+    await windowApi.openFile(filePath);
+  }
+
+  async function copyRecentLog() {
+    const lines = deps.logAccess?.recentLines(COPIED_LOG_LINES) ?? [];
+    if (lines.length === 0) {
+      await windowApi.showWarningMessage(l10n.t("command.copyRecentLog.empty"));
+      return;
+    }
+    const copied = await (deps.copyText ?? copyToClipboard)(lines.join("\n"));
+    if (copied) {
+      await windowApi.showInformationMessage(l10n.t("command.copyRecentLog.copied", lines.length));
+    } else {
+      await windowApi.showErrorMessage(l10n.t("command.copyRecentLog.failed"));
+    }
+  }
+
   function startHistorySearch() {
     deps.openGraphView();
     deps.getCurrentPanel()?.startHistorySearch();
@@ -293,6 +334,8 @@ export function createCommandManager(deps: CommandManagerDeps) {
     register("git-graph-libre.addRepo", () => addRepository());
     register("git-graph-libre.removeRepo", () => removeRepository());
     register("git-graph-libre.showDiagnostics", () => showDiagnostics());
+    register("git-graph-libre.openLogFile", () => openLogFile());
+    register("git-graph-libre.copyRecentLog", () => copyRecentLog());
     register("git-graph-libre.trustRepository", () => deps.trustRepository?.());
     register("git-graph-libre.clearAvatarCache", () => {
       deps.avatarManager.clearCache();

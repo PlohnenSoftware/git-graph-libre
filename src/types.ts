@@ -38,6 +38,8 @@ export type RequestRepositoryRecovery =
   | { command: "trustRepository"; repo: string }
   | { command: "openGitSettings" }
   | { command: "showOutput" }
+  | { command: "openLogFile" }
+  | { command: "copyRecentLog" }
   | { command: "setRepoSearchDepth"; depth: number }
   | { command: "failureScreenShown"; screen: FailureScreen | null };
 export type ResponseRepositoryStatus = { command: "repositoryStatus"; startup: StartupStatus };

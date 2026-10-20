@@ -20,7 +20,13 @@ function makeUri(fsPath: string) {
   return { fsPath };
 }
 
-function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | null = null) {
+type LogOptions = { logPath?: string; lines?: string[]; copyOk?: boolean };
+
+function makeHarness(
+  initialRepos: GitRepoSet = {},
+  initialLastRepo: string | null = null,
+  logOptions: LogOptions = {}
+) {
   const repos: GitRepoSet = { ...initialRepos };
   const handlers = new Map<string, CommandHandler>();
   const disposables: Array<{ dispose: ReturnType<typeof vi.fn> }> = [];
@@ -46,8 +52,16 @@ function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | nu
     showQuickPick: vi.fn(
       async (_items: readonly QuickPickItem[]) => undefined as QuickPickItem | undefined
     ),
-    showWarningMessage: vi.fn(async (_message: string) => undefined)
+    showWarningMessage: vi.fn(async (_message: string) => undefined),
+    openFile: vi.fn(async (_filePath: string) => undefined)
   };
+  const logLines = logOptions.lines ?? [];
+  const logAccess = {
+    flush: vi.fn(async () => {}),
+    logFilePath: () => logOptions.logPath,
+    recentLines: vi.fn((count: number) => logLines.slice(-count))
+  };
+  const copyText = vi.fn(async (_text: string) => logOptions.copyOk ?? true);
 
   const repoManager = {
     getRepos: () => ({ ...repos }),
@@ -88,6 +102,8 @@ function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | nu
     windowApi,
     extensionVersion: "0.4.0",
     outputChannel,
+    logAccess,
+    copyText,
     config: { gitPath: () => "git" } as unknown as Config,
     extensionState,
     repoManager,
@@ -111,6 +127,8 @@ function makeHarness(initialRepos: GitRepoSet = {}, initialLastRepo: string | nu
 
   return {
     clearCache,
+    copyText,
+    logAccess,
     currentPanel,
     disposables,
     getLastActiveRepo: () => lastActiveRepo,
@@ -138,9 +156,11 @@ describe("command manager", () => {
     expect([...handlers.keys()].toSorted()).toEqual([
       "git-graph-libre.addRepo",
       "git-graph-libre.clearAvatarCache",
+      "git-graph-libre.copyRecentLog",
       "git-graph-libre.openDiffTab.index",
       "git-graph-libre.openDiffTab.untracked",
       "git-graph-libre.openDiffTab.workingTree",
+      "git-graph-libre.openLogFile",
       "git-graph-libre.removeRepo",
       "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
@@ -156,9 +176,11 @@ describe("command manager", () => {
     ).toEqual([
       "git-graph-libre.addRepo",
       "git-graph-libre.clearAvatarCache",
+      "git-graph-libre.copyRecentLog",
       "git-graph-libre.openDiffTab.index",
       "git-graph-libre.openDiffTab.untracked",
       "git-graph-libre.openDiffTab.workingTree",
+      "git-graph-libre.openLogFile",
       "git-graph-libre.removeRepo",
       "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
@@ -459,6 +481,52 @@ describe("command manager", () => {
     manager.dispose();
 
     for (const disposable of disposables) expect(disposable.dispose).toHaveBeenCalled();
+  });
+
+  it("opens the log mirror file after flushing it, through register", async () => {
+    const { logAccess, run, telemetryEvents, windowApi } = makeHarness({}, null, {
+      logPath: "/logs/git-graph-libre.log"
+    });
+
+    await run("git-graph-libre.openLogFile");
+
+    expect(logAccess.flush).toHaveBeenCalled();
+    expect(windowApi.openFile).toHaveBeenCalledWith("/logs/git-graph-libre.log");
+    expect(telemetryEvents).toEqual([{ feature: "git-graph-libre.openLogFile", ok: true }]);
+  });
+
+  it("says so and shows the channel when the log mirror is disabled", async () => {
+    const { outputChannel, run, windowApi } = makeHarness();
+
+    await run("git-graph-libre.openLogFile");
+
+    expect(windowApi.openFile).not.toHaveBeenCalled();
+    expect(outputChannel.show).toHaveBeenCalledWith(true);
+    expect(windowApi.showWarningMessage).toHaveBeenCalled();
+  });
+
+  it("copies at most the last 200 log lines and confirms the count", async () => {
+    const lines = Array.from({ length: 250 }, (_, index) => `line ${index}`);
+    const { copyText, run, windowApi } = makeHarness({}, null, { lines });
+
+    await run("git-graph-libre.copyRecentLog");
+
+    const copied = String(copyText.mock.calls[0]?.[0]).split("\n");
+    expect(copied).toHaveLength(200);
+    expect(copied[0]).toBe("line 50");
+    expect(copied.at(-1)).toBe("line 249");
+    expect(windowApi.showInformationMessage).toHaveBeenCalled();
+  });
+
+  it("warns instead of copying an empty log, and reports a clipboard failure", async () => {
+    const empty = makeHarness();
+    await empty.run("git-graph-libre.copyRecentLog");
+    expect(empty.copyText).not.toHaveBeenCalled();
+    expect(empty.windowApi.showWarningMessage).toHaveBeenCalled();
+
+    const failing = makeHarness({}, null, { lines: ["a"], copyOk: false });
+    await failing.run("git-graph-libre.copyRecentLog");
+    expect(failing.windowApi.showErrorMessage).toHaveBeenCalled();
   });
 
   it("writes version diagnostics to the output channel", async () => {

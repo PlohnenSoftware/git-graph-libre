@@ -8,6 +8,8 @@
   "command.addRepo": "Dodaj repozytorium Git Graph",
   "command.removeRepo": "Usuń repozytorium Git Graph",
   "command.showDiagnostics": "Pokaż diagnostykę Git Graph",
+  "command.openLogFile": "Otwórz plik dziennika Git Graph Libre",
+  "command.copyRecentLog": "Kopiuj ostatni dziennik Git Graph Libre",
   "command.trustRepository": "Zaufaj repozytorium w Git…",
   "command.openDiffTab": "Otwórz w GGL Diff",
   "config.title": "Git Graph Libre",
