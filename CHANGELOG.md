@@ -87,6 +87,11 @@ Libre's own, and diff details that match Git.
   says exactly why, and an error the webview received or a failure screen
   it showed is recorded too. Counts and fixed names only, with credentials
   redacted.
+- **A Contributors tab.** The settings popup gains a third tab thanking
+  everyone who built Git Graph Libre and the projects it grew from: the
+  original Git Graph and the neo-git-graph fork, both MIT-licensed, and the
+  MIT-licensed Rust engine, each era with its people. It also names the AI
+  agents that co-authored commits in cooperation with them.
 - **Every diff read names its backend.** Git Graph Libre's output now logs
   a line, with a file count, whenever the Rust engine serves file text,
   commit details or a comparison. Until now only reads that went to the Git
@@ -96,6 +101,9 @@ Libre's own, and diff details that match Git.
 
 ### Changed
 
+- **The settings popup is called Settings.** It holds extension settings as
+  well as the repository's, so the gear button and the popup no longer say
+  "Repository Settings".
 - **Merge commits are compared with their first parent.** Their details
   list the files the merge changed against its first parent and say so
   ("Changes compared with the first parent"). The command line used to

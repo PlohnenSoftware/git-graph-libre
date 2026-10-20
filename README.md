@@ -9,6 +9,15 @@
 - **Graph view**: See branches, tags, and uncommitted changes in one graph
 - **History recovery**: Keep detached HEAD visible and optionally discover unreachable commits
 - **Commit details**: Click a commit to see message, files, and diffs
+- **Compare anything**: Ctrl/Cmd-click two commits and choose **Compare
+  Selected Commits**, or use **Compare With…** on a commit, branch or tag to
+  compare it with any SHA, branch, tag or expression such as `HEAD~2`. A
+  comparison says what it compares, swaps sides in one click, can compare a
+  commit with the working tree, and opens in your own `git difftool`
+- **GGL Diff tab**: A side-by-side diff of Git Graph Libre's own, computed in
+  the Rust engine with a port of VS Code's diff algorithm, so it highlights
+  lines and characters as VS Code's diff editor does. Open it from a file in
+  the Source Control view or in commit details (**Open in GGL Diff**)
 - **Branch actions**: Create, checkout, rename, delete, and merge
 - **Tag actions**: Create, push, view details, and delete locally or on selected
   remotes; signed tags are marked with a verified badge in the graph
@@ -22,6 +31,10 @@
 - **Staging**: Click the uncommitted-changes row to stage and unstage files, or
   whole folders, by dragging them between the staged and unstaged panes;
   right-click the row to switch between the folder tree and a flat path list
+- **Settings**: Repository and extension settings in one popup, and a
+  Contributors tab crediting everyone who built Git Graph Libre and the
+  projects it grew from, with each part's license, and the AI agents that
+  co-authored its commits
 - **Avatar support**: Optional avatars from GitHub, GitLab, or Gravatar
 - **Status at a glance**: Rest the pointer on the status dot above the toolbar
   to see the Git version, whether the built-in Rust engine is running, and
@@ -44,6 +57,11 @@
   repository is found, adjust the search depth directly on the screen; the
   setting is saved for the workspace. An open graph tab comes back when VS
   Code restores its window (`restoreTabOnStartup`).
+- **Bug reports made easy**: **Copy Diagnostics Report** collects what a bug
+  report needs (versions, Git, the Rust engine, changed setting names, the
+  recent log) with credentials redacted, for the clipboard, a document or a
+  prefilled GitHub issue; **Open Log File** and **Copy Recent Log** reach the
+  log directly. Nothing is sent until you paste or submit it
 - **Devcontainer ready**: Works in remote and container environments
 - **Internationalization**: English, Dutch, Polish, zh-CN, and zh-TW
 

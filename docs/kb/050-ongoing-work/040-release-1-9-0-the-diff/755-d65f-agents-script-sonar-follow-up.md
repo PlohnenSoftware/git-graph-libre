@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D65F · ready · script · ~25 lines: clear the three SonarQube findings
+  D65F · integrated · script · ~25 lines: clear the three SonarQube findings
   D65's `scripts/list-coauthor-agents.mjs` brought in, two of which turned
   the project-wide reliability and security conditions red: a super-linear
   regex (S8786), a `git` spawned through `PATH` (S4036) and a shadowed
@@ -9,7 +9,7 @@ summary: >-
 
 # D65F — Agents-script Sonar follow-up
 
-Status: done — awaiting integration
+Status: integrated 0617b35
 Needs: D65
 Decisions: — (the orchestrator's fix for S4036, below)
 Kind: script + manifest · Size budget: ~25 changed lines outside tests

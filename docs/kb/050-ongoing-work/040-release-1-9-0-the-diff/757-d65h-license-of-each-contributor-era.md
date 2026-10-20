@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D65H · ready · webview + l10n · ~40 lines: in the Contributors tab, say
+  D65H · integrated · webview + l10n · ~40 lines: in the Contributors tab, say
   under each era's heading which license its code came in under, so it is
   clear that the original Git Graph (up to commit 4af8583), the
   neo-git-graph fork and the Rust engine are the MIT-licensed parts, and
@@ -10,7 +10,7 @@ summary: >-
 
 # D65H — The license of each contributor era
 
-Status: done — awaiting integration
+Status: integrated e63801e
 Needs: D65G
 Decisions: — (maintainer, `2026-10-20`: "when it comes to git graph mention
 it was MIT licensed part so it is clear everywhere")
