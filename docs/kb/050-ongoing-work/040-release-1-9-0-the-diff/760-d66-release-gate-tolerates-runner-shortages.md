@@ -10,7 +10,7 @@ summary: >-
 
 # D66 — A release gate that tolerates runner shortages
 
-Status: claimed by Claude Sonnet 5.5 on 2026-10-20 12:00
+Status: done — awaiting integration
 Needs: —
 Decisions: the maintainer, `2026-10-20`. "2 of 10 runs can be not runned and
 it will still pass to publish after timeout but more will need rerun; make
@@ -150,4 +150,18 @@ The gate function, on job payloads shaped like the facts above:
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Claude Sonnet 5.5, 2026-10-20
+- **Branch and commits:** `diff-1.9.0/d66`
+  - `2cfc2f1 G docs(release): claim D66`
+  - `645be88 G ci(release): list the ten verify legs in one JSON file`
+  - `de9aa6c G feat(release): add the verify gate decision script and its tests`
+  - `a04e7dc G ci(release): verify-vsix takes its legs and an artifact run as inputs`
+  - `94d8dbf G ci(release): native-build can build a named tag`
+  - `bcd632a G ci(release): gate the release on a tolerant verify gate, add manual inputs`
+  - `75a3410 G docs(release): record the tolerant release gate in the VSIX verification section`
+- **Files changed:** `.github/verify-vsix-legs.json` +32; `.github/workflows/publish.yml` +165/−; `.github/workflows/verify-vsix.yml` +92/−; `.github/workflows/native-build.yml` +9; `scripts/release-verify-gate.mjs` +355; `scripts/release-verify-gate.d.mts` +79; `tests/backend/releaseVerifyGate.test.ts` +423; the Phase 16 VSIX record +53/−; `docs/kb/README.md` (generated index) ±1
+- **Tests added or changed:** `tests/backend/releaseVerifyGate.test.ts`, 31 tests (backend 1111 passed before, 1142 after)
+- **Gates:** strict Biome clean on the new test file; typecheck clean; test backend 1142 passed, 60 skipped (pre-existing) / 1202, webview 791/791; l10n n/a; kb:check ok; Rust arm n/a; Sonar: integrator
+- **Acceptance:** all three workflows and the leg JSON parse (PyYAML, `json`); the new suite passes; the contexts used were checked against GitHub's documented availability (listed in the hand-back); a real run on GitHub is not testable locally; `gh workflow run` commands are in the Phase 16 VSIX record.
+- **Deviations from the slice:** (1) `native-build.yml` edited (an optional `ref` input) and (2) `scripts/release-verify-gate.d.mts` added, both outside Touch: the first so a manual publish of an existing tag builds that tag's engine, the second so the TypeScript suite can import the `.mjs` (same arrangement as `verify-vsix.d.mts`). (3) `plan` and `verify-gate` check out the run's own commit, not `tag`, because the script and leg list do not exist in older tags such as `v1.9.0`. (4) `native` needs `plan` so a bad input fails before the build. (5) The polling loop lives in the script's `runGate` (injected API, tested), not in workflow shell.
+- **Open questions / follow-ups:** a leg queued past the timeout is counted, not cancelled, so it may still run later; the run can show red (`verify`) while the gate and release are green; `VERIFY_QUEUE_TIMEOUT_MINUTES` is read from a repository variable (`vars`), default 30.
