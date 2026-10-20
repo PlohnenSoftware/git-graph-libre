@@ -1906,7 +1906,7 @@ class GitGraphView {
       activeTab: this.settingsWidgetTab,
       extensionSettings: this.extensionSettings,
       labels: {
-        title: l10n.repositorySettings,
+        title: l10n.settings,
         close: l10n.settingsClose,
         repositoryTab: l10n.settingsRepositoryTab,
         extensionTab: l10n.settingsExtensionTab,

@@ -123,7 +123,7 @@ export function buildWebviewHtml(opts: {
 		${buildWebviewToolbar(l10nStrings)}
 		</div>
 		<div id="settingsWidgetBacking" hidden></div>
-		<aside id="settingsWidget" role="dialog" aria-modal="true" tabindex="-1" aria-label="${l10nStrings.repositorySettings}" hidden></aside>
+		<aside id="settingsWidget" role="dialog" aria-modal="true" tabindex="-1" aria-label="${l10nStrings.settings}" hidden></aside>
 		<div id="content">
 			<div id="commitGraph"></div>
 			<div id="commitTable"></div>

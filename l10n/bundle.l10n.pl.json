@@ -41,7 +41,7 @@
   "ui.fetch": "Pobierz",
   "ui.pushAllTags": "Wypchnij wszystkie tagi",
   "ui.locateHead": "Znajdź HEAD",
-  "ui.repositorySettings": "Ustawienia repozytorium",
+  "ui.settings": "Ustawienia",
   "ui.findCommits": "Znajdź commity",
   "ui.findCommitsPlaceholder": "Znajdź commity",
   "ui.findPrevious": "Poprzedni wynik",

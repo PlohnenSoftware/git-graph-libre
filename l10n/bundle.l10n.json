@@ -41,7 +41,7 @@
   "ui.fetch": "Fetch",
   "ui.pushAllTags": "Push All Tags",
   "ui.locateHead": "Locate HEAD",
-  "ui.repositorySettings": "Repository Settings",
+  "ui.settings": "Settings",
   "ui.findCommits": "Find commits",
   "ui.findCommitsPlaceholder": "Find commits",
   "ui.findPrevious": "Previous match",

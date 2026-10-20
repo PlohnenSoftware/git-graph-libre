@@ -29,7 +29,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     fetch: translate("ui.fetch"),
     pushAllTags: translate("ui.pushAllTags"),
     locateHead: translate("ui.locateHead"),
-    repositorySettings: translate("ui.repositorySettings"),
+    settings: translate("ui.settings"),
     findCommits: translate("ui.findCommits"),
     findCommitsPlaceholder: translate("ui.findCommitsPlaceholder"),
     findPrevious: translate("ui.findPrevious"),

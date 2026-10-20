@@ -458,9 +458,7 @@ describe("webview rendering", () => {
     expect((document.getElementById("fetchBtn") as HTMLButtonElement | null)?.hidden).toBe(true);
     expect(document.getElementById("blinkHeadBtn")?.getAttribute("aria-label")).toBe("Locate HEAD");
     expect(document.getElementById("terminalBtn")).toBeNull();
-    expect(document.getElementById("settingsBtn")?.getAttribute("aria-label")).toBe(
-      "Repository Settings"
-    );
+    expect(document.getElementById("settingsBtn")?.getAttribute("aria-label")).toBe("Settings");
     expect(document.getElementById("authorSelect")?.classList.contains("dropdown")).toBe(true);
     expect(document.getElementById("tagSelect")?.classList.contains("dropdown")).toBe(true);
   });

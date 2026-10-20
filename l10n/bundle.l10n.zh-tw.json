@@ -41,7 +41,7 @@
   "ui.fetch": "擷取",
   "ui.pushAllTags": "推送所有標籤",
   "ui.locateHead": "定位 HEAD",
-  "ui.repositorySettings": "存放庫設定",
+  "ui.settings": "設定",
   "ui.findCommits": "尋找提交",
   "ui.findCommitsPlaceholder": "尋找提交",
   "ui.findPrevious": "上一個相符項",

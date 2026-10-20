@@ -41,7 +41,7 @@
   "ui.fetch": "Fetchen",
   "ui.pushAllTags": "Alle tags pushen",
   "ui.locateHead": "HEAD lokaliseren",
-  "ui.repositorySettings": "Repository-instellingen",
+  "ui.settings": "Instellingen",
   "ui.findCommits": "Commits zoeken",
   "ui.findCommitsPlaceholder": "Commits zoeken",
   "ui.findPrevious": "Vorige overeenkomst",
