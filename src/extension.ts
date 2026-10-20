@@ -1,3 +1,5 @@
+import * as os from "node:os";
+
 import * as vscode from "vscode";
 
 import { AvatarManager } from "./avatarManager";
@@ -18,6 +20,7 @@ import { explicitExtensionSettings } from "./extension/extensionSettings";
 import { registerMessageHandlers } from "./extension/messageHandler";
 import { createRepoManager } from "./extension/repoManager";
 import { createGitTrustCommand } from "./extension/repositoryRecovery";
+import { logSessionHeader } from "./extension/sessionHeader";
 import { createLogger } from "./extension/utils/logger";
 import { type WebviewBridge, webviewBridgeFactory } from "./extension/webviewBridge";
 import { createWebviewPanel, type WebviewPanel } from "./extension/webviewPanel";
@@ -39,6 +42,21 @@ export function activate(context: vscode.ExtensionContext) {
     logDirectory: context.logUri.fsPath
   });
   context.subscriptions.push(setOperationLog(logger.log), { dispose: () => void logger.dispose() });
+  void logSessionHeader(
+    {
+      extensionVersion: String(context.extension.packageJSON.version ?? "unknown"),
+      hostVersion: vscode.version ?? "unknown",
+      appName: vscode.env.appName ?? "unknown",
+      platform: process.platform,
+      arch: process.arch,
+      osRelease: os.release(),
+      timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+      logFilePath: logger.logFilePath(),
+      backend: config.backend()
+    },
+    config.gitPath(),
+    logger.log
+  );
   setDiffTabAvailableContext({ backend: config.backend });
   // The universal VSIX carries every platform's engine binary; drop the ones
   // this host can never load. Production installs only — a development host
