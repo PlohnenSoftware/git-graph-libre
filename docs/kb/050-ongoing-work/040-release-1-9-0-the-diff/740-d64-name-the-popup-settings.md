@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D64 · ready · webview + l10n · ~30 lines: the settings popup holds a
+  D64 · integrated · webview + l10n · ~30 lines: the settings popup holds a
   Repository tab and an Extension tab, but its title, its toolbar button and
   its accessible name all say "Repository Settings". Call it "Settings"
   everywhere, in all five languages. Maintainer request, `2026-10-20`.
@@ -8,7 +8,7 @@ summary: >-
 
 # D64 — Name the popup "Settings"
 
-Status: done — awaiting integration
+Status: integrated c5526ca
 Needs: —
 Decisions: — (maintainer, `2026-10-20`: "rename Repository settings to just
 settings … because there are extension settings too")

@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D65 · ready · webview + l10n + data · ~250 lines: a third tab in the
+  D65 · integrated · webview + l10n + data · ~250 lines: a third tab in the
   Settings popup, "Contributors", crediting everyone who contributed, by
   era (Git Graph Libre, the neo-git-graph fork, the original Git Graph, the
   Rust engine), from the project's own rosters, then an "AI agents" section
@@ -10,7 +10,7 @@ summary: >-
 
 # D65 — A Contributors tab
 
-Status: done — awaiting integration
+Status: integrated b9683e5
 Needs: — (D64 runs in parallel; whichever is integrated second is rebased)
 Decisions: the maintainer, `2026-10-20`: "add tab with contribution notice
 listing all ppl who contributed also include agents sections mentioning AI
