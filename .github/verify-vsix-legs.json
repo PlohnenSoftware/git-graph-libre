@@ -1,0 +1,32 @@
+[
+  { "name": "Linux x64 (glibc)", "runner": "ubuntu-24.04", "args": "--libc gnu" },
+  { "name": "Linux arm64 (glibc)", "runner": "ubuntu-24.04-arm", "args": "--libc gnu" },
+  {
+    "name": "Linux x64 (glibc 2.28, Debian 10)",
+    "runner": "ubuntu-24.04",
+    "image": "node:18-buster-slim",
+    "args": "--libc gnu --glibc 2.28"
+  },
+  {
+    "name": "Linux arm64 (glibc 2.28, Debian 10)",
+    "runner": "ubuntu-24.04-arm",
+    "image": "node:18-buster-slim",
+    "args": "--libc gnu --glibc 2.28"
+  },
+  {
+    "name": "Linux x64 (musl)",
+    "runner": "ubuntu-24.04",
+    "image": "node:22-alpine",
+    "args": "--libc musl"
+  },
+  {
+    "name": "Linux arm64 (musl)",
+    "runner": "ubuntu-24.04-arm",
+    "image": "node:22-alpine",
+    "args": "--libc musl"
+  },
+  { "name": "macOS x64", "runner": "macos-15-intel", "args": "" },
+  { "name": "macOS arm64", "runner": "macos-15", "args": "" },
+  { "name": "Windows x64", "runner": "windows-2025", "args": "" },
+  { "name": "Windows arm64", "runner": "windows-11-arm", "args": "" }
+]
