@@ -9,7 +9,7 @@ summary: >-
 
 # D66F — Gate-script Sonar follow-up
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 on 2026-10-20 12:00
 Needs: D66
 Decisions: —
 Kind: script · Size budget: ~60 changed lines outside tests
