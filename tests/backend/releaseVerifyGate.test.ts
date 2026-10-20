@@ -1,10 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   evaluateGate,
   type GateApi,
   type GateJob,
+  githubApi,
   parseMaxNotRun,
   planLegs,
   renderSummary,
@@ -419,5 +420,44 @@ describe("runGate", () => {
     const result = await runGate({ ...config, legs: [LEGS[0]] }, world.api, world);
     expect(result.state).toBe("pass");
     expect(result.rows[0].retry?.error).toContain("403");
+  });
+
+  it("dispatches two simultaneous retries and records only the failed one", async () => {
+    const world = fake(() => ({
+      main: [noRunner(LEGS[0]), noRunner(LEGS[1]), passed(LEGS[2])],
+      retry: { [LEGS[0]]: [retryJob(LEGS[0])] }
+    }));
+    const dispatchRetry = world.api.dispatchRetry.bind(world.api);
+    world.api.dispatchRetry = async (leg, token) => {
+      await dispatchRetry(leg, token);
+      if (leg === LEGS[1]) throw new Error("403");
+    };
+    const result = await runGate({ ...config, legs: LEGS.slice(0, 3) }, world.api, world);
+    expect(world.dispatched).toEqual([LEGS[0], LEGS[1]]);
+    expect(result.rows[0].retry?.error).toBeUndefined();
+    expect(result.rows[1].retry?.error).toContain("403");
+    expect(result.notRun).toEqual([LEGS[1]]);
+  });
+});
+
+describe("githubApi listJobs", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("reads page 1, then the remaining pages together, using total_count", async () => {
+    const pages = [1, 2].map((page) =>
+      Array.from({ length: page === 1 ? 100 : 5 }, (_, index) => ({ id: page * 1000 + index }))
+    );
+    const requested: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => {
+      requested.push(url);
+      const page = Number(new URL(url).searchParams.get("page"));
+      return new Response(JSON.stringify({ total_count: 105, jobs: pages[page - 1] }), {
+        status: 200
+      });
+    });
+    const api = githubApi({ GITHUB_REPOSITORY: "o/r", GH_TOKEN: "t" }, { allLegs: [] });
+    const jobs = await api.listJobs("run");
+    expect(jobs.map((entry) => entry.id)).toEqual(pages.flat().map((entry) => entry.id));
+    expect(requested.map((url) => new URL(url).searchParams.get("page"))).toEqual(["1", "2"]);
   });
 });
