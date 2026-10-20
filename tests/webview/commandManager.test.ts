@@ -4,6 +4,7 @@ import { makeRepo } from "@tests/backend/helpers";
 import { describe, expect, it, vi } from "vitest";
 import type { Config } from "@/config";
 import { createCommandManager } from "@/extension/commandManager";
+import type { DiagnosticsFacts } from "@/extension/diagnosticsReport";
 import type { RepoManager } from "@/extension/repoManager";
 import type { WebviewPanel } from "@/extension/webviewPanel";
 import type { ExtensionState } from "@/extensionState";
@@ -20,7 +21,15 @@ function makeUri(fsPath: string) {
   return { fsPath };
 }
 
-type LogOptions = { logPath?: string; lines?: string[]; copyOk?: boolean };
+type LogOptions = {
+  logPath?: string;
+  lines?: string[];
+  copyOk?: boolean;
+  /** Replaces the fact gathering; omitted, the real gathering runs. */
+  facts?: DiagnosticsFacts;
+  /** What the quick pick answers; undefined means dismissed. */
+  choice?: string;
+};
 
 function makeHarness(
   initialRepos: GitRepoSet = {},
@@ -53,8 +62,13 @@ function makeHarness(
       async (_items: readonly QuickPickItem[]) => undefined as QuickPickItem | undefined
     ),
     showWarningMessage: vi.fn(async (_message: string) => undefined),
-    openFile: vi.fn(async (_filePath: string) => undefined)
+    openFile: vi.fn(async (_filePath: string) => undefined),
+    showChoice: vi.fn(
+      async (_items: readonly { id: string; label: string }[], _holder: string) => logOptions.choice
+    ),
+    openUntitledMarkdown: vi.fn(async (_content: string) => undefined)
   };
+  const openExternal = vi.fn(async (_url: string) => true);
   const logLines = logOptions.lines ?? [];
   const logAccess = {
     flush: vi.fn(async () => {}),
@@ -104,7 +118,12 @@ function makeHarness(
     outputChannel,
     logAccess,
     copyText,
-    config: { gitPath: () => "git" } as unknown as Config,
+    openExternal,
+    changedSettings: () => ["git-graph-libre.backend"],
+    ...(logOptions.facts === undefined
+      ? {}
+      : { collectDiagnosticsFacts: async () => logOptions.facts as DiagnosticsFacts }),
+    config: { gitPath: () => "git", backend: () => "git-cli" } as unknown as Config,
     extensionState,
     repoManager,
     avatarManager: { clearCache },
@@ -136,6 +155,7 @@ function makeHarness(
     getSendReposCount: () => sendReposCount,
     handlers,
     manager,
+    openExternal,
     openGraphView,
     openScmDiffTab,
     outputChannel,
@@ -156,6 +176,7 @@ describe("command manager", () => {
     expect([...handlers.keys()].toSorted()).toEqual([
       "git-graph-libre.addRepo",
       "git-graph-libre.clearAvatarCache",
+      "git-graph-libre.copyDiagnostics",
       "git-graph-libre.copyRecentLog",
       "git-graph-libre.openDiffTab.index",
       "git-graph-libre.openDiffTab.untracked",
@@ -176,6 +197,7 @@ describe("command manager", () => {
     ).toEqual([
       "git-graph-libre.addRepo",
       "git-graph-libre.clearAvatarCache",
+      "git-graph-libre.copyDiagnostics",
       "git-graph-libre.copyRecentLog",
       "git-graph-libre.openDiffTab.index",
       "git-graph-libre.openDiffTab.untracked",
@@ -536,10 +558,128 @@ describe("command manager", () => {
 
     await run("git-graph-libre.showDiagnostics");
 
-    expect(outputLines.join("\n")).toContain("extension=0.4.0");
-    expect(outputLines.join("\n")).toContain("repos=1");
-    expect(outputLines.join("\n")).toContain("repo=/workspace/repo");
+    const written = outputLines.join("\n");
+    expect(written).toContain("- Extension version: 0.4.0");
+    expect(written).toContain("- Backend setting: git-cli");
+    expect(written).toContain("Count: 1");
+    expect(written).toContain("- /workspace/repo");
+    expect(written).toContain("- git-graph-libre.backend");
+    expect(written).toContain("- Path: git");
     expect(outputChannel.show).toHaveBeenCalledWith(true);
     expect(windowApi.showInformationMessage).toHaveBeenCalled();
+  });
+
+  describe("Copy Diagnostics Report", () => {
+    const FACTS: DiagnosticsFacts = {
+      extensionVersion: "1.9.0",
+      repos: [
+        {
+          path: "/home/u/secret/repo",
+          remotes: [{ name: "origin", url: "https://user:ghp_TOKEN@host/o/r.git" }]
+        }
+      ],
+      logLines: ["[t] [git:query] cwd=/home/u/secret/repo"]
+    };
+
+    it("does nothing when the quick pick is dismissed", async () => {
+      const harness = makeHarness({}, null, { facts: FACTS });
+
+      await harness.run("git-graph-libre.copyDiagnostics");
+
+      expect(harness.copyText).not.toHaveBeenCalled();
+      expect(harness.windowApi.openUntitledMarkdown).not.toHaveBeenCalled();
+      expect(harness.openExternal).not.toHaveBeenCalled();
+      expect(harness.windowApi.showChoice.mock.calls[0]?.[0].map((item) => item.id)).toEqual([
+        "clipboard",
+        "documentFull",
+        "documentFolders",
+        "issue"
+      ]);
+    });
+
+    it("copies the full report to the clipboard, redacted, and says paths are included", async () => {
+      const harness = makeHarness({}, null, { facts: FACTS, choice: "clipboard" });
+
+      await harness.run("git-graph-libre.copyDiagnostics");
+
+      const copied = String(harness.copyText.mock.calls[0]?.[0]);
+      expect(copied).toContain("/home/u/secret/repo");
+      expect(copied).toContain("Repository paths are included.");
+      expect(copied).not.toContain("ghp_TOKEN");
+      expect(harness.windowApi.showInformationMessage).toHaveBeenCalled();
+    });
+
+    it("reports a clipboard failure", async () => {
+      const harness = makeHarness({}, null, { facts: FACTS, choice: "clipboard", copyOk: false });
+
+      await harness.run("git-graph-libre.copyDiagnostics");
+
+      expect(harness.windowApi.showErrorMessage).toHaveBeenCalled();
+    });
+
+    it("opens an untitled document with full paths", async () => {
+      const harness = makeHarness({}, null, { facts: FACTS, choice: "documentFull" });
+
+      await harness.run("git-graph-libre.copyDiagnostics");
+
+      const content = String(harness.windowApi.openUntitledMarkdown.mock.calls[0]?.[0]);
+      expect(content).toContain("- /home/u/secret/repo");
+      expect(harness.copyText).not.toHaveBeenCalled();
+    });
+
+    it("opens an untitled document with folder names only", async () => {
+      const harness = makeHarness({}, null, { facts: FACTS, choice: "documentFolders" });
+
+      await harness.run("git-graph-libre.copyDiagnostics");
+
+      const content = String(harness.windowApi.openUntitledMarkdown.mock.calls[0]?.[0]);
+      expect(content).not.toContain("/home/u");
+      expect(content).toContain("- repo");
+    });
+
+    it("opens a prefilled GitHub issue with the report as its body", async () => {
+      const harness = makeHarness({}, null, {
+        facts: { extensionVersion: "1.9.0" },
+        choice: "issue"
+      });
+
+      await harness.run("git-graph-libre.copyDiagnostics");
+
+      const url = String(harness.openExternal.mock.calls[0]?.[0]);
+      expect(url.startsWith("https://github.com/PlohnenSoftware/git-graph-libre/issues/new?")).toBe(
+        true
+      );
+      expect(decodeURIComponent(url)).toContain("- Extension version: 1.9.0");
+      expect(harness.copyText).not.toHaveBeenCalled();
+    });
+
+    it("copies to the clipboard instead when the issue link would be too long", async () => {
+      const lines = Array.from(
+        { length: 200 },
+        (_, index) => `[t] line ${index} ${"x".repeat(40)}`
+      );
+      const harness = makeHarness({}, null, {
+        facts: { extensionVersion: "1.9.0", logLines: lines },
+        choice: "issue"
+      });
+
+      await harness.run("git-graph-libre.copyDiagnostics");
+
+      expect(harness.openExternal).not.toHaveBeenCalled();
+      expect(String(harness.copyText.mock.calls[0]?.[0])).toContain("line 199");
+      expect(harness.windowApi.showInformationMessage).toHaveBeenCalledWith(
+        expect.stringContaining("too long")
+      );
+    });
+
+    it("counts only through register, with no payload beyond the command id", async () => {
+      const harness = makeHarness({}, null, { facts: FACTS, choice: "clipboard" });
+
+      await harness.run("git-graph-libre.copyDiagnostics");
+
+      expect(harness.telemetryEvents).toEqual([
+        { feature: "git-graph-libre.copyDiagnostics", ok: true }
+      ]);
+    });
   });
 });

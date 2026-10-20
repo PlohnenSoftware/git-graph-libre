@@ -8,6 +8,7 @@
   "command.addRepo": "新增 Git 圖形存放庫",
   "command.removeRepo": "移除 Git 圖形存放庫",
   "command.showDiagnostics": "顯示 Git 圖形診斷",
+  "command.copyDiagnostics": "複製 Git Graph Libre 診斷報告",
   "command.openLogFile": "開啟 Git Graph Libre 記錄檔",
   "command.copyRecentLog": "複製最近的 Git Graph Libre 記錄",
   "command.trustRepository": "在 Git 中信任儲存庫…",

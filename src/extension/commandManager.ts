@@ -13,6 +13,15 @@ import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
 import type { TelemetryReporter } from "@/telemetry";
 
+import { buildComponentStatus } from "./componentStatus";
+import {
+  buildDiagnosticsReport,
+  buildNewIssueUrl,
+  type DiagnosticsFacts,
+  type PathMode,
+  readProcessFacts,
+  readRepoRemotes
+} from "./diagnosticsReport";
 import { createScmDiffTabHandlers } from "./diffTab/scmCommands";
 import type { RepoManager } from "./repoManager";
 import { copyToClipboard } from "./utils/clipboard";
@@ -37,12 +46,23 @@ type WindowApi = {
   showWarningMessage(message: string): Thenable<unknown>;
   /** Opens a file on disk in an editor tab. */
   openFile(filePath: string): Thenable<unknown>;
+  /** A quick pick of labeled ids; undefined when dismissed. */
+  showChoice(
+    items: readonly { id: string; label: string }[],
+    placeHolder: string
+  ): Thenable<string | undefined>;
+  /** Opens text in a new, unsaved Markdown editor. */
+  openUntitledMarkdown(content: string): Thenable<unknown>;
 };
 type OutputChannel = Pick<vscode.OutputChannel, "appendLine" | "show">;
 type LogAccess = Pick<Logger, "flush" | "logFilePath" | "recentLines">;
 
 /** Lines "Copy Recent Log" puts on the clipboard. */
 const COPIED_LOG_LINES = 200;
+/** Log lines the diagnostics report may carry (the ring buffer holds more). */
+const DIAGNOSTICS_LOG_LINES = 200;
+
+type DiagnosticsChoice = "clipboard" | "documentFull" | "documentFolders" | "issue";
 
 type RegisteredCommand = {
   id: string;
@@ -58,6 +78,12 @@ export type CommandManagerDeps = {
   logAccess?: LogAccess;
   /** Writes text to the clipboard; defaults to VS Code's. */
   copyText?: (text: string) => Promise<boolean>;
+  /** Opens a URL in the user's browser; defaults to VS Code's `env.openExternal`. */
+  openExternal?: (url: string) => Thenable<boolean>;
+  /** Names of the `git-graph-libre.*` settings the user changed, never their values. */
+  changedSettings?: () => string[];
+  /** Replaces the fact gathering in tests. */
+  collectDiagnosticsFacts?: () => Promise<DiagnosticsFacts>;
   config: Config;
   extensionState: ExtensionState;
   repoManager: RepoManager;
@@ -143,6 +169,17 @@ function createVsCodeWindowApi(): WindowApi {
     showWarningMessage: (message) => vscode.window.showWarningMessage(message),
     openFile: async (filePath) => {
       const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+      return vscode.window.showTextDocument(document, { preview: false });
+    },
+    showChoice: async (items, placeHolder) => {
+      const picked = await vscode.window.showQuickPick(
+        items.map((item) => ({ label: item.label, id: item.id })),
+        { placeHolder }
+      );
+      return picked?.id;
+    },
+    openUntitledMarkdown: async (content) => {
+      const document = await vscode.workspace.openTextDocument({ language: "markdown", content });
       return vscode.window.showTextDocument(document, { preview: false });
     }
   };
@@ -277,24 +314,88 @@ export function createCommandManager(deps: CommandManagerDeps) {
     deps.repoManager.sendRepos();
   }
 
-  async function showDiagnostics() {
-    const repos = Object.keys(deps.repoManager.getRepos()).toSorted((left, right) =>
-      left.localeCompare(right)
+  async function collectFacts(): Promise<DiagnosticsFacts> {
+    if (deps.collectDiagnosticsFacts) return deps.collectDiagnosticsFacts();
+    const gitPath = deps.config.gitPath();
+    const backend = deps.config.backend();
+    const components = await buildComponentStatus({ preference: backend, gitPath });
+    const repoPaths = Object.keys(deps.repoManager.getRepos()).toSorted((a, b) =>
+      a.localeCompare(b)
     );
-    const lines = [
-      l10n.t("command.diagnostics.header"),
-      `extension=${deps.extensionVersion}`,
-      `vscode=${vscode.version}`,
-      `gitPath=${deps.config.gitPath()}`,
-      `repos=${repos.length}`,
-      `lastActiveRepo=${deps.extensionState.getLastActiveRepo() ?? "(none)"}`,
-      `panelOpen=${deps.getCurrentPanel() ? "true" : "false"}`
-    ];
-    for (const repo of repos) lines.push(`repo=${repo}`);
+    const repos = await Promise.all(
+      repoPaths.map(async (repo) => ({ path: repo, remotes: await readRepoRemotes(repo, gitPath) }))
+    );
+    return {
+      ...readProcessFacts(),
+      extensionVersion: deps.extensionVersion,
+      hostVersion: vscode.version,
+      appName: vscode.env?.appName,
+      workspaceTrusted: vscode.workspace?.isTrusted,
+      backend,
+      git: components.git,
+      engine: components.engine,
+      graphLoad: components.graphLoad,
+      changedSettings: deps.changedSettings?.(),
+      repos,
+      logLines: deps.logAccess?.recentLines(DIAGNOSTICS_LOG_LINES)
+    };
+  }
 
-    deps.outputChannel.appendLine(lines.join("\n"));
+  async function showDiagnostics() {
+    const report = buildDiagnosticsReport(await collectFacts(), { pathMode: "full" });
+    deps.outputChannel.appendLine(`${l10n.t("command.diagnostics.header")}\n${report}`);
     deps.outputChannel.show(true);
     await windowApi.showInformationMessage(l10n.t("command.diagnostics.written"));
+  }
+
+  async function copyReportToClipboard(report: string, successKey: string) {
+    const copied = await (deps.copyText ?? copyToClipboard)(report);
+    if (copied) await windowApi.showInformationMessage(l10n.t(successKey));
+    else await windowApi.showErrorMessage(l10n.t("command.copyDiagnostics.failed"));
+  }
+
+  async function openReportAsIssue(facts: DiagnosticsFacts) {
+    const body = buildDiagnosticsReport(facts, { pathMode: "folderNames", issueSkeleton: true });
+    const url = buildNewIssueUrl(body);
+    if (url === null) {
+      await copyReportToClipboard(body, "command.copyDiagnostics.issueTooLong");
+      return;
+    }
+    const opener =
+      deps.openExternal ?? ((target) => vscode.env.openExternal(vscode.Uri.parse(target)));
+    await opener(url);
+  }
+
+  async function deliverReport(choice: DiagnosticsChoice, facts: DiagnosticsFacts) {
+    const modes: Record<Exclude<DiagnosticsChoice, "issue">, PathMode> = {
+      clipboard: "full",
+      documentFull: "full",
+      documentFolders: "folderNames"
+    };
+    if (choice === "issue") {
+      await openReportAsIssue(facts);
+      return;
+    }
+    const report = buildDiagnosticsReport(facts, { pathMode: modes[choice] });
+    if (choice === "clipboard") {
+      await copyReportToClipboard(report, "command.copyDiagnostics.copied");
+    } else {
+      await windowApi.openUntitledMarkdown(report);
+    }
+  }
+
+  async function copyDiagnostics() {
+    const picked = await windowApi.showChoice(
+      [
+        { id: "clipboard", label: l10n.t("command.copyDiagnostics.clipboard") },
+        { id: "documentFull", label: l10n.t("command.copyDiagnostics.documentFull") },
+        { id: "documentFolders", label: l10n.t("command.copyDiagnostics.documentFolders") },
+        { id: "issue", label: l10n.t("command.copyDiagnostics.issue") }
+      ],
+      l10n.t("command.copyDiagnostics.placeholder")
+    );
+    if (picked === undefined) return;
+    await deliverReport(picked as DiagnosticsChoice, await collectFacts());
   }
 
   async function openLogFile() {
@@ -334,6 +435,7 @@ export function createCommandManager(deps: CommandManagerDeps) {
     register("git-graph-libre.addRepo", () => addRepository());
     register("git-graph-libre.removeRepo", () => removeRepository());
     register("git-graph-libre.showDiagnostics", () => showDiagnostics());
+    register("git-graph-libre.copyDiagnostics", () => copyDiagnostics());
     register("git-graph-libre.openLogFile", () => openLogFile());
     register("git-graph-libre.copyRecentLog", () => copyRecentLog());
     register("git-graph-libre.trustRepository", () => deps.trustRepository?.());

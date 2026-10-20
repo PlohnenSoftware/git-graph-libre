@@ -8,6 +8,7 @@
   "command.addRepo": "Add Git Graph Repository",
   "command.removeRepo": "Remove Git Graph Repository",
   "command.showDiagnostics": "Show Git Graph Diagnostics",
+  "command.copyDiagnostics": "Copy Git Graph Libre Diagnostics Report",
   "command.openLogFile": "Open Git Graph Libre Log File",
   "command.copyRecentLog": "Copy Recent Git Graph Libre Log",
   "command.trustRepository": "Trust Repository in Git…",

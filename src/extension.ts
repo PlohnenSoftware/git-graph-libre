@@ -169,6 +169,7 @@ export function activate(context: vscode.ExtensionContext) {
     extensionVersion: String(context.extension.packageJSON.version ?? "unknown"),
     outputChannel: logger,
     logAccess: logger,
+    changedSettings: () => Object.keys(explicitExtensionSettings(context.extensionPath)),
     config,
     extensionState,
     repoManager,

@@ -190,6 +190,11 @@
       },
       {
         "category": "Git Graph Libre",
+        "command": "git-graph-libre.copyDiagnostics",
+        "title": "%command.copyDiagnostics%"
+      },
+      {
+        "category": "Git Graph Libre",
         "command": "git-graph-libre.openLogFile",
         "title": "%command.openLogFile%"
       },
