@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D66 · ready · CI · ~300 lines: the release stalled because GitHub had no
+  D66 · integrated · CI · ~300 lines: the release stalled because GitHub had no
   macOS arm64 runner, twice. Redesign `publish.yml` and `verify-vsix.yml`:
   a gate job publishes when at most two of the ten verify legs never got a
   runner, each retried automatically once in a one-leg run; any leg that ran
@@ -10,7 +10,7 @@ summary: >-
 
 # D66 — A release gate that tolerates runner shortages
 
-Status: done — awaiting integration
+Status: integrated d3e82c4
 Needs: —
 Decisions: the maintainer, `2026-10-20`. "2 of 10 runs can be not runned and
 it will still pass to publish after timeout but more will need rerun; make
