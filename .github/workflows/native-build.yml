@@ -12,8 +12,15 @@ name: native
 # script rather than taken from the runner image, because zig 0.16 breaks the
 # macOS link (see the constant's comment there).
 
+# `ref` is the tag a manual release run builds (`publish.yml`'s `tag` input);
+# empty builds the triggering ref.
 on:
   workflow_call:
+    inputs:
+      ref:
+        description: Tag or ref to build; empty for the triggering ref
+        type: string
+        default: ""
   workflow_dispatch:
 
 jobs:
@@ -22,6 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.ref || '' }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v7.1.0
