@@ -166,6 +166,18 @@ describe("[result] lines", () => {
     );
   });
 
+  it("redacts URL credentials in the error text", async () => {
+    const lines = capture();
+    await traceRequest("loadRepoInfo", 1, async () => {
+      logReadResponse("loadRepoInfo", "remotes=0 authors=0 tags=0 stashes=0", {
+        message: "fatal: unable to access 'https://user:secret@host/repo.git/'"
+      });
+    });
+    const line = lines.find((entry) => entry.startsWith("[result]")) ?? "";
+    expect(line).toContain("<redacted>@");
+    expect(line).not.toContain("secret");
+  });
+
   it("never throws on a result without repository info", () => {
     expect(describeRepoInfoCounts({ repoInfo: null })).toBe(
       "remotes=unknown authors=unknown tags=unknown stashes=unknown"

@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { redactText } from "./gitRunner";
 
 export type ServedBy = "engine" | "cli";
 type RequestContext = {
@@ -55,7 +56,7 @@ function firstLine(message: string): string {
 }
 
 function errorField(error: { message: string } | null): string {
-  return error === null ? "none" : JSON.stringify(firstLine(error.message));
+  return error === null ? "none" : JSON.stringify(redactText(firstLine(error.message)));
 }
 
 /**

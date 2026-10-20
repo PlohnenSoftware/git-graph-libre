@@ -109,7 +109,7 @@ function redactUrlCredentials(value: string): string {
   return output + value.slice(cursor);
 }
 
-function redactText(value: string): string {
+export function redactText(value: string): string {
   return redactUrlCredentials(value);
 }
 
