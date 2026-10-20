@@ -70,8 +70,11 @@ function logReadResult(fields: string, error: { message: string } | null): void 
 }
 
 export function describeRepoInfoCounts(result: {
-  repoInfo: { remotes: unknown[]; authors: unknown[]; tags: unknown[]; stashes: unknown[] };
+  repoInfo: { remotes: unknown[]; authors: unknown[]; tags: unknown[]; stashes: unknown[] } | null;
 }): string {
+  // A log line must never be the reason a response is not sent.
+  if (result.repoInfo === null)
+    return "remotes=unknown authors=unknown tags=unknown stashes=unknown";
   const { remotes, authors, tags, stashes } = result.repoInfo;
   return `remotes=${remotes.length} authors=${authors.length} tags=${tags.length} stashes=${stashes.length}`;
 }

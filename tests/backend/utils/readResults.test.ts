@@ -166,6 +166,12 @@ describe("[result] lines", () => {
     );
   });
 
+  it("never throws on a result without repository info", () => {
+    expect(describeRepoInfoCounts({ repoInfo: null })).toBe(
+      "remotes=unknown authors=unknown tags=unknown stashes=unknown"
+    );
+  });
+
   it("counts loadCommits and whether more are available", async () => {
     expect(describeCommitCounts({ commits: [1, 2, 3], moreCommitsAvailable: true })).toBe(
       "commits=3 moreAvailable=true"
