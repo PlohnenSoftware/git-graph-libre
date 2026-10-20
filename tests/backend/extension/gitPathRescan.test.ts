@@ -81,7 +81,8 @@ vi.mock("vscode", () => ({
     registerCommand: () => ({ dispose: () => {} }),
     executeCommand: vi.fn(async () => {})
   },
-  env: { language: "en" },
+  version: "1.95.0",
+  env: { language: "en", appName: "Visual Studio Code" },
   ViewColumn: { One: 1 },
   ExtensionMode: { Production: 1, Development: 2, Test: 3 }
 }));
@@ -194,6 +195,20 @@ function makeContext() {
 }
 
 describe("activate git.path rescan", () => {
+  it("writes the session header once, with the host and the log file path", async () => {
+    channelLines.length = 0;
+    const context = makeContext();
+    activate(context);
+    await vi.waitFor(() =>
+      expect(channelLines.filter((line) => line.includes("[session] engine"))).toHaveLength(1)
+    );
+    const session = channelLines.filter((line) => line.includes("[session]"));
+    expect(session).toHaveLength(5);
+    expect(session[0]).toContain('extension=1.5.1 host=1.95.0 app="Visual Studio Code"');
+    expect(session[2]).toContain("git-graph-libre.log");
+    expect(session[2]).toContain("backend=");
+  });
+
   it("creates the log mirror folder under the context's logUri", () => {
     const context = makeContext();
     activate(context);

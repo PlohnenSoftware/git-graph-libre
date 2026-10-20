@@ -45,8 +45,8 @@ export function activate(context: vscode.ExtensionContext) {
   void logSessionHeader(
     {
       extensionVersion: String(context.extension.packageJSON.version ?? "unknown"),
-      hostVersion: vscode.version ?? "unknown",
-      appName: vscode.env.appName ?? "unknown",
+      hostVersion: vscode.version,
+      appName: vscode.env.appName,
       platform: process.platform,
       arch: process.arch,
       osRelease: os.release(),
