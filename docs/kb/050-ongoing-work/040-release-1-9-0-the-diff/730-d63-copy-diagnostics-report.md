@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D63 · waiting, needs D61, D62 · TypeScript + manifest · ~300 lines: issue #31's
+  D63 · ready (D61, D62 integrated) · TypeScript + manifest · ~300 lines: issue #31's
   "Copy Diagnostics Report". A `vscode`-free builder assembles a report
   shaped like the bug template from facts the extension already has,
   redacted, with the recent log; a command offers it on the clipboard, as an
@@ -10,7 +10,7 @@ summary: >-
 
 # D63 — Copy Diagnostics Report
 
-Status: waiting — needs D61 and D62 integrated
+Status: ready
 Needs: D61, D62
 Decisions: — (the maintainer's own proposal in issue #31, "Commands" 1 and 3,
 and its privacy guardrails)
