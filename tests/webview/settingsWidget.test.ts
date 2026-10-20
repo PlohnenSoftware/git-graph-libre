@@ -11,7 +11,7 @@ const config: GitRepoConfig = {
 };
 
 const labels: SettingsWidgetModel["labels"] = {
-  title: "Repository Settings",
+  title: "Settings",
   close: "Close settings",
   repositoryTab: "Repository",
   extensionTab: "Extension",
