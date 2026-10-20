@@ -64,6 +64,12 @@ import type { GitFileChangeType, GitQueryError } from "@/backend/types";
 import { formatGitCommandRecord } from "@/backend/utils/gitCommandLog";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { selectedLogRefs } from "@/backend/utils/logFilters";
+import {
+  describeCommitCounts,
+  describeRepoInfoCounts,
+  logApplication,
+  logReadResponse
+} from "@/backend/utils/operationLog";
 import { abbrevCommit } from "@/backend/utils/string";
 import type { Config } from "@/config";
 import { encodeDiffDocUri } from "@/diffDocProvider";
@@ -567,6 +573,7 @@ export function registerMessageHandlers(
       // the command name and the outcome are sent — never `msg`, which carries
       // repository paths, branch names, and commit hashes.
       telemetry?.logFeature(command, status === null);
+      if (status !== null) logApplication(command, "errorResponse");
       bridge.post({ command, status } as ResponseMessage);
     });
   }
@@ -790,6 +797,7 @@ export function registerMessageHandlers(
       recordGitCommand
     });
     noteReadFailure(msg.repo, result.error);
+    logReadResponse("loadCommits", describeCommitCounts(result), result.error);
 
     // History recovery, the signed-tag badge and submodule repositories are
     // features nobody invokes — they change what the graph contains or which
@@ -859,6 +867,7 @@ export function registerMessageHandlers(
       recordGitCommand
     });
     noteReadFailure(currentRepo, result.error);
+    if (result.error !== null) logApplication("loadBranches", "errorResponse");
     bridge.post({ command: "loadBranches", requestId: msg.requestId, ...result });
   });
 
@@ -871,6 +880,7 @@ export function registerMessageHandlers(
       recordGitCommand
     });
     noteReadFailure(msg.repo, result.error);
+    logReadResponse("loadRepoInfo", describeRepoInfoCounts(result), result.error);
     bridge.post({ command: "loadRepoInfo", requestId: msg.requestId, ...result });
   });
 

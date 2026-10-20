@@ -24,6 +24,7 @@ import { simpleGit } from "simple-git";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AvatarManager } from "@/avatarManager";
 import type { GitClient } from "@/backend/gitClient";
+import { setOperationLog, traceRequest } from "@/backend/utils/operationLog";
 import type { Config } from "@/config";
 import type { DiffTabRequest } from "@/diffTabTypes";
 import { registerMessageHandlers } from "@/extension/messageHandler";
@@ -384,6 +385,88 @@ describe("registerMessageHandlers", () => {
       },
       error: null
     });
+  });
+
+  it("shows the whole chain in the log when a sub-query errors on loadRepoInfo (the #30 shape)", async () => {
+    const globalDir = fs.mkdtempSync(path.join(os.tmpdir(), "ggl-d62-chain-"));
+    const savedGlobal = process.env.GIT_CONFIG_GLOBAL;
+    // A directory where the global config file belongs: reading it errors.
+    process.env.GIT_CONFIG_GLOBAL = globalDir;
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    try {
+      const { handlers, posts } = registerHandlersForTest();
+      const handler = handlers.get("loadRepoInfo");
+      await traceRequest("loadRepoInfo", 42, async () => {
+        await handler?.({ command: "loadRepoInfo", requestId: 42, repo, showStashes: true });
+      });
+      const response = posts[0] as { error: { message: string } | null };
+      expect(response.error).not.toBeNull();
+      const chain = lines.filter((line) => /^\[(request|result|application)\]/.test(line));
+      expect(chain).toEqual([
+        expect.stringMatching(
+          /^\[request\] request=\d+ command=loadRepoInfo clientRequest=42 started$/
+        ),
+        expect.stringMatching(
+          /^\[result\] request=\d+ command=loadRepoInfo clientRequest=42 remotes=\d+ authors=\d+ tags=\d+ stashes=\d+ error=".+" servedBy=cli$/
+        ),
+        expect.stringMatching(
+          /^\[application\] request=\d+ command=loadRepoInfo clientRequest=42 response=loadRepoInfo category=errorResponse$/
+        ),
+        expect.stringMatching(/^\[request\] .* completed \d+ms$/)
+      ]);
+    } finally {
+      log.dispose();
+      if (savedGlobal === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+      else process.env.GIT_CONFIG_GLOBAL = savedGlobal;
+      fs.rmSync(globalDir, { recursive: true, force: true });
+    }
+  });
+
+  it("logs a loadCommits result line and an application line for a failed action", async () => {
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    try {
+      const { handlers } = registerHandlersForTest();
+      await traceRequest("loadCommits", 3, async () => {
+        await handlers.get("loadCommits")?.({
+          command: "loadCommits",
+          requestId: 3,
+          repo,
+          branchName: "",
+          branches: null,
+          authors: null,
+          tags: null,
+          maxCommits: 5,
+          showRemoteBranches: true,
+          hiddenRemotes: [],
+          showTags: true,
+          includeReflog: false,
+          includeUnreachableCommits: false,
+          onlyFollowFirstParent: false,
+          commitOrdering: "date",
+          hard: true
+        } as RequestMessage);
+      });
+      expect(lines.find((line) => line.startsWith("[result]"))).toMatch(
+        /command=loadCommits clientRequest=3 commits=\d+ moreAvailable=(true|false) error=none servedBy=cli$/
+      );
+      await traceRequest("checkoutBranch", 4, async () => {
+        await handlers.get("checkoutBranch")?.({
+          command: "checkoutBranch",
+          requestId: 4,
+          repo,
+          branchName: "does-not-exist-xyz",
+          remoteBranch: null
+        } as RequestMessage);
+      });
+      expect(lines.find((line) => line.startsWith("[application]"))).toMatch(
+        /command=checkoutBranch clientRequest=4 response=checkoutBranch category=errorResponse$/
+      );
+      expect(lines.join("\n")).not.toContain("does-not-exist-xyz");
+    } finally {
+      log.dispose();
+    }
   });
 
   it("echoes request ids when searching commits", async () => {
