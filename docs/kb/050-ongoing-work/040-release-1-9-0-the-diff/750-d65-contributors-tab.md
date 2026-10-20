@@ -10,7 +10,7 @@ summary: >-
 
 # D65 — A Contributors tab
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 on 2026-10-20 12:00
 Needs: — (D64 runs in parallel; whichever is integrated second is rebased)
 Decisions: the maintainer, `2026-10-20`: "add tab with contribution notice
 listing all ppl who contributed also include agents sections mentioning AI
