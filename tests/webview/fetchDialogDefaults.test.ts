@@ -12,6 +12,7 @@ const FETCH_TAGS_SETTING_KEY = `git-graph-libre.${FETCH_TAGS_CONFIG_KEY}`;
 type LoadBranchesRequest = Extract<GGL.RequestMessage, { command: "loadBranches" }>;
 type LoadCommitsRequest = Extract<GGL.RequestMessage, { command: "loadCommits" }>;
 type LoadRepoInfoRequest = Extract<GGL.RequestMessage, { command: "loadRepoInfo" }>;
+type LoadRepoInfoError = Extract<GGL.ResponseMessage, { command: "loadRepoInfo" }>["error"];
 
 function makeViewState(fetchTagsByDefault: boolean): GGL.GitGraphViewState {
   return {
@@ -127,7 +128,11 @@ function receiveFetchTagsSetting(value: boolean) {
  * until the repo is known to have a remote), optionally flips the setting live
  * the way the settings hub does, then opens the Fetch popup.
  */
-async function openFetchDialog(fetchTagsByDefault: boolean, applySetting?: boolean) {
+async function openFetchDialog(
+  fetchTagsByDefault: boolean,
+  applySetting?: boolean,
+  repoInfoError: LoadRepoInfoError = null
+) {
   vi.resetModules();
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   const vscodeMock = createVscodeMock();
@@ -139,7 +144,7 @@ async function openFetchDialog(fetchTagsByDefault: boolean, applySetting?: boole
     command: "loadRepoInfo",
     requestId: loadRepoInfoRequest.requestId,
     repoInfo,
-    error: null
+    error: repoInfoError
   });
   const loadBranchesRequest: LoadBranchesRequest = latest(vscodeMock.sentMessages, "loadBranches");
   receive({
@@ -193,6 +198,19 @@ describe("fetch dialog defaults", () => {
     expect((document.getElementById("dialogInput1") as HTMLInputElement | null)?.checked).toBe(
       false
     );
+  });
+
+  it("keeps the remotes and Fetch when the repo-info response carries an error", async () => {
+    // Issue #30: a failed sub-query (for example a missing global config)
+    // used to empty remotes, tags and authors and hide Fetch.
+    await openFetchDialog(true, undefined, {
+      message: "Unable to load global Git config",
+      stderr: null,
+      exitCode: 128,
+      task: null
+    });
+
+    expect(document.getElementById("pushTagsBtn")?.hasAttribute("hidden")).toBe(false);
   });
 
   it("leaves the fetch tags option unchecked when the setting is disabled", async () => {

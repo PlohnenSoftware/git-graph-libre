@@ -631,12 +631,12 @@ class GitGraphView {
     }
   }
 
-  public loadRepoInfo(requestId: number, repoInfo: GitRepoInfo, errorReason: string | null = null) {
+  public loadRepoInfo(requestId: number, repoInfo: GitRepoInfo) {
     if (!this.acceptLoadRepoInfoResponse(requestId)) return;
-    this.gitAuthors = errorReason === null && repoInfo.isRepo ? repoInfo.authors : [];
-    this.gitTags = errorReason === null && repoInfo.isRepo ? repoInfo.tags : [];
-    this.gitRemotes = errorReason === null && repoInfo.isRepo ? repoInfo.remotes : [];
-    this.gitStashes = errorReason === null && repoInfo.isRepo ? repoInfo.stashes : [];
+    this.gitAuthors = repoInfo.isRepo ? repoInfo.authors : [];
+    this.gitTags = repoInfo.isRepo ? repoInfo.tags : [];
+    this.gitRemotes = repoInfo.isRepo ? repoInfo.remotes : [];
+    this.gitStashes = repoInfo.isRepo ? repoInfo.stashes : [];
     this.gitConfig = repoInfo.isRepo ? repoInfo.config : createEmptyGitConfig();
     this.currentAuthors = this.keepAvailableSelections(this.currentAuthors, this.gitAuthors);
     this.currentTags = this.keepAvailableSelections(this.currentTags, this.gitTags);
@@ -6786,8 +6786,7 @@ const responseHandlers: ResponseHandlerMap = {
       msg.hard,
       formatQueryError(msg.error)
     ),
-  loadRepoInfo: (msg) =>
-    gitGraph.loadRepoInfo(msg.requestId, msg.repoInfo, formatQueryError(msg.error)),
+  loadRepoInfo: (msg) => gitGraph.loadRepoInfo(msg.requestId, msg.repoInfo),
   loadExtensionSettings: (msg) =>
     gitGraph.loadExtensionSettings(msg.requestId, msg.settings, msg.status),
   loadRepos: (msg) => gitGraph.loadRepos(msg.repos, msg.lastActiveRepo),
