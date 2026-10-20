@@ -10,7 +10,7 @@ summary: >-
 
 # D65 — A Contributors tab
 
-Status: claimed by Claude Sonnet 5.5 on 2026-10-20 12:00
+Status: done — awaiting integration
 Needs: — (D64 runs in parallel; whichever is integrated second is rebased)
 Decisions: the maintainer, `2026-10-20`: "add tab with contribution notice
 listing all ppl who contributed also include agents sections mentioning AI
@@ -114,4 +114,11 @@ project's commits.
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Claude Sonnet 5.5, 2026-10-20
+- **Branch and commits:** `diff-1.9.0/d65` — `4951ced G docs(release): claim D65 (D65)`; `bbf12e1 G feat(settings): add the contributors data module (D65)`; `8a1dda9 G feat(scripts): add contributors:agents to list co-author identities (D65)`; `651dd4d G feat(settings): add a Contributors tab to the Settings popup (D65)`; the report commit follows these
+- **Files changed:** `src/webview/contributors.ts` +64 (new), `scripts/list-coauthor-agents.mjs` +31 (new), `package.json` +1, `src/types.ts` +1/−1, `src/webview/settingsWidget.ts` +66, `src/webview/main.ts` +10/−1, `src/extension/webviewL10n.ts` +8, `l10n/bundle.l10n*.json` +8 each (five), `media/settings.css` +25, `tests/webview/contributors.test.ts` +50 (new), `tests/webview/settingsWidget.test.ts` +35, `tests/webview/settingsWidgetActions.test.ts` +26, `tests/webview/rendering.test.ts` +3/−2. About 361 added lines in all, 215 outside tests.
+- **Tests added or changed:** `contributors.test.ts` (6 cases: rosters found, every NOTICE.md and LICENSE.mit person credited, nobody credited that no roster names, no `@` or email-shaped string, no dependabot); `settingsWidget.test.ts` (+2: tab role and aria wiring, eras and agents listed); `settingsWidgetActions.test.ts` (+1: arrow keys, End and wrap-around reach and leave the tab). Changed `rendering.test.ts`: its End-key expectation now lands on the Contributors tab, which is the new last tab (the check itself is unchanged in strength). Webview 781 → 790 passed; backend 1109 passed, 60 skipped, unchanged.
+- **Gates:** biome clean (strict, `--error-on-warnings`, every touched .ts/.json/.mjs file); typecheck clean; test backend 1109/1169 (60 skipped), webview 790/790; l10n 100% in all four translations; kb:check clean; Rust arm n/a; Sonar: integrator
+- **Acceptance:** Tab renders in dark and light themes: met, renders at `/tmp/claude-1000/-home-zam-Desktop-prog--GGL-git-graph-libre/b4d56831-757a-4187-a220-37dfb594841e/scratchpad/d65/contributors-dark.png` and `.../contributors-light.png` (PyQt6 QtWebEngine under `xvfb-run`, real `media/*.css`, Dark Modern and Light Modern token values). Strict Biome, typecheck, test counts, l10n 100%, kb:check: met, above. `pnpm run contributors:agents` output: `151 Claude Sonnet 5.5`, `137 Muse Code`, `84 Claude Opus 5.5`, `80 Claude Opus 5 (1M context)`, `26 Claude Haiku 5.5`, `18 Codex`, `16 Muse Code powered by Meta Muse Spark`, `5 ZCode`, `4 neophack`, `3 Kilo`, `3 Muse Code D21 (muse-wonder-full-1.0)`, `3 Muse Spark`, `2 Claude Sonnet 5`, `2 Muse Code D42F (muse-wonder-full-1.0)`, `2 zamkorus`, `1 Copilot`.
+- **Deviations from the slice:** none. `Kilo` is listed without a maker because the slice names none and the trailers give only a `z.ai` address.
+- **Open questions / follow-ups:** Git author `Thomas KT Chan` (4 commits on 2026-10-15: revert/pull/cherry-pick `--no-commit` dialog option, multi-select quick toggling, Enter to confirm dialogs, scrolling a tall context menu) is in no roster in `NOTICE.md` or `LICENSE.mit`, so the tab does not credit them; the maintainer should decide on a roster entry. `Arezimt Legion` (git author name) is credited as "Arezimt (Arezim)" per the roster. `Copilot` and `copilot-swe-agent[bot]` are shown as "GitHub Copilot". `neophack` and `zamkorus` trailers are people (the roster has both). The Contributors tab is not wired to load anything on open, unlike the Extension tab.
