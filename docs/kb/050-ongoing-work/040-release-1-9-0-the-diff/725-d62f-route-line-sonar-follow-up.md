@@ -8,7 +8,7 @@ summary: >-
 
 # D62F — Route-line Sonar follow-up
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-10-20 17:49
 Needs: D62
 Decisions: —
 Kind: TypeScript · Size budget: ~10 changed lines outside tests
