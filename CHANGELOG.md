@@ -63,6 +63,12 @@ Libre's own, and diff details that match Git.
   stopped being one, used to drop out of file lists on both backends. It
   now appears with its own "Type changed" badge and opens like a modified
   file.
+- **Open the log file, or copy its recent lines.** **Open Log File** opens
+  the current window's Git Graph Libre log in an editor, and **Copy Recent
+  Log** copies its last 200 lines, so a bug report no longer needs the log
+  folder found on disk. Both are in the Command Palette, beside **Show
+  diagnostics** on the startup screen, and in the Hidden menu. The log
+  stays on your machine; nothing is sent.
 - **Every diff read names its backend.** Git Graph Libre's output now logs
   a line, with a file count, whenever the Rust engine serves file text,
   commit details or a comparison. Until now only reads that went to the Git
@@ -103,6 +109,12 @@ Libre's own, and diff details that match Git.
   close button, and the Summary and Files section headers in commit
   details, comparisons and the staging panel, now stay in place while their
   content scrolls beneath them.
+- **Remotes stay visible without a global Git config.** On a machine with
+  no `~/.gitconfig` (a fresh container, VM or user account), the graph hid
+  Fetch and Push All Tags and emptied the author and tag filters and the
+  stash list, as if the repository had no remote. A missing config file
+  now just means no global identity, on both backends
+  ([#30](https://github.com/PlohnenSoftware/git-graph-libre/issues/30)).
 - **The Source Control title button opens the repository you clicked.**
   With several repositories in the Source Control view, the Git Graph Libre
   button in a repository's title bar opened the last active repository's

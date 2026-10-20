@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D61 · ready · TypeScript + manifest · ~250 lines: issue #31, part 2 and log
+  D61 · integrated · TypeScript + manifest · ~250 lines: issue #31, part 2 and log
   item 5. Keep the last 2,000 log lines in memory, mirror the log to a file in
   the extension's `logUri` folder, and add "Open Log File" and "Copy Recent
   Log" commands, reachable from the Command Palette, the startup screen and
@@ -9,7 +9,7 @@ summary: >-
 
 # D61 — Log retention and the log file
 
-Status: done — awaiting integration
+Status: integrated 5f47fd5
 Needs: —
 Decisions: — (the maintainer's own proposal in issue #31; the orchestrator
 chose the file mirror, see Facts)

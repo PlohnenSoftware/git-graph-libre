@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D62 · waiting, needs D60, D61 · TypeScript · ~250 lines: issue #31's log entries.
+  D62 · ready (D60, D61 integrated) · TypeScript · ~250 lines: issue #31's log entries.
   A session header at activation, a `[result]` line with counts and error
   for the main reads, the specific cause behind each engine decline or
   reroute, and a host-side record of an error response or failure screen
@@ -9,7 +9,7 @@ summary: >-
 
 # D62 — Log results, decline causes and a session header
 
-Status: waiting — needs D60 and D61 integrated
+Status: ready
 Needs: D60, D61
 Decisions: — (the maintainer's own proposal in issue #31, "Log entries to add" 1–4)
 Kind: TypeScript (extension host, backend seam) · Size budget: ~250 changed lines outside tests

@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D60 · ready · TypeScript · ~180 lines: issue #30. With no global Git config
+  D60 · integrated · TypeScript · ~180 lines: issue #30. With no global Git config
   file, `git config --list --global` exits 128, `loadRepoInfo` carries that
   as an error, the engine declines to match, and the webview empties remotes,
   authors, tags and stashes, hiding Fetch. Treat an absent scoped file as
@@ -9,7 +9,7 @@ summary: >-
 
 # D60 — A missing global Git config keeps the remotes
 
-Status: done — awaiting integration
+Status: integrated ec10252
 Needs: —
 Decisions: — (the maintainer's own proposal in issue #30: Fix 1, Fix 2 and
 Fix 3; the orchestrator chose how Fix 1 classifies the failure, see Facts)
