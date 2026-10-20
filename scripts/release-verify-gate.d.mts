@@ -77,3 +77,7 @@ export declare function runGate(
   api: GateApi,
   clockwork: { sleep(ms: number): Promise<void>; clock(): number }
 ): Promise<GateResult>;
+export declare function githubApi(
+  env: Record<string, string | undefined>,
+  ctx: { allLegs: readonly { name: string }[] }
+): GateApi;

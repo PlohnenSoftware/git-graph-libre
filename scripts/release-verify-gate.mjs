@@ -208,6 +208,41 @@ export function renderSummary(result, skipped, maxNotRun) {
   return lines.join("\n");
 }
 
+/** Finds a pending retry's run and lists its jobs; `[leg, jobs]`, or undefined while the run is not there yet. */
+async function lookUpRetry(api, leg, retry, retryRunIds) {
+  const run = retryRunIds[leg] ?? (await api.findRetryRun(retry.token));
+  if (run === undefined) return undefined;
+  retryRunIds[leg] = run;
+  retry.runUrl = run.html_url;
+  return [leg, await api.listJobs(run.id)];
+}
+
+/** The jobs of every dispatched retry run, looked up for all legs at once. */
+async function listRetryJobs(api, retried, retryRunIds) {
+  const pending = Object.entries(retried).filter(([, retry]) => retry.dispatchError === undefined);
+  const found = await Promise.all(pending.map(([leg, retry]) => lookUpRetry(api, leg, retry, retryRunIds)));
+  return Object.fromEntries(found.filter((entry) => entry !== undefined));
+}
+
+async function dispatchOne(api, leg, token) {
+  await api.dispatchRetry(leg, token);
+}
+
+/** Dispatches every requested retry at once; a failed dispatch is recorded on its leg, not thrown. */
+async function dispatchRetries(config, api, clock, legs, retried) {
+  const tokens = legs.map((leg) => {
+    const token = `${config.runId}-${config.legs.indexOf(leg)}-${clock()}`;
+    retried[leg] = { token, dispatchedAt: clock() };
+    return token;
+  });
+  const settled = await Promise.allSettled(legs.map((leg, index) => dispatchOne(api, leg, tokens[index])));
+  settled.forEach((outcome, index) => {
+    if (outcome.status !== "rejected") return;
+    const { reason } = outcome;
+    retried[legs[index]].dispatchError = `dispatch failed: ${reason instanceof Error ? reason.message : String(reason)}`;
+  });
+}
+
 /**
  * Polls, retries each not-run leg once, and returns the final evaluation.
  *
@@ -219,34 +254,20 @@ export async function runGate(config, api, { sleep, clock }) {
   const startedAt = clock();
   const retried = {};
   const retryRunIds = {};
-  for (;;) {
+  const tick = async () => {
     const jobs = await api.listJobs(config.runId);
-    const retryJobs = {};
-    for (const [leg, retry] of Object.entries(retried)) {
-      if (retry.dispatchError !== undefined) continue;
-      const run = retryRunIds[leg] ?? (await api.findRetryRun(retry.token));
-      if (run === undefined) continue;
-      retryRunIds[leg] = run;
-      retry.runUrl = run.html_url;
-      retryJobs[leg] = await api.listJobs(run.id);
-    }
+    const retryJobs = await listRetryJobs(api, retried, retryRunIds);
     const result = evaluateGate(
       { legs: config.legs, jobs, retried, retryJobs, startedAt },
       { now: clock(), queueTimeoutMinutes: config.queueTimeoutMinutes, maxNotRun: config.maxNotRun }
     );
     if (result.state === "fail") return result;
-    for (const leg of result.retryRequested) {
-      const token = `${config.runId}-${config.legs.indexOf(leg)}-${clock()}`;
-      retried[leg] = { token, dispatchedAt: clock() };
-      try {
-        await api.dispatchRetry(leg, token);
-      } catch (error) {
-        retried[leg].dispatchError = `dispatch failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    }
+    await dispatchRetries(config, api, clock, result.retryRequested, retried);
     if (result.state === "pass") return result;
     await sleep(config.pollSeconds * 1000);
-  }
+    return tick();
+  };
+  return tick();
 }
 
 async function githubFetch(env, method, route, body) {
@@ -263,17 +284,23 @@ async function githubFetch(env, method, route, body) {
   return response.status === 204 ? undefined : response.json();
 }
 
-function githubApi(env, ctx) {
+const JOBS_PER_PAGE = 100;
+
+/** All jobs of a run: page 1 says the `total_count`, the other pages are then fetched together. */
+async function listAllJobs(env, repo, runId) {
+  const fetchPage = (page) =>
+    githubFetch(env, "GET", `${repo}/actions/runs/${runId}/jobs?filter=latest&per_page=${JOBS_PER_PAGE}&page=${page}`);
+  const first = await fetchPage(1);
+  const pageCount = Math.ceil((first.total_count ?? first.jobs.length) / JOBS_PER_PAGE);
+  const rest = await Promise.all(Array.from({ length: Math.max(pageCount - 1, 0) }, (_, index) => fetchPage(index + 2)));
+  return [...first.jobs, ...rest.flatMap((data) => data.jobs)];
+}
+
+/** The GitHub-backed `api` of `runGate`; exported so tests can drive it with a stubbed `fetch`. */
+export function githubApi(env, ctx) {
   const repo = `/repos/${env.GITHUB_REPOSITORY}`;
   return {
-    async listJobs(runId) {
-      const jobs = [];
-      for (let page = 1; ; page++) {
-        const data = await githubFetch(env, "GET", `${repo}/actions/runs/${runId}/jobs?filter=latest&per_page=100&page=${page}`);
-        jobs.push(...data.jobs);
-        if (data.jobs.length < 100) return jobs;
-      }
-    },
+    listJobs: (runId) => listAllJobs(env, repo, runId),
     async dispatchRetry(leg, token) {
       const inputs = {
         legs: JSON.stringify(ctx.allLegs.filter((entry) => entry.name === leg)),
@@ -348,8 +375,10 @@ async function main(command, env) {
 }
 
 if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main(process.argv[2], process.env).catch((error) => {
+  try {
+    await main(process.argv[2], process.env);
+  } catch (error) {
     console.error(`::error::${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
-  });
+  }
 }
