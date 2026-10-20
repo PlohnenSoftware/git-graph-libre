@@ -95,7 +95,7 @@
   "settings.contributorsEraOriginal": "Oorspronkelijke Git Graph",
   "settings.contributorsEraEngine": "Rust Git-engine",
   "settings.contributorsAgents": "AI-agents",
-  "settings.contributorsAgentsNote": "Deze AI-agents hebben in deze repository commits mede geschreven, onder leiding van de hierboven genoemde mensen.",
+  "settings.contributorsAgentsNote": "Deze AI-agents hebben in deze repository commits mede geschreven in samenwerking met de hierboven genoemde mensen.",
   "settings.repositoryName": "Repositorynaam",
   "settings.edit": "Bewerken",
   "settings.clear": "Wissen",

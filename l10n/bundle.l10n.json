@@ -95,7 +95,7 @@
   "settings.contributorsEraOriginal": "Original Git Graph",
   "settings.contributorsEraEngine": "Rust Git engine",
   "settings.contributorsAgents": "AI agents",
-  "settings.contributorsAgentsNote": "These AI agents co-authored commits in this repository under the direction of the people above.",
+  "settings.contributorsAgentsNote": "These AI agents co-authored commits in this repository in cooperation with the people above.",
   "settings.repositoryName": "Repository name",
   "settings.edit": "Edit",
   "settings.clear": "Clear",

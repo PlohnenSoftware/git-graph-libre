@@ -95,7 +95,7 @@
   "settings.contributorsEraOriginal": "原版 Git Graph",
   "settings.contributorsEraEngine": "Rust Git 引擎",
   "settings.contributorsAgents": "AI 代理",
-  "settings.contributorsAgentsNote": "這些 AI 代理在上述人員的指導下共同撰寫了本儲存庫中的提交。",
+  "settings.contributorsAgentsNote": "這些 AI 代理與上述人員合作，共同撰寫了本儲存庫中的提交。",
   "settings.repositoryName": "存放庫名稱",
   "settings.edit": "編輯",
   "settings.clear": "清除",

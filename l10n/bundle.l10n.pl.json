@@ -95,7 +95,7 @@
   "settings.contributorsEraOriginal": "Oryginalny Git Graph",
   "settings.contributorsEraEngine": "Silnik Git w Rust",
   "settings.contributorsAgents": "Agenci AI",
-  "settings.contributorsAgentsNote": "Ci agenci AI współtworzyli commity w tym repozytorium pod kierunkiem osób wymienionych powyżej.",
+  "settings.contributorsAgentsNote": "Ci agenci AI współtworzyli commity w tym repozytorium we współpracy z osobami wymienionymi powyżej.",
   "settings.repositoryName": "Nazwa repozytorium",
   "settings.edit": "Edytuj",
   "settings.clear": "Wyczyść",
