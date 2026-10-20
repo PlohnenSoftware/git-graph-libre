@@ -120,6 +120,7 @@
     "l10n:check": "node ./scripts/check-l10n.js",
     "kb:index": "node ./docs/kb/housekeeping.mjs",
     "kb:check": "node ./docs/kb/housekeeping.mjs --check",
+    "contributors:agents": "node ./scripts/list-coauthor-agents.mjs",
     "kb:graph": "graphify update . && node ./docs/kb/housekeeping.mjs --graph && GRAPHIFY_VIZ_NODE_LIMIT=8000 graphify cluster-only . && graphify tree",
     "icons:generate": "node ./scripts/generate-octicons.js && biome format --write src/octicons.ts"
   },
