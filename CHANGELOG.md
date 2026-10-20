@@ -291,6 +291,17 @@ and was analyzed during development but never tagged or published, so its
 work ships here as 1.8.0 — the same call as 1.4.3 and 1.5.1 before it. The
 sequence is v1.6.2 → v1.8.0.
 
+Thanks to Thomas KT Chan (@cktgh) for these pull requests:
+
+- [#22](https://github.com/PlohnenSoftware/git-graph-libre/pull/22): context
+  menu scrolling
+- [#23](https://github.com/PlohnenSoftware/git-graph-libre/pull/23):
+  multi-select quick toggling
+- [#24](https://github.com/PlohnenSoftware/git-graph-libre/pull/24): the
+  `--no-commit` option
+- [#25](https://github.com/PlohnenSoftware/git-graph-libre/pull/25): Enter
+  confirms dialogs
+
 ### Fixed
 
 - **A context menu taller than the window stays inside it and scrolls.**
