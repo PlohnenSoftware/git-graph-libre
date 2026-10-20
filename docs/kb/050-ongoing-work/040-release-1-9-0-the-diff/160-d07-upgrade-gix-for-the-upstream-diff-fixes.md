@@ -9,7 +9,7 @@ summary: >-
 
 # D07 — Upgrade gix for the upstream diff fixes
 
-Status: claimed by Claude Sonnet 5.5 on 2026-10-20 18:16
+Status: done — awaiting integration
 Needs: — (the maintainer chose the GitHub source on `2026-10-20`, instead of
 waiting for a crates.io release)
 Decisions: the maintainer, `2026-10-20`: "lets grab gix (including deps)
@@ -89,4 +89,13 @@ expectation there must flip
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Claude Sonnet 5.5, 2026-10-20 18:30
+- **Branch and commits:** `diff-1.9.0/d07` — `3f0e66c G` claim; `dcfe212 G` gix and every gix-* crate from gitoxide `0a49d46`; `8950b91 G` drop the replacement-ref decline; `b50a886 G` NOTICE line; `dc50f05 G` rename-limit parity test; plus the report commit
+- **Files changed:** `engine/Cargo.toml` +6; `engine/Cargo.lock` +59/−107; `engine/NOTICE.md` +6/−4; `engine/native/core/src/{blob,details,diff,graph,search}.rs` −2/−2/−2/−3/−3 (call sites); `engine/native/core/src/repository.rs` −30 (`uses_replace_refs`, `decline_replace_refs`); `engine/native/core/tests/git_parity.rs` +143/−31; this slice file. No TypeScript changed.
+- **Cargo.lock:** `[patch.crates-io] gix = { git, rev = "0a49d46f6a0b08943930d5247693992b89e98c1b" }` was enough: all 53 `gix`/`gix-*` packages (same 53 as before) now carry `source = git+https://github.com/GitoxideLabs/gitoxide?rev=0a49d46…`; none from the registry; every version number unchanged (gix still 0.89.0). No other package changed version.
+- **Tests added or changed:** `replacement_objects_hand_history_reads_to_git` replaced by `the_engine_matches_git_under_replacement_objects` (history, commit details, comparison, file at revision and search against git, with no replacement, a graft and `core.useReplaceRefs=false`); new `many_candidate_pairs_still_pair_every_inexact_rename_as_git_does` (40 deletes, 30 adds of 90% similar files: 30 renames, as git). Rust workspace: 195 passed before, 196 after (the new rename test). Verified that the rename test fails (0 renames, 70 add/delete rows) on the registry gix and passes on the pinned one.
+- **Myers sweep (scratch harness, not kept: `diff_commit` + `line_counts` against `git diff-tree --numstat -M --diff-filter=AMDR`, last 500 non-merge commits, release build, same engine code, registry gix vs pinned gix):** this repository 12 of 2,001 files differ before, 9 after (all 9 remaining are `graphify-out/graph.json`, a huge generated file; the one list difference is the T type change, excluded by the harness's diff-filter); git.git (`6de20f6092`) 16 of 1,315 before, 0 after; gitoxide checkout (`../gix`, HEAD `abdfc45db`) 17 of 7,835 before, 1 after.
+- **Gates:** biome n/a (no TS touched); typecheck pass; test backend 1169/1169 (91 files), webview 781/781 (63 files), no skips, counts unchanged by construction (no TS test changed), engine rebuilt first; l10n n/a; kb:check pass; Rust arm: fmt, lint, check, test all pass; `engine:build` and `engine:smoke` (1.0.26) pass; Sonar: integrator
+- **Acceptance:** Rust arm and TS gates pass on a rebuilt engine: met. Cargo.lock all-gix from the pinned commit: met (53/53). Rename-limit fixture lists 30 renames: met (`dc50f05`). Myers share before/after: met, numbers above.
+- **Deviations from the slice:** none. `native/core/Cargo.toml` and the TypeScript parity tests needed no change.
+- **Open questions / follow-ups:** The remaining `graph.json` differences look like git's non-minimal Myers heuristic on a very large file versus gix's bounded `MyersMinimal`; not investigated.
