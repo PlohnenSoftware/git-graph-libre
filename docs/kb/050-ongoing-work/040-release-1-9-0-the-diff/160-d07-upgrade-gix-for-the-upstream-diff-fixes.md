@@ -9,7 +9,7 @@ summary: >-
 
 # D07 — Upgrade gix for the upstream diff fixes
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 on 2026-10-20 18:16
 Needs: — (the maintainer chose the GitHub source on `2026-10-20`, instead of
 waiting for a crates.io release)
 Decisions: the maintainer, `2026-10-20`: "lets grab gix (including deps)
