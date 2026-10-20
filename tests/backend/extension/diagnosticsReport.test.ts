@@ -203,6 +203,14 @@ describe("buildDiagnosticsReport", () => {
     ]);
   });
 
+  it("replaces the log tail with one pointer line when asked", () => {
+    const report = buildDiagnosticsReport(FULL, { pathMode: "full", includeLogTail: false });
+
+    expect(report).not.toContain("<details>");
+    expect(report).not.toContain("[git:query]");
+    expect(report).toContain("The recent log was left out to fit the link.");
+  });
+
   it("prepends the bug template's headings for an issue", () => {
     const report = buildDiagnosticsReport(FULL, { pathMode: "folderNames", issueSkeleton: true });
 

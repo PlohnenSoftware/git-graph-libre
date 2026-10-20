@@ -355,10 +355,14 @@ export function createCommandManager(deps: CommandManagerDeps) {
   }
 
   async function openReportAsIssue(facts: DiagnosticsFacts) {
-    const body = buildDiagnosticsReport(facts, { pathMode: "folderNames", issueSkeleton: true });
-    const url = buildNewIssueUrl(body);
+    const base = { pathMode: "folderNames", issueSkeleton: true } as const;
+    const full = buildDiagnosticsReport(facts, base);
+    // Degrade in steps: whole report, then without the log tail, then clipboard.
+    const url =
+      buildNewIssueUrl(full) ??
+      buildNewIssueUrl(buildDiagnosticsReport(facts, { ...base, includeLogTail: false }));
     if (url === null) {
-      await copyReportToClipboard(body, "command.copyDiagnostics.issueTooLong");
+      await copyReportToClipboard(full, "command.copyDiagnostics.issueTooLong");
       return;
     }
     const opener =

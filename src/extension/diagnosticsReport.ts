@@ -70,6 +70,8 @@ export type ReportOptions = {
   pathMode: PathMode;
   /** Prepend the bug template's headings, for a prefilled GitHub issue. */
   issueSkeleton?: boolean;
+  /** Default true. False replaces the log tail with one line saying why it is missing. */
+  includeLogTail?: boolean;
 };
 
 function text(value: string | undefined): string {
@@ -243,6 +245,11 @@ function resultsSection(facts: DiagnosticsFacts, options: ReportOptions): string
 }
 
 function logSection(facts: DiagnosticsFacts, options: ReportOptions): string[] {
+  if (options.includeLogTail === false) {
+    return [
+      "_The recent log was left out to fit the link. Add it with the Copy Recent Log command._"
+    ];
+  }
   const tail = (facts.logLines ?? []).slice(-REPORT_LOG_LINES);
   const body = tail.length === 0 ? [UNKNOWN] : prepareLines(tail, facts, options);
   return [

@@ -650,10 +650,11 @@ describe("command manager", () => {
         true
       );
       expect(decodeURIComponent(url)).toContain("- Extension version: 1.9.0");
+      expect(decodeURIComponent(url)).toContain("Recent log (last 200 lines)");
       expect(harness.copyText).not.toHaveBeenCalled();
     });
 
-    it("copies to the clipboard instead when the issue link would be too long", async () => {
+    it("drops the log tail first when only that makes the issue link fit", async () => {
       const lines = Array.from(
         { length: 200 },
         (_, index) => `[t] line ${index} ${"x".repeat(40)}`
@@ -665,8 +666,28 @@ describe("command manager", () => {
 
       await harness.run("git-graph-libre.copyDiagnostics");
 
+      const url = decodeURIComponent(String(harness.openExternal.mock.calls[0]?.[0]));
+      expect(url).not.toContain("line 199");
+      expect(url).toContain("The recent log was left out to fit the link");
+      expect(url).toContain("Copy Recent Log");
+      expect(url).toContain("- Extension version: 1.9.0");
+      expect(harness.copyText).not.toHaveBeenCalled();
+    });
+
+    it("copies to the clipboard when even the report without the tail is too long", async () => {
+      const harness = makeHarness({}, null, {
+        facts: {
+          extensionVersion: "1.9.0",
+          logLines: ["[t] line 7"],
+          changedSettings: Array.from({ length: 400 }, (_, index) => `git-graph-libre.s${index}`)
+        },
+        choice: "issue"
+      });
+
+      await harness.run("git-graph-libre.copyDiagnostics");
+
       expect(harness.openExternal).not.toHaveBeenCalled();
-      expect(String(harness.copyText.mock.calls[0]?.[0])).toContain("line 199");
+      expect(String(harness.copyText.mock.calls[0]?.[0])).toContain("line 7");
       expect(harness.windowApi.showInformationMessage).toHaveBeenCalledWith(
         expect.stringContaining("too long")
       );
