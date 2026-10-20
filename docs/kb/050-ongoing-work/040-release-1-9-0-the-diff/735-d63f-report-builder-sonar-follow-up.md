@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D63F · ready · TypeScript · ~2 lines: clear the one SonarQube finding wave
+  D63F · integrated · TypeScript · ~2 lines: clear the one SonarQube finding wave
   P's gate found in D63's `src/extension/diagnosticsReport.ts` (S7770, an
   arrow function equivalent to `Boolean` in `environmentSection`). The
   report and every test stay exactly as D63 left them.
@@ -8,7 +8,7 @@ summary: >-
 
 # D63F — Report-builder Sonar follow-up
 
-Status: done — awaiting integration
+Status: integrated 6e50892
 Needs: D63
 Decisions: —
 Kind: TypeScript · Size budget: ~2 changed lines outside tests
