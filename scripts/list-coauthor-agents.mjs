@@ -1,30 +1,38 @@
 /**
- * Prints the distinct `Co-Authored-By` identities in this repository's git
- * history, names only (never addresses), with how many commits carry each.
- * Use it to spot a new AI agent that `src/webview/contributors.ts` does not
- * yet credit. It is not part of the test suite: CI clones may be shallow.
+ * Prints the distinct `Co-Authored-By` identities in a git log, names only
+ * (never addresses), with how many commits carry each. Use it to spot a new
+ * AI agent that `src/webview/contributors.ts` does not yet credit. It is not
+ * part of the test suite: CI clones may be shallow.
+ *
+ * The log is read from standard input, so this script spawns nothing:
+ *
+ *   pnpm run contributors:agents
+ *
+ * runs `git log --format=%B%x00 | node scripts/list-coauthor-agents.mjs`.
  */
-import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
-const TRAILER = /^co-authored-by:\s*(.+?)\s*(?:<[^>]*>)?\s*$/i;
+const TRAILER_KEY = "co-authored-by:";
 
-function readCommitBodies() {
-  return execFileSync("git", ["log", "--format=%B%x00"], {
-    encoding: "utf8",
-    maxBuffer: 256 * 1024 * 1024
-  });
+/** The name on a `Co-Authored-By:` line, or "" when the line is not one. */
+function trailerName(line) {
+  const text = line.replaceAll("\0", "");
+  if (text.slice(0, TRAILER_KEY.length).toLowerCase() !== TRAILER_KEY) return "";
+  const rest = text.slice(TRAILER_KEY.length);
+  const address = rest.indexOf("<");
+  return (address === -1 ? rest : rest.slice(0, address)).trim();
 }
 
 function countTrailerNames(log) {
-  const counts = new Map();
+  const tally = new Map();
   for (const line of log.split("\n")) {
-    const name = TRAILER.exec(line.replaceAll("\0", ""))?.[1];
-    if (name !== undefined && name !== "") counts.set(name, (counts.get(name) ?? 0) + 1);
+    const name = trailerName(line);
+    if (name !== "") tally.set(name, (tally.get(name) ?? 0) + 1);
   }
-  return counts;
+  return tally;
 }
 
-const counts = countTrailerNames(readCommitBodies());
+const counts = countTrailerNames(readFileSync(0, "utf8"));
 const rows = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 for (const [name, count] of rows) {
   console.log(`${String(count).padStart(5)}  ${name}`);
