@@ -23,7 +23,8 @@ Libre's own, and diff details that match Git.
   commit, branch and tag context menus takes a commit SHA, a branch, a tag
   or an expression such as `HEAD~2`, suggesting `HEAD` and the loaded
   branches and tags as you type, and compares with it. A name that doesn't
-  resolve to a commit gets a clear error rather than an empty comparison. This is the second half of
+  resolve to a commit gets a clear error rather than an empty comparison.
+  This is the second half of
   [#26](https://github.com/PlohnenSoftware/git-graph-libre/issues/26).
 - **A comparison says what it compares.** Its details read "Comparing
   *base* → *compare*", with branch or tag names where they're known, and
