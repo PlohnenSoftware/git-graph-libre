@@ -8,7 +8,7 @@ summary: >-
 
 # D65G — Credit Thomas KT Chan
 
-Status: claimed by Claude Haiku 5.5 (D65G slice agent) on 2026-10-20 18:43
+Status: done — awaiting integration
 Needs: D65
 Decisions: — (the maintainer asked for every contributor to be listed;
 `NOTICE.md` compiles its roster from the git author records, and this author
@@ -56,4 +56,33 @@ expectations hard-code the roster length
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Claude Haiku 5.5 (D65G slice agent), 2026-10-20 18:44
+- **Branch and commits:** `diff-1.9.0/d65g` —
+  - `8b3605b` G docs(release): claim slice D65G (D65G)
+  - `ab2ad4a` G docs(notice): credit Thomas KT Chan in the AGPL roster (D65G)
+  - `637fd48` G feat(settings): list Thomas KT Chan in the Contributors tab (D65G)
+  - `a2648b6` G docs(changelog): credit Thomas KT Chan for #22–#25 in 1.8.0 (D65G)
+- **Files changed:** `NOTICE.md` (+1/−0); `src/webview/contributors.ts` (+2/−1);
+  `CHANGELOG.md` (+11/−0, `[1.8.0]` only); this slice file (Status line and
+  Report only, +2/−1 at the claim and status). No test file changed.
+- **Tests added or changed:** none. Roster-parity tests in
+  `tests/webview/contributors.test.ts` (6 tests) pass with the new name; the
+  test file's roster-count assertions are lower bounds, so nothing hard-codes
+  the length.
+- **Gates:** biome `npx biome check --config-path biome.strict.jsonc
+  --error-on-warnings src/webview/contributors.ts` clean; typecheck clean;
+  test backend 1109 passed, 60 skipped, of 1169 (91 files); webview 790 passed
+  of 790 (64 files); l10n n/a (no user-visible string); kb:check exit 0; Rust
+  arm n/a; Sonar: integrator
+- **Acceptance:** D65's roster-parity test still passes with the new name: met
+  (6/6 in `contributors.test.ts`, full webview project green). No email address
+  added anywhere: met (the new row and the tab entry carry only the name and
+  the GitHub handle `cktgh`). Strict Biome, typecheck, test counts, kb:check:
+  met as listed above.
+- **Deviations from the slice:** the changelog credit is the second option
+  of Step 3 (one line under `[1.8.0]` naming the four PRs with links), laid out
+  as a short bulleted list, so each line stays within 80 characters. No other
+  wording changed.
+- **Open questions / follow-ups:** none. Note the D65 report's open question
+  about Thomas KT Chan's missing roster entry is now resolved by this slice's
+  NOTICE row; the LICENSE.mit roster is untouched, as the slice requires.
