@@ -74,9 +74,6 @@ pub fn load_commits(repo: &Repo, options: &LogOptions) -> Result<GitCommitData> 
         ));
     }
 
-    // Replacement objects rewrite the history git shows, and the engine cannot apply them.
-    repo.decline_replace_refs()?;
-
     let ref_options = RefReadOptions {
         show_remote_branches: options.show_remote_branches && !options.defer_remote_refs,
         show_remote_heads: options.show_remote_heads,

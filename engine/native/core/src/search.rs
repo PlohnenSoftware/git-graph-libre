@@ -134,9 +134,6 @@ pub fn search_commits(repo: &Repo, options: &SearchOptions) -> Result<Vec<GitSea
     }
     let needle = query.to_lowercase();
     let limit = options.max_results as usize;
-
-    // The history git searches runs through the replacement objects the engine cannot apply.
-    repo.decline_replace_refs()?;
     let tips = search_tips(repo, options)?;
     if tips.is_empty() {
         return Ok(Vec::new());

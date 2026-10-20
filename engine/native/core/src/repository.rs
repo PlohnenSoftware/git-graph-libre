@@ -110,36 +110,6 @@ impl Repo {
         names
     }
 
-    /// Does the repository carry replacement objects (`git replace`, `refs/replace/*`)?
-    ///
-    /// git applies them to every object it reads unless `core.useReplaceRefs=false` turns that
-    /// off. gix 0.88 inverts the setting when it opens a repository: by default it never applies
-    /// them, and with `core.useReplaceRefs=false` it does — the opposite of git either way. So any
-    /// read whose answer depends on them is declined whenever one exists, and the CLI answers it.
-    pub fn uses_replace_refs(&self) -> bool {
-        let git = self.borrow();
-        git.references()
-            .ok()
-            .and_then(|platform| {
-                platform
-                    .prefixed("refs/replace/")
-                    .ok()
-                    .map(|mut refs| refs.next().is_some())
-            })
-            .unwrap_or(false)
-    }
-
-    /// Decline a read that would show the wrong history under replacement objects (see
-    /// [`Repo::uses_replace_refs`]).
-    pub fn decline_replace_refs(&self) -> Result<()> {
-        if self.uses_replace_refs() {
-            return Err(Error::unsupported(
-                "The engine does not apply replacement objects (git replace)",
-            ));
-        }
-        Ok(())
-    }
-
     /// Resolve a revision specification (`HEAD`, a branch name, a hash, `HEAD~2`, ...) to a commit.
     pub fn resolve_commit(&self, rev: &str) -> Result<gix::ObjectId> {
         resolve_commit_in(&self.borrow(), rev)

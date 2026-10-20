@@ -17,7 +17,7 @@ use std::process::Command;
 use git_graph_core::repository::Repo;
 use git_graph_core::search::search_commits;
 use git_graph_core::types::{GitFileStatus, LogOptions, SearchOptions};
-use git_graph_core::{blob, details, diff, graph, log, status, ErrorKind};
+use git_graph_core::{blob, details, diff, graph, log, status};
 
 use common::TestRepo;
 
@@ -219,49 +219,109 @@ fn a_staged_rename_counts_as_git_status_lists_it() {
 
 /* ---------- Replacement objects ---------- */
 
+/// `git`'s one-letter status for a change, as `--name-status` prints it.
+fn status_letter(kind: GitFileStatus) -> &'static str {
+    match kind {
+        GitFileStatus::Added => "A",
+        GitFileStatus::Modified => "M",
+        GitFileStatus::Deleted => "D",
+        GitFileStatus::Renamed => "R",
+        GitFileStatus::TypeChanged => "T",
+        GitFileStatus::Untracked => "U",
+    }
+}
+
+/// `<letter>\t<path>` lines for the engine's file changes, to set beside `--name-status`.
+fn name_status_lines(changes: &[git_graph_core::types::GitFileChange]) -> Vec<String> {
+    changes
+        .iter()
+        .map(|change| format!("{}\t{}", status_letter(change.kind), change.new_file_path))
+        .collect()
+}
+
+/// Every read the engine serves for the fixture, set beside what git shows for it.
+fn assert_reads_match_git_under_replacements(repo: &TestRepo, two: &str, expected_commits: usize) {
+    let engine = open(repo);
+    let options = LogOptions {
+        max_commits: 10,
+        ..Default::default()
+    };
+
+    // The history walk follows the replaced parents, as `git log` does.
+    let git_hashes = repo.log_hashes(&[]);
+    assert_eq!(git_hashes.len(), expected_commits);
+    let engine_hashes: Vec<String> = graph::load_commits(&engine, &options)
+        .unwrap()
+        .commits
+        .into_iter()
+        .map(|commit| commit.hash)
+        .collect();
+    assert_eq!(engine_hashes, git_hashes);
+
+    // Commit details list the replaced commit's files against the replacement's parents.
+    let expected_files: Vec<String> = repo
+        .git(&[
+            "diff-tree",
+            "-r",
+            "--root",
+            "--no-commit-id",
+            "--name-status",
+            "--find-renames",
+            two,
+        ])
+        .lines()
+        .map(str::to_string)
+        .collect();
+    let details = details::commit_details(&engine, two).unwrap();
+    assert_eq!(name_status_lines(&details.file_changes), expected_files);
+
+    // A comparison reads the replaced commit's tree.
+    let expected_range: Vec<String> = repo
+        .git(&["diff", "--name-status", "--find-renames", two, "HEAD"])
+        .lines()
+        .map(str::to_string)
+        .collect();
+    let range = diff::diff_revisions(&engine, two, "HEAD").unwrap();
+    assert_eq!(name_status_lines(&range), expected_range);
+
+    // The file at a revision comes from the tree git reads.
+    let expected_text = repo.git(&["show", &format!("{two}:a.txt")]);
+    let file = blob::commit_file(&engine, two, "a.txt").unwrap();
+    assert_eq!(file.contents.as_deref(), Some(expected_text.as_str()));
+
+    // Search walks the same history: "one" is found only while the first commit is reachable.
+    let search = SearchOptions {
+        query: "one".to_string(),
+        max_results: 10,
+        show_tags: true,
+        ..Default::default()
+    };
+    let hits: Vec<String> = search_commits(&engine, &search)
+        .unwrap()
+        .into_iter()
+        .map(|hit| hit.hash)
+        .collect();
+    assert_eq!(hits, repo.log_hashes(&["-i", "--grep=one"]));
+}
+
 #[test]
-fn replacement_objects_hand_history_reads_to_git() {
+fn the_engine_matches_git_under_replacement_objects() {
     require_git!();
     let mut repo = TestRepo::new();
     repo.commit_file("a.txt", "1", "one");
     let two = repo.commit_file("a.txt", "2", "two");
     repo.commit_file("a.txt", "3", "three");
 
-    let engine = open(&repo);
-    let options = LogOptions {
-        max_commits: 10,
-        ..Default::default()
-    };
-    // Without replacements every read is the engine's.
-    assert!(graph::load_commits(&engine, &options).is_ok());
+    // Without replacements: three commits.
+    assert_reads_match_git_under_replacements(&repo, &two, 3);
 
+    // `git replace --graft` makes `two` a root: git shows two commits.
     repo.git(&["replace", "--graft", &two]);
-    let engine = open(&repo);
-    // git now shows `two` as a root; gix would still show its original parent.
-    assert_eq!(repo.git(&["log", "--format=%H"]).lines().count(), 2);
-    let declined = |kind: ErrorKind| assert_eq!(kind, ErrorKind::Unsupported);
-    declined(graph::load_commits(&engine, &options).unwrap_err().kind);
-    declined(details::commit_details(&engine, &two).unwrap_err().kind);
-    declined(
-        diff::diff_revisions(&engine, &two, "HEAD")
-            .unwrap_err()
-            .kind,
-    );
-    declined(blob::commit_file(&engine, &two, "a.txt").unwrap_err().kind);
-    let search = SearchOptions {
-        query: "two".to_string(),
-        max_results: 10,
-        show_tags: true,
-        ..Default::default()
-    };
-    declined(search_commits(&engine, &search).unwrap_err().kind);
+    assert_reads_match_git_under_replacements(&repo, &two, 2);
 
-    // `core.useReplaceRefs=false` makes git read the original objects, and gix then applies the
-    // replacements (it inverts the setting), so the engine still hands the load to git.
+    // `core.useReplaceRefs=false` makes git read the original objects again: three commits.
     repo.git(&["config", "core.useReplaceRefs", "false"]);
-    assert_eq!(repo.git(&["log", "--format=%H"]).lines().count(), 3);
-    let engine = open(&repo);
-    declined(graph::load_commits(&engine, &options).unwrap_err().kind);
+    assert_reads_match_git_under_replacements(&repo, &two, 3);
 }
 
 /* ---------- Diff line counts ---------- */

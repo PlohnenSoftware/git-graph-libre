@@ -17,8 +17,6 @@ use crate::types::{
 /// which on a commit touching thousands of files dominates the load. They arrive separately, for
 /// the paths the view asks about, through [`crate::diff::line_counts`].
 pub fn commit_details(repo: &Repo, hash: &str) -> Result<GitCommitDetails> {
-    // A replaced commit's parents and tree are the replacement's in git.
-    repo.decline_replace_refs()?;
     let mut details = commit_details_base(repo, hash)?;
     details.file_changes = diff::diff_commit(repo, hash)?;
     Ok(details)

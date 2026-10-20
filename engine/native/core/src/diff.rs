@@ -24,8 +24,6 @@ const RENAME_SIMILARITY: f32 = 0.5;
 /// `to` may be [`UNCOMMITTED`] or empty, which compares `from` against the working tree, as
 /// `git diff <from>` does.
 pub fn diff_revisions(repo: &Repo, from: &str, to: &str) -> Result<Vec<GitFileChange>> {
-    // Either revision may be replaced, and with it the tree being compared.
-    repo.decline_replace_refs()?;
     if to.is_empty() || to == UNCOMMITTED {
         return diff_against_worktree(repo, from);
     }
