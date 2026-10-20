@@ -8,7 +8,7 @@ summary: >-
 
 # D04AF — Engine complexity follow-up
 
-Status: integrated 8777bc7
+Status: integrated 8746acc
 Needs: D04a (integrated)
 Decisions: — (a follow-up the integrator opened to bring the wave gate to `OK`, as with D41F, D42F and D43F)
 Kind: Rust · Size budget: ≤ 60 changed lines outside tests

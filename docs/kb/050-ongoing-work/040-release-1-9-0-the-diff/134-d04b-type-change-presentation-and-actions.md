@@ -7,7 +7,7 @@ summary: >-
 
 # D04b — Type-change presentation and actions
 
-Status: integrated 4fb1eca
+Status: integrated 587347c
 Needs: D04a
 Decisions: X2 (b); split, icon and action policy approved 2026-10-19
 Kind: webview, icons, localization · Size budget: ≤180 changed lines outside tests, including generated icons
@@ -115,4 +115,4 @@ this approved scope; stop if required. No new dependency.
   or a follow-up (one line in `commitDetailsView.ts`). Another agent (D12)
   touches `src/webview/main.ts` in its own worktree; this slice does not,
   so no overlap is expected there. D04 completes only after this integrates
-  beside D04a (`a986823`).
+  beside D04a (`88f3715`).

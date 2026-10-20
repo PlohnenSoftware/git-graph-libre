@@ -76,7 +76,7 @@ The three Rust files above; the oracle generators under
 ## Report
 
 - **Agent / date:** Claude Sonnet D22F, 2026-10-19
-- **Branch and commits:** `diff-1.9.0/d22f`; see `git log --format='%h %G? %s' 7b54320..HEAD` (claim, Myers split, DP split, `line_sequence` test split, `replaceAll`, `String.raw`, `fetch`, this report); all signed `G`.
+- **Branch and commits:** `diff-1.9.0/d22f`; see `git log --format='%h %G? %s' 4b1936e..HEAD` (claim, Myers split, DP split, `line_sequence` test split, `replaceAll`, `String.raw`, `fetch`, this report); all signed `G`.
 - **Files changed:** `myers_diff_algorithm.rs`, `dynamic_programming_diffing.rs`, `line_sequence.rs` (tests only), `gen-line-sequence.mjs`, `gen-myers.mjs`, this file.
 - **Tests added or changed:** none added or changed in assertions; the `line_sequence` corpus test body was split into helpers with the same assertions. Rust arm: 166 tests passed, 0 failed (the Myers 437-case, DP and line-sequence 90-case corpus tests among them); no flaky failure seen.
 - **Gates:** `engine:fmt`, `engine:lint`, `engine:check`, `engine:test` green; kb:check run before the final commit; Sonar: integrator.

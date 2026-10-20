@@ -6,7 +6,7 @@ summary: >-
 
 # D43F — Staged-file Error follow-up
 
-Status: integrated 7d07111
+Status: integrated 000a771
 Needs: D43 (integrated)
 Decisions: separate follow-up approved by the maintainer 2026-10-19
 Kind: TypeScript · Size budget: ≤30 changed lines outside tests
@@ -38,7 +38,7 @@ unrelated findings accurately.
 ## Report
 
 - **Agent / date:** Codex sub-agent D43F, 2026-10-19 02:07.
-- **Branch and commits:** `diff-1.9.0/d43f` — `8dce59c G fix(engine): make staged-file rejection explicitly Error (D43F)`, already merged into `the-diff` by `24582b8`; plus the signed report commit carrying this section. Codex stopped on its quota with the report uncommitted; the integrator (Claude Code) committed it on `2026-10-19` (`kb:check` green). No push.
+- **Branch and commits:** `diff-1.9.0/d43f` — `e02e183 G fix(engine): make staged-file rejection explicitly Error (D43F)`, already merged into `the-diff` by `24582b8`; plus the signed report commit carrying this section. Codex stopped on its quota with the report uncommitted; the integrator (Claude Code) committed it on `2026-10-19` (`kb:check` green). No push.
 - **Files changed:** `src/backend/engine/stagedFile.ts` +1/−1; this status/report; one follow-up entry in D43's Report. Tests unchanged.
 - **Tests added or changed:** none needed; existing staged-file suite remains 9 cases, staged-file parity 1 case, all unchanged.
 - **Gates:** strict Biome clean (1 source file); `pnpm run package` green (typecheck and full lint, 296 files).

@@ -8,7 +8,7 @@ summary: >-
 
 # D14F — Working-tree comparison Sonar follow-up
 
-Status: integrated f5e6e79
+Status: integrated 0971f91
 Needs: D14 (integrated), D15
 Decisions: — (a follow-up the integrator opened to bring the wave gate to `OK`, as with D41F, D42F, D43F, D04AF and D13F)
 Kind: TypeScript · Size budget: ≤ 150 changed lines outside tests
@@ -76,8 +76,8 @@ in the report.
   2026-10-19 11:26 Europe/Warsaw, report 2026-10-19 11:30. Model note:
   general-purpose on the inherited runtime model — no named-model
   selector exists in this runtime; the integrator records the constraint.
-- **Branch and commits:** `diff-1.9.0/d14f` — `ac21845 G docs(release):
-  claim D14F working-tree Sonar follow-up slice (D14F)`, `5dec1aa G
+- **Branch and commits:** `diff-1.9.0/d14f` — `9ce0f0e G docs(release):
+  claim D14F working-tree Sonar follow-up slice (D14F)`, `ca2299f G
   refactor(compare): clear the working-tree comparison Sonar findings
   (D14F)`, plus the signed report commit carrying this section. No push.
 - **Files changed:** `src/extension/messageHandler.ts` +70/−42,
@@ -128,7 +128,7 @@ in the report.
     the S3776 rules D41F's report records and parsing with the
     repository's `@babel/parser` from the pnpm store. On the old code
     it reproduces Sonar's 32 for `viewDiff` exactly, and on D41's
-    pre-D41F `rowModel.ts` (`01deb86`) it reproduces Sonar's 18 and
+    pre-D41F `rowModel.ts` (`82cc778`) it reproduces Sonar's 18 and
     20. New scores: `viewDiff` 4, `viewWorktreeDiff` 10,
     `worktreeSideOf` 2, `formatWorktreeDiffTitle` 1,
     `comparisonRevisions` 2, `fetchComparisonDiff` 1 — the touched

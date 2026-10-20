@@ -19,12 +19,12 @@ basis for a future performance slice.
 
 ## Setup
 
-- **Input:** D48's large case, `a484db7`'s `graphify-out/graph.json`
+- **Input:** D48's large case, `683d60a`'s `graphify-out/graph.json`
   (181,605 → 208,192 lines), with `ignoreTrimWhitespace` true,
   `computeMoves` false and no time limit.
 - **Machine:** AMD Ryzen 9 5900X, Node v26.11.1.
 - **Harness:** a throwaway bench crate depending on a copy of
-  `engine/native/diff` at `7aebdfe`, outside the repository. Results are
+  `engine/native/diff` at `546f97d`, outside the repository. Results are
   compared by a fingerprint of the `changes` list (`777d547472ab8e44`, 1,879
   changes), which every variant below matched.
 - **Profiler:** none was installed, and `gdb` cannot attach to a running

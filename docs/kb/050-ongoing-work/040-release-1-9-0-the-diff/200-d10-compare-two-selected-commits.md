@@ -9,7 +9,7 @@ summary: >-
 
 # D10 — Compare two selected commits
 
-Status: integrated 7dc038b
+Status: integrated 8e90f6b
 Needs: —
 Decisions: X3
 Kind: webview, plus l10n · Size budget: ≤ 200 changed lines outside tests

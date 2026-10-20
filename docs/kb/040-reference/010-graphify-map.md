@@ -9,7 +9,7 @@ always_read: true
 
 # Graphify Map
 
-Regenerated on `2026-10-19` with `pnpm run kb:graph` on top of `d2cf268`
+Regenerated on `2026-10-19` with `pnpm run kb:graph` on top of `9cb3ca9`
 (release 1.9.0 in progress, the Phase 17 port's 22a–22e and 22g in): 5,253
 nodes, 13,035 edges, and about 267 communities (the clustering moves by a few
 between runs). Of those, 670 nodes are the knowledge base's files and

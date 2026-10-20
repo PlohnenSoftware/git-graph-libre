@@ -8,7 +8,7 @@ summary: >-
 
 # D22L — Engine workspace license field
 
-Status: integrated 1cfe749
+Status: integrated 47a6a37
 Needs: —
 Decisions: X10 (a); Phase 17 D1 and D2
 Kind: engine metadata (Cargo and npm) · Size budget: ≤ 10 changed lines

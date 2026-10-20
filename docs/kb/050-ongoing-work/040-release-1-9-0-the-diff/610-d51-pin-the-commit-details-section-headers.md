@@ -9,7 +9,7 @@ summary: >-
 
 # D51 — Pin the commit details section headers
 
-Status: integrated dace6fa
+Status: integrated 4cb1b3c
 Needs: —
 Decisions: — (maintainer bug report, `2026-10-19`)
 Kind: webview (CSS, and TypeScript markup if needed) · Size budget: ≤ 120 changed lines outside tests

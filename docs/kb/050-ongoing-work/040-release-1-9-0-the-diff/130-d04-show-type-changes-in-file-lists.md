@@ -6,7 +6,7 @@ summary: >-
 
 # D04 — Show type changes in file lists
 
-Status: integrated (D04a a986823, D04b 4fb1eca)
+Status: integrated (D04a 88f3715, D04b 587347c)
 Needs: D04a, D04b
 Decisions: X2 (b); split, budgets, icon and action policy approved in the release-orchestration conversation 2026-10-19
 

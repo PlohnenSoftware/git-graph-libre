@@ -6,7 +6,7 @@ summary: >-
 
 # D41F — Row-model Sonar follow-up
 
-Status: integrated 8407eb5
+Status: integrated 060a00b
 Needs: D41 (integrated)
 Decisions: separate follow-up approved by the maintainer 2026-10-19
 Kind: TypeScript · Size budget: ≤100 changed lines outside tests

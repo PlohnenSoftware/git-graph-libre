@@ -3,7 +3,7 @@ summary: >-
   Layer map (`extension.ts`, `gitClient.ts`, queries, actions,
   `messageHandler.ts`, webview); Biome and SonarQube setup (`pnpm run
   sonar:scan`, no empty `SONAR_TOKEN=`); dated `sonar.projectVersion` advances
-  up to `1.8.1`; `ZAM` gate conditions; feature route.
+  up to `1.9.0`; `ZAM` gate conditions; feature route.
 ---
 
 # Current Architecture
@@ -225,6 +225,17 @@ The extension is already split into clean layers:
   (`new_coverage` `95.7`, `new_violations` `0`, duplication `0.0`, high,
   reliability and security issues `0`, maintainability rating `1`), and no
   `TO_REVIEW` hotspots in new code.
+- On `2026-10-20` the maintainer advanced both versions `1.8.1` → `1.9.0` on
+  `main` (`d2b3f4f`) for release 1.9.0, "The Diff", and `the-diff` was
+  rebased onto that commit. Every 1.9.0 integration analysis before it ran
+  at `1.8.1`, so their window was `PREVIOUS_VERSION 1.8.0`. The first
+  `1.9.0` analysis reports window `PREVIOUS_VERSION 1.8.1` as expected:
+  task `252c38e1-306d-470a-bda0-e2d38a86e5ae`, analysis
+  `e04774ed-1e18-455b-8097-a9c23207cc46`, **`OK`** on the seven conditions it
+  reported (`new_violations` `0`; high, blocker, reliability and security
+  issues `0`; maintainability issues `41`; rating `1`), and no `TO_REVIEW`
+  hotspots in new code. Check `period.parameter` before quoting a new-code
+  number from either side of the advance.
 - The project uses the maintainer's `ZAM` quality gate, and **not all of its
   conditions are scoped to new code**. As of `2026-07-29` it has six conditions:
   `new_duplicated_lines_density` at most `1` and `new_violations` at most `3` on

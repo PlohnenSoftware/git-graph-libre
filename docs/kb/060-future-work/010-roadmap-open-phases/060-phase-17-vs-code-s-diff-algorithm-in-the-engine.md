@@ -261,13 +261,13 @@ the action falls back to `vscode.diff`.
   package WebAssembly 2.08, ours 35.30 and 66.28 (debug); the capped
   pairs each contribute their full 5 s to the slower arms' totals.
   The package WebAssembly backend's 12 mismatches again mix genuine
-  refinement differences (for example `8ab419fb` on the D22 file,
+  refinement differences (for example `b4149f39` on the D22 file,
   column 1 where the other arms start at column 9) with
-  `hitTimeout`-flag-only differences (`a484db78` on both graphify
+  `hitTimeout`-flag-only differences (`683d60a9` on both graphify
   HTML files: changes agree, only the flag differs — the fast arm
   finished what the others capped). The one mismatch touching our
   builds is a cap-edge artifact, verified pair by pair: on
-  `7cf2d831` `graphify-out/GRAPH_TREE.html` (364 lines, line 88 is
+  `dc4513ae` `graphify-out/GRAPH_TREE.html` (364 lines, line 88 is
   260,258 characters) an isolated bounded probe finished the
   TypeScript arm in 2.7 s and our WebAssembly in 4.4–4.6 s with
   identical changes (94 inner changes, canonical forms equal, no

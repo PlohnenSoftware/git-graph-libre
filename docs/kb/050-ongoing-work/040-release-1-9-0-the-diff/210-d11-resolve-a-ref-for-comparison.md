@@ -8,7 +8,7 @@ summary: >-
 
 # D11 — Resolve a ref for comparison
 
-Status: integrated 70db6f9
+Status: integrated 02fdca9
 Needs: —
 Decisions: —
 Kind: TypeScript (backend and message contract) · Size budget: ≤ 180 changed lines outside tests
@@ -72,7 +72,7 @@ command recorder saw nothing.
 ## Report
 
 - **Agent / date:** Muse Code sub-agent D11, 2026-10-19 00:01
-- **Branch and commits:** `diff-1.9.0/d11` — `9eebcf3 G feat(compare): resolve a ref for comparison (D11)`; this report follows in its own signed commit on the same branch.
+- **Branch and commits:** `diff-1.9.0/d11` — `158de06 G feat(compare): resolve a ref for comparison (D11)`; this report follows in its own signed commit on the same branch.
 - **Files changed:** `src/backend/queries/resolveRef.ts` (new, +66/−0), `src/extension/messageHandler.ts` (+13/−0), `src/types.ts` (+16/−0), `tests/backend/queries/resolveRef.test.ts` (new, +149/−0), `tests/webview/messageHandler.test.ts` (+17/−0), and this slice file (status and report). Outside tests: 95 changed lines, within the ≤180 budget.
 - **Tests added or changed:** 13 new backend tests in `tests/backend/queries/resolveRef.test.ts` (real repositories from `makeRepo()` in temp directories: branch, lightweight tag, annotated tag peeling, full SHA, 7-character SHA, `HEAD~1` and trimming; validation rejections for empty, `-x`, `--all`, `a b`, `HEAD:file` and a control character; unknown name and `HEAD^{tree}` as not a commit), plus 1 registration test in `tests/webview/messageHandler.test.ts` ("routes resolveRef queries and echoes the request id"). After: backend 862 tests (833 passed, 29 skipped), webview 590 tests (590 passed).
 - **Gates:** biome strict (`npx biome check --config-path biome.strict.jsonc --error-on-warnings` on the 5 touched .ts files) clean; typecheck (`pnpm run typecheck`) green; test (`pnpm run test`) backend 833/862 (29 skipped), webview 590/590; l10n n/a (no l10n or webview-visible text changed; backend error strings follow the `tagDetails` pattern); kb:check (`pnpm run kb:check`) green; Rust arm n/a (no `engine/**` change); Sonar: integrator

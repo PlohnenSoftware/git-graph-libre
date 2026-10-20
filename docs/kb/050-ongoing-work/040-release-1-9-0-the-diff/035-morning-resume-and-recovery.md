@@ -43,7 +43,7 @@ then the release overview, protocol, decisions and integrator procedure.
 Inspect the actual current state; this handoff is a dated locator.
 
 **Claude Code continued after Codex exhausted quota. Recover that work
-first.** At the 03:32 inspection, `the-diff` was `1cc6b67`; D10, D20,
+first.** At the 03:32 inspection, `the-diff` was `e8eaff0`; D10, D20,
 D42, D43F and D41F had already been signed and integrated. The latest
 recorded wave had 1532 passing tests, 93.26% line coverage, and Sonar
 ERROR on four new D42 view findings. D42F was opened for those findings.

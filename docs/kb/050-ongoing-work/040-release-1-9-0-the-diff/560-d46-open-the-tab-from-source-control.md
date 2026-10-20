@@ -9,7 +9,7 @@ summary: >-
 
 # D46 — Open the tab from Source Control
 
-Status: integrated 23a65cc
+Status: integrated bde9553
 Needs: D45
 Decisions: Phase 17 D4 (answered: G4, option (c))
 Kind: `package.json` and TypeScript · Size budget: ≤ 200 changed lines outside tests
@@ -105,7 +105,7 @@ the GGL Diff tab, next to the Git extension's own icons.
 ## Report
 
 - **Agent / date:** Muse Code (muse-wonder-full-1.0, general-purpose, inherited runtime model; no named-model selector in this runtime — the integrator records it), 2026-10-19 16:31 Europe/Warsaw.
-- **Branch and commits:** `diff-1.9.0/d46` from `5b61d7f`, all `G`, no push — `543c4f9 G docs(release): claim D46 (D46)`; `01695c7 G feat(diff-tab): open the tab from Source Control (D46)`; `97b686d G test(diff-tab): cover the Source Control commands and manifest (D46)`; plus the signed report commit carrying this section.
+- **Branch and commits:** `diff-1.9.0/d46` from `bb7b300`, all `G`, no push — `8044efe G docs(release): claim D46 (D46)`; `f24cb29 G feat(diff-tab): open the tab from Source Control (D46)`; `8b05baa G test(diff-tab): cover the Source Control commands and manifest (D46)`; plus the signed report commit carrying this section.
 - **Files changed:** `src/extension/diffTab/scmCommands.ts` (new, +119/−0), `src/extension/commandManager.ts` (+11/−0: one optional dep and registration through `register`), `src/extension.ts` (+14/−2, see Deviations), `package.json` (+64/−0), five `package.nls*.json` (+1 each), five `l10n/bundle.l10n*.json` (+4/−1 each), `tests/webview/diffTab/scmCommands.test.ts` (new, +173/−0), `tests/webview/commandManager.test.ts` (+33/−2), this slice file (claim, status, report). Changed lines outside tests and this file: 240 (+234/−6) against the ~200 guide (64 are the manifest entries, 25 the mandated bundles).
 - **Tests added or changed:** `tests/webview/diffTab/scmCommands.test.ts`, 11 tests (manifest commands, inline+navigation entries with exactly the specified `when`, palette-hidden, English nls title; per-group request and title; longest-holder repository, clicked-only opening with a multi-selection, unknown-repository warning, no-path no-op), and `tests/webview/commandManager.test.ts` +1 (the SCM command opens through `register`, telemetry wrapper included; both registered-command lists gain the three ids). Webview 726 → 738; backend unchanged in count of tests added.
 - **Gates:** biome strict clean (`biome check --config-path biome.strict.jsonc --error-on-warnings` on all 16 touched code, test and JSON files); typecheck pass (all three projects); focused suites 27/27; full `pnpm run test` with the addon built (`engine:build` + `engine:smoke` OK at 1.0.26): backend 1046 passed, 60 skipped of 1106 (the conditional `skipIf` suites, pre-existing on this base and untouched by D46), webview 738/738; `pnpm run l10n:check` 100% (bundle and package keys in all four translations, genuinely translated, not English copies); `pnpm run kb:check` pass; `pnpm run package` pass (`out/diffTab.min.js` still 8,388 bytes; `out/extension.js` carries the new commands) and `vsce ls --no-dependencies` lists `package.json` and `out/diffTab.min.js` as before; Rust arm n/a (no `engine/**` change); Sonar: integrator. Cognitive complexity by hand: highest new function `openFromSourceControl` at about 4, the rest at most 3 — well under 16; no nested ternary.

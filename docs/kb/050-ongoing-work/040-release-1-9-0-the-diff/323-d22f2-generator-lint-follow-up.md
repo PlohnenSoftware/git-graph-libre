@@ -9,7 +9,7 @@ summary: >-
 
 # D22F2 — Generator lint follow-up
 
-Status: integrated 8a654e8
+Status: integrated bd5e513
 Needs: 22e, 22g, D22F (integrated)
 Decisions: X13
 Kind: JavaScript oracle scripts and one TypeScript line · Size: ~60 changed lines (a guide, not a limit)
@@ -67,7 +67,7 @@ this slice file's status and report.
 ## Report
 
 - **Agent / date:** Claude Haiku D22F2, 2026-10-19 15:21 (claim); work and report 2026-10-19 (after 15:21)
-- **Branch and commits:** `diff-1.9.0/d22f2` (base `b11efe0`)
+- **Branch and commits:** `diff-1.9.0/d22f2` (base `777b042`)
   - `3f6631f G docs(release): claim D22F2 generator lint follow-up (D22F2)`
   - `5559b21 G fix(engine): string patterns in gen-line-sequence replaceAll (D22F2)`
   - `241323f G fix(engine): fetch myers oracle sources in parallel (D22F2)`
@@ -81,7 +81,7 @@ this slice file's status and report.
   - `7f764cf G fix(engine): new Array in gen-heuristic-sequence-optimizations fill calls (D22F2)`
   - `711b8ee G fix(engine): escape raw U+2028 in gen-lines_slice_char_sequence literal (D22F2)`
   - this report commit and the final status commit follow (the report commit first, then `Status: done`).
-- **Files changed (`git diff --numstat b11efe0 HEAD`):** `gen-line-sequence.mjs` +1/−1; `gen-myers.mjs` +11/−6; `gen-compute-moved-lines.mjs` +6/−5; `gen-heuristic-sequence-optimizations.mjs` +15/−15; `gen-lines_slice_char_sequence.mjs` +1/−1; `diffTabPanel.ts` +6/−2. Six code files, +40/−30 lines. Slice file: claim, report and status only.
+- **Files changed (`git diff --numstat 777b042 HEAD`):** `gen-line-sequence.mjs` +1/−1; `gen-myers.mjs` +11/−6; `gen-compute-moved-lines.mjs` +6/−5; `gen-heuristic-sequence-optimizations.mjs` +15/−15; `gen-lines_slice_char_sequence.mjs` +1/−1; `diffTabPanel.ts` +6/−2. Six code files, +40/−30 lines. Slice file: claim, report and status only.
 - **Tests added or changed:** none. `tests/webview/diffTabPanel.test.ts`: 16 before, 16 after.
 - **Gates:** biome (strict, `diffTabPanel.ts`) clean, exit 0; typecheck clean, exit 0; test backend not run (no backend file touched); webview `diffTabPanel.test.ts` 16/16; l10n n/a; kb:check exit 0 (run after `kb:index`); Rust arm n/a (no `.rs` change); Sonar: integrator. Biome does not process the oracle `.mjs` files (its config's include set excludes them: "No files were processed"), so no biome result exists for them.
 - **Byte-for-byte checks (final tree, each `cmp` exit 0, no output):**

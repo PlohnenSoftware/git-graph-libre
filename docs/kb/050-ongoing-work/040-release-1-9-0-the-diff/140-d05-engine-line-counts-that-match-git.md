@@ -8,7 +8,7 @@ summary: >-
 
 # D05 — Engine line counts that match Git
 
-Status: integrated 79c5fb4
+Status: integrated c534f40
 Needs: —
 Decisions: —
 Kind: Rust (the Rust arm applies) · Size budget: ≤ 200 changed lines outside tests

@@ -9,7 +9,7 @@ summary: >-
 
 # D43 — Engine export for the staged copy of a file
 
-Status: integrated 14ac021
+Status: integrated 093b4d0
 Needs: —
 Decisions: —
 Kind: Rust and TypeScript, the Rust arm applies · Size budget: ≤ 150 changed lines outside tests
@@ -93,7 +93,7 @@ only), `src/backend/engine/addon.ts`, `src/backend/engine/stagedFile.ts`
 ## Report
 
 - **Agent / date:** Muse Code sub-agent D43, 2026-10-19 01:40
-- **Branch and commits:** `diff-1.9.0/d43` — `2310f3c G feat(engine): export load_index_file from the addon (D43)`; `81a1d11 G feat(engine): read the staged copy through readStagedFile (D43)`; plus the signed report commit carrying this section.
+- **Branch and commits:** `diff-1.9.0/d43` — `8ed16c2 G feat(engine): export load_index_file from the addon (D43)`; `2696134 G feat(engine): read the staged copy through readStagedFile (D43)`; plus the signed report commit carrying this section.
 - **Files changed:** `engine/native/node/src/lib.rs` +11; `src/backend/engine/addon.ts` +7; `src/backend/engine/stagedFile.ts` (new) +128; `engine/native/core/tests/config_and_blob.rs` +50; `tests/backend/engine/stagedFile.test.ts` (new) +186; `tests/backend/engine/parity.test.ts` +73; this slice file (claim, status, report). Outside tests: 146 changed lines, within the ≤150 budget.
 - **Tests added or changed:** Rust: `reads_the_staged_copy_from_the_index` (staged modification beside a later unstaged edit, newly staged file), `reports_a_staged_binary_file_as_binary`, `a_path_outside_the_index_is_not_found` — Rust arm 119 → 122 passed. TypeScript: `stagedFile.test.ts`, 9 tests (engine text/binary; CLI for no `loadIndexFile`, the `git-cli` backend, unverified, malformed and inconsistent payloads, engine throw; CLI text/binary/missing; route log lines asserted in each), and one `parity.test.ts` case agreeing engine and CLI on a staged modification, a newly staged file, a staged binary file and a path outside the index, with the addon called directly so a binary without the export fails there — backend 873 → 883.
 - **Gates:** biome strict clean on the 4 touched TS files; typecheck clean; test backend 883/883, webview 591/591 (rebuilt addon, engine halves ran); l10n n/a (no user-visible text); kb:check clean; Rust arm clean (`engine:fmt`, `engine:lint`, `engine:check`, `engine:test` 122 passed, 0 failed); `engine:build` and `engine:smoke` OK (reports 1.0.25); Sonar: integrator.

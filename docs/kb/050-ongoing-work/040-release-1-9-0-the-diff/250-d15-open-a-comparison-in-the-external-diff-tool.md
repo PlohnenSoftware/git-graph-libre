@@ -9,7 +9,7 @@ summary: >-
 
 # D15 — Open a comparison in the external diff tool
 
-Status: integrated fa957d6
+Status: integrated 3e3a6f8
 Needs: D13
 Decisions: X4
 Kind: TypeScript (backend action and webview) · Size budget: ≤ 200 changed lines outside tests

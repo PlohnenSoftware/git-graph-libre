@@ -8,7 +8,7 @@ summary: >-
 
 # D13F — Comparison Sonar follow-up
 
-Status: integrated 8ab0c15
+Status: integrated 0acf413
 Needs: D13 (integrated); dispatch after D12 integrates (both touch `src/webview/main.ts`)
 Decisions: — (a follow-up the integrator opened to bring the wave gate to `OK`, as with D41F, D42F and D43F)
 Kind: TypeScript · Size budget: ≤ 40 changed lines outside tests
@@ -65,7 +65,7 @@ then the full webview project).
 ## Report
 
 - **Agent / date:** Muse Code (general-purpose) sub-agent D13F, 2026-10-19 11:04 Europe/Warsaw (inherited runtime model `muse-wonder-full-1.0`; this runtime has no named-model selector — the slice was classed easy-tier, for the integrator to record)
-- **Branch and commits:** `diff-1.9.0/d13f` — `557234e G docs(release): claim D13F comparison Sonar follow-up slice (D13F)`; `4271aff G refactor(compare): clear the comparison swap Sonar findings (D13F)`; this report in a further signed docs commit on the same branch. No push.
+- **Branch and commits:** `diff-1.9.0/d13f` — `1fcdb7a G docs(release): claim D13F comparison Sonar follow-up slice (D13F)`; `e175ea8 G refactor(compare): clear the comparison swap Sonar findings (D13F)`; this report in a further signed docs commit on the same branch. No push.
 - **Files changed:** `src/webview/main.ts` (+20 −5, 25 changed lines, within the ≤40 budget), this slice file (claim, status and report). Nothing else; `tests/webview/commitDetailsView.test.ts` unchanged.
 - **Tests added or changed:** none; no case was needed. The existing Swap case (`tests/webview/commitDetailsView.test.ts`, "swaps a comparison, exchanging refs and labels") already pins the sent `commitComparison` request (`baseRef: "HEAD"`, `compareRef: <branch hash>`) and the exchanged labels in state. Counts unchanged: `commitDetailsView` 22, webview project 673.
 - **Gates:** strict Biome clean on the touched file (`npx biome check --config-path biome.strict.jsonc --error-on-warnings src/webview/main.ts`, `Checked 1 file`, also clean staged before the code commit); `pnpm run typecheck` green (all three projects); `pnpm exec vitest run --project webview tests/webview/commitDetailsView.test.ts` 22/22; `pnpm exec vitest run --project webview` 673/673 in 59 files; backend project not run (no backend file touched; webview-only slice); `git diff --check` clean; l10n n/a (no user-visible text); kb:check green (run with this report); Rust arm n/a (no `engine/**` change); Sonar: integrator

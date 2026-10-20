@@ -264,9 +264,9 @@ smoke runs before the formal series are excluded and noted in D48's
 report; no run was repeated or re-picked.
 
 **Cases** (from this repository's history, picked before measuring). Small:
-`c89e637`, `src/contextMenuVisibility.ts`, 119 → 120 lines (+1 line; the
+`ae6ddf6`, `src/contextMenuVisibility.ts`, 119 → 120 lines (+1 line; the
 most recent commit modifying a `src/` file under 200 lines on both sides).
-Large: `a484db7`, `graphify-out/graph.json`, 181,604 → 208,191 lines
+Large: `683d60a`, `graphify-out/graph.json`, 181,604 → 208,191 lines
 (+63,387/−36,800 by numstat; 389,797 split lines in the route line). The
 slice's suggested `pnpm-lock.yaml` does not qualify here: its history
 peaks at 7,126 lines, and at HEAD the only other file over 10,000 lines is
