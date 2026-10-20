@@ -10,7 +10,7 @@ summary: >-
 
 # D63 — Copy Diagnostics Report
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 on 2026-10-20 20:00
 Needs: D61, D62
 Decisions: — (the maintainer's own proposal in issue #31, "Commands" 1 and 3,
 and its privacy guardrails)
