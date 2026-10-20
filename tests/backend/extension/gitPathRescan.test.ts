@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterAll, describe, expect, it, vi } from "vitest";
 
 const channelLines: string[] = [];
 
@@ -174,15 +177,32 @@ vi.mock("@/extension/webviewPanel", () => ({
 
 import { activate } from "@/extension";
 
+const logRoots: string[] = [];
+afterAll(() => {
+  for (const root of logRoots) fs.rmSync(root, { recursive: true, force: true });
+});
+
 function makeContext() {
+  const logRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ggl-activate-"));
+  logRoots.push(logRoot);
   return {
     subscriptions: [] as { dispose(): void }[],
+    logUri: { fsPath: path.join(logRoot, "logs") },
     extensionPath: "",
     extension: { packageJSON: { version: "1.5.1" } }
   } as unknown as import("vscode").ExtensionContext;
 }
 
 describe("activate git.path rescan", () => {
+  it("creates the log mirror folder under the context's logUri", () => {
+    const context = makeContext();
+    activate(context);
+
+    expect(
+      fs.existsSync((context as unknown as { logUri: { fsPath: string } }).logUri.fsPath)
+    ).toBe(true);
+  });
+
   it("repoints the client and rescans when git.path changes", () => {
     activate(makeContext());
 

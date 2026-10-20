@@ -35,8 +35,10 @@ import { buildLanguagePayload, listBundleLanguages } from "./telemetry/language"
 
 export function activate(context: vscode.ExtensionContext) {
   initL10n(context.extensionPath);
-  const logger = createLogger(l10n.t("outputChannel.text"));
-  context.subscriptions.push(setOperationLog(logger.log));
+  const logger = createLogger(l10n.t("outputChannel.text"), {
+    logDirectory: context.logUri.fsPath
+  });
+  context.subscriptions.push(setOperationLog(logger.log), { dispose: () => void logger.dispose() });
   setDiffTabAvailableContext({ backend: config.backend });
   // The universal VSIX carries every platform's engine binary; drop the ones
   // this host can never load. Production installs only — a development host
@@ -148,6 +150,7 @@ export function activate(context: vscode.ExtensionContext) {
   const commandManager = createCommandManager({
     extensionVersion: String(context.extension.packageJSON.version ?? "unknown"),
     outputChannel: logger,
+    logAccess: logger,
     config,
     extensionState,
     repoManager,
