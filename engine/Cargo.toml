@@ -20,3 +20,9 @@ lto = "thin"
 codegen-units = 1
 strip = "symbols"
 panic = "unwind"
+
+# gix and every gix-* crate come from the gitoxide monorepo at one pinned `main` commit, for the
+# unreleased fixes the engine needs (replacement refs, the rename limit, Myers xdiff parity).
+# Replace this with a crates.io release once one carries them.
+[patch.crates-io]
+gix = { git = "https://github.com/GitoxideLabs/gitoxide", rev = "0a49d46f6a0b08943930d5247693992b89e98c1b" }
