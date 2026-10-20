@@ -9,7 +9,7 @@ summary: >-
 
 # D61 — Log retention and the log file
 
-Status: claimed by Claude Sonnet 5.5 on 2026-10-20 12:00
+Status: done — awaiting integration
 Needs: —
 Decisions: — (the maintainer's own proposal in issue #31; the orchestrator
 chose the file mirror, see Facts)
@@ -103,4 +103,15 @@ only), their tests
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Claude Sonnet 5.5, 2026-10-20 12:30
+- **Branch and commits:** `diff-1.9.0/d61`
+  - `e394573 G docs(release): claim D61`
+  - `fa02c05 G feat(log): keep 2,000 lines and mirror the log to a file (D61)`
+  - `8bae037 G feat(commands): add Open Log File and Copy Recent Log (D61)`
+  - `0918707 G feat(startup): reach the log from the startup screen and Hidden menu (D61)`
+- **Files changed:** 26 files, +450/−11 outside this report (`git diff --stat e394573..HEAD`): `logger.ts` +76, `commandManager.ts` +45, `extension.ts` +7, `repositoryRecovery.ts` +8, `main.ts` +10 (`buildHiddenMenu` only), `startup.ts` +4, `webviewStartupScreen.ts` +2, `webviewL10n.ts` +2, `types.ts` +2, `package.json` +10, five `package.nls*.json` +2 each, five `l10n/bundle*.json` +6 each; tests: `logger.test.ts` +115, `commandManager.test.ts` +72, `gitPathRescan.test.ts` +22, `hiddenMenu.test.ts` +22, `startup.test.ts` +15, `repositoryRecovery.test.ts` +9. About 215 source lines.
+- **Tests added or changed:** backend 1054 → 1063 passed (+9: 2 ring buffer, 4 mirror, 2 recovery messages, 1 activation creating the `logUri` folder); webview 760 → 767 (+7: 4 commands, 2 Hidden menu entries, 1 startup buttons). Counts before are the after-totals minus the added tests. Changed fixtures: the registered-command lists, the Hidden menu item list, the startup screen markup, and `gitPathRescan.test.ts`'s `makeContext` (now has a temp `logUri`, removed after the run).
+- **Gates:** biome strict clean on 26 touched files; typecheck clean; test backend 1063/1123 (60 skipped), webview 767/767; l10n 100% in all four other bundles; kb:check not run before this report (run after commit); Rust arm n/a; Sonar: integrator
+- **Acceptance:** Log file opens and its tail copies from the Command Palette (both commands in `package.json`, tested), a failure screen (startup buttons, tested) and the Hidden menu (tested): met. Status popup deferred to D63 per the slice. No telemetry change: commands go through `register` only; met.
+- **Deviations from the slice:** Surface messages are handled in `repositoryRecovery.ts`, which already owns `showOutput` for the graph and the startup screen, so `messageHandler.ts` is untouched. The handlers run the commands via `executeCommand`, so a button click is also counted by `register`. Fixed an import-order Biome error in `tests/webview/startup.test.ts` because the file is touched. `src/extension/utils/clipboard.ts` is used unchanged.
+- **Open questions / follow-ups:** The mirror file is appended across sessions and never truncated (rotation not specified). Logger tests for the mirror use real temp files. Translations of the new strings in nl, pl, zh-cn, zh-tw are mine, not reviewed by a native speaker.
