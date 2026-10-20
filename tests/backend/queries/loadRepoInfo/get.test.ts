@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { git, makeRepo } from "@tests/backend/helpers";
 import { type SimpleGit, simpleGit } from "simple-git";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
 import type { GitCommandRecord } from "@/backend/utils/gitRunner";
 
@@ -217,6 +217,53 @@ describe("loadRepoInfo", () => {
         exitCode: 128,
         task: null
       }
+    });
+  });
+
+  describe("global Git config file", () => {
+    const savedGlobal = process.env.GIT_CONFIG_GLOBAL;
+    let configDir: string;
+
+    beforeAll(() => {
+      configDir = fs.mkdtempSync(path.join(os.tmpdir(), "ggl-d60-config-"));
+    });
+
+    afterAll(() => {
+      fs.rmSync(configDir, { recursive: true, force: true });
+    });
+
+    afterEach(() => {
+      if (savedGlobal === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+      else process.env.GIT_CONFIG_GLOBAL = savedGlobal;
+    });
+
+    it("keeps the remotes and reads empty global identity when the file is absent", async () => {
+      process.env.GIT_CONFIG_GLOBAL = path.join(configDir, "does-not-exist");
+
+      const result = await loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote });
+
+      expect(result.error).toBeNull();
+      expect(result.repoInfo.remotes.map((remote) => remote.name)).toEqual(["origin"]);
+      expect(result.repoInfo.config.userName.global).toBeNull();
+      expect(result.repoInfo.config.userName.local).toBe("T");
+    });
+
+    it("still errors when the global file exists but cannot be parsed", async () => {
+      const corrupt = path.join(configDir, "corrupt");
+      fs.writeFileSync(corrupt, "[user\n\tname = broken\n");
+      process.env.GIT_CONFIG_GLOBAL = corrupt;
+
+      const result = await loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote });
+
+      expect(result.error).not.toBeNull();
+    });
+
+    it("still errors when the global path is a directory", async () => {
+      process.env.GIT_CONFIG_GLOBAL = configDir;
+
+      const result = await loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote });
+
+      expect(result.error).not.toBeNull();
     });
   });
 });

@@ -17,8 +17,6 @@
  * every locale is the CLI's by construction rather than by observation.
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
 import type { SimpleGit } from "simple-git";
 import {
   loadAuthors,
@@ -29,6 +27,11 @@ import {
 } from "@/backend/queries/loadRepoInfo";
 import { parseStashIndex } from "@/backend/queries/stashes";
 import type { GitRemote, GitRepoConfig, GitRepoInfo, GitStash, QueryResult } from "@/backend/types";
+import {
+  isFile,
+  resolveGlobalGitConfigPath,
+  resolveLocalGitConfigPath
+} from "@/backend/utils/gitConfigPaths";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 
 import type { EngineAddon } from "./addon";
@@ -159,69 +162,12 @@ export function parseEngineConfigList(text: string): Record<string, string> | nu
   return map;
 }
 
-function isFile(candidate: string): boolean {
-  try {
-    return fs.statSync(candidate).isFile();
-  } catch {
-    return false;
-  }
-}
-
-/**
- * The global config file the engine's `config_list` reads, mirroring its
- * resolution order (`GIT_CONFIG_GLOBAL`, then `~/.gitconfig`, then XDG).
- * Null when no home is configured at all.
- */
-export function resolveGlobalGitConfigPath(): string | null {
-  const explicit = process.env.GIT_CONFIG_GLOBAL;
-  if (explicit !== undefined && explicit !== "") return explicit;
-  const home = process.env.HOME ?? process.env.USERPROFILE;
-  if (home === undefined || home === "") return null;
-  const dotted = path.join(home, ".gitconfig");
-  if (isFile(dotted)) return dotted;
-  const xdg = process.env.XDG_CONFIG_HOME;
-  const base = xdg !== undefined && xdg !== "" ? xdg : path.join(home, ".config");
-  return path.join(base, "git", "config");
-}
-
-/**
- * The local config file `git config --list --local` reads (`<gitdir>/config`;
- * a `.git` file, as in worktrees and submodules, names the real git dir on
- * its `gitdir:` line). Null when it cannot be resolved.
- */
-export function resolveLocalGitConfigPath(repo: string): string | null {
-  const dotGit = path.join(repo, ".git");
-  let gitDir: string;
-  try {
-    if (fs.statSync(dotGit).isDirectory()) {
-      gitDir = dotGit;
-    } else {
-      const firstLine = fs.readFileSync(dotGit, "utf8").split("\n")[0] ?? "";
-      const target = parseGitDirLine(firstLine);
-      if (target === null) return null;
-      gitDir = path.resolve(repo, target);
-    }
-  } catch {
-    return null;
-  }
-  return path.join(gitDir, "config");
-}
-
-const gitDirPrefix = "gitdir:";
-
-function parseGitDirLine(firstLine: string): string | null {
-  if (!firstLine.startsWith(gitDirPrefix)) return null;
-  const target = firstLine.slice(gitDirPrefix.length).trim();
-  return target === "" ? null : target;
-}
-
 /**
  * User identity from the engine's `config_list` (local plus global), or null
- * when the CLI fill must run instead: an unresolvable scope path, a
- * resolvable-but-absent file on either scope (the CLI errors there where
- * the engine answers empty), any throw including the include-directive
- * decline, or a malformed payload. Null rolls up to the whole CLI read,
- * which reproduces the exact CLI shape — errors included.
+ * when the CLI fill must run instead: an unresolvable scope path, any throw
+ * including the include-directive decline, or a malformed payload. Null rolls
+ * up to the whole CLI read, which reproduces the exact CLI shape. A scope
+ * whose file is absent answers empty identity, as the CLI query does.
  */
 export async function loadEngineConfig(
   addon: Pick<EngineAddon, "configList">,
@@ -230,19 +176,18 @@ export async function loadEngineConfig(
   const globalPath = resolveGlobalGitConfigPath();
   const localPath = resolveLocalGitConfigPath(repo);
   if (globalPath === null || localPath === null) return null;
-  let localText: string;
-  let globalText: string;
+  let localText: string | null;
+  let globalText: string | null;
   try {
-    if (!isFile(globalPath) || !isFile(localPath)) return null;
     [localText, globalText] = await Promise.all([
-      addon.configList(repo, true),
-      addon.configList(repo, false)
+      isFile(localPath) ? addon.configList(repo, true) : null,
+      isFile(globalPath) ? addon.configList(repo, false) : null
     ]);
   } catch {
     return null;
   }
-  const local = parseEngineConfigList(localText);
-  const global = parseEngineConfigList(globalText);
+  const local = localText === null ? {} : parseEngineConfigList(localText);
+  const global = globalText === null ? {} : parseEngineConfigList(globalText);
   if (local === null || global === null) return null;
   return {
     userName: { local: local["user.name"] ?? null, global: global["user.name"] ?? null },

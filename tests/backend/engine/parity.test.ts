@@ -1279,10 +1279,10 @@ describe("engine/CLI parity: repoInfo config", () => {
     }
   }, 120000);
 
-  it("stays on the CLI with the CLI error shape when the global file is absent", async (context) => {
+  it("serves from the engine and agrees with the CLI when the global file is absent", async (context) => {
     requireAddon(context);
     process.env.GIT_CONFIG_GLOBAL = `${globalFile}-absent`;
-    await expectRepoInfoParity(dir, "absent global", false);
+    await expectRepoInfoParity(dir, "absent global", true);
   }, 120000);
 });
 

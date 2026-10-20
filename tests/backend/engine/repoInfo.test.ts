@@ -13,11 +13,14 @@ import {
   loadEngineConfig,
   mapEngineStash,
   parseEngineConfigList,
-  parseEngineRepoInfo,
-  resolveGlobalGitConfigPath,
-  resolveLocalGitConfigPath
+  parseEngineRepoInfo
 } from "@/backend/engine/repoInfo";
 import { loadRepoInfo } from "@/backend/queries/loadRepoInfo";
+import {
+  isScopedGitConfigAbsent,
+  resolveGlobalGitConfigPath,
+  resolveLocalGitConfigPath
+} from "@/backend/utils/gitConfigPaths";
 
 const STASH: EngineStash = {
   hash: "06277a53e3d25586becfb94aa7d5f37c308db94b",
@@ -214,6 +217,27 @@ describe("config path resolution", () => {
   it("returns null when the git dir cannot be resolved", () => {
     expect(resolveLocalGitConfigPath("/nonexistent-repo-xyz")).toBeNull();
   });
+
+  it("calls a scope absent only when its resolved file is missing", () => {
+    const saved = process.env.GIT_CONFIG_GLOBAL;
+    const repo = makeRepo();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-test-absent-"));
+    try {
+      process.env.GIT_CONFIG_GLOBAL = path.join(dir, "missing");
+      expect(isScopedGitConfigAbsent("global", repo)).toBe(true);
+      fs.writeFileSync(path.join(dir, "present"), "");
+      process.env.GIT_CONFIG_GLOBAL = path.join(dir, "present");
+      expect(isScopedGitConfigAbsent("global", repo)).toBe(false);
+      expect(isScopedGitConfigAbsent("local", repo)).toBe(false);
+      expect(isScopedGitConfigAbsent("local", null)).toBe(false);
+      expect(isScopedGitConfigAbsent("local", "/nonexistent-repo-xyz")).toBe(false);
+    } finally {
+      if (saved === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+      else process.env.GIT_CONFIG_GLOBAL = saved;
+      fs.rmSync(repo, { recursive: true, force: true });
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("loadEngineConfig", () => {
@@ -289,11 +313,16 @@ describe("loadEngineConfig", () => {
     await expect(loadEngineConfig(malformed, repo)).resolves.toBeNull();
   });
 
-  it("returns null when the global file is absent, matching the CLI error shape", async () => {
+  it("answers empty global identity, engine-side, when the global file is absent", async () => {
     process.env.GIT_CONFIG_GLOBAL = `${globalFile}-absent`;
     try {
-      const addon = configAddon({ "user.name": "Ada" }, {});
-      await expect(loadEngineConfig(addon, repo)).resolves.toBeNull();
+      const addon = configAddon({ "user.name": "Ada" }, { "user.name": "never read" });
+      const configListSpy = vi.spyOn(addon, "configList");
+      await expect(loadEngineConfig(addon, repo)).resolves.toEqual({
+        userName: { local: "Ada", global: null },
+        userEmail: { local: null, global: null }
+      });
+      expect(configListSpy).not.toHaveBeenCalledWith(repo, false);
     } finally {
       process.env.GIT_CONFIG_GLOBAL = globalFile;
     }

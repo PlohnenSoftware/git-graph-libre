@@ -8,6 +8,7 @@ import type {
   GitRepoInfo,
   QueryResult
 } from "@/backend/types";
+import { isScopedGitConfigAbsent } from "@/backend/utils/gitConfigPaths";
 import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
 import { toGitQueryError } from "@/backend/utils/queryError";
 
@@ -246,8 +247,12 @@ async function loadScopedConfig(
     });
     return { value: parseScopedConfig(stdout), error: null };
   } catch (error: unknown) {
+    const empty = { userName: null, userEmail: null };
+    // Git exits 128 when the scope's file does not exist. Absence is decided
+    // from the file system, never from Git's (possibly localized) message.
+    if (isScopedGitConfigAbsent(scope, context.repo)) return { value: empty, error: null };
     return {
-      value: { userName: null, userEmail: null },
+      value: empty,
       error: toGitQueryError(error, `Unable to load ${scope} Git config`)
     };
   }
