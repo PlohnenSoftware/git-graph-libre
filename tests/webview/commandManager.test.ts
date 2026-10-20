@@ -190,6 +190,97 @@ describe("command manager", () => {
     });
   });
 
+  it.each([
+    ["/workspace/b", "/workspace/b"],
+    ["/workspace/a/nested", "/workspace/a/nested"],
+    ["C:/workspace/b", "C:\\workspace\\b"]
+  ])("opens the clicked Source Control repository %s", async (repo, fsPath) => {
+    const repos = {
+      "/workspace/a": { columnWidths: null },
+      [repo]: { columnWidths: null }
+    };
+    const harness = makeHarness(repos, "/workspace/a");
+    harness.setActiveTextEditorPath("/workspace/a/file.ts");
+
+    await harness.run("git-graph-libre.view", { rootUri: makeUri("/workspace/a") });
+    await harness.run("git-graph-libre.view", { rootUri: makeUri(fsPath) });
+
+    expect(harness.openGraphView.mock.calls).toEqual([["/workspace/a"], [repo]]);
+    expect(harness.getLastActiveRepo()).toBe(repo);
+    expect(harness.getSendReposCount()).toBe(2);
+    expect(harness.getRepos()).toEqual(repos);
+    expect(harness.outputLines).toEqual([]);
+    expect(harness.telemetryEvents).toEqual([
+      { feature: "git-graph-libre.view", ok: true },
+      { feature: "git-graph-libre.view", ok: true }
+    ]);
+  });
+
+  it.each([false, true])(
+    "discovers the clicked Source Control repository (known parent: %s)",
+    async (knownParent) => {
+      const repo = makeRepo();
+      const initialRepos = knownParent ? { [path.dirname(repo)]: { columnWidths: null } } : {};
+      const harness = makeHarness(initialRepos);
+      try {
+        await harness.run("git-graph-libre.view", { rootUri: makeUri(repo) });
+
+        expect(harness.getRepos()[repo]).toEqual({ columnWidths: null });
+        expect(harness.getLastActiveRepo()).toBe(repo);
+        expect(harness.openGraphView).toHaveBeenCalledExactlyOnceWith(repo);
+        expect(harness.getSendReposCount()).toBe(1);
+        expect(harness.outputLines.join("\n")).toContain('args=["rev-parse" "--show-toplevel"]');
+      } finally {
+        fs.rmSync(repo, { recursive: true, force: true });
+      }
+    }
+  );
+
+  it("keeps the last repository when opened without a Source Control context", async () => {
+    const harness = makeHarness({ "/workspace/a": { columnWidths: null } }, "/workspace/a");
+
+    await harness.run("git-graph-libre.view");
+
+    expect(harness.openGraphView).toHaveBeenCalledExactlyOnceWith();
+    expect(harness.getLastActiveRepo()).toBe("/workspace/a");
+    expect(harness.getSendReposCount()).toBe(0);
+  });
+
+  it.each([
+    null,
+    "invalid",
+    {},
+    { rootUri: null },
+    { rootUri: {} },
+    { rootUri: { fsPath: 42 } },
+    { rootUri: { fsPath: "" } }
+  ])("ignores a malformed Source Control context: %j", async (context) => {
+    const harness = makeHarness({ "/workspace/a": { columnWidths: null } }, "/workspace/a");
+
+    await harness.run("git-graph-libre.view", context);
+
+    expect(harness.openGraphView).toHaveBeenCalledExactlyOnceWith();
+    expect(harness.getLastActiveRepo()).toBe("/workspace/a");
+    expect(harness.getSendReposCount()).toBe(0);
+    expect(harness.outputLines).toEqual([]);
+  });
+
+  it("keeps the last repository if the Source Control root cannot be resolved", async () => {
+    const dir = fs.mkdtempSync("/tmp/ngg-command-manager-");
+    const repos = { "/workspace/a": { columnWidths: null } };
+    const harness = makeHarness(repos, "/workspace/a");
+    try {
+      await harness.run("git-graph-libre.view", { rootUri: makeUri(dir) });
+
+      expect(harness.openGraphView).toHaveBeenCalledExactlyOnceWith();
+      expect(harness.getLastActiveRepo()).toBe("/workspace/a");
+      expect(harness.getRepos()).toEqual(repos);
+      expect(harness.getSendReposCount()).toBe(0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("opens the longest matching known repository for the active editor", async () => {
     const { getLastActiveRepo, getSendReposCount, openGraphView, run, setActiveTextEditorPath } =
       makeHarness({

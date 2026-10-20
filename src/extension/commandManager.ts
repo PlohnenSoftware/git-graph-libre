@@ -167,6 +167,31 @@ export function createCommandManager(deps: CommandManagerDeps) {
     deps.repoManager.sendRepos();
   }
 
+  async function openSourceControlRepo(sourceControl: unknown) {
+    const rootUri = (sourceControl as Partial<vscode.SourceControl> | null | undefined)?.rootUri;
+    if (typeof rootUri?.fsPath !== "string" || rootUri.fsPath === "") {
+      deps.openGraphView();
+      return;
+    }
+
+    const repoPath = getPathFromStr(rootUri.fsPath);
+    // A SourceControl supplies a root, so a known parent must not hide a
+    // nested repository that has not been discovered yet.
+    if (Object.hasOwn(deps.repoManager.getRepos(), repoPath)) {
+      focusRepo(repoPath);
+      return;
+    }
+
+    const resolvedRepo = await resolveGitRoot(repoPath, deps.config.gitPath(), recordGitCommand);
+    if (resolvedRepo === null) {
+      deps.openGraphView();
+      return;
+    }
+
+    deps.repoManager.addRepo(resolvedRepo);
+    focusRepo(resolvedRepo);
+  }
+
   async function openActiveEditorRepo() {
     const activeUri = windowApi.getActiveTextEditorUri();
     if (!activeUri) {
@@ -262,7 +287,7 @@ export function createCommandManager(deps: CommandManagerDeps) {
   }
 
   function registerAll() {
-    register("git-graph-libre.view", () => deps.openGraphView());
+    register("git-graph-libre.view", (sourceControl) => openSourceControlRepo(sourceControl));
     register("git-graph-libre.searchCommits", () => startHistorySearch());
     register("git-graph-libre.viewActiveEditorRepo", () => openActiveEditorRepo());
     register("git-graph-libre.addRepo", () => addRepository());

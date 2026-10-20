@@ -102,6 +102,12 @@ Libre's own, and diff details that match Git.
   close button, and the Summary and Files section headers in commit
   details, comparisons and the staging panel, now stay in place while their
   content scrolls beneath them.
+- **The Source Control title button opens the repository you clicked.**
+  With several repositories in the Source Control view, the Git Graph Libre
+  button in a repository's title bar opened the last active repository's
+  graph. It now opens that repository, or switches an open graph to it.
+  Thanks to @FelipRamis for the report and the suggested fix
+  ([#32](https://github.com/PlohnenSoftware/git-graph-libre/issues/32)).
 
 ## [1.8.1] - 2026-10-17
 
