@@ -17,6 +17,8 @@ export function buildStartupScreen(strings: LocalizedStrings, styleVars: string)
         <button id="retryRepositories" type="button">${escapeHtml(strings.startupRetry)}</button>
         <button id="openGitSettings" type="button">${escapeHtml(strings.startupGitSettings)}</button>
         <button id="showOutput" type="button">${escapeHtml(strings.startupShowOutput)}</button>
+        <button id="openLogFile" type="button">${escapeHtml(strings.startupOpenLogFile)}</button>
+        <button id="copyRecentLog" type="button">${escapeHtml(strings.startupCopyRecentLog)}</button>
       </div>
       <section id="startupComponents" class="startupComponents"></section>
     </main>

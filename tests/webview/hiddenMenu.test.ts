@@ -110,7 +110,9 @@ describe("hidden menu", () => {
       "Dutch",
       "✓Polish",
       "Reload once with Git CLI",
-      "Show diagnostics"
+      "Show diagnostics",
+      "Open log file",
+      "Copy recent log"
     ]);
   });
 
@@ -128,6 +130,24 @@ describe("hidden menu", () => {
     diagnostics.click();
 
     expect(sent.slice(before)).toEqual([{ command: "showOutput" }]);
+    expect(menu.className).not.toContain("active");
+  });
+
+  it.each([
+    ["Open log file", "openLogFile"],
+    ["Copy recent log", "copyRecentLog"]
+  ])("sends %s to the host", async (title, command) => {
+    const { version, menu, sent } = await mount();
+
+    rightClick(version);
+    rightClick(version);
+    const before = sent.length;
+    const entry = [...menu.querySelectorAll(".contextMenuItem")].find(
+      (item) => item.textContent === title
+    ) as HTMLElement;
+    entry.click();
+
+    expect(sent.slice(before)).toEqual([{ command }]);
     expect(menu.className).not.toContain("active");
   });
 

@@ -159,6 +159,14 @@ export function registerRepositoryRecovery(
     await vscode.commands.executeCommand("workbench.action.openSettings", "git.path");
   });
   bridge.onMessage("showOutput", () => deps.outputChannel?.show?.(true));
+  // Through the command, so the buttons and the Command Palette share one
+  // implementation and one telemetry chokepoint.
+  bridge.onMessage("openLogFile", async () => {
+    await vscode.commands.executeCommand("git-graph-libre.openLogFile");
+  });
+  bridge.onMessage("copyRecentLog", async () => {
+    await vscode.commands.executeCommand("git-graph-libre.copyRecentLog");
+  });
   bridge.onMessage("failureScreenShown", (msg) => {
     if (msg.screen === null) {
       shown = null;

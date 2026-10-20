@@ -1,7 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { buildStartupScreen } from "@/extension/webviewStartupScreen";
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
+import { buildStartupScreen } from "@/extension/webviewStartupScreen";
 import type { RepositoryProbe, RequestMessage, StartupStatus } from "@/types";
 
 import { createVscodeMock } from "./setup";
@@ -55,6 +54,8 @@ function setupDom() {
       <button id="retryRepositories" type="button">retry</button>
       <button id="openGitSettings" type="button">settings</button>
       <button id="showOutput" type="button">output</button>
+      <button id="openLogFile" type="button">log</button>
+      <button id="copyRecentLog" type="button">copy</button>
     </main>`;
 }
 
@@ -200,6 +201,14 @@ describe("initStartupScreen", () => {
     expect(sent).toHaveLength(3);
   });
 
+  it("sends the log buttons' messages", () => {
+    start();
+    sent.length = 0;
+    document.getElementById("openLogFile")?.click();
+    document.getElementById("copyRecentLog")?.click();
+    expect(sent).toEqual([{ command: "openLogFile" }, { command: "copyRecentLog" }]);
+  });
+
   it("removes every action listener when disposed", () => {
     start();
     receive(status({ repositories: [probe({ state: "untrusted" })] }));
@@ -208,6 +217,8 @@ describe("initStartupScreen", () => {
     document.getElementById("retryRepositories")?.click();
     document.getElementById("openGitSettings")?.click();
     document.getElementById("showOutput")?.click();
+    document.getElementById("openLogFile")?.click();
+    document.getElementById("copyRecentLog")?.click();
     document.querySelector<HTMLButtonElement>(".startupRepository button")?.click();
     const input = document.getElementById("repoSearchDepth") as HTMLInputElement;
     input.value = "3";

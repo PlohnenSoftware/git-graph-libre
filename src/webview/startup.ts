@@ -108,6 +108,8 @@ export function initStartupScreen(
   const retry = document.getElementById("retryRepositories");
   const settings = document.getElementById("openGitSettings");
   const output = document.getElementById("showOutput");
+  const openLog = document.getElementById("openLogFile");
+  const copyLog = document.getElementById("copyRecentLog");
   repositories.addEventListener(
     "click",
     (event) => {
@@ -139,6 +141,8 @@ export function initStartupScreen(
   );
   settings?.addEventListener("click", () => send({ command: "openGitSettings" }), { signal });
   output?.addEventListener("click", () => send({ command: "showOutput" }), { signal });
+  openLog?.addEventListener("click", () => send({ command: "openLogFile" }), { signal });
+  copyLog?.addEventListener("click", () => send({ command: "copyRecentLog" }), { signal });
   window.addEventListener("message", receive, { signal });
   document.addEventListener("visibilitychange", refresh, { signal });
   renderComponentDetails(components, null);

@@ -274,6 +274,15 @@ describe("registerRepositoryRecovery diagnostics", () => {
     await handlers.get("showOutput")?.({ command: "showOutput" } as never);
     expect(showOutput).toHaveBeenCalledWith(true);
   });
+
+  it.each([
+    ["openLogFile", "git-graph-libre.openLogFile"],
+    ["copyRecentLog", "git-graph-libre.copyRecentLog"]
+  ])("runs the %s command for the matching message", async (message, commandId) => {
+    const { handlers } = makeRecovery();
+    await handlers.get(message)?.({ command: message } as never);
+    expect(vscodeStub.executeCommand).toHaveBeenCalledWith(commandId);
+  });
 });
 
 describe("registerRepositoryRecovery depth and telemetry", () => {

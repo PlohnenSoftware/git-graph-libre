@@ -159,6 +159,8 @@ const HIDDEN_MENU_RELOAD_WITH_CLI = "Reload once with Git CLI";
 
 /** The startup screen's "Show diagnostics", reachable from a working graph too. */
 const HIDDEN_MENU_SHOW_DIAGNOSTICS = "Show diagnostics";
+const HIDDEN_MENU_OPEN_LOG_FILE = "Open log file";
+const HIDDEN_MENU_COPY_RECENT_LOG = "Copy recent log";
 
 function requireElement<T extends HTMLElement = HTMLElement>(id: string): T {
   const elem = document.getElementById(id);
@@ -3085,6 +3087,14 @@ class GitGraphView {
         // and routing per request — exactly as the startup screen's button.
         title: HIDDEN_MENU_SHOW_DIAGNOSTICS,
         onClick: () => sendMessage({ command: "showOutput" })
+      },
+      {
+        title: HIDDEN_MENU_OPEN_LOG_FILE,
+        onClick: () => sendMessage({ command: "openLogFile" })
+      },
+      {
+        title: HIDDEN_MENU_COPY_RECENT_LOG,
+        onClick: () => sendMessage({ command: "copyRecentLog" })
       }
     ];
   }

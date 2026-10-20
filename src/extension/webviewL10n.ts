@@ -591,6 +591,8 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     startupRetry: translate("startup.retry"),
     startupGitSettings: translate("startup.gitSettings"),
     startupShowOutput: translate("startup.showOutput"),
+    startupOpenLogFile: translate("startup.openLogFile"),
+    startupCopyRecentLog: translate("startup.copyRecentLog"),
     startupNoWorkspace: translate("startup.noWorkspace"),
     startupUntrusted: translate("startup.untrusted"),
     startupGitUnavailable: translate("startup.gitUnavailable"),
