@@ -246,10 +246,8 @@ function rerouteToCli<T>(
   cause?: string
 ): Promise<T> {
   noteServedBy("cli");
-  logBackendRoute(
-    operation,
-    `backend=cli reason=${reason}${cause === undefined ? "" : ` cause=${cause}`}`
-  );
+  const causePart = cause === undefined ? "" : ` cause=${cause}`;
+  logBackendRoute(operation, `backend=cli reason=${reason}${causePart}`);
   return read();
 }
 
