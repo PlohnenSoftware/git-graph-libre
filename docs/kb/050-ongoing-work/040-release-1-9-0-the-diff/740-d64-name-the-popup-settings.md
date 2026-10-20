@@ -8,7 +8,7 @@ summary: >-
 
 # D64 — Name the popup "Settings"
 
-Status: claimed by Claude Haiku 5.5 slice agent on 2026-10-20 18:35
+Status: done — awaiting integration
 Needs: —
 Decisions: — (maintainer, `2026-10-20`: "rename Repository settings to just
 settings … because there are extension settings too")
@@ -58,4 +58,11 @@ any test asserting the old string
 
 ## Report
 
-_(not started)_
+- **Agent / date:** Claude Haiku 5.5 (slice agent), 2026-10-20 18:35
+- **Branch and commits:** `diff-1.9.0/d64` — `c4bcf22 G docs(release): claim slice D64 (Settings title)`; `c3bd709 G refactor(settings): call the popup Settings (D64)`; the commit that carries this report, `G`, follows them.
+- **Files changed:** `l10n/bundle.l10n.json` +1/−1; `l10n/bundle.l10n.nl.json` +1/−1; `l10n/bundle.l10n.pl.json` +1/−1; `l10n/bundle.l10n.zh-cn.json` +1/−1; `l10n/bundle.l10n.zh-tw.json` +1/−1; `src/extension/webviewL10n.ts` +1/−1; `src/extension/webviewToolbar.ts` +1/−1; `src/extension/webviewHtml.ts` +1/−1; `src/webview/main.ts` +1/−1; `tests/webview/setup.ts` +1/−1; `tests/webview/rendering.test.ts` +1/−3 (the assertion on the old label, collapsed to one line); status line and this report in the slice file. Code commit total: 11 insertions, 13 deletions.
+- **Tests added or changed:** `tests/webview/rendering.test.ts`, "renders the graph controls as an accessible toolbar": expected aria-label `Repository Settings` changed to `Settings`. No test added. Before: webview 780 passed, 1 failed (781 total), failing on that assertion. After: webview 781 passed (781); backend unchanged at 1109 passed, 60 skipped (1169).
+- **Gates:** biome pass (`--config-path biome.strict.jsonc --error-on-warnings` on all 10 touched `.ts`/`.json` files plus `rendering.test.ts`); typecheck pass (`tsc` for src, webview and tests); test backend 1109/1169 (60 skipped), webview 781/781; l10n 100% in all five languages; kb:check pass; Rust arm n/a (no `engine/**` change); Sonar: integrator
+- **Acceptance:** met. `grep -rn repositorySettings src tests l10n` returns nothing. The gear button's aria-label is asserted as "Settings" by the webview rendering test. The popup title is `title: l10n.settings` in `src/webview/main.ts`, and the `settingsWidget` aria-label uses `l10nStrings.settings`; both are verified by code reading, not by a rendered-popup test. The `config.repository.*` descriptions in `package.nls*.json` are unchanged.
+- **Deviations from the slice:** the `tests/webview/rendering.test.ts` edit was not named in the Touch list, but the slice's "any test asserting the old string" clause covers it. No other deviation.
+- **Open questions / follow-ups:** none. The Dutch, Polish and Chinese values are the ones given in the slice; they were not independently reviewed by a native speaker.
