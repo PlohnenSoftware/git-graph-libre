@@ -165,6 +165,9 @@ export function registerRepositoryRecovery(
   bridge.onMessage("openLogFile", async () => {
     await vscode.commands.executeCommand("git-graph-libre.openLogFile");
   });
+  bridge.onMessage("copyDiagnostics", async () => {
+    await vscode.commands.executeCommand("git-graph-libre.copyDiagnostics");
+  });
   bridge.onMessage("copyRecentLog", async () => {
     await vscode.commands.executeCommand("git-graph-libre.copyRecentLog");
   });

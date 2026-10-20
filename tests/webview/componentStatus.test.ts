@@ -11,6 +11,18 @@ import {
   resetComponentStatus
 } from "@/webview/componentStatus";
 
+// The popup's links post through the shared webview API, which is acquired
+// when its module loads; hoisting puts the stand-in ahead of the import above.
+const posted = vi.hoisted(() => {
+  const messages: unknown[] = [];
+  (globalThis as unknown as { acquireVsCodeApi: () => unknown }).acquireVsCodeApi = () => ({
+    postMessage: (message: unknown) => messages.push(message),
+    getState: () => undefined,
+    setState: () => {}
+  });
+  return messages;
+});
+
 const ACTIVE: ComponentStatus = {
   git: { state: "ok", path: "git", version: "git version 2.51.0" },
   engine: { state: "active", version: "1.0.25", platform: "linux-x64" },
@@ -78,6 +90,32 @@ describe("status indicator popup", () => {
     expect(isOpen()).toBe(true);
     expect(popup()?.getAttribute("role")).toBe("tooltip");
     expect(summary().getAttribute("aria-describedby")).toBe("componentStatusPopup");
+  });
+
+  it("links to the diagnostics report and the log file, and each link sends its message", () => {
+    summary().dispatchEvent(new FocusEvent("focus"));
+    posted.length = 0;
+
+    const links = [
+      ...(popup()?.querySelectorAll<HTMLAnchorElement>(".componentStatusLinks a") ?? [])
+    ];
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Copy diagnostics report",
+      "Open log file"
+    ]);
+    const click = new MouseEvent("click", { cancelable: true });
+    links[0]?.dispatchEvent(click);
+    links[1]?.click();
+
+    expect(click.defaultPrevented).toBe(true);
+    expect(posted).toEqual([{ command: "copyDiagnostics" }, { command: "openLogFile" }]);
+  });
+
+  it("keeps the links when an answer re-renders the open popup", () => {
+    summary().dispatchEvent(new FocusEvent("focus"));
+    applyComponentStatus(ACTIVE);
+
+    expect(popup()?.querySelectorAll(".componentStatusLinks a")).toHaveLength(2);
   });
 
   it("shows nothing when the pointer only passes over the indicator", () => {

@@ -278,6 +278,7 @@ describe("registerRepositoryRecovery diagnostics", () => {
 
   it.each([
     ["openLogFile", "git-graph-libre.openLogFile"],
+    ["copyDiagnostics", "git-graph-libre.copyDiagnostics"],
     ["copyRecentLog", "git-graph-libre.copyRecentLog"]
   ])("runs the %s command for the matching message", async (message, commandId) => {
     const { handlers } = makeRecovery();

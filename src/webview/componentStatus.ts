@@ -20,6 +20,7 @@ import type {
 } from "@/types";
 
 import { setEngineState } from "./statusStrip";
+import { sendMessage } from "./utils/vscode";
 
 /** How long a pointer has to rest on the indicator before the popup opens. */
 export const COMPONENT_STATUS_HOVER_DELAY_MS = 700;
@@ -169,7 +170,35 @@ function positionPopup(popup: HTMLElement, anchor: HTMLElement): void {
   popup.style.left = `${Math.round(Math.max(EDGE_GAP_PX, Math.min(rect.left, maxLeft)))}px`;
 }
 
-export function renderComponentDetails(popup: HTMLElement, status: ComponentStatus | null): void {
+/** The hover popup's two links; the startup screen has its own buttons for the log. */
+const POPUP_LINKS = [
+  { command: "copyDiagnostics", label: () => l10n.componentStatusCopyDiagnostics },
+  { command: "openLogFile", label: () => l10n.componentStatusOpenLog }
+] as const;
+
+function renderLinks(): HTMLElement {
+  const links = document.createElement("p");
+  links.className = "componentStatusLinks";
+  for (const link of POPUP_LINKS) {
+    const anchor = document.createElement("a");
+    anchor.href = "#";
+    anchor.setAttribute("role", "button");
+    anchor.dataset.command = link.command;
+    anchor.textContent = link.label();
+    anchor.addEventListener("click", (event) => {
+      event.preventDefault();
+      sendMessage({ command: link.command });
+    });
+    links.appendChild(anchor);
+  }
+  return links;
+}
+
+export function renderComponentDetails(
+  popup: HTMLElement,
+  status: ComponentStatus | null,
+  withLinks = false
+): void {
   const title = document.createElement("div");
   title.className = "componentStatusTitle";
   title.textContent = l10n.componentStatusTitle;
@@ -186,10 +215,13 @@ export function renderComponentDetails(popup: HTMLElement, status: ComponentStat
     note.textContent = l10n.componentStatusCliFallback;
     children.push(note);
   }
+  if (withLinks) children.push(renderLinks());
   popup.replaceChildren(...children);
 }
 
-const renderPopup = renderComponentDetails;
+function renderPopup(popup: HTMLElement, status: ComponentStatus | null): void {
+  renderComponentDetails(popup, status, true);
+}
 
 function renderRow(row: Row): HTMLElement {
   const group = document.createElement("div");

@@ -39,6 +39,7 @@ export type RequestRepositoryRecovery =
   | { command: "openGitSettings" }
   | { command: "showOutput" }
   | { command: "openLogFile" }
+  | { command: "copyDiagnostics" }
   | { command: "copyRecentLog" }
   | { command: "setRepoSearchDepth"; depth: number }
   | { command: "failureScreenShown"; screen: FailureScreen | null };

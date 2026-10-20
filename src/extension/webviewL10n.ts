@@ -609,6 +609,8 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     startupTrust: translate("startup.trust"),
     startupTrustConfirm: translate("startup.trustConfirm"),
     componentStatusTitle: translate("componentStatus.title"),
+    componentStatusCopyDiagnostics: translate("componentStatus.copyDiagnostics"),
+    componentStatusOpenLog: translate("componentStatus.openLog"),
     componentStatusGit: translate("componentStatus.git"),
     componentStatusEngine: translate("componentStatus.engine"),
     componentStatusGraphLoad: translate("componentStatus.graphLoad"),
