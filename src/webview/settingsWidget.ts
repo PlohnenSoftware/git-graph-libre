@@ -36,6 +36,11 @@ type SettingsLabels = {
   contributorsEraFork: string;
   contributorsEraOriginal: string;
   contributorsEraEngine: string;
+  contributorsEraLibreLicense: string;
+  contributorsEraForkLicense: string;
+  contributorsEraOriginalLicense: string;
+  contributorsEraEngineLicense: string;
+  contributorsMitNote: string;
   contributorsAgents: string;
   contributorsAgentsNote: string;
   general: string;
@@ -563,6 +568,16 @@ function eraHeading(id: ContributorEra["id"], labels: SettingsLabels) {
   return headings[id];
 }
 
+function eraLicense(id: ContributorEra["id"], labels: SettingsLabels) {
+  const licenses = {
+    libre: labels.contributorsEraLibreLicense,
+    fork: labels.contributorsEraForkLicense,
+    original: labels.contributorsEraOriginalLicense,
+    engine: labels.contributorsEraEngineLicense
+  };
+  return licenses[id];
+}
+
 function agentDetail(agent: CoauthorAgent) {
   const variants = agent.variants.join(", ");
   return [agent.maker, variants].filter((part) => part !== undefined && part !== "").join(" · ");
@@ -583,6 +598,7 @@ function renderEraSection(era: ContributorEra, labels: SettingsLabels) {
   const items = era.people.map(renderPersonItem).join("");
   return `<section class="settingsSection settingsContributorsSection">
       <h3>${escapeHtml(eraHeading(era.id, labels))}</h3>
+      <p class="settingsContributorMeta settingsContributorMetaBlock">${escapeHtml(eraLicense(era.id, labels))}</p>
       <ul class="settingsContributorList">${items}</ul>
     </section>`;
 }
@@ -592,6 +608,7 @@ function renderContributorsTab(labels: SettingsLabels) {
   const agents = COAUTHOR_AGENTS.map(renderAgentItem).join("");
   return `<p class="settingsContributorsThanks">${escapeHtml(labels.contributorsThanks)}</p>
     ${eras}
+    <p class="settingsContributorMeta settingsContributorMetaBlock">${escapeHtml(labels.contributorsMitNote)}</p>
     <section class="settingsSection settingsContributorsSection">
       <h3>${escapeHtml(labels.contributorsAgents)}</h3>
       <div class="settingsContributorsAgents">

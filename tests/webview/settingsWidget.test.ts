@@ -22,6 +22,11 @@ const labels: SettingsWidgetModel["labels"] = {
   contributorsEraFork: "Fork era",
   contributorsEraOriginal: "Original era",
   contributorsEraEngine: "Engine era",
+  contributorsEraLibreLicense: "Libre license",
+  contributorsEraForkLicense: "Fork license",
+  contributorsEraOriginalLicense: "Original license",
+  contributorsEraEngineLicense: "Engine license",
+  contributorsMitNote: "MIT note.",
   contributorsAgents: "AI agents",
   contributorsAgentsNote: "Agents co-authored commits.",
   general: "General",
@@ -228,5 +233,29 @@ describe("settings widget rendering", () => {
     expect(html).toContain("--settings-swatch:oklch(90% 0.25 150 &#x2F; 0.42)");
     expect(html).toContain('data-channel="lightness"');
     expect(html).not.toContain("[object Object]");
+  });
+
+  it("shows each era's license under its heading, and the MIT note once before AI agents", () => {
+    const html = render(null);
+
+    const eras: Array<[string, string]> = [
+      ["Libre era", "Libre license"],
+      ["Fork era", "Fork license"],
+      ["Original era", "Original license"],
+      ["Engine era", "Engine license"]
+    ];
+    for (const [heading, license] of eras) {
+      const headingAt = html.indexOf(`<h3>${heading}</h3>`);
+      expect(headingAt).toBeGreaterThanOrEqual(0);
+      expect(
+        html.indexOf(
+          `<p class="settingsContributorMeta settingsContributorMetaBlock">${license}</p>`
+        )
+      ).toBeGreaterThan(headingAt);
+    }
+    const note = '<p class="settingsContributorMeta settingsContributorMetaBlock">MIT note.</p>';
+    expect(html.split(note)).toHaveLength(2);
+    expect(html.indexOf(note)).toBeGreaterThan(html.indexOf("<h3>Engine era</h3>"));
+    expect(html.indexOf(note)).toBeLessThan(html.indexOf("<h3>AI agents</h3>"));
   });
 });

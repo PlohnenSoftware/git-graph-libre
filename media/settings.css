@@ -406,3 +406,7 @@
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
   font-size: 12px;
 }
+.settingsContributorMeta.settingsContributorMetaBlock {
+  display: block;
+  margin: 0;
+}
