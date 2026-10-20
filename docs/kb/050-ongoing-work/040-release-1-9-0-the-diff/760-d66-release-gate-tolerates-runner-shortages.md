@@ -10,7 +10,7 @@ summary: >-
 
 # D66 — A release gate that tolerates runner shortages
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 on 2026-10-20 12:00
 Needs: —
 Decisions: the maintainer, `2026-10-20`. "2 of 10 runs can be not runned and
 it will still pass to publish after timeout but more will need rerun; make
