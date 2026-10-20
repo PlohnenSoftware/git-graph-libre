@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D66F · ready · script · ~60 lines: clear the six SonarQube findings D66's
+  D66F · integrated · script · ~60 lines: clear the six SonarQube findings D66's
   `scripts/release-verify-gate.mjs` brought in (cognitive complexity 22 in
   `runGate`, four `await`-in-loop, one promise chain where top-level `await`
   fits) by restructuring, not suppressing. Every gate decision and every
@@ -9,7 +9,7 @@ summary: >-
 
 # D66F — Gate-script Sonar follow-up
 
-Status: done — awaiting integration
+Status: integrated 8c41805
 Needs: D66
 Decisions: —
 Kind: script · Size budget: ~60 changed lines outside tests
