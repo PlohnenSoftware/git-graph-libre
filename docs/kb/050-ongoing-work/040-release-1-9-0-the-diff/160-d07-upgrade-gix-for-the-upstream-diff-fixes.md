@@ -1,6 +1,6 @@
 ---
 summary: >-
-  D07 · ready · Rust · ~100 lines: take gix, with every `gix-*` crate, from
+  D07 · integrated · Rust · ~100 lines: take gix, with every `gix-*` crate, from
   the gitoxide monorepo on GitHub at `main` `0a49d46f6a0b` (maintainer,
   `2026-10-20`) instead of the unreleased-fix-less crates.io `0.89.0`. That
   brings the rename-limit, replacement-ref and Myers fixes; then delete
@@ -9,7 +9,7 @@ summary: >-
 
 # D07 — Upgrade gix for the upstream diff fixes
 
-Status: done — awaiting integration
+Status: integrated 7d87525
 Needs: — (the maintainer chose the GitHub source on `2026-10-20`, instead of
 waiting for a crates.io release)
 Decisions: the maintainer, `2026-10-20`: "lets grab gix (including deps)

@@ -102,6 +102,12 @@ Libre's own, and diff details that match Git.
   list the second parent's files as changed too, and their diffs opened
   with both sides identical. Both backends now agree, so merge commits no
   longer send commit details to the command line.
+- **Repositories that use `git replace` stay on the engine.** The Rust
+  engine handed every read in such a repository to the Git command line,
+  because the library it uses (gitoxide's `gix`) applied replacements
+  wrongly. It now reads them itself, with results checked against Git.
+  `gix` now comes from gitoxide's repository at a pinned commit that
+  carries this and the two fixes above, ahead of its next release.
 - **Licensing notices for VS Code's diff algorithm.** The port is a
   translation of MIT-licensed code from Microsoft's VS Code. `NOTICE.md`
   and `LICENSE.mit` now carry Microsoft's notice, and the engine declares
@@ -119,10 +125,16 @@ Libre's own, and diff details that match Git.
 - **Untracked files in a stash.** They're marked as untracked, and their
   diff and file view open the stashed copy; both used to open empty. Their
   line counts also appear on the engine path.
-- **Line counts that match Git.** The engine's `+N/−M` now equals
-  `git diff --numstat`: lines are counted with their line endings, empty
-  files are followed through renames as Git follows them, and submodule
-  changes count as Git counts them.
+- **Line counts that match Git.** The engine's `+N/−M` now agrees with
+  `git diff --numstat`. Lines are counted with their line endings, empty
+  files are followed through renames as Git follows them, submodule
+  changes count as Git counts them, and the diff underneath matches Git's
+  own (across the last 500 commits of Git's repository, every file's
+  counts agree).
+- **Renames in large commits.** A commit that moves and edits many files at
+  once, with more than a thousand deleted-and-added pairs, listed them as
+  separate adds and deletes on the engine. They are now paired as renames,
+  as Git pairs them.
 - **Headers stay put while you scroll.** The settings popup's title row and
   close button, and the Summary and Files section headers in commit
   details, comparisons and the staging panel, now stay in place while their

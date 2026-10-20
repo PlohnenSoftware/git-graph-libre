@@ -156,7 +156,15 @@ before more than ~500 SLOC; this change is ~130 lines.
    `track_empty: true`, and gitlink counts. Parity cases: newline at EOF,
    CRLF conversion, submodule add and move, and an empty-file rename.
 2. Bump gix once a release carries the Myers fix, `e571a9273` and
-   `1b6d8da7a`, then delete `decline_replace_refs`.
+   `1b6d8da7a`, then delete `decline_replace_refs`. **Done `2026-10-20`
+   (D07, `7d87525`)** without waiting for the release. At the maintainer's
+   choice, gix and all its crates come from gitoxide `main` `0a49d46f6a0b`,
+   which carries all three, through `[patch.crates-io]`. Last 500
+   non-merge commits, files whose counts differ from Git, before and
+   after: git.git 16 of 1,315 → 0; `../gix` 17 of 7,835 → 1; this
+   repository 12 of 2,001 → 9, all in the generated `graphify-out/graph.json`.
+   The 40 × 30 rename fixture lists 30 renames, as Git does. Once a gix
+   release carries the fixes, replace the patch with it.
 3. Fix the CLI stash details: diff against `W^1` and list `W^3` as added.
    Fix the stashed-untracked diff side. Add a stash-details parity case.
 4. The maintainer's call on merges: first-parent, then lift `mergeCommit`.
