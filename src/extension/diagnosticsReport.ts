@@ -120,7 +120,7 @@ function describeGit(git: GitComponentStatus | null | undefined): string[] {
 
 function environmentSection(facts: DiagnosticsFacts): string[] {
   const osVersion = reducePlatformVersion(facts.osRelease ?? "");
-  const system = [facts.platform, facts.arch, osVersion].filter((part) => part).join(" ");
+  const system = [facts.platform, facts.arch, osVersion].filter(Boolean).join(" ");
   return [
     "## Environment",
     "",
