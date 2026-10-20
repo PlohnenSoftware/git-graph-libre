@@ -38,6 +38,7 @@ vi.mock("@/backend/utils/repositoryProbe", () => ({
 vi.mock("@/backend/engine/index", () => ({ closeEngineRepository: engine.close }));
 vi.mock("@/extension/componentStatus", () => ({ buildComponentStatus: components.build }));
 
+import { setOperationLog } from "@/backend/utils/operationLog";
 import { createGitTrustCommand, registerRepositoryRecovery } from "@/extension/repositoryRecovery";
 import type { RepositoryProbe } from "@/types";
 
@@ -358,5 +359,23 @@ describe("registerRepositoryRecovery depth and telemetry", () => {
     recovery.clearFailure();
     await shown?.({ command: "failureScreenShown", screen: "noRepository" } as never);
     expect(telemetry.logFeature).toHaveBeenCalledTimes(4);
+  });
+
+  it("logs one application line per distinct failure screen, category only", async () => {
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    try {
+      const { handlers } = makeRecovery();
+      const shown = handlers.get("failureScreenShown");
+      await shown?.({ command: "failureScreenShown", screen: "graphLoadError" } as never);
+      await shown?.({ command: "failureScreenShown", screen: "graphLoadError" } as never);
+      await shown?.({ command: "failureScreenShown", screen: "/home/user/secret" } as never);
+      await shown?.({ command: "failureScreenShown", screen: null } as never);
+      expect(lines).toEqual([
+        "[application] request=background response=failureScreenShown category=graphLoadError"
+      ]);
+    } finally {
+      log.dispose();
+    }
   });
 });

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { closeEngineRepository } from "@/backend/engine/index";
 import { normalizeGitError } from "@/backend/utils/gitRunner";
+import { logApplication } from "@/backend/utils/operationLog";
 import { safeDirectoryEntry, trustGitRepository } from "@/backend/utils/repositoryProbe";
 import type { Config } from "@/config";
 import * as l10n from "@/l10n";
@@ -175,6 +176,8 @@ export function registerRepositoryRecovery(
     if (!deps.visible()) return;
     if (!FAILURE_SCREENS.includes(msg.screen) || msg.screen === shown) return;
     shown = msg.screen;
+    // The user-visible end of the chain: which screen replaced the graph.
+    logApplication("failureScreenShown", shown);
     // Fixed category only: never paths, Git output or a caller-provided event name.
     const emptyState = shown === "noWorkspace" || shown === "noRepository";
     deps.telemetry?.logFeature(`view.${emptyState ? "empty" : "failure"}.${shown}`, emptyState);
