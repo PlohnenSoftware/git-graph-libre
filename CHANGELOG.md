@@ -7,6 +7,102 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-20
+
+"The Diff": compare any two points in history, a diff tab of Git Graph
+Libre's own, and diff details that match Git.
+
+### Added
+
+- **Compare any two commits.** Ctrl/Cmd-click two commits, right-click, and
+  choose **Compare Selected Commits**. The comparison view that "Compare
+  with HEAD" already used opens between them, older to newer. Thanks to
+  @JFingerle for asking for this
+  ([#26](https://github.com/PlohnenSoftware/git-graph-libre/issues/26)).
+- **Compare with anything that names a commit.** **Compare With…** in the
+  commit, branch and tag context menus takes a commit SHA, a branch, a tag
+  or an expression such as `HEAD~2`, suggesting `HEAD` and the loaded
+  branches and tags as you type, and compares with it. A name that doesn't
+  resolve to a commit gets a clear error rather than an empty comparison. This is the second half of
+  [#26](https://github.com/PlohnenSoftware/git-graph-libre/issues/26).
+- **A comparison says what it compares.** Its details read "Comparing
+  *base* → *compare*", with branch or tag names where they're known, and
+  the diff tabs it opens carry the same labels. A **Swap** button turns the
+  comparison around.
+- **Compare a commit with the working tree.** **Compare with Working Tree**
+  lists every file that differs between a commit and the files on disk, as
+  `git diff <commit>` does. Each file's diff shows the working copy on the
+  right.
+- **Open a comparison in your own diff tool.** **Open in External Diff
+  Tool**, in a comparison's header, hands both sides to the tool set in
+  Git's `diff.tool` (Meld, Beyond Compare, KDiff3, …) through
+  `git difftool --dir-diff`. With no tool configured, it tells you how to
+  set one instead of failing silently.
+- **The GGL Diff tab.** A side-by-side diff tab of Git Graph Libre's own.
+  The Rust engine reads both sides in process and diffs them with a Rust
+  port of VS Code's own diff algorithm, so lines and characters are
+  highlighted as VS Code's diff editor highlights them. It follows your
+  `diffEditor.ignoreTrimWhitespace`, `maxComputationTime`, `maxFileSize`
+  and `hideUnchangedRegions.*` settings, so with
+  `diffEditor.hideUnchangedRegions.enabled` on, unchanged regions collapse
+  and expand there as well. `F7` and `Shift+F7` move between changes, and
+  long files stay fast because only the visible rows are drawn. The tab
+  stays loaded in the background, so later opens are quicker.
+  - **Open in GGL Diff** appears on each changed, staged and untracked file
+    in VS Code's Source Control view, as an inline icon and in its
+    right-click menu.
+  - **Open in GGL Diff** is also in the file context menu in commit
+    details and comparisons, beside **View Diff**, and can be hidden
+    through `contextMenuActionsVisibility`. A plain click on a file still
+    opens VS Code's diff editor.
+  - The tab is offered only where the Rust engine is running. Without it,
+    the Source Control icon doesn't appear, and the commit-details entry
+    opens VS Code's diff editor instead.
+- **Type changes are shown.** A file that became a symbolic link, or
+  stopped being one, used to drop out of file lists on both backends. It
+  now appears with its own "Type changed" badge and opens like a modified
+  file.
+- **Every diff read names its backend.** Git Graph Libre's output now logs
+  a line, with a file count, whenever the Rust engine serves file text,
+  commit details or a comparison. Until now only reads that went to the Git
+  command line left a trace
+  ([#31](https://github.com/PlohnenSoftware/git-graph-libre/issues/31),
+  the diff-read part).
+
+### Changed
+
+- **Merge commits are compared with their first parent.** Their details
+  list the files the merge changed against its first parent and say so
+  ("Changes compared with the first parent"). The command line used to
+  list the second parent's files as changed too, and their diffs opened
+  with both sides identical. Both backends now agree, so merge commits no
+  longer send commit details to the command line.
+- **Licensing notices for VS Code's diff algorithm.** The port is a
+  translation of MIT-licensed code from Microsoft's VS Code. `NOTICE.md`
+  and `LICENSE.mit` now carry Microsoft's notice, and the engine declares
+  its license as `AGPL-3.0-or-later AND MIT AND BSD-3-Clause`. The
+  BSD-3-Clause part covers the port of fdlibm's logarithm, which keeps the
+  diff identical to the one VS Code computes.
+
+### Fixed
+
+- **Stash details on the Git command line.** A stash's files were listed
+  once per stash parent, so some appeared two or three times, a file from
+  outside the stash could appear, and an untracked file showed as deleted.
+  They're now listed once, as `git stash show --include-untracked` lists
+  them. The engine was already right.
+- **Untracked files in a stash.** They're marked as untracked, and their
+  diff and file view open the stashed copy; both used to open empty. Their
+  line counts also appear on the engine path.
+- **Line counts that match Git.** The engine's `+N/−M` now equals
+  `git diff --numstat`: lines are counted with their line endings, empty
+  files are followed through renames as Git follows them, and submodule
+  changes count as Git counts them.
+- **Headers stay put while you scroll.** The settings popup's title row and
+  close button, and the Summary and Files section headers in commit
+  details, comparisons and the staging panel, now stay in place while their
+  content scrolls beneath them.
+
 ## [1.8.1] - 2026-10-17
 
 ### Added
