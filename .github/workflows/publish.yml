@@ -1,29 +1,111 @@
 name: release
 
-# `contents: write` is required to create the GitHub release and upload the VSIX.
+# Least privilege: every job asks for what it needs. Only `release` writes
+# contents; only the gate dispatches (`actions: write`); `verify` reads another
+# run's artifact (`actions: read`).
 permissions:
-  contents: write
+  contents: read
 
 # A tag push builds, packages, verifies and publishes. Running it by hand
-# ("Run workflow") does everything but the last job: a dry run that builds the
+# ("Run workflow") is a dry run unless `publish` is ticked: it builds the
 # engine, packages the VSIX and loads it on every platform, publishing nothing.
+#
+# Manual inputs:
+#   tag       an existing tag to build (empty: the branch the run is started
+#             on); required when publishing
+#   publish   false (default): dry run; true: publish `tag`, which must equal
+#             "v" + package.json's version at that tag
+#   skip_legs comma-separated verify leg names to leave out (an unknown name
+#             fails the run); see .github/verify-vsix-legs.json
+#   max_not_run  how many verify legs may never get a runner (default 2)
+#
+# The release gate (`verify-gate`) replaces "every leg green": a leg that ran
+# and failed always blocks the release, but up to `max_not_run` legs that never
+# got a hosted runner are retried once and then tolerated. More than that fails
+# the gate; use "Re-run failed jobs" on the run once runners are free. The
+# rules live in `scripts/release-verify-gate.mjs`.
+#
+# A tag push runs the workflow files at the tagged commit, so a fix to these
+# workflows reaches a tag that already exists only through a manual run from
+# `main` with `tag` set. The plan and gate jobs therefore use this run's own
+# commit (the script and leg list), while the jobs that build or publish check
+# out `tag`.
 on:
   push:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build (required to publish)
+        type: string
+        default: ""
+      publish:
+        description: Publish the tag (default is a dry run)
+        type: boolean
+        default: false
+      skip_legs:
+        description: Comma-separated verify leg names to skip
+        type: string
+        default: ""
+      max_not_run:
+        description: Legs that may never get a runner and still pass
+        type: string
+        default: "2"
 
 jobs:
+  # Reads the leg list, applies `skip_legs` and checks the manual inputs. Uses
+  # this run's own commit, not `tag`: it runs tooling, not the product.
+  plan:
+    name: Plan the verify legs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      legs: ${{ steps.plan.outputs.legs }}
+      count: ${{ steps.plan.outputs.count }}
+      skipped: ${{ steps.plan.outputs.skipped }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          sparse-checkout: |
+            scripts/release-verify-gate.mjs
+            .github/verify-vsix-legs.json
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+
+      - name: Plan
+        id: plan
+        env:
+          TAG: ${{ inputs.tag }}
+          PUBLISH: ${{ inputs.publish }}
+          SKIP_LEGS: ${{ inputs.skip_legs }}
+          MAX_NOT_RUN: ${{ inputs.max_not_run }}
+        run: node scripts/release-verify-gate.mjs plan
+
+  # Waits for the plan so a bad manual input fails before the 20-minute build.
   native:
     name: Build engine binaries
+    needs: plan
+    permissions:
+      contents: read
     uses: ./.github/workflows/native-build.yml
+    with:
+      ref: ${{ inputs.tag || '' }}
 
   package:
     name: Package universal VSIX
     needs: native
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.tag || '' }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v7.1.0
@@ -82,21 +164,71 @@ jobs:
           path: ${{ steps.package.outputs.vsix }}
           if-no-files-found: error
 
-  # The packaged VSIX, loaded on every platform it ships an engine for. Every
-  # leg must be green before anything is released or published.
+  # The packaged VSIX, loaded on every planned platform. Its legs report
+  # themselves; the verdict that gates the release is `verify-gate`, not this
+  # job, so a leg that never gets a runner cannot block publishing on its own.
   verify:
     name: Verify the VSIX on every platform
-    needs: package
+    needs: [plan, package]
+    if: needs.plan.outputs.count != '0'
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/verify-vsix.yml
+    with:
+      legs: ${{ needs.plan.outputs.legs }}
+      checkout_ref: ${{ inputs.tag || '' }}
+
+  # Decides from the jobs API whether verification is good enough to publish:
+  # any leg that ran and failed fails; up to `max_not_run` legs that never got
+  # a runner are retried once (a one-leg `verify-vsix.yml` dispatch) and then
+  # tolerated. It needs `package` (the artifact the retry downloads), not
+  # `verify`, so it runs while the legs do. The timeout covers a leg's queue
+  # timeout (30 min), a retry's queue timeout (30) and a leg's own limit (10),
+  # with room to spare.
+  verify-gate:
+    name: Verify gate
+    needs: [plan, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          sparse-checkout: |
+            scripts/release-verify-gate.mjs
+            .github/verify-vsix-legs.json
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+
+      - name: Gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LEGS: ${{ needs.plan.outputs.legs }}
+          SKIPPED: ${{ needs.plan.outputs.skipped }}
+          MAX_NOT_RUN: ${{ inputs.max_not_run }}
+          CHECKOUT_REF: ${{ inputs.tag }}
+          VERIFY_QUEUE_TIMEOUT_MINUTES: ${{ vars.VERIFY_QUEUE_TIMEOUT_MINUTES || '30' }}
+        run: node scripts/release-verify-gate.mjs gate
 
   release:
     name: Release and publish
-    needs: [package, verify]
-    # Only a tag push publishes; a manual run stops after verification.
-    if: github.event_name == 'push'
+    needs: [package, verify-gate]
+    # Runs only when the gate passed (the default success() on `needs`) and
+    # this is a tag push or a manual run with `publish` ticked.
+    if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.tag || '' }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v7.1.0
@@ -104,6 +236,19 @@ jobs:
           node-version: 24
 
       - run: corepack enable && pnpm install --frozen-lockfile
+
+      # A manual publish names its tag; it must be this package version's tag,
+      # so a mistyped input cannot release one version under another's name.
+      - name: Check the tag matches the version
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::tag $TAG does not match package.json version $version (expected v$version)"
+            exit 1
+          fi
 
       - name: Download VSIX
         uses: actions/download-artifact@v8.0.2
@@ -124,7 +269,7 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.tag || github.ref_name }}
           VSIX: ${{ steps.vsix.outputs.path }}
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
