@@ -1,15 +1,59 @@
 ---
 summary: >-
-  Next (`2026-10-16`, awaiting the maintainer): the upstream engine review's
-  ranked candidates, config staleness first; earlier: the Phase 16 Rust
-  engine, slices 16.1–16.9 done; then older priorities and the partial Phases
-  2 and 7–10.
+  Next (`2026-11-04`, post-`1.9.0`): maintainer decisions on the seven open
+  GitHub issues, documented with their threads and an agent assessment in Open
+  GitHub issues. #36 (push dialog defaults) and #37 (worktrees) are
+  acknowledged for release 1.10.0; #38, #40, #41, #42 and #45 are new and
+  undecided. Then the remaining Phase 2/6/9/10/16/17 items and D90 step 7
+  housekeeping.
 always_read: true
 ---
 
 # Near-Term Work Order
 
-**Next (`2026-10-18`): release 1.9.0 "The Diff"**, under Ongoing work, with
+**Update (`2026-11-04`): seven open issues, awaiting the maintainer's
+decisions.** Since the `2026-10-27` audit below, `rbalet` opened six more
+issues:
+
+- #38: remove a worktree that blocks a branch;
+- #39: auto pull on checkout, closed `2026-11-02` as a duplicate of #45;
+- #40: fetch that also updates the current branch;
+- #41: whole-row checkbox hit area in dialogs;
+- #42: lighter ref badge icons;
+- #45: checking out a remote branch whose local branch exists, including
+  `cktgh`'s confirmed bug in the suggested local name.
+
+Every open issue's thread, the code and Git facts checked, and an agent
+assessment of each proposal are in Open GitHub issues under Future work. Its
+summary table is the place to decide from. Nothing there is decided. Small,
+clearly correct candidates, if the maintainer agrees: #45's name bug (one
+line, with tests) and #41 (one CSS rule). #36 and #37 remain the release's
+anchors, as acknowledged on `2026-10-27`.
+
+**Earlier next (`2026-10-27`, post-`1.9.0`):** `v1.9.0` ("The Diff") shipped on
+`2026-10-20` (`31e0169`), closing issues `#26`, `#30`, `#31`, and `#32`. Two
+new GitHub enhancement issues are open and were acknowledged by the maintainer
+on `2026-10-27` for the upcoming release (`1.10.0`, targeted for the first
+half of November):
+
+1. **[Issue #36](https://github.com/PlohnenSoftware/git-graph-libre/issues/36)
+   (Phase 9) — Push dialog defaults:** pre-select the branch's configured
+   upstream remote instead of hardcoded `origin` (with a fallback / default
+   remote setting when no upstream is configured), and uncheck **Set upstream**
+   (`--set-upstream`) by default.
+2. **[Issue #37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)
+   (Phase 18) — Git worktree support:** show which branches and detached
+   commits are checked out in which worktrees in the graph, with CLI and
+   Rust-engine parity, sibling worktree discovery/switching, and branch-action
+   awareness.
+3. **Remaining roadmap & post-`1.9.0` items to weigh for `1.10.0`:** D90 step 7
+   housekeeping (move the `1.9.0` section to History), Phase 9's repository
+   dropdown ordering preference, Phase 6's initial branches on load, Phase 2's
+   docked-bottom commit details mode, Phase 10's text/mailmap/encoding items,
+   and Phase 16's remaining upstream engine candidates (topo seeding, encoding,
+   remote-ref special cases).
+
+**Earlier (`2026-10-18`, shipped `2026-10-20`):** release 1.9.0 "The Diff", under Ongoing work, with
 its slices, agent protocol and decisions. It supersedes the diff-related
 items below.
 

@@ -1,14 +1,14 @@
 ---
 summary: >-
   Partial. Done: issue linking, config sharing, archives, commit/tag
-  signatures, staging panel (`1.5.0`). Open: markdown/emoji, inline body,
-  `.mailmap`, encoding. `2026-07-27` record: signature column, SonarQube gate,
-  the empty-`SONAR_TOKEN=` pitfall.
+  signatures, staging panel (`1.5.0`), working-tree comparison and external
+  directory diff (`1.9.0`), copyable diagnostics/logs (issue #31, `1.9.0`).
+  Open: markdown/emoji, inline body, `.mailmap`, code review, encoding.
 ---
 
 # Phase 10: Advanced History, Text, and Integrations
 
-**Status: partially complete** — issue linking, repo config export/import sharing (`7a18099`), ref archives (`b4d97fe`), commit signature status, and tag signature status (Phase 15, `2026-07-29`) are done. Remaining: markdown/emoji message rendering, inline commit body, `.mailmap` support, code-review state, and file encoding setting. The uncommitted-changes details view landed as the staged/unstaged drag-drop staging panel (`2026-09-07`), released as `1.5.0`.
+**Status: partially complete** — issue linking, repo config export/import sharing (`7a18099`), ref archives (`b4d97fe`), commit signature status, tag signature status (Phase 15, `2026-07-29`), the staged/unstaged drag-drop staging panel (`1.5.0`, `2026-09-07`), working-tree comparison and external directory diff (`1.9.0`, D14–D15), and copyable diagnostics/logs ([issue #31](https://github.com/PlohnenSoftware/git-graph-libre/issues/31), `1.9.0`, D01 and D61–D63) are done. Remaining: markdown/emoji message rendering, inline commit body, `.mailmap` support, code-review state, and file encoding setting.
 
 Goal: close feature gaps after the core UX is strong.
 
