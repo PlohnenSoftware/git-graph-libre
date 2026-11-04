@@ -1,13 +1,14 @@
 ---
 summary: >-
-  Partial: multi-select squash/drop (`15a1967`) and compare-with-HEAD
-  (`8fc95ef`) done. Open: comparing any two loaded commits, ref-to-ref
-  comparison, external directory diff.
+  Complete in 1.9.0 (`2026-10-20`): multi-select squash/drop (`15a1967`),
+  compare-with-HEAD (`8fc95ef`), arbitrary two-commit and ref-to-ref comparison
+  (issue #26, D10–D13), working-tree comparison (D14), and external directory
+  diff (D15) done.
 ---
 
 # Phase 8: Commit Comparison and Multi-Select
 
-**Status: partially complete** — multi-commit selection with squash/drop (`15a1967`) and compare-with-HEAD (`8fc95ef`) are done. Remaining: arbitrary two-loaded-commit and ref-to-ref comparison, and external directory diff. All three are scheduled in release 1.9.0 (D10–D13, D15; [issue #26](https://github.com/PlohnenSoftware/git-graph-libre/issues/26)).
+**Status: complete in `1.9.0` (`2026-10-20`)** — multi-commit selection with squash/drop (`15a1967`), compare-with-HEAD (`8fc95ef`), arbitrary two-loaded-commit and ref-to-ref comparison (D10–D13; [issue #26](https://github.com/PlohnenSoftware/git-graph-libre/issues/26)), working-tree comparison (D14), and external directory diff (D15) are all shipped in `v1.9.0` (awaiting D90 step 7 move to History).
 
 Goal: compare two commits without importing non-MIT behavior.
 

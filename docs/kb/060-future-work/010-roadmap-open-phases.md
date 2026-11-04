@@ -1,7 +1,7 @@
 ---
 summary: >-
-  Phases with open items (2, 6, 8, 9, 10, and the planned 17), in phase order; each phase's
-  `Status:` line names what remains.
+  Phases with open items (2, 6, 8, 9, 10, 17, and 18), in phase order; each
+  phase's `Status:` line names what remains.
 ---
 
 # Roadmap: open phases
