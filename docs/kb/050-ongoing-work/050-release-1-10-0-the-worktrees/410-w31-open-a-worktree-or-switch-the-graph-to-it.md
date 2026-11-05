@@ -45,6 +45,16 @@ Source: full worktree support; the TypeScript worktree map (`2026-11-04`),
 4. Tests: each message's VS Code call, mocked; the stale-path guard; switch
    on an unknown worktree adds and focuses it.
 
+## Integrator addition (`2026-11-05`)
+
+W21 built the prune flow (a webview preview dialog and the
+`pruneWorktrees` action), but could not add Y5 (b)'s Command Palette entry:
+its Touch list had no manifest. This slice edits `package.json` anyway, so
+it also contributes **"Git Graph Libre: Prune Stale Worktrees…"**
+(`git-graph-libre.pruneStaleWorktrees`) with its `package.nls*` title. It
+opens the same preview for the active graph's repository, or says that
+none is open. Add a test.
+
 ## Touch
 
 `src/extension/messageHandler.ts`, `src/extension/commandManager.ts`,

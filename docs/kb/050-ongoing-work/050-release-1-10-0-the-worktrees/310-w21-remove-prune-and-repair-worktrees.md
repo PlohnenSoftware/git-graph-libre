@@ -11,7 +11,7 @@ summary: >-
 
 # W21 — Remove, prune and repair worktrees
 
-Status: done — awaiting integration
+Status: integrated `88ed629` (`2026-11-05`)
 Needs: W10, W20
 Decisions: Y5 (the removal and force policy)
 Kind: TypeScript and webview, l10n · Size budget: ~280 changed lines outside

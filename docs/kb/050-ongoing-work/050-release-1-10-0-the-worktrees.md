@@ -113,10 +113,10 @@ run one after another, as the integrator procedure says.
 | W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | ready (queued: one manifest or l10n slice at a time) |
 | W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | ready (queued behind W21: it touches the l10n bundles) |
 | W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | integrated `83f5821` |
-| W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | dispatched `2026-11-05` (Sonnet) |
+| W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | integrated `88ed629` |
 | W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | ready (queued: one manifest or l10n slice at a time) |
 | W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | ready (queued: one manifest or l10n slice at a time) |
-| W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | ready (queued: one manifest or l10n slice at a time) |
+| W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | dispatched `2026-11-05` (Haiku), with W21's Command Palette prune |
 | W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | needs W10, W21, W31 |
 | W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | needs W21, W30 |
 | W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | ready (queued: one manifest or l10n slice at a time) |
@@ -387,3 +387,21 @@ commit, the gate results with numbers, and the Sonar task id.
     engine build.
   - Held: W41 behind W40 (both change `repository.rs` and the engine
     version), and W12 behind W21 (both touch the l10n bundles).
+- `2026-11-05`: W21 integrated at `88ed629`. From the Delete Branch dialog and
+  the branch menu, a worktree can now be removed, its stale entry
+  removed, repaired after a move, or pruned with a preview.
+  - Safeguards read in review:
+    - `--force` only after a second confirmation that lists up to 20
+      changed paths;
+    - a locked worktree is unlocked explicitly, never with `-f -f`;
+    - `--` before every path;
+    - the main and current worktrees are refused;
+    - engine handles are closed and known repositories dropped.
+  - Accepted outside the Touch list: `queries.types.ts` (the
+    `worktreeChanges` query) and `webviewL10n.ts`.
+  - The rebase was clean. Typecheck passes, the backend passes 1257 (60
+    environment skips), the webview 851 of 851, and l10n is complete.
+  - Issue #38 is complete with W21. Its `Closes` line goes on the next
+    gated record.
+  - Next in the manifest and l10n slot: W31 (Haiku), with W21's Command
+    Palette prune folded in, as recorded in W31's slice.
