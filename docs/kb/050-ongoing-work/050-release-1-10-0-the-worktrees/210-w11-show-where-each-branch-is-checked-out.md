@@ -10,7 +10,7 @@ summary: >-
 
 # W11 — Show where each branch is checked out
 
-Status: ready once W10 is integrated
+Status: claimed by Muse Code (muse-wonder-full-1.0) on 2026-11-05 19:54
 Needs: W10
 Decisions: Y4
 Kind: webview, CSS and l10n · Size budget: ~220 changed lines outside tests
