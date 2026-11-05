@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Checking out a remote branch suggests its full name.** The name in the
+  prompt was the last path segment, so `origin/feat/admin-gui` suggested
+  `admin-gui`, and the next checkout of that branch failed because a branch
+  with that name already existed. It now suggests `feat/admin-gui`. Thanks to
+  @cktgh for diagnosing it and @rbalet for reporting it
+  ([#45](https://github.com/PlohnenSoftware/git-graph-libre/issues/45)). Reusing
+  an existing local branch is still to come.
+
 ## [1.9.0] - 2026-10-20
 
 "The Diff": compare any two points in history, a diff tab of Git Graph
