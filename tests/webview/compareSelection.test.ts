@@ -108,7 +108,9 @@ async function boot(loadedCommits = commits, state = viewState) {
     head: "main",
     hard: true,
     isRepo: true,
-    error: null
+    error: null,
+    worktrees: [],
+    upstreams: {}
   });
   receive({
     command: "loadCommits",

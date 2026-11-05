@@ -54,7 +54,9 @@ describe("loadBranches", () => {
       head: "main",
       hard: false,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: expect.any(Array),
+      upstreams: expect.any(Object)
     });
     expect(result.branches[0]).toBe("main");
   });
@@ -81,7 +83,9 @@ describe("loadBranches", () => {
       head: null,
       hard: false,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: expect.any(Array),
+      upstreams: expect.any(Object)
     });
     expect(result.branches.length).toBeGreaterThan(0);
   });
@@ -98,7 +102,9 @@ describe("loadBranches", () => {
       head: expect.any(String),
       hard: false,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: expect.any(Array),
+      upstreams: expect.any(Object)
     });
     expect(result.branches.some((b) => b.startsWith("remotes/"))).toBe(false);
   });
@@ -115,7 +121,9 @@ describe("loadBranches", () => {
       head: expect.any(String),
       hard: false,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: expect.any(Array),
+      upstreams: expect.any(Object)
     });
     expect(result.branches.some((b) => b.startsWith("remotes/origin/"))).toBe(true);
   });
@@ -162,7 +170,9 @@ describe("loadBranches", () => {
       head: expect.any(String),
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: expect.any(Array),
+      upstreams: expect.any(Object)
     });
   });
 
@@ -193,7 +203,9 @@ describe("loadBranches", () => {
         stderr: "fatal: branch failed",
         exitCode: 128,
         task: null
-      }
+      },
+      worktrees: [],
+      upstreams: {}
     });
   });
 });

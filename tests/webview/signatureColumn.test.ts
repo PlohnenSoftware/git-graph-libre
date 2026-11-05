@@ -175,7 +175,9 @@ async function boot(state: GGL.GitGraphViewState = viewState) {
     head: "main",
     hard: true,
     isRepo: true,
-    error: null
+    error: null,
+    worktrees: [],
+    upstreams: {}
   });
   answerLoadCommits(vscodeMock);
   return vscodeMock;
@@ -223,7 +225,9 @@ describe("signature column", () => {
         head: "main",
         hard: false,
         isRepo: true,
-        error: null
+        error: null,
+        worktrees: [],
+        upstreams: {}
       });
     }
     refreshPage();
@@ -299,7 +303,9 @@ describe("signature column", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     answerLoadCommits(vscodeMock);
 

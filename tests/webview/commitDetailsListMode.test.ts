@@ -116,7 +116,9 @@ describe("commit details list mode runtime", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     receive({
       command: "loadCommits",
@@ -151,7 +153,9 @@ describe("commit details list mode runtime", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const loadCommitsRequest = latestLoadCommitsRequest(vscodeMock.sentMessages);
     receive({
@@ -217,7 +221,9 @@ describe("commit details list mode runtime", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const loadCommitsRequest = latestLoadCommitsRequest(vscodeMock.sentMessages);
     receive({

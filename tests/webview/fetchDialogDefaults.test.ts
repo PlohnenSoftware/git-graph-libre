@@ -154,7 +154,9 @@ async function openFetchDialog(
     head: "main",
     hard: true,
     isRepo: true,
-    error: null
+    error: null,
+    worktrees: [],
+    upstreams: {}
   });
   const loadCommitsRequest: LoadCommitsRequest = latest(vscodeMock.sentMessages, "loadCommits");
   receive({

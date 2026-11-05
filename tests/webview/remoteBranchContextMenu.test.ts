@@ -122,7 +122,9 @@ async function bootWebview(viewState: GGL.GitGraphViewState) {
     head: "main",
     hard: true,
     isRepo: true,
-    error: null
+    error: null,
+    worktrees: [],
+    upstreams: {}
   });
   receive({
     command: "loadCommits",

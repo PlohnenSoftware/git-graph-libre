@@ -132,7 +132,9 @@ async function bootWebview(input: BootInput) {
     head: input.branchHead,
     hard: true,
     isRepo: true,
-    error: null
+    error: null,
+    worktrees: [],
+    upstreams: {}
   });
   receive({
     command: "loadCommits",

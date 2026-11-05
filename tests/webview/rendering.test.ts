@@ -500,7 +500,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const loadCommitsRequest = latestLoadCommitsRequest();
     receive({
@@ -1505,7 +1507,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const restoredCommitsRequest = latestLoadCommitsRequest();
     receive({
@@ -1569,7 +1573,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     expect(latestLoadCommitsRequest().hiddenRemotes).toEqual(["origin"]);
     receive({
@@ -1596,7 +1602,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     receive({
       command: "loadCommits",
@@ -1629,7 +1637,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     receive({
       command: "loadCommits",
@@ -1686,7 +1696,9 @@ describe("webview rendering", () => {
         head: "main",
         hard: true,
         isRepo: true,
-        error: null
+        error: null,
+        worktrees: [],
+        upstreams: {}
       });
       receive({
         command: "loadCommits",
@@ -1871,7 +1883,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     receive({
       command: "loadCommits",
@@ -2257,7 +2271,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const enabledCommitsRequest = latestLoadCommitsRequest();
     expect(enabledCommitsRequest.includeUnreachableCommits).toBe(true);
@@ -2284,7 +2300,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const defaultCommitsRequest = latestLoadCommitsRequest();
     expect(defaultCommitsRequest.includeUnreachableCommits).toBe(false);
@@ -2502,7 +2520,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     receive({
       command: "loadCommits",
@@ -2611,7 +2631,9 @@ describe("webview rendering", () => {
         head: "main",
         hard: true,
         isRepo: true,
-        error: null
+        error: null,
+        worktrees: [],
+        upstreams: {}
       });
       const commitsRequest = latestLoadCommitsRequest();
       expect(commitsRequest.showStashes).toBe(mode !== "table");
@@ -2864,7 +2886,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const commitsRequest = latestLoadCommitsRequest();
     receive({
@@ -3710,7 +3734,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     } as unknown as GGL.ResponseMessage);
     receiveLoadedCommits(
       [
@@ -3840,7 +3866,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     } as unknown as GGL.ResponseMessage);
     receiveLoadedCommits(
       [
@@ -4002,7 +4030,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     } as unknown as GGL.ResponseMessage);
     receiveLoadedCommits(
       [
@@ -4558,7 +4588,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const loadCommitsRequest = latestLoadCommitsRequest();
     receive({
@@ -4582,7 +4614,9 @@ describe("webview rendering", () => {
       head: "stale-branch",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
 
     expect(document.getElementById("branchSelect")?.textContent).not.toContain("stale-branch");
@@ -4971,7 +5005,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     receive({
       command: "loadCommits",
@@ -5000,7 +5036,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     receive({
       command: "loadCommits",
@@ -5238,7 +5276,9 @@ describe("webview rendering", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const loadCommitsRequest = latestLoadCommitsRequest();
 

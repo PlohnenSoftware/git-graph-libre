@@ -5,7 +5,8 @@ import type {
   GitCommitSignature,
   GitRepoInfo,
   GitTagDetails,
-  GitUncommittedChanges
+  GitUncommittedChanges,
+  GitWorktree
 } from "./git.types";
 
 export const COMMIT_ORDERINGS = ["date", "author-date", "topo"] as const;
@@ -29,6 +30,10 @@ type LoadBranchesResult = {
   hard: boolean;
   isRepo: boolean;
   error: GitQueryError | null;
+  /** Every worktree, in Git's order. Empty when the list could not be read (logged, never an error). */
+  worktrees: GitWorktree[];
+  /** Local branch to the short name of its upstream, or null when it tracks nothing. */
+  upstreams: Record<string, string | null>;
 };
 
 type LoadCommitsResult = {

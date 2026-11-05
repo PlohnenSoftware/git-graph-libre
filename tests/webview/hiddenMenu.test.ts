@@ -184,7 +184,9 @@ describe("hidden menu", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const loads = sent.filter(
       (msg): msg is Extract<GGL.RequestMessage, { command: "loadCommits" }> =>
@@ -205,7 +207,9 @@ describe("hidden menu", () => {
       head: "main",
       hard: false,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const next = sent.findLast(
       (msg): msg is Extract<GGL.RequestMessage, { command: "loadCommits" }> =>

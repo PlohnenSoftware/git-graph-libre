@@ -162,7 +162,9 @@ async function bootWebview(defaults: Defaults) {
     head: "main",
     hard: true,
     isRepo: true,
-    error: null
+    error: null,
+    worktrees: [],
+    upstreams: {}
   });
   receive({
     command: "loadCommits",

@@ -130,7 +130,9 @@ describe("webview keyboard navigation", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const commitsRequest: LoadCommitsRequest = latestRequest("loadCommits");
     receive({
@@ -290,7 +292,9 @@ describe("webview keyboard navigation", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const commitsRequest: LoadCommitsRequest = latestRequest("loadCommits");
     receive({

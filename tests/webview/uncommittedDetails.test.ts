@@ -166,7 +166,9 @@ describe("uncommitted details", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     const request = latestSent("loadCommits");
     receive({
@@ -218,7 +220,9 @@ describe("uncommitted details", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     receiveLoadedCommits();
   });
@@ -579,7 +583,9 @@ describe("uncommitted details", () => {
       head: "main",
       hard: true,
       isRepo: true,
-      error: null
+      error: null,
+      worktrees: [],
+      upstreams: {}
     });
     receiveLoadedCommits();
     expect(

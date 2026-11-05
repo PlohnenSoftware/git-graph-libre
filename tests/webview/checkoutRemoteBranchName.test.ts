@@ -126,7 +126,9 @@ async function prefilledCheckoutName(remoteNames: readonly string[], refName: st
     head: "main",
     hard: true,
     isRepo: true,
-    error: null
+    error: null,
+    worktrees: [],
+    upstreams: {}
   });
   receive({
     command: "loadCommits",
