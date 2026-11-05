@@ -77,10 +77,14 @@ export function killProcessTree(
   try {
     if (platform === "win32") {
       const root = process.env.SystemRoot ?? String.raw`C:\Windows`;
-      const killer = start(`${root}\\System32\\taskkill.exe`, ["/pid", String(pid), "/T", "/F"], {
-        stdio: "ignore",
-        windowsHide: true
-      });
+      const killer = start(
+        String.raw`${root}\System32\taskkill.exe`,
+        ["/pid", String(pid), "/T", "/F"],
+        {
+          stdio: "ignore",
+          windowsHide: true
+        }
+      );
       killer.on("error", () => child.kill());
       return;
     }
