@@ -71,7 +71,8 @@ import {
   describeCommitCounts,
   describeRepoInfoCounts,
   logApplication,
-  logReadResponse
+  logReadResponse,
+  traceRequest
 } from "@/backend/utils/operationLog";
 import { abbrevCommit } from "@/backend/utils/string";
 import type { Config } from "@/config";
@@ -774,6 +775,9 @@ export function registerMessageHandlers(
 
   // --- Query handlers ---
 
+  // The panel's running remote tag read, if any; `dispose` ends it.
+  let remoteTagsRead: AbortController | null = null;
+
   bridge.onMessage("remoteTags", (msg) => {
     if (!config.showTagRemotes()) {
       // Off means no process and no network, even for a webview that asks.
@@ -787,12 +791,33 @@ export function registerMessageHandlers(
       });
       return;
     }
-    // Do not keep the file watcher muted while waiting for the network.
-    void remoteTags({ repo: msg.repo, gitPath: config.gitPath(), recordGitCommand }).then(
-      (result) => {
-        bridge.post({ command: "remoteTags", requestId: msg.requestId, repo: msg.repo, ...result });
-      }
-    );
+    // A newer request for this panel (a repository switch, a refresh) makes
+    // the running read stale.
+    remoteTagsRead?.abort();
+    const read = new AbortController();
+    remoteTagsRead = read;
+    // Not awaited: the bridge mutes the file watcher while a handler runs, and
+    // a network read must not hold that. The real work is traced instead, so
+    // the request log shows its duration, and a failed post is only logged.
+    void traceRequest("remoteTags.read", msg.requestId, async () => {
+      const result = await remoteTags({
+        repo: msg.repo,
+        gitPath: config.gitPath(),
+        recordGitCommand,
+        signal: read.signal
+      });
+      if (read.signal.aborted) return;
+      await bridge.post({
+        command: "remoteTags",
+        requestId: msg.requestId,
+        repo: msg.repo,
+        ...result
+      });
+    }).catch((error: unknown) => {
+      outputChannel?.appendLine(
+        `[remoteTags] reply not delivered: ${error instanceof Error ? error.message : String(error)}`
+      );
+    });
   });
 
   bridge.onMessage("loadCommits", async (msg) => {
@@ -1237,6 +1262,8 @@ export function registerMessageHandlers(
   });
 
   return {
+    /** Ends the panel's running remote tag read; call when the panel is disposed. */
+    dispose: () => remoteTagsRead?.abort(),
     onPanelShown: () => {
       currentRepo = null;
     }
