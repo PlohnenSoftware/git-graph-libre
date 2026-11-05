@@ -97,6 +97,7 @@ run one after another, as the integrator procedure says.
 | W04F | [Git dirs Sonar follow-up, and one worktree check](050-release-1-10-0-the-worktrees/145-w04f-git-dirs-sonar-follow-up-and-one-worktree-check.md) | TS | W04, W08 | A | integrated `7db994b` |
 | W05 | [Suggest the full branch name for a remote checkout](050-release-1-10-0-the-worktrees/150-w05-suggest-the-full-branch-name-for-a-remote-checkout.md) | webview | — | A | integrated `659d095` |
 | W06 | [Whole-row checkboxes in dialogs](050-release-1-10-0-the-worktrees/160-w06-whole-row-checkboxes-in-dialogs.md) | CSS | Y13 (ready under (a)) | A | integrated `af7ff04` |
+| W06F | [Whole-row checkboxes in every popup](050-release-1-10-0-the-worktrees/165-w06f-whole-row-checkboxes-in-every-popup.md) | CSS + webview | W06, Y13 | A | dispatched `2026-11-05` (Haiku) |
 | W07 | [Read a linked worktree's local config](050-release-1-10-0-the-worktrees/170-w07-read-a-linked-worktree-s-local-config.md) | Rust + TS | W01 | A | dispatched `2026-11-05` (Sonnet) |
 | W08 | [A nested worktree is not a submodule in telemetry](050-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | integrated `6b0e232` |
 | W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | integrated `decdf71` |
@@ -354,3 +355,12 @@ commit, the gate results with numbers, and the Sonar task id.
   Dispatched next:
   - W21 to Sonnet, taking the manifest and l10n slot, completing #38;
   - W26HF to Haiku.
+- `2026-11-05`: the maintainer re-answered Y13. Whole-row checkboxes are
+  to be built once, at the shared popup level, for every popup, not only
+  the modal dialogs.
+  - W06F was added and dispatched to Haiku. It doesn't touch the manifest
+    or l10n, so it runs beside W21.
+  - #41's `Closes` line is already in the local record `31417ec`. It takes
+    effect only when `main` is fast-forwarded at W90, by which time W06F
+    is in, so the widened scope is closed together.
+  - W07 reported done.
