@@ -116,8 +116,8 @@ run one after another, as the integrator procedure says.
 | W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | integrated `88ed629` |
 | W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | ready (queued: one manifest or l10n slice at a time) |
 | W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | ready (queued: one manifest or l10n slice at a time) |
-| W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | dispatched `2026-11-05` (Haiku), with W21's Command Palette prune |
-| W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | needs W10, W21, W31 |
+| W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | integrated `fcc76c4` |
+| W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | ready |
 | W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | needs W21, W30 |
 | W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | ready (queued: one manifest or l10n slice at a time) |
 | W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | needs W32 |
@@ -446,3 +446,25 @@ commit, the gate results with numbers, and the Sonar task id.
   - The integrator added the `.checkRow` rule to the Webview UI Styling
     Guide and the Y13 outcome to issue #41's subsection, both outside
     W06F's Touch list. Issue #41 already closes through `31417ec`.
+- `2026-11-05`: W31 integrated at `fcc76c4`. A worktree can be opened in
+  a new or the current window, added to the workspace, revealed in the
+  OS, or switched to in the graph, and the Command Palette gained W21's
+  prune preview. The re-dispatched agent finished the previous agent's
+  saved work in the same worktree; the rebase onto the tip was clean.
+  Accepted outside the Touch list, as flagged in the slice commits: the
+  message-type files (`actions.types.ts`, `src/types.ts`,
+  `webviewPanel.ts`, `webviewL10n.ts`) and the five l10n bundles.
+- `2026-11-05`, gate on `fcc76c4`: W31 since `0c1437e`.
+  - Strict Biome is clean on the touched files. `package`, `typecheck`,
+    `l10n:check` (complete) and `kb:check` pass. Tests: backend 1,262
+    passed and 60 skipped, webview 862, all passing. (The first gate run
+    failed 5 engine parity tests on the worktree's stale binary; with
+    the current `1.0.28` binary they pass 24 of 24.)
+  - Fresh `test:coverage`: 170 files, 2,184 of 2,184 tests passed.
+  - Sonar task `d22c0414-6692-4e44-ba85-696eb5206573`: quality gate
+    **`OK`**. New coverage is 94.1%, with 0 new violations. The one
+    finding the first scan raised (S7786) is cleared at `1ca6c9d`.
+  - W30 is ready now that W31 is in. Also dispatched, outside the
+    release slices and on its own branch: the switch of
+    `publish.yml` to OIDC trusted publishing on both registries
+    (maintainer, `2026-11-05`).

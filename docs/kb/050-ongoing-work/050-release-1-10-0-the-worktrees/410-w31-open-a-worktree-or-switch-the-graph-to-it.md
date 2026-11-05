@@ -10,7 +10,7 @@ summary: >-
 
 # W31 — Open a worktree or switch the graph to it
 
-Status: done — awaiting integration
+Status: integrated `fcc76c4` (`2026-11-05`)
 Needs: W10
 Decisions: —
 Kind: TypeScript, manifest and l10n · Size budget: ~180 changed lines outside

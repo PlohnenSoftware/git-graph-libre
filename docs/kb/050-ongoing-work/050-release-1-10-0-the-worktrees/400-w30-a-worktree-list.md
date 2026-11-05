@@ -10,7 +10,7 @@ summary: >-
 
 # W30 — A worktree list
 
-Status: ready once W10, W21 and W31 are integrated
+Status: ready
 Needs: W10, W21 (removal handlers), W31 (open and switch)
 Decisions: Y3 (the surface), Y20 (whether it shows local changes, via W51)
 Kind: webview, CSS and l10n · Size budget: ~280 changed lines outside tests
