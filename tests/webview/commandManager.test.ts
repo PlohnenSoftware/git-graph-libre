@@ -1,6 +1,7 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { makeRepo } from "@tests/backend/helpers";
+import { git, makeRepo } from "@tests/backend/helpers";
 import { describe, expect, it, vi } from "vitest";
 import type { Config } from "@/config";
 import { createCommandManager } from "@/extension/commandManager";
@@ -29,6 +30,12 @@ type LogOptions = {
   facts?: DiagnosticsFacts;
   /** What the quick pick answers; undefined means dismissed. */
   choice?: string;
+  /** Whether a graph panel is open; defaults to open. */
+  noPanel?: boolean;
+  /** Folder paths the mocked workspace starts with. */
+  workspaceFolders?: string[];
+  /** Whether adding a workspace folder succeeds; defaults to true. */
+  addFolderOk?: boolean;
 };
 
 function makeHarness(
@@ -104,10 +111,17 @@ function makeHarness(
     show: vi.fn()
   };
 
+  const folderApi = {
+    workspaceFolderPaths: vi.fn(() => logOptions.workspaceFolders ?? []),
+    addWorkspaceFolder: vi.fn((_folderPath: string) => logOptions.addFolderOk ?? true),
+    openFolder: vi.fn(async (_folderPath: string, _newWindow: boolean) => undefined),
+    revealInOS: vi.fn(async (_folderPath: string) => undefined)
+  };
   const openGraphView = vi.fn();
   const openScmDiffTab = vi.fn();
   const currentPanel = {
-    startHistorySearch: vi.fn()
+    startHistorySearch: vi.fn(),
+    showPruneWorktrees: vi.fn()
   };
   const clearCache = vi.fn();
   const telemetryEvents: Array<{ feature: string; ok: boolean }> = [];
@@ -119,6 +133,7 @@ function makeHarness(
     logAccess,
     copyText,
     openExternal,
+    folderApi,
     changedSettings: () => ["git-graph-libre.backend"],
     ...(logOptions.facts === undefined
       ? {}
@@ -129,7 +144,8 @@ function makeHarness(
     avatarManager: { clearCache },
     openGraphView,
     openScmDiffTab,
-    getCurrentPanel: () => currentPanel as unknown as WebviewPanel,
+    getCurrentPanel: () =>
+      (logOptions.noPanel ? undefined : currentPanel) as unknown as WebviewPanel,
     telemetry: {
       logFeature: (feature: string, ok: boolean) => {
         telemetryEvents.push({ feature, ok });
@@ -147,6 +163,7 @@ function makeHarness(
   return {
     clearCache,
     copyText,
+    folderApi,
     logAccess,
     currentPanel,
     disposables,
@@ -175,6 +192,7 @@ describe("command manager", () => {
 
     expect([...handlers.keys()].toSorted()).toEqual([
       "git-graph-libre.addRepo",
+      "git-graph-libre.addWorktreeToWorkspace",
       "git-graph-libre.clearAvatarCache",
       "git-graph-libre.copyDiagnostics",
       "git-graph-libre.copyRecentLog",
@@ -182,9 +200,13 @@ describe("command manager", () => {
       "git-graph-libre.openDiffTab.untracked",
       "git-graph-libre.openDiffTab.workingTree",
       "git-graph-libre.openLogFile",
+      "git-graph-libre.openWorktree",
+      "git-graph-libre.pruneStaleWorktrees",
       "git-graph-libre.removeRepo",
+      "git-graph-libre.revealWorktree",
       "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
+      "git-graph-libre.switchGraphToWorktree",
       "git-graph-libre.trustRepository",
       "git-graph-libre.view",
       "git-graph-libre.viewActiveEditorRepo"
@@ -196,6 +218,7 @@ describe("command manager", () => {
         .toSorted()
     ).toEqual([
       "git-graph-libre.addRepo",
+      "git-graph-libre.addWorktreeToWorkspace",
       "git-graph-libre.clearAvatarCache",
       "git-graph-libre.copyDiagnostics",
       "git-graph-libre.copyRecentLog",
@@ -203,9 +226,13 @@ describe("command manager", () => {
       "git-graph-libre.openDiffTab.untracked",
       "git-graph-libre.openDiffTab.workingTree",
       "git-graph-libre.openLogFile",
+      "git-graph-libre.openWorktree",
+      "git-graph-libre.pruneStaleWorktrees",
       "git-graph-libre.removeRepo",
+      "git-graph-libre.revealWorktree",
       "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
+      "git-graph-libre.switchGraphToWorktree",
       "git-graph-libre.trustRepository",
       "git-graph-libre.view",
       "git-graph-libre.viewActiveEditorRepo"
@@ -701,6 +728,167 @@ describe("command manager", () => {
       expect(harness.telemetryEvents).toEqual([
         { feature: "git-graph-libre.copyDiagnostics", ok: true }
       ]);
+    });
+  });
+
+  describe("worktree commands (W31)", () => {
+    /** A repository with a linked worktree at a path with a space and an accent. */
+    function makeWorktreeRepo() {
+      const repo = makeRepo();
+      const parent = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-w31-"));
+      git(["branch", "feat"], repo);
+      const featPath = path.join(parent, "wt feat é");
+      git(["worktree", "add", featPath, "feat"], repo);
+      const cleanup = () => {
+        fs.rmSync(repo, { recursive: true, force: true });
+        fs.rmSync(parent, { recursive: true, force: true });
+      };
+      return { repo, featPath, cleanup };
+    }
+
+    it("opens a linked and the main worktree through the folder API", async () => {
+      const { repo, featPath, cleanup } = makeWorktreeRepo();
+      try {
+        const harness = makeHarness({ [repo]: { columnWidths: null } });
+
+        await harness.run("git-graph-libre.openWorktree", {
+          repo,
+          path: featPath,
+          newWindow: true
+        });
+        await harness.run("git-graph-libre.openWorktree", {
+          repo,
+          path: repo,
+          newWindow: false
+        });
+
+        expect(harness.folderApi.openFolder.mock.calls).toEqual([
+          [featPath, true],
+          [repo, false]
+        ]);
+      } finally {
+        cleanup();
+      }
+    });
+
+    it("adds a worktree to the workspace, and says when it is already there", async () => {
+      const { repo, featPath, cleanup } = makeWorktreeRepo();
+      try {
+        const harness = makeHarness({ [repo]: { columnWidths: null } });
+        await harness.run("git-graph-libre.addWorktreeToWorkspace", { repo, path: featPath });
+        expect(harness.folderApi.addWorkspaceFolder).toHaveBeenCalledExactlyOnceWith(featPath);
+
+        const already = makeHarness({ [repo]: { columnWidths: null } }, null, {
+          workspaceFolders: [featPath]
+        });
+        await already.run("git-graph-libre.addWorktreeToWorkspace", { repo, path: featPath });
+        expect(already.folderApi.addWorkspaceFolder).not.toHaveBeenCalled();
+        expect(already.windowApi.showInformationMessage).toHaveBeenCalledWith(
+          expect.stringContaining("already a folder")
+        );
+      } finally {
+        cleanup();
+      }
+    });
+
+    it("reveals a worktree in the OS file manager", async () => {
+      const { repo, featPath, cleanup } = makeWorktreeRepo();
+      try {
+        const harness = makeHarness({ [repo]: { columnWidths: null } });
+
+        await harness.run("git-graph-libre.revealWorktree", { repo, path: featPath });
+
+        expect(harness.folderApi.revealInOS).toHaveBeenCalledExactlyOnceWith(featPath);
+      } finally {
+        cleanup();
+      }
+    });
+
+    it("switches the graph to an unknown worktree by adding and focusing it", async () => {
+      const { repo, featPath, cleanup } = makeWorktreeRepo();
+      try {
+        const harness = makeHarness({ [repo]: { columnWidths: null } }, repo);
+        const expected = fs.realpathSync(featPath);
+
+        await harness.run("git-graph-libre.switchGraphToWorktree", { repo, path: featPath });
+
+        expect(harness.getRepos()[expected]).toEqual({ columnWidths: null });
+        expect(harness.getLastActiveRepo()).toBe(expected);
+        expect(harness.openGraphView).toHaveBeenCalledExactlyOnceWith(expected);
+        expect(harness.getSendReposCount()).toBe(1);
+      } finally {
+        cleanup();
+      }
+    });
+
+    it("switches the graph to a known worktree without adding it again", async () => {
+      const { repo, featPath, cleanup } = makeWorktreeRepo();
+      try {
+        const repos = {
+          [repo]: { columnWidths: null },
+          [featPath]: { columnWidths: null }
+        };
+        const harness = makeHarness(repos, repo);
+
+        await harness.run("git-graph-libre.switchGraphToWorktree", { repo, path: featPath });
+
+        expect(harness.getRepos()).toEqual(repos);
+        expect(harness.getLastActiveRepo()).toBe(featPath);
+        expect(harness.openGraphView).toHaveBeenCalledExactlyOnceWith(featPath);
+      } finally {
+        cleanup();
+      }
+    });
+
+    it("refuses a path Git no longer lists, and a malformed request", async () => {
+      const { repo, cleanup } = makeWorktreeRepo();
+      try {
+        const harness = makeHarness({ [repo]: { columnWidths: null } });
+
+        await expect(
+          harness.run("git-graph-libre.openWorktree", {
+            repo,
+            path: path.join(repo, "not-a-worktree"),
+            newWindow: true
+          })
+        ).rejects.toThrow("not listed");
+        await expect(harness.run("git-graph-libre.openWorktree", {})).rejects.toThrow(
+          "did not name"
+        );
+        await expect(harness.run("git-graph-libre.openWorktree", null)).rejects.toThrow(
+          "did not name"
+        );
+        expect(harness.folderApi.openFolder).not.toHaveBeenCalled();
+      } finally {
+        cleanup();
+      }
+    });
+
+    it("refuses a stale worktree instead of opening its gone folder", async () => {
+      const { repo, featPath, cleanup } = makeWorktreeRepo();
+      try {
+        fs.rmSync(featPath, { recursive: true });
+        const harness = makeHarness({ [repo]: { columnWidths: null } });
+
+        await expect(
+          harness.run("git-graph-libre.openWorktree", { repo, path: featPath, newWindow: true })
+        ).rejects.toThrow("stale worktree entry");
+        expect(harness.folderApi.openFolder).not.toHaveBeenCalled();
+      } finally {
+        cleanup();
+      }
+    });
+
+    it("prune from the palette opens the graph preview, or says no graph is open", async () => {
+      const harness = makeHarness();
+      await harness.run("git-graph-libre.pruneStaleWorktrees");
+      expect(harness.currentPanel.showPruneWorktrees).toHaveBeenCalledTimes(1);
+
+      const noGraph = makeHarness({}, null, { noPanel: true });
+      await noGraph.run("git-graph-libre.pruneStaleWorktrees");
+      expect(noGraph.windowApi.showInformationMessage).toHaveBeenCalledWith(
+        expect.stringContaining("Open a Git graph first")
+      );
     });
   });
 });

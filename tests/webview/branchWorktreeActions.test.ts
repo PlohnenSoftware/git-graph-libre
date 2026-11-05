@@ -243,7 +243,7 @@ describe("a local branch checked out in another worktree", () => {
     expect(contextMenuItems()).toContain("Pull Branch…");
   });
 
-  it("names the worktree in a dialog and copies its path, starting no Git action", async () => {
+  it("names the worktree in a dialog and opens it in a new window, starting no checkout", async () => {
     const vscodeMock = await bootWebview(WORKTREES_WITH_FEATURE);
     openRefContextMenu("head");
     clickContextMenuItem("Open Worktree…");
@@ -253,9 +253,10 @@ describe("a local branch checked out in another worktree", () => {
     submitDialog();
 
     expect(vscodeMock.sentMessages.at(-1)).toEqual({
-      command: "copyToClipboard",
-      type: "File Path",
-      data: OTHER_WORKTREE
+      command: "openWorktree",
+      repo: REPO,
+      path: OTHER_WORKTREE,
+      newWindow: true
     });
     expect(vscodeMock.sentMessages.some((msg) => msg.command === "checkoutBranch")).toBe(false);
   });
@@ -556,6 +557,23 @@ describe("stale and moved worktrees (W21)", () => {
       command: "pruneWorktrees",
       repo: REPO
     });
+  });
+
+  it("the palette prune opens the same preview, and says when nothing is stale (W31)", async () => {
+    const vscodeMock = await bootWebview(withStale);
+    receive({ command: "showPruneWorktrees" });
+
+    expect(dialogText()).toContain(STALE);
+    expect(vscodeMock.sentMessages.some((msg) => msg.command === "pruneWorktrees")).toBe(false);
+    submitDialog();
+    expect(latestRequest(vscodeMock.sentMessages, "pruneWorktrees")).toEqual({
+      command: "pruneWorktrees",
+      repo: REPO
+    });
+
+    await bootWebview(WORKTREES_WITH_FEATURE);
+    receive({ command: "showPruneWorktrees" });
+    expect(dialogText()).toContain("No stale worktrees to prune.");
   });
 
   it("shows none of these items when no worktree is stale", async () => {

@@ -3,7 +3,11 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { git, makeRepo } from "@tests/backend/helpers";
-import { openDialogResults, resetVscodeMock } from "@tests/webview/__mocks__/vscode";
+import {
+  executedCommands,
+  openDialogResults,
+  resetVscodeMock
+} from "@tests/webview/__mocks__/vscode";
 import { simpleGit } from "simple-git";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AvatarManager } from "@/avatarManager";
@@ -146,6 +150,50 @@ describe("worktree handlers", () => {
     });
     expect(posts.at(-1)).toEqual({ command: "repairWorktree", status: null });
     expect(simpleGitList(repo)).not.toContain("prunable");
+  });
+
+  it("forwards each open message to its hidden command, which re-lists first (W31)", async () => {
+    const { repo, featPath, handlers, posts } = setup();
+
+    await handlers.get("openWorktree")?.({
+      command: "openWorktree",
+      repo,
+      path: featPath,
+      newWindow: true
+    });
+    await handlers.get("addWorktreeToWorkspace")?.({
+      command: "addWorktreeToWorkspace",
+      repo,
+      path: featPath
+    });
+    await handlers.get("revealWorktree")?.({ command: "revealWorktree", repo, path: featPath });
+    await handlers.get("switchGraphToWorktree")?.({
+      command: "switchGraphToWorktree",
+      repo,
+      path: featPath
+    });
+
+    expect(executedCommands).toEqual([
+      [
+        "git-graph-libre.openWorktree",
+        { command: "openWorktree", repo, path: featPath, newWindow: true }
+      ],
+      [
+        "git-graph-libre.addWorktreeToWorkspace",
+        { command: "addWorktreeToWorkspace", repo, path: featPath }
+      ],
+      ["git-graph-libre.revealWorktree", { command: "revealWorktree", repo, path: featPath }],
+      [
+        "git-graph-libre.switchGraphToWorktree",
+        { command: "switchGraphToWorktree", repo, path: featPath }
+      ]
+    ]);
+    expect(posts).toEqual([
+      { command: "openWorktree", status: null },
+      { command: "addWorktreeToWorkspace", status: null },
+      { command: "revealWorktree", status: null },
+      { command: "switchGraphToWorktree", status: null }
+    ]);
   });
 
   it("answers the changes query with the files a forced removal would delete", async () => {
