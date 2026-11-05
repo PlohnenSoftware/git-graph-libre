@@ -66,5 +66,18 @@ rule, and a headless render (Verifying webview visuals without a browser).
 
 ## Open questions for the maintainer
 
-- Modal dialogs only, or every checkbox in the webview?
-- A hover tint on the row, or only the wider hit area?
+Answered as decision Y13 of release 1.10.0, then re-answered by the
+maintainer on `2026-11-05`:
+
+- Modal dialogs only, or every checkbox in the webview? **Every popup.**
+  W06 shipped the dialog rows; W06F moved them and the Settings popup's
+  boolean rows onto one shared `.checkRow` pattern (see the Webview UI
+  Styling Guide). Context-menu items and dropdown options already toggled
+  from their whole row. The toolbar's "Show Remote Branches" is not a
+  popup and stays as it was.
+- A hover tint on the row, or only the wider hit area? **Only the wider
+  hit area**; the row takes `cursor: pointer` and no hover rule.
+
+Implemented in release 1.10.0 (W06 `af7ff04`, W06F `0c1437e`). The gated
+record `31417ec` carries `Closes PlohnenSoftware/git-graph-libre#41`, so
+the issue closes when `main` is fast-forwarded at the release.

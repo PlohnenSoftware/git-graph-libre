@@ -58,6 +58,19 @@ may not define the token):
   flush-left rows around it; and a row containing a `textarea` top-aligns its
   label, since a label centered against a tall control floats away from the
   text it names.
+- **A checkbox's whole row is its hit area, through one shared row pattern**
+  (issue #41; W06, then W06F, `2026-11-05`). The row is a
+  `<label class="checkRow">` in `media/checkbox.css`: full width,
+  `cursor: pointer`, no hover tint (decision Y13). Every dialog checkbox
+  (`renderDialogCheckboxInput()`) and every boolean row of the Settings
+  popup's Extension tab uses it, so a click anywhere on the row toggles the
+  box exactly once. The box carries no cursor of its own and inherits the
+  row's; `.checkRow.locked` takes `cursor: help` (the lock hint still hangs
+  off the wrapper), and a disabled box takes `cursor: default`. Do not copy
+  the pattern per popup: a new checkbox row joins `.checkRow`. Context-menu
+  items and dropdown options are already whole-row through their own row
+  click handlers and do not use it. The toolbar's "Show Remote Branches" is
+  not a popup row; its label still covers only its text.
 - **A header never scrolls away with its content** (`2026-10-19`, D50/D51).
   A popup's title row and close button, and a pane's section header, stay
   pinned while the body scrolls: `position: sticky; top: 0` on the header,
