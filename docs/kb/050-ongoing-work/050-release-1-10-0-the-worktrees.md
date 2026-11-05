@@ -218,3 +218,7 @@ commit, the gate results with numbers, and the Sonar task id.
     spawn), S6582, S2933 and S7778. W04F clears them and folds in W08F.
   - Issue #41 is complete with W06. Its `Closes` line goes on W04F's
     integration record, once the gate is `OK`.
+- `2026-11-05`: W00b (Y15's step 3) integrated at `cf5fd04`. It adds the
+  standing Rules section Multi-agent releases and points 1.10.0's protocol
+  and integrator procedure to it. The integrator procedure's "ask which
+  agent and model" bullet now records Y16 as the answer.

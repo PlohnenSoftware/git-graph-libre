@@ -2,8 +2,8 @@
 summary: >-
   How the integrator turns finished 1.10.0 slices into the release branch:
   the integrator procedure of Multi-agent releases (Rules) applies, with the
-  1.10.0 branch names and waves; the agent and model choice is asked again (the
-  1.9.0 choice covered that release only); and W01's dependency refresh
+  1.10.0 branch names and waves; the agent and model choice is Y16's
+  (the integrator picks per slice, cheapest first); and W01's dependency refresh
   needs every platform binary rebuilt and the packaged-VSIX check on all
   legs before W90; and which slice's integration commit carries each
   issue's `Closes` line.
@@ -18,11 +18,11 @@ worktrees `../ggl-<id>`, recycled as that section describes.
 
 Changes for this release:
 
-- **Ask which agent and model to use before the first dispatch.** The
-  maintainer's `2026-10-19` choice (`general-purpose`; Haiku, then Sonnet,
-  then Opus by difficulty, cheapest first) covered "the rest of release
-  1.9.0". Ask again, and record the answer in decision Y16 and the
-  integration log.
+- **Agent and model: answered by Y16 (`2026-11-05`).** The 1.9.0 choice
+  covered that release only, so it was asked again. The maintainer's answer
+  is the recorded choice that Multi-agent releases accepts in place of
+  asking before each dispatch: the integrator picks per slice, cheapest
+  first, and logs each pick in the Integration log.
 - **Wave gates** (fresh coverage, SonarQube polled to `OK`, `kb:graph`)
   after waves A, B, C, D and E, and once more before W90.
 - **After W01 (gix 0.90 and the Cargo refresh):** every platform binary
