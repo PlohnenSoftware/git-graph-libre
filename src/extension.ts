@@ -131,7 +131,7 @@ export function activate(context: vscode.ExtensionContext) {
     });
     bridge = webviewBridgeFactory(panel.webview, repoFileWatcher);
     avatarManager.registerBridge(bridge.post.bind(bridge));
-    const { onPanelShown } = registerMessageHandlers(bridge, {
+    const { onPanelShown, dispose: disposeHandlers } = registerMessageHandlers(bridge, {
       config,
       gitClient,
       repoManager,
@@ -160,6 +160,7 @@ export function activate(context: vscode.ExtensionContext) {
       telemetry,
       onDispose: () => {
         currentPanel = undefined;
+        disposeHandlers();
       },
       onPanelShown
     });
