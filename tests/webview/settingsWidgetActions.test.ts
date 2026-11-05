@@ -251,6 +251,39 @@ describe("repository settings widget actions", () => {
     expect(document.getElementById("settingsRepositoryPanel")?.hasAttribute("hidden")).toBe(false);
   });
 
+  it("toggles a boolean setting once from anywhere on its row", async () => {
+    // Issue #41: a boolean setting is a checkbox row, so a click on its text
+    // toggles the box through the row's label, and the change sends exactly
+    // one update. A click on the box itself still sends exactly one.
+    const key = "git-graph-libre.repository.showTags";
+    const updates = () =>
+      vscodeMock.sentMessages.filter((msg) => msg.command === "updateExtensionSetting");
+    await bootWithSettingsOpen();
+    openExtensionTab();
+    vscodeMock.clearMessages();
+
+    const row = document.querySelector<HTMLLabelElement>(
+      `label.settingsExtensionRow[data-setting-key="${key}"]`
+    );
+    const box = row?.querySelector<HTMLInputElement>(".settingsExtensionInput") ?? null;
+    expect(box?.checked).toBe(true);
+
+    row
+      ?.querySelector(".settingsValue")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(box?.checked).toBe(false);
+    expect(updates()).toEqual([
+      { command: "updateExtensionSetting", key, value: false, global: true }
+    ]);
+
+    vscodeMock.clearMessages();
+    box?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(box?.checked).toBe(true);
+    expect(updates()).toEqual([
+      { command: "updateExtensionSetting", key, value: true, global: true }
+    ]);
+  });
+
   it("reaches the contributors tab with the arrow keys and wraps back", async () => {
     await bootWithSettingsOpen();
     const press = (id: string, key: string) =>

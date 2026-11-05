@@ -196,6 +196,7 @@
   min-width: 0;
 }
 .settingsDescription {
+  display: block;
   margin-top: 3px;
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
   font-size: 12px;

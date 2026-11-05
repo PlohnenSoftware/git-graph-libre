@@ -437,20 +437,33 @@ function renderExtensionTab(model: SettingsWidgetModel) {
 }
 
 function renderExtensionSettingRow(setting: ExtensionSetting, labels: SettingsLabels) {
+  // A boolean setting is a checkbox row: the whole row is a <label> (the
+  // shared .checkRow, checkbox.css), so a click anywhere on it toggles the
+  // box. A label takes phrasing content only, so its inner blocks are spans;
+  // every other row keeps its divs and their inputs.
+  const toggle = isToggleSetting(setting);
+  const part = toggle ? "span" : "div";
   const description =
     setting.description === ""
       ? ""
-      : `<div class="settingsDescription">${escapeHtml(setting.description)}</div>`;
-  return `<div class="settingsExtensionRow" data-setting-key="${escapeHtml(setting.key)}">
-    <div class="settingsExtensionMeta">
+      : `<span class="settingsDescription">${escapeHtml(setting.description)}</span>`;
+  const body = `<${part} class="settingsExtensionMeta">
       <span class="settingsValue" title="${escapeHtml(setting.key)}">${escapeHtml(setting.title)}</span>
       <span class="settingsScope">${escapeHtml(scopeLabel(setting.scope, labels))}</span>
       ${description}
-    </div>
-    <div class="settingsExtensionEditor">
+    </${part}>
+    <${part} class="settingsExtensionEditor">
       ${renderExtensionSettingEditor(setting, labels)}
-    </div>
-  </div>`;
+    </${part}>`;
+  if (toggle) {
+    return `<label class="settingsExtensionRow checkRow" data-setting-key="${escapeHtml(setting.key)}">${body}</label>`;
+  }
+  return `<div class="settingsExtensionRow" data-setting-key="${escapeHtml(setting.key)}">${body}</div>`;
+}
+
+/** A boolean setting the editor renders as a checkbox, the same test as renderExtensionSettingEditor. */
+function isToggleSetting(setting: ExtensionSetting) {
+  return setting.type === "boolean" && setting.enum === undefined;
 }
 
 function renderExtensionSettingEditor(setting: ExtensionSetting, labels: SettingsLabels) {
