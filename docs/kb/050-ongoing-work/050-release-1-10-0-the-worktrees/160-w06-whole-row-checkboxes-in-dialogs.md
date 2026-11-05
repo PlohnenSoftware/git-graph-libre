@@ -9,7 +9,7 @@ summary: >-
 
 # W06 — Whole-row checkboxes in dialogs
 
-Status: ready (scope: modal dialogs, unless decision Y13 says otherwise)
+Status: claimed by Claude Haiku 5.5 on 2026-11-05 18:00
 Needs: —
 Decisions: Y13 (scope)
 Kind: CSS · Size budget: ~20 changed lines outside tests
