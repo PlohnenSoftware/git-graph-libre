@@ -5332,11 +5332,18 @@ class GitGraphView {
         remoteBranch: null
       });
     } else if (sourceElem.classList.contains("remote")) {
-      const refNameComps = refName.split("/");
+      const remoteNames = this.getRemoteNames();
+      const parsedRemote = parseRemoteBranchName(refName, remoteNames);
+      // parseRemoteBranchName guesses the first segment as the remote when no
+      // known remote matches, so only trust a parse whose remote is known.
+      const suggestedName =
+        parsedRemote !== null && remoteNames.includes(parsedRemote.remote)
+          ? parsedRemote.branchName
+          : refName;
       const sourceName = sourceElem.dataset.name ?? refName;
       showRefInputDialog(
         l10n.dialogCreateBranchTitle.replace("{0}", `<b><i>${escapeHtml(sourceName)}</i></b>`),
-        refNameComps.at(-1) ?? refName,
+        suggestedName,
         l10n.checkoutBranch,
         (newBranch) => {
           sendMessage({
