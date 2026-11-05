@@ -1,6 +1,6 @@
 ---
 summary: >-
-  Next release, planned `2026-10-18`: 1.9.0 "The Diff". Gathers every
+  Released `2026-10-20` (planned `2026-10-18`): 1.9.0 "The Diff". Gathers every
   diff-related item into small, self-contained slices for one or many
   agents: issue #26 (compare any two commits), the diff-read part of issue
   #31, Phase 8's and Phase 10's comparison items, the bugs found by the
@@ -14,8 +14,9 @@ summary: >-
 
 **Status: released `2026-10-20` as `v1.9.0` (`31e0169`), on GitHub, the VS
 Code Marketplace and Open VSX; issues #26, #30, #31 and #32 answered and
-closed. What remains is D90 step 7 (moving this section to History and
-updating the phase status lines) and the deferred items noted below. Earlier
+closed. This section moved to History on `2026-11-05` (D90 step 7, W00),
+and the phase status lines were updated with it. The deferred items noted
+below are still open. Earlier
 status: release preparation complete on local `the-diff` (`2026-10-19`);
 no pushing. Every slice in scope is integrated — waves A–D, the whole
 Phase 17 port (22a–22j, five-arm parity recorded), D45–D47, D48's agent
