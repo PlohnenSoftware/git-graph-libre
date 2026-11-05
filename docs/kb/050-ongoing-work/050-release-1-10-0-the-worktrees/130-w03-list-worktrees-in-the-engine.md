@@ -10,7 +10,7 @@ summary: >-
 
 # W03 — List worktrees in the engine
 
-Status: ready once W01 and W02 are integrated
+Status: claimed by Claude Sonnet 5.5 on 2026-11-05 18:09
 Needs: W01, W02
 Decisions: —
 Kind: Rust and TypeScript, the Rust arm applies · Size budget: ~250 changed
