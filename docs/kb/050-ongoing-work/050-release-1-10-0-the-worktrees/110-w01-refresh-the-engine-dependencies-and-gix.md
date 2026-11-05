@@ -10,7 +10,7 @@ summary: >-
 
 # W01 — Refresh the engine's dependencies and gix
 
-Status: claimed by Claude Sonnet 5.5 on 2026-11-05 12:00
+Status: done — awaiting integration
 Needs: —
 Decisions: Y2, answered by the maintainer on `2026-11-04`: "please also do
 updates to cargo stuff including gix which we grab from GH". gix stays on the
@@ -124,4 +124,16 @@ worktree and revision fixes.
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Sonnet 5.5, 2026-11-05
+- **Branch and commits:** `wt-1.10.0/W01` — claim; `build(engine)` move gix to gitoxide `39e093fb541f` and refresh the lockfile; `docs(engine)` NOTICE names the new pin; this report
+- **Pinned gitoxide:** `39e093fb541fc7a7acf6d7fef58f30827150cb00`, `main` on `2026-11-05` 15:21 UTC (newer than the slice's `e07e9c7`). gix `0.90.0`, highest gix-crate `rust-version` 1.88.
+- **Files changed:** `engine/Cargo.toml` (patch rev, gix `0.90`, `rust-version` 1.88), `engine/native/core/Cargo.toml` (gix `0.90`), `engine/Cargo.lock`, `engine/NOTICE.md` (line 61, pinned commit). No Rust source changed: gix 0.90 compiled with no API migration. `rust-toolchain.toml` untouched; engine version stays `1.0.26`.
+- **Cargo.lock:** 53 `gix*` packages (53 before), all from `git+https://github.com/GitoxideLabs/gitoxide?rev=39e093f…`, none from the registry. No unused-patch warning. gix bumps (all moved): gix 0.89.0 → 0.90.0 plus every gix-* crate (for example gix-object 0.66.0 → 0.66.1, gix-odb 0.86.0 → 0.87.0, gix-pack 0.76 → 0.77, gix-ref 0.69.0 → 0.69.1, gix-revision 0.51 → 0.52, gix-revwalk 0.37 → 0.38, gix-status 0.36 → 0.37, gix-worktree 0.58 → 0.59, gix-tempfile 26 → 27, gix-zlib 0.3 → 0.4, gix-protocol 0.67 → 0.68, gix-transport 0.61 → 0.62, gix-traverse 0.63 → 0.64; the rest patch bumps; gix-error 0.5.2 new). Registry updates: jiff 0.2.35 → 0.2.39, jiff-core 0.1.0 → 0.1.2, jiff-static → 0.2.39, jiff-tzdb 0.1.8 → 0.1.9, libc 0.2.189 → 0.2.191, log 0.4.33 → 0.4.35, memmap2 0.9.11 → 0.9.12, napi 3.15.0 → 3.16.1, napi-derive 3.6.13 → 3.7.0, napi-derive-backend 6.1.6 → 7.0.0, portable-atomic-util 0.2.7 → 0.2.8, rustix 1.1.4 → 1.1.6, smallvec 1.15.2 → 1.16.4, syn 3.0.3 → 3.0.9, tinyvec 1.12.0 → 1.13.3, tokio 1.53.1 → 1.54.1, unicode-ident 1.0.24 → 1.0.27, unicode-normalization 0.1.25 → 0.1.26, zlib-rs 0.6.7 → 0.6.8; added multiversion_no_op 1.0.0, simdutf8 0.1.5, winreg 0.56.0; removed tinyvec_macros. The Dependabot napi bump already on `main` was the npm CLI, so the Rust napi crates did move here. The full list is in `git diff 472a7f8 HEAD -- engine/Cargo.lock`.
+- **Behavior changes:** none observed. The 196 Rust tests (including the git parity, rename-limit and replacement-object tests) and the TypeScript parity tests pass unchanged, so no new test was needed.
+- **Tests added or changed:** none. Rust workspace: 196 passed before and after.
+- **Gates:** biome n/a (no TS touched); typecheck pass; `pnpm run test` backend 1204/1204 (93 files), webview 791/791 (64 files), no skips; engine built first (`engine:build` debug, `engine:smoke` OK, engineVersion 1.0.26); l10n n/a; kb:check not run (slice file edited, status line and report only); Rust arm: fmt, lint (clippy `-D warnings`), check, test (196/196) all pass; Sonar: integrator
+- **Note on skips:** the first run showed 60 skipped, all in `vscodeDiffDifferential.test.ts`, because `engine/target/diff-wasm` was missing and `wasm-bindgen` is not installed here. `git-graph-diff` has no gix dependency, so I copied the prebuilt wasm from the main checkout's gitignored `engine/target/diff-wasm` (read only) and the 60 then ran and passed.
+- **Acceptance:** Rust arm and TS gates pass on a rebuilt engine with every parity test run: met. Lockfile all-gix from the pinned commit, count 53: met. Report lists package changes: met. No "patch was not used" warning: met.
+- **D07 measurements (step 6):** not run.
+- **Deviations from the slice:** pinned `39e093f` rather than the slice's `e07e9c7`, as the slice's step 1 directs (newest `main` at run time).
+- **Open questions / follow-ups:** none.
