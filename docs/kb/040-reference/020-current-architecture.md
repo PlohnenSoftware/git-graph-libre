@@ -18,6 +18,12 @@ The extension is already split into clean layers:
 - Backend queries: `src/backend/queries/loadCommits.ts`,
   `loadBranches.ts`, and `commitDetails.ts` translate webview requests into Git
   data models.
+- Own-process Git runners: besides `runGitRaw`, `runGitWithInput`
+  (`src/backend/utils/gitRunner.ts`, stdin) and `remoteTags`
+  (`src/backend/queries/remoteTags.ts`, the network `git ls-remote` read with
+  its own bounded processes: timeout with tree kill, output cap, at most 4 at
+  a time, abortable, stdin closed) run Git without the graph's queue; each is
+  still recorded through `runGitCommand`.
 - Backend actions: `src/backend/actions/*` contains small functions for branch,
   tag, merge, and commit operations.
 - Message contracts: `src/types.ts` and `src/backend/types/*` define typed request
