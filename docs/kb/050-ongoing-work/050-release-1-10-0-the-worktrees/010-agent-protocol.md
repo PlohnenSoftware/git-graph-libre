@@ -1,8 +1,8 @@
 ---
 summary: >-
-  How an agent works one slice of release 1.10.0: the Agent protocol for
-  release 1.9.0 applies in full, with the branch, ID and decisions
-  substitutions listed here, plus five worktree rules: worktree writes only in
+  How an agent works one slice of release 1.10.0: Multi-agent releases
+  (Rules) applies in full, with the branch, ID and decisions substitutions
+  listed here, plus five worktree rules: worktree writes only in
   temporary fixtures, never on this repository (which has linked worktrees of
   its own); fixtures with awkward paths; decide from the worktree list, never
   Git's translated messages; no engine writes; rebuild the engine after W01.
@@ -11,18 +11,19 @@ summary: >-
 
 # Agent protocol for release 1.10.0
 
-**Follow the Agent protocol for release 1.9.0 in full**, every section and
-every hard rule, with these substitutions:
+**Follow [Multi-agent releases](../../020-rules/040-multi-agent-releases.md)
+(Rules) in full**, every section and every hard rule, with these
+substitutions:
 
-| In the 1.9.0 protocol | For 1.10.0 |
+| In Multi-agent releases | For 1.10.0 |
 | --- | --- |
-| the release overview, Release 1.9.0 — "The Diff" | Release 1.10.0 — "The Worktrees" |
-| Maintainer decisions for release 1.9.0, decisions `X…` | Maintainer decisions for release 1.10.0, decisions `Y…` |
-| branch `diff-1.9.0/<slice-id>` from `the-diff` (decision X6) | branch `wt-1.10.0/<slice-id>` from the integration branch named in decision Y1 |
-| commit suffix `(D<nn>)` | commit suffix `(W<nn>)`, for example `feat(worktrees): list worktrees on the CLI (W02)` |
-| report line `diff-1.9.0/<id>` | report line `wt-1.10.0/<id>` |
+| the release overview | Release 1.10.0 — "The Worktrees" |
+| the decisions file, decisions `<prefix>…` | Maintainer decisions for release 1.10.0, decisions `Y…` |
+| branch `<release-prefix>/<slice-id>` from the integration branch named in the decisions file | branch `wt-1.10.0/<slice-id>` from the integration branch named in decision Y1 |
+| commit suffix `(<ID>)` | commit suffix `(W<nn>)`, for example `feat(worktrees): list worktrees on the CLI (W02)` |
+| report line `<release-prefix>/<id>` | report line `wt-1.10.0/<id>` |
 
-If this file and that one disagree, this file wins for release 1.10.0. If
+If this file and that section disagree, this file wins for release 1.10.0. If
 either conflicts with the rest of the knowledge base, the knowledge base
 wins: stop and report the conflict.
 

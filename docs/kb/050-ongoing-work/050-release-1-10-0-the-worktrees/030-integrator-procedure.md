@@ -1,8 +1,8 @@
 ---
 summary: >-
   How the integrator turns finished 1.10.0 slices into the release branch:
-  the Integrator procedure for release 1.9.0 applies, with the 1.10.0
-  branch names and waves; the agent and model choice is asked again (the
+  the integrator procedure of Multi-agent releases (Rules) applies, with the
+  1.10.0 branch names and waves; the agent and model choice is asked again (the
   1.9.0 choice covered that release only); and W01's dependency refresh
   needs every platform binary rebuilt and the packaged-VSIX check on all
   legs before W90; and which slice's integration commit carries each
@@ -11,10 +11,10 @@ summary: >-
 
 # Integrator procedure for release 1.10.0
 
-**Follow the Integrator procedure for release 1.9.0**, with the substitutions
-of the Agent protocol for release 1.10.0: the integration branch from
-decision Y1, slice branches `wt-1.10.0/<id>`, and slice worktrees
-`../ggl-<id>`, recycled as that procedure describes.
+**Follow the integrator procedure of [Multi-agent releases](../../020-rules/040-multi-agent-releases.md)
+(Rules)**, with the substitutions of the Agent protocol for release 1.10.0: the
+integration branch from decision Y1, slice branches `wt-1.10.0/<id>`, and slice
+worktrees `../ggl-<id>`, recycled as that section describes.
 
 Changes for this release:
 
