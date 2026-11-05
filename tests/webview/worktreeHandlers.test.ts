@@ -77,6 +77,50 @@ function setup() {
 }
 
 describe("worktree handlers", () => {
+  it("creating a worktree runs it in the fixture and answers with a clean status", async () => {
+    const { repo, parent, handlers, posts } = setup();
+    const target = path.join(parent, "wt created é");
+
+    await handlers.get("addWorktree")?.({
+      command: "addWorktree",
+      repo,
+      path: target,
+      branch: null,
+      newBranch: "created",
+      startPoint: "main",
+      detach: false,
+      lockReason: null
+    });
+
+    expect(posts).toEqual([{ command: "addWorktree", status: null }]);
+    expect(fs.existsSync(path.join(target, "f"))).toBe(true);
+    const listed = cp.execFileSync("git", ["worktree", "list", "--porcelain"], {
+      cwd: repo,
+      encoding: "utf8"
+    });
+    expect(listed).toContain("branch refs/heads/created");
+  });
+
+  it("a refused creation reports where the branch is checked out, and creates nothing", async () => {
+    const { repo, parent, featPath, handlers, posts } = setup();
+    const target = path.join(parent, "wt refused");
+
+    await handlers.get("addWorktree")?.({
+      command: "addWorktree",
+      repo,
+      path: target,
+      branch: "feat",
+      newBranch: null,
+      startPoint: null,
+      detach: false,
+      lockReason: null
+    });
+
+    expect(posts[0]).toMatchObject({ command: "addWorktree" });
+    expect((posts[0] as { status: string | null }).status).toContain(featPath);
+    expect(fs.existsSync(target)).toBe(false);
+  });
+
   it("removing a worktree closes its engine handle and drops a known repository", async () => {
     const { repo, featPath, handlers, posts, removeRepo, sendRepos } = setup();
 
