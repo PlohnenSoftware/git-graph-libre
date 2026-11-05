@@ -215,6 +215,22 @@ describe("config path resolution", () => {
     }
   });
 
+  it("resolves a linked worktree to the common dir's config, not its admin dir's", () => {
+    const repo = makeRepo();
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-test-linked-cfg-"));
+    try {
+      const linked = path.join(parent, "linked tree ünï");
+      git(["worktree", "add", "-b", "linked-cfg", linked], repo);
+      const expected = path.join(fs.realpathSync(repo), ".git", "config");
+      const resolved = resolveLocalGitConfigPath(linked);
+      expect(resolved === null ? null : fs.realpathSync(resolved)).toBe(expected);
+      expect(isScopedGitConfigAbsent("local", linked)).toBe(false);
+    } finally {
+      fs.rmSync(parent, { recursive: true, force: true });
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
   it("returns null when the git dir cannot be resolved", () => {
     expect(resolveLocalGitConfigPath("/nonexistent-repo-xyz")).toBeNull();
   });

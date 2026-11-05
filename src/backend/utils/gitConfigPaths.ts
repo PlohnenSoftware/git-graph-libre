@@ -6,6 +6,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { resolveGitDirs } from "./gitDirs";
 
 export function isFile(candidate: string): boolean {
   try {
@@ -32,35 +33,19 @@ export function resolveGlobalGitConfigPath(): string | null {
   return path.join(base, "git", "config");
 }
 
-const gitDirPrefix = "gitdir:";
-
-function parseGitDirLine(firstLine: string): string | null {
-  if (!firstLine.startsWith(gitDirPrefix)) return null;
-  const target = firstLine.slice(gitDirPrefix.length).trim();
-  return target === "" ? null : target;
-}
-
 /**
- * The local config file `git config --list --local` reads (`<gitdir>/config`;
- * a `.git` file, as in worktrees and submodules, names the real git dir on
- * its `gitdir:` line). Null when it cannot be resolved.
+ * The local config file `git config --list --local` reads: `<common dir>/config`.
+ * The common dir is the git dir for a normal repository and a submodule, and the
+ * main repository's directory for a linked worktree, whose private admin dir
+ * holds no `config` of its own. Null when `<repo>/.git` does not exist.
  */
 export function resolveLocalGitConfigPath(repo: string): string | null {
-  const dotGit = path.join(repo, ".git");
-  let gitDir: string;
   try {
-    if (fs.statSync(dotGit).isDirectory()) {
-      gitDir = dotGit;
-    } else {
-      const firstLine = fs.readFileSync(dotGit, "utf8").split("\n")[0] ?? "";
-      const target = parseGitDirLine(firstLine);
-      if (target === null) return null;
-      gitDir = path.resolve(repo, target);
-    }
+    fs.statSync(path.join(repo, ".git"));
   } catch {
     return null;
   }
-  return path.join(gitDir, "config");
+  return path.join(resolveGitDirs(repo).commonDir, "config");
 }
 
 /**
