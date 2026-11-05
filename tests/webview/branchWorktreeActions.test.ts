@@ -268,7 +268,7 @@ describe("a local branch checked out in another worktree", () => {
 
     expect(dialogText()).toContain(OTHER_WORKTREE);
     expect(document.getElementById("dialogAction")).toBeNull();
-    expect(vscodeMock.sentMessages.length).toBe(before);
+    expect(vscodeMock.sentMessages).toHaveLength(before);
   });
 
   it("notes in the rename dialog that the other worktree follows, and still renames", async () => {
