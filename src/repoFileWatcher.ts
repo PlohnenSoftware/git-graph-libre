@@ -62,7 +62,7 @@ function shouldRefreshGitPath(kind: Exclude<WatcherKind, "repo">, relativePath: 
 }
 
 export class RepoFileWatcher {
-  private bases = new Map<WatcherKind, string>();
+  private readonly bases = new Map<WatcherKind, string>();
   private readonly repoChangeCallback: () => void;
   private readonly workspace: WorkspaceApi;
   private readonly relativePattern: RelativePatternFactory;
@@ -100,14 +100,16 @@ export class RepoFileWatcher {
     const dirs = this.resolveDirs(normalized);
     const gitDir = normalizeRepoPath(dirs.gitDir);
     const commonDir = normalizeRepoPath(dirs.commonDir);
-    this.watchers.push(this.createWatcher(normalized, "**", "repo"));
-    if (gitDir === commonDir) {
-      this.watchers.push(this.createWatcher(gitDir, "**", "sharedDir"));
-    } else {
-      // A linked worktree: its own HEAD and index sit apart from the shared refs.
-      this.watchers.push(this.createWatcher(gitDir, "**", "gitDir"));
-      this.watchers.push(this.createWatcher(commonDir, "**", "commonDir"));
-    }
+    const repoWatcher = this.createWatcher(normalized, "**", "repo");
+    // A linked worktree's own HEAD and index sit apart from the shared refs.
+    const gitWatchers =
+      gitDir === commonDir
+        ? [this.createWatcher(gitDir, "**", "sharedDir")]
+        : [
+            this.createWatcher(gitDir, "**", "gitDir"),
+            this.createWatcher(commonDir, "**", "commonDir")
+          ];
+    this.watchers.push(repoWatcher, ...gitWatchers);
   }
 
   public stop() {
