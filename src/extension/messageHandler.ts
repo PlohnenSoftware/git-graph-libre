@@ -4,7 +4,13 @@ import * as vscode from "vscode";
 
 import type { AvatarManager } from "@/avatarManager";
 import { archiveFormatFromPath, createArchive } from "@/backend/actions/archive";
-import { checkoutBranch, createBranch, deleteBranch, renameBranch } from "@/backend/actions/branch";
+import {
+  checkoutAndFastForward,
+  checkoutBranch,
+  createBranch,
+  deleteBranch,
+  renameBranch
+} from "@/backend/actions/branch";
 import {
   deleteRemoteBranch,
   fetchIntoLocalBranch,
@@ -734,6 +740,9 @@ export function registerMessageHandlers(
   );
   registerAction("checkoutBranch", (msg) =>
     checkoutBranch(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("checkoutAndFastForward", (msg) =>
+    checkoutAndFastForward(gitClient.getInstance(), msg, recordGitCommand)
   );
   registerAction("checkoutCommit", (msg) =>
     checkoutCommit(gitClient.getInstance(), msg, recordGitCommand)

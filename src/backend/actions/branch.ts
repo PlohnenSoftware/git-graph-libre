@@ -69,6 +69,52 @@ export async function renameBranch(
   });
 }
 
+/**
+ * Names the step that failed, in our own words, keeping Git's own text as
+ * the detail. Loaded on demand: `@/l10n` needs the `vscode` module, which a
+ * backend module that only runs Git must not require on import.
+ */
+async function stepFailure(
+  key: "error.checkoutStepFailed" | "error.fastForwardStepFailed",
+  branchName: string,
+  target: string,
+  error: unknown
+): Promise<Error> {
+  const { t } = await import("@/l10n");
+  const detail = error instanceof Error ? error.message : String(error);
+  return new Error(t(key, branchName, target, detail), { cause: error });
+}
+
+export async function checkoutAndFastForward(
+  git: SimpleGit,
+  input: ActionPayload<"checkoutAndFastForward"> & { repo?: string | null },
+  record?: GitCommandRecorder
+): Promise<void> {
+  const repo = input.repo ?? null;
+  try {
+    await runGitRaw(git, {
+      label: "branch.checkout",
+      kind: "action",
+      args: ["checkout", input.branchName],
+      repo,
+      record
+    });
+  } catch (error: unknown) {
+    throw await stepFailure("error.checkoutStepFailed", input.branchName, input.target, error);
+  }
+  try {
+    await runGitRaw(git, {
+      label: "branch.fastForward",
+      kind: "action",
+      args: ["merge", "--ff-only", input.target],
+      repo,
+      record
+    });
+  } catch (error: unknown) {
+    throw await stepFailure("error.fastForwardStepFailed", input.branchName, input.target, error);
+  }
+}
+
 export async function checkoutBranch(
   git: SimpleGit,
   input: ActionPayload<"checkoutBranch"> & { repo?: string | null },

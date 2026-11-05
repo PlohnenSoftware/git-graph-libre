@@ -15,6 +15,13 @@ type ActionPayloads = {
   applyStash: { selector: string; reinstateIndex: boolean };
   branchFromStash: { selector: string; branchName: string };
   checkoutBranch: { branchName: string; remoteBranch: string | null };
+  /**
+   * Switches to an existing local branch, then fast-forwards it to `target`
+   * (the remote-tracking ref the user clicked) with `merge --ff-only`. Never
+   * a merging pull: when the branches have diverged Git refuses, and the
+   * branch stays checked out, unchanged.
+   */
+  checkoutAndFastForward: { branchName: string; target: string };
   checkoutCommit: { commitHash: string };
   cherrypickCommit: { commitHash: string; parentIndex: number; noCommit: boolean };
   cleanUntrackedFiles: { includeDirectories: boolean };
