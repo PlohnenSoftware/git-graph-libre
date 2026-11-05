@@ -10,7 +10,7 @@ summary: >-
 
 # W11 — Show where each branch is checked out
 
-Status: done — awaiting integration
+Status: integrated `54065b5` (`2026-11-05`)
 Needs: W10
 Decisions: Y4
 Kind: webview, CSS and l10n · Size budget: ~220 changed lines outside tests

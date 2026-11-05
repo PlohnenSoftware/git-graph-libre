@@ -110,7 +110,7 @@ run one after another, as the integrator procedure says.
 | W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | integrated `a81b51a` |
 | W10 | [Carry worktrees to the webview](050-release-1-10-0-the-worktrees/200-w10-carry-worktrees-to-the-webview.md) | TS | W02 | C | integrated `2a619c4` |
 | W10F | [Read worktrees through the engine reader](050-release-1-10-0-the-worktrees/205-w10f-read-worktrees-through-the-engine-reader.md) | TS | W03, W10 | C | integrated `436e0b0` |
-| W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | ready (queued: one manifest or l10n slice at a time) |
+| W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | integrated `54065b5` |
 | W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | integrated `fbc0c22` |
 | W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | integrated `83f5821` |
 | W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | integrated `88ed629` |
@@ -507,6 +507,23 @@ commit, the gate results with numbers, and the Sonar task id.
     the new test (`4419734`). Sonar task
     `3a7997f3-5858-43ac-b36b-41c2932ef196`: quality gate **`OK`**, new
     coverage 94.2%, 0 new violations.
+- `2026-11-05`: W11 integrated at `54065b5`. A branch checked out in
+  another worktree carries the Y4 `file-directory` segment on its badge;
+  its tooltip and context-menu header name every holding worktree's
+  folder, path and locked or missing state. No rebase was needed (the
+  slice started on the tip). Open, from W11's report: W12's dashed
+  detached-HEAD badge and W11's segment are one family but not the same
+  glyph style (filled folder on the commit color against outline folder
+  on badge tokens); matching them exactly is a maintainer taste call,
+  left as a possible small follow-up.
+- `2026-11-05`, gate on `54065b5`: W11 since `fbc0c22`.
+  - Strict Biome is clean; `package`, `typecheck`, `l10n:check`
+    (complete) and `kb:check` pass. Tests: backend 1,331, webview 872,
+    all passing. The agent's headless renders (both themes) are in
+    `/tmp/w11-shot/`.
+  - Fresh `test:coverage`: 170 files, 2,203 of 2,203 tests passed.
+  - Sonar task `b4019517-4a1c-44a6-a2df-9a0ae47d4265`: quality gate
+    **`OK`**. New coverage is 94.3%, with 0 new violations.
 - `2026-11-05`: trusted publishing integrated at `f9aad9c` (not a
   release slice; maintainer instruction of the same day). `publish.yml`
   now publishes to both registries by OIDC (`vsce publish --oidc`,
