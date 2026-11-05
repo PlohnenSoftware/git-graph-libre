@@ -55,6 +55,7 @@ import {
   engineUnavailableReason
 } from "@/backend/engine/index";
 import type { GitClient } from "@/backend/gitClient";
+import { branchPushDefaults } from "@/backend/queries/branchPushDefaults";
 import { commitSignatures } from "@/backend/queries/commitSignatures";
 import { loadBranches } from "@/backend/queries/loadBranches";
 import { remoteTags } from "@/backend/queries/remoteTags";
@@ -987,6 +988,18 @@ export function registerMessageHandlers(
       ...(await tagDetails(gitClient.getInstance(), {
         repo: msg.repo,
         tagName: msg.tagName,
+        recordGitCommand
+      }))
+    });
+  });
+
+  bridge.onMessage("branchPushDefaults", async (msg) => {
+    bridge.post({
+      command: "branchPushDefaults",
+      requestId: msg.requestId,
+      ...(await branchPushDefaults(gitClient.getInstance(), {
+        repo: msg.repo,
+        branch: msg.branch,
         recordGitCommand
       }))
     });

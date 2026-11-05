@@ -39,6 +39,14 @@ type LoadCommitsResult = {
   error: GitQueryError | null;
 };
 
+type BranchPushDefaultsResult = {
+  /** The remote the branch's upstream tracks, or null when it has no upstream. */
+  upstreamRemote: string | null;
+  /** The remote plain `git push` uses for the branch, or null when Git names none. */
+  pushRemote: string | null;
+  error: GitQueryError | null;
+};
+
 type CommitSignaturesResult = {
   /** Keyed by commit hash: the signature, or null for an unsigned commit. */
   signatures: Record<string, GitCommitSignature | null>;
@@ -75,6 +83,11 @@ type QueryPayloads = {
       error: GitQueryError | null;
     };
     response: { requestId: number; repo: string } & QueryPayloads["remoteTags"]["result"];
+  };
+  branchPushDefaults: {
+    request: { requestId: number; repo: string; branch: string };
+    result: BranchPushDefaultsResult;
+    response: { requestId: number } & BranchPushDefaultsResult;
   };
   commitDetails: {
     request: { repo: string; commitHash: string };
