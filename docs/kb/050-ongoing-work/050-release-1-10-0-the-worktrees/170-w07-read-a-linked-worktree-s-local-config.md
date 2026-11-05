@@ -10,7 +10,7 @@ summary: >-
 
 # W07 — Read a linked worktree's local config
 
-Status: ready once W01 is integrated
+Status: claimed by Claude Sonnet 5.5 on 2026-11-05 12:00
 Needs: W01 (serializes the engine changes on gix 0.90)
 Decisions: —
 Kind: Rust and TypeScript, the Rust arm applies · Size budget: ~120 changed
