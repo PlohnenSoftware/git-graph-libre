@@ -266,6 +266,28 @@ export function detachedWorktreeHeadMap(worktrees: GitWorktree[]): Map<string, G
   return map;
 }
 
+/**
+ * The local branch a remote checkout would collide with, decided from the
+ * branches and upstreams the webview already holds — never from Git's
+ * translated "already exists" after the fact (W24, issue #45). A branch with
+ * the name the checkout would create wins; otherwise the first local branch,
+ * in branch-list order, that already tracks the clicked remote branch under
+ * another name (the state W05's old suggested name left behind). Null when
+ * the checkout can create its branch freely.
+ */
+export function existingLocalBranchForRemote(
+  suggestedName: string,
+  remoteRef: string,
+  localBranches: readonly string[],
+  upstreams: Record<string, string | null>
+): string | null {
+  if (localBranches.includes(suggestedName)) return suggestedName;
+  for (const branch of localBranches) {
+    if (upstreams[branch] === remoteRef) return branch;
+  }
+  return null;
+}
+
 /** A worktree's folder name: the last segment of its path, on either separator. */
 export function worktreeFolderName(worktreePath: string): string {
   let end = worktreePath.length;
@@ -6222,12 +6244,31 @@ class GitGraphView {
         parsedRemote !== null && remoteNames.includes(parsedRemote.remote)
           ? parsedRemote.branchName
           : refName;
+      // Before `git checkout -b` can fail with "already exists", an existing
+      // local branch — the suggested name, or one tracking this remote branch
+      // under another name — gets the choice dialog instead (W24).
+      const existing = existingLocalBranchForRemote(
+        suggestedName,
+        refName,
+        this.gitBranches,
+        this.gitUpstreams
+      );
+      if (existing !== null) {
+        this.showExistingLocalBranchDialog(existing, refName, suggestedName, null);
+        return;
+      }
       const sourceName = sourceElem.dataset.name ?? refName;
       showRefInputDialog(
         l10n.dialogCreateBranchTitle.replace("{0}", `<b><i>${escapeHtml(sourceName)}</i></b>`),
         suggestedName,
         l10n.checkoutBranch,
         (newBranch) => {
+          // A name edited to one that exists never reaches Git either: it
+          // gets the same choices as a collision found up front.
+          if (this.hasLocalBranch(newBranch)) {
+            this.showExistingLocalBranchDialog(newBranch, refName, suggestedName, null);
+            return;
+          }
           sendMessage({
             command: "checkoutBranch",
             repo: this.currentRepo,
@@ -6237,7 +6278,152 @@ class GitGraphView {
         },
         null
       );
+      this.bindTakenBranchNameValidation(0, null);
     }
+  }
+  /**
+   * The choices for checking out a remote branch whose local branch already
+   * exists (W24, decision Y14): switch to it, switch and fast-forward it to
+   * the clicked remote-tracking ref (`--ff-only`, never a merge), or create a
+   * branch with another name. A branch another worktree has checked out
+   * cannot be switched to here, so its choices are that worktree (W31) or
+   * another name. Decided from the branch, upstream and worktree data
+   * already in the webview, never from Git's translated messages.
+   */
+  private showExistingLocalBranchDialog(
+    existing: string,
+    remoteRef: string,
+    suggestedName: string,
+    sourceElem: HTMLElement | null
+  ) {
+    const worktreePath = this.otherWorktreePath(existing);
+    const bold = (name: string) => `<b><i>${escapeHtml(name)}</i></b>`;
+    const message =
+      worktreePath !== null
+        ? l10n.dialogOpenWorktreeMessage
+            .replace("{0}", () => bold(existing))
+            .replace("{1}", () => bold(worktreePath))
+        : existing === suggestedName
+          ? l10n.dialogCheckoutRemoteExists.replace("{0}", () => bold(existing))
+          : l10n.dialogCheckoutRemoteTracks
+              .replace("{0}", () => bold(existing))
+              .replace("{1}", () => bold(remoteRef));
+    const createOther = {
+      name: l10n.dialogCheckoutRemoteCreateOther,
+      value: "create"
+    };
+    const options =
+      worktreePath !== null
+        ? [{ name: l10n.dialogOpenWorktreeSubmit, value: "openWorktree" }, createOther]
+        : [
+            {
+              name: l10n.dialogCheckoutRemoteSwitch.replace("{0}", () => existing),
+              value: "switch"
+            },
+            {
+              name: l10n.dialogCheckoutRemoteSwitchAndFastForward
+                .replace("{0}", () => existing)
+                .replace("{1}", () => remoteRef),
+              value: "switchAndFastForward"
+            },
+            createOther
+          ];
+    showFormDialog(
+      message,
+      [
+        {
+          type: "select",
+          name: l10n.dialogCheckoutRemoteAction,
+          options,
+          default: options[0].value
+        },
+        {
+          type: "text-ref",
+          name: l10n.dialogCheckoutRemoteNewName,
+          // The suggested name is the collision itself in the same-name
+          // case; only a tracking branch leaves it free to offer.
+          default: existing === suggestedName ? "" : suggestedName,
+          dependsOn: { input: 0, value: "create" }
+        }
+      ],
+      l10n.checkoutBranch,
+      (values) => {
+        if (values[0] === "switch") {
+          sendMessage({
+            command: "checkoutBranch",
+            repo: this.currentRepo,
+            branchName: existing,
+            remoteBranch: null
+          });
+        } else if (values[0] === "switchAndFastForward") {
+          sendMessage({
+            command: "checkoutAndFastForward",
+            repo: this.currentRepo,
+            branchName: existing,
+            target: remoteRef
+          });
+        } else if (values[0] === "openWorktree" && worktreePath !== null) {
+          sendMessage({
+            command: "openWorktree",
+            repo: this.currentRepo,
+            path: worktreePath,
+            newWindow: true
+          });
+        } else if (this.hasLocalBranch(values[1])) {
+          this.showExistingLocalBranchDialog(values[1], remoteRef, suggestedName, sourceElem);
+        } else {
+          sendMessage({
+            command: "checkoutBranch",
+            repo: this.currentRepo,
+            branchName: values[1],
+            remoteBranch: remoteRef
+          });
+        }
+      },
+      sourceElem
+    );
+    this.bindTakenBranchNameValidation(1, 0);
+  }
+  /**
+   * Inline validation that a name about to be created is free: a taken name
+   * puts the dialog in the same `inputInvalid` state as invalid characters,
+   * which is what blocks its submit button, with the reason as the button's
+   * title. Runs after the form's own state refresh on the same events, so a
+   * free name keeps whatever state that refresh chose; the hidden-row case
+   * (another choice selected) leaves the state alone entirely.
+   */
+  private bindTakenBranchNameValidation(inputIndex: number, selectIndex: number | null) {
+    const input = document.getElementById(`dialogInput${inputIndex}`) as HTMLInputElement | null;
+    if (input === null) return;
+    const validate = () => {
+      const row = document.getElementById(`dialogInputRow${inputIndex}`);
+      if (row?.hidden === true) return;
+      const name = input.value;
+      const action = document.getElementById("dialogAction");
+      if (name !== "" && this.hasLocalBranch(name)) {
+        dialog.className = "active inputInvalid";
+        if (action !== null) action.title = l10n.branchNameTaken.replace("{0}", () => name);
+        return;
+      }
+      // Pasted or picked input fires no keyup, so the form's own refresh may
+      // not have run: recompute the same three states it would.
+      if (name === "") {
+        dialog.className = "active noInput";
+      } else if (refInvalid.exec(name) !== null) {
+        dialog.className = "active inputInvalid";
+        if (action !== null)
+          action.title = l10n.invalidCharacters.replace("{0}", l10n.checkoutBranch);
+      } else {
+        dialog.className = "active";
+        if (action !== null) action.title = "";
+      }
+    };
+    input.addEventListener("keyup", validate);
+    input.addEventListener("input", validate);
+    if (selectIndex !== null) {
+      document.getElementById(`dialogInput${selectIndex}`)?.addEventListener("change", validate);
+    }
+    validate();
   }
   private createArchiveAction(refName: string) {
     sendMessage({
@@ -7584,6 +7770,7 @@ const actionErrorLabels = {
   applyStash: l10n.unableToApplyStash,
   branchFromStash: l10n.unableToBranchFromStash,
   checkoutBranch: l10n.unableToCheckoutBranch,
+  checkoutAndFastForward: l10n.unableToCheckoutAndFastForward,
   checkoutCommit: l10n.unableToCheckoutCommit,
   cherrypickCommit: l10n.unableToCherryPick,
   cleanUntrackedFiles: l10n.unableToCleanUntracked,

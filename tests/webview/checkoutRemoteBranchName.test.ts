@@ -169,7 +169,9 @@ describe("checkout remote branch suggested name", () => {
     expect(await prefilledCheckoutName(["origin"], "upstream/topic")).toBe("upstream/topic");
   });
 
-  it("still suggests a slash-free branch name such as main", async () => {
-    expect(await prefilledCheckoutName(["origin"], "origin/main")).toBe("main");
+  it("still suggests a slash-free branch name", async () => {
+    // A slash-free name with no local branch yet: the fixture's local `main`
+    // would open W24's existing-branch dialog instead of a name prompt.
+    expect(await prefilledCheckoutName(["origin"], "origin/topic")).toBe("topic");
   });
 });
