@@ -743,5 +743,16 @@
   "status.creatingWorktree": "Creating worktree ...",
   "error.unableToCreateWorktree": "Unable to Create Worktree",
   "dialog.repairWorktree.pickFolder": "Choose the folder the worktree was moved to",
-  "dialog.repairWorktree.pickFolderLabel": "Repair Worktree"
+  "dialog.repairWorktree.pickFolderLabel": "Repair Worktree",
+  "dialog.checkoutRemote.exists": "A local branch named {0} already exists.",
+  "dialog.checkoutRemote.tracks": "The local branch {0} already tracks {1}.",
+  "dialog.checkoutRemote.action": "Check out",
+  "dialog.checkoutRemote.switch": "Switch to {0}",
+  "dialog.checkoutRemote.switchAndFastForward": "Switch to {0} and fast-forward it to {1}",
+  "dialog.checkoutRemote.createOther": "Create a branch with another name",
+  "dialog.checkoutRemote.newName": "New branch name",
+  "error.branchNameTaken": "A branch named {0} already exists.",
+  "error.unableToCheckoutAndFastForward": "Unable to Switch to and Fast-Forward Branch",
+  "error.checkoutStepFailed": "Could not switch to the branch {0}, so it was not fast-forwarded to {1}. {2}",
+  "error.fastForwardStepFailed": "Switched to the branch {0}, but it could not be fast-forwarded to {1}, so the branch stays as it was. {2}"
 }

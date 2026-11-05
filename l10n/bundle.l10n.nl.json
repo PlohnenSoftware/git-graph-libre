@@ -743,5 +743,16 @@
   "status.creatingWorktree": "Worktree maken ...",
   "error.unableToCreateWorktree": "Kan worktree niet maken",
   "dialog.repairWorktree.pickFolder": "Kies de map waarnaar de worktree is verplaatst",
-  "dialog.repairWorktree.pickFolderLabel": "Worktree herstellen"
+  "dialog.repairWorktree.pickFolderLabel": "Worktree herstellen",
+  "dialog.checkoutRemote.exists": "Er bestaat al een lokale branch met de naam {0}.",
+  "dialog.checkoutRemote.tracks": "De lokale branch {0} volgt {1} al.",
+  "dialog.checkoutRemote.action": "Uitchecken",
+  "dialog.checkoutRemote.switch": "Schakel over naar {0}",
+  "dialog.checkoutRemote.switchAndFastForward": "Schakel over naar {0} en fast-forward deze naar {1}",
+  "dialog.checkoutRemote.createOther": "Maak een branch met een andere naam",
+  "dialog.checkoutRemote.newName": "Nieuwe branchnaam",
+  "error.branchNameTaken": "Er bestaat al een branch met de naam {0}.",
+  "error.unableToCheckoutAndFastForward": "Kan niet overschakelen naar de branch en deze fast-forwarden",
+  "error.checkoutStepFailed": "Kon niet overschakelen naar de branch {0}, dus deze is niet gefast-forward naar {1}. {2}",
+  "error.fastForwardStepFailed": "Overgeschakeld naar de branch {0}, maar deze kon niet worden gefast-forward naar {1}, dus de branch blijft zoals deze was. {2}"
 }

@@ -743,5 +743,16 @@
   "status.creatingWorktree": "正在创建工作树 ...",
   "error.unableToCreateWorktree": "无法创建工作树",
   "dialog.repairWorktree.pickFolder": "选择该工作树被移动到的文件夹",
-  "dialog.repairWorktree.pickFolderLabel": "修复工作树"
+  "dialog.repairWorktree.pickFolderLabel": "修复工作树",
+  "dialog.checkoutRemote.exists": "名为 {0} 的本地分支已存在。",
+  "dialog.checkoutRemote.tracks": "本地分支 {0} 已在跟踪 {1}。",
+  "dialog.checkoutRemote.action": "检出",
+  "dialog.checkoutRemote.switch": "切换到 {0}",
+  "dialog.checkoutRemote.switchAndFastForward": "切换到 {0} 并将其快进到 {1}",
+  "dialog.checkoutRemote.createOther": "使用其他名称创建分支",
+  "dialog.checkoutRemote.newName": "新分支名称",
+  "error.branchNameTaken": "名为 {0} 的分支已存在。",
+  "error.unableToCheckoutAndFastForward": "无法切换到分支并将其快进",
+  "error.checkoutStepFailed": "无法切换到分支 {0}，因此未将其快进到 {1}。{2}",
+  "error.fastForwardStepFailed": "已切换到分支 {0}，但无法将其快进到 {1}，因此该分支保持不变。{2}"
 }
