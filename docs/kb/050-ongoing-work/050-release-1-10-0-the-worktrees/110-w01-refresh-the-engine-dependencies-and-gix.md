@@ -10,7 +10,7 @@ summary: >-
 
 # W01 — Refresh the engine's dependencies and gix
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 on 2026-11-05 12:00
 Needs: —
 Decisions: Y2, answered by the maintainer on `2026-11-04`: "please also do
 updates to cargo stuff including gix which we grab from GH". gix stays on the
