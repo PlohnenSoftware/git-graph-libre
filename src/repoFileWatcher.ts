@@ -1,17 +1,19 @@
 import * as vscode from "vscode";
 
+import { type GitDirs, resolveGitDirs } from "./backend/utils/gitDirs";
 import { getPathFromStr, getPathFromUri } from "./backend/utils/path";
 
-const watchedGitFiles = new Set([
-  ".git/config",
-  ".git/index",
-  ".git/HEAD",
-  ".git/packed-refs",
-  ".git/refs/stash"
-]);
-const watchedGitRefPrefixes = [".git/refs/heads/", ".git/refs/remotes/", ".git/refs/tags/"];
+// Files in the git dir that holds this worktree's own HEAD and index.
+const watchedGitDirFiles = new Set(["HEAD", "index"]);
+// Files and ref folders in the common dir, shared by every worktree.
+const watchedCommonFiles = new Set(["config", "packed-refs", "refs/stash"]);
+const watchedCommonRefPrefixes = ["refs/heads/", "refs/remotes/", "refs/tags/"];
+// Admin files of a linked worktree, below `worktrees/<id>/`.
+const watchedWorktreeFiles = new Set(["HEAD", "locked", "gitdir"]);
+const worktreesPrefix = "worktrees/";
 
-type WatcherKind = "repo" | "git";
+type WatcherKind = "repo" | "gitDir" | "commonDir" | "sharedDir";
+type ResolveGitDirs = (repo: string) => GitDirs;
 
 type WorkspaceApi = Pick<typeof vscode.workspace, "createFileSystemWatcher">;
 type RelativePatternFactory = (base: string, pattern: string) => vscode.GlobPattern;
@@ -37,22 +39,37 @@ function shouldRefreshRepoPath(relativePath: string) {
   return relativePath !== ".git" && !relativePath.startsWith(".git/");
 }
 
-function shouldRefreshGitPath(relativePath: string) {
+function isWorktreeAdminPath(relativePath: string) {
+  if (!relativePath.startsWith(worktreesPrefix)) return false;
+  const parts = relativePath.slice(worktreesPrefix.length).split("/");
+  // `worktrees/<id>` appearing or vanishing is a worktree added or removed.
+  if (parts.length === 1) return parts[0] !== "";
+  return parts.length === 2 && watchedWorktreeFiles.has(parts[1]);
+}
+
+function shouldRefreshCommonPath(relativePath: string) {
   return (
-    watchedGitFiles.has(relativePath) ||
-    watchedGitRefPrefixes.some((prefix) => relativePath.startsWith(prefix))
+    watchedCommonFiles.has(relativePath) ||
+    watchedCommonRefPrefixes.some((prefix) => relativePath.startsWith(prefix)) ||
+    isWorktreeAdminPath(relativePath)
   );
 }
 
+function shouldRefreshGitPath(kind: Exclude<WatcherKind, "repo">, relativePath: string) {
+  if (kind === "gitDir") return watchedGitDirFiles.has(relativePath);
+  if (kind === "commonDir") return shouldRefreshCommonPath(relativePath);
+  return watchedGitDirFiles.has(relativePath) || shouldRefreshCommonPath(relativePath);
+}
+
 export class RepoFileWatcher {
-  private repo: string | null = null;
+  private bases = new Map<WatcherKind, string>();
   private readonly repoChangeCallback: () => void;
   private readonly workspace: WorkspaceApi;
   private readonly relativePattern: RelativePatternFactory;
+  private readonly resolveDirs: ResolveGitDirs;
   private readonly debounceDelay: number;
   private readonly resumeDelay: number;
-  private repoWatcher: vscode.FileSystemWatcher | null = null;
-  private gitWatcher: vscode.FileSystemWatcher | null = null;
+  private watchers: vscode.FileSystemWatcher[] = [];
   private refreshTimeout: NodeJS.Timeout | null = null;
   private muted: boolean = false;
   private resumeAt: number = 0;
@@ -62,11 +79,13 @@ export class RepoFileWatcher {
     workspace: WorkspaceApi = vscode.workspace,
     relativePattern: RelativePatternFactory = createRelativePattern,
     debounceDelay = 750,
-    resumeDelay = 1500
+    resumeDelay = 1500,
+    resolveDirs: ResolveGitDirs = resolveGitDirs
   ) {
     this.repoChangeCallback = repoChangeCallback;
     this.workspace = workspace;
     this.relativePattern = relativePattern;
+    this.resolveDirs = resolveDirs;
     this.debounceDelay = debounceDelay;
     this.resumeDelay = resumeDelay;
   }
@@ -76,23 +95,27 @@ export class RepoFileWatcher {
     const normalized = normalizeRepoPath(repo);
     if (normalized === "") {
       // An empty repo path (no repositories left) has nothing to watch.
-      this.repo = null;
       return;
     }
-    this.repo = normalized;
-    this.repoWatcher = this.createWatcher("**", "repo");
-    this.gitWatcher = this.createWatcher(".git/**", "git");
+    const dirs = this.resolveDirs(normalized);
+    const gitDir = normalizeRepoPath(dirs.gitDir);
+    const commonDir = normalizeRepoPath(dirs.commonDir);
+    this.watchers.push(this.createWatcher(normalized, "**", "repo"));
+    if (gitDir === commonDir) {
+      this.watchers.push(this.createWatcher(gitDir, "**", "sharedDir"));
+    } else {
+      // A linked worktree: its own HEAD and index sit apart from the shared refs.
+      this.watchers.push(this.createWatcher(gitDir, "**", "gitDir"));
+      this.watchers.push(this.createWatcher(commonDir, "**", "commonDir"));
+    }
   }
 
   public stop() {
-    if (this.repoWatcher !== null) {
-      this.repoWatcher.dispose();
-      this.repoWatcher = null;
+    for (const watcher of this.watchers) {
+      watcher.dispose();
     }
-    if (this.gitWatcher !== null) {
-      this.gitWatcher.dispose();
-      this.gitWatcher = null;
-    }
+    this.watchers = [];
+    this.bases.clear();
     if (this.refreshTimeout !== null) {
       clearTimeout(this.refreshTimeout);
       this.refreshTimeout = null;
@@ -108,33 +131,32 @@ export class RepoFileWatcher {
     this.resumeAt = Date.now() + this.resumeDelay;
   }
 
-  private createWatcher(pattern: string, kind: WatcherKind) {
-    const repo = this.repo;
-    if (repo === null) throw new Error("Cannot create repo watcher before repo is set");
-
-    const watcher = this.workspace.createFileSystemWatcher(this.relativePattern(repo, pattern));
+  private createWatcher(base: string, pattern: string, kind: WatcherKind) {
+    this.bases.set(kind, base);
+    const watcher = this.workspace.createFileSystemWatcher(this.relativePattern(base, pattern));
     watcher.onDidCreate((uri) => this.refresh(uri, kind));
     watcher.onDidChange((uri) => this.refresh(uri, kind));
     watcher.onDidDelete((uri) => this.refresh(uri, kind));
     return watcher;
   }
 
-  private relativePath(uri: vscode.Uri) {
-    if (this.repo === null) return null;
+  private relativePath(uri: vscode.Uri, kind: WatcherKind) {
+    const base = this.bases.get(kind);
+    if (base === undefined) return null;
     const path = getPathFromUri(uri);
-    if (path === this.repo) return "";
+    if (path === base) return "";
 
-    const repoPrefix = `${this.repo}/`;
-    if (!path.startsWith(repoPrefix)) return null;
-    return path.slice(repoPrefix.length);
+    const basePrefix = `${base}/`;
+    if (!path.startsWith(basePrefix)) return null;
+    return path.slice(basePrefix.length);
   }
 
   private refresh(uri: vscode.Uri, kind: WatcherKind) {
     if (this.muted) return;
-    const relativePath = this.relativePath(uri);
+    const relativePath = this.relativePath(uri, kind);
     if (relativePath === null) return;
     if (kind === "repo" && !shouldRefreshRepoPath(relativePath)) return;
-    if (kind === "git" && !shouldRefreshGitPath(relativePath)) return;
+    if (kind !== "repo" && !shouldRefreshGitPath(kind, relativePath)) return;
     if (Date.now() < this.resumeAt) return;
 
     if (this.refreshTimeout !== null) {
