@@ -1,8 +1,9 @@
 name: release
 
 # Least privilege: every job asks for what it needs. Only `release` writes
-# contents; only the gate dispatches (`actions: write`); `verify` reads another
-# run's artifact (`actions: read`).
+# contents and asks for an OIDC token (`id-token: write`, for the trusted
+# publishing below); only the gate dispatches (`actions: write`); `verify`
+# reads another run's artifact (`actions: read`).
 permissions:
   contents: read
 
@@ -225,6 +226,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -278,44 +280,23 @@ jobs:
             gh release create "$TAG" "$VSIX" --title "$TAG" --generate-notes
           fi
 
-      # The `secrets` context is not available to a step-level `if`, so resolve
-      # each token into an output first and gate its publish step on that.
-      - name: Check marketplace token
-        id: marketplace
-        env:
-          VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
-        run: |
-          if [ -n "$VS_MARKETPLACE_TOKEN" ]; then
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::VS_MARKETPLACE_TOKEN is not set; skipping marketplace publish."
-          fi
-
-      - name: Check Open VSX token
-        id: openvsx
-        env:
-          OPEN_VSX_TOKEN: ${{ secrets.OPEN_VSX_TOKEN }}
-        run: |
-          if [ -n "$OPEN_VSX_TOKEN" ]; then
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::OPEN_VSX_TOKEN is not set; skipping Open VSX publish."
-          fi
-
+      # Both registries are published by trusted publishing: each one holds a
+      # registration naming this repository and this workflow file, and the
+      # job's OIDC token (`id-token: write` above) is exchanged for a
+      # short-lived publishing credential, so no long-lived token secret
+      # exists to leak or rotate. No PAT may be wired into these steps:
+      # `ovsx` prefers a PAT from its environment when one is present, and
+      # `vsce --oidc` refuses to run alongside a PAT. A missing or wrong
+      # registration fails the step instead of silently skipping a registry,
+      # so register both before the first publish run on this workflow.
       # Both publishes take the same artifact the GitHub release carries, with
       # `--skip-duplicate` so a re-run is a no-op rather than a failure.
       - name: Publish to VS Marketplace
-        if: steps.marketplace.outputs.configured == 'true'
         env:
-          VSCE_PAT: ${{ secrets.VS_MARKETPLACE_TOKEN }}
           VSIX: ${{ steps.vsix.outputs.path }}
-        run: pnpm exec vsce publish --packagePath "$VSIX" --skip-duplicate
+        run: pnpm exec vsce publish --oidc --packagePath "$VSIX" --skip-duplicate
 
       - name: Publish to Open VSX
-        if: steps.openvsx.outputs.configured == 'true'
         env:
-          OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
           VSIX: ${{ steps.vsix.outputs.path }}
-        run: pnpm exec ovsx publish --packagePath "$VSIX" --skip-duplicate
+        run: pnpm exec ovsx publish --trusted-publishing --packagePath "$VSIX" --skip-duplicate
