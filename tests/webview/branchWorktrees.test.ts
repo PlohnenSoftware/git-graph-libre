@@ -177,3 +177,49 @@ describe("loadBranches response with worktrees", () => {
     expect(commitsRequest.repo).toBe(REPO);
   });
 });
+
+const DETACHED = "b".repeat(40);
+
+describe("detachedWorktreeHeadMap and worktreeFolderName", () => {
+  it("maps only other worktrees' detached HEADs, all of them per commit", async () => {
+    vi.resetModules();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    createVscodeMock();
+    setupHtml(makeViewState());
+    const { detachedWorktreeHeadMap } = await import("@/webview/main");
+
+    const map = detachedWorktreeHeadMap([
+      worktree({ path: "/workspace/repo", branch: "main", isMain: true, isCurrent: true }),
+      worktree({ path: "/workspace/feat", branch: "feat", head: HEAD }),
+      worktree({ path: "/workspace/side", branch: null, detached: true, head: DETACHED }),
+      worktree({ path: "/workspace/twin", branch: null, detached: true, head: DETACHED }),
+      worktree({
+        path: "/workspace/here",
+        branch: null,
+        detached: true,
+        head: DETACHED,
+        isCurrent: true
+      }),
+      worktree({ path: "/workspace/bare", branch: null, bare: true, head: null })
+    ]);
+
+    expect([...map.keys()]).toEqual([DETACHED]);
+    expect(map.get(DETACHED)?.map((holder) => holder.path)).toEqual([
+      "/workspace/side",
+      "/workspace/twin"
+    ]);
+  });
+
+  it("takes a folder name from either separator, trailing ones included", async () => {
+    vi.resetModules();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    createVscodeMock();
+    setupHtml(makeViewState());
+    const { worktreeFolderName } = await import("@/webview/main");
+
+    expect(worktreeFolderName("/workspace/wt side")).toBe("wt side");
+    expect(worktreeFolderName("C:\\repos\\wt ünï")).toBe("wt ünï");
+    expect(worktreeFolderName("/workspace/wt/")).toBe("wt");
+    expect(worktreeFolderName("/")).toBe("/");
+  });
+});
