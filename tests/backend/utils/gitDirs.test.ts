@@ -2,6 +2,7 @@ import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { makeRepo } from "@tests/backend/helpers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -76,12 +77,36 @@ describe("resolveGitDirs", () => {
     expect(resolveGitDirs(missing)).toEqual({ gitDir: dir, commonDir: dir });
   });
 
-  it("falls back to git rev-parse for a bare repository, which has no .git", () => {
+  it("resolves a bare repository, which has no .git, to itself from the file system", () => {
     const bare = path.join(holder, "bare.git");
     run(["init", "--bare", "-b", "main", bare], holder);
     const { gitDir, commonDir } = resolveGitDirs(bare);
     expect(fs.realpathSync(gitDir)).toBe(fs.realpathSync(bare));
     expect(fs.realpathSync(commonDir)).toBe(fs.realpathSync(bare));
+  });
+
+  it("resolves a bare repository with no git on PATH, so it spawns no process", () => {
+    const bare = path.join(holder, "bare-no-path.git");
+    run(["init", "--bare", "-b", "main", bare], holder);
+    const emptyBin = fs.mkdtempSync(path.join(holder, "bin-"));
+    const savedPath = process.env.PATH ?? "";
+    process.env.PATH = emptyBin;
+    try {
+      const { gitDir, commonDir } = resolveGitDirs(bare);
+      expect(fs.realpathSync(gitDir)).toBe(fs.realpathSync(bare));
+      expect(fs.realpathSync(commonDir)).toBe(fs.realpathSync(bare));
+    } finally {
+      process.env.PATH = savedPath;
+    }
+  });
+
+  it("does not import child_process, so resolving never spawns a process", () => {
+    const source = fs.readFileSync(
+      fileURLToPath(new URL("../../../src/backend/utils/gitDirs.ts", import.meta.url)),
+      "utf8"
+    );
+    expect(source).not.toMatch(/child_process/);
+    expect(source).not.toMatch(/execFileSync|spawnSync|execSync/);
   });
 
   it("answers the default for a .git file git itself refuses", () => {
