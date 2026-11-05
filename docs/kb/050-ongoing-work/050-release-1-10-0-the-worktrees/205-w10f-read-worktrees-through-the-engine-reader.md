@@ -10,7 +10,7 @@ summary: >-
 
 # W10F — Read worktrees through the engine reader
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-11-05 18:21
 Needs: W03 (integrated `f9e54a4`), W10 (integrated `2a619c4`)
 Decisions: —
 Kind: TypeScript · Size budget: ~40 changed lines outside tests
