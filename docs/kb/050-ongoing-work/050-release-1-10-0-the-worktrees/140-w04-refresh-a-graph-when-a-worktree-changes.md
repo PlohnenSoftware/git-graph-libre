@@ -10,7 +10,7 @@ summary: >-
 
 # W04 — Refresh a graph when a worktree changes
 
-Status: claimed by Claude Sonnet 5.5 on 2026-11-05 17:59
+Status: done — awaiting integration
 Needs: —
 Decisions: —
 Kind: TypeScript · Size budget: ~180 changed lines outside tests
@@ -79,4 +79,11 @@ one event. Submodules behave as before.
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Sonnet 5.5, 2026-11-05 18:10
+- **Branch and commits:** `wt-1.10.0/W04` — `04166e6 G` claim; `e139c61 G` feat(watcher): resolve a repository's git dir and common dir (W04); `46d3253 G` fix(watcher): refresh a graph for worktree changes (W04); `8a0d6e9 G` test(watcher): cover worktree and submodule refresh (W04)
+- **Files changed:** `src/backend/utils/gitDirs.ts` (new, ~75 lines), `src/repoFileWatcher.ts` (~+70/-45), `tests/backend/utils/gitDirs.test.ts` (new), `tests/webview/repoFileWatcher.test.ts` (extended)
+- **Tests added or changed:** 7 in `gitDirs.test.ts`; 5 new plus 1 pattern expectation updated in `repoFileWatcher.test.ts`. Backend 1152 passed, 60 skipped, 1212 total; webview 797/797 (was one fewer before for the new tests).
+- **Gates:** biome strict clean on touched files; typecheck clean; test backend 1152/1212 (60 skipped, not from this slice), webview 797/797; l10n n/a; kb:check not run (only the status line and report changed); Rust arm n/a; Sonar: integrator
+- **Acceptance:** met. Linked graph refreshes on commit, checkout, fetch paths; main graph refreshes on linked HEAD, lock, unlock, add and removal of `worktrees/<id>`; submodule keeps one git dir (no commondir); two watchers reporting one event give one debounced refresh. Event paths in tests are checked to exist after the real git command, but the watchers are stubs (no real fs events).
+- **Deviations from the slice:** the watcher tests sit in the existing `tests/webview/repoFileWatcher.test.ts` (the backend project has no `vscode` alias), not `tests/backend/**`. For a normal repo the git watcher is now `{base: <repo>/.git, pattern: "**"}` instead of `{base: <repo>, pattern: ".git/**"}`. `RepoFileWatcher` gained an optional sixth constructor argument, `resolveDirs`, for tests. `.git/config` is no longer refreshed from the working-tree watcher (it never was; unchanged).
+- **Open questions / follow-ups:** none. Bare-repo graphs resolve through the `git rev-parse` fallback (no `.git`), left to W33.
