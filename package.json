@@ -186,6 +186,31 @@
       },
       {
         "category": "Git Graph Libre",
+        "command": "git-graph-libre.pruneStaleWorktrees",
+        "title": "%command.pruneStaleWorktrees%"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.openWorktree",
+        "title": "%command.openWorktree%"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.addWorktreeToWorkspace",
+        "title": "%command.addWorktreeToWorkspace%"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.revealWorktree",
+        "title": "%command.revealWorktree%"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.switchGraphToWorktree",
+        "title": "%command.switchGraphToWorktree%"
+      },
+      {
+        "category": "Git Graph Libre",
         "command": "git-graph-libre.showDiagnostics",
         "title": "%command.showDiagnostics%"
       },
@@ -279,6 +304,22 @@
         },
         {
           "command": "git-graph-libre.openDiffTab.untracked",
+          "when": "false"
+        },
+        {
+          "command": "git-graph-libre.openWorktree",
+          "when": "false"
+        },
+        {
+          "command": "git-graph-libre.addWorktreeToWorkspace",
+          "when": "false"
+        },
+        {
+          "command": "git-graph-libre.revealWorktree",
+          "when": "false"
+        },
+        {
+          "command": "git-graph-libre.switchGraphToWorktree",
           "when": "false"
         }
       ]

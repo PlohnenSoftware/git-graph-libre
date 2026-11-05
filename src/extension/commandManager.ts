@@ -3,6 +3,9 @@ import path from "node:path";
 import { simpleGit } from "simple-git";
 import * as vscode from "vscode";
 
+import { loadWorktrees } from "@/backend/queries/worktrees";
+import type { GitWorktree } from "@/backend/types";
+import { canonicalizePath } from "@/backend/utils/git";
 import { formatGitCommandRecord } from "@/backend/utils/gitCommandLog";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { runGitRaw } from "@/backend/utils/gitRunner";
@@ -54,6 +57,18 @@ type WindowApi = {
   /** Opens text in a new, unsaved Markdown editor. */
   openUntitledMarkdown(content: string): Thenable<unknown>;
 };
+/** The folder-level VS Code calls the worktree commands make; tests replace them. */
+export type WorktreeFolderApi = {
+  /** Paths of the folders in the open workspace. */
+  workspaceFolderPaths(): string[];
+  /** Appends a folder to the workspace; false when VS Code refuses. */
+  addWorkspaceFolder(folderPath: string): boolean;
+  /** Opens a folder in a new window, or in this one. */
+  openFolder(folderPath: string, newWindow: boolean): Thenable<unknown>;
+  /** Reveals a folder in the OS file manager. */
+  revealInOS(folderPath: string): Thenable<unknown>;
+};
+type WorktreeRequest = { repo: string; path: string; newWindow: boolean };
 type OutputChannel = Pick<vscode.OutputChannel, "appendLine" | "show">;
 type LogAccess = Pick<Logger, "flush" | "logFilePath" | "recentLines">;
 
@@ -80,6 +95,8 @@ export type CommandManagerDeps = {
   copyText?: (text: string) => Promise<boolean>;
   /** Opens a URL in the user's browser; defaults to VS Code's `env.openExternal`. */
   openExternal?: (url: string) => Thenable<boolean>;
+  /** The folder calls the worktree commands make; defaults to VS Code's. */
+  folderApi?: WorktreeFolderApi;
   /** Names of the `git-graph-libre.*` settings the user changed, never their values. */
   changedSettings?: () => string[];
   /** Replaces the fact gathering in tests. */
@@ -158,6 +175,33 @@ function formatRepoQuickPickItems(repos: Record<string, unknown>): RepoQuickPick
     });
 }
 
+export function createVsCodeFolderApi(): WorktreeFolderApi {
+  return {
+    workspaceFolderPaths: () =>
+      (vscode.workspace.workspaceFolders ?? []).map((folder) => getPathFromStr(folder.uri.fsPath)),
+    addWorkspaceFolder: (folderPath) =>
+      vscode.workspace.updateWorkspaceFolders(vscode.workspace.workspaceFolders?.length ?? 0, 0, {
+        uri: vscode.Uri.file(folderPath),
+        name: path.basename(folderPath)
+      }),
+    openFolder: (folderPath, newWindow) =>
+      vscode.commands.executeCommand("vscode.openFolder", vscode.Uri.file(folderPath), {
+        forceNewWindow: newWindow
+      }),
+    revealInOS: (folderPath) =>
+      vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(folderPath))
+  };
+}
+
+/** Reads the `{ repo, path, newWindow }` a worktree command is sent, refusing any other shape. */
+function parseWorktreeRequest(value: unknown): WorktreeRequest {
+  const request = value as Partial<Record<keyof WorktreeRequest, unknown>> | null | undefined;
+  if (typeof request?.repo !== "string" || typeof request.path !== "string") {
+    throw new Error(l10n.t("command.worktree.badRequest"));
+  }
+  return { repo: request.repo, path: request.path, newWindow: request.newWindow === true };
+}
+
 function createVsCodeWindowApi(): WindowApi {
   return {
     getActiveTextEditorUri: () => vscode.window.activeTextEditor?.document.uri,
@@ -188,6 +232,7 @@ function createVsCodeWindowApi(): WindowApi {
 export function createCommandManager(deps: CommandManagerDeps) {
   const commandApi = deps.commandApi ?? vscode.commands;
   const windowApi = deps.windowApi ?? createVsCodeWindowApi();
+  const folderApi = deps.folderApi ?? createVsCodeFolderApi();
   const disposables: vscode.Disposable[] = [];
   const registeredCommands: RegisteredCommand[] = [];
   const recordGitCommand: GitCommandRecorder = (record) => {
@@ -432,6 +477,82 @@ export function createCommandManager(deps: CommandManagerDeps) {
     deps.getCurrentPanel()?.startHistorySearch();
   }
 
+  /**
+   * The worktree a request names, as Git lists it now. A path Git no longer
+   * lists is refused, and so is a stale entry: its folder is gone, so Repair
+   * or Prune fits, not opening it.
+   */
+  async function listedWorktree(request: WorktreeRequest): Promise<GitWorktree> {
+    const git = simpleGit({
+      baseDir: request.repo,
+      binary: deps.config.gitPath(),
+      maxConcurrentProcesses: 1,
+      trimmed: false
+    });
+    const result = await loadWorktrees(git, request.repo, recordGitCommand);
+    if (result.error !== null) throw new Error(result.error.message);
+
+    const wanted = await canonicalizePath(request.path);
+    const listed = await Promise.all(
+      result.value.map((worktree) => canonicalizePath(worktree.path))
+    );
+    const index = listed.indexOf(wanted);
+    if (index === -1) throw new Error(l10n.t("command.worktree.notListed", request.path));
+    const target = result.value[index];
+    if (target.prunable !== null) throw new Error(l10n.t("command.worktree.stale", target.path));
+    return target;
+  }
+
+  async function openWorktreeFolder(value: unknown) {
+    const request = parseWorktreeRequest(value);
+    const target = await listedWorktree(request);
+    await folderApi.openFolder(target.path, request.newWindow);
+  }
+
+  async function addWorktreeToWorkspace(value: unknown) {
+    const target = await listedWorktree(parseWorktreeRequest(value));
+    const open = await Promise.all(folderApi.workspaceFolderPaths().map(canonicalizePath));
+    if (open.includes(await canonicalizePath(target.path))) {
+      await windowApi.showInformationMessage(
+        l10n.t("command.worktree.alreadyInWorkspace", target.path)
+      );
+      return;
+    }
+    if (!folderApi.addWorkspaceFolder(target.path)) {
+      throw new Error(l10n.t("command.worktree.addFailed", target.path));
+    }
+  }
+
+  async function revealWorktree(value: unknown) {
+    const target = await listedWorktree(parseWorktreeRequest(value));
+    await folderApi.revealInOS(target.path);
+  }
+
+  /** Focuses the worktree's repository, adding it to the list first when it is not there. */
+  async function switchGraphToWorktree(value: unknown) {
+    const target = await listedWorktree(parseWorktreeRequest(value));
+    const repoPath = getPathFromStr(target.path);
+    if (Object.hasOwn(deps.repoManager.getRepos(), repoPath)) {
+      focusRepo(repoPath);
+      return;
+    }
+
+    const resolvedRepo = await resolveGitRoot(repoPath, deps.config.gitPath(), recordGitCommand);
+    if (resolvedRepo === null) throw new Error(l10n.t("command.addRepo.invalid", target.path));
+    deps.repoManager.addRepo(resolvedRepo);
+    focusRepo(resolvedRepo);
+  }
+
+  /** Opens the same preview the branch menu opens, for the graph's repository. */
+  async function pruneStaleWorktrees() {
+    const panel = deps.getCurrentPanel();
+    if (panel === undefined) {
+      await windowApi.showInformationMessage(l10n.t("command.pruneStaleWorktrees.noGraph"));
+      return;
+    }
+    panel.showPruneWorktrees();
+  }
+
   function registerAll() {
     register("git-graph-libre.view", (sourceControl) => openSourceControlRepo(sourceControl));
     register("git-graph-libre.searchCommits", () => startHistorySearch());
@@ -446,6 +567,14 @@ export function createCommandManager(deps: CommandManagerDeps) {
     register("git-graph-libre.clearAvatarCache", () => {
       deps.avatarManager.clearCache();
     });
+    // The graph's worktree actions send these; the manifest hides them from the palette.
+    register("git-graph-libre.openWorktree", (request) => openWorktreeFolder(request));
+    register("git-graph-libre.addWorktreeToWorkspace", (request) =>
+      addWorktreeToWorkspace(request)
+    );
+    register("git-graph-libre.revealWorktree", (request) => revealWorktree(request));
+    register("git-graph-libre.switchGraphToWorktree", (request) => switchGraphToWorktree(request));
+    register("git-graph-libre.pruneStaleWorktrees", () => pruneStaleWorktrees());
     for (const { id, handler } of createScmDiffTabHandlers({
       getRepos: () => deps.repoManager.getRepos(),
       openDiff: (request) => deps.openScmDiffTab?.(request),

@@ -693,6 +693,20 @@ export function registerMessageHandlers(
     if (newPath === null) return;
     await repairWorktree(gitClient.getInstance(), { ...msg, newPath }, recordGitCommand);
   });
+  // The four open actions run as the hidden commands in commandManager, which
+  // list the worktree again before acting, so a stale graph cannot open a removed path.
+  registerAction("openWorktree", async (msg) => {
+    await vscode.commands.executeCommand("git-graph-libre.openWorktree", msg);
+  });
+  registerAction("addWorktreeToWorkspace", async (msg) => {
+    await vscode.commands.executeCommand("git-graph-libre.addWorktreeToWorkspace", msg);
+  });
+  registerAction("revealWorktree", async (msg) => {
+    await vscode.commands.executeCommand("git-graph-libre.revealWorktree", msg);
+  });
+  registerAction("switchGraphToWorktree", async (msg) => {
+    await vscode.commands.executeCommand("git-graph-libre.switchGraphToWorktree", msg);
+  });
   registerAction("deleteRemote", (msg) =>
     deleteRemote(gitClient.getInstance(), msg, recordGitCommand)
   );
