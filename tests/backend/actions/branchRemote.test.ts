@@ -85,7 +85,9 @@ describe("branch remote actions", () => {
     });
 
     expect(git.raw).toHaveBeenNthCalledWith(1, ["branch", "--show-current"]);
-    expect(git.raw).toHaveBeenNthCalledWith(2, [
+    // The worktree list is read before Git is asked to fetch into the branch.
+    expect(git.raw).toHaveBeenNthCalledWith(2, ["worktree", "list", "--porcelain", "-z"]);
+    expect(git.raw).toHaveBeenNthCalledWith(3, [
       "fetch",
       "-f",
       "origin",
@@ -142,7 +144,8 @@ describe("branch remote actions", () => {
       "--symbolic-full-name",
       "feature/menu@{upstream}"
     ]);
-    expect(git.raw).toHaveBeenNthCalledWith(4, ["fetch", "upstream", "feature/menu:feature/menu"]);
+    expect(git.raw).toHaveBeenNthCalledWith(4, ["worktree", "list", "--porcelain", "-z"]);
+    expect(git.raw).toHaveBeenNthCalledWith(5, ["fetch", "upstream", "feature/menu:feature/menu"]);
   });
 
   it("falls back to deleting a stale remote-tracking branch when the remote ref is gone", async () => {

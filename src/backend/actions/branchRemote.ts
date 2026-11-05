@@ -1,5 +1,6 @@
 import type { SimpleGit } from "simple-git";
 
+import { parseWorktreeList } from "@/backend/queries/worktrees";
 import type { ActionPayload, GitPushBranchMode } from "@/backend/types";
 import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
 import { isMissingRemoteRefError } from "@/backend/utils/remoteRefs";
@@ -98,6 +99,39 @@ async function currentBranch(git: SimpleGit, repo: string | null, record?: GitCo
   return stdout.trim() || null;
 }
 
+/**
+ * Git refuses to fetch into a branch another worktree has checked out, in a
+ * message it translates. The worktree list decides instead, before Git is
+ * asked. The caller has already ruled out this worktree, so any worktree on
+ * the branch is another one. A list that cannot be read lets Git decide.
+ */
+async function assertNotCheckedOutElsewhere(
+  git: SimpleGit,
+  branchName: string,
+  repo: string | null,
+  record?: GitCommandRecorder
+): Promise<void> {
+  let holder: string | undefined;
+  try {
+    const stdout = await runGitRaw(git, {
+      label: "branchRemote.worktrees",
+      kind: "action",
+      args: ["worktree", "list", "--porcelain", "-z"],
+      repo,
+      record
+    });
+    holder = parseWorktreeList(stdout).find((worktree) => worktree.branch === branchName)?.path;
+  } catch {
+    return;
+  }
+  if (holder === undefined) return;
+
+  // Loaded on demand: `@/l10n` needs the `vscode` module, which a backend
+  // module that only runs Git must not require when it is first imported.
+  const { t } = await import("@/l10n");
+  throw new Error(t("error.branchCheckedOutElsewhere", branchName, holder));
+}
+
 export async function pushBranch(
   git: SimpleGit,
   input: ActionInput<"pushBranch">,
@@ -160,6 +194,9 @@ export async function fetchIntoLocalBranch(
 ): Promise<void> {
   const repo = input.repo ?? null;
   const activeBranch = await currentBranch(git, repo, record);
+  if (activeBranch !== input.localBranch) {
+    await assertNotCheckedOutElsewhere(git, input.localBranch, repo, record);
+  }
 
   if (activeBranch === input.localBranch) {
     if (!input.force) {
