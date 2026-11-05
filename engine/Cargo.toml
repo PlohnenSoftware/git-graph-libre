@@ -5,11 +5,11 @@ members = ["native/core", "native/node", "native/diff"]
 [workspace.package]
 version = "1.0.26"
 edition = "2021"
-rust-version = "1.82"
+rust-version = "1.88"
 license = "AGPL-3.0-or-later AND MIT AND BSD-3-Clause"
 
 [workspace.dependencies]
-gix = { version = "0.89", default-features = false }
+gix = { version = "0.90", default-features = false }
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -25,4 +25,4 @@ panic = "unwind"
 # unreleased fixes the engine needs (replacement refs, the rename limit, Myers xdiff parity).
 # Replace this with a crates.io release once one carries them.
 [patch.crates-io]
-gix = { git = "https://github.com/GitoxideLabs/gitoxide", rev = "0a49d46f6a0b08943930d5247693992b89e98c1b" }
+gix = { git = "https://github.com/GitoxideLabs/gitoxide", rev = "39e093fb541fc7a7acf6d7fef58f30827150cb00" }
