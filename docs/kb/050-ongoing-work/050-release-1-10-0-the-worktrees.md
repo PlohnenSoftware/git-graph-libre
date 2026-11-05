@@ -488,3 +488,15 @@ commit, the gate results with numbers, and the Sonar task id.
   - Open, recorded in W41's report: a pure ownership change is not
     rechecked on a warm handle, and a theoretical mid-compose
     `config_list` refusal would be labelled `configFill:engineFailed`.
+- `2026-11-05`: trusted publishing integrated at `f9aad9c` (not a
+  release slice; maintainer instruction of the same day). `publish.yml`
+  now publishes to both registries by OIDC (`vsce publish --oidc`,
+  `ovsx publish --trusted-publishing`, `id-token: write` on the release
+  job only) and the two PAT secrets are no longer read. The record is
+  Trusted publishing for releases (History). Before the first publish
+  run on this workflow — for 1.10.0, that is W90's tag — the maintainer
+  registers this repository and `publish.yml` on both registries; the
+  secrets are deleted only after a proven publish to both. Gate for
+  this docs-and-workflow change: YAML parse, `kb:check` and the full
+  test suite (1,330 + 862) pass; no source file changed, so no new
+  coverage or Sonar run.
