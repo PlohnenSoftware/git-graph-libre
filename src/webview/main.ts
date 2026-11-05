@@ -276,6 +276,41 @@ export function worktreeFolderName(worktreePath: string): string {
   return segments.at(-1) || worktreePath;
 }
 
+/**
+ * The default folder for a new worktree (decision Y7): a `<repo>.worktrees`
+ * folder beside the repository, holding one folder per checked-out name, so
+ * `<parent>/<repo>.worktrees/<branch>`. The separator follows the repository
+ * path's own, and the name is used as given — the user edits the result in
+ * the dialog, and the backend refuses a folder that cannot take a worktree.
+ */
+export function defaultWorktreePath(repoPath: string, name: string): string {
+  const separator = repoPath.includes("\\") ? "\\" : "/";
+  let end = repoPath.length;
+  while (end > 0 && (repoPath[end - 1] === "/" || repoPath[end - 1] === "\\")) end -= 1;
+  const trimmed = repoPath.slice(0, end);
+  const lastSeparator = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+  if (lastSeparator === -1) return `${trimmed}.worktrees${separator}${name}`;
+  const parent = trimmed.slice(0, lastSeparator);
+  const repoName = trimmed.slice(lastSeparator + 1);
+  return `${parent}${separator}${repoName}.worktrees${separator}${name}`;
+}
+
+/** What the Create Worktree dialog was opened from, and where it starts (W22). */
+export type CreateWorktreeSource = {
+  /** What the title and the checkout options name: a branch, remote branch, commit or tag. */
+  label: string;
+  /** The commit-ish a new branch or a detached HEAD starts from. */
+  startPoint: string;
+  /** The last path segment of the default folder. */
+  folderName: string;
+  /** An existing local branch the dialog may offer to check out, when one fits. */
+  branch: string | null;
+  /** The new branch name to pre-fill (a remote branch's parsed local name). */
+  newBranchName: string;
+  /** The checkout mode selected when the dialog opens. */
+  mode: "branch" | "new" | "detach";
+};
+
 /** The worktrees other than the current one that have `branch` checked out (W11). */
 export function otherWorktreesHoldingBranch(
   worktrees: readonly GitWorktree[],
@@ -444,6 +479,14 @@ class GitGraphView {
     ref: string;
     baseLabel?: string;
   } | null = null;
+  /** The folder of the worktree being created, for the finish step (Y8) once Git answers. */
+  private pendingCreatedWorktree: string | null = null;
+  /**
+   * The finish step (Y8) the user last picked after creating a worktree; the
+   * dialog opens on it. Kept for the panel's lifetime — persisting it with
+   * the rest of the view state would widen the slice beyond its file list.
+   */
+  private lastWorktreeFinish: "newWindow" | "workspace" | "switch" | "nothing" = "newWindow";
   /** A worktree removal waiting for the read of the local files a forced removal would delete. */
   private pendingWorktreeRemoval: {
     requestId: number;
@@ -3368,6 +3411,21 @@ class GitGraphView {
       this.visibleContextMenuItem("commit", "createBranch", {
         title: l10n.createBranch + ELLIPSIS,
         onClick: () => this.showCreateBranchDialog(hash, sourceElem)
+      }),
+      this.visibleContextMenuItem("commit", "createWorktree", {
+        title: l10n.createWorktree + ELLIPSIS,
+        onClick: () =>
+          this.showCreateWorktreeDialog(
+            {
+              label: this.displayHash(hash),
+              startPoint: hash,
+              folderName: this.displayHash(hash),
+              branch: null,
+              newBranchName: "",
+              mode: "detach"
+            },
+            sourceElem
+          )
       })
     ];
   }
@@ -4201,6 +4259,23 @@ class GitGraphView {
             title: l10n.createArchive,
             onClick: () => this.createArchiveAction(refName)
           }
+        : null,
+      this.isContextMenuActionVisible("tag", "createWorktree")
+        ? {
+            title: l10n.createWorktree + ELLIPSIS,
+            onClick: () =>
+              this.showCreateWorktreeDialog(
+                {
+                  label: refName,
+                  startPoint: refName,
+                  folderName: refName,
+                  branch: null,
+                  newBranchName: "",
+                  mode: "detach"
+                },
+                null
+              )
+          }
         : null
     ];
   }
@@ -4219,6 +4294,25 @@ class GitGraphView {
 
     const menu: ContextMenuElement[] = [];
     this.appendBranchCheckoutItem(menu, sourceElem, refName);
+    menu.push(
+      this.visibleContextMenuItem("branch", "createWorktree", {
+        title: l10n.createWorktree + ELLIPSIS,
+        onClick: () =>
+          this.showCreateWorktreeDialog(
+            {
+              label: refName,
+              startPoint: refName,
+              folderName: refName,
+              // The current branch is checked out here, so only a new branch
+              // or a detached HEAD can start from it in another worktree.
+              branch: this.gitBranchHead === refName ? null : refName,
+              newBranchName: "",
+              mode: this.gitBranchHead === refName ? "new" : "branch"
+            },
+            sourceElem
+          )
+      })
+    );
     menu.push(...this.buildBranchMetadataItems(refName, sourceElem));
     this.appendBranchRemoteItems(menu, refName);
     this.appendBranchMutationItems(menu, sourceElem, refName);
@@ -4292,6 +4386,134 @@ class GitGraphView {
         }),
       null
     );
+  }
+  /**
+   * "Create Worktree…" (W22), one dialog for every entry point. A branch
+   * another worktree already has checked out is refused here, from the
+   * worktree list, offering that worktree instead — never from a Git error
+   * after the fact. The backend repeats every refusal before Git runs.
+   */
+  private showCreateWorktreeDialog(source: CreateWorktreeSource, sourceElem: HTMLElement | null) {
+    if (
+      source.branch !== null &&
+      otherWorktreesHoldingBranch(this.gitWorktrees, source.branch).length > 0
+    ) {
+      this.openWorktreeAction(source.branch);
+      return;
+    }
+
+    const options: { name: string; value: string }[] = [];
+    if (source.branch !== null) {
+      const branch = source.branch;
+      options.push({
+        name: l10n.dialogCreateWorktreeCheckoutBranch.replace("{0}", () => branch),
+        value: "branch"
+      });
+    }
+    options.push(
+      {
+        name: l10n.dialogCreateWorktreeNewBranchFrom.replace("{0}", () => source.label),
+        value: "new"
+      },
+      {
+        name: l10n.dialogCreateWorktreeDetachedAt.replace("{0}", () => source.label),
+        value: "detach"
+      }
+    );
+    const mode = source.branch === null && source.mode === "branch" ? "new" : source.mode;
+
+    showFormDialog(
+      l10n.dialogCreateWorktreeTitle.replace(
+        "{0}",
+        () => `<b><i>${escapeHtml(source.label)}</i></b>`
+      ),
+      [
+        {
+          type: "text",
+          name: l10n.dialogCreateWorktreeFolder,
+          default: defaultWorktreePath(this.currentRepo, source.folderName),
+          placeholder: null,
+          required: true
+        },
+        { type: "select", name: l10n.dialogCreateWorktreeCheckout, options, default: mode },
+        {
+          type: "text-ref",
+          name: l10n.dialogCreateWorktreeNewBranch,
+          default: source.newBranchName,
+          dependsOn: { input: 1, value: "new" }
+        },
+        { type: "checkbox", name: l10n.dialogCreateWorktreeLock, value: false },
+        {
+          type: "text",
+          name: l10n.dialogCreateWorktreeLockReason,
+          default: "",
+          placeholder: l10n.dialogAddTagOptional
+        }
+      ],
+      l10n.dialogCreateWorktreeSubmit,
+      (values) => this.submitCreateWorktree(source, values),
+      sourceElem
+    );
+  }
+  private submitCreateWorktree(source: CreateWorktreeSource, values: string[]) {
+    const path = values[0].trim();
+    const mode = values[1];
+    this.pendingCreatedWorktree = path;
+    sendMessage({
+      command: "addWorktree",
+      repo: this.currentRepo,
+      path,
+      branch: mode === "branch" ? source.branch : null,
+      newBranch: mode === "new" ? values[2].trim() : null,
+      startPoint: mode === "branch" ? null : source.startPoint,
+      detach: mode === "detach",
+      lockReason: values[3] === "checked" ? values[4].trim() : null
+    });
+    showActionRunningDialog(l10n.statusCreatingWorktree);
+  }
+  /**
+   * The `addWorktree` reply: on success the graph refreshes and the finish
+   * step (decision Y8) asks what happens with the new worktree, opening on
+   * the choice made last time.
+   */
+  public finishCreateWorktree(status: GitCommandStatus) {
+    const path = this.pendingCreatedWorktree;
+    this.pendingCreatedWorktree = null;
+    if (status !== null || path === null) {
+      refreshGraphOrDisplayError(status, l10n.unableToCreateWorktree);
+      return;
+    }
+
+    this.refresh(true);
+    showSelectDialog(
+      l10n.dialogWorktreeCreatedMessage.replace("{0}", () => `<b><i>${escapeHtml(path)}</i></b>`),
+      this.lastWorktreeFinish,
+      [
+        { name: l10n.dialogWorktreeCreatedOpenNewWindow, value: "newWindow" },
+        { name: l10n.dialogWorktreeCreatedAddToWorkspace, value: "workspace" },
+        { name: l10n.dialogWorktreeCreatedSwitchGraph, value: "switch" },
+        { name: l10n.dialogWorktreeCreatedNothing, value: "nothing" }
+      ],
+      l10n.dialogWorktreeCreatedSubmit,
+      (value) => {
+        if (value === "newWindow" || value === "workspace" || value === "switch") {
+          this.lastWorktreeFinish = value;
+        } else {
+          this.lastWorktreeFinish = "nothing";
+        }
+        this.applyWorktreeFinish(path, this.lastWorktreeFinish);
+      },
+      null
+    );
+  }
+  private applyWorktreeFinish(path: string, choice: typeof this.lastWorktreeFinish) {
+    if (choice === "newWindow") {
+      sendMessage({ command: "openWorktree", repo: this.currentRepo, path, newWindow: true });
+    } else if (choice === "workspace") {
+      sendMessage({ command: "addWorktreeToWorkspace", repo: this.currentRepo, path });
+    } else if (choice === "switch") {
+      sendMessage({ command: "switchGraphToWorktree", repo: this.currentRepo, path });
+    }
   }
   /**
    * Locked menu items are not supported, so the actions Git refuses for a branch
@@ -4433,6 +4655,29 @@ class GitGraphView {
         ? {
             title: l10n.createArchive,
             onClick: () => this.createArchiveAction(refName)
+          }
+        : null,
+      this.isContextMenuActionVisible("remoteBranch", "createWorktree")
+        ? {
+            title: l10n.createWorktree + ELLIPSIS,
+            onClick: () =>
+              this.showCreateWorktreeDialog(
+                {
+                  label: refName,
+                  startPoint: refName,
+                  folderName: branchName,
+                  branch:
+                    this.hasLocalBranch(branchName) && this.gitBranchHead !== branchName
+                      ? branchName
+                      : null,
+                  newBranchName: branchName,
+                  mode:
+                    this.hasLocalBranch(branchName) && this.gitBranchHead !== branchName
+                      ? "branch"
+                      : "new"
+                },
+                sourceElem
+              )
           }
         : null
     ];
@@ -7389,6 +7634,10 @@ const actionErrorLabels = {
 } satisfies Partial<Record<GGL.ResponseMessage["command"], string>>;
 
 function handleActionResponse(msg: GGL.ResponseMessage) {
+  if (msg.command === "addWorktree") {
+    gitGraph.finishCreateWorktree(msg.status);
+    return true;
+  }
   if (msg.command === "importRepoConfig") {
     if (msg.status === null && msg.state !== null) gitGraph.replaceRepoState(msg.repo, msg.state);
     refreshGraphOrDisplayError(msg.status, l10n.unableToImportRepoConfig);

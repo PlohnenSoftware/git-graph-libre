@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rather than shown as unavailable, and a refresh keeps the remotes on screen
   while it re-checks, redrawing only the tag badges.
 
+- **Create a worktree from the graph.** **Create Worktree…** on a branch, a
+  remote branch, a commit or a tag opens one dialog: the folder (defaulting to
+  a `<repo>.worktrees` folder beside the repository), what to check out — the
+  branch itself, a new branch (a remote branch's new local branch tracks it),
+  or a detached HEAD — and an optional lock with a reason. A branch already
+  checked out in another worktree is refused up front, offering that worktree
+  instead. Afterwards it asks whether to open the new worktree in a new
+  window, add it to the workspace, switch the graph to it, or do nothing, and
+  remembers the last choice
+  ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
+
 - **Free a branch that a leftover worktree blocks.** Delete Branch on a branch
   checked out in another worktree now offers to remove that worktree first, then
   deletes the branch. A worktree with uncommitted or untracked files is removed
