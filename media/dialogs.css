@@ -194,9 +194,20 @@ dl.tagDetailsFields dd {
   padding-top: 9px;
 }
 /* A control that names itself spans the form and keeps its text beside the
-   box, so the label reads as one line at the control's own height. */
+   box, so the label reads as one line at the control's own height. The row
+   is the hit area (issue #41): the wrapper and the label both fill the form
+   row, so a click right of the text toggles the box. They stay inline-level,
+   as before, so the row keeps the height its line box gave it. */
+#dialog table.dialogForm td[colspan="2"] > .dialogFormCheckbox {
+  display: inline-block;
+  width: 100%;
+}
+#dialog table.dialogForm td[colspan="2"] > .dialogFormCheckbox:not(.locked) {
+  cursor: pointer;
+}
 #dialog table.dialogForm td[colspan="2"] .dialogFormCheckbox > label {
   display: inline-flex;
+  width: 100%;
   align-items: center;
   gap: 6px;
   white-space: normal;
@@ -307,7 +318,7 @@ dl.tagDetailsFields dd {
    place, explained in place. Never swap it for prose, and never drop it. */
 #dialog table.dialogForm .dialogFormCheckbox.locked {
   position: relative;
-  display: inline-block;
+  cursor: help;
 }
 #dialog table.dialogForm .dialogFormCheckbox.locked > label {
   display: inline-flex;
