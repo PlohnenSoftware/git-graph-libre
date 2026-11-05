@@ -21,7 +21,7 @@ import {
   warningMessageResults
 } from "@tests/webview/__mocks__/vscode";
 import { simpleGit } from "simple-git";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AvatarManager } from "@/avatarManager";
 import type { GitClient } from "@/backend/gitClient";
 import { setOperationLog, traceRequest } from "@/backend/utils/operationLog";
@@ -76,7 +76,12 @@ afterAll(() => {
 describe("registerMessageHandlers", () => {
   function registerHandlersForTest(
     activeRepo = repo,
-    options: { extensionPath?: string; diffTabAvailable?: boolean; showTagRemotes?: boolean } = {}
+    options: {
+      extensionPath?: string;
+      diffTabAvailable?: boolean;
+      showTagRemotes?: boolean;
+      postFails?: boolean;
+    } = {}
   ) {
     const telemetryEvents: Array<{ feature: string; ok: boolean }> = [];
     const consentPrompts: number[] = [];
@@ -90,6 +95,8 @@ describe("registerMessageHandlers", () => {
     const bridge = {
       post: (msg: ResponseMessage) => {
         posts.push(msg);
+        // A disposed webview rejects its posts.
+        return options.postFails ? Promise.reject(new Error("Webview is disposed")) : undefined;
       },
       onMessage: <T extends RequestMessage["command"]>(
         command: T,
@@ -97,7 +104,7 @@ describe("registerMessageHandlers", () => {
       ) => {
         handlers.set(command, handler as (msg: RequestMessage) => void | Promise<void>);
       }
-    } as WebviewBridge;
+    } as unknown as WebviewBridge;
     const gitClient = {
       getInstance: () => simpleGit(activeRepo),
       setRepo: vi.fn(),
@@ -117,7 +124,7 @@ describe("registerMessageHandlers", () => {
       start: vi.fn()
     } as unknown as RepoFileWatcher;
 
-    registerMessageHandlers(bridge, {
+    const registered = registerMessageHandlers(bridge, {
       config: {
         dateType: () => "Author Date",
         // Read by the uncommittedDetails route to decide the folder-tree
@@ -161,6 +168,7 @@ describe("registerMessageHandlers", () => {
     });
 
     return {
+      registered,
       handlers,
       posts,
       outputLines,
@@ -394,6 +402,61 @@ describe("registerMessageHandlers", () => {
     await vi.waitFor(() => expect(posts).toHaveLength(1));
     expect(outputLines.join("\n")).toContain("remoteTags");
     expect(posts[0]).toMatchObject({ command: "remoteTags", requestId: 8, repo, error: null });
+  });
+
+  it("logs a remoteTags reply the webview rejects instead of leaving it unhandled", async () => {
+    const { handlers, posts, outputLines } = registerHandlersForTest(repo, { postFails: true });
+    await handlers.get("remoteTags")?.({ command: "remoteTags", requestId: 9, repo });
+    await vi.waitFor(() => expect(outputLines.join("\n")).toContain("reply not delivered"));
+    expect(outputLines.join("\n")).toContain("Webview is disposed");
+    expect(posts).toHaveLength(1);
+  });
+
+  describe.skipIf(process.platform === "win32")("with a remote that never answers", () => {
+    let helperDir: string;
+    const savedPath = process.env.PATH;
+    beforeEach(() => {
+      helperDir = fs.mkdtempSync(path.join(os.tmpdir(), "ggl-handler-slow-"));
+      const helper = path.join(helperDir, "git-remote-slow");
+      fs.writeFileSync(
+        helper,
+        `#!/bin/sh\necho started > '${path.join(helperDir, "started")}'\nsleep 30\n`
+      );
+      fs.chmodSync(helper, 0o755);
+      process.env.PATH = `${helperDir}:${savedPath}`;
+      cp.execFileSync("git", ["tag", "slow-release"], { cwd: repo });
+      cp.execFileSync("git", ["remote", "add", "slow", "slow::x"], { cwd: repo });
+    });
+    afterEach(() => {
+      process.env.PATH = savedPath;
+      cp.execFileSync("git", ["remote", "remove", "slow"], { cwd: repo });
+      cp.execFileSync("git", ["tag", "-d", "slow-release"], { cwd: repo });
+      fs.rmSync(helperDir, { recursive: true, force: true });
+    });
+
+    const running = () => fs.existsSync(path.join(helperDir, "started"));
+    // The Git recorder logs a read only when it ends, so its line is the
+    // evidence that the read was killed rather than left running.
+    const ended = (outputLines: string[]) =>
+      outputLines.some((line) => line.includes("remoteTags.remote"));
+
+    it("ends the running read when the panel is disposed, without a reply", async () => {
+      const { handlers, posts, outputLines, registered } = registerHandlersForTest(repo);
+      handlers.get("remoteTags")?.({ command: "remoteTags", requestId: 10, repo });
+      await vi.waitFor(() => expect(running()).toBe(true));
+      registered.dispose();
+      await vi.waitFor(() => expect(ended(outputLines)).toBe(true));
+      expect(posts).toEqual([]);
+    });
+
+    it("aborts the previous read when a newer request for the panel starts", async () => {
+      const { handlers, posts, outputLines } = registerHandlersForTest(repo);
+      handlers.get("remoteTags")?.({ command: "remoteTags", requestId: 11, repo });
+      await vi.waitFor(() => expect(running()).toBe(true));
+      handlers.get("remoteTags")?.({ command: "remoteTags", requestId: 12, repo });
+      await vi.waitFor(() => expect(ended(outputLines)).toBe(true));
+      expect(posts).toEqual([]);
+    });
   });
 
   it("echoes request ids when loading repository info", async () => {
