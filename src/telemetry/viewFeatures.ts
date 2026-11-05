@@ -22,6 +22,9 @@
  * and hence the test that checks the ids against that pattern.
  */
 
+import * as fs from "node:fs";
+import * as path from "node:path";
+
 import type { GitCommitNode } from "@/backend/types";
 import type { EngineUnavailableReason } from "@/types";
 
@@ -149,33 +152,82 @@ function hasStashRows(commits: readonly Pick<GitCommitNode, "stash">[]): boolean
   return commits.some((commit) => commit.stash !== undefined);
 }
 
+const GITDIR_PREFIX = "gitdir:";
+
 /**
- * Whether `repo` sits inside another repository in the same set.
+ * Whether `repo` is a linked worktree: its `.git` is a file whose `gitdir:`
+ * names an admin directory holding `commondir`, which Git writes only for
+ * worktrees. A submodule's `.git` file names an admin directory under the
+ * parent's `.git/modules/`, which has no `commondir`, and an independent
+ * repository's `.git` is a directory, so neither matches. Read from the file
+ * system, so no Git process is spawned; an unreadable path answers false.
+ */
+function isLinkedWorktree(repo: string): boolean {
+  try {
+    const dotGit = path.join(repo, ".git");
+    if (!fs.statSync(dotGit).isFile()) return false;
+    const firstLine = fs.readFileSync(dotGit, "utf8").split("\n")[0] ?? "";
+    if (!firstLine.startsWith(GITDIR_PREFIX)) return false;
+    const target = firstLine.slice(GITDIR_PREFIX.length).trim();
+    if (target === "") return false;
+    return fs.existsSync(path.join(path.resolve(repo, target), "commondir"));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether `repo` sits inside another repository in the same set and is not a
+ * linked worktree of it.
  *
- * That containment is the observable effect of submodule discovery: the only
- * route to a nested repository in the dropdown is `.gitmodules`, because the
- * workspace scan stops at a known repository's boundary. A repository the user
- * added by hand with Add Repository can also land inside another one, so read
- * these two signals as "submodule discovery had something to show", not as a
- * count of `.gitmodules` files.
+ * That containment is the observable effect of submodule discovery: the route
+ * to a nested submodule in the dropdown is `.gitmodules`, because the
+ * workspace scan stops at a known repository's boundary. A worktree placed
+ * inside its main worktree, such as `.worktrees/<name>`, also nests by path
+ * but is not a submodule, so `isWorktree` excludes it. A repository the user
+ * added by hand with Add Repository can also land inside another one and still
+ * counts, so read these two signals as "a nested repository had something to
+ * show", not as a count of `.gitmodules` entries.
  *
  * Trailing-slash comparison on `/`, matching `isDirectoryWithinRepos()` and
  * `searchDirectoryForRepos()`; every repository path reaching the extension
- * host is normalized to forward slashes.
+ * host is normalized to forward slashes. The file-system check runs only for a
+ * path that is already nested, so an ordinary repository costs nothing.
  */
-function isNestedRepo(repo: string, repoPaths: readonly string[]): boolean {
-  return repoPaths.some((candidate) => candidate !== repo && repo.startsWith(`${candidate}/`));
+function isNestedRepo(
+  repo: string,
+  repoPaths: readonly string[],
+  isWorktree: (repo: string) => boolean
+): boolean {
+  return (
+    repoPaths.some((candidate) => candidate !== repo && repo.startsWith(`${candidate}/`)) &&
+    !isWorktree(repo)
+  );
 }
 
-/** Whether any repository in the set sits inside another one. */
-function hasNestedRepo(repoPaths: readonly string[]): boolean {
-  return repoPaths.some((repo) => isNestedRepo(repo, repoPaths));
+/** Whether any repository in the set is a submodule nested inside another one. */
+function hasNestedRepo(
+  repoPaths: readonly string[],
+  isWorktree: (repo: string) => boolean
+): boolean {
+  return repoPaths.some((repo) => isNestedRepo(repo, repoPaths, isWorktree));
 }
 
 export function createViewFeatureReporter(
   telemetry?: Pick<TelemetryReporter, "logFeature">
 ): ViewFeatureReporter {
   const reported = new Set<string>();
+  // Asked on every load while a nested path is present, and a path's worktree
+  // status does not change under a running session, so the answer is kept.
+  const worktrees = new Map<string, boolean>();
+  function isWorktree(repo: string): boolean {
+    let known = worktrees.get(repo);
+    if (known === undefined) {
+      known = isLinkedWorktree(repo);
+      worktrees.set(repo, known);
+    }
+    return known;
+  }
 
   function reportOnce(feature: string) {
     if (reported.has(feature)) return;
@@ -223,12 +275,15 @@ export function createViewFeatureReporter(
       // something, the second says it was worth having. The active signal is
       // reported from the commit load precisely so it means "the graph was
       // drawn for this submodule", not "the entry existed".
-      if (!reported.has(VIEW_FEATURE_SUBMODULE_REPO) && hasNestedRepo(facts.repoPaths)) {
+      if (
+        !reported.has(VIEW_FEATURE_SUBMODULE_REPO) &&
+        hasNestedRepo(facts.repoPaths, isWorktree)
+      ) {
         reportOnce(VIEW_FEATURE_SUBMODULE_REPO);
       }
       if (
         !reported.has(VIEW_FEATURE_SUBMODULE_ACTIVE) &&
-        isNestedRepo(facts.repo, facts.repoPaths)
+        isNestedRepo(facts.repo, facts.repoPaths, isWorktree)
       ) {
         reportOnce(VIEW_FEATURE_SUBMODULE_ACTIVE);
       }
