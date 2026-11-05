@@ -111,7 +111,7 @@ run one after another, as the integrator procedure says.
 | W10 | [Carry worktrees to the webview](050-release-1-10-0-the-worktrees/200-w10-carry-worktrees-to-the-webview.md) | TS | W02 | C | integrated `2a619c4` |
 | W10F | [Read worktrees through the engine reader](050-release-1-10-0-the-worktrees/205-w10f-read-worktrees-through-the-engine-reader.md) | TS | W03, W10 | C | integrated `436e0b0` |
 | W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | ready (queued: one manifest or l10n slice at a time) |
-| W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | ready (queued behind W21: it touches the l10n bundles) |
+| W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | integrated `fbc0c22` |
 | W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | integrated `83f5821` |
 | W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | integrated `88ed629` |
 | W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | ready (queued: one manifest or l10n slice at a time) |
@@ -488,6 +488,25 @@ commit, the gate results with numbers, and the Sonar task id.
   - Open, recorded in W41's report: a pure ownership change is not
     rechecked on a warm handle, and a theoretical mid-compose
     `config_list` refusal would be labelled `configFill:engineFailed`.
+- `2026-11-05`: W12 integrated at `fbc0c22`. A linked worktree's detached
+  HEAD is drawn and marked "HEAD of worktree \<folder\>", the path in the
+  title. Each backend discovers the extra tips itself (no option carries
+  them, following W40's precedent); the parity test pins identical rows,
+  and the engine is `1.0.30` because the TypeScript relies on the new
+  tips. The rebase onto the tip (over the trusted-publishing commits)
+  was clean.
+- `2026-11-05`, gate on `fbc0c22`: W12 since `a81b51a`.
+  - Rust arm passes (228 tests); the engine was rebuilt and
+    `engine:smoke` reports `1.0.30`. Strict Biome is clean; `package`,
+    `typecheck`, `l10n:check` (complete) and `kb:check` pass. Tests:
+    backend 1,331, webview 865, all passing.
+  - Fresh `test:coverage`: 170 files, 2,196 of 2,196 tests passed.
+  - The first scan (`53ccbd22`) read `ERROR`: W12's trailing-separator
+    regex (S8786) counts as a reliability issue, and the gate allows
+    none. The integrator replaced it with a scan and cleared S5906 in
+    the new test (`4419734`). Sonar task
+    `3a7997f3-5858-43ac-b36b-41c2932ef196`: quality gate **`OK`**, new
+    coverage 94.2%, 0 new violations.
 - `2026-11-05`: trusted publishing integrated at `f9aad9c` (not a
   release slice; maintainer instruction of the same day). `publish.yml`
   now publishes to both registries by OIDC (`vsce publish --oidc`,
