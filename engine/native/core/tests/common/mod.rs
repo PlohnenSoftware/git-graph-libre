@@ -97,6 +97,27 @@ impl TestRepo {
         String::from_utf8_lossy(&output.stdout).into_owned()
     }
 
+    /// Run a git command in `dir` (a linked worktree, say) with extra environment variables,
+    /// asserting that it succeeded.
+    pub fn git_in(&self, dir: &Path, args: &[&str], envs: &[(&str, &str)]) -> String {
+        let output = Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .env("HOME", self.path())
+            .envs(envs.iter().copied())
+            .output()
+            .unwrap_or_else(|e| panic!("could not run `git {}`: {e}", args.join(" ")));
+        assert!(
+            output.status.success(),
+            "`git {}` failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8_lossy(&output.stdout).into_owned()
+    }
+
     /// Run a git command with something on stdin, for the plumbing that reads objects there.
     pub fn git_stdin(&self, args: &[&str], input: &str) -> String {
         let mut child = Command::new("git")
