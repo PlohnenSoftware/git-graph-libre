@@ -439,6 +439,7 @@
   "type.branchName": "分支名",
   "ui.branchInWorktreeTitle": "已在另一个工作树中检出",
   "ui.branchInWorktreeCaption": "{0} · Git 不允许当前工作树切换到、更新或向该分支拉取。",
+  "ui.worktreeHead": "工作树 {0} 的 HEAD",
   "type.stashName": "贮藏名称",
   "type.stashHash": "贮藏哈希",
   "type.filePath": "文件路径",

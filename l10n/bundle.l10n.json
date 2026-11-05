@@ -439,6 +439,7 @@
   "type.branchName": "Branch Name",
   "ui.branchInWorktreeTitle": "Checked out in another worktree",
   "ui.branchInWorktreeCaption": "{0} · Git does not let this worktree switch to, update or fetch into the branch.",
+  "ui.worktreeHead": "HEAD of worktree {0}",
   "type.stashName": "Stash Name",
   "type.stashHash": "Stash Hash",
   "type.filePath": "File Path",

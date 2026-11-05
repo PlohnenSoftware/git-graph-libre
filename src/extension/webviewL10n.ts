@@ -280,6 +280,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     openWorktree: translate("action.openWorktree"),
     branchInWorktreeTitle: translate("ui.branchInWorktreeTitle"),
     branchInWorktreeCaption: translate("ui.branchInWorktreeCaption"),
+    worktreeHead: translate("ui.worktreeHead"),
     dialogOpenWorktreeMessage: translate("dialog.openWorktree.message"),
     dialogOpenWorktreeSubmit: translate("dialog.openWorktree.submit"),
     dialogDeleteBranchInWorktree: translate("dialog.deleteBranch.inWorktree"),

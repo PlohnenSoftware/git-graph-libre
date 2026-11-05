@@ -114,3 +114,32 @@
   height: 14px;
   fill: currentColor;
 }
+
+/* "HEAD of worktree <folder>" (W12): another worktree's detached HEAD on this
+   commit. The ref-label box with a dashed border, so it reads as a place a
+   worktree sits, never as a branch that could be checked out. */
+.worktreeHeadRef {
+  display: inline-block;
+  height: 18px;
+  line-height: 18px;
+  margin-top: 2px;
+  margin-right: 5px;
+  padding-right: 5px;
+  background-color: var(--ngg-neutral-overlay-muted);
+  border-radius: 5px;
+  border: 1px dashed var(--ngg-neutral-border-heavy);
+  vertical-align: top;
+  font-size: 12px;
+  cursor: default;
+}
+.worktreeHeadRef > svg.closedFolderIcon {
+  background-color: var(--git-graph-color);
+  fill: var(--vscode-editor-background);
+  fill-opacity: 1;
+  width: 14px;
+  height: 14px;
+  padding: 2px;
+  margin: 0 5px 0 0;
+  border-radius: 4px 0 0 4px;
+  vertical-align: top;
+}

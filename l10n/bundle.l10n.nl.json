@@ -439,6 +439,7 @@
   "type.branchName": "Branchnaam",
   "ui.branchInWorktreeTitle": "Uitgecheckt in een andere worktree",
   "ui.branchInWorktreeCaption": "{0} · Git staat niet toe dat deze worktree naar de branch wisselt, hem bijwerkt of er iets in ophaalt.",
+  "ui.worktreeHead": "HEAD van worktree {0}",
   "type.stashName": "Stashnaam",
   "type.stashHash": "Stash-hash",
   "type.filePath": "Bestandspad",

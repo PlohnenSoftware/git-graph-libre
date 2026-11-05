@@ -247,6 +247,31 @@ export function branchWorktreeMap(worktrees: GitWorktree[]): Map<string, string[
   return map;
 }
 
+/**
+ * Maps each commit another worktree sits on with a detached HEAD to those
+ * worktrees, for the row marker (W12). The current worktree's own HEAD is
+ * left out: it already carries the HEAD dot. A worktree on a branch is left
+ * out too: its commit carries the branch badge. Two worktrees can share a
+ * detached commit, so each hash lists every one of them.
+ */
+export function detachedWorktreeHeadMap(worktrees: GitWorktree[]): Map<string, GitWorktree[]> {
+  const map = new Map<string, GitWorktree[]>();
+  for (const worktree of worktrees) {
+    if (worktree.isCurrent || !worktree.detached || worktree.head === null) continue;
+    const holders = map.get(worktree.head) ?? [];
+    holders.push(worktree);
+    map.set(worktree.head, holders);
+  }
+  return map;
+}
+
+/** A worktree's folder name: the last segment of its path, on either separator. */
+export function worktreeFolderName(worktreePath: string): string {
+  const trimmed = worktreePath.replace(/[/\\]+$/, "");
+  const segments = trimmed.split(/[/\\]/);
+  return segments.at(-1) || worktreePath;
+}
+
 type DeleteBranchPart = {
   branchName: string;
   forceDelete: boolean;
@@ -263,6 +288,8 @@ class GitGraphView {
   private gitUpstreams: Record<string, string | null> = {};
   /** Derived from gitWorktrees: the branches checked out elsewhere, by path. */
   private gitBranchWorktrees = new Map<string, string[]>();
+  /** Derived from gitWorktrees: commits another worktree's detached HEAD sits on. */
+  private gitDetachedWorktreeHeads = new Map<string, GitWorktree[]>();
   private gitAuthors: string[] = [];
   private gitTags: string[] = [];
   private gitRemotes: GitRemote[] = [];
@@ -414,6 +441,7 @@ class GitGraphView {
       this.gitWorktrees = [];
       this.gitUpstreams = {};
       this.gitBranchWorktrees = new Map();
+      this.gitDetachedWorktreeHeads = new Map();
       this.closeSettingsWidget();
       this.syncRepoSettingsControls();
       this.updateRemoteActionsVisibility();
@@ -680,6 +708,7 @@ class GitGraphView {
       this.gitWorktrees = [];
       this.gitUpstreams = {};
       this.gitBranchWorktrees = new Map();
+      this.gitDetachedWorktreeHeads = new Map();
       this.updateRemoteActionsVisibility();
       this.refresh(true);
     }
@@ -763,6 +792,7 @@ class GitGraphView {
     this.gitWorktrees = worktrees;
     this.gitUpstreams = upstreams;
     this.gitBranchWorktrees = branchWorktreeMap(worktrees);
+    this.gitDetachedWorktreeHeads = detachedWorktreeHeadMap(worktrees);
     const defaultBranchAllowed = this.currentBranch === null || this.currentBranch !== "";
     this.currentBranches = this.keepAvailableSelections(
       this.currentBranches,
@@ -5314,7 +5344,7 @@ class GitGraphView {
     return (
       `<tr ${rowAttributes}` +
       ` data-id="${index}" data-color="${this.graph.getVertexColor(index)}"><td></td><td>` +
-      `${headDot}${this.renderCommitRefs(commit)}${commitMessage}` +
+      `${headDot}${this.renderCommitRefs(commit)}${this.renderWorktreeHeadRefs(commit)}${commitMessage}` +
       `</td><td title="${date.title}">${date.value}` +
       `</td><td title="${authorTitle}">${this.renderCommitAvatar(commit)}${escapeHtml(commit.author)}` +
       `</td><td title="${escapeHtml(commit.hash)}">${this.displayHash(commit.hash)}` +
@@ -5457,6 +5487,24 @@ class GitGraphView {
         return (
           `<span class="gitRefGroup${active ? " active" : ""}" role="group" aria-label="${escapeHtml(label)}">` +
           `${primary}${aliases}</span>`
+        );
+      })
+      .join("");
+  }
+  /**
+   * The "HEAD of worktree <folder>" marker (W12) for every other worktree
+   * sitting on this commit with a detached HEAD. Deliberately not a
+   * `.gitRef`: no ref context menu or double-click checkout may attach to
+   * it. The tooltip names the worktree's full path.
+   */
+  private renderWorktreeHeadRefs(commit: GitCommitNode) {
+    const holders = this.gitDetachedWorktreeHeads.get(commit.hash) ?? [];
+    return holders
+      .map((worktree) => {
+        const label = l10n.worktreeHead.replace("{0}", () => worktreeFolderName(worktree.path));
+        return (
+          `<span class="worktreeHeadRef" title="${escapeHtml(worktree.path)}">` +
+          `${svgIcons.closedFolder}${escapeHtml(label)}</span>`
         );
       })
       .join("");
