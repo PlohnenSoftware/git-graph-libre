@@ -51,6 +51,7 @@ function makeViewState(): GGL.GitGraphViewState {
     muteMergeCommits: false,
     boldCheckedOutCommit: false,
     fetchTagsByDefault: false,
+    showTagRemotes: true,
     mergeNoFastForward: true,
     pullBranchNoFastForward: false,
     createBranchCheckout: true,
