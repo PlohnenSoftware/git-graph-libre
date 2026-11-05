@@ -11,7 +11,7 @@ summary: >-
 
 # W22 — Create a worktree
 
-Status: ready once W10 is integrated
+Status: claimed by Muse Code powered by muse-wonder-full-1.0 on 2026-11-05 20:22
 Needs: W10
 Decisions: Y7 (default location), Y8 (what happens after)
 Kind: TypeScript and webview, l10n · Size budget: ~250 changed lines outside
