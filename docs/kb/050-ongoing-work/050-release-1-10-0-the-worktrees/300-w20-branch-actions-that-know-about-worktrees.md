@@ -10,7 +10,7 @@ summary: >-
 
 # W20 — Branch actions that know about worktrees
 
-Status: claimed by Claude Sonnet 5.5 on 2026-11-05 19:00
+Status: done — awaiting integration
 Needs: W10
 Decisions: Y6 (hide, lock with a reason, or replace with an alternative)
 Kind: webview and TypeScript, l10n · Size budget: ~220 changed lines outside
@@ -76,4 +76,21 @@ exists.
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Sonnet 5.5, 2026-11-05. Branch `wt-1.10.0/W20`.
+- **Commits:** claim `6d30bda`; `0d87b7a` backend guard, tests and l10n bundles; `b7508f2` menus, dialogs, `webviewL10n.ts` mapping, webview tests; this report commit.
+- **What changed:**
+  - Local branch menu, branch checked out in another worktree (from W10's `worktreePathsFor`): Checkout becomes "Open Worktree…", Pull (update from upstream) is left out, Delete opens an explanation with no submit button, Rename keeps working and its dialog notes that the other worktree follows.
+  - Remote branch menu, local counterpart held elsewhere: Checkout becomes "Open Worktree…", Fetch into Local Branch is left out. Pull of a remote branch (merges into the current branch) stays: Git allows it.
+  - **Y6 menu decision:** the context menu has no locked items (`ContextMenuItem` is `title/checked/onClick`), so I took the fallback: the refused items are hidden, and the existing `ContextMenuHeader` shows "Checked out in another worktree" with the path(s) and why. `--ignore-other-worktrees` is never offered.
+  - Dialog entry points (`showUpdateBranchFromUpstreamDialog`, `showFetchIntoLocalBranchDialog`) also redirect to the Open Worktree flow, in case a menu state is stale.
+  - Backend guard in `fetchIntoLocalBranch` (which `updateBranchFromUpstream` calls): after the existing `branch --show-current` check rules this worktree out, it reads `worktree list --porcelain -z`, parses it with `parseWorktreeList`, and throws a localized `error.branchCheckedOutElsewhere` naming branch and path before any fetch. An unreadable list lets Git decide. It loads `@/l10n` with a dynamic import on the failure path only, because `branch.ts` re-exports this module and the backend test project cannot resolve `vscode`.
+- **"Open Worktree…" until W31:** one seam, `openWorktreeAction(branch)` in `main.ts`. It opens a dialog saying the branch is checked out in the worktree at that path, with a "Copy Path" button that sends the existing `copyToClipboard` message (type `File Path`). No new message, command or `package.json` entry; W31 replaces the body of that one method.
+- **Files:** `src/webview/main.ts`, `src/backend/actions/branchRemote.ts`, `src/extension/webviewL10n.ts` (mapping the pattern requires), five `l10n/bundle.l10n*.json` (8 keys each), tests: `tests/webview/branchWorktreeActions.test.ts` (9), `tests/backend/actions/branchRemoteWorktrees.test.ts` (5, real fixture with linked worktree at a path with a space and an accent), `tests/backend/actions/branchRemote.test.ts` (two call-order expectations gained the worktree read, nothing loosened).
+- **Gates:** strict Biome on the 6 touched files: clean (only the schema-version notice). `pnpm run typecheck`: clean. `pnpm run test`: backend 1233 passed, 60 skipped, of 1293 (100 files); webview 831 of 831 (67 files); no "Unhandled Errors". `pnpm run l10n:check`: 100% in all four locales. No visual render: the header and menu items reuse existing styles. Sonar: integrator.
+- **l10n:** real translations for nl, pl, zh-cn and zh-tw (machine-written by the agent, worth a native glance), "worktree" kept as a loanword in nl and pl, 工作樹/工作树 in zh.
+- **Deviations:**
+  - No locked menu items (see Y6 decision above); a header instead.
+  - `webviewL10n.ts` touched, outside the Touch list but required by the l10n pattern.
+  - Delete is still offered but only explains; the slice left removal to W21.
+  - Rename dialog now goes through `showFormDialog` (was `showRefInputDialog`) to carry the note.
+- **Open questions:** a branch checked out in several other worktrees: the dialog and copy use the first path, the header lists all. W21 may want to replace the Delete explanation with its removal option. README and changelog not updated (outside Touch).
