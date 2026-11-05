@@ -16,8 +16,8 @@ mod diff_wire;
 
 use git_graph_core::types::{LogOptions, RefReadOptions, SearchOptions};
 use git_graph_core::{
-    blob, config, details, diff, graph, log, refs, search, stash, stats, status, Error, ErrorKind,
-    RepoManager,
+    blob, config, details, diff, graph, log, refs, search, stash, stats, status, worktrees, Error,
+    ErrorKind, RepoManager,
 };
 
 /// Open a repository and keep it open.
@@ -216,6 +216,18 @@ pub async fn load_index_file(path: String, file: String) -> Result<String> {
     run(move || {
         let repo = RepoManager::global().get(&path)?;
         encode(&blob::index_file(&repo, &file)?)
+    })
+    .await
+}
+
+/// The repository's worktrees, as `git worktree list` reports them: the main worktree, then every
+/// linked one sorted by path. Answers `Unsupported` wherever Git's own answer could differ (a
+/// prunable worktree, an admin entry with no `gitdir` file, ...), and the caller lists with the CLI.
+#[napi]
+pub async fn list_worktrees(path: String) -> Result<String> {
+    run(move || {
+        let repo = RepoManager::global().get(&path)?;
+        encode(&worktrees::list_worktrees(&repo)?)
     })
     .await
 }

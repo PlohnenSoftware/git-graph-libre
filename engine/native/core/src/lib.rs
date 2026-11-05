@@ -25,6 +25,7 @@ pub mod stash;
 pub mod stats;
 pub mod status;
 pub mod types;
+pub mod worktrees;
 
 pub use api::{Engine, GraphOptions};
 pub use error::{Error, ErrorKind, Result};
