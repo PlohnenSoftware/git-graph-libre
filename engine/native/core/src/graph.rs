@@ -175,11 +175,45 @@ fn resolve_tips(
             for stash in stashes {
                 revisions.push(stash.base_hash.clone());
             }
+            // The other worktrees' HEADs: one with a detached HEAD on a commit no
+            // branch, tag or remote reaches is named by no ref above, so without
+            // its HEAD as a tip that commit is never drawn (W12). The CLI passes
+            // the detached entries' hashes; here every sibling HEAD is named and
+            // the branch ones, already tips, are dropped as duplicates by
+            // `log::resolve_tips`, so both backends walk from the same set.
+            revisions.extend(other_worktree_head_revisions(repo));
             revisions.push("HEAD".to_string());
         }
     }
 
     log::resolve_tips(repo, &revisions)
+}
+
+/// Every other worktree's HEAD, named as a revision: `worktrees/<id>/HEAD` for each
+/// linked worktree's admin directory, plus `main-worktree/HEAD` when this repository
+/// is itself a linked worktree. Unresolvable names (an unborn HEAD, a vanished
+/// worktree) are skipped by `log::resolve_tips`. The same enumeration backs the
+/// authors and stats walks (`log::other_worktree_heads`); no sibling worktree is
+/// ever opened, so a sibling that fails the trust check costs nothing here.
+fn other_worktree_head_revisions(repo: &Repo) -> Vec<String> {
+    let git = repo.borrow();
+    let mut names = Vec::new();
+    if git.git_dir() != git.common_dir() {
+        names.push("main-worktree/HEAD".to_string());
+    }
+    let own = git.git_dir().file_name().map(|name| name.to_owned());
+    if let Ok(entries) = std::fs::read_dir(git.common_dir().join("worktrees")) {
+        for entry in entries.filter_map(std::result::Result::ok) {
+            let admin = entry.file_name();
+            if git.git_dir() != git.common_dir() && Some(&admin) == own.as_ref() {
+                continue;
+            }
+            if let Some(id) = admin.to_str() {
+                names.push(format!("worktrees/{id}/HEAD"));
+            }
+        }
+    }
+    names
 }
 
 /// Add the "Uncommitted Changes" row above HEAD, when there is anything uncommitted.

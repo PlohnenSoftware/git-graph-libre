@@ -31,8 +31,11 @@ import type { EngineComponentStatus, EngineUnavailableReason } from "@/types";
  * `1.0.29` refuses a repository Git rejects for ownership at open, with its
  * own `Untrusted` error kind; a `1.0.28` binary opens it with reduced trust
  * and silently drops the untrusted configuration.
+ * `1.0.30` walks a show-all `load_commits` from the other worktrees' HEADs
+ * too, so a sibling worktree's detached HEAD commit is drawn; a `1.0.29`
+ * binary omits it where the CLI now includes it.
  */
-export const EXPECTED_ENGINE_VERSION = "1.0.29";
+export const EXPECTED_ENGINE_VERSION = "1.0.30";
 
 /**
  * The napi surface slice 16.3 uses. Extended read by read in later slices —
