@@ -21,6 +21,9 @@ pub enum ErrorKind {
     Io,
     /// The operation was cancelled by the caller.
     Cancelled,
+    /// Git's ownership check refuses the repository (`safe.directory`). The engine does not read
+    /// it; the caller leaves the answer to Git itself, and must not treat it as absent.
+    Untrusted,
     /// The engine does not implement this yet; the caller should fall back to the `git` CLI.
     Unsupported,
 }
@@ -44,6 +47,9 @@ impl Error {
     }
     pub fn not_a_repository(message: impl Into<String>) -> Self {
         Error::new(ErrorKind::NotARepository, message)
+    }
+    pub fn untrusted(message: impl Into<String>) -> Self {
+        Error::new(ErrorKind::Untrusted, message)
     }
     pub fn not_found(message: impl Into<String>) -> Self {
         Error::new(ErrorKind::NotFound, message)

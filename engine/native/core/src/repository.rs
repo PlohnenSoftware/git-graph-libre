@@ -36,17 +36,42 @@ pub struct Repo {
 
 impl Repo {
     /// Open the repository containing `path`, searching upwards like `git rev-parse --show-toplevel`.
+    ///
+    /// A repository Git would refuse as owned by someone else is refused here too, as
+    /// [`ErrorKind::Untrusted`](crate::error::ErrorKind::Untrusted), so no read is ever answered
+    /// from a repository whose configuration gix would otherwise silently filter.
     pub fn discover(path: impl AsRef<Path>) -> Result<Repo> {
-        let path = path.as_ref();
-        let repo = gix::discover(path)
-            .map_err(|e| Error::not_a_repository(format!("{}: {e}", path.display())))?;
-        Repo::from_gix(repo)
+        Repo::discover_with(path.as_ref(), gix::discover::upwards::Options::default())
     }
+
+    /// [`Repo::discover`] with reduced trust asserted instead of derived from file ownership.
+    ///
+    /// A real ownership mismatch cannot be built without another user's files, so this is the seam
+    /// that lets a test reach the refusal; everything after discovery is the code a real mismatch
+    /// runs through. The `safe.directory` check still applies, and reduced is the only level this
+    /// seam can assert, so it can never be used to open a repository discovery would refuse.
+    pub fn discover_assuming_reduced_trust(path: impl AsRef<Path>) -> Result<Repo> {
+        let options = gix::discover::upwards::Options {
+            trust: gix::discover::upwards::TrustPolicy::Assume(gix::sec::Trust::Reduced),
+            ..Default::default()
+        };
+        Repo::discover_with(path.as_ref(), options)
+    }
+
+    fn discover_with(path: &Path, options: gix::discover::upwards::Options<'_>) -> Result<Repo> {
+        let mut trust_map = gix::sec::trust::Mapping::<gix::open::Options>::default();
+        trust_map.full = trust_map.full.bail_if_untrusted(true);
+        trust_map.reduced = trust_map.reduced.bail_if_untrusted(true);
+        let repo = gix::ThreadSafeRepository::discover_opts(path, options, trust_map)
+            .map_err(|e| open_error(path, &e))?;
+        Repo::from_gix(repo.into())
+    }
+
     /// Open the repository rooted exactly at `path`, without searching upwards.
     pub fn open(path: impl AsRef<Path>) -> Result<Repo> {
         let path = path.as_ref();
-        let repo = gix::open(path)
-            .map_err(|e| Error::not_a_repository(format!("{}: {e}", path.display())))?;
+        let options = gix::open::Options::default().bail_if_untrusted(true);
+        let repo = gix::open_opts(path, options).map_err(|e| open_error(path, &e))?;
         Repo::from_gix(repo)
     }
 
@@ -128,6 +153,18 @@ impl Repo {
     /// Resolve a revision specification (`HEAD`, a branch name, a hash, `HEAD~2`, ...) to a commit.
     pub fn resolve_commit(&self, rev: &str) -> Result<gix::ObjectId> {
         resolve_commit_in(&self.borrow(), rev)
+    }
+}
+
+/// What a failed open means to the caller: gix classifies a trust refusal (the ownership check,
+/// whether discovery or the open raised it) as permission denied, which is the only thing that
+/// separates "Git would refuse this" from "there is no repository here".
+fn open_error(path: &Path, error: &gix::Error) -> Error {
+    let message = format!("{}: {error}", path.display());
+    if error.is_permission_denied() {
+        Error::untrusted(message)
+    } else {
+        Error::not_a_repository(message)
     }
 }
 
