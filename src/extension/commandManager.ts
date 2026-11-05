@@ -175,7 +175,7 @@ function formatRepoQuickPickItems(repos: Record<string, unknown>): RepoQuickPick
     });
 }
 
-export function createVsCodeFolderApi(): WorktreeFolderApi {
+function createVsCodeFolderApi(): WorktreeFolderApi {
   return {
     workspaceFolderPaths: () =>
       (vscode.workspace.workspaceFolders ?? []).map((folder) => getPathFromStr(folder.uri.fsPath)),
