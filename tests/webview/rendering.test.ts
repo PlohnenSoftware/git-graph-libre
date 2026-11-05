@@ -286,6 +286,8 @@ describe("webview rendering", () => {
       requestId: null,
       branches: ["main", "feature/menu", "remotes/origin/feature/menu"],
       head: "main",
+      worktrees: [],
+      upstreams: {},
       hard: true,
       isRepo: true,
       error: null
