@@ -25,8 +25,11 @@ import type { EngineComponentStatus, EngineUnavailableReason } from "@/types";
  * like Git, which a `1.0.25` binary drops from history payloads entirely.
  * `1.0.27` reads a linked worktree's local config from the common dir, which
  * a `1.0.26` binary reads from the private admin dir and finds empty.
+ * `1.0.28` counts other worktrees' HEADs in authors and stats, as `git log
+ * --all` does, and declines a linked worktree that no longer exists; a
+ * `1.0.27` binary omits their commits and answers from a stale handle.
  */
-export const EXPECTED_ENGINE_VERSION = "1.0.27";
+export const EXPECTED_ENGINE_VERSION = "1.0.28";
 
 /**
  * The napi surface slice 16.3 uses. Extended read by read in later slices —
