@@ -1,6 +1,6 @@
 ---
 summary: >-
-  Issue #46: tag badges show matching remote names. A separate bounded Git
+  Issue #46: tag badges show only origin when its tag matches. A bounded Git
   query compares exact tag objects; refresh invalidates the webview snapshot,
   and failed remote reads remain unknown.
 ---
@@ -12,18 +12,19 @@ asks whether a tag exists on origin, using the graph's segmented ref badge.
 Implemented from this repository and Git's `ls-remote` documentation alone.
 
 `src/backend/queries/remoteTags.ts` reads local tag object IDs and runs
-`git ls-remote --tags --refs -- <remote>` for each configured remote. It
+`git ls-remote --tags --refs -- origin` when origin is configured. Other
+remotes are neither queried nor displayed, as requested by the contributor. It
 compares the exact object IDs, not just names or peeled commit IDs: two
-annotations on the same commit are different tags. Each lookup uses the
-remote's fetch endpoint, like the branch labels; separate push URLs are
+annotations on the same commit are different tags. Each lookup uses
+origin's fetch endpoint, like the branch labels; separate push URLs are
 not queried. No refs or Git configuration are written.
 
 The query uses the configured Git executable, a separate process per read,
 a ten-second timeout and the existing command recorder. Terminal and
-credential-manager prompts are disabled. A failed remote is returned as
-unavailable while successful results are retained. The handler starts the
-read without awaiting it so the file watcher is not muted for the network
-round trip. The engine and graph-loading path are unchanged.
+credential-manager prompts are disabled. A failed origin read is returned as
+unavailable. A repository without origin does not make a network request.
+The handler starts the read without awaiting it so the file watcher is not
+muted for the network round trip. The engine and graph-loading path are unchanged.
 
 `src/webview/main.ts` asks after rendering a page containing tags and keeps
 the snapshot across soft refreshes, filters and pagination. Explicit Refresh
@@ -32,11 +33,11 @@ does too. Request IDs and repository names reject late replies, and commit
 hashes reject a stale tag target. External remote changes require Refresh.
 The graph keeps its original badge while the first lookup is pending.
 
-Matching remotes use the existing `gitRefGroup` / `gitRefAlias` styling.
-The aliases retain tag actions and the original tag name; signed-tag badges
-are preserved. Tooltips distinguish absence from unavailable information,
-with translations in all five bundle locales. No new setting, icon, engine
-export or dependency is needed.
+The single `origin` segment uses the existing `gitRefGroup` / `gitRefAlias`
+styling. The alias retains tag actions and the original tag name; signed-tag
+badges are preserved. Tooltips distinguish absence on origin from unavailable
+information, with translations in all five bundle locales. No new setting,
+icon, engine export or dependency is needed.
 
 Verification (`2026-11-05`, macOS arm64):
 
@@ -68,3 +69,16 @@ The contributor explicitly authorized submitting a draft PR with these
 verification gaps documented (`2026-11-05`). This exception covers submission;
 the full gate remains pending maintainer verification before merge. The
 contribution uses GitHub's signed-commit API; no unsigned commit is needed.
+
+The contributor narrowed the implementation to `| origin` (`2026-11-05`),
+matching the requested UI. Regression coverage checks that backup remotes
+are not queried or rendered, missing origin makes no network request, and
+an unreachable origin stays unknown. The existing badge styling is unchanged.
+
+Verification of the origin-only update: strict Biome, production package,
+localization, knowledge-base checks, and 105 focused tests pass. The full
+coverage run has 1,845 passing, five baseline failures, and 156 skipped tests;
+`remoteTags.ts` has 22/22 lines and 4/4 branches covered. A fresh Chrome
+render confirms the single origin segment. SonarQube remains unavailable
+(`sonar-scanner: command not found`); live VS Code and authenticated remotes
+remain unverified. The existing draft-submission exception still applies.

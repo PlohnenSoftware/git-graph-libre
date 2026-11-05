@@ -5007,28 +5007,25 @@ class GitGraphView {
     const primary =
       `<span class="gitRef ${ref.type}${refActive ? " active" : ""}${signed ? " signed" : ""}${extraClass}" data-name="${refName}" title="${title}">` +
       `${this.refIcon(ref.type)}${badge}${escapeHtml(label)}</span>`;
-    if (!remoteTag?.remotes.length) return primary;
-    const aliases = remoteTag.remotes
-      .map(
-        (remote) =>
-          `<span class="gitRef tag gitRefAlias" data-name="${refName}" title="${title}">${escapeHtml(remote)}</span>`
-      )
-      .join("");
-    return `<span class="gitRefGroup" role="group" aria-label="${title}">${primary}${aliases}</span>`;
+    if (!remoteTag?.onOrigin) return primary;
+    const alias = `<span class="gitRef tag gitRefAlias" data-name="${refName}" title="${title}">origin</span>`;
+    return `<span class="gitRefGroup" role="group" aria-label="${title}">${primary}${alias}</span>`;
   }
   private getTagRemoteStatus(ref: GitCommitNode["refs"][number]) {
     const result = this.remoteTagsRepo === this.currentRepo ? this.remoteTagsResult : null;
     if (result === null) return null;
     const tag = result.tags[ref.name];
-    const remotes = tag?.hash === ref.hash ? tag.remotes : [];
+    const onOrigin = tag?.hash === ref.hash && tag.remotes.includes("origin");
     const unavailable =
-      result.error !== null || result.unavailableRemotes.length > 0 || tag?.hash !== ref.hash;
-    let status = unavailable ? l10n.tagRemotesUnavailable : l10n.tagNotOnRemotes;
-    if (remotes.length > 0) {
-      status = l10n.tagOnRemotes.replace("{0}", remotes.join(", "));
-      if (unavailable) status += `. ${l10n.tagRemotesUnavailable}`;
-    }
-    return { remotes, status };
+      result.error !== null ||
+      result.unavailableRemotes.includes("origin") ||
+      tag?.hash !== ref.hash;
+    const status = unavailable
+      ? l10n.tagOriginUnavailable
+      : onOrigin
+        ? l10n.tagOnOrigin
+        : l10n.tagNotOnOrigin;
+    return { onOrigin, status };
   }
   private refIcon(type: GitCommitNode["refs"][number]["type"]) {
     return type === "tag" ? svgIcons.tag : svgIcons.branch;

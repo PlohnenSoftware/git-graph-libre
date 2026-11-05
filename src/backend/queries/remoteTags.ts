@@ -52,7 +52,12 @@ export async function remoteTags(input: RemoteTagsInput): Promise<QueryResult<"r
         return { objectHash, ref, hash: peeledHash || objectHash };
       });
     const remotes =
-      localTags.length === 0 ? [] : remotesOutput.trim().split(/\r?\n/).filter(Boolean);
+      localTags.length === 0
+        ? []
+        : remotesOutput
+            .trim()
+            .split(/\r?\n/)
+            .filter((remote) => remote === "origin");
     const results = await Promise.all(
       remotes.map(async (remote) => {
         try {

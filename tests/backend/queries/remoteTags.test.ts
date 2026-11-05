@@ -31,7 +31,7 @@ describe("remote tag status", () => {
     expect(await read()).toEqual({ tags: {}, unavailableRemotes: [], error: null });
     expect(records.some((record) => record.label === "remoteTags.remote")).toBe(false);
   });
-  it("distinguishes local tags from identical lightweight and annotated tags on each remote", async () => {
+  it("checks only origin for identical lightweight and annotated tags", async () => {
     git(["remote", "add", "backup", remote], repo);
     git(["tag", "local"], repo);
     git(["tag", "lightweight"], repo);
@@ -42,13 +42,13 @@ describe("remote tag status", () => {
     expect(await read()).toEqual({
       tags: {
         local: { hash, remotes: [] },
-        lightweight: { hash, remotes: ["backup", "origin"] },
-        annotated: { hash, remotes: ["backup", "origin"] }
+        lightweight: { hash, remotes: ["origin"] },
+        annotated: { hash, remotes: ["origin"] }
       },
       unavailableRemotes: [],
       error: null
     });
-    expect(records.filter((record) => record.label === "remoteTags.remote")).toHaveLength(2);
+    expect(records.filter((record) => record.label === "remoteTags.remote")).toHaveLength(1);
   });
 
   it("does not call different annotated objects on the same commit pushed", async () => {
@@ -70,13 +70,34 @@ describe("remote tag status", () => {
     );
   });
 
-  it("keeps successful results and reports an unreachable remote as unavailable", async () => {
+  it("does not query other remotes when origin is absent", async () => {
+    git(["tag", "release"], repo);
+    git(["push", "origin", "refs/tags/release"], repo);
+    git(["remote", "rename", "origin", "backup"], repo);
+    const result = await read();
+    expect(result.tags.release.remotes).toEqual([]);
+    expect(result.unavailableRemotes).toEqual([]);
+    expect(result.error).toBeNull();
+    expect(records.some((record) => record.label === "remoteTags.remote")).toBe(false);
+  });
+
+  it("ignores unavailable remotes other than origin", async () => {
     git(["tag", "release"], repo);
     git(["push", "origin", "refs/tags/release"], repo);
     git(["remote", "add", "offline", join(remote, "missing")], repo);
     const result = await read();
     expect(result.tags.release.remotes).toEqual(["origin"]);
-    expect(result.unavailableRemotes).toEqual(["offline"]);
+    expect(result.unavailableRemotes).toEqual([]);
+    expect(result.error).toBeNull();
+    expect(records.filter((record) => record.label === "remoteTags.remote")).toHaveLength(1);
+  });
+
+  it("reports an unreachable origin as unavailable", async () => {
+    git(["tag", "release"], repo);
+    git(["remote", "set-url", "origin", join(remote, "missing")], repo);
+    const result = await read();
+    expect(result.tags.release.remotes).toEqual([]);
+    expect(result.unavailableRemotes).toEqual(["origin"]);
     expect(result.error).toBeNull();
     expect(records.some((record) => record.label === "remoteTags.remote" && !record.success)).toBe(
       true

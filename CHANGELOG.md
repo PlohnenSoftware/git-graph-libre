@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Tag badges show which remotes hold the same tag, with background checks and
-  hover text distinguishing local tags from unavailable remote information
+- Tag badges show `| origin` when origin holds the same tag, with background
+  checks and hover text distinguishing absence from unavailable information
   ([#46](https://github.com/PlohnenSoftware/git-graph-libre/issues/46)).
 
 ## [1.9.0] - 2026-10-20

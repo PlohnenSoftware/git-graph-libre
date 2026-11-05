@@ -601,7 +601,7 @@ describe("webview rendering", () => {
     receiveLoadedCommits(twoCommits, "abc123");
   });
 
-  it("adds remote tag aliases after rendering, preserves tag actions, and ignores stale replies", () => {
+  it("adds only an origin tag alias, preserves tag actions, and ignores stale replies", () => {
     const request = refreshRemoteTags();
     expect(gitRef("v1.0.0", ".gitRef.tag")).not.toBeNull();
     const response: Extract<GGL.ResponseMessage, { command: "remoteTags" }> = {
@@ -624,9 +624,9 @@ describe("webview rendering", () => {
     );
     expect(document.querySelectorAll(".gitRefSignedBadge")).toHaveLength(1);
     const aliases = document.querySelectorAll<HTMLElement>(".gitRef.tag.gitRefAlias");
-    expect(Array.from(aliases, (alias) => alias.textContent)).toEqual(["origin", "backup<test>"]);
+    expect(Array.from(aliases, (alias) => alias.textContent)).toEqual(["origin"]);
     expect(document.querySelector("test")).toBeNull();
-    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain("On remotes: origin, backup<test>");
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain("On origin");
     aliases[0]?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
     clickContextMenuItem("Copy Tag Name");
     expect(vscodeMock.sentMessages.at(-1)).toMatchObject({
@@ -645,8 +645,13 @@ describe("webview rendering", () => {
     expect(refreshed.requestId).not.toBe(request.requestId);
     receive(response);
     expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(0);
-    receive({ ...response, ...refreshed, tags: { "v1.0.0": { hash: "abc123", remotes: [] } } });
-    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain("Local tag not found on any remote");
+    receive({
+      ...response,
+      ...refreshed,
+      tags: { "v1.0.0": { hash: "abc123", remotes: ["backup"] } }
+    });
+    expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(0);
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain("Local tag not found on origin");
     refreshRemoteTags();
   });
 
@@ -659,7 +664,7 @@ describe("webview rendering", () => {
       error: null
     });
     expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain(
-      "remote tag information is unavailable"
+      "Tag information from origin is unavailable"
     );
     expect(gitRef("v1.0.0", ".gitRef.tag")?.title).not.toContain("not found");
     const next = refreshRemoteTags();
@@ -671,7 +676,7 @@ describe("webview rendering", () => {
     });
     expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(0);
     expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain(
-      "remote tag information is unavailable"
+      "Tag information from origin is unavailable"
     );
     refreshRemoteTags();
   });
