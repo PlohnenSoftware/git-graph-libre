@@ -4910,8 +4910,10 @@ class GitGraphView {
     hideDialog();
     const files = msg.files.map((file) => `<li>${escapeHtml(file)}</li>`).join("");
     const more = msg.truncated ? `<p>${l10n.dialogRemoveWorktreeMoreFiles}</p>` : "";
+    const target = `<b><i>${escapeHtml(msg.path)}</i></b>`;
+    const question = l10n.dialogRemoveWorktreeForce.replace("{0}", () => target);
     showFormDialog(
-      `${l10n.dialogRemoveWorktreeForce.replace("{0}", `<b><i>${escapeHtml(msg.path)}</i></b>`)}<ul>${files}</ul>${more}`,
+      `${question}<ul>${files}</ul>${more}`,
       [],
       l10n.dialogRemoveWorktreeForceSubmit,
       () => this.sendRemoveWorktree({ ...pending.request, force: true }),

@@ -132,10 +132,16 @@ export async function repairWorktree(
 ): Promise<void> {
   const repo = input.repo ?? null;
   const newPath = input.newPath;
-  if (newPath === null || newPath === "") return fail("error.worktreeRepairNoFolder");
+  if (newPath === null || newPath === "") {
+    await fail("error.worktreeRepairNoFolder");
+    return;
+  }
 
   const before = await findWorktree(await listWorktrees(git, repo, record), input.path);
-  if (before?.prunable == null) return fail("error.worktreeNotStale", input.path);
+  if (before?.prunable == null) {
+    await fail("error.worktreeNotStale", input.path);
+    return;
+  }
 
   await runGitRaw(git, {
     label: "worktree.repair",
@@ -159,7 +165,8 @@ function parseStatusPaths(stdout: string): string[] {
   for (let index = 0; index < fields.length; index++) {
     const field = fields[index];
     paths.push(field.slice(3));
-    if (field[0] === "R" || field[0] === "C" || field[1] === "R" || field[1] === "C") index++;
+    if (field.startsWith("R") || field.startsWith("C") || field[1] === "R" || field[1] === "C")
+      index++;
   }
   return paths;
 }

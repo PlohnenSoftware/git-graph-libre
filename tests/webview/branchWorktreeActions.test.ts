@@ -365,7 +365,7 @@ describe("removing the worktree that holds a branch (W21)", () => {
     expect((document.getElementById("dialogInput0") as HTMLInputElement).checked).toBe(false);
     submitDialog();
 
-    expect(vscodeMock.sentMessages.length).toBe(before);
+    expect(vscodeMock.sentMessages).toHaveLength(before);
   });
 
   it("removes a clean worktree with plain remove, then the branch", async () => {
