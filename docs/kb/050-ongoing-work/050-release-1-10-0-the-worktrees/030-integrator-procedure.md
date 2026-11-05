@@ -5,7 +5,8 @@ summary: >-
   branch names and waves; the agent and model choice is asked again (the
   1.9.0 choice covered that release only); and W01's dependency refresh
   needs every platform binary rebuilt and the packaged-VSIX check on all
-  legs before W90.
+  legs before W90; and which slice's integration commit carries each
+  issue's `Closes` line.
 ---
 
 # Integrator procedure for release 1.10.0
@@ -37,3 +38,19 @@ Changes for this release:
 - Slices that touch `package.json`, `package.nls*.json` or the five `l10n`
   bundles run one after another, never in parallel, since they conflict
   textually: W11, W20, W21, W22, W23, W24, W30 and W31.
+- **Closing issues** (Closing issues from commits, `2026-11-05`). When the
+  slice that completes an issue is integrated and the gate passes on the
+  result, write `Closes PlohnenSoftware/git-graph-libre#<n>` into the commit
+  that records that integration. Each issue closes when that commit reaches
+  `main`. Slice commits carry only `Refs`. The completing slices are:
+  - #36: W25.
+  - #41: W06.
+  - #45: W24. W05 only references it.
+  - #38: W21. W20 only references it.
+  - #37: whichever of W02–W04, W10–W12 and W30–W33 is integrated last.
+  - #46: none here. PR #47's own commit, `a109e9a`, carries the line and
+    closes #46 when it merges (W26, Y24). If Y24 brings it in through the
+    integration branch, keep that line intact.
+
+  A slice deferred by its decision leaves its issue open. Write no closing
+  line for it, and record the gap in W90.

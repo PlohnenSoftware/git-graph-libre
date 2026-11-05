@@ -35,7 +35,7 @@ together):
 | 18 Git worktree support | Planned for release 1.10.0 "The Worktrees" (`2026-11-04`, issues [#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37) and [#38](https://github.com/PlohnenSoftware/git-graph-libre/issues/38)) — full worktree support in slices W02–W04, W10–W12, W20–W23 and W30–W34; engine W03, W07, W12, W40, W41; the release's slices supersede 18.1–18.4 |
 | Immediate TODOs bug backlog (BUG-1 … BUG-6, `2026-08-25`) | Complete (`2026-08-25`; see the per-entry implementation records) |
 
-## GitHub Issues Tracker (`gh issue list`, audited `2026-11-04`)
+## GitHub Issues Tracker (`gh issue list`, audited `2026-11-04`; #46 added `2026-11-05`)
 
 One row per issue. Each open issue's thread, the facts checked and an agent
 assessment of every proposal are in its subsection of Open GitHub issues
@@ -59,3 +59,4 @@ their threads (History). Numbers not listed are pull requests.
 | [#41](https://github.com/PlohnenSoftware/git-graph-libre/issues/41) | **Open** | feat(modal/ux): wide selection | Issue #41: whole-row checkbox hit area in dialogs | To tackle; release 1.10.0, W06 (`2026-11-04`) |
 | [#42](https://github.com/PlohnenSoftware/git-graph-libre/issues/42) | **Open** | design(icon): lighter | Issue #42: lighter ref badge icons | On hold, backlog (`2026-11-04`, a matter of taste) |
 | [#45](https://github.com/PlohnenSoftware/git-graph-libre/issues/45) | **Open** | fix(checkout remote branch): Allow one click switch and pull when checkout on remote branch with existing local is attempted | Phase 9 (proposed); Issue #45: checking out a remote branch whose local branch exists | To tackle; release 1.10.0, W05 (the name bug) and W24 (the feature) (`2026-11-04`) |
+| [#46](https://github.com/PlohnenSoftware/git-graph-libre/issues/46) | **Open** | feat(tag): origine | Tag surfaces (Phase 15 follow-up); Issue #46: show which remotes hold a tag | To tackle (`2026-11-05`); release 1.10.0, W26: review and land `rbalet`'s draft [PR #47](https://github.com/PlohnenSoftware/git-graph-libre/pull/47) (`a109e9a`, `Closes …#46`) |

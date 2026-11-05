@@ -6,7 +6,8 @@ summary: >-
   the marker; Y5 removal policy; Y6 refused actions; Y7–Y8 creation; Y9–Y10
   outside worktrees and trust; Y11 #36; Y12 engine trust; Y13 #41; Y14 #45;
   Y15–Y22 housekeeping, dispatch, bare, settings, telemetry, local changes,
-  name, detached HEADs.
+  name, detached HEADs; Y23–Y24 #46 and PR #47 (when remotes are contacted,
+  how the pull request lands).
 ---
 
 # Maintainer decisions for release 1.10.0
@@ -38,6 +39,8 @@ decision is not ready.
 | Y20 | Other worktrees' local changes (W51) | (a) on demand, when the worktree list opens; (b) defer | (a) | W51 | open |
 | Y21 | Release name and version | (a) 1.10.0, "The Worktrees"; (b) another | (a) | W90 | open |
 | Y22 | Other worktrees' detached HEADs in the graph (W12) | (a) always shown and marked; (b) shown, with a setting to hide them; (c) not shown | (a) | W12 | open |
+| Y23 | Issue #46 (PR #47): when are remotes contacted to show which ones hold a tag (W26)? | (a) as submitted: automatically, every remote, after a page with tags renders, on Refresh and after actions; (b) (a) behind a setting, on by default; (c) the same setting, off by default (opt-in, like `fetchAvatars`); (d) only on demand, from a "Check Remotes" action | (b): the feature shows by default, and anyone whose remotes are slow, metered or need a key touch can switch the reads off. Today nothing contacts a remote without a user action | W26 | open |
+| Y24 | How does PR #47 land (W26)? | (a) the contributor rebases it onto `main`, renumbers its History record to `170` and regenerates the index; the maintainer merges with Rebase and merge, as for #22–#25, so `a109e9a`'s `Closes` line closes #46; the integration branch then rebases onto `main`; (b) the contributor rebases onto the integration branch instead, once Y1 publishes it, and it lands with the release | (a): the work stands alone, and #46 closes as soon as it merges | W26 | open |
 
 **How to answer:** replace *open* with the choice, the date and any
 condition, for example `(a), 2026-11-05`. Then flip the gated slices to

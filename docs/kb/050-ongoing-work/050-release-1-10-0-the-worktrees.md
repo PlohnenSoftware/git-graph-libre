@@ -7,8 +7,9 @@ summary: >-
   worktree-aware branch actions, the dropdown and discovery, and refresh and
   config fixes. Engine work: gix 0.90 from GitHub plus the Cargo refresh, a
   worktree listing with parity, every read proven on linked worktrees, and
-  the trust gate. It also includes #36, #41 and #45. It holds the goals, the
-  27 slices in six waves, plus the release slice W90, the order and the
+  the trust gate. It also includes #36, #41 and #45, and #46 by landing
+  `rbalet`'s PR #47 (W26, added `2026-11-05`). It holds the goals, the 28
+  slices in six waves, plus the release slice W90, the order and the
   definition of done.
 ---
 
@@ -19,6 +20,12 @@ worktree support, with the engine's part analyzed and the open issues to
 tackle included. #40 and #42 are on hold in the backlog. Name and version are
 decision Y21. Only decision Y2 is answered. The slices that need no decision
 are ready: W00, W01, W02, W04, W05, W06 and W08.
+
+**Added `2026-11-05`: issue #46 and PR #47.** The maintainer added
+`rbalet`'s issue #46 (show which remotes hold a tag) to this release, with
+the draft PR #47 that implements it (one commit, `a109e9a`). It is W26, a
+review-and-land slice gated on Y23 and Y24. `a109e9a` is also the model for
+the standing rule Closing issues from commits, which this release follows.
 
 Everything about worktrees, in one release: what users asked for (#37, #38),
 what the code turned out to get wrong today (W04, W07, W08), what "full
@@ -58,6 +65,7 @@ Engine changes for worktrees (`2026-11-04`).
 | A remote checkout never ends in "a branch named … already exists" | [issue #45](https://github.com/PlohnenSoftware/git-graph-libre/issues/45) and its duplicate #39 | W05, W24 |
 | The Push dialog starts from what plain `git push` would do | [issue #36](https://github.com/PlohnenSoftware/git-graph-libre/issues/36) | W25 |
 | A dialog checkbox toggles from anywhere on its row | [issue #41](https://github.com/PlohnenSoftware/git-graph-libre/issues/41) | W06 |
+| A tag badge says which remotes hold the tag | [issue #46](https://github.com/PlohnenSoftware/git-graph-libre/issues/46), implemented by `rbalet`'s [PR #47](https://github.com/PlohnenSoftware/git-graph-libre/pull/47) (`a109e9a`); Y23, Y24 | W26 |
 | Telemetry counts nested worktrees correctly, and learns whether worktree features are used | the `view.submoduleRepo*` heuristic; Y19 | W08, W50 |
 | Know whether another worktree has local changes | full worktree support; Y20 | W51 |
 | Ongoing work holds only what is in progress | D90 — Release 1.9.0, step 7 | W00 |
@@ -90,6 +98,7 @@ run one after another, as the integrator procedure says.
 | W07 | [Read a linked worktree's local config](050-release-1-10-0-the-worktrees/170-w07-read-a-linked-worktree-s-local-config.md) | Rust + TS | W01 | A | needs W01 |
 | W08 | [A nested worktree is not a submodule in telemetry](050-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | ready |
 | W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | gated on Y11 |
+| W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | gated on Y23, Y24 |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | needs W01, W02 |
 | W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | needs W01, W07 |
 | W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | gated on Y12 |
@@ -114,8 +123,10 @@ run one after another, as the integrator procedure says.
 
 1. The slices that need no decision: W00, W01, W02, W04, W05, W06 and W08.
 2. Then W07, then W03 and W40, then W10 and W31.
-3. Then, as their decisions are answered, W11, W12, W20, W21, W22, W24 and
-   W25; then W30, then W23 and W32; then W33, W34, W41, W50 and W51.
+3. Then, as their decisions are answered, W11, W12, W20, W21, W22, W24,
+   W25 and W26; then W30, then W23 and W32; then W33, W34, W41, W50 and W51.
+   W26 can be reviewed as soon as Y23 is answered, since its code is
+   already written; it lands on `main` per Y24.
 4. Then W90.
 
 **Waves:**
@@ -145,6 +156,10 @@ W21, then W30.
 - Issue #38: a branch blocked by a leftover worktree can be freed from the
   UI, without anything forced silently.
 - Issues #36, #41 and #45 behave as their decisions say.
+- Issue #46: PR #47 is reviewed, adjusted per Y23, and merged per Y24, and
+  its `Closes` line closed #46.
+- Each issue in scope is closed by the commit that completes it, per
+  Closing issues from commits.
 - A graph on a linked worktree refreshes like one on a main worktree, and
   shows the same local identity on both backends.
 - Every engine read wired for worktrees has a parity test, and no engine

@@ -6,6 +6,7 @@ summary: >-
   temporary fixtures, never on this repository (which has linked worktrees of
   its own); fixtures with awkward paths; decide from the worktree list, never
   Git's translated messages; no engine writes; rebuild the engine after W01.
+  Slice commits reference their issue with `Refs`, never a closing keyword.
 ---
 
 # Agent protocol for release 1.10.0
@@ -47,6 +48,23 @@ wins: stop and report the conflict.
 5. **The engine never writes** (Non-goals, permanently). A worktree write
    stays on `runGitRaw`. An engine slice that seems to need one is the wrong
    slice: stop and report.
+
+## Issue references in commits
+
+This release follows Closing issues from commits (Rules, `2026-11-05`). A
+slice commit that works toward a GitHub issue names it in the body as
+`Refs PlohnenSoftware/git-graph-libre#<n>`. It never uses `Closes`, `Fixes`
+or another closing keyword, even in the slice's last commit. The integrator
+writes the closing line once the issue's last slice is integrated and the
+gate has passed. For example:
+
+```text
+fix(checkout): suggest the full branch name for a remote checkout (W05)
+
+Refs PlohnenSoftware/git-graph-libre#45
+
+<why, and what was checked>
+```
 
 After W01 is integrated, the engine is built against gix 0.90. Run
 `pnpm run engine:build` in your worktree before running the TypeScript tests,

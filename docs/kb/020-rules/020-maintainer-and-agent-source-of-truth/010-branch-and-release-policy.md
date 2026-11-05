@@ -67,6 +67,10 @@ Workflow rules:
   If signing cannot work — the usual cause is a sandbox with no access to
   `gpg-agent` — stop, push nothing, and hand the decision to the maintainer.
   See Commit signing below.
+- **Work on a GitHub issue ends in a commit that closes it.** That commit is
+  the final one, made after the gate passes, and its body carries
+  `Closes PlohnenSoftware/git-graph-libre#<n>`, as `a109e9a` does. Earlier
+  commits only say `Refs …#<n>`. See Closing issues from commits below.
 - On `AI-dev`, include a commit trailer identifying the agent, for example
   `Co-Authored-By: Codex <codex@openai.com>`. When `main` is fast-forwarded for
   a release, retain the validated commits and their trailers unchanged.

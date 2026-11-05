@@ -2,10 +2,10 @@
 summary: >-
   Next (`2026-11-04`): release 1.10.0 "The Worktrees" under Ongoing work.
   It brings full Git worktree support, the to-tackle issues (#36, #37, #38,
-  #41, #45) and the gix and Cargo refresh, in 27 slices. Their decisions
-  Y1, Y3–Y22 are open; W00, W01, W02, W04, W05, W06 and W08 are ready. #40
-  and #42 are on hold in the backlog. Then the remaining Phase 2/6/9/10/16/17
-  items.
+  #41, #45, and #46 through `rbalet`'s PR #47, added `2026-11-05`) and the
+  gix and Cargo refresh, in 28 slices. Their decisions Y1, Y3–Y24 are open;
+  W00, W01, W02, W04, W05, W06 and W08 are ready. #40 and #42 are on hold
+  in the backlog. Then the remaining Phase 2/6/9/10/16/17 items.
 always_read: true
 ---
 
@@ -16,10 +16,10 @@ worktrees the next release: "full worktree support", not only what the
 issues ask. It is to analyze the engine's part, include the to-tackle
 issues, and refresh the Cargo dependencies, including gix from GitHub. The
 plan is the section Release 1.10.0 — "The Worktrees" under Ongoing work:
-- 27 slices in six waves, each with its facts, steps, files and acceptance,
+- 28 slices in six waves, each with its facts, steps, files and acceptance,
   plus the release slice W90;
 - its agent protocol and integrator procedure;
-- decisions Y1–Y22, of which only Y2 (gix from GitHub) is answered;
+- decisions Y1–Y24, of which only Y2 (gix from GitHub) is answered;
 - the Git worktree facts verified on `2026-11-04`, and the engine analysis.
 
 Ready without a decision: W00, W01, W02, W04, W05, W06 and W08. Answering
@@ -34,14 +34,22 @@ maintainer's decision of `2026-11-04` on the seven open GitHub issues:
   - #38: remove a leftover worktree that blocks a branch;
   - #41: whole-row checkbox hit area in dialogs;
   - #45: checking out a remote branch whose local branch exists, including
-    `cktgh`'s confirmed bug in the suggested local name.
+    `cktgh`'s confirmed bug in the suggested local name;
+  - #46 (added `2026-11-05`): show which remotes hold a tag. The reporter,
+    `rbalet`, already implemented it in the draft PR #47 (one commit,
+    `a109e9a`, which carries `Closes PlohnenSoftware/git-graph-libre#46`).
 
-  All five are planned in release 1.10.0:
+  All six are planned in release 1.10.0:
   - #36 as W25;
   - #37 as W02–W04, W10–W12 and W30–W33;
   - #38 as W20 and W21;
   - #41 as W06;
-  - #45 as W05 and W24.
+  - #45 as W05 and W24;
+  - #46 as W26, which reviews PR #47 and lands it per decisions Y23 (when
+    remotes are contacted) and Y24 (how it merges).
+
+  Each closes through the commit that completes it, per the standing rule
+  Closing issues from commits (`2026-11-05`), modeled on `a109e9a`.
 - **On hold, in the backlog**, as matters of taste: #40 (fetch that also
   updates the current branch) and #42 (lighter ref badge icons).
 

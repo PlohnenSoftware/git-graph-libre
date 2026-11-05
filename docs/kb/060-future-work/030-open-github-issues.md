@@ -1,10 +1,11 @@
 ---
 summary: >-
-  Register of the seven open GitHub issues, read in full with `gh` on
-  `2026-11-04`. To tackle (maintainer, `2026-11-04`): #36 push dialog
-  defaults, #37 worktrees, #38 removing a leftover worktree, #41 whole-row
-  checkboxes, #45 checking out a remote branch whose local branch exists (#39
-  closed as its duplicate). On hold in the backlog, as matters of taste: #40
+  Register of the eight open GitHub issues, read in full with `gh` on
+  `2026-11-04` (#46 on `2026-11-05`). To tackle (maintainer, `2026-11-04`):
+  #36 push dialog defaults, #37 worktrees, #38 removing a leftover worktree,
+  #41 whole-row checkboxes, #45 checking out a remote branch whose local
+  branch exists (#39 closed as its duplicate); and (`2026-11-05`) #46 which
+  remotes hold a tag, implemented by the reporter's PR #47. On hold in the backlog, as matters of taste: #40
   fetch that also updates the current branch, #42 lighter ref badge icons.
   One subsection per issue holds the thread, the verified facts and an agent
   assessment; how to implement each is still open.
@@ -20,7 +21,8 @@ maintainer's replies, the code and Git facts checked while reading it, and an
 agent assessment of each proposal.
 
 **Decisions (maintainer, `2026-11-04`).** #36, #37, #38, #41 and #45 are to
-tackle. #40 and #42 are on hold in the backlog: they are matters of taste,
+tackle. #46, opened `2026-11-05`, was added to them the same day, with the
+reporter's draft PR #47 that implements it. #40 and #42 are on hold in the backlog: they are matters of taste,
 parked until the maintainer picks them up again. Each subsection's `Decision`
 line records this. **How** to implement each issue is not decided yet: the
 assessments below are recommendations, and the maintainer records the chosen
@@ -52,18 +54,21 @@ copy their code, CSS, SVGs or strings; design and word our own, as License
 review of the graph and stash UI slices and the `vscode-git-graph-rs`
 licensing verdict under Licensing require.
 
-## To tackle (maintainer, `2026-11-04`)
+## To tackle (maintainer, `2026-11-04`; #46 `2026-11-05`)
 
-All five are planned in Release 1.10.0 — "The Worktrees" under Ongoing work
+All six are planned in Release 1.10.0 — "The Worktrees" under Ongoing work
 (`2026-11-04`):
 - #36 as W25;
 - #37 as the release's core: W02–W04, W10–W12 and W30–W33;
 - #38 as W20 and W21;
 - #41 as W06;
-- #45 as W05 (the bug) and W24 (the feature).
+- #45 as W05 (the bug) and W24 (the feature);
+- #46 as W26, which reviews and lands the reporter's PR #47 (`a109e9a`).
 
 Their open choices are that release's decisions: Y11 for #36, Y3, Y4 and Y22
-for #37, Y5 for #38, Y13 for #41, and Y14 for #45.
+for #37, Y5 for #38, Y13 for #41, Y14 for #45, and Y23 and Y24 for #46. Each
+issue closes through the commit that completes it (Closing issues from
+commits, under Rules).
 
 | Issue | Opened by | Has a point? | Recommended direction (agent; details in the subsection) | Maintainer on GitHub |
 | --- | --- | --- | --- | --- |
@@ -72,6 +77,7 @@ for #37, Y5 for #38, Y13 for #41, and Y14 for #45.
 | [#38](https://github.com/PlohnenSoftware/git-graph-libre/issues/38) delete worktree | `rbalet`, `2026-10-28` | Yes, but not as a force button | Detect the worktree up front (Phase 18's data) and offer a plain `git worktree remove` in the Delete Branch dialog. Use `--force` only after a second confirmation naming the files it deletes. A stale entry (folder already gone) and `git worktree prune` are safe | No reply yet |
 | [#41](https://github.com/PlohnenSoftware/git-graph-libre/issues/41) wide checkbox selection | `rbalet`, `2026-10-28` | Yes | Make the checkbox `<label>` full width (`media/dialogs.css:198`, one rule), with a CSS regression test and a headless render | No reply yet |
 | [#45](https://github.com/PlohnenSoftware/git-graph-libre/issues/45) checkout remote branch, local exists | `rbalet`, `2026-11-02` (duplicate: #39) | Yes, a bug and a feature | Bug (`cktgh`, confirmed): the suggested name drops path segments, so fix it with `parseRemoteBranchName()`. Feature: detect the existing branch before `git checkout -b` and offer switch, switch and fast-forward (`--ff-only`), or another name | Bug acknowledged `2026-11-03`; the rest is a feature |
+| [#46](https://github.com/PlohnenSoftware/git-graph-libre/issues/46) tag on origin | `rbalet`, `2026-11-05` | Yes | Already implemented by the reporter's draft [PR #47](https://github.com/PlohnenSoftware/git-graph-libre/pull/47) (`a109e9a`): remote segments on tag badges from background `git ls-remote`, exact object match. Decide when remotes are contacted (Y23); rebase onto `main` and land with Rebase and merge (Y24) | No reply yet |
 
 ## On hold: backlog (maintainer, `2026-11-04`)
 
