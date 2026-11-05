@@ -21,6 +21,10 @@
 - **Branch actions**: Create, checkout, rename, delete, and merge
 - **Tag actions**: Create, push, view details, and delete locally or on selected
   remotes; signed tags are marked with a verified badge in the graph
+  - Tags show the names of remotes holding the same tag object. Checks run in
+    the background when tags are first shown, on Refresh, and after graph
+    actions. Hover a tag for its last checked status; an unavailable remote
+    is reported as unknown. Checks use each remote's fetch URL.
   - Tag types: lightweight tags are a plain ref with no tag object, so they are
     unsigned by definition and carry no message; annotated tags follow your git
     signing configuration (`tag.gpgSign`, `user.signingkey`, `gpg.format`) and

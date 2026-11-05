@@ -67,6 +67,15 @@ type UncommittedDetailsResult = {
 };
 
 type QueryPayloads = {
+  remoteTags: {
+    request: { requestId: number; repo: string };
+    result: {
+      tags: Record<string, { hash: string; remotes: string[] }>;
+      unavailableRemotes: string[];
+      error: GitQueryError | null;
+    };
+    response: { requestId: number; repo: string } & QueryPayloads["remoteTags"]["result"];
+  };
   commitDetails: {
     request: { repo: string; commitHash: string };
     result: CommitDetailsResult;

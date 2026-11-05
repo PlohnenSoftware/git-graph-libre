@@ -14,7 +14,8 @@ import type {
   GitResetMode,
   GitStash,
   GitTagDetails,
-  GitUncommittedChanges
+  GitUncommittedChanges,
+  QueryResult
 } from "@/backend/types";
 import { COMMIT_ORDERINGS, GIT_PUSH_BRANCH_MODES } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
@@ -236,6 +237,9 @@ class GitGraphView {
   private gitAuthors: string[] = [];
   private gitTags: string[] = [];
   private gitRemotes: GitRemote[] = [];
+  private remoteTagsResult: QueryResult<"remoteTags"> | null = null;
+  private remoteTagsRepo = "";
+  private remoteTagsRequestId: number | null = null;
   private gitStashes: GitStash[] = [];
   private gitConfig: GitRepoConfig = createEmptyGitConfig();
   private commits: GitCommitNode[] = [];
@@ -819,6 +823,7 @@ class GitGraphView {
       this.refreshUncommittedChangesCommit(page);
       this.triggerLoadCommitsCallback(false);
       this.requestMissingSignatures();
+      this.requestRemoteTags();
       return;
     }
 
@@ -849,6 +854,36 @@ class GitGraphView {
     this.triggerLoadCommitsCallback(true);
     this.fetchAvatars(avatarsNeeded);
     this.requestMissingSignatures();
+    this.requestRemoteTags();
+  }
+  private forgetRemoteTags() {
+    this.remoteTagsResult = null;
+    this.remoteTagsRequestId = null;
+  }
+  private requestRemoteTags() {
+    if (this.remoteTagsRepo !== this.currentRepo) {
+      this.remoteTagsRepo = this.currentRepo;
+      this.forgetRemoteTags();
+    }
+    if (
+      this.remoteTagsResult !== null ||
+      this.remoteTagsRequestId !== null ||
+      !this.getShowTags() ||
+      !this.commits.some((commit) => commit.refs.some((ref) => ref.type === "tag"))
+    )
+      return;
+    const requestId = this.createRequestId();
+    this.remoteTagsRequestId = requestId;
+    sendMessage({ command: "remoteTags", requestId, repo: this.currentRepo });
+  }
+  public loadRemoteTags(msg: Extract<GGL.ResponseMessage, { command: "remoteTags" }>) {
+    if (msg.repo !== this.currentRepo || msg.requestId !== this.remoteTagsRequestId) return;
+    this.remoteTagsRequestId = null;
+    this.remoteTagsResult = msg;
+    if (this.isTableMounted()) {
+      this.renderTable();
+      this.renderGraph();
+    }
   }
   /**
    * A freshly loaded page with the signatures already read for this
@@ -1022,6 +1057,7 @@ class GitGraphView {
   /* Refresh */
   public refresh(hard: boolean) {
     if (hard) {
+      this.forgetRemoteTags();
       if (this.expandedCommit !== null) {
         this.expandedCommit = null;
         this.saveState();
@@ -4963,12 +4999,36 @@ class GitGraphView {
     const refName = escapeHtml(ref.name);
     const refActive = ref.type === "head" && ref.name === this.gitBranchHead;
     const signed = ref.type === "tag" && ref.signed === true;
-    const title = escapeHtml(signed ? `${ref.name} — ${l10n.signedTagTooltip}` : ref.name);
-    const badge = signed ? `<span class="gitRefSignedBadge">${svgIcons.verified}</span>` : "";
-    return (
-      `<span class="gitRef ${ref.type}${refActive ? " active" : ""}${signed ? " signed" : ""}${extraClass}" data-name="${refName}" title="${title}">` +
-      `${this.refIcon(ref.type)}${badge}${escapeHtml(label)}</span>`
+    const remoteTag = ref.type === "tag" ? this.getTagRemoteStatus(ref) : null;
+    const title = escapeHtml(
+      [ref.name, signed ? l10n.signedTagTooltip : "", remoteTag?.status].filter(Boolean).join(" — ")
     );
+    const badge = signed ? `<span class="gitRefSignedBadge">${svgIcons.verified}</span>` : "";
+    const primary =
+      `<span class="gitRef ${ref.type}${refActive ? " active" : ""}${signed ? " signed" : ""}${extraClass}" data-name="${refName}" title="${title}">` +
+      `${this.refIcon(ref.type)}${badge}${escapeHtml(label)}</span>`;
+    if (!remoteTag?.remotes.length) return primary;
+    const aliases = remoteTag.remotes
+      .map(
+        (remote) =>
+          `<span class="gitRef tag gitRefAlias" data-name="${refName}" title="${title}">${escapeHtml(remote)}</span>`
+      )
+      .join("");
+    return `<span class="gitRefGroup" role="group" aria-label="${title}">${primary}${aliases}</span>`;
+  }
+  private getTagRemoteStatus(ref: GitCommitNode["refs"][number]) {
+    const result = this.remoteTagsRepo === this.currentRepo ? this.remoteTagsResult : null;
+    if (result === null) return null;
+    const tag = result.tags[ref.name];
+    const remotes = tag?.hash === ref.hash ? tag.remotes : [];
+    const unavailable =
+      result.error !== null || result.unavailableRemotes.length > 0 || tag?.hash !== ref.hash;
+    let status = unavailable ? l10n.tagRemotesUnavailable : l10n.tagNotOnRemotes;
+    if (remotes.length > 0) {
+      status = l10n.tagOnRemotes.replace("{0}", remotes.join(", "));
+      if (unavailable) status += `. ${l10n.tagRemotesUnavailable}`;
+    }
+    return { remotes, status };
   }
   private refIcon(type: GitCommitNode["refs"][number]["type"]) {
     return type === "tag" ? svgIcons.tag : svgIcons.branch;
@@ -6779,6 +6839,7 @@ type ResponseHandlerMap = {
 };
 
 const responseHandlers: ResponseHandlerMap = {
+  remoteTags: (msg) => gitGraph.loadRemoteTags(msg),
   commitComparison: handleCommitComparisonResponse,
   commitDetails: handleCommitDetailsResponse,
   commitSignatures: (msg) =>
