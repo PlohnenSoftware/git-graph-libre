@@ -1,11 +1,18 @@
 import type { SimpleGit } from "simple-git";
-import { loadWorktrees } from "@/backend/queries/worktrees";
+import { loadWorktrees, type WorktreeListResult } from "@/backend/queries/worktrees";
 import type { GitQueryError, GitWorktree, QueryResult } from "@/backend/types";
 import { isGitRepository } from "@/backend/utils/git";
 import { type GitCommandRecorder, runGitCommand, runGitRaw } from "@/backend/utils/gitRunner";
 import { logBackendRoute } from "@/backend/utils/operationLog";
 import { toGitQueryError } from "@/backend/utils/queryError";
 import { isHiddenRemoteRef } from "@/backend/utils/remoteRefs";
+
+/** Lists a repository's worktrees; the caller decides whether the engine may answer. */
+export type WorktreeReader = (
+  git: SimpleGit,
+  repo: string,
+  record?: GitCommandRecorder
+) => Promise<WorktreeListResult>;
 
 type LoadBranchesInput = {
   showRemoteBranches: boolean;
@@ -14,6 +21,8 @@ type LoadBranchesInput = {
   currentRepo: string;
   gitPath: string;
   recordGitCommand?: GitCommandRecorder;
+  /** The worktree list reader; without one, `git worktree list` answers. */
+  readWorktrees?: WorktreeReader;
 };
 
 type Upstreams = Record<string, string | null>;
@@ -23,12 +32,16 @@ const LOCAL_PREFIX = "refs/heads/";
 const REMOTE_PREFIX = "refs/remotes/";
 
 /**
- * The one place the branch read lists worktrees. The CLI's `loadWorktrees`
- * answers today; the engine's reader replaces this call when it lands. A
- * failure is logged and yields an empty list, so the branch read still succeeds.
+ * The one place the branch read lists worktrees: the injected reader (the
+ * engine-backed one in the message handler), or the CLI's `loadWorktrees`.
+ * A failure is logged and yields an empty list, so the branch read still succeeds.
  */
-async function readWorktrees(git: SimpleGit, input: LoadBranchesInput): Promise<GitWorktree[]> {
-  const result = await loadWorktrees(git, input.currentRepo, input.recordGitCommand);
+async function loadBranchWorktrees(
+  git: SimpleGit,
+  input: LoadBranchesInput
+): Promise<GitWorktree[]> {
+  const read = input.readWorktrees ?? loadWorktrees;
+  const result = await read(git, input.currentRepo, input.recordGitCommand);
   if (result.error === null) return result.value;
   logBackendRoute("loadBranches", "worktrees=unavailable");
   return [];
@@ -108,7 +121,7 @@ export async function loadBranches(
   let upstreams: Upstreams = {};
   if (failure === null) {
     [worktrees, upstreams] = await Promise.all([
-      readWorktrees(git, input),
+      loadBranchWorktrees(git, input),
       readUpstreams(git, input)
     ]);
   }

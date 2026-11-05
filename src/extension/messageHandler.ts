@@ -54,6 +54,7 @@ import {
   didEngineServeRead,
   engineUnavailableReason
 } from "@/backend/engine/index";
+import { readWorktrees as readWorktreeList } from "@/backend/engine/worktrees";
 import type { GitClient } from "@/backend/gitClient";
 import { branchPushDefaults } from "@/backend/queries/branchPushDefaults";
 import { commitSignatures } from "@/backend/queries/commitSignatures";
@@ -887,7 +888,19 @@ export function registerMessageHandlers(
       hard: msg.hard,
       currentRepo: currentRepo ?? "",
       gitPath: config.gitPath(),
-      recordGitCommand
+      recordGitCommand,
+      // The worktree list follows the same live setting and repository
+      // verification as every other read (see `readerFor`).
+      readWorktrees: (git, repo, record) =>
+        readWorktreeList(
+          git,
+          repo,
+          {
+            backend: () => config.backend(),
+            isVerified: (verified) => deps.repoSearch?.isVerified(verified) ?? false
+          },
+          record
+        )
     });
     noteReadFailure(currentRepo, result.error);
     if (result.error !== null) logApplication("loadBranches", "errorResponse");
