@@ -58,7 +58,7 @@ in terms of git, since that layer is not incorporated. The parts taken:
 - `Repo::uses_replace_refs` and `decline_replace_refs`, which handed every
   history read to the CLI whenever `refs/replace/*` existed because gix applied
   `core.useReplaceRefs` the opposite way to git, are gone: the gix fix
-  (`1b6d8da7a`, in the pinned gitoxide commit `0a49d46f6a0b`) replaced them.
+  (`1b6d8da7a`, in the pinned gitoxide commit `39e093fb541f`) replaced them.
   `git_parity.rs` pins that the engine matches git under replacements with the
   setting on and off.
 
