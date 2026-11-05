@@ -10,7 +10,7 @@ summary: >-
 
 # W40 — Engine reads on linked worktrees, proven
 
-Status: claimed by Claude Sonnet 5.5 on 2026-11-05 12:00
+Status: done — awaiting integration
 Needs: W01, W07
 Decisions: —
 Kind: Rust and TypeScript, the Rust arm applies · Size budget: ~250 changed
@@ -61,4 +61,13 @@ repository gone.
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Sonnet 5.5, 2026-11-05
+- **Branch and commits:** `wt-1.10.0/W40`: `fix(engine): count other worktrees' HEADs in authors and stats`; `fix(engine): decline a linked worktree that no longer exists`; `test(engine): every wired read on a linked worktree against git`; `fix(engine): bump the engine to 1.0.28`; `test(engine): the reader's reads on a linked worktree against the CLI` (plus the claim).
+- **Files changed:** `engine/native/core/src/{log,stats,repository,api}.rs`; version `1.0.28` in `engine/Cargo.toml`, `engine/package.json`, `engine/Cargo.lock`, `EXPECTED_ENGINE_VERSION`; tests `engine/native/core/tests/{linked_worktree.rs,common/mod.rs}` (`TestRepo::git_in`), `tests/backend/engine/linkedWorktree.test.ts`.
+- **Divergences found:** (1) `authors`, `author_stats` and `activity_heatmap` missed commits reachable only from another worktree's HEAD, which `git log --all` and `git shortlog --all` include. Fixed: `log::every_tip` adds `worktrees/<id>/HEAD` and `main-worktree/HEAD` read through the ref store (no sibling is opened), shared by authors and stats. (2) A removed or moved linked worktree kept being served; worse, `Repo::discover` from the missing folder found an enclosing repository when the worktree sat inside the main work tree. Fixed: `RepoManager::get` evicts and returns `NotARepository` when the `.git` file or admin dir is gone. Every other read matched Git unchanged: repository info and refs (the `refs/worktree/*` ref stays hidden, as in the CLI scans), the commit walk, details, comparisons, the uncommitted row, staged file, stashes, search, and `config.worktree` identity.
+- **Declined by design (pinned by TS tests):** the `*` commit-details row and any comparison against the work tree stay on the CLI (existing reader rule).
+- **Stale comments:** `Repo::git_dir` field comment and `Engine::git_dir` doc corrected (the shared handle caches it; in a linked worktree it is the private admin dir).
+- **Version:** bumped to `1.0.28`: TypeScript's author filter relies on the authors change (a `1.0.27` binary omits those commits) and on the freshness decline. Author stats and the heatmap are not wired in TypeScript yet.
+- **Gates:** Rust fmt, lint, check pass; `engine:test` all pass (the diff crate's `vscode_fixtures` first failed on a stale baked manifest path in the recycled `engine/target`; `touch` of the test file rebuilt it, no code change); `engine:build` and `engine:smoke` report 1.0.28; typecheck clean; `pnpm run test` backend 1311/1311 and webview 836/836, nothing skipped; biome strict clean on the touched TS files; l10n n/a; Sonar: integrator.
+- **Acceptance:** met.
+- **Open questions:** a bare main repository's own HEAD is included by Git among a linked worktree's siblings; the engine reads `main-worktree/HEAD` there too but this was not tested with a bare main.
