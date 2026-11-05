@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Tag badges show which remotes hold the same tag, with background checks and
+  hover text distinguishing local tags from unavailable remote information
+  ([#46](https://github.com/PlohnenSoftware/git-graph-libre/issues/46)).
+
 ### Fixed
 
 - **Checking out a remote branch suggests its full name.** The name in the

@@ -57,6 +57,7 @@ import {
 import type { GitClient } from "@/backend/gitClient";
 import { commitSignatures } from "@/backend/queries/commitSignatures";
 import { loadBranches } from "@/backend/queries/loadBranches";
+import { remoteTags } from "@/backend/queries/remoteTags";
 import { resolveRef } from "@/backend/queries/resolveRef";
 import { tagDetails } from "@/backend/queries/tagDetails";
 import { uncommittedDetails } from "@/backend/queries/uncommittedDetails";
@@ -770,6 +771,15 @@ export function registerMessageHandlers(
   });
 
   // --- Query handlers ---
+
+  bridge.onMessage("remoteTags", (msg) => {
+    // Do not keep the file watcher muted while waiting for the network.
+    void remoteTags({ repo: msg.repo, gitPath: config.gitPath(), recordGitCommand }).then(
+      (result) => {
+        bridge.post({ command: "remoteTags", requestId: msg.requestId, repo: msg.repo, ...result });
+      }
+    );
+  });
 
   bridge.onMessage("loadCommits", async (msg) => {
     // `forceCli` is the hidden menu's one-off Git CLI reload.

@@ -14,6 +14,7 @@ import {
   COMMIT_DETAILS_KEYBOARD_RESIZE_STEP,
   COMMIT_DETAILS_MIN_HEIGHT
 } from "@/webview/commitDetailsView";
+import { setStatusStrip } from "@/webview/statusStrip";
 
 import { createVscodeMock, receive, setupHtml } from "./setup";
 
@@ -226,6 +227,20 @@ describe("webview rendering", () => {
       if (msg.command === "loadCommits") return msg;
     }
     throw new Error("Missing loadCommits request");
+  }
+
+  function latestRemoteTagsRequest() {
+    const request = vscodeMock.sentMessages.findLast((msg) => msg.command === "remoteTags");
+    if (request?.command !== "remoteTags") throw new Error("Missing remoteTags request");
+    return request;
+  }
+
+  function refreshRemoteTags() {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receiveLoadedCommits(twoCommits, "abc123");
+    return latestRemoteTagsRequest();
   }
 
   function latestLoadExtensionSettingsRequest(): LoadExtensionSettingsRequest {
@@ -584,6 +599,81 @@ describe("webview rendering", () => {
     expect(document.querySelectorAll(".gitRefGroup")).toHaveLength(0);
 
     receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("adds remote tag aliases after rendering, preserves tag actions, and ignores stale replies", () => {
+    const request = refreshRemoteTags();
+    expect(gitRef("v1.0.0", ".gitRef.tag")).not.toBeNull();
+    const response: Extract<GGL.ResponseMessage, { command: "remoteTags" }> = {
+      ...request,
+      tags: { "v1.0.0": { hash: "abc123", remotes: ["origin", "backup<test>"] } },
+      unavailableRemotes: [],
+      error: null
+    };
+    receive({ ...response, repo: "/another/repo" });
+    expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(0);
+    setStatusStrip("action", "Pushing tag");
+    receive(response);
+    expect(document.getElementById("statusStrip")?.dataset.state).toBe("action");
+    receiveLoadedCommits(
+      [
+        { ...twoCommits[0], refs: [{ hash: "abc123", name: "v1.0.0", type: "tag", signed: true }] },
+        twoCommits[1]
+      ],
+      "abc123"
+    );
+    expect(document.querySelectorAll(".gitRefSignedBadge")).toHaveLength(1);
+    const aliases = document.querySelectorAll<HTMLElement>(".gitRef.tag.gitRefAlias");
+    expect(Array.from(aliases, (alias) => alias.textContent)).toEqual(["origin", "backup<test>"]);
+    expect(document.querySelector("test")).toBeNull();
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain("On remotes: origin, backup<test>");
+    aliases[0]?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Copy Tag Name");
+    expect(vscodeMock.sentMessages.at(-1)).toMatchObject({
+      command: "copyToClipboard",
+      data: "v1.0.0"
+    });
+
+    const requestsBefore = vscodeMock.sentMessages.filter(
+      (msg) => msg.command === "remoteTags"
+    ).length;
+    receiveLoadedCommits(twoCommits, "abc123");
+    expect(vscodeMock.sentMessages.filter((msg) => msg.command === "remoteTags")).toHaveLength(
+      requestsBefore
+    );
+    const refreshed = refreshRemoteTags();
+    expect(refreshed.requestId).not.toBe(request.requestId);
+    receive(response);
+    expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(0);
+    receive({ ...response, ...refreshed, tags: { "v1.0.0": { hash: "abc123", remotes: [] } } });
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain("Local tag not found on any remote");
+    refreshRemoteTags();
+  });
+
+  it("does not describe failed remote reads or a stale tag target as local-only", () => {
+    const request = refreshRemoteTags();
+    receive({
+      ...request,
+      tags: { "v1.0.0": { hash: "abc123", remotes: [] } },
+      unavailableRemotes: ["origin"],
+      error: null
+    });
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain(
+      "remote tag information is unavailable"
+    );
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).not.toContain("not found");
+    const next = refreshRemoteTags();
+    receive({
+      ...next,
+      tags: { "v1.0.0": { hash: "def456", remotes: ["origin"] } },
+      unavailableRemotes: [],
+      error: null
+    });
+    expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(0);
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain(
+      "remote tag information is unavailable"
+    );
+    refreshRemoteTags();
   });
 
   it("sends selected branch glob, author, and tag filters from toolbar dropdowns", () => {
