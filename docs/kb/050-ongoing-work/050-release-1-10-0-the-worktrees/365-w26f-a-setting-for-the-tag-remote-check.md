@@ -11,7 +11,7 @@ summary: >-
 
 # W26F — A setting for the tag remote check
 
-Status: claimed by Claude Sonnet 5.5 on 2026-11-05 12:00
+Status: done — awaiting integration
 Needs: W26 (integrated `a93ddc7`: PR #47 merged)
 Decisions: Y23, answered (b) on `2026-11-05`: a setting, on by default
 Kind: TypeScript, webview, manifest and l10n · Size budget: ~200 changed
@@ -106,4 +106,50 @@ needs adding there), tests, `README.md`, `CHANGELOG.md`
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Sonnet 5.5, 2026-11-05
+- **Branch and commits:** `wt-1.10.0/W26F`
+  - `861e85c G feat(tags): declare the repository.showTagRemotes setting (W26F)`
+  - `e46ff90 G feat(tags): gate the tag remote check on showTagRemotes (W26F)`
+  - `08e9fb9 G fix(tags): request remote tags before drawing the rows (W26F)`
+  - `9036be7 G test(tags): cover the setting, F4, F5 and F10 (W26F)`
+  - `860fe39 G docs(tags): document showTagRemotes in the README and changelog (W26F)`
+  - (the claim, `4d900e3`, and this report are separate commits)
+- **Files changed:** manifest and five `package.nls*.json`; `src/config.ts`,
+  `src/types.ts`, `src/webview/global.d.ts`, `src/extension/webviewHtml.ts`,
+  `src/extension/messageHandler.ts` (the `remoteTags` handler only),
+  `src/webview/main.ts` (remote tag logic, settings echo, the two ref
+  listener registrars), `src/webview/utils/dom.ts`, README, CHANGELOG; tests.
+  `remoteTags.ts` untouched.
+- **Behavior:**
+  - Off: the webview sends no request, drops the snapshot, ignores late
+    replies, and badges are the pre-PR-47 ones; the handler answers an empty
+    no-error result and starts no process. Toggling in the Settings popup
+    works live (the hub echo; on behaves like a Refresh).
+  - F4: a visible tag missing from the snapshot, or with another hash,
+    re-requests (not when the last read failed, which lists no tags); the tag
+    shows no status until the reply.
+  - F5: a hard refresh keeps the snapshot and drops the in-flight request;
+    a reply redraws only the ref badges of rows with tags, in place, and
+    re-attaches the ref menu and double-click listeners to them; no
+    `renderTable()` or `renderGraph()`.
+  - F10: replacer function; no status when the repository has no remotes.
+  - `requestRemoteTags()` now runs before the rows are drawn.
+- **Tests added or changed:** webview: 4 new rendering tests (off and live
+  toggle; F4; F5; F10), 1 changed (stale-while-revalidate assertion; the
+  helper loads a repo with a remote); 2 new `messageHandler` tests (off and
+  on); config and manifest default entries. All `GitGraphViewState` fixtures
+  gained `showTagRemotes`. Counts: backend 1241 to 1244 total, webview 804 to
+  810.
+- **Gates:** strict Biome clean on the 31 touched `.ts` files plus
+  `package.json`; `typecheck` passes; `test` backend 1184 passed, 60 skipped
+  of 1244, webview 810 of 810; `l10n:check` complete; `kb:check` run after
+  this report; Sonar: integrator
+- **Acceptance:** met, each with a test as listed above.
+- **Deviations from the slice:** `src/webview/utils/dom.ts` is outside the
+  Touch list: `addListenerToClass` gained an optional root so patched cells
+  can be wired without re-registering every row. Translations for nl, pl,
+  zh-cn and zh-tw are my own, not reviewed by a native speaker. The
+  settings-echo test fixtures in about 20 test files gained one line.
+- **Open questions / follow-ups:** editing the key in VS Code's own settings
+  UI does not reach an open graph (the whitelist in `extension.ts`, as for
+  every other key); left alone.
