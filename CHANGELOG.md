@@ -29,6 +29,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   remembers the last choice
   ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
 
+- **Checking out a remote branch whose local branch exists asks what to do.**
+  Checkout Branch on a remote branch used to end in Git's "a branch named …
+  already exists" whenever the local branch was already there. It now finds
+  that branch first — by the name it would create, or because a local branch
+  already tracks the remote branch under another name — and offers to switch
+  to it, switch and fast-forward it to the remote branch (fast-forward only,
+  never a merge, and no network), or create a branch with another name. A
+  branch checked out in another worktree offers that worktree instead.
+  Thanks to @rbalet for the request and @cktgh for the analysis in the
+  duplicate report
+  ([#45](https://github.com/PlohnenSoftware/git-graph-libre/issues/45)).
+
 - **Free a branch that a leftover worktree blocks.** Delete Branch on a branch
   checked out in another worktree now offers to remove that worktree first, then
   deletes the branch. A worktree with uncommitted or untracked files is removed
@@ -46,8 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `admin-gui`, and the next checkout of that branch failed because a branch
   with that name already existed. It now suggests `feat/admin-gui`. Thanks to
   @cktgh for diagnosing it and @rbalet for reporting it
-  ([#45](https://github.com/PlohnenSoftware/git-graph-libre/issues/45)). Reusing
-  an existing local branch is still to come.
+  ([#45](https://github.com/PlohnenSoftware/git-graph-libre/issues/45)).
 
 - **A checkbox toggles from anywhere on its row, in every popup.** Only the
   box and its text reacted before; a click on the rest of the row, right of
