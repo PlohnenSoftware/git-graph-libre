@@ -8,7 +8,7 @@ summary: >-
 
 # W26HF — Remote tag read Sonar follow-up
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-11-05 18:30
 Needs: W26H (integrated `d607144`)
 Decisions: —
 Kind: TypeScript · Size budget: ~20 changed lines outside tests
