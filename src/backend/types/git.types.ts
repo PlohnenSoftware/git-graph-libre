@@ -152,6 +152,29 @@ export type GitStash = {
   sourceHash: string | null;
 };
 
+/**
+ * One worktree of a repository, as `git worktree list --porcelain -z` reports
+ * it. Git is the authority: nothing here is inferred from the file system.
+ */
+export type GitWorktree = {
+  /** Absolute path, as Git prints it. */
+  path: string;
+  /** Commit at HEAD; null only for a bare main repository. */
+  head: string | null;
+  /** Branch name with `refs/heads/` stripped; null when detached or bare. */
+  branch: string | null;
+  detached: boolean;
+  bare: boolean;
+  /** The first record Git lists. */
+  isMain: boolean;
+  /** The repository asked about, compared by canonical path. */
+  isCurrent: boolean;
+  /** Reason is "" when the worktree is locked without one. */
+  locked: { reason: string } | null;
+  /** Reason is "" when Git gives none. Prunable also means "moved by hand". */
+  prunable: { reason: string } | null;
+};
+
 export type GitConfigValue = {
   local: string | null;
   global: string | null;
