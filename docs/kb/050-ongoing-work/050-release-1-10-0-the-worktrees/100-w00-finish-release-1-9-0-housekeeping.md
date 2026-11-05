@@ -70,3 +70,18 @@ broken. Search for each moved title.
   - `050-ongoing-work/020-near-term-work-order.md` still lists "D90 step 7" as remaining (around line 80) and Phase 8's comparison as remaining (around line 175). Both are stale now. I did not edit it, since it is not one of the steps the slice names. The integrator should decide.
   - The release overview and its W00 row are integrator-owned, and I did not touch them. The overview still says "D90 — Release 1.9.0, step 7" in its goals table.
   - The W00 summary in the index still says "ready". That comes from this slice file's front matter, which I left alone (the protocol allows only the Status line and the Report).
+
+**Follow-up W00b (step 3, Y15 (b)).** Decision Y15 was answered (b), yes, on
+`2026-11-05`, and step 3 was done as a separate slice. Created
+`020-rules/040-multi-agent-releases.md` (`# Multi-agent releases`, not
+always read): the lasting, release-independent parts of the 1.9.0 agent
+protocol and integrator procedure, with generic `<release-prefix>`, `<ID>` and
+`<integration-branch>` placeholders and no release-specific slices, decisions
+or waves. Changed the 1.10.0 agent protocol and integrator procedure so each
+says "follow Multi-agent releases (Rules)" and links to it, keeping their
+1.10.0 substitutions, worktree rules, issue-reference section and release
+bullets, and updated their summaries. The 1.9.0 copies in History are
+untouched. Ran `pnpm run kb:index` and `pnpm run kb:check` (exit 0); `kb:graph`
+was not run. Each relative link in the new text resolves. W00's `Status:` line
+is unchanged. Commits: `0e505c2` (the rules section and index), `67f14d5` (the
+pointers and index).
