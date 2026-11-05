@@ -12,6 +12,7 @@ export const DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY = {
     viewIssue: true,
     createPullRequest: true,
     createArchive: true,
+    createWorktree: true,
     compareWithHead: true,
     compareWith: true,
     copyName: true
@@ -19,6 +20,7 @@ export const DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY = {
   commit: {
     addTag: true,
     createBranch: true,
+    createWorktree: true,
     compareWithHead: true,
     compareWith: true,
     compareSelection: true,
@@ -56,6 +58,7 @@ export const DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY = {
     viewIssue: true,
     createPullRequest: true,
     createArchive: true,
+    createWorktree: true,
     compareWithHead: true,
     compareWith: true,
     copyName: true
@@ -74,6 +77,7 @@ export const DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY = {
     push: true,
     fetchTags: true,
     createArchive: true,
+    createWorktree: true,
     compareWithHead: true,
     compareWith: true,
     copyName: true

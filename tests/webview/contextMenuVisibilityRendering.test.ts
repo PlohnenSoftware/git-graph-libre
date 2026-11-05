@@ -199,6 +199,7 @@ describe("context menu visibility rendering", () => {
           delete: false,
           push: false,
           fetchTags: false,
+          createWorktree: false,
           compareWithHead: false,
           compareWith: false,
           copyName: false

@@ -177,6 +177,7 @@ describe("remote branch context menu visibility", () => {
       "Fetch into local branch…",
       "Pull Branch…",
       "Create Archive",
+      "Create Worktree…",
       "Compare with HEAD",
       "Compare With…",
       "Copy Branch Name to Clipboard"

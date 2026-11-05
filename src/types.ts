@@ -79,6 +79,7 @@ export type ContextMenuActionsVisibility = {
     viewIssue: boolean;
     createPullRequest: boolean;
     createArchive: boolean;
+    createWorktree: boolean;
     compareWithHead: boolean;
     compareWith: boolean;
     copyName: boolean;
@@ -86,6 +87,7 @@ export type ContextMenuActionsVisibility = {
   commit: {
     addTag: boolean;
     createBranch: boolean;
+    createWorktree: boolean;
     compareWithHead: boolean;
     compareWith: boolean;
     compareSelection: boolean;
@@ -123,6 +125,7 @@ export type ContextMenuActionsVisibility = {
     viewIssue: boolean;
     createPullRequest: boolean;
     createArchive: boolean;
+    createWorktree: boolean;
     compareWithHead: boolean;
     compareWith: boolean;
     copyName: boolean;
@@ -141,6 +144,7 @@ export type ContextMenuActionsVisibility = {
     push: boolean;
     fetchTags: boolean;
     createArchive: boolean;
+    createWorktree: boolean;
     compareWithHead: boolean;
     compareWith: boolean;
     copyName: boolean;
