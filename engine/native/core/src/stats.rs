@@ -1,8 +1,9 @@
 //! The Statistics view's two reads: commits-per-author and the commit-activity heatmap.
 //!
 //! Both walk every commit reachable from `--all`'s real ref coverage (branches, tags,
-//! remote-tracking, HEAD, *and* the stash - `refs/stash` is a plain ref under `refs/`, so real
-//! `git --all` walks it too, even though `log::all_tips` alone does not enumerate it), excluding
+//! remote-tracking, HEAD, the stash - `refs/stash` is a plain ref under `refs/`, so real
+//! `git --all` walks it too, even though `log::all_tips` alone does not enumerate it - and the
+//! HEADs of the other worktrees, see `log::every_tip`), excluding
 //! merge commits, mirroring `git shortlog -sne --all --no-merges` and
 //! `git log --all --format=%aI --no-merges` respectively - the CLI backend this engine path is
 //! ported from, and which cross-backend tests assert stays in agreement with it.
@@ -10,27 +11,14 @@
 use std::collections::HashMap;
 
 use crate::error::{Result, ResultExt};
-use crate::log::{all_tips, stash_tip};
+use crate::log::every_tip;
 use crate::repository::Repo;
 use crate::types::{GitActivityCell, GitAuthorStat};
-
-/// `all_tips` plus the stash tip (if any), deduplicated - the same merge `search_commits`
-/// performs, duplicated here rather than factored out so this module cannot change that
-/// already-tested walk's behaviour.
-fn all_tips_with_stash(repo: &Repo) -> Result<Vec<gix::ObjectId>> {
-    let mut tips = all_tips(repo, true, true)?;
-    if let Some(stash) = stash_tip(repo) {
-        if !tips.contains(&stash) {
-            tips.push(stash);
-        }
-    }
-    Ok(tips)
-}
 
 /// Commit counts per author, across all refs, merge commits excluded - what
 /// `git shortlog -sne --all --no-merges` aggregates into.
 pub fn author_stats(repo: &Repo) -> Result<Vec<GitAuthorStat>> {
-    let tips = all_tips_with_stash(repo)?;
+    let tips = every_tip(repo)?;
     let git = repo.borrow();
 
     let mut counts: HashMap<(String, String), usize> = HashMap::new();
@@ -79,7 +67,7 @@ pub fn author_stats(repo: &Repo) -> Result<Vec<GitAuthorStat>> {
 /// commit made at 11pm in the author's timezone bins as "night" regardless of what time it was
 /// for whoever happens to be viewing the graph.
 pub fn activity_heatmap(repo: &Repo) -> Result<Vec<GitActivityCell>> {
-    let tips = all_tips_with_stash(repo)?;
+    let tips = every_tip(repo)?;
     let git = repo.borrow();
 
     let mut counts: HashMap<(u8, u8), usize> = HashMap::new();

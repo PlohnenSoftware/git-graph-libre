@@ -530,6 +530,54 @@ pub fn all_tips(repo: &Repo, include_tags: bool, include_remotes: bool) -> Resul
     Ok(tips)
 }
 
+/// The commits the other worktrees' HEADs point at, which `git log --all` includes.
+///
+/// Each is read as `worktrees/<id>/HEAD` (and `main-worktree/HEAD` from a linked worktree)
+/// through the reference store: no sibling worktree is ever opened, so a sibling that fails the
+/// trust check, or has vanished, costs nothing here. An unborn HEAD names no commit and is left
+/// out. The current worktree's own HEAD is already part of [`all_tips`].
+fn other_worktree_heads(repo: &Repo) -> Vec<ObjectId> {
+    let git = repo.borrow();
+    let mut names = Vec::new();
+    if git.git_dir() != git.common_dir() {
+        names.push("main-worktree/HEAD".to_string());
+    }
+    let own = git.git_dir().file_name().map(|name| name.to_owned());
+    if let Ok(entries) = std::fs::read_dir(git.common_dir().join("worktrees")) {
+        for entry in entries.filter_map(std::result::Result::ok) {
+            let admin = entry.file_name();
+            if git.git_dir() != git.common_dir() && Some(&admin) == own.as_ref() {
+                continue;
+            }
+            if let Some(id) = admin.to_str() {
+                names.push(format!("worktrees/{id}/HEAD"));
+            }
+        }
+    }
+    names
+        .iter()
+        .filter_map(|name| git.try_find_reference(name.as_str()).ok().flatten())
+        .filter_map(|mut head| head.peel_to_id().ok())
+        .map(|id| id.detach())
+        .collect()
+}
+
+/// Every tip `git log --all` walks from: all branches, tags and remote-tracking refs, HEAD, the
+/// stash (`refs/stash` is a plain ref under `refs/`, which [`all_tips`] does not enumerate), and
+/// the HEADs of the other worktrees. Deduplicated, and never empty.
+pub(crate) fn every_tip(repo: &Repo) -> Result<Vec<ObjectId>> {
+    let mut tips = all_tips(repo, true, true)?;
+    let extra = stash_tip(repo)
+        .into_iter()
+        .chain(other_worktree_heads(repo));
+    for tip in extra {
+        if !tips.contains(&tip) {
+            tips.push(tip);
+        }
+    }
+    Ok(tips)
+}
+
 /* ---------- History search ---------- */
 
 /// The commit `refs/stash` points at, if a stash exists.
@@ -636,22 +684,10 @@ pub fn count_commits_before(
 /// is parsed into: aggregated per (name, email), ordered by commit count (most first), then
 /// de-duplicated by name (the first, most-prolific spelling wins) and sorted by name.
 pub fn authors(repo: &Repo) -> Result<Vec<GitAuthor>> {
-    // Every ref, not just HEAD. The view fills its author filter from this and
-    // the CLI fills it from `git log --format=%an --all`, so anything short of
-    // `--all`'s coverage silently drops authors: a contributor whose work is
-    // only on a remote-tracking branch, or on a branch that is not checked
-    // out, would not be offered as a filter at all. `--all` is every ref under
-    // `refs/` plus HEAD, which includes `refs/stash` — `all_tips` does not
-    // enumerate that one, so it is added the same way `stats.rs` adds it.
-    let mut tips = all_tips(repo, true, true)?;
-    if let Some(stash) = stash_tip(repo) {
-        if !tips.contains(&stash) {
-            tips.push(stash);
-        }
-    }
-    if tips.is_empty() {
-        return Err(Error::not_found("The repository has no commits"));
-    }
+    // Every ref, not just HEAD: the view fills its author filter from this and the CLI fills it
+    // from `git log --format=%an --all`, so anything short of `--all`'s coverage silently drops
+    // authors. See `every_tip`.
+    let tips = every_tip(repo)?;
 
     let git = repo.borrow();
     let mut counts: HashMap<(String, String), usize> = HashMap::new();
