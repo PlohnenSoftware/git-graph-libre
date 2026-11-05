@@ -107,7 +107,7 @@ run one after another, as the integrator procedure says.
 | W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | needs W07 |
 | W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | ready; held until W07 is integrated (both bump the engine version) |
 | W10 | [Carry worktrees to the webview](050-release-1-10-0-the-worktrees/200-w10-carry-worktrees-to-the-webview.md) | TS | W02 | C | integrated `2a619c4` |
-| W10F | [Read worktrees through the engine reader](050-release-1-10-0-the-worktrees/205-w10f-read-worktrees-through-the-engine-reader.md) | TS | W03, W10 | C | dispatched `2026-11-05` (Haiku) |
+| W10F | [Read worktrees through the engine reader](050-release-1-10-0-the-worktrees/205-w10f-read-worktrees-through-the-engine-reader.md) | TS | W03, W10 | C | integrated `436e0b0` |
 | W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | ready (queued: one manifest or l10n slice at a time) |
 | W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | needs W07 (it seeds both backends' logs; after W07's engine bump) |
 | W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | dispatched `2026-11-05` (Sonnet) |
@@ -292,3 +292,11 @@ commit, the gate results with numbers, and the Sonar task id.
     not yet reviewed by native speakers.
   - Next: W26H dispatched to Sonnet, and W20 dispatched to Sonnet, taking
     the manifest and l10n slot.
+- `2026-11-05`: W10F integrated at `436e0b0`. `loadBranches` now reads the
+  worktree list through W03's engine reader, with the setting read live,
+  verified repositories only, and the CLI as the fallback.
+  - The rebase onto `33a0870` was clean.
+  - Typecheck passes. The backend passes 1230 (60 environment skips) and
+    the webview 824 of 824.
+  - The engine-served trust-gate case needs the built engine, as W03's
+    parity tests do.

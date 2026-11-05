@@ -1,6 +1,6 @@
 ---
 summary: >-
-  W10F · wave C · ready · TypeScript · ~40 lines: W10 and W03 were built in
+  W10F · wave C · integrated · TypeScript · ~40 lines: W10 and W03 were built in
   parallel, so W10's single worktree read in `loadBranches` calls the CLI's
   `loadWorktrees` directly. Route it through W03's engine-backed
   `readWorktrees` (`src/backend/engine/worktrees.ts`), which honors the
@@ -10,7 +10,7 @@ summary: >-
 
 # W10F — Read worktrees through the engine reader
 
-Status: done — awaiting integration
+Status: integrated `436e0b0` (`2026-11-05`)
 Needs: W03 (integrated `f9e54a4`), W10 (integrated `2a619c4`)
 Decisions: —
 Kind: TypeScript · Size budget: ~40 changed lines outside tests
