@@ -2599,6 +2599,13 @@ describe("webview rendering", () => {
     expect(clickEvent.defaultPrevented).toBe(true);
     await Promise.resolve();
     expect(lockedBox?.checked).toBe(true);
+    // The whole row is the click target (issue #41), and a locked row still
+    // refuses: a click on the label, which forwards to the box, changes nothing.
+    const lockedRow = lockedBox?.closest<HTMLLabelElement>("label.checkRow");
+    expect(lockedRow?.classList.contains("locked")).toBe(true);
+    lockedRow?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+    expect(lockedBox?.checked).toBe(true);
     // The reason is described to assistive tech, not just shown on hover.
     const hintId = lockedBox?.getAttribute("aria-describedby");
     expect(hintId).toBeTruthy();
@@ -2623,6 +2630,24 @@ describe("webview rendering", () => {
       repo: REPO,
       selector: "stash@{0}",
       reinstateIndex: false
+    });
+    dismissDialog();
+
+    // Issue #41: a click on the row (its label, not the box) toggles the box
+    // once, and the submitted value follows it.
+    openStashContextMenu();
+    clickContextMenuItem("Pop Stash");
+    const reinstateBox = document.getElementById("dialogInput0") as HTMLInputElement | null;
+    const reinstateRow = reinstateBox?.closest<HTMLLabelElement>("label.checkRow");
+    expect(reinstateBox?.checked).toBe(false);
+    reinstateRow?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(reinstateBox?.checked).toBe(true);
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
+      command: "popStash",
+      repo: REPO,
+      selector: "stash@{0}",
+      reinstateIndex: true
     });
     dismissDialog();
 

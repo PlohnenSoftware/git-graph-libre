@@ -7854,7 +7854,7 @@ function renderDialogCheckboxInput(
   const checked = input.value ? " checked" : "";
   const label = multiElementForm ? "" : input.name;
   if (input.lock === undefined) {
-    return `<span class="dialogFormCheckbox${input.grouped === true ? " grouped" : ""}"><label><input id="dialogInput${index}" type="checkbox"${checked}/>${label}</label></span>`;
+    return `<span class="dialogFormCheckbox${input.grouped === true ? " grouped" : ""}"><label class="checkRow"><input id="dialogInput${index}" type="checkbox"${checked}/>${label}</label></span>`;
   }
   // Locked: the same control in its forced state. It keeps `checked` (so the
   // submitted value is the real one), stays focusable and full-contrast rather
@@ -7863,7 +7863,7 @@ function renderDialogCheckboxInput(
   const hintId = `dialogInputLock${index}`;
   return [
     '<span class="dialogFormCheckbox locked">',
-    `<label><input id="dialogInput${index}" type="checkbox"${checked}`,
+    `<label class="checkRow locked"><input id="dialogInput${index}" type="checkbox"${checked}`,
     ` aria-disabled="true" aria-describedby="${hintId}"/>`,
     `${label}<span class="dialogLockGlyph" aria-hidden="true">?</span></label>`,
     `<span class="dialogLockHint" id="${hintId}" role="tooltip">`,

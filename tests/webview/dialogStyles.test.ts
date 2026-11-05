@@ -182,9 +182,8 @@ describe("dialog styles", () => {
     // a help cursor, and explains itself in a bubble on hover or focus.
     // A self-naming control spans the form, so its text stays beside the box
     // instead of being squeezed into the label column one word per line.
-    expect(css).toContain('#dialog table.dialogForm td[colspan="2"] .dialogFormCheckbox > label');
-    const label = ruleFor(css, "#dialog table.dialogForm .dialogFormCheckbox.locked > label");
-    expect(label).toContain("cursor: help;");
+    expect(css).toContain("#dialog table.dialogForm .dialogFormCheckbox > .checkRow");
+    expect(ruleFor(css, ".checkRow.locked")).toContain("cursor: help;");
     const hint = ruleFor(css, ".dialogLockHint");
     expect(hint).toContain("visibility: hidden;");
     expect(hint).toContain("var(--vscode-editorHoverWidget-background");
@@ -197,34 +196,42 @@ describe("dialog styles", () => {
     expect(ruleFor(css, ".dialogLockGlyph")).toContain("border-radius: 50%;");
   });
 
-  it("makes a whole checkbox row the hit area, keeping locked rows locked", () => {
-    // Issue #41: the label was inline-flex, so only the box and its text
-    // reacted. The wrapper and label now fill the row, and a click anywhere
-    // on it reaches the label (which toggles the input). The row keeps its
-    // inline-level box, so grouped and single rows keep their heights.
-    const row = ruleFor(css, '#dialog table.dialogForm td[colspan="2"] > .dialogFormCheckbox');
-    const pointer = ruleFor(
-      css,
-      '#dialog table.dialogForm td[colspan="2"] > .dialogFormCheckbox:not(.locked)'
-    );
-    const label = ruleFor(
-      css,
-      '#dialog table.dialogForm td[colspan="2"] .dialogFormCheckbox > label'
-    );
-    expect(row).toContain("display: inline-block;");
+  it("makes a whole checkbox row the hit area through one shared row pattern", () => {
+    // Issue #41: every popup's checkbox sits inside the shared .checkRow
+    // label, which fills its row and takes the pointer. The dialog wrapper
+    // and the label fill the form row and stay inline-level, so grouped and
+    // single rows keep their heights. No popup keeps a copy of the rule.
+    const row = ruleFor(css, ".checkRow");
+    expect(row).toContain("display: inline-flex;");
     expect(row).toContain("width: 100%;");
-    expect(pointer).toContain("cursor: pointer;");
-    expect(label).toContain("display: inline-flex;");
-    expect(label).toContain("width: 100%;");
-    // The label must not set its own cursor: that would override the help
-    // cursor a locked row takes from its own rule.
-    expect(label).not.toContain("cursor:");
+    expect(row).toContain("cursor: pointer;");
+    const wrapper = ruleFor(css, "#dialog table.dialogForm .dialogFormCheckbox");
+    expect(wrapper).toContain("display: inline-block;");
+    expect(wrapper).toContain("width: 100%;");
+    expect(wrapper).not.toContain("cursor");
+    const label = ruleFor(css, "#dialog table.dialogForm .dialogFormCheckbox > .checkRow");
+    expect(label).toContain("white-space: normal;");
+    expect(label).not.toContain("cursor");
+    expect(css).not.toContain('td[colspan="2"] > .dialogFormCheckbox');
+    expect(css).not.toContain(".dialogFormCheckbox:not(.locked)");
     // A locked row takes the help cursor across the whole row, and is kept
     // out of the pointer rule above.
-    expect(ruleFor(css, "#dialog table.dialogForm .dialogFormCheckbox.locked")).toContain(
-      "cursor: help;"
+    expect(ruleFor(css, ".checkRow.locked")).toContain("cursor: help;");
+    expect(ruleFor(css, ".checkRow.locked")).not.toContain("pointer");
+    // A disabled box gets no pointer, and its row gets none either.
+    expect(ruleFor(css, '.checkRow:has(> input[type="checkbox"]:disabled)')).toContain(
+      "cursor: default;"
     );
-    expect(pointer).not.toContain("help");
+    // The row has no hover tint of its own; the box keeps its hover feedback.
+    expect(css).not.toMatch(/\.checkRow[^{]*:hover[^{]*\{/);
+    // The box takes its row's cursor instead of its own pointer, so a locked
+    // row shows the help cursor over the box too.
+    const boxBase = css.slice(css.indexOf('#dialog table.dialogForm input[type="checkbox"],'));
+    expect(boxBase.slice(0, boxBase.indexOf("}"))).not.toContain("cursor:");
+    expect(css).toContain("#showRemoteBranchesCheckbox {");
+    expect(ruleFor(css, "#showRemoteBranchesCheckbox")).toContain("cursor: pointer;");
+    // Settings toggles keep their grid layout inside the shared label.
+    expect(ruleFor(css, ".settingsExtensionRow")).toContain("display: grid;");
   });
 
   it("keeps repository settings as a viewport popup above graph chrome", () => {

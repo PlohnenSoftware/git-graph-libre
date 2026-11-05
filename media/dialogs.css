@@ -194,30 +194,22 @@ dl.tagDetailsFields dd {
   padding-top: 9px;
 }
 /* A control that names itself spans the form and keeps its text beside the
-   box, so the label reads as one line at the control's own height. The row
-   is the hit area (issue #41): the wrapper and the label both fill the form
-   row, so a click right of the text toggles the box. They stay inline-level,
-   as before, so the row keeps the height its line box gave it. */
-#dialog table.dialogForm td[colspan="2"] > .dialogFormCheckbox {
+   box, so the label reads as one line at the control's own height. The
+   shared .checkRow label (checkbox.css) is the hit area (issue #41): the
+   wrapper and the label both fill the form row, so a click right of the text
+   toggles the box. They stay inline-level, as before, so the row keeps the
+   height its line box gave it. */
+#dialog table.dialogForm .dialogFormCheckbox {
   display: inline-block;
   width: 100%;
 }
-#dialog table.dialogForm td[colspan="2"] > .dialogFormCheckbox:not(.locked) {
-  cursor: pointer;
-}
-#dialog table.dialogForm td[colspan="2"] .dialogFormCheckbox > label {
-  display: inline-flex;
-  width: 100%;
+#dialog table.dialogForm .dialogFormCheckbox > .checkRow {
   align-items: center;
   gap: 6px;
   white-space: normal;
   line-height: 16px;
 }
 #dialog table.dialogForm.single select {
-  width: 100%;
-}
-#dialog table.dialogForm.single .dialogFormCheckbox {
-  display: inline-block;
   width: 100%;
 }
 #dialog table.dialogForm input[type="text"] {
@@ -311,20 +303,14 @@ dl.tagDetailsFields dd {
 /* Locked control: a setting the git command behind this dialog does not let
    the user choose. It is the ordinary checkbox in its forced state — enabled,
    focusable, full contrast — because greying it out would hide the very value
-   the user is trying to read. The whole row takes `cursor: help`, and the
-   reason appears in a bubble on hover or keyboard focus.
+   the user is trying to read. The whole row takes `cursor: help` (the shared
+   .checkRow.locked rule), and the reason appears in a bubble on hover or
+   keyboard focus.
 
    This is the standing pattern for any forced setting: same control, same
    place, explained in place. Never swap it for prose, and never drop it. */
 #dialog table.dialogForm .dialogFormCheckbox.locked {
   position: relative;
-  cursor: help;
-}
-#dialog table.dialogForm .dialogFormCheckbox.locked > label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: help;
 }
 .dialogLockGlyph {
   display: inline-flex;

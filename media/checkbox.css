@@ -21,7 +21,6 @@
   background-color: var(--vscode-checkbox-background, var(--ngg-neutral-overlay-subtle));
   border: 1px solid var(--vscode-checkbox-border, var(--ngg-neutral-border-strong));
   border-radius: 3px;
-  cursor: pointer;
   transition: background-color 120ms ease-in-out, border-color 120ms ease-in-out;
 }
 /* Dialog checkboxes keep their text-top alignment and label gap. */
@@ -35,6 +34,29 @@
   width: 14px;
   height: 14px;
   vertical-align: text-top;
+  cursor: pointer;
+}
+
+/* The shared checkbox row (issue #41). Every popup's checkbox sits inside a
+   <label class="checkRow">, so a click anywhere on the row reaches the box
+   through native label activation: one toggle, one change event. The row
+   fills its container and takes the pointer, and the box inherits that
+   cursor (the box has none of its own). A locked row takes the help cursor
+   instead, since its hint explains the forced value (dialogs.css), and a
+   disabled box gets none. The row has no hover tint of its own: the box
+   carries the hover feedback. The settings toggles change their display
+   to a grid in settings.css, which loads after this file. */
+.checkRow {
+  display: inline-flex;
+  box-sizing: border-box;
+  width: 100%;
+  cursor: pointer;
+}
+.checkRow.locked {
+  cursor: help;
+}
+.checkRow:has(> input[type="checkbox"]:disabled) {
+  cursor: default;
 }
 
 /* The tick is one filled shape clipped to a check outline. Percentage points
