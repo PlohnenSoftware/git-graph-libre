@@ -10,7 +10,7 @@ summary: >-
 
 # W04F — Git dirs Sonar follow-up, and one worktree check
 
-Status: done — awaiting integration
+Status: integrated `7db994b` (`2026-11-05`)
 Needs: W04, W08 (both integrated)
 Decisions: —
 Kind: TypeScript · Size budget: ~60 changed lines outside tests

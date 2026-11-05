@@ -10,7 +10,7 @@ summary: >-
 
 # W03 — List worktrees in the engine
 
-Status: done — awaiting integration
+Status: integrated `f9e54a4` (`2026-11-05`)
 Needs: W01, W02
 Decisions: —
 Kind: Rust and TypeScript, the Rust arm applies · Size budget: ~250 changed
