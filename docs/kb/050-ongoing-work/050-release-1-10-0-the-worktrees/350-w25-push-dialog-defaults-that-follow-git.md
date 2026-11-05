@@ -9,7 +9,7 @@ summary: >-
 
 # W25 — Push dialog defaults that follow Git
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-11-05 18:11
 Needs: —
 Decisions: Y11 (which defaults, and the several-remotes rule)
 Kind: TypeScript and webview · Size budget: ~200 changed lines outside tests
