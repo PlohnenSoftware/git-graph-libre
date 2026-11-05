@@ -238,18 +238,45 @@ describe("webview rendering", () => {
     return request;
   }
 
-  function refreshRemoteTags() {
+  function refreshWithRepoInfo(repoInfo: GitRepoInfo) {
     document
       .getElementById("refreshBtn")
       ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     receive({
       command: "loadRepoInfo",
       requestId: latestLoadRepoInfoRequest().requestId,
-      repoInfo: repoInfoWithRemote,
+      repoInfo,
       error: null
     });
     receiveLoadedCommits(twoCommits, "abc123");
+  }
+
+  function refreshRemoteTags() {
+    refreshWithRepoInfo(repoInfoWithRemote);
     return latestRemoteTagsRequest();
+  }
+
+  function remoteTagsRequestCount() {
+    return vscodeMock.sentMessages.filter((msg) => msg.command === "remoteTags").length;
+  }
+
+  function remoteTagsReply(
+    request: ReturnType<typeof latestRemoteTagsRequest>,
+    tags: Record<string, { hash: string; remotes: string[] }>
+  ): Extract<GGL.ResponseMessage, { command: "remoteTags" }> {
+    return { ...request, tags, unavailableRemotes: [], error: null };
+  }
+
+  function receiveSoftRefresh(commits: GitCommitNode[]) {
+    receive({
+      command: "loadCommits",
+      requestId: null,
+      commits,
+      head: "abc123",
+      moreCommitsAvailable: true,
+      hard: false,
+      error: null
+    } as unknown as GGL.ResponseMessage);
   }
 
   function latestLoadExtensionSettingsRequest(): LoadExtensionSettingsRequest {
@@ -766,6 +793,85 @@ describe("webview rendering", () => {
     expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain(
       "remote tag information is unavailable"
     );
+    refreshRemoteTags();
+  });
+
+  it("re-requests when a visible tag is missing from the snapshot or has moved, showing no status meanwhile", () => {
+    const request = refreshRemoteTags();
+    receive(remoteTagsReply(request, { "v1.0.0": { hash: "abc123", remotes: ["origin"] } }));
+    const count = remoteTagsRequestCount();
+
+    // A soft refresh of an unchanged list asks for nothing.
+    receiveSoftRefresh(twoCommits);
+    expect(remoteTagsRequestCount()).toBe(count);
+
+    // A tag created in a terminal: unknown to the snapshot.
+    const withNewTag: GitCommitNode[] = [
+      {
+        ...twoCommits[0],
+        refs: [...twoCommits[0].refs, { hash: "abc123", name: "v2.0.0", type: "tag" }]
+      },
+      twoCommits[1]
+    ];
+    receiveSoftRefresh(withNewTag);
+    expect(remoteTagsRequestCount()).toBe(count + 1);
+    expect(gitRef("v2.0.0", ".gitRef.tag")?.title).toBe("v2.0.0");
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain("On remotes: origin");
+    receive(
+      remoteTagsReply(latestRemoteTagsRequest(), {
+        "v1.0.0": { hash: "abc123", remotes: ["origin"] },
+        "v2.0.0": { hash: "abc123", remotes: [] }
+      })
+    );
+    expect(gitRef("v2.0.0", ".gitRef.tag")?.title).toContain("Local tag not found on any remote");
+
+    // A tag moved to another commit: same name, another hash.
+    const moved: GitCommitNode[] = [
+      { ...twoCommits[0], refs: [{ hash: "abc123", name: "main", type: "head" }] },
+      {
+        ...twoCommits[1],
+        refs: [{ hash: "def456", name: "v1.0.0", type: "tag" }]
+      }
+    ];
+    receiveSoftRefresh(moved);
+    expect(remoteTagsRequestCount()).toBe(count + 2);
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toBe("v1.0.0");
+    refreshRemoteTags();
+  });
+
+  it("patches only the tag cells when a remote tag reply arrives", () => {
+    const request = refreshRemoteTags();
+    const row = findRow("abc123");
+    const dateCell = row?.children[2];
+    const messageCell = row?.querySelector(".commitMessage");
+    expect(dateCell).not.toBeUndefined();
+    receive(remoteTagsReply(request, { "v1.0.0": { hash: "abc123", remotes: ["origin"] } }));
+
+    expect(findRow("abc123")).toBe(row);
+    expect(row?.children[2]).toBe(dateCell);
+    expect(row?.querySelector(".commitMessage")).toBe(messageCell);
+    const aliases = row?.querySelectorAll(".gitRef.tag.gitRefAlias");
+    expect(aliases).toHaveLength(1);
+    // The row's refs are drawn once, with working menus on the new badges.
+    expect(row?.querySelectorAll(".gitRef.head")).toHaveLength(1);
+    aliases?.[0]?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Copy Tag Name");
+    expect(vscodeMock.sentMessages.at(-1)).toMatchObject({
+      command: "copyToClipboard",
+      data: "v1.0.0"
+    });
+  });
+
+  it("keeps remote names literal and shows no status when the repository has no remotes", () => {
+    const request = refreshRemoteTags();
+    receive(remoteTagsReply(request, { "v1.0.0": { hash: "abc123", remotes: ["a$&b", "c$'d"] } }));
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain("On remotes: a$&b, c$'d");
+
+    refreshWithRepoInfo(repoInfoWithoutRemotes);
+    const next = latestRemoteTagsRequest();
+    receive(remoteTagsReply(next, { "v1.0.0": { hash: "abc123", remotes: [] } }));
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toBe("v1.0.0");
+    expect(document.querySelectorAll(".gitRefGroup")).toHaveLength(0);
     refreshRemoteTags();
   });
 
@@ -2779,6 +2885,34 @@ describe("webview rendering", () => {
     );
 
     clearFind();
+  });
+
+  it("asks for no remote tags and draws plain badges while showTagRemotes is off, and follows a live toggle", () => {
+    const request = refreshRemoteTags();
+    receive(remoteTagsReply(request, { "v1.0.0": { hash: "abc123", remotes: ["origin"] } }));
+    expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(1);
+
+    receiveExtensionSetting("repository.showTagRemotes", false);
+    // The snapshot is dropped: the badge is the one from before the feature.
+    expect(document.querySelectorAll(".gitRefGroup")).toHaveLength(0);
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toBe("v1.0.0");
+    const before = remoteTagsRequestCount();
+    refreshWithRepoInfo(repoInfoWithRemote);
+    receiveSoftRefresh([{ ...twoCommits[0] }, twoCommits[1]]);
+    expect(remoteTagsRequestCount()).toBe(before);
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toBe("v1.0.0");
+    // A reply that was already on its way is not shown either.
+    receive(remoteTagsReply(request, { "v1.0.0": { hash: "abc123", remotes: ["origin"] } }));
+    expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(0);
+
+    receiveExtensionSetting("repository.showTagRemotes", true);
+    expect(remoteTagsRequestCount()).toBe(before + 1);
+    receive(
+      remoteTagsReply(latestRemoteTagsRequest(), {
+        "v1.0.0": { hash: "abc123", remotes: ["origin"] }
+      })
+    );
+    expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(1);
   });
 
   it("mutes stash rows outside the HEAD ancestry when enabled", () => {

@@ -52,6 +52,14 @@ describe("configuration", () => {
     expect(config.boldCheckedOutCommit()).toBe(true);
   });
 
+  it("checks tag remotes by default and honors an opt-out", async () => {
+    const { config } = await import("@/config");
+    expect(config.showTagRemotes()).toBe(true);
+
+    settings.set("git-graph-libre.repository.showTagRemotes", false);
+    expect(config.showTagRemotes()).toBe(false);
+  });
+
   it("pre-checks fetch tags by default and honors an opt-out", async () => {
     const { config } = await import("@/config");
     expect(config.fetchTagsByDefault()).toBe(true);
@@ -271,6 +279,7 @@ describe("configuration", () => {
     { accessor: "muteMergeCommits", expected: false },
     { accessor: "boldCheckedOutCommit", expected: false },
     { accessor: "fetchTagsByDefault", expected: true },
+    { accessor: "showTagRemotes", expected: true },
     { accessor: "mergeNoFastForward", expected: true },
     { accessor: "pullBranchNoFastForward", expected: false },
     { accessor: "createBranchCheckout", expected: true },

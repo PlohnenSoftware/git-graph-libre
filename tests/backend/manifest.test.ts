@@ -142,6 +142,7 @@ describe("extension manifest", () => {
   //  - boldCheckedOutCommit: the checked-out commit message used to be bolded
   //    unconditionally.
   //  - fetchTagsByDefault: on, so the Fetch dialog's tags option is pre-checked.
+  //  - showTagRemotes: on, so tag badges show their remotes out of the box.
   //  - dialog.merge.noFastForward / dialog.pullBranch.noFastForward: these two
   //    reproduce the values the merge and pull dialogs used to hardcode, so
   //    flipping either changes what those dialogs do out of the box.
@@ -154,6 +155,7 @@ describe("extension manifest", () => {
     ["git-graph-libre.repository.muteMergeCommits", false],
     ["git-graph-libre.repository.boldCheckedOutCommit", false],
     ["git-graph-libre.repository.fetchTagsByDefault", true],
+    ["git-graph-libre.repository.showTagRemotes", true],
     ["git-graph-libre.dialog.merge.noFastForward", true],
     ["git-graph-libre.dialog.pullBranch.noFastForward", false],
     ["git-graph-libre.dialog.createBranch.checkout", true],
