@@ -224,6 +224,15 @@ jobs:
     # this is a tag push or a manual run with `publish` ticked.
     if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-latest
+    # The `publish` environment is the publishing control: its required
+    # reviewer must approve this job before anything is released, its
+    # deployment policy allows only the `main` branch (manual publishes)
+    # and `v*` tags, and both registries' trusted-publishing registrations
+    # name it, so an OIDC token from a run outside this environment cannot
+    # publish. The environment and its rules live in the repository
+    # settings, not in this file; the name must stay in step with them and
+    # with the two registrations.
+    environment: publish
     permissions:
       contents: write
       id-token: write

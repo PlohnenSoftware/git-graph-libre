@@ -36,11 +36,17 @@ What changed in behavior, beyond the credential:
   a failing Marketplace publish still skips Open VSX, and `--skip-duplicate`
   still makes re-running the whole job safe.
 - **Dry runs are unchanged.** `release` still runs only on a tag push or a
-  manual run with `publish` ticked, and no GitHub `environment:` was added to
-  the job, so release approval behavior is exactly as before. Pinning an
-  environment later (with required reviewers) is the registries' own way to
-  restrict publishing further; both registrations take an optional
-  environment name for it, left empty here because the job has none.
+  manual run with `publish` ticked. The job runs in the `publish` GitHub
+  environment (maintainer instruction, `2026-11-05`, created the same day
+  through the API): `zamkorus` is its required reviewer, so a publish run
+  waits for that approval before the job starts; self-review is allowed and
+  administrators can bypass, since a solo maintainer both tags and approves;
+  its deployment policy allows only the `main` branch (manual publishes)
+  and `v*` tags. Both registry registrations name this environment, so an
+  OIDC token from a run outside it cannot publish. The environment's rules
+  live in the repository settings; only its name appears in the workflow,
+  and the three must stay in step. Because the GitHub release is created by
+  the same job, the approval also gates it.
 
 **Neither CLI needed a bump (checked `2026-11-05`).** After
 `pnpm install --frozen-lockfile`, the lockfile resolves `@vscode/vsce` `4.0.0`
@@ -69,7 +75,7 @@ namespace's case, which its trusted-publishing check requires.
   *Trusted Publishing*, *Create*): Policy name `git-graph-libre release
   (publish.yml)`; Provider GitHub Actions; Repository owner
   `PlohnenSoftware`; Repository `git-graph-libre` (name only, no owner);
-  Workflow `publish.yml`; Environment empty.
+  Workflow `publish.yml`; Environment `publish`.
 - **Open VSX** (*Settings* → *Trusted Publishers*, *Register trusted
   publisher*; one trusted publisher per extension, and a registration cannot
   be edited, only deleted and recreated): Publisher (namespace)
@@ -77,7 +83,9 @@ namespace's case, which its trusted-publishing check requires.
   `PlohnenSoftware/git-graph-libre` extension); Provider GitHub Actions;
   Organization or User name `PlohnenSoftware`; Repository name
   `git-graph-libre`; Workflow filename `publish.yml` (filename only);
-  Environment name empty.
+  Environment name `publish`. A registration created without the
+  environment does not match a run inside one, and Open VSX registrations
+  cannot be edited — delete and recreate it with the environment named.
 
 **Order and aftermath.** Create both registrations first, then run the first
 publish (the next release tag, or a manual run with `publish` ticked): that
