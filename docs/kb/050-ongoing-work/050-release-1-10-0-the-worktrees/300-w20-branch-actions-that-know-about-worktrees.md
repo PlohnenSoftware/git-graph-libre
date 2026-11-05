@@ -10,7 +10,7 @@ summary: >-
 
 # W20 — Branch actions that know about worktrees
 
-Status: ready once W10 is integrated
+Status: claimed by Claude Sonnet 5.5 on 2026-11-05 19:00
 Needs: W10
 Decisions: Y6 (hide, lock with a reason, or replace with an alternative)
 Kind: webview and TypeScript, l10n · Size budget: ~220 changed lines outside
