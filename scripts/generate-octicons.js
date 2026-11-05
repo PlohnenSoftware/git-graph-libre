@@ -15,6 +15,7 @@ const ICON_NAMES = [
   "crosshairs",
   "download",
   "file",
+  "file-directory",
   "file-directory-fill",
   "file-directory-open-fill",
   "gear",
