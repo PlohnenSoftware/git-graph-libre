@@ -97,7 +97,7 @@ run one after another, as the integrator procedure says.
 | W04F | [Git dirs Sonar follow-up, and one worktree check](050-release-1-10-0-the-worktrees/145-w04f-git-dirs-sonar-follow-up-and-one-worktree-check.md) | TS | W04, W08 | A | integrated `7db994b` |
 | W05 | [Suggest the full branch name for a remote checkout](050-release-1-10-0-the-worktrees/150-w05-suggest-the-full-branch-name-for-a-remote-checkout.md) | webview | — | A | integrated `659d095` |
 | W06 | [Whole-row checkboxes in dialogs](050-release-1-10-0-the-worktrees/160-w06-whole-row-checkboxes-in-dialogs.md) | CSS | Y13 (ready under (a)) | A | integrated `af7ff04` |
-| W06F | [Whole-row checkboxes in every popup](050-release-1-10-0-the-worktrees/165-w06f-whole-row-checkboxes-in-every-popup.md) | CSS + webview | W06, Y13 | A | dispatched `2026-11-05` (Haiku) |
+| W06F | [Whole-row checkboxes in every popup](050-release-1-10-0-the-worktrees/165-w06f-whole-row-checkboxes-in-every-popup.md) | CSS + webview | W06, Y13 | A | integrated `0c1437e` |
 | W07 | [Read a linked worktree's local config](050-release-1-10-0-the-worktrees/170-w07-read-a-linked-worktree-s-local-config.md) | Rust + TS | W01 | A | integrated `c9ce36c` |
 | W08 | [A nested worktree is not a submodule in telemetry](050-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | integrated `6b0e232` |
 | W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | integrated `decdf71` |
@@ -428,3 +428,21 @@ commit, the gate results with numbers, and the Sonar task id.
   - Issue #38 is complete with W21 and gated, so this record closes it.
   - W41 was dispatched to Sonnet, on W40's tip, bumping the engine to
     `1.0.29`.
+- `2026-11-05`: the integrator session hit its usage limit right after
+  fast-forwarding W06F to `0c1437e`; the W31 and W41 agents died with it,
+  their work saved uncommitted in their worktrees. The maintainer resumed
+  the session in Muse, which took over as integrator. The main
+  checkout had been switched to a Dependabot branch meanwhile and was
+  left untouched; this integration ran from the `ggl-W06F` worktree on
+  `the-worktrees`. W31 and W41 were re-dispatched to fresh agents in
+  their existing worktrees, continuing the saved work.
+- `2026-11-05`, gate on `0c1437e`: W06F since `f983598`.
+  - Strict Biome is clean on the 5 touched TypeScript files. `package`,
+    `typecheck` and `kb:check` pass. Tests: backend 1,322, webview 852,
+    all passing.
+  - Fresh `test:coverage`: 170 files, 2,174 of 2,174 tests passed.
+  - Sonar task `630edd5c-4118-4c3a-bdfc-37aebd6ad1cf`: quality gate
+    **`OK`**. New coverage is 94.7%, with 0 new violations.
+  - The integrator added the `.checkRow` rule to the Webview UI Styling
+    Guide and the Y13 outcome to issue #41's subsection, both outside
+    W06F's Touch list. Issue #41 already closes through `31417ec`.

@@ -10,7 +10,7 @@ summary: >-
 
 # W06F — Whole-row checkboxes in every popup
 
-Status: done — awaiting integration
+Status: integrated `0c1437e` (`2026-11-05`)
 Needs: W06 (integrated `af7ff04`)
 Decisions: Y13, re-answered `2026-11-05`: every popup, implemented once at
 the shared popup level
