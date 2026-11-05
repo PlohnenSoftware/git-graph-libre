@@ -37,6 +37,7 @@ let one = "";
 let two = "";
 let oneHead = "";
 let mainHead = "";
+let twoHead = "";
 
 function commitIn(dir: string, message: string, epoch: number, author: string): string {
   cp.execFileSync("git", ["commit", "-q", "-m", message], {
@@ -101,7 +102,7 @@ beforeAll(() => {
   git(["checkout", "-q", "--detach"], two);
   fs.writeFileSync(path.join(two, "two.txt"), "two\n");
   git(["add", "two.txt"], two);
-  commitIn(two, "detached commit", EPOCH + 1800, "Carol");
+  twoHead = commitIn(two, "detached commit", EPOCH + 1800, "Carol");
 }, 180000);
 
 afterAll(() => {
@@ -173,6 +174,46 @@ describe("engine/CLI parity on a linked worktree", () => {
     const shown = (await auto().loadCommits(baseArgs(one))).commits;
     expect(shown.some((node) => node.hash === "*")).toBe(true);
     expect(shown.some((node) => node.stash !== null)).toBe(true);
+  }, 120000);
+
+  it("shows another worktree's detached HEAD commit, the same on both backends", async (context) => {
+    requireAddon(context);
+    // `twoHead` is reachable only from the detached HEAD of `two`: no branch,
+    // tag or remote names it. Both backends walk from the other worktrees'
+    // HEADs on a show-all load (W12), so every worktree's graph draws it,
+    // with identical rows.
+    for (const dir of [main, one, two]) {
+      const args = baseArgs(dir);
+      const { repoPath, git: _git, ...input } = args;
+      resetEngineServedRead();
+      const [viaAuto, direct] = await Promise.all([
+        auto().loadCommits(args),
+        loadCommits(simpleGit(dir), { ...input, repo: repoPath })
+      ]);
+      expect(didEngineServeRead(), `${dir} served`).toBe(true);
+      expect(maskVolatile(viaAuto.commits), dir).toEqual(maskVolatile(direct.commits));
+      expect(
+        viaAuto.commits.some((node) => node.hash === twoHead),
+        `${dir} engine shows the detached commit`
+      ).toBe(true);
+      expect(
+        direct.commits.some((node) => node.hash === twoHead),
+        `${dir} CLI shows the detached commit`
+      ).toBe(true);
+    }
+    // A filtered load walks only the named refs on both backends: the extra
+    // worktree tips belong to show-all loads, like unreachable commits.
+    const filteredArgs = { ...baseArgs(main), branches: ["main"] };
+    const { repoPath, git: _git, ...filteredInput } = filteredArgs;
+    resetEngineServedRead();
+    const [viaAutoFiltered, directFiltered] = await Promise.all([
+      auto().loadCommits(filteredArgs),
+      loadCommits(simpleGit(main), { ...filteredInput, repo: repoPath })
+    ]);
+    expect(didEngineServeRead(), "filtered served").toBe(true);
+    expect(maskVolatile(viaAutoFiltered.commits)).toEqual(maskVolatile(directFiltered.commits));
+    expect(viaAutoFiltered.commits.some((node) => node.hash === twoHead)).toBe(false);
+    expect(directFiltered.commits.some((node) => node.hash === twoHead)).toBe(false);
   }, 120000);
 
   it("serves commit details and comparisons, including to the work tree", async (context) => {
