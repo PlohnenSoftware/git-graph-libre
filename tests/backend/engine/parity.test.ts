@@ -1284,6 +1284,53 @@ describe("engine/CLI parity: repoInfo config", () => {
     process.env.GIT_CONFIG_GLOBAL = `${globalFile}-absent`;
     await expectRepoInfoParity(dir, "absent global", true);
   }, 120000);
+
+  it("reports a linked worktree's local identity like the CLI, from the common dir", async (context) => {
+    requireAddon(context);
+    process.env.GIT_CONFIG_GLOBAL = globalFile;
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-test-linked-"));
+    dirs.push(parent);
+    const linked = path.join(parent, "linked tree ünï");
+    git(["worktree", "add", "-b", "linked-config", linked], dir);
+    const info = await createRepoReader({ preference: "auto", gitPath: "git" }).loadRepoInfo({
+      repoPath: linked,
+      git: simpleGit(linked),
+      showStashes: true
+    });
+    expect(info.repoInfo.config.userName.local).toBe("Ada");
+    expect(info.repoInfo.config.userEmail.local).toBe("ada@x.com");
+    await expectRepoInfoParity(linked, "linked worktree", true);
+  }, 120000);
+
+  it("keeps a submodule's own local config", async (context) => {
+    requireAddon(context);
+    process.env.GIT_CONFIG_GLOBAL = globalFile;
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-test-submodule-"));
+    dirs.push(parent);
+    const inner = path.join(parent, "inner");
+    fs.mkdirSync(inner);
+    git(["init", "-b", "main"], inner);
+    git(["config", "user.name", "Inner"], inner);
+    git(["config", "user.email", "inner@x.com"], inner);
+    git(["config", "commit.gpgsign", "false"], inner);
+    fs.writeFileSync(path.join(inner, "f"), "x");
+    git(["add", "."], inner);
+    git(["commit", "-m", "inner"], inner);
+    const outer = path.join(parent, "outer");
+    fs.mkdirSync(outer);
+    git(["init", "-b", "main"], outer);
+    git(["-c", "protocol.file.allow=always", "submodule", "add", inner, "sub"], outer);
+    const sub = path.join(outer, "sub");
+    git(["config", "user.name", "Sub Local"], sub);
+    git(["config", "user.email", "sub@x.com"], sub);
+    const info = await createRepoReader({ preference: "auto", gitPath: "git" }).loadRepoInfo({
+      repoPath: sub,
+      git: simpleGit(sub),
+      showStashes: true
+    });
+    expect(info.repoInfo.config.userName.local).toBe("Sub Local");
+    await expectRepoInfoParity(sub, "submodule", true);
+  }, 120000);
 });
 
 describe("engine/CLI parity: searchCommits", () => {
