@@ -341,6 +341,12 @@ class GitGraphView {
     ref: string;
     baseLabel?: string;
   } | null = null;
+  /** The Push Branch dialog's submission still awaiting its `branchPushDefaults` reply. */
+  private pendingPushBranchDialog: {
+    requestId: number;
+    refName: string;
+    remoteNames: string[];
+  } | null = null;
 
   constructor(
     repos: GGL.GitRepoSet,
@@ -4405,8 +4411,10 @@ class GitGraphView {
    * pointing at a different repository. Labelling the group is what tells the
    * two apart.
    */
-  private remoteCheckboxInputs(remoteNames: string[]): DialogInput[] {
-    const defaultRemote = this.defaultPushRemoteName(remoteNames);
+  private remoteCheckboxInputs(
+    remoteNames: string[],
+    defaultRemote = this.defaultPushRemoteName(remoteNames)
+  ): DialogInput[] {
     return [
       { type: "group" as const, name: l10n.dialogRemotes },
       ...remoteNames.map((remote) => ({
@@ -4610,9 +4618,46 @@ class GitGraphView {
     const remoteNames = this.getRemoteNames();
     if (remoteNames.length === 0) return;
 
+    // The defaults depend on what Git knows about the branch, so the dialog opens
+    // when that answer arrives (see loadBranchPushDefaults).
+    const requestId = this.createRequestId();
+    this.pendingPushBranchDialog = { requestId, refName, remoteNames };
+    sendMessage({
+      command: "branchPushDefaults",
+      repo: this.currentRepo,
+      branch: refName,
+      requestId
+    });
+  }
+  /**
+   * Opens the Push Branch dialog from the branch's upstream and push remote. A
+   * failed read arrives as two nulls, which keeps today's defaults: the
+   * `origin` remote, and Set upstream checked.
+   */
+  public loadBranchPushDefaults(
+    requestId: number,
+    defaults: { upstreamRemote: string | null; pushRemote: string | null }
+  ) {
+    const pending = this.pendingPushBranchDialog;
+    if (pending?.requestId !== requestId) return;
+    this.pendingPushBranchDialog = null;
+    this.openPushBranchDialog(pending.refName, pending.remoteNames, defaults);
+  }
+  private openPushBranchDialog(
+    refName: string,
+    remoteNames: string[],
+    defaults: { upstreamRemote: string | null; pushRemote: string | null }
+  ) {
+    const defaultRemote = this.pushBranchDefaultRemote(remoteNames, defaults);
     const inputs: DialogInput[] = [
-      ...this.remoteCheckboxInputs(remoteNames),
-      { type: "checkbox", name: l10n.dialogPushBranchSetUpstream, value: true },
+      ...this.remoteCheckboxInputs(remoteNames, defaultRemote),
+      // Git's `-u` changes tracking, so it is pre-checked only for a branch that
+      // has no upstream yet: a first push is when tracking is usually wanted.
+      {
+        type: "checkbox",
+        name: l10n.dialogPushBranchSetUpstream,
+        value: defaults.upstreamRemote === null
+      },
       ...this.pushOptionInputs()
     ];
 
@@ -4635,7 +4680,8 @@ class GitGraphView {
           command: "pushBranch",
           repo: this.currentRepo,
           branchName: refName,
-          remotes,
+          // The backend sets upstream on the first remote only.
+          remotes: afterRemotes ? this.remotesUpstreamFirst(remotes, defaultRemote) : remotes,
           setUpstream: afterRemotes,
           noVerify,
           mode
@@ -4741,6 +4787,28 @@ class GitGraphView {
   }
   private defaultPushRemoteName(remoteNames: string[]) {
     return remoteNames.includes("origin") ? "origin" : remoteNames[0];
+  }
+  /**
+   * The remote a Push Branch dialog pre-checks: Git's push remote, then the
+   * upstream's remote, when each is one of the repository's remotes, then the
+   * usual `origin`-or-first.
+   */
+  private pushBranchDefaultRemote(
+    remoteNames: string[],
+    defaults: { upstreamRemote: string | null; pushRemote: string | null }
+  ) {
+    const known = [defaults.pushRemote, defaults.upstreamRemote].find(
+      (remote) => remote !== null && remoteNames.includes(remote)
+    );
+    return known ?? this.defaultPushRemoteName(remoteNames);
+  }
+  /**
+   * Lists the checked remotes with the one that takes `--set-upstream` first:
+   * the pre-checked remote while it stays checked, otherwise the first checked.
+   */
+  private remotesUpstreamFirst(remotes: string[], defaultRemote: string) {
+    const target = remotes.includes(defaultRemote) ? defaultRemote : remotes[0];
+    return [target, ...remotes.filter((remote) => remote !== target)];
   }
   private pushBranchModeLabel(mode: GitPushBranchMode) {
     if (mode === "force-with-lease") return l10n.dialogPushBranchModeForceWithLease;
@@ -6847,6 +6915,11 @@ type ResponseHandlerMap = {
 
 const responseHandlers: ResponseHandlerMap = {
   remoteTags: (msg) => gitGraph.loadRemoteTags(msg),
+  branchPushDefaults: (msg) =>
+    gitGraph.loadBranchPushDefaults(msg.requestId, {
+      upstreamRemote: msg.upstreamRemote,
+      pushRemote: msg.pushRemote
+    }),
   commitComparison: handleCommitComparisonResponse,
   commitDetails: handleCommitDetailsResponse,
   commitSignatures: (msg) =>

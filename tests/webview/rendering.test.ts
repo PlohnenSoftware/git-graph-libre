@@ -4,6 +4,7 @@ import type {
   GitCommitDetails,
   GitCommitNode,
   GitCommitSearchResult,
+  GitQueryError,
   GitRepoInfo
 } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
@@ -27,6 +28,7 @@ type LoadExtensionSettingsRequest = Extract<
 >;
 type LoadRepoInfoRequest = Extract<GGL.RequestMessage, { command: "loadRepoInfo" }>;
 type SaveRepoStateRequest = Extract<GGL.RequestMessage, { command: "saveRepoState" }>;
+type BranchPushDefaultsRequest = Extract<GGL.RequestMessage, { command: "branchPushDefaults" }>;
 type SearchCommitsRequest = Extract<GGL.RequestMessage, { command: "searchCommits" }>;
 type UpdateExtensionSettingRequest = Extract<
   GGL.RequestMessage,
@@ -257,6 +259,78 @@ describe("webview rendering", () => {
       if (msg.command === "loadRepoInfo") return msg;
     }
     throw new Error("Missing loadRepoInfo request");
+  }
+
+  function latestBranchPushDefaultsRequest(): BranchPushDefaultsRequest {
+    for (let i = vscodeMock.sentMessages.length - 1; i >= 0; i--) {
+      const msg = vscodeMock.sentMessages[i];
+      if (msg.command === "branchPushDefaults") return msg;
+    }
+    throw new Error("Missing branchPushDefaults request");
+  }
+
+  /** Opens Push Branch on `feature/menu` with the given remotes, and returns the defaults request. */
+  function openPushBranchMenu(repoInfo: GitRepoInfo): BranchPushDefaultsRequest {
+    document
+      .getElementById("refreshBtn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const loadRepoInfoRequest = latestLoadRepoInfoRequest();
+    receive({
+      command: "loadRepoInfo",
+      requestId: loadRepoInfoRequest.requestId,
+      repoInfo,
+      error: null
+    });
+    receive({
+      command: "loadBranches",
+      requestId: null,
+      branches: ["main", "feature/menu", "remotes/origin/feature/menu"],
+      head: "main",
+      hard: true,
+      isRepo: true,
+      error: null
+    } as unknown as GGL.ResponseMessage);
+    receiveLoadedCommits(
+      [
+        {
+          ...twoCommits[0],
+          refs: [
+            { hash: "abc123", name: "main", type: "head" },
+            { hash: "abc123", name: "feature/menu", type: "head" }
+          ]
+        },
+        twoCommits[1]
+      ],
+      "abc123"
+    );
+    gitRef("feature/menu", ".gitRef.head")?.dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true })
+    );
+    clickContextMenuItem("Push Branch");
+    return latestBranchPushDefaultsRequest();
+  }
+
+  function receivePushBranchDefaults(
+    requestId: number,
+    upstreamRemote: string | null,
+    pushRemote: string | null,
+    error: GitQueryError | null = null
+  ) {
+    receive({ command: "branchPushDefaults", requestId, upstreamRemote, pushRemote, error });
+  }
+
+  /** The Push Branch dialog's checkboxes are numbered from the group heading, so 0 is "Remotes". */
+  function dialogCheckbox(index: number) {
+    return document.getElementById(`dialogInput${index}`) as HTMLInputElement | null;
+  }
+
+  function setDialogCheckbox(index: number, checked: boolean) {
+    const input = dialogCheckbox(index);
+    if (input !== null) input.checked = checked;
+  }
+
+  function submitDialog() {
+    document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
   }
 
   function latestSearchCommitsRequest(): SearchCommitsRequest {
@@ -3661,6 +3735,93 @@ describe("webview rendering", () => {
     receiveLoadedCommits(twoCommits, "abc123");
   });
 
+  it("pre-checks Git's push remote, and leaves Set upstream off for a branch with an upstream", () => {
+    const request = openPushBranchMenu(repoInfoWithTwoRemotes);
+    receivePushBranchDefaults(request.requestId, "origin", "upstream");
+
+    expect(dialogCheckbox(1)?.checked).toBe(false);
+    expect(dialogCheckbox(2)?.checked).toBe(true);
+    expect(dialogCheckbox(3)?.checked).toBe(false);
+    submitDialog();
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toMatchObject({
+      command: "pushBranch",
+      branchName: "feature/menu",
+      remotes: ["upstream"],
+      setUpstream: false
+    });
+  });
+
+  it("pre-checks the upstream's remote, and Set upstream stays off, when Git names no push remote", () => {
+    const request = openPushBranchMenu(repoInfoWithTwoRemotes);
+    receivePushBranchDefaults(request.requestId, "upstream", null);
+
+    expect(dialogCheckbox(1)?.checked).toBe(false);
+    expect(dialogCheckbox(2)?.checked).toBe(true);
+    expect(dialogCheckbox(3)?.checked).toBe(false);
+  });
+
+  it("pre-checks origin and Set upstream for a branch with no upstream", () => {
+    const request = openPushBranchMenu(repoInfoWithTwoRemotes);
+    receivePushBranchDefaults(request.requestId, null, null);
+
+    expect(dialogCheckbox(1)?.checked).toBe(true);
+    expect(dialogCheckbox(2)?.checked).toBe(false);
+    expect(dialogCheckbox(3)?.checked).toBe(true);
+  });
+
+  it("gives --set-upstream to the pre-checked remote, listed first, when several are checked", () => {
+    const request = openPushBranchMenu(repoInfoWithTwoRemotes);
+    receivePushBranchDefaults(request.requestId, null, "upstream");
+
+    setDialogCheckbox(1, true);
+    submitDialog();
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toMatchObject({
+      command: "pushBranch",
+      remotes: ["upstream", "origin"],
+      setUpstream: true
+    });
+  });
+
+  it("moves --set-upstream to the first checked remote when the pre-checked one is unchecked", () => {
+    const request = openPushBranchMenu(repoInfoWithTwoRemotes);
+    receivePushBranchDefaults(request.requestId, null, "origin");
+
+    setDialogCheckbox(1, false);
+    setDialogCheckbox(2, true);
+    submitDialog();
+    expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toMatchObject({
+      command: "pushBranch",
+      remotes: ["upstream"],
+      setUpstream: true
+    });
+  });
+
+  it("keeps today's defaults when reading the push defaults fails", () => {
+    const request = openPushBranchMenu(repoInfoWithTwoRemotes);
+    receivePushBranchDefaults(request.requestId, null, null, {
+      message: "fatal: not a git repository",
+      stderr: null,
+      exitCode: 128,
+      task: null
+    });
+
+    expect(dialogCheckbox(1)?.checked).toBe(true);
+    expect(dialogCheckbox(2)?.checked).toBe(false);
+    expect(dialogCheckbox(3)?.checked).toBe(true);
+  });
+
+  it("ignores a push defaults reply for an earlier request", () => {
+    const stale = openPushBranchMenu(repoInfoWithTwoRemotes);
+    const current = openPushBranchMenu(repoInfoWithTwoRemotes);
+    expect(current.requestId).not.toBe(stale.requestId);
+
+    receivePushBranchDefaults(stale.requestId, "origin", "upstream");
+    expect(dialogCheckbox(1)).toBeNull();
+
+    receivePushBranchDefaults(current.requestId, null, "upstream");
+    expect(dialogCheckbox(2)?.checked).toBe(true);
+  });
+
   it("sends local branch remote action messages from context menus", () => {
     document
       .getElementById("refreshBtn")
@@ -3700,6 +3861,7 @@ describe("webview rendering", () => {
 
     branchRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
     clickContextMenuItem("Push Branch");
+    receivePushBranchDefaults(latestBranchPushDefaultsRequest().requestId, null, null);
     const bypassHooks = document.getElementById("dialogInput3") as HTMLInputElement | null;
     const pushMode = document.getElementById("dialogInput4") as HTMLSelectElement | null;
     expect(bypassHooks).not.toBeNull();

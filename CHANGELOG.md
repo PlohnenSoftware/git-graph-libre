@@ -30,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Thanks to @rbalet for the request
   ([#41](https://github.com/PlohnenSoftware/git-graph-libre/issues/41)).
 
+- **The Push Branch dialog starts from what `git push` would do.** It
+  pre-checks the remote that a plain push uses: the branch's `pushRemote`,
+  then `remote.pushDefault`, then its upstream's remote, then `origin`.
+  Set upstream is ticked only for a branch with no upstream yet. Set upstream
+  was ticked for every push before, and with several remotes checked, tracking
+  ended on whichever one was pushed last; it now goes to the first remote
+  only, the pre-checked one. Thanks to @cktgh for the request
+  ([#36](https://github.com/PlohnenSoftware/git-graph-libre/issues/36)).
+
 ## [1.9.0] - 2026-10-20
 
 "The Diff": compare any two points in history, a diff tab of Git Graph

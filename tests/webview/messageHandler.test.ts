@@ -531,6 +531,23 @@ describe("registerMessageHandlers", () => {
     expect(outputLines.some((line) => line.includes("resolveRef"))).toBe(true);
   });
 
+  it("routes branchPushDefaults queries and echoes the request id", async () => {
+    const { handlers, posts, outputLines } = registerHandlersForTest();
+
+    const handler = handlers.get("branchPushDefaults");
+    expect(handler).toBeDefined();
+    await handler?.({ command: "branchPushDefaults", repo, branch: "main", requestId: 7 });
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "branchPushDefaults",
+      requestId: 7,
+      upstreamRemote: null,
+      pushRemote: null,
+      error: null
+    });
+    expect(outputLines.some((line) => line.includes("branchPushDefaults"))).toBe(true);
+  });
+
   it("routes uncommitted detail queries", async () => {
     fs.writeFileSync(path.join(repo, "route-staged.txt"), "staged");
     fs.writeFileSync(path.join(repo, "f"), "route unstaged change");
