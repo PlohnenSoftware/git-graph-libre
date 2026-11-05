@@ -175,6 +175,24 @@ describe("commit table styles", () => {
     expect(css).toContain("background-color: var(--ngg-signed-ref);");
   });
 
+  it("gives a branch checked out elsewhere a worktree segment on badge tokens (W11)", () => {
+    const badge = css.match(/^\.gitRefWorktreeBadge \{[^}]+\}/m)?.[0] ?? "";
+    expect(badge).not.toBe("");
+    // Theme tokens first, OKLCH-backed tokens as the fallback, per the styling
+    // guide; no raw color literal may slip into the segment.
+    expect(badge).toContain("background-color: var(--vscode-badge-background, var(--ngg-accent));");
+    expect(badge).toContain("color: var(--vscode-badge-foreground, var(--ngg-accent-foreground));");
+    expect(badge).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/);
+    // Built like the signed-tag badge: same box metrics, and the branch icon
+    // gives up its right margin so the segment sits flush against it.
+    expect(badge).toContain("width: 14px;");
+    expect(badge).toContain("height: 14px;");
+    expect(css).toContain(".gitRef.inWorktree > svg {");
+    expect(css.match(/^\.gitRefWorktreeBadge > svg \{[^}]+\}/m)?.[0] ?? "").toContain(
+      "fill: currentColor;"
+    );
+  });
+
   it("colors the tag details signature line by status", () => {
     expect(css).toContain(".tagSignature-valid {");
     expect(css).toContain(".tagSignature-bad,");

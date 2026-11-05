@@ -223,3 +223,100 @@ describe("detachedWorktreeHeadMap and worktreeFolderName", () => {
     expect(worktreeFolderName("/")).toBe("/");
   });
 });
+
+describe("otherWorktreesHoldingBranch and describeWorktreeCheckout (W11)", () => {
+  const strings = {
+    checkedOutInWorktree: "Checked out in worktree {0} ({1})",
+    worktreeLocked: "locked: {0}",
+    worktreeLockedNoReason: "locked",
+    worktreeMissing: "missing (moved or deleted)"
+  };
+
+  async function loadHelpers() {
+    vi.resetModules();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    createVscodeMock();
+    setupHtml(makeViewState());
+    return import("@/webview/main");
+  }
+
+  it("returns every other worktree holding the branch, never the current one", async () => {
+    const { otherWorktreesHoldingBranch } = await loadHelpers();
+
+    const holders = otherWorktreesHoldingBranch(
+      [
+        worktree({ path: "/workspace/repo", branch: "feat", isMain: true, isCurrent: true }),
+        worktree({ path: "/workspace/feat a", branch: "feat" }),
+        worktree({ path: "/workspace/feat-b", branch: "feat" }),
+        worktree({ path: "/workspace/other", branch: "other" }),
+        worktree({ path: "/workspace/detached", branch: null, detached: true })
+      ],
+      "feat"
+    );
+
+    expect(holders.map((holder) => holder.path)).toEqual([
+      "/workspace/feat a",
+      "/workspace/feat-b"
+    ]);
+    expect(otherWorktreesHoldingBranch([], "feat")).toEqual([]);
+  });
+
+  it("names the folder and the full path of a plain checkout", async () => {
+    const { describeWorktreeCheckout } = await loadHelpers();
+
+    expect(
+      describeWorktreeCheckout(worktree({ path: "/workspace/feat a", branch: "feat" }), strings)
+    ).toBe("Checked out in worktree feat a (/workspace/feat a)");
+  });
+
+  it("adds the lock reason, or a bare locked when Git gave none", async () => {
+    const { describeWorktreeCheckout } = await loadHelpers();
+
+    expect(
+      describeWorktreeCheckout(
+        worktree({
+          path: "/workspace/feat",
+          branch: "feat",
+          locked: { reason: "on a USB stick" }
+        }),
+        strings
+      )
+    ).toBe("Checked out in worktree feat (/workspace/feat), locked: on a USB stick");
+    expect(
+      describeWorktreeCheckout(
+        worktree({ path: "/workspace/feat", branch: "feat", locked: { reason: "" } }),
+        strings
+      )
+    ).toBe("Checked out in worktree feat (/workspace/feat), locked");
+  });
+
+  it("calls a prunable worktree missing", async () => {
+    const { describeWorktreeCheckout } = await loadHelpers();
+
+    expect(
+      describeWorktreeCheckout(
+        worktree({
+          path: "/workspace/gone",
+          branch: "feat",
+          prunable: { reason: "gitdir file points to non-existent location" }
+        }),
+        strings
+      )
+    ).toBe("Checked out in worktree gone (/workspace/gone), missing (moved or deleted)");
+  });
+
+  it("keeps replacement patterns in paths and reasons literal", async () => {
+    const { describeWorktreeCheckout } = await loadHelpers();
+
+    expect(
+      describeWorktreeCheckout(
+        worktree({
+          path: "/workspace/wt $& é",
+          branch: "feat",
+          locked: { reason: "kept $` safe" }
+        }),
+        strings
+      )
+    ).toBe("Checked out in worktree wt $& é (/workspace/wt $& é), locked: kept $` safe");
+  });
+});
