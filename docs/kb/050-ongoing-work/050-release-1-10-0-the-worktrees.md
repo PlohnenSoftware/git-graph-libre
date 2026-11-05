@@ -15,7 +15,7 @@ summary: >-
 
 # Release 1.10.0 — "The Worktrees"
 
-**Status: planned `2026-11-04`, not started.** The maintainer asked for full
+**Status: planned `2026-11-04`; in progress since `2026-11-05`** (wave A dispatched, see the Integration log). The maintainer asked for full
 worktree support, with the engine's part analyzed and the open issues to
 tackle included. #40 and #42 are on hold in the backlog. Name and version are
 decision Y21. Only decision Y2 is answered. The slices that need no decision
@@ -89,14 +89,14 @@ run one after another, as the integrator procedure says.
 
 | ID | Slice | Kind | Needs | Wave | Status |
 | --- | --- | --- | --- | --- | --- |
-| W00 | [Finish release 1.9.0's housekeeping](050-release-1-10-0-the-worktrees/100-w00-finish-release-1-9-0-housekeeping.md) | docs | — (Y15 for step 3) | A | ready |
-| W01 | [Refresh the engine's dependencies and gix](050-release-1-10-0-the-worktrees/110-w01-refresh-the-engine-dependencies-and-gix.md) | Rust | — (Y2 answered) | A | ready |
-| W02 | [List worktrees on the CLI](050-release-1-10-0-the-worktrees/120-w02-list-worktrees-on-the-cli.md) | TS | — | A | ready |
-| W04 | [Refresh a graph when a worktree changes](050-release-1-10-0-the-worktrees/140-w04-refresh-a-graph-when-a-worktree-changes.md) | TS | — | A | ready |
-| W05 | [Suggest the full branch name for a remote checkout](050-release-1-10-0-the-worktrees/150-w05-suggest-the-full-branch-name-for-a-remote-checkout.md) | webview | — | A | ready |
-| W06 | [Whole-row checkboxes in dialogs](050-release-1-10-0-the-worktrees/160-w06-whole-row-checkboxes-in-dialogs.md) | CSS | Y13 (ready under (a)) | A | ready |
+| W00 | [Finish release 1.9.0's housekeeping](050-release-1-10-0-the-worktrees/100-w00-finish-release-1-9-0-housekeeping.md) | docs | — (Y15 for step 3) | A | dispatched `2026-11-05` (Haiku) |
+| W01 | [Refresh the engine's dependencies and gix](050-release-1-10-0-the-worktrees/110-w01-refresh-the-engine-dependencies-and-gix.md) | Rust | — (Y2 answered) | A | dispatched `2026-11-05` (Sonnet) |
+| W02 | [List worktrees on the CLI](050-release-1-10-0-the-worktrees/120-w02-list-worktrees-on-the-cli.md) | TS | — | A | dispatched `2026-11-05` (Haiku) |
+| W04 | [Refresh a graph when a worktree changes](050-release-1-10-0-the-worktrees/140-w04-refresh-a-graph-when-a-worktree-changes.md) | TS | — | A | dispatched `2026-11-05` (Sonnet) |
+| W05 | [Suggest the full branch name for a remote checkout](050-release-1-10-0-the-worktrees/150-w05-suggest-the-full-branch-name-for-a-remote-checkout.md) | webview | — | A | dispatched `2026-11-05` (Haiku) |
+| W06 | [Whole-row checkboxes in dialogs](050-release-1-10-0-the-worktrees/160-w06-whole-row-checkboxes-in-dialogs.md) | CSS | Y13 (ready under (a)) | A | dispatched `2026-11-05` (Haiku) |
 | W07 | [Read a linked worktree's local config](050-release-1-10-0-the-worktrees/170-w07-read-a-linked-worktree-s-local-config.md) | Rust + TS | W01 | A | needs W01 |
-| W08 | [A nested worktree is not a submodule in telemetry](050-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | ready |
+| W08 | [A nested worktree is not a submodule in telemetry](050-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | dispatched `2026-11-05` (Haiku) |
 | W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | gated on Y11 |
 | W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | gated on Y23, Y24 |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | needs W01, W02 |
@@ -172,4 +172,10 @@ W21, then W30.
 The integrator appends one dated line per integrated slice or wave: the
 commit, the gate results with numbers, and the Sonar task id.
 
-- Not started.
+- `2026-11-05`: Y1 and Y16 answered. The integration branch `the-worktrees`
+  was created locally from `main` at `f11b5d6`, and nothing of 1.10.0 is
+  pushed. Claude Opus 5.5 is the team lead and integrator. Wave A was
+  dispatched to `general-purpose` agents, each slice on
+  `wt-1.10.0/<id>` in `../ggl-<id>`:
+  - Haiku: W00 (without Y15's step 3), W02, W05, W06 and W08;
+  - Sonnet: W01 and W04.

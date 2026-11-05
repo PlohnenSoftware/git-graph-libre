@@ -85,8 +85,9 @@ maintainer's choices applied, and lands it with its authorship and its
   - One textual conflict: the generated `docs/kb/README.md` index.
   - The PR's record, `docs/kb/070-history/160-tag-remote-status.md`, reuses
     prefix `160`, which `main` gave `160-closed-github-issues-and-their-threads.md`
-    in `4337db4`. `kb:check` fails until the record is renumbered to `170`
-    and the index regenerated.
+    in `4337db4`. `kb:check` fails until the record takes the next free
+    History prefix and the index is regenerated. That is `180` once W00 has
+    moved release 1.9.0 to `170`.
   - `CHANGELOG.md` and `README.md` merge cleanly.
 - **Gaps the PR states itself.**
   - No SonarQube run, since the contributor had no scanner, and no `kb:graph`.
@@ -120,8 +121,9 @@ maintainer's choices applied, and lands it with its authorship and its
    back to the contributor as a requested change. If it is small, the
    maintainer may instead take a follow-up slice, `W26F`, after the merge.
 3. **Land it per Y24.**
-   - The contributor rebases onto `main`, renumbers the record to `170`,
-     regenerates the index with `pnpm run kb:index`, and keeps the
+   - The contributor rebases onto `main`, renumbers the record to the next
+     free History prefix (`180` after W00), regenerates the index with
+     `pnpm run kb:index`, and keeps the
      `Closes PlohnenSoftware/git-graph-libre#46` line.
    - The maintainer merges with **Rebase and merge**. #46 then closes on
      merge.
