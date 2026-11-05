@@ -9,7 +9,7 @@ summary: >-
 
 # W02 — List worktrees on the CLI
 
-Status: claimed by Claude Haiku 5.5 on 2026-11-05 17:59
+Status: done — awaiting integration
 Needs: —
 Decisions: —
 Kind: TypeScript · Size budget: ~200 changed lines outside tests
@@ -82,4 +82,28 @@ reads worktrees through it, or through W03's engine twin.
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Haiku 5.5, 2026-11-05 18:02
+- **Branch and commits:** `wt-1.10.0/W02` —
+  - `1f6f7db G docs(worktrees): claim slice W02 (W02)`
+  - `f705ec0 G feat(worktrees): add the GitWorktree type (W02)`
+  - `c4a2e6d G feat(worktrees): list worktrees from git worktree list (W02)`
+  - `907e8c4 G test(worktrees): cover the worktree list parser and real Git (W02)`
+  - Report commit: see the branch tip (this commit).
+- **Files changed:**
+  - `src/backend/types/git.types.ts` (+23, −0): `GitWorktree` type
+  - `src/backend/queries/worktrees.ts` (+164, new): `parseWorktreeList`, `loadWorktrees`, `WorktreeListFormatError`
+  - `tests/backend/queries/worktrees.test.ts` (+297, new)
+  - this slice file (claim and report only)
+  - Source lines outside tests: about 187 (budget ~200).
+- **Tests added or changed:** 18 new tests in `tests/backend/queries/worktrees.test.ts`: 11 parser cases and 7 real-Git cases (main plus linked branch, detached, locked with a reason, prunable with its folder deleted, `isCurrent` from main, from a linked worktree and through a symlink, and a bare repository with two linked worktrees). The file adds 18 backend tests; I did not measure the count before the slice, so no before/after pair is recorded. The full backend run after the slice: 1162 passed.
+- **Gates:** biome strict (`npx biome check --config-path biome.strict.jsonc --error-on-warnings`) on every touched `.ts` file, exit 0; `pnpm run typecheck` exit 0; `pnpm run test`: backend 1162 passed, 60 skipped, of 1222 (94 files); webview 791 passed of 791 (64 files); l10n n/a (no user-visible text); kb:check not run (only this slice file changed under docs/kb, its front matter and headings untouched); Rust arm n/a; Sonar: integrator
+- **Acceptance:**
+  - Every fixture maps exactly: met. Tests compare `head`, `branch`, `detached`, `bare`, `locked`, `prunable` and order against real `git worktree list` output from fixtures.
+  - `isCurrent` right from the main worktree and from a linked one, with canonical paths: met. The symlink test checks that a symlinked path also resolves to the main worktree.
+  - No test touches a real repository or the network: met. All fixtures live under `os.tmpdir()`, the global config is an empty temp file for the run (`GIT_CONFIG_GLOBAL`, `GIT_CONFIG_NOSYSTEM`), and no test asserts on this repository's worktree list.
+- **Deviations from the slice:** none in substance. `parseWorktreeList` returns `isCurrent: false` for every entry, because canonical path comparison is async; `loadWorktrees` sets it, as the slice's step 2 implies. `tests/backend/helpers.ts` was not changed; the test file uses `makeRepo` and `git` as they are.
+- **Open questions / follow-ups:**
+  - The engine binary copied into `engine/native/linux-x64/` is the one from the main checkout, built before W01. W02 does not use the engine, so no engine-backed test ran against it here.
+  - Biome 2.6.3 is installed, while `biome.strict.jsonc` names schema 2.5.13. Biome prints a config-version notice on every run, but exits 0. I did not touch the config.
+  - 60 backend tests are skipped in the full run. They are existing `skipIf` tests (for example the engine-dependent ones in `tests/backend/engine/`); I did not investigate each skip.
+  - `loadWorktrees` compares the `repo` argument as given, so a subdirectory of a worktree matches no entry and every `isCurrent` is false. Callers must pass the worktree root; W10 or W32 should keep that in mind.
