@@ -10,7 +10,7 @@ summary: >-
 
 # W04 — Refresh a graph when a worktree changes
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 on 2026-11-05 17:59
 Needs: —
 Decisions: —
 Kind: TypeScript · Size budget: ~180 changed lines outside tests
