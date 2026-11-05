@@ -103,6 +103,16 @@ export type EngineAddon = {
    */
   loadIndexFile?(repoPath: string, file: string): Promise<string>;
   /**
+   * `list_worktrees` encoded as JSON: the main worktree, then the linked
+   * ones sorted by path, as `git worktree list` gives them. Optional and
+   * deliberately absent from the shape check below, like `loadIndexFile`:
+   * binaries built before it still load and the reader falls back to
+   * `git worktree list` — no engine version bump. It rejects with an
+   * `Unsupported` error wherever Git's answer could differ (a prunable
+   * worktree, a missing `gitdir` file).
+   */
+  listWorktrees?(repoPath: string): Promise<string>;
+  /**
    * `diff_texts` encoded as JSON: VS Code's `LinesDiff` for two texts,
    * computed by the Phase 17 port, with UTF-16 columns. Options are the
    * JSON built by `diffTexts.ts`. Optional and deliberately absent from the
