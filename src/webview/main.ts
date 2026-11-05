@@ -267,8 +267,11 @@ export function detachedWorktreeHeadMap(worktrees: GitWorktree[]): Map<string, G
 
 /** A worktree's folder name: the last segment of its path, on either separator. */
 export function worktreeFolderName(worktreePath: string): string {
-  const trimmed = worktreePath.replace(/[/\\]+$/, "");
-  const segments = trimmed.split(/[/\\]/);
+  let end = worktreePath.length;
+  while (end > 0 && (worktreePath[end - 1] === "/" || worktreePath[end - 1] === "\\")) {
+    end -= 1;
+  }
+  const segments = worktreePath.slice(0, end).split(/[/\\]/);
   return segments.at(-1) || worktreePath;
 }
 

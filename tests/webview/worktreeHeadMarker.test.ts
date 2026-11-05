@@ -148,7 +148,7 @@ describe("detached worktree HEAD row marker", () => {
     });
 
     const markers = document.querySelectorAll<HTMLElement>(".worktreeHeadRef");
-    expect(markers.length).toBe(1);
+    expect(markers).toHaveLength(1);
     expect(markers[0]?.textContent).toContain("HEAD of worktree worktree-head-repo-side");
     expect(markers[0]?.title).toBe(sidePath);
     const markedRow = markers[0]?.closest("tr");
