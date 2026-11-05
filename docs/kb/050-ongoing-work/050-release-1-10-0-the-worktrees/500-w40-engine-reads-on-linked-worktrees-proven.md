@@ -10,7 +10,7 @@ summary: >-
 
 # W40 — Engine reads on linked worktrees, proven
 
-Status: ready once W01 and W07 are integrated
+Status: claimed by Claude Sonnet 5.5 on 2026-11-05 12:00
 Needs: W01, W07
 Decisions: —
 Kind: Rust and TypeScript, the Rust arm applies · Size budget: ~250 changed
