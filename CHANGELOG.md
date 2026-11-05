@@ -38,11 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#45](https://github.com/PlohnenSoftware/git-graph-libre/issues/45)). Reusing
   an existing local branch is still to come.
 
-- **A dialog checkbox toggles from anywhere on its row.** Only the box and
-  its text reacted before; a click on the rest of the row, right of the
-  text, did nothing. In the dialogs, the whole row is now the click target.
-  Locked checkboxes still refuse the change and keep their explanation.
-  Thanks to @rbalet for the request
+- **A checkbox toggles from anywhere on its row, in every popup.** Only the
+  box and its text reacted before; a click on the rest of the row, right of
+  the text, did nothing. Now the whole row is the click target in the dialogs
+  and for each boolean setting in the Settings popup's Extension tab. Locked
+  checkboxes still refuse the change and keep their explanation. Thanks to
+  @rbalet for the request
   ([#41](https://github.com/PlohnenSoftware/git-graph-libre/issues/41)).
 
 - **The Push Branch dialog starts from what `git push` would do.** It
