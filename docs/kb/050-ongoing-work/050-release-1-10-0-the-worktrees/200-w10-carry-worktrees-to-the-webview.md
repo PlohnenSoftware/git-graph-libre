@@ -9,7 +9,7 @@ summary: >-
 
 # W10 — Carry worktrees to the webview
 
-Status: ready once W02 is integrated
+Status: claimed by Claude Haiku 5.5 on 2026-11-05 18:10
 Needs: W02 (W03 optional: the reader uses it when present)
 Decisions: —
 Kind: TypeScript · Size budget: ~150 changed lines outside tests
