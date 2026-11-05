@@ -117,6 +117,21 @@ type ActionPayloads = {
   stageFiles: { filePaths: string[] };
   unstageFiles: { filePaths: string[] };
   undoLastCommit: unknown;
+  /**
+   * Removes a linked worktree with plain `git worktree remove`. `force` is sent
+   * only after the user confirmed the loss of its uncommitted and untracked
+   * files; `unlock` unlocks a locked worktree first (it is never forced twice).
+   * `deleteBranch` runs once the worktree is gone, for the Delete Branch dialog.
+   */
+  removeWorktree: {
+    path: string;
+    force: boolean;
+    unlock: boolean;
+    deleteBranch?: { branchName: string; forceDelete: boolean; deleteOnRemotes?: string[] };
+  };
+  pruneWorktrees: unknown;
+  /** `path` is the stale entry; `newPath` is the folder it moved to, or null to ask the user. */
+  repairWorktree: { path: string; newPath: string | null };
 };
 
 export type ActionRequest = {

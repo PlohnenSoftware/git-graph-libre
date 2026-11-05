@@ -48,6 +48,13 @@ import {
 import { addTag, deleteTag, pushAllTags, pushTag } from "@/backend/actions/tag";
 import { deleteUserDetails, editUserDetails } from "@/backend/actions/userConfig";
 import {
+  pruneWorktrees,
+  removeWorktree,
+  repairWorktree,
+  worktreeChanges
+} from "@/backend/actions/worktree";
+import {
+  closeEngineRepository,
   createRepoReader,
   didEngineDeclineRead,
   didEngineFailRead,
@@ -64,6 +71,7 @@ import { resolveRef } from "@/backend/queries/resolveRef";
 import { tagDetails } from "@/backend/queries/tagDetails";
 import { uncommittedDetails } from "@/backend/queries/uncommittedDetails";
 import type { GitFileChangeType, GitQueryError } from "@/backend/types";
+import { canonicalizePath } from "@/backend/utils/git";
 import { formatGitCommandRecord } from "@/backend/utils/gitCommandLog";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { selectedLogRefs } from "@/backend/utils/logFilters";
@@ -460,6 +468,18 @@ function openInteractiveRebaseTerminal(
   terminal.sendText(`git rebase --interactive ${quoteTerminalArg(msg.target)}`);
 }
 
+/** Asks for the folder a worktree was moved to; null when the picker is cancelled. */
+async function pickWorktreeFolder(): Promise<string | null> {
+  const picked = await vscode.window.showOpenDialog({
+    canSelectFolders: true,
+    canSelectFiles: false,
+    canSelectMany: false,
+    title: l10n.t("dialog.repairWorktree.pickFolder"),
+    openLabel: l10n.t("dialog.repairWorktree.pickFolderLabel")
+  });
+  return picked?.[0]?.fsPath ?? null;
+}
+
 export function registerMessageHandlers(
   bridge: WebviewBridge,
   deps: {
@@ -582,6 +602,28 @@ export function registerMessageHandlers(
     });
   }
 
+  /**
+   * After a worktree is removed or pruned its folder is gone, so a repository
+   * known at that path is dropped from the list. `removeRepo` closes its engine
+   * handle; a path that was never a known repository still gets its handle closed.
+   */
+  async function forgetWorktrees(paths: string[]) {
+    const canonical = new Set(await Promise.all(paths.map((p) => canonicalizePath(p))));
+    const known = await Promise.all(
+      Object.keys(repoManager.getRepos()).map(
+        async (repo) => [repo, await canonicalizePath(repo)] as const
+      )
+    );
+    let removed = false;
+    for (const [repo, canonicalRepo] of known) {
+      if (!canonical.has(canonicalRepo)) continue;
+      repoManager.removeRepo(repo);
+      removed = true;
+    }
+    for (const p of paths) closeEngineRepository(p);
+    if (removed) repoManager.sendRepos();
+  }
+
   function getKnownRepoState(repo: string): GitRepoState {
     const repoState = repoManager.getRepos()[repo];
     if (repoState === undefined) throw new Error("Unknown repository.");
@@ -639,6 +681,18 @@ export function registerMessageHandlers(
   registerAction("deleteBranch", (msg) =>
     deleteBranch(gitClient.getInstance(), msg, recordGitCommand)
   );
+  registerAction("removeWorktree", async (msg) => {
+    await forgetWorktrees([await removeWorktree(gitClient.getInstance(), msg, recordGitCommand)]);
+  });
+  registerAction("pruneWorktrees", async (msg) => {
+    await forgetWorktrees(await pruneWorktrees(gitClient.getInstance(), msg, recordGitCommand));
+  });
+  registerAction("repairWorktree", async (msg) => {
+    const newPath = msg.newPath ?? (await pickWorktreeFolder());
+    // A cancelled picker changes nothing.
+    if (newPath === null) return;
+    await repairWorktree(gitClient.getInstance(), { ...msg, newPath }, recordGitCommand);
+  });
   registerAction("deleteRemote", (msg) =>
     deleteRemote(gitClient.getInstance(), msg, recordGitCommand)
   );
@@ -1038,6 +1092,18 @@ export function registerMessageHandlers(
       ...(await tagDetails(gitClient.getInstance(), {
         repo: msg.repo,
         tagName: msg.tagName,
+        recordGitCommand
+      }))
+    });
+  });
+
+  bridge.onMessage("worktreeChanges", async (msg) => {
+    bridge.post({
+      command: "worktreeChanges",
+      requestId: msg.requestId,
+      ...(await worktreeChanges(gitClient.getInstance(), {
+        repo: msg.repo,
+        path: msg.path,
         recordGitCommand
       }))
     });

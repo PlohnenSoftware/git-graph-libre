@@ -79,7 +79,22 @@ type UncommittedDetailsResult = {
   error: GitQueryError | null;
 };
 
+type WorktreeChangesResult = {
+  /** The worktree that was read, as listed by Git. */
+  path: string;
+  /** Uncommitted and untracked paths, at most `MAX_WORKTREE_CHANGES` in the worktree actions. */
+  files: string[];
+  /** True when the worktree has more changes than `files` lists. */
+  truncated: boolean;
+  error: GitQueryError | null;
+};
+
 type QueryPayloads = {
+  worktreeChanges: {
+    request: { requestId: number; repo: string; path: string };
+    result: WorktreeChangesResult;
+    response: { requestId: number } & WorktreeChangesResult;
+  };
   remoteTags: {
     request: { requestId: number; repo: string };
     result: {
