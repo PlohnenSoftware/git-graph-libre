@@ -11,7 +11,7 @@ summary: >-
 
 # W21 — Remove, prune and repair worktrees
 
-Status: ready once W10 and W20 are integrated
+Status: claimed by Claude Sonnet 5.5 on 2026-11-05 12:00
 Needs: W10, W20
 Decisions: Y5 (the removal and force policy)
 Kind: TypeScript and webview, l10n · Size budget: ~280 changed lines outside
