@@ -22,10 +22,8 @@
  * and hence the test that checks the ids against that pattern.
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-
 import type { GitCommitNode } from "@/backend/types";
+import { resolveGitDirs } from "@/backend/utils/gitDirs";
 import type { EngineUnavailableReason } from "@/types";
 
 import type { TelemetryReporter } from "./index";
@@ -152,28 +150,17 @@ function hasStashRows(commits: readonly Pick<GitCommitNode, "stash">[]): boolean
   return commits.some((commit) => commit.stash !== undefined);
 }
 
-const GITDIR_PREFIX = "gitdir:";
-
 /**
- * Whether `repo` is a linked worktree: its `.git` is a file whose `gitdir:`
- * names an admin directory holding `commondir`, which Git writes only for
- * worktrees. A submodule's `.git` file names an admin directory under the
- * parent's `.git/modules/`, which has no `commondir`, and an independent
- * repository's `.git` is a directory, so neither matches. Read from the file
- * system, so no Git process is spawned; an unreadable path answers false.
+ * Whether `repo` is a linked worktree: its git dir differs from its common
+ * dir, which holds only for a worktree. A submodule's git dir sits under the
+ * parent's `.git/modules/` and an independent repository's `.git` is a
+ * directory, so neither splits the two. Resolved by `resolveGitDirs()` from the
+ * file system, so no Git process is spawned; a path it cannot read answers
+ * false, because its fallback names the same directory for both.
  */
 function isLinkedWorktree(repo: string): boolean {
-  try {
-    const dotGit = path.join(repo, ".git");
-    if (!fs.statSync(dotGit).isFile()) return false;
-    const firstLine = fs.readFileSync(dotGit, "utf8").split("\n")[0] ?? "";
-    if (!firstLine.startsWith(GITDIR_PREFIX)) return false;
-    const target = firstLine.slice(GITDIR_PREFIX.length).trim();
-    if (target === "") return false;
-    return fs.existsSync(path.join(path.resolve(repo, target), "commondir"));
-  } catch {
-    return false;
-  }
+  const { gitDir, commonDir } = resolveGitDirs(repo);
+  return gitDir !== commonDir;
 }
 
 /**
