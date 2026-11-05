@@ -10,7 +10,7 @@ summary: >-
 
 # W31 — Open a worktree or switch the graph to it
 
-Status: ready once W10 is integrated
+Status: claimed by Claude Haiku 5.5 on 2026-11-05 18:41
 Needs: W10
 Decisions: —
 Kind: TypeScript, manifest and l10n · Size budget: ~180 changed lines outside
