@@ -103,6 +103,7 @@ run one after another, as the integrator procedure says.
 | W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | integrated `a93ddc7` (merge of `a109e9a`) |
 | W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | integrated `43ac7e9` |
 | W26H | [Harden the remote tag read](050-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | integrated `d607144` |
+| W26HF | [Remote tag read Sonar follow-up](050-release-1-10-0-the-worktrees/369-w26hf-remote-tag-read-sonar-follow-up.md) | TS | W26H | A | dispatched `2026-11-05` (Haiku) |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | integrated `f9e54a4` |
 | W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | needs W07 |
 | W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | ready; held until W07 is integrated (both bump the engine version) |
@@ -110,8 +111,8 @@ run one after another, as the integrator procedure says.
 | W10F | [Read worktrees through the engine reader](050-release-1-10-0-the-worktrees/205-w10f-read-worktrees-through-the-engine-reader.md) | TS | W03, W10 | C | integrated `436e0b0` |
 | W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | ready (queued: one manifest or l10n slice at a time) |
 | W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | needs W07 (it seeds both backends' logs; after W07's engine bump) |
-| W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | dispatched `2026-11-05` (Sonnet) |
-| W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | needs W10, W20 |
+| W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | integrated `83f5821` |
+| W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | dispatched `2026-11-05` (Sonnet) |
 | W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | ready (queued: one manifest or l10n slice at a time) |
 | W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | ready (queued: one manifest or l10n slice at a time) |
 | W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | ready (queued: one manifest or l10n slice at a time) |
@@ -333,3 +334,23 @@ commit, the gate results with numbers, and the Sonar task id.
     (`String.raw`), S1528 at `:163` (the `Array` constructor) and S9382 at
     `:168` (`await` in a loop). They are W26HF's.
   - Issue #36 is complete with W25 and gated, so this record closes it.
+- `2026-11-05`: W20 integrated at `83f5821`. A branch checked out in another
+  worktree now behaves differently in its menus:
+  - Checkout becomes "Open Worktree…". For now that opens a dialog with
+    Copy Path; W31 replaces `openWorktreeAction()`.
+  - Pull and Fetch into Local Branch are hidden, and the menu header
+    names the worktree.
+  - Delete only explains, until W21. Rename notes that the other worktree
+    follows the new name.
+  - `fetchIntoLocalBranch` refuses before fetching.
+
+  The context menu can't show a locked item with a reason, so Y6's
+  fallback applies: hide the item, with a header line. The rebase was
+  clean. Typecheck passes, the backend passes 1243 (60 environment skips),
+  the webview 836 of 836, and l10n is complete. Accepted outside the Touch
+  list: the matching `webviewL10n.ts` entries. The nl, pl, zh-cn and zh-tw
+  strings are the agent's own.
+
+  Dispatched next:
+  - W21 to Sonnet, taking the manifest and l10n slot, completing #38;
+  - W26HF to Haiku.
