@@ -107,7 +107,7 @@ run one after another, as the integrator procedure says.
 | W26HF | [Remote tag read Sonar follow-up](050-release-1-10-0-the-worktrees/369-w26hf-remote-tag-read-sonar-follow-up.md) | TS | W26H | A | integrated `8ff94dd` |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | integrated `f9e54a4` |
 | W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | integrated `f1dcbb6` |
-| W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | dispatched `2026-11-05` (Sonnet) |
+| W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | integrated `a81b51a` |
 | W10 | [Carry worktrees to the webview](050-release-1-10-0-the-worktrees/200-w10-carry-worktrees-to-the-webview.md) | TS | W02 | C | integrated `2a619c4` |
 | W10F | [Read worktrees through the engine reader](050-release-1-10-0-the-worktrees/205-w10f-read-worktrees-through-the-engine-reader.md) | TS | W03, W10 | C | integrated `436e0b0` |
 | W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | ready (queued: one manifest or l10n slice at a time) |
@@ -468,3 +468,23 @@ commit, the gate results with numbers, and the Sonar task id.
     release slices and on its own branch: the switch of
     `publish.yml` to OIDC trusted publishing on both registries
     (maintainer, `2026-11-05`).
+- `2026-11-05`: W41 integrated at `a81b51a`. Both engine opens bail on a
+  repository Git's ownership rules reject, with their own `Untrusted`
+  kind, and every reader read reroutes such a refusal to the CLI
+  (`cause=untrusted`); `isVerified` is unchanged and still first. The
+  engine is `1.0.29`. The re-dispatched agent finished the previous
+  agent's saved Rust core in the same worktree, narrowing its test seam
+  to reduced trust only. The rebase onto the tip was clean.
+- `2026-11-05`, gate on `a81b51a`: W41 since `fcc76c4`.
+  - Rust arm: `engine:fmt`, `engine:lint`, `engine:check` and
+    `engine:test` pass (228 tests). The engine was rebuilt, and
+    `engine:smoke` reports `1.0.29`.
+  - Strict Biome is clean on the 5 touched TypeScript files. `package`,
+    `typecheck` and `kb:check` pass. Tests: backend 1,330, webview 862,
+    all passing.
+  - Fresh `test:coverage`: 170 files, 2,192 of 2,192 tests passed.
+  - Sonar task `9133f2c4-08d9-4f40-96e2-4b3202778fdd`: quality gate
+    **`OK`**. New coverage is 94.1%, with 0 new violations.
+  - Open, recorded in W41's report: a pure ownership change is not
+    rechecked on a warm handle, and a theoretical mid-compose
+    `config_list` refusal would be labelled `configFill:engineFailed`.
