@@ -9,7 +9,7 @@ summary: >-
 
 # W51 — Local changes in other worktrees
 
-Status: gated on Y20
+Status: ready once W30 is integrated
 Needs: W30
 Decisions: Y20 ((a) on demand in the list; (b) defer)
 Kind: TypeScript · Size budget: ~120 changed lines outside tests

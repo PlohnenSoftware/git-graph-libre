@@ -10,7 +10,7 @@ summary: >-
 
 # W12 — Other worktrees' detached HEADs in the graph
 
-Status: gated on Y22
+Status: ready once W10 and W03 are integrated
 Needs: W10, W03 (the engine must accept the same tips)
 Decisions: Y22 (show them by default, and whether a setting turns them off)
 Kind: TypeScript and Rust, the Rust arm applies · Size budget: ~200 changed

@@ -11,7 +11,7 @@ summary: >-
 
 # W24 — Check out a remote branch whose local branch exists
 
-Status: gated on Y14
+Status: ready once W05 and W10 are integrated
 Needs: W05, W10 (worktrees and upstreams)
 Decisions: Y14 (fast-forward source and detection rules)
 Kind: webview and TypeScript, l10n · Size budget: ~220 changed lines outside

@@ -1,6 +1,6 @@
 ---
 summary: >-
-  W41 · wave B · gated on Y12 · Rust + TypeScript · ~200 lines: the deferred
+  W41 · wave B · needs W01 · Rust + TypeScript · ~200 lines: the deferred
   slice from the Git trust handoff. Open every repository with
   `bail_if_untrusted(true)`, and give the refusal its own `Untrusted` error
   kind, so the engine can never serve a repository Git rejects. Today
@@ -11,7 +11,7 @@ summary: >-
 
 # W41 — Engine opens refuse untrusted repositories
 
-Status: gated on Y12
+Status: ready once W01 is integrated
 Needs: W01
 Decisions: Y12 (in this release or later)
 Kind: Rust and TypeScript, the Rust arm applies · Size budget: ~200 changed

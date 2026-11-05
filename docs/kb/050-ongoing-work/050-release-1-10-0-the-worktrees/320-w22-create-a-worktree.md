@@ -11,7 +11,7 @@ summary: >-
 
 # W22 — Create a worktree
 
-Status: gated on Y7 and Y8
+Status: ready once W10 is integrated
 Needs: W10
 Decisions: Y7 (default location), Y8 (what happens after)
 Kind: TypeScript and webview, l10n · Size budget: ~250 changed lines outside

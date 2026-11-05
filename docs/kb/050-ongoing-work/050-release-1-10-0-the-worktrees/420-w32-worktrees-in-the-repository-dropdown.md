@@ -10,7 +10,7 @@ summary: >-
 
 # W32 — Worktrees in the repository dropdown
 
-Status: gated on Y9 and Y10
+Status: ready once W02, W04 and W10 are integrated
 Needs: W02, W04 (`resolveGitDirs`), W10
 Decisions: Y9 (worktrees outside the workspace), Y10 (trust prompts)
 Kind: TypeScript and webview · Size budget: ~250 changed lines outside tests

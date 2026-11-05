@@ -24,7 +24,8 @@ are ready: W00, W01, W02, W04, W05, W06 and W08.
 **Added `2026-11-05`: issue #46 and PR #47.** The maintainer added
 `rbalet`'s issue #46 (show which remotes hold a tag) to this release, with
 the draft PR #47 that implements it (one commit, `a109e9a`). It is W26, a
-review-and-land slice gated on Y23 and Y24. `a109e9a` is also the model for
+review-and-land slice: the integrator merges the PR unchanged with a merge
+commit (Y24), and W26F adds the setting that Y23 asks for. `a109e9a` is also the model for
 the standing rule Closing issues from commits, which this release follows.
 
 Everything about worktrees, in one release: what users asked for (#37, #38),
@@ -97,26 +98,27 @@ run one after another, as the integrator procedure says.
 | W06 | [Whole-row checkboxes in dialogs](050-release-1-10-0-the-worktrees/160-w06-whole-row-checkboxes-in-dialogs.md) | CSS | Y13 (ready under (a)) | A | dispatched `2026-11-05` (Haiku) |
 | W07 | [Read a linked worktree's local config](050-release-1-10-0-the-worktrees/170-w07-read-a-linked-worktree-s-local-config.md) | Rust + TS | W01 | A | needs W01 |
 | W08 | [A nested worktree is not a submodule in telemetry](050-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | dispatched `2026-11-05` (Haiku) |
-| W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | gated on Y11 |
-| W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | gated on Y23, Y24 |
+| W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | ready |
+| W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | ready |
+| W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | needs W26 |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | needs W01, W02 |
 | W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | needs W01, W07 |
-| W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | gated on Y12 |
+| W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | needs W01 |
 | W10 | [Carry worktrees to the webview](050-release-1-10-0-the-worktrees/200-w10-carry-worktrees-to-the-webview.md) | TS | W02 | C | needs W02 |
-| W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | gated on Y4 |
-| W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | gated on Y22 |
-| W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | gated on Y6 |
-| W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | gated on Y5 |
-| W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | gated on Y7, Y8 |
-| W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | gated on Y14 |
+| W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | needs W10 |
+| W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | needs W10, W03 |
+| W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | needs W10 |
+| W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | needs W10, W20 |
+| W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | needs W10 |
+| W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | needs W05, W10 |
 | W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | needs W10 |
-| W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | gated on Y3 |
+| W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | needs W10, W21, W31 |
 | W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | needs W21, W30 |
-| W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | gated on Y9, Y10 |
-| W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | gated on Y17 |
-| W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | gated on Y18 |
-| W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | gated on Y19 |
-| W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | gated on Y20 |
+| W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | needs W02, W04, W10 |
+| W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | needs W32 |
+| W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | needs W32 |
+| W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | needs W11, W32 |
+| W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | needs W30 |
 | W90 | [Release 1.10.0](050-release-1-10-0-the-worktrees/900-w90-release-1-10-0.md) | release | every slice in scope | — | maintainer |
 
 **Order, if one agent does everything:**

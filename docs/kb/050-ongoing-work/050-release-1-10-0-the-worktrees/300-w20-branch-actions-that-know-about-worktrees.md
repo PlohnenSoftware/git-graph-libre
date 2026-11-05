@@ -10,7 +10,7 @@ summary: >-
 
 # W20 — Branch actions that know about worktrees
 
-Status: gated on Y6
+Status: ready once W10 is integrated
 Needs: W10
 Decisions: Y6 (hide, lock with a reason, or replace with an alternative)
 Kind: webview and TypeScript, l10n · Size budget: ~220 changed lines outside

@@ -1,6 +1,6 @@
 ---
 summary: >-
-  W25 · wave A · gated on Y11 · TypeScript + webview · ~200 lines: issue #36.
+  W25 · wave A · ready · TypeScript + webview · ~200 lines: issue #36.
   A read-only request at dialog open returns the branch's upstream remote and
   Git's own push remote (`%(push:remotename)`). The Push Branch dialog
   pre-checks that remote, ticks Set upstream only for a branch with no
@@ -9,7 +9,7 @@ summary: >-
 
 # W25 — Push dialog defaults that follow Git
 
-Status: gated on Y11
+Status: ready
 Needs: —
 Decisions: Y11 (which defaults, and the several-remotes rule)
 Kind: TypeScript and webview · Size budget: ~200 changed lines outside tests

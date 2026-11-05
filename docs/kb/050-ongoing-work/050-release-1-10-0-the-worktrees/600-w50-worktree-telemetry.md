@@ -10,7 +10,7 @@ summary: >-
 
 # W50 — Worktree telemetry
 
-Status: gated on Y19
+Status: ready once W11 and W32 are integrated
 Needs: W11, W32
 Decisions: Y19 (add the two features, or none)
 Kind: TypeScript and docs · Size budget: ~80 changed lines outside tests

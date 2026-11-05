@@ -10,7 +10,7 @@ summary: >-
 
 # W11 — Show where each branch is checked out
 
-Status: gated on Y4 (the marker's look)
+Status: ready once W10 is integrated
 Needs: W10
 Decisions: Y4
 Kind: webview, CSS and l10n · Size budget: ~220 changed lines outside tests

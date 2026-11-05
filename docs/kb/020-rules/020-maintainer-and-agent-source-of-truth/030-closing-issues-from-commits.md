@@ -57,9 +57,18 @@ How to write it:
 - **Pull requests.** A pull request that resolves an issue also says
   `Closes #<n>` in its description. GitHub then links the issue to the
   pull request before it merges, as PR #47 does. Outside contributors follow
-  the same rule for their commits. Merge such a pull request with
-  **Rebase and merge** (Branch and release policy), which keeps the commit
-  message as written, and the closing line with it.
+  the same rule for their commits. Land such a pull request in one of two
+  ways, each keeping the closing line:
+  - **straight to `main`:** **Rebase and merge** on GitHub (Branch and
+    release policy), which keeps the commit message as written;
+  - **into a local release** (maintainer, `2026-11-05`, for PR #47): merge
+    the pull request's head unchanged into the integration branch with a
+    plain merge commit (`git merge --no-ff`). The contributor's commits keep
+    their hashes and signatures. When `main` is fast-forwarded at the
+    release, GitHub sees them on `main`, marks the pull request merged, and
+    their `Closes` lines close the issue. Never rebase, amend or re-sign
+    them on this route: new hashes are commits GitHub cannot match to the
+    pull request.
 
 When it takes effect: GitHub acts on the keyword only when the commit lands
 on `main`, either by a merged pull request or by `main` being fast-forwarded

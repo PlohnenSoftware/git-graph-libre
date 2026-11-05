@@ -1,19 +1,21 @@
 ---
 summary: >-
-  W26 · wave A · gated on Y23, Y24 · review and integration of an outside pull
-  request · TypeScript + webview + l10n, ~210 lines outside tests as
-  submitted: issue #46. Review and land `rbalet`'s draft PR #47 (one commit,
-  `a109e9a`), which shows on each tag badge the remotes that hold the
-  identical tag, read with `git ls-remote` in the background. Y23 decides
-  when remotes are contacted, Y24 how the PR lands; its `Closes` line closes
-  #46 on merge.
+  W26 · wave A · ready · review and integration of an outside pull request
+  · TypeScript + webview + l10n, ~210 lines outside tests as submitted:
+  issue #46. Review `rbalet`'s draft PR #47 (one commit, `a109e9a`), which
+  shows on each tag badge the remotes that hold the identical tag, read with
+  `git ls-remote` in the background. Then the integrator merges it unchanged
+  into the integration branch with a merge commit (Y24), so GitHub marks it
+  merged and `a109e9a`'s `Closes` line closes #46 when `main` is
+  fast-forwarded. The on-by-default setting (Y23) is W26F.
 ---
 
 # W26 — Tags show the remotes that hold them (PR #47)
 
-Status: gated on Y23, Y24
+Status: ready (review, then the integrator merges per Y24)
 Needs: —
-Decisions: Y23 (when remotes are contacted), Y24 (how the pull request lands)
+Decisions: Y23 answered (b): a setting, on by default, built as W26F;
+Y24 answered: a plain merge commit into the integration branch
 Kind: review and integration of an outside contribution · TypeScript,
 webview and l10n · Size: ~210 changed lines outside tests, docs and
 screenshots, as submitted (`a109e9a`: 18 files, +469/−5)
@@ -117,19 +119,28 @@ maintainer's choices applied, and lands it with its authorship and its
      review comment.
    - Never comment on the PR or the issue, and never push. The maintainer
      posts.
-2. **Apply Y23.** If the answer differs from the PR as submitted, it goes
-   back to the contributor as a requested change. If it is small, the
-   maintainer may instead take a follow-up slice, `W26F`, after the merge.
-3. **Land it per Y24.**
-   - The contributor rebases onto `main`, renumbers the record to the next
-     free History prefix (`180` after W00), regenerates the index with
-     `pnpm run kb:index`, and keeps the
-     `Closes PlohnenSoftware/git-graph-libre#46` line.
-   - The maintainer merges with **Rebase and merge**. #46 then closes on
-     merge.
-   - The 1.10.0 integration branch is rebased onto `main` afterwards.
-   - Never re-sign or rewrite the contributor's commit locally (the
-     integrator procedure).
+2. **Y23 is ours, not the contributor's.** The setting (on by default) is
+   the follow-up slice W26F, built on the integration branch after the
+   merge. Review findings that need code changes join W26F, or a further
+   follow-up, rather than going back to the contributor.
+3. **Land it per Y24 (integrator):**
+   - Fetch the PR's current head
+     (`gh pr view 47 --json headRefOid`; `a109e9a` when reviewed) and merge
+     it unchanged into `the-worktrees` with `git merge --no-ff`, a signed
+     merge commit. Never rebase, amend or re-sign `a109e9a`: GitHub can
+     only see the PR as merged if its own commit, with its own hash, reaches
+     `main`.
+   - Resolve in the merge commit itself: renumber the PR's record
+     `070-history/160-tag-remote-status.md` to the next free History prefix
+     (`180` after W00), regenerate the index with `pnpm run kb:index`, and
+     fold the PR's `CHANGELOG.md` entry in beside the others.
+   - When the maintainer fast-forwards `main` at W90, GitHub marks PR #47
+     merged and `a109e9a`'s `Closes` line closes #46. Unverified: whether
+     GitHub does that for a PR still in **draft**; if it stays open, mark
+     it ready for review before the fast-forward, or close it by hand with
+     a note.
+   - If the contributor pushes more commits before the release, merge the
+     new head the same way.
 4. **Credit.** `@rbalet` (#46) goes into W90's `[1.10.0]` changelog. The
    PR's own `[Unreleased]` entry folds into it.
 
@@ -145,10 +156,12 @@ and the Integration log.
 - The review is recorded in the report: the findings, the full gate on the
   PR's head with SonarQube `OK`, and the baseline failures confirmed or
   refuted.
-- PR #47 is merged by the maintainer, its commit message still carrying
-  `Closes PlohnenSoftware/git-graph-libre#46`, and #46 is closed by that
+- PR #47's head is merged unchanged into `the-worktrees` by a merge
+  commit, `a109e9a` keeping its hash, its signature and its
+  `Closes PlohnenSoftware/git-graph-libre#46` line.
+- `kb:check` and the full gate pass on the integration branch after the
   merge.
-- `kb:check` passes on `main` after the merge.
+- After W90's fast-forward of `main`: PR #47 shows merged and #46 closed.
 
 ## Report
 
