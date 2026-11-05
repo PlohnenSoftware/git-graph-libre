@@ -9,7 +9,7 @@ summary: >-
 
 # W05 — Suggest the full branch name for a remote checkout
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-11-05 17:59
 Needs: —
 Decisions: —
 Kind: webview · Size budget: ~20 changed lines outside tests
