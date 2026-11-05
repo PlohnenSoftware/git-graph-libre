@@ -164,13 +164,17 @@ async function mapWithLimit<T, R>(
   limit: number,
   task: (item: T) => Promise<R>
 ): Promise<R[]> {
-  const results = new Array<R>(items.length);
+  const results: R[] = [];
   let next = 0;
-  const worker = async () => {
-    while (next < items.length) {
-      const index = next++;
-      results[index] = await task(items[index]);
-    }
+  // Each worker takes the next index and chains to the one after it, so no
+  // loop awaits: the chain ends when the items run out.
+  const worker = (): Promise<void> => {
+    if (next >= items.length) return Promise.resolve();
+    const index = next++;
+    return task(items[index]).then((result) => {
+      results[index] = result;
+      return worker();
+    });
   };
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
   return results;
