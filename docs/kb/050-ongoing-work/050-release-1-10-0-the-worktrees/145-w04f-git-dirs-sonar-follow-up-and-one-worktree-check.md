@@ -10,7 +10,7 @@ summary: >-
 
 # W04F — Git dirs Sonar follow-up, and one worktree check
 
-Status: claimed by Claude Haiku 5.5 on 2026-11-05 18:14
+Status: done — awaiting integration
 Needs: W04, W08 (both integrated)
 Decisions: —
 Kind: TypeScript · Size budget: ~60 changed lines outside tests
@@ -83,4 +83,11 @@ log
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Haiku 5.5, 2026-11-05 18:15
+- **Branch and commits:** `wt-1.10.0/W04F` — `03e62e7 G` docs(release): claim W04F; `4a46b57 G` fix(watcher): resolve bare repositories from the file system (W04F); `9f5dbb1 G` fix(watcher): make the watcher bases readonly and push once (W04F); `13f6131 G` refactor(telemetry): read linked worktrees through resolveGitDirs (W04F); this report commit
+- **Files changed:** `src/backend/utils/gitDirs.ts` (69 changed lines per `git diff --stat`; `child_process` import and `resolveWithGit()` removed, bare branch added), `src/repoFileWatcher.ts` (readonly `bases`, one `push` in `start()`), `src/telemetry/viewFeatures.ts` (`isLinkedWorktree()` now calls `resolveGitDirs()`; `fs`/`path` imports dropped), `tests/backend/utils/gitDirs.test.ts` (one title renamed, two tests added), this slice file. Total against base `6e6a5e5`: 5 source/test files, +86/−63 lines including this file's status and report.
+- **Tests added or changed:** `gitDirs.test.ts`: renamed "falls back to git rev-parse for a bare repository" to "resolves a bare repository, which has no .git, to itself from the file system" (same assertions); added "resolves a bare repository with no git on PATH, so it spawns no process" (PATH set to an empty dir during the call) and "does not import child_process, so resolving never spawns a process" (source check). Count in that file: 7 → 9. Watcher and viewFeatures tests unchanged.
+- **Gates:** biome strict (`--error-on-warnings`) on the four touched .ts files: exit 0 (Biome prints a config-schema version notice, 2.5.13 in `biome.strict.jsonc` against CLI 2.6.3, which predates this slice); typecheck clean (`tsc` on src, webview, tests); test backend 1176/1236 (60 skipped), webview 802/802; l10n n/a; kb:check clean; Rust arm n/a; Sonar: integrator. Backend before-count was not re-measured on this base; the slice adds two tests to it.
+- **Acceptance:** met. The four findings (S4036 `gitDirs.ts`, S6582 optional chain, S2933 `bases`, S7778 pushes) are removed from the code and cannot be re-checked here without the Sonar scan (integrator). `resolveGitDirs()` no longer imports or spawns anything (test). Existing gitDirs, watcher and viewFeatures tests pass unchanged apart from the renamed title; the bare case is new.
+- **Deviations from the slice:** the rename of the bare-repository test title (its assertions are unchanged, and its old title described the removed fallback). `isLinkedWorktree()` differs from the old file read in one edge: an empty `commondir` file now answers "not a worktree" (Git never writes one). The "Refs: none" wording in the claim commit body is a leftover; it names no issue.
+- **Open questions / follow-ups:** the Biome config schema version mismatch (`biome.strict.jsonc` names 2.5.13, the installed CLI is 2.6.3) is pre-existing and was left alone. The integrator's Sonar rescan is needed to confirm the gate is `OK`. The viewFeatures tests for worktrees, submodules and independent nested repositories pass on the new `isLinkedWorktree()`.
