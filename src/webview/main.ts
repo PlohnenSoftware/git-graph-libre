@@ -3904,7 +3904,8 @@ class GitGraphView {
         showContextMenu(
           e as MouseEvent,
           this.buildGitRefContextMenu(sourceElem, refName),
-          sourceElem
+          sourceElem,
+          this.branchWorktreeMenuHeader(sourceElem, refName)
         );
       },
       root
@@ -4158,10 +4159,72 @@ class GitGraphView {
     if (this.gitBranchHead === refName) return;
     if (!this.isContextMenuActionVisible("branch", "checkout")) return;
 
+    // Git refuses to switch to a branch another worktree has checked out, so
+    // the way to work on it is that worktree.
+    if (this.otherWorktreePath(refName) !== null) {
+      menu.push(this.buildOpenWorktreeMenuItem(refName));
+      return;
+    }
     menu.push({
       title: l10n.checkoutBranch,
       onClick: () => this.checkoutBranchAction(sourceElem, refName)
     });
+  }
+  /** The branch's other worktree, or null when no other worktree has it checked out. */
+  private otherWorktreePath(branchName: string): string | null {
+    return this.worktreePathsFor(branchName)[0] ?? null;
+  }
+  private buildOpenWorktreeMenuItem(branchName: string): ContextMenuItem {
+    return {
+      title: l10n.openWorktree + ELLIPSIS,
+      onClick: () => this.openWorktreeAction(branchName)
+    };
+  }
+  /**
+   * The one place "Open Worktree…" goes through; W31 replaces its body with the
+   * real open or switch request. Until then it names the worktree and offers its
+   * path on the clipboard, so the menu never promises more than it does.
+   */
+  private openWorktreeAction(branchName: string) {
+    const worktreePath = this.otherWorktreePath(branchName);
+    if (worktreePath === null) return;
+
+    showFormDialog(
+      l10n.dialogOpenWorktreeMessage
+        .replace("{0}", `<b><i>${escapeHtml(branchName)}</i></b>`)
+        .replace("{1}", `<b><i>${escapeHtml(worktreePath)}</i></b>`),
+      [],
+      l10n.dialogOpenWorktreeSubmit,
+      () => sendMessage({ command: "copyToClipboard", type: "File Path", data: worktreePath }),
+      null
+    );
+  }
+  /**
+   * Locked menu items are not supported, so the actions Git refuses for a branch
+   * another worktree has checked out are left out, and this header says why.
+   */
+  private branchWorktreeMenuHeader(
+    sourceElem: HTMLElement,
+    refName: string
+  ): ContextMenuHeader | undefined {
+    const branchName = this.localBranchOfRef(sourceElem, refName);
+    const paths = branchName === null ? [] : this.worktreePathsFor(branchName);
+    if (paths.length === 0) return undefined;
+
+    return {
+      title: l10n.branchInWorktreeTitle,
+      caption: l10n.branchInWorktreeCaption.replace("{0}", paths.join(", "))
+    };
+  }
+  /** The local branch a branch or remote-branch label stands for; null for tags, stashes and detached labels. */
+  private localBranchOfRef(sourceElem: HTMLElement, refName: string): string | null {
+    if (sourceElem.classList.contains("head")) return refName;
+    if (!sourceElem.classList.contains("remote")) return null;
+
+    const remoteBranch = parseRemoteBranchName(refName, this.getRemoteNames());
+    return remoteBranch !== null && this.hasLocalBranch(remoteBranch.branchName)
+      ? remoteBranch.branchName
+      : null;
   }
   private buildBranchMetadataItems(refName: string, sourceElem: HTMLElement): ContextMenuElement[] {
     return [
@@ -4180,10 +4243,14 @@ class GitGraphView {
         title: l10n.pushBranch + ELLIPSIS,
         onClick: () => this.showPushBranchDialog(refName)
       }),
-      this.visibleContextMenuItem("branch", "pull", {
-        title: l10n.pullBranch + ELLIPSIS,
-        onClick: () => this.showUpdateBranchFromUpstreamDialog(refName)
-      })
+      // Updating from upstream fetches into the branch, which Git refuses while
+      // another worktree has it checked out.
+      this.otherWorktreePath(refName) === null
+        ? this.visibleContextMenuItem("branch", "pull", {
+            title: l10n.pullBranch + ELLIPSIS,
+            onClick: () => this.showUpdateBranchFromUpstreamDialog(refName)
+          })
+        : null
     );
   }
   private appendBranchMutationItems(
@@ -4230,12 +4297,7 @@ class GitGraphView {
   ): ContextMenuElement[] {
     const remoteBranch = parseRemoteBranchName(refName, this.getRemoteNames());
     const menu: ContextMenuElement[] = [
-      this.isContextMenuActionVisible("remoteBranch", "checkout")
-        ? {
-            title: l10n.checkoutBranch + ELLIPSIS,
-            onClick: () => this.checkoutBranchAction(sourceElem, refName)
-          }
-        : null
+      this.buildRemoteCheckoutItem(sourceElem, refName, remoteBranch?.branchName ?? null)
     ];
     if (remoteBranch === null) return menu;
 
@@ -4256,6 +4318,7 @@ class GitGraphView {
         : null,
       ...(this.hasLocalBranch(branchName) &&
       this.gitBranchHead !== branchName &&
+      this.otherWorktreePath(branchName) === null &&
       this.isContextMenuActionVisible("remoteBranch", "fetchIntoLocalBranch")
         ? [
             {
@@ -4283,6 +4346,21 @@ class GitGraphView {
       menu.push(null, pullRequestItem);
     }
     return menu;
+  }
+  /** Checkout of a remote branch, or "Open Worktree…" when its local branch is held by another worktree. */
+  private buildRemoteCheckoutItem(
+    sourceElem: HTMLElement,
+    refName: string,
+    localName: string | null
+  ): ContextMenuElement {
+    if (!this.isContextMenuActionVisible("remoteBranch", "checkout")) return null;
+    if (localName !== null && this.otherWorktreePath(localName) !== null) {
+      return this.buildOpenWorktreeMenuItem(localName);
+    }
+    return {
+      title: l10n.checkoutBranch + ELLIPSIS,
+      onClick: () => this.checkoutBranchAction(sourceElem, refName)
+    };
   }
   private buildIssueContextMenuItems(
     refName: string,
@@ -4662,11 +4740,20 @@ class GitGraphView {
     return parts.join(" · ");
   }
   private showRenameBranchDialog(refName: string) {
-    showRefInputDialog(
+    // Git allows the rename and moves the other worktree's HEAD along; say so.
+    const worktreePath = this.otherWorktreePath(refName);
+    const inputs: DialogInput[] = [{ type: "text-ref", name: "", default: refName }];
+    if (worktreePath !== null) {
+      inputs.push({
+        type: "note",
+        text: l10n.dialogRenameBranchWorktreeNote.replace("{0}", worktreePath)
+      });
+    }
+    showFormDialog(
       l10n.dialogRenameBranchTitle.replace("{0}", `<b><i>${escapeHtml(refName)}</i></b>`),
-      refName,
+      inputs,
       l10n.dialogRenameBranchSubmit,
-      (newName) => {
+      ([newName]) => {
         sendMessage({
           command: "renameBranch",
           repo: this.currentRepo,
@@ -4678,6 +4765,17 @@ class GitGraphView {
     );
   }
   private showDeleteBranchDialog(refName: string) {
+    const worktreePath = this.otherWorktreePath(refName);
+    if (worktreePath !== null) {
+      showErrorDialog(
+        l10n.dialogDeleteBranchInWorktree
+          .replace("{0}", escapeHtml(refName))
+          .replace("{1}", escapeHtml(worktreePath)),
+        null,
+        null
+      );
+      return;
+    }
     const deleteOnRemotes = this.getRemotesWithBranch(refName);
     const inputs: DialogInput[] = [
       { type: "checkbox", name: l10n.dialogDeleteForceDelete, value: false }
@@ -4790,6 +4888,10 @@ class GitGraphView {
     );
   }
   private showUpdateBranchFromUpstreamDialog(refName: string) {
+    if (this.otherWorktreePath(refName) !== null) {
+      this.openWorktreeAction(refName);
+      return;
+    }
     showFormDialog(
       l10n.dialogUpdateBranchFromUpstreamConfirm.replace(
         "{0}",
@@ -4827,6 +4929,10 @@ class GitGraphView {
   private showFetchIntoLocalBranchDialog(remote: string, branchName: string, refName: string) {
     if (!this.hasLocalBranch(branchName) || this.gitBranchHead === branchName) {
       showErrorDialog(l10n.dialogFetchIntoLocalBranchUnavailable, null, null);
+      return;
+    }
+    if (this.otherWorktreePath(branchName) !== null) {
+      this.openWorktreeAction(branchName);
       return;
     }
 
