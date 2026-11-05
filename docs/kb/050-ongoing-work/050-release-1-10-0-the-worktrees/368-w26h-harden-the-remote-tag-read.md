@@ -10,7 +10,7 @@ summary: >-
 
 # W26H — Harden the remote tag read
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 on 2026-11-05 12:00
 Needs: W26 (integrated `a93ddc7`), W26F (it changes the same handler and
 adds the setting this read obeys)
 Decisions: —
