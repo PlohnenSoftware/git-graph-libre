@@ -442,6 +442,23 @@ fn finds_the_repository_root_from_a_subdirectory() {
 }
 
 #[test]
+fn lists_a_linked_worktrees_local_configuration_from_the_common_dir() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    repo.commit_file("a.txt", "1\n", "first");
+    repo.git(&["config", "user.name", "Local Ünï"]);
+    repo.git(&["config", "user.email", "local@example.invalid"]);
+    let linked = repo.add_worktree("linked tree ünï", "feature");
+
+    // The private admin dir holds no `config`; Git reads `<common>/config`.
+    let engine = Repo::discover(&linked).expect("could not open the linked worktree");
+    let config = config::config_list(&engine, config::ConfigLocation::Local).unwrap();
+
+    assert_eq!(config["user.name"], "Local Ünï");
+    assert_eq!(config["user.email"], "local@example.invalid");
+}
+
+#[test]
 fn lists_the_local_configuration_with_git_resolution_semantics() {
     require_git!();
     let mut repo = TestRepo::new();

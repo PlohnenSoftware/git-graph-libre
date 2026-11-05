@@ -61,6 +61,23 @@ impl TestRepo {
         self.dir.path()
     }
 
+    /// Add a linked worktree of this repository on a new branch and return its path. It is
+    /// nested in `<temp dir>/.worktrees/<folder>`, so it goes away with the repository's temporary
+    /// directory; `folder` may carry a space or a non-ASCII character.
+    pub fn add_worktree(&self, folder: &str, branch: &str) -> PathBuf {
+        let path = self.path().join(".worktrees").join(folder);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        self.git(&[
+            "worktree",
+            "add",
+            "--quiet",
+            "-b",
+            branch,
+            path.to_str().unwrap(),
+        ]);
+        path
+    }
+
     /// Run a git command in the repository, asserting that it succeeded.
     pub fn git(&self, args: &[&str]) -> String {
         let output = Command::new("git")

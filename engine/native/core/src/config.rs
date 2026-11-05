@@ -144,7 +144,9 @@ pub fn config_list(
     location: ConfigLocation,
 ) -> Result<std::collections::BTreeMap<String, String>> {
     let path = match location {
-        ConfigLocation::Local => repo.git_dir().join("config"),
+        // `common_dir()` is the git dir outside a linked worktree, and the main repository's
+        // directory inside one: Git reads `<common>/config`, never `worktrees/<id>/config`.
+        ConfigLocation::Local => repo.borrow().common_dir().join("config"),
         ConfigLocation::Global => global_config_path()?,
     };
     if !path.is_file() {
