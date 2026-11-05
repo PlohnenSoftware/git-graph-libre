@@ -520,6 +520,14 @@ export type ResponseStartHistorySearch = {
 };
 
 /**
+ * Posted when the Command Palette runs Prune Stale Worktrees. The graph opens
+ * the same preview its branch menu opens, for the repository it is showing.
+ */
+export type ResponseShowPruneWorktrees = {
+  command: "showPruneWorktrees";
+};
+
+/**
  * Posted by the consent screen's **Set now** button. The screen replaces the
  * graph while the telemetry question is open, and this is what re-opens the
  * notification after it has been dismissed — without it, dismissing would
@@ -632,4 +640,5 @@ export type ResponseMessage =
   | ResponseOpenExternalDirDiff
   | ResponseRefresh
   | ResponseResolveRef
-  | ResponseStartHistorySearch;
+  | ResponseStartHistorySearch
+  | ResponseShowPruneWorktrees;

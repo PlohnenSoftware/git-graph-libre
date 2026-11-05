@@ -211,6 +211,10 @@ export function createWebviewPanel(opts: {
     startHistorySearch() {
       bridge.post({ command: "startHistorySearch" });
     },
+    /** Opens the Prune Stale Worktrees preview for the repository the graph shows. */
+    showPruneWorktrees() {
+      bridge.post({ command: "showPruneWorktrees" });
+    },
     /**
      * Pushes fresh component status to the graph unasked. Called when the
      * backend setting or `git.path` changes, so the status indicator follows

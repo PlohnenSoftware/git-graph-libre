@@ -129,6 +129,15 @@ type ActionPayloads = {
     unlock: boolean;
     deleteBranch?: { branchName: string; forceDelete: boolean; deleteOnRemotes?: string[] };
   };
+  /**
+   * Opens a listed worktree in a new window or this one, adds it to the
+   * workspace, reveals it in the OS file manager, or switches the graph to it.
+   * The extension refuses a path Git no longer lists, and a stale entry.
+   */
+  openWorktree: { path: string; newWindow: boolean };
+  addWorktreeToWorkspace: { path: string };
+  revealWorktree: { path: string };
+  switchGraphToWorktree: { path: string };
   pruneWorktrees: unknown;
   /** `path` is the stale entry; `newPath` is the folder it moved to, or null to ask the user. */
   repairWorktree: { path: string; newPath: string | null };
