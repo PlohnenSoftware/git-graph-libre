@@ -10,7 +10,7 @@ summary: >-
 
 # W26H — Harden the remote tag read
 
-Status: claimed by Claude Sonnet 5.5 on 2026-11-05 12:00
+Status: done — awaiting integration
 Needs: W26 (integrated `a93ddc7`), W26F (it changes the same handler and
 adds the setting this read obeys)
 Decisions: —
@@ -110,4 +110,44 @@ review (`2026-11-05`)
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Sonnet 5.5, 2026-11-05
+- **Branch and commits:** `wt-1.10.0/W26H`
+  - `df4cf7b G docs(release): claim W26H`
+  - `aaf54d3 G fix(tags): bound and abort the remote tag read's processes (W26H)`
+  - `58cb1bd G fix(tags): abort stale remote tag reads and catch the reply (W26H)`
+  - `83da1c9 G fix(tags): end the remote tag read when the panel is disposed (W26H)`
+  - `ecc8181 G test(tags): cover the bounded remote read (W26H)`
+  - `1dbf307 G test(tags): cover aborting and a rejected post in the handler (W26H)`
+  - `375e33c G docs(reference): list remoteTags beside runGitWithInput (W26H)`
+- **Files changed:** `remoteTags.ts` (rewritten runner), `messageHandler.ts`
+  (handler plus a `dispose` return), `extension.ts` (+2 lines), both test
+  files, one architecture line.
+- **Tests added or changed:** backend 1228 → 1236 passed (60 skipped both
+  before and after); webview 825 passed. New: timeout kills a hung helper,
+  cap of 4, abort, pre-aborted, CRLF, `killProcessTree` (win32 by injection,
+  fallback, no pid); handler: rejected post logged, dispose aborts, newer
+  request aborts.
+- **Gates:** strict Biome on the five touched files clean; `typecheck` clean;
+  `test` backend 1236/1236 run, webview 825/825, no "Unhandled Errors"
+  (the `TypeError: undefined line` Rust panic lines are pre-existing, same on
+  the base); `kb:check` passes; Sonar: integrator
+- **Acceptance:** met. No askpass (`SSH_ASKPASS_REQUIRE=never`), stdin
+  ignored, no controlling tty off Windows. The timeout test proves the hung
+  helper is killed. Cap and abort tested; no unhandled rejection; tests use
+  an empty `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_NOSYSTEM=1`.
+- **Workspace trust:** `package.json` has
+  `capabilities.untrustedWorkspaces.supported: false`, so VS Code does not
+  run the extension in an untrusted workspace. No `isTrusted` check added.
+- **Windows:** tree kill by `taskkill /pid <pid> /T /F` from
+  `%SystemRoot%\System32`, `windowsHide`. Covered only by injection on
+  Linux; not run on Windows.
+- **Deviations from the slice:**
+  - `extension.ts` (outside Touch, +2 lines, commit `83da1c9`, droppable):
+    nothing inside the handler sees the panel's disposal, so
+    `registerMessageHandlers` now returns `dispose` and the panel's
+    `onDispose` calls it.
+  - Not `killSignal: "SIGKILL"` on the git pid: a SIGKILLed git cannot
+    forward the signal and would orphan ssh. The child runs `detached` (own
+    session and process group) and the whole group gets SIGKILL.
+- **Open questions / follow-ups:** none besides the `extension.ts` line.
+
