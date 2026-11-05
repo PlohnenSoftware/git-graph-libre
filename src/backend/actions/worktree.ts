@@ -76,10 +76,12 @@ async function assertCreatable(
   worktrees: GitWorktree[],
   input: ActionPayload<"addWorktree">
 ): Promise<void> {
-  for (const branch of [input.branch, input.newBranch]) {
-    if (branch === null) continue;
-    const holder = worktrees.find((worktree) => worktree.branch === branch);
-    if (holder !== undefined) await fail("error.worktreeBranchInUse", branch, holder.path);
+  const inUse = [input.branch, input.newBranch]
+    .filter((branch): branch is string => branch !== null)
+    .map((branch) => ({ branch, holder: worktrees.find((worktree) => worktree.branch === branch) }))
+    .find(({ holder }) => holder !== undefined);
+  if (inUse?.holder !== undefined) {
+    await fail("error.worktreeBranchInUse", inUse.branch, inUse.holder.path);
   }
   if ((await findWorktree(worktrees, input.path)) !== null) {
     await fail("error.worktreePathListed", input.path);
