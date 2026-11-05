@@ -320,3 +320,16 @@ commit, the gate results with numbers, and the Sonar task id.
   - The rebase onto `4625eca` was clean. Typecheck and strict Biome pass.
     The backend passes 1238 (60 environment skips) and the webview 827 of
     827.
+- `2026-11-05`, gate on `3ba7cc3`: W25, W10, W10F, W26F and W26H since
+  the last gate.
+  - The Rust arm was skipped, with no engine change since `f9e54a4`.
+  - Strict Biome is clean on 50 files touched since `f9e54a4`.
+  - `package`, `l10n:check` and `kb:check` pass.
+  - Fresh `test:coverage`: 165 files, 2,125 of 2,125 tests passed.
+  - Sonar task `a37bf460-39d5-4444-9269-67e25073a00f`: quality gate
+    **`OK`**. New coverage is 94.8%, with 0 security and 0 reliability
+    issues, and 3 new violations against 5 allowed. All three are in
+    W26H's `src/backend/queries/remoteTags.ts`: S7780 at `:80`
+    (`String.raw`), S1528 at `:163` (the `Array` constructor) and S9382 at
+    `:168` (`await` in a loop). They are W26HF's.
+  - Issue #36 is complete with W25 and gated, so this record closes it.
