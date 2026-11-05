@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tag badges show which remotes hold the same tag, with background checks and
   hover text distinguishing local tags from unavailable remote information
   ([#46](https://github.com/PlohnenSoftware/git-graph-libre/issues/46)).
+- **New setting `git-graph-libre.repository.showTagRemotes`** (default `true`).
+  Turn it off and no remote is contacted to badge tags, and badges look as they
+  did before. A tag created or moved outside the extension is checked again
+  rather than shown as unavailable, and a refresh keeps the remotes on screen
+  while it re-checks, redrawing only the tag badges.
 
 ### Fixed
 

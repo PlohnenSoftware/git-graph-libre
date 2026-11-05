@@ -21,7 +21,8 @@
 - **Branch actions**: Create, checkout, rename, delete, and merge
 - **Tag actions**: Create, push, view details, and delete locally or on selected
   remotes; signed tags are marked with a verified badge in the graph
-  - Tags show the names of remotes holding the same tag object. Checks run in
+  - Tags show the names of remotes holding the same tag object. Turn off
+    `repository.showTagRemotes` to never contact remotes for this. Checks run in
     the background when tags are first shown, on Refresh, and after graph
     actions. Hover a tag for its last checked status; an unavailable remote
     is reported as unknown. Checks use each remote's fetch URL.
@@ -138,6 +139,7 @@ All settings use the `git-graph-libre` prefix.
 | `repository.includeReflog`                     | `false`         | Include commits referenced only by reflogs       |
 | `repository.includeUnreachableCommits`         | `false`         | Scan for unreachable commits in Show All         |
 | `repository.muteMergeCommits`                  | `false`         | Mute merge commit messages (opt-in)              |
+| `repository.showTagRemotes`                    | `true`          | Check remotes in the background and show which hold each tag |
 | `repository.stashDisplay`                      | `"both"`        | Show stashes in the `"table"`, the `"graph"`, or `"both"` |
 | `uncommittedChanges.fileViewMode`              | `"tree"`        | Staging panel shows changes as a `"tree"` or flat `"list"` |
 | `showCurrentBranchByDefault`                   | `false`         | Show only current branch on open                 |
