@@ -9,7 +9,7 @@ summary: >-
 
 # W02 — List worktrees on the CLI
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-11-05 17:59
 Needs: —
 Decisions: —
 Kind: TypeScript · Size budget: ~200 changed lines outside tests
