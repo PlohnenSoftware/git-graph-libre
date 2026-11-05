@@ -11,7 +11,7 @@ summary: >-
 
 # W24 — Check out a remote branch whose local branch exists
 
-Status: ready once W05 and W10 are integrated
+Status: claimed by Muse Code (muse-wonder-full-1.0) on 2026-11-05 21:20
 Needs: W05, W10 (worktrees and upstreams)
 Decisions: Y14 (fast-forward source and detection rules)
 Kind: webview and TypeScript, l10n · Size budget: ~220 changed lines outside
