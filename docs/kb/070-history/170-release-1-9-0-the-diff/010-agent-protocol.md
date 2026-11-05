@@ -18,7 +18,7 @@ the conflict.
 
 1. Read `AGENTS.md`, then `docs/kb/README.md` in full, then every section it
    marks *always read*.
-2. Read [the release overview](../040-release-1-9-0-the-diff.md) and
+2. Read [the release overview](../170-release-1-9-0-the-diff.md) and
    [the maintainer decisions](020-maintainer-decisions.md).
 3. Pick a slice whose file says `Status: ready`. Every slice in its
    `Needs:` line must be `integrated`, and every decision it names must be

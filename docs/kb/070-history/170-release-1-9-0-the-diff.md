@@ -35,7 +35,7 @@ what the roadmap left behind, and what the `2026-10-18` diff audit found
 broken. The work is cut into slices small enough for one agent session each,
 with their files, steps, tests and acceptance spelled out, so several agents
 can work in parallel. Any agent taking a slice must follow
-[the agent protocol](040-release-1-9-0-the-diff/010-agent-protocol.md).
+[the agent protocol](170-release-1-9-0-the-diff/010-agent-protocol.md).
 
 **One rule across all slices (decision X7, `2026-10-18`):** Git-compatible
 results (file lists, renames, `+N/−M`) come from gix or Git and are fixed
@@ -47,7 +47,7 @@ of VS Code's algorithm (Phase 17). The two are never mixed.
 | Goal | Source | Slices |
 | --- | --- | --- |
 | Compare any two commits, by selection or by SHA, branch or tag | [issue #26](https://github.com/PlohnenSoftware/git-graph-libre/issues/26); Phase 8 "arbitrary two-commit and ref-to-ref comparison" | D10–D13 |
-| Compare a commit with the working tree | Phase 10 "uncommitted-changes details and compare-to-commit" | D13F | [Comparison Sonar follow-up](040-release-1-9-0-the-diff/235-d13f-comparison-sonar-follow-up.md) | TS | D13 | E | integrated 0acf413 |
+| Compare a commit with the working tree | Phase 10 "uncommitted-changes details and compare-to-commit" | D13F | [Comparison Sonar follow-up](170-release-1-9-0-the-diff/235-d13f-comparison-sonar-follow-up.md) | TS | D13 | E | integrated 0acf413 |
 | D14 |
 | Open a comparison in the user's external diff tool | Phase 8 and Phase 10 "external directory diff" | D15 (decision X4) |
 | Say which backend served each diff read, and why the CLI did | [issue #31](https://github.com/PlohnenSoftware/git-graph-libre/issues/31), the diff-read part of its "result/decline-cause log entries" | D01 |
@@ -56,7 +56,7 @@ of VS Code's algorithm (Phase 17). The two are never mixed.
 | Don't hide type changes (file ↔ symlink) | diff audit: dropped by both backends | D04 (decision X2) |
 | `+N/−M` counts that match Git | Phase 16 candidate 6; the diff audit's root causes 1, 5 and 6 | D05 |
 | Take the upstream gix diff fixes | diff audit: rename limit, replacement refs, the Myers fix | D07 (blocked on a gix release) |
-| Hand Git-compatibility fixes to gitoxide | diff audit; the maintainer's "gix first" request | D22F3 | [Final Sonar follow-up](040-release-1-9-0-the-diff/324-d22f3-final-sonar-follow-up.md) | TS + scripts | 22f, 22j | H | integrated ad307b1 |
+| Hand Git-compatibility fixes to gitoxide | diff audit; the maintainer's "gix first" request | D22F3 | [Final Sonar follow-up](170-release-1-9-0-the-diff/324-d22f3-final-sonar-follow-up.md) | TS + scripts | 22f, 22j | H | integrated ad307b1 |
 | D30 |
 | Start VS Code's diff algorithm in the engine | Phase 17, slices 17.0 and 17.1; the full port is committed scope under X5 | D20, D21, D22 (decision X5) |
 | A light "GGL Diff" tab that looks like the diff editor, opened from Source Control and commit details, fed by the engine | the maintainer's request and Phase 17 D4 = G4 (c), `2026-10-19` | D40–D48; D45 onward need the port's 22j |
@@ -83,59 +83,59 @@ wait for them.
 
 | ID | Slice | Kind | Needs | Parallel group | Status |
 | --- | --- | --- | --- | --- | --- |
-| D01 | [Log engine hits for diff reads](040-release-1-9-0-the-diff/100-d01-log-engine-hits-for-diff-reads.md) | TS | — | A | integrated 7c35a54 |
-| D02 | [Correct stash details on the CLI path](040-release-1-9-0-the-diff/110-d02-correct-stash-details-on-the-cli-path.md) | TS | — | B | integrated 39f39fd |
-| D03 | [Diff stashed untracked files from the third parent](040-release-1-9-0-the-diff/120-d03-diff-stashed-untracked-files-from-the-third-parent.md) | TS | D02 | B | integrated 73d9cf5 |
-| D04 | [Show type changes in file lists](040-release-1-9-0-the-diff/130-d04-show-type-changes-in-file-lists.md) | TS + Rust | D04a, D04b | C | integrated (D04a 88f3715, D04b 587347c) |
-| D04a | [Type-change transport and counts](040-release-1-9-0-the-diff/132-d04a-type-change-transport-and-counts.md) | TS + Rust | X2 (b) | C | integrated 88f3715 |
-| D04AF | [Engine complexity follow-up](040-release-1-9-0-the-diff/133-d04af-engine-complexity-follow-up.md) | Rust | D04a | C | integrated 8746acc |
-| D04b | [Type-change presentation and actions](040-release-1-9-0-the-diff/134-d04b-type-change-presentation-and-actions.md) | webview | D04a | C | integrated 587347c |
-| D05 | [Engine line counts that match Git](040-release-1-9-0-the-diff/140-d05-engine-line-counts-that-match-git.md) | Rust | — | D | integrated c534f40 |
-| D06 | [Merge commits against their first parent](040-release-1-9-0-the-diff/150-d06-merge-commits-against-their-first-parent.md) | TS | X1 | C | integrated aae87ab |
-| D07 | [Upgrade gix for the upstream diff fixes](040-release-1-9-0-the-diff/160-d07-upgrade-gix-for-the-upstream-diff-fixes.md) | Rust | — (GitHub source, maintainer `2026-10-20`) | D | integrated 7d87525 |
-| D10 | [Compare two selected commits](040-release-1-9-0-the-diff/200-d10-compare-two-selected-commits.md) | webview | X3 | E | integrated 8e90f6b |
-| D11 | [Resolve a ref for comparison](040-release-1-9-0-the-diff/210-d11-resolve-a-ref-for-comparison.md) | TS | — | F | integrated 02fdca9 |
-| D12 | ["Compare with…" dialog](040-release-1-9-0-the-diff/220-d12-compare-with-dialog.md) | webview | D10, D11 | E | integrated 3ef238d |
-| D13 | [Comparison header and swap](040-release-1-9-0-the-diff/230-d13-comparison-header-and-swap.md) | webview | D10 | E | integrated 04afbf8 |
-| D13G | [Swap icon](040-release-1-9-0-the-diff/236-d13g-swap-icon.md) | webview | D13, D04b | E | integrated f1efb4c |
-| D14 | [Compare with the working tree](040-release-1-9-0-the-diff/240-d14-compare-with-the-working-tree.md) | TS + webview | D13 | E | integrated cda8cb7 |
-| D14F | [Working-tree comparison Sonar follow-up](040-release-1-9-0-the-diff/245-d14f-working-tree-sonar-follow-up.md) | TS | D14, D15 | E | integrated 0971f91 |
-| D15 | [Open a comparison in the external diff tool](040-release-1-9-0-the-diff/250-d15-open-a-comparison-in-the-external-diff-tool.md) | TS + webview | X4, D13 | G | integrated 3e3a6f8 |
-| D20 | [Phase 17 legal groundwork](040-release-1-9-0-the-diff/300-d20-phase-17-legal-groundwork.md) | docs | X5, P17-D1, P17-D3 | H | integrated 4a82276 |
-| D21 | [Phase 17 oracle suite](040-release-1-9-0-the-diff/310-d21-phase-17-oracle-suite.md) | TS tests | D20 | H | integrated 9354002 |
-| D22 | [Phase 17 port sub-slices](040-release-1-9-0-the-diff/320-d22-phase-17-port-sub-slices.md) | Rust | D21, X5 | H | complete: 22a–22j integrated (22i `1e2f400`) |
-| D22L | [Engine workspace license field](040-release-1-9-0-the-diff/325-d22l-engine-workspace-license-field.md) | engine metadata | — | H | integrated 47a6a37 |
-| D22F | [Port Sonar follow-up](040-release-1-9-0-the-diff/322-d22f-port-sonar-follow-up.md) | Rust + scripts | 22b–22d | H | integrated e8f20d3 |
-| D22F2 | [Generator lint follow-up](040-release-1-9-0-the-diff/323-d22f2-generator-lint-follow-up.md) | scripts + TS | 22e, 22g, D22F | H | integrated bd5e513 |
-| D30 | [Upstream gix contributions for Git compatibility](040-release-1-9-0-the-diff/400-d30-upstream-gix-git-compatibility.md) | gix fork | — | U | preparation integrated 7356979 (posting: maintainer) |
-| D40 | [Vendor the diff editor's stylesheet](040-release-1-9-0-the-diff/500-d40-vendor-the-diff-editor-stylesheet.md) | CSS, notices | — | I | integrated b4cd6d4 |
-| D41 | [The diff row model](040-release-1-9-0-the-diff/510-d41-the-diff-row-model.md) | TS | — | I | integrated 82cc778 |
-| D41F | [Row-model Sonar follow-up](040-release-1-9-0-the-diff/515-d41f-row-model-sonar-follow-up.md) | TS | D41 | I | integrated 060a00b |
-| D42F | [View Sonar follow-up](040-release-1-9-0-the-diff/525-d42f-view-sonar-follow-up.md) | TS | D42 | I | integrated f076440 |
-| D42 | [The diff view](040-release-1-9-0-the-diff/520-d42-the-diff-view.md) | webview | D40, D41 | J | integrated 546290c |
-| D43 | [Engine export for the staged copy of a file](040-release-1-9-0-the-diff/530-d43-engine-export-for-the-staged-copy-of-a-file.md) | Rust + TS | — | I | integrated 093b4d0 |
-| D43F | [Staged-file Error follow-up](040-release-1-9-0-the-diff/535-d43f-staged-file-error-follow-up.md) | TS | D43 | I | integrated 000a771 |
-| D44 | [The GGL Diff tab](040-release-1-9-0-the-diff/540-d44-the-ggl-diff-tab.md) | TS + webview | D42 | J | integrated 067fea0 |
-| D45 | [Feed the tab from the engine](040-release-1-9-0-the-diff/550-d45-feed-the-tab-from-the-engine.md) | TS | D43, D44, 22j | J | integrated 79e267e |
-| D46 | [Open the tab from Source Control](040-release-1-9-0-the-diff/560-d46-open-the-tab-from-source-control.md) | manifest + TS | D45 | K | integrated bde9553 |
-| D47 | [Open the tab from commit details](040-release-1-9-0-the-diff/570-d47-open-the-tab-from-commit-details.md) | webview + TS | D45 | L | integrated bb91d71 |
-| D48 | [Measure the tab against the diff editor](040-release-1-9-0-the-diff/580-d48-measure-the-tab-against-the-diff-editor.md) | measurement | D46, D47 | — | agent half integrated a9956df (display half: maintainer) |
-| D50 | [Pin the settings popup's header](040-release-1-9-0-the-diff/600-d50-pin-the-settings-popup-header.md) | webview | — | M | integrated 2fb2b82 |
-| D51 | [Pin the commit details section headers](040-release-1-9-0-the-diff/610-d51-pin-the-commit-details-section-headers.md) | webview | — | M | integrated 4cb1b3c |
-| D60 | [A missing global Git config keeps the remotes](040-release-1-9-0-the-diff/700-d60-no-global-git-config-keeps-remotes.md) | TS | — | N | integrated ec10252 |
-| D61 | [Log retention and the log file](040-release-1-9-0-the-diff/710-d61-log-retention-and-the-log-file.md) | TS + manifest | — | N | integrated 5f47fd5 |
-| D62 | [Log results, decline causes and a session header](040-release-1-9-0-the-diff/720-d62-log-results-causes-and-a-session-header.md) | TS | D60, D61 | O | integrated 13ae37e |
-| D62F | [Route-line Sonar follow-up](040-release-1-9-0-the-diff/725-d62f-route-line-sonar-follow-up.md) | TS | D62 | P | integrated eb282e4 |
-| D63 | [Copy Diagnostics Report](040-release-1-9-0-the-diff/730-d63-copy-diagnostics-report.md) | TS + manifest | D61, D62 | P | integrated 93d2982 |
-| D63F | [Report-builder Sonar follow-up](040-release-1-9-0-the-diff/735-d63f-report-builder-sonar-follow-up.md) | TS | D63 | Q | integrated 6e50892 |
-| D64 | [Name the popup "Settings"](040-release-1-9-0-the-diff/740-d64-name-the-popup-settings.md) | webview + l10n | — | R | integrated c5526ca |
-| D65 | [A Contributors tab](040-release-1-9-0-the-diff/750-d65-contributors-tab.md) | webview + l10n + data | — | R | integrated b9683e5 |
-| D65F | [Agents-script Sonar follow-up](040-release-1-9-0-the-diff/755-d65f-agents-script-sonar-follow-up.md) | script | D65 | S | integrated 0617b35 |
-| D65G | [Credit Thomas KT Chan](040-release-1-9-0-the-diff/756-d65g-credit-thomas-kt-chan.md) | notices + data | D65 | S | integrated 7aab64c |
-| D65H | [The license of each contributor era](040-release-1-9-0-the-diff/757-d65h-license-of-each-contributor-era.md) | webview + l10n | D65G | T | integrated e63801e |
-| D66 | [A release gate that tolerates runner shortages](040-release-1-9-0-the-diff/760-d66-release-gate-tolerates-runner-shortages.md) | CI | — | U | integrated d3e82c4 |
-| D66F | [Gate-script Sonar follow-up](040-release-1-9-0-the-diff/765-d66f-gate-script-sonar-follow-up.md) | script | D66 | V | integrated 8c41805 |
-| D90 | [Release 1.9.0](040-release-1-9-0-the-diff/900-d90-release-1-9-0.md) | release | every slice in scope | — | maintainer |
+| D01 | [Log engine hits for diff reads](170-release-1-9-0-the-diff/100-d01-log-engine-hits-for-diff-reads.md) | TS | — | A | integrated 7c35a54 |
+| D02 | [Correct stash details on the CLI path](170-release-1-9-0-the-diff/110-d02-correct-stash-details-on-the-cli-path.md) | TS | — | B | integrated 39f39fd |
+| D03 | [Diff stashed untracked files from the third parent](170-release-1-9-0-the-diff/120-d03-diff-stashed-untracked-files-from-the-third-parent.md) | TS | D02 | B | integrated 73d9cf5 |
+| D04 | [Show type changes in file lists](170-release-1-9-0-the-diff/130-d04-show-type-changes-in-file-lists.md) | TS + Rust | D04a, D04b | C | integrated (D04a 88f3715, D04b 587347c) |
+| D04a | [Type-change transport and counts](170-release-1-9-0-the-diff/132-d04a-type-change-transport-and-counts.md) | TS + Rust | X2 (b) | C | integrated 88f3715 |
+| D04AF | [Engine complexity follow-up](170-release-1-9-0-the-diff/133-d04af-engine-complexity-follow-up.md) | Rust | D04a | C | integrated 8746acc |
+| D04b | [Type-change presentation and actions](170-release-1-9-0-the-diff/134-d04b-type-change-presentation-and-actions.md) | webview | D04a | C | integrated 587347c |
+| D05 | [Engine line counts that match Git](170-release-1-9-0-the-diff/140-d05-engine-line-counts-that-match-git.md) | Rust | — | D | integrated c534f40 |
+| D06 | [Merge commits against their first parent](170-release-1-9-0-the-diff/150-d06-merge-commits-against-their-first-parent.md) | TS | X1 | C | integrated aae87ab |
+| D07 | [Upgrade gix for the upstream diff fixes](170-release-1-9-0-the-diff/160-d07-upgrade-gix-for-the-upstream-diff-fixes.md) | Rust | — (GitHub source, maintainer `2026-10-20`) | D | integrated 7d87525 |
+| D10 | [Compare two selected commits](170-release-1-9-0-the-diff/200-d10-compare-two-selected-commits.md) | webview | X3 | E | integrated 8e90f6b |
+| D11 | [Resolve a ref for comparison](170-release-1-9-0-the-diff/210-d11-resolve-a-ref-for-comparison.md) | TS | — | F | integrated 02fdca9 |
+| D12 | ["Compare with…" dialog](170-release-1-9-0-the-diff/220-d12-compare-with-dialog.md) | webview | D10, D11 | E | integrated 3ef238d |
+| D13 | [Comparison header and swap](170-release-1-9-0-the-diff/230-d13-comparison-header-and-swap.md) | webview | D10 | E | integrated 04afbf8 |
+| D13G | [Swap icon](170-release-1-9-0-the-diff/236-d13g-swap-icon.md) | webview | D13, D04b | E | integrated f1efb4c |
+| D14 | [Compare with the working tree](170-release-1-9-0-the-diff/240-d14-compare-with-the-working-tree.md) | TS + webview | D13 | E | integrated cda8cb7 |
+| D14F | [Working-tree comparison Sonar follow-up](170-release-1-9-0-the-diff/245-d14f-working-tree-sonar-follow-up.md) | TS | D14, D15 | E | integrated 0971f91 |
+| D15 | [Open a comparison in the external diff tool](170-release-1-9-0-the-diff/250-d15-open-a-comparison-in-the-external-diff-tool.md) | TS + webview | X4, D13 | G | integrated 3e3a6f8 |
+| D20 | [Phase 17 legal groundwork](170-release-1-9-0-the-diff/300-d20-phase-17-legal-groundwork.md) | docs | X5, P17-D1, P17-D3 | H | integrated 4a82276 |
+| D21 | [Phase 17 oracle suite](170-release-1-9-0-the-diff/310-d21-phase-17-oracle-suite.md) | TS tests | D20 | H | integrated 9354002 |
+| D22 | [Phase 17 port sub-slices](170-release-1-9-0-the-diff/320-d22-phase-17-port-sub-slices.md) | Rust | D21, X5 | H | complete: 22a–22j integrated (22i `1e2f400`) |
+| D22L | [Engine workspace license field](170-release-1-9-0-the-diff/325-d22l-engine-workspace-license-field.md) | engine metadata | — | H | integrated 47a6a37 |
+| D22F | [Port Sonar follow-up](170-release-1-9-0-the-diff/322-d22f-port-sonar-follow-up.md) | Rust + scripts | 22b–22d | H | integrated e8f20d3 |
+| D22F2 | [Generator lint follow-up](170-release-1-9-0-the-diff/323-d22f2-generator-lint-follow-up.md) | scripts + TS | 22e, 22g, D22F | H | integrated bd5e513 |
+| D30 | [Upstream gix contributions for Git compatibility](170-release-1-9-0-the-diff/400-d30-upstream-gix-git-compatibility.md) | gix fork | — | U | preparation integrated 7356979 (posting: maintainer) |
+| D40 | [Vendor the diff editor's stylesheet](170-release-1-9-0-the-diff/500-d40-vendor-the-diff-editor-stylesheet.md) | CSS, notices | — | I | integrated b4cd6d4 |
+| D41 | [The diff row model](170-release-1-9-0-the-diff/510-d41-the-diff-row-model.md) | TS | — | I | integrated 82cc778 |
+| D41F | [Row-model Sonar follow-up](170-release-1-9-0-the-diff/515-d41f-row-model-sonar-follow-up.md) | TS | D41 | I | integrated 060a00b |
+| D42F | [View Sonar follow-up](170-release-1-9-0-the-diff/525-d42f-view-sonar-follow-up.md) | TS | D42 | I | integrated f076440 |
+| D42 | [The diff view](170-release-1-9-0-the-diff/520-d42-the-diff-view.md) | webview | D40, D41 | J | integrated 546290c |
+| D43 | [Engine export for the staged copy of a file](170-release-1-9-0-the-diff/530-d43-engine-export-for-the-staged-copy-of-a-file.md) | Rust + TS | — | I | integrated 093b4d0 |
+| D43F | [Staged-file Error follow-up](170-release-1-9-0-the-diff/535-d43f-staged-file-error-follow-up.md) | TS | D43 | I | integrated 000a771 |
+| D44 | [The GGL Diff tab](170-release-1-9-0-the-diff/540-d44-the-ggl-diff-tab.md) | TS + webview | D42 | J | integrated 067fea0 |
+| D45 | [Feed the tab from the engine](170-release-1-9-0-the-diff/550-d45-feed-the-tab-from-the-engine.md) | TS | D43, D44, 22j | J | integrated 79e267e |
+| D46 | [Open the tab from Source Control](170-release-1-9-0-the-diff/560-d46-open-the-tab-from-source-control.md) | manifest + TS | D45 | K | integrated bde9553 |
+| D47 | [Open the tab from commit details](170-release-1-9-0-the-diff/570-d47-open-the-tab-from-commit-details.md) | webview + TS | D45 | L | integrated bb91d71 |
+| D48 | [Measure the tab against the diff editor](170-release-1-9-0-the-diff/580-d48-measure-the-tab-against-the-diff-editor.md) | measurement | D46, D47 | — | agent half integrated a9956df (display half: maintainer) |
+| D50 | [Pin the settings popup's header](170-release-1-9-0-the-diff/600-d50-pin-the-settings-popup-header.md) | webview | — | M | integrated 2fb2b82 |
+| D51 | [Pin the commit details section headers](170-release-1-9-0-the-diff/610-d51-pin-the-commit-details-section-headers.md) | webview | — | M | integrated 4cb1b3c |
+| D60 | [A missing global Git config keeps the remotes](170-release-1-9-0-the-diff/700-d60-no-global-git-config-keeps-remotes.md) | TS | — | N | integrated ec10252 |
+| D61 | [Log retention and the log file](170-release-1-9-0-the-diff/710-d61-log-retention-and-the-log-file.md) | TS + manifest | — | N | integrated 5f47fd5 |
+| D62 | [Log results, decline causes and a session header](170-release-1-9-0-the-diff/720-d62-log-results-causes-and-a-session-header.md) | TS | D60, D61 | O | integrated 13ae37e |
+| D62F | [Route-line Sonar follow-up](170-release-1-9-0-the-diff/725-d62f-route-line-sonar-follow-up.md) | TS | D62 | P | integrated eb282e4 |
+| D63 | [Copy Diagnostics Report](170-release-1-9-0-the-diff/730-d63-copy-diagnostics-report.md) | TS + manifest | D61, D62 | P | integrated 93d2982 |
+| D63F | [Report-builder Sonar follow-up](170-release-1-9-0-the-diff/735-d63f-report-builder-sonar-follow-up.md) | TS | D63 | Q | integrated 6e50892 |
+| D64 | [Name the popup "Settings"](170-release-1-9-0-the-diff/740-d64-name-the-popup-settings.md) | webview + l10n | — | R | integrated c5526ca |
+| D65 | [A Contributors tab](170-release-1-9-0-the-diff/750-d65-contributors-tab.md) | webview + l10n + data | — | R | integrated b9683e5 |
+| D65F | [Agents-script Sonar follow-up](170-release-1-9-0-the-diff/755-d65f-agents-script-sonar-follow-up.md) | script | D65 | S | integrated 0617b35 |
+| D65G | [Credit Thomas KT Chan](170-release-1-9-0-the-diff/756-d65g-credit-thomas-kt-chan.md) | notices + data | D65 | S | integrated 7aab64c |
+| D65H | [The license of each contributor era](170-release-1-9-0-the-diff/757-d65h-license-of-each-contributor-era.md) | webview + l10n | D65G | T | integrated e63801e |
+| D66 | [A release gate that tolerates runner shortages](170-release-1-9-0-the-diff/760-d66-release-gate-tolerates-runner-shortages.md) | CI | — | U | integrated d3e82c4 |
+| D66F | [Gate-script Sonar follow-up](170-release-1-9-0-the-diff/765-d66f-gate-script-sonar-follow-up.md) | script | D66 | V | integrated 8c41805 |
+| D90 | [Release 1.9.0](170-release-1-9-0-the-diff/900-d90-release-1-9-0.md) | release | every slice in scope | — | maintainer |
 
 **Order, if one agent does everything:** D01, D02, D05 and D11 first (no
 decisions needed); then D03; then D10, D13, D12 and D14 once X3 is answered;
