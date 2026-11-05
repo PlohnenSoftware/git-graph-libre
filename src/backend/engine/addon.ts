@@ -23,8 +23,10 @@ import type { EngineComponentStatus, EngineUnavailableReason } from "@/types";
  * `useAuthorDate` option, which a `1.0.24` binary would ignore and answer
  * with committer dates. `1.0.26` lists type changes as `T` and counts them
  * like Git, which a `1.0.25` binary drops from history payloads entirely.
+ * `1.0.27` reads a linked worktree's local config from the common dir, which
+ * a `1.0.26` binary reads from the private admin dir and finds empty.
  */
-export const EXPECTED_ENGINE_VERSION = "1.0.26";
+export const EXPECTED_ENGINE_VERSION = "1.0.27";
 
 /**
  * The napi surface slice 16.3 uses. Extended read by read in later slices —
