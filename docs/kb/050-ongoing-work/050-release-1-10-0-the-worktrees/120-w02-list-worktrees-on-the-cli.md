@@ -9,7 +9,7 @@ summary: >-
 
 # W02 — List worktrees on the CLI
 
-Status: done — awaiting integration
+Status: integrated `ad43c13` (`2026-11-05`)
 Needs: —
 Decisions: —
 Kind: TypeScript · Size budget: ~200 changed lines outside tests

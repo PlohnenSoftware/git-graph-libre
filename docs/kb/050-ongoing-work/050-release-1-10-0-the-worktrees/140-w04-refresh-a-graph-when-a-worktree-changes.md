@@ -10,7 +10,7 @@ summary: >-
 
 # W04 — Refresh a graph when a worktree changes
 
-Status: done — awaiting integration
+Status: integrated `62a171e` (`2026-11-05`)
 Needs: —
 Decisions: —
 Kind: TypeScript · Size budget: ~180 changed lines outside tests

@@ -9,7 +9,7 @@ summary: >-
 
 # W05 — Suggest the full branch name for a remote checkout
 
-Status: done — awaiting integration
+Status: integrated `659d095` (`2026-11-05`)
 Needs: —
 Decisions: —
 Kind: webview · Size budget: ~20 changed lines outside tests

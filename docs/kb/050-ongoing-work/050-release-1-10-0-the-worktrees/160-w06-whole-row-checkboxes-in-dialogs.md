@@ -9,7 +9,7 @@ summary: >-
 
 # W06 — Whole-row checkboxes in dialogs
 
-Status: done — awaiting integration
+Status: integrated `af7ff04` (`2026-11-05`)
 Needs: —
 Decisions: Y13 (scope)
 Kind: CSS · Size budget: ~20 changed lines outside tests

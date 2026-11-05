@@ -10,7 +10,7 @@ summary: >-
 
 # W08 — A nested worktree is not a submodule in telemetry
 
-Status: done — awaiting integration
+Status: integrated `6b0e232` (`2026-11-05`)
 Needs: —
 Decisions: —
 Kind: TypeScript · Size budget: ~40 changed lines outside tests

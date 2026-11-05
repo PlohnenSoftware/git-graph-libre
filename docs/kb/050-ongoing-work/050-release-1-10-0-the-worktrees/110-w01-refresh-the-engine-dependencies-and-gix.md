@@ -10,7 +10,7 @@ summary: >-
 
 # W01 — Refresh the engine's dependencies and gix
 
-Status: done — awaiting integration
+Status: integrated `be1d870` (`2026-11-05`)
 Needs: —
 Decisions: Y2, answered by the maintainer on `2026-11-04`: "please also do
 updates to cargo stuff including gix which we grab from GH". gix stays on the

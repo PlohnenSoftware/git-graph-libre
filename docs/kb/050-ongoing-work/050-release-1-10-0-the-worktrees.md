@@ -90,31 +90,32 @@ run one after another, as the integrator procedure says.
 
 | ID | Slice | Kind | Needs | Wave | Status |
 | --- | --- | --- | --- | --- | --- |
-| W00 | [Finish release 1.9.0's housekeeping](050-release-1-10-0-the-worktrees/100-w00-finish-release-1-9-0-housekeeping.md) | docs | — (Y15 for step 3) | A | dispatched `2026-11-05` (Haiku) |
-| W01 | [Refresh the engine's dependencies and gix](050-release-1-10-0-the-worktrees/110-w01-refresh-the-engine-dependencies-and-gix.md) | Rust | — (Y2 answered) | A | dispatched `2026-11-05` (Sonnet) |
-| W02 | [List worktrees on the CLI](050-release-1-10-0-the-worktrees/120-w02-list-worktrees-on-the-cli.md) | TS | — | A | dispatched `2026-11-05` (Haiku) |
-| W04 | [Refresh a graph when a worktree changes](050-release-1-10-0-the-worktrees/140-w04-refresh-a-graph-when-a-worktree-changes.md) | TS | — | A | dispatched `2026-11-05` (Sonnet) |
-| W05 | [Suggest the full branch name for a remote checkout](050-release-1-10-0-the-worktrees/150-w05-suggest-the-full-branch-name-for-a-remote-checkout.md) | webview | — | A | dispatched `2026-11-05` (Haiku) |
-| W06 | [Whole-row checkboxes in dialogs](050-release-1-10-0-the-worktrees/160-w06-whole-row-checkboxes-in-dialogs.md) | CSS | Y13 (ready under (a)) | A | dispatched `2026-11-05` (Haiku) |
-| W07 | [Read a linked worktree's local config](050-release-1-10-0-the-worktrees/170-w07-read-a-linked-worktree-s-local-config.md) | Rust + TS | W01 | A | needs W01 |
-| W08 | [A nested worktree is not a submodule in telemetry](050-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | dispatched `2026-11-05` (Haiku) |
-| W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | ready |
-| W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | ready |
+| W00 | [Finish release 1.9.0's housekeeping](050-release-1-10-0-the-worktrees/100-w00-finish-release-1-9-0-housekeeping.md) | docs | — (Y15 for step 3) | A | integrated `79e2ecc` |
+| W01 | [Refresh the engine's dependencies and gix](050-release-1-10-0-the-worktrees/110-w01-refresh-the-engine-dependencies-and-gix.md) | Rust | — (Y2 answered) | A | integrated `be1d870` |
+| W02 | [List worktrees on the CLI](050-release-1-10-0-the-worktrees/120-w02-list-worktrees-on-the-cli.md) | TS | — | A | integrated `ad43c13` |
+| W04 | [Refresh a graph when a worktree changes](050-release-1-10-0-the-worktrees/140-w04-refresh-a-graph-when-a-worktree-changes.md) | TS | — | A | integrated `62a171e` |
+| W04F | [Git dirs Sonar follow-up, and one worktree check](050-release-1-10-0-the-worktrees/145-w04f-git-dirs-sonar-follow-up-and-one-worktree-check.md) | TS | W04, W08 | A | dispatched `2026-11-05` (Haiku) |
+| W05 | [Suggest the full branch name for a remote checkout](050-release-1-10-0-the-worktrees/150-w05-suggest-the-full-branch-name-for-a-remote-checkout.md) | webview | — | A | integrated `659d095` |
+| W06 | [Whole-row checkboxes in dialogs](050-release-1-10-0-the-worktrees/160-w06-whole-row-checkboxes-in-dialogs.md) | CSS | Y13 (ready under (a)) | A | integrated `af7ff04` |
+| W07 | [Read a linked worktree's local config](050-release-1-10-0-the-worktrees/170-w07-read-a-linked-worktree-s-local-config.md) | Rust + TS | W01 | A | dispatched `2026-11-05` (Sonnet) |
+| W08 | [A nested worktree is not a submodule in telemetry](050-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | integrated `6b0e232` |
+| W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | dispatched `2026-11-05` (Haiku) |
+| W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | review dispatched `2026-11-05` (Sonnet) |
 | W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | needs W26 |
-| W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | needs W01, W02 |
-| W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | needs W01, W07 |
-| W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | needs W01 |
-| W10 | [Carry worktrees to the webview](050-release-1-10-0-the-worktrees/200-w10-carry-worktrees-to-the-webview.md) | TS | W02 | C | needs W02 |
+| W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | dispatched `2026-11-05` (Sonnet) |
+| W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | needs W07 |
+| W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | ready; held until W07 is integrated (both bump the engine version) |
+| W10 | [Carry worktrees to the webview](050-release-1-10-0-the-worktrees/200-w10-carry-worktrees-to-the-webview.md) | TS | W02 | C | dispatched `2026-11-05` (Haiku) |
 | W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | needs W10 |
 | W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | needs W10, W03 |
 | W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | needs W10 |
 | W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | needs W10, W20 |
 | W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | needs W10 |
-| W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | needs W05, W10 |
+| W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | needs W10 |
 | W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | needs W10 |
 | W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | needs W10, W21, W31 |
 | W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | needs W21, W30 |
-| W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | needs W02, W04, W10 |
+| W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | needs W10 |
 | W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | needs W32 |
 | W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | needs W32 |
 | W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | needs W11, W32 |
@@ -181,3 +182,39 @@ commit, the gate results with numbers, and the Sonar task id.
   `wt-1.10.0/<id>` in `../ggl-<id>`:
   - Haiku: W00 (without Y15's step 3), W02, W05, W06 and W08;
   - Sonnet: W01 and W04.
+- `2026-11-05`: wave A's first seven slices integrated, in dependency order
+  and each rebased onto the branch: W00 `79e2ecc`, W01 `be1d870`, W02
+  `ad43c13`, W04 `62a171e`, W05 `659d095`, W06 `af7ff04` and W08 `6b0e232`.
+  All 29 commits are signed.
+  - W06's `CHANGELOG.md` conflict with W05 was resolved by keeping both
+    entries.
+  - W08's claim commit wrongly said `Refs …#46`. It was rebuilt without
+    that line, its tree unchanged.
+  - Every slice stayed inside its Touch list.
+  - Follow-up W08F: `isLinkedWorktree()` in `src/telemetry/viewFeatures.ts`
+    repeats the `.git`-file and `commondir` check behind W04's
+    `resolveGitDirs()`, since the two were built in parallel. Use the one
+    helper.
+  - Watch at the Sonar gate: W04's `resolveWithGit()` spawns `git` through
+    `PATH` with `execFileSync`, the S4036 pattern D65F had to fix.
+  - Dispatched on `6b0e232`, each in a recycled worktree:
+    - Sonnet: W07 (engine `1.0.27`) and W03 (no version bump);
+    - Haiku: W10, W25 and W00b (Y15's step 3);
+    - Sonnet: the W26 review of PR #47, detached at `a109e9a`, read-only.
+
+    W41 waits for W07, since both bump the engine version.
+- `2026-11-05`, wave A gate on `6b0e232`, in the main checkout:
+  - Rust arm: `engine:fmt`, `engine:lint`, `engine:check` and `engine:test`
+    pass. The engine was rebuilt on gix 0.90, and `engine:smoke` reports
+    `1.0.26`.
+  - Strict Biome is clean on the 12 touched TypeScript files.
+  - `package`, `test`, `l10n:check` and `kb:check` pass.
+  - Fresh `test:coverage`: 160 files, 2,036 of 2,036 tests passed, none
+    skipped.
+  - Sonar task `01ead3ac-8e5c-4824-9819-cdedc8f13dc9`: quality gate
+    **`ERROR`**, with `software_quality_security_issues` 1 against 0
+    allowed. New coverage is 92.7%, and there are 4 new violations against
+    5 allowed. All four findings are in W04's code: S4036 (the `PATH`
+    spawn), S6582, S2933 and S7778. W04F clears them and folds in W08F.
+  - Issue #41 is complete with W06. Its `Closes` line goes on W04F's
+    integration record, once the gate is `OK`.

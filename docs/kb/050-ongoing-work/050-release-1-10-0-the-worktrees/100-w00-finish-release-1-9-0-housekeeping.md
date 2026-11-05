@@ -10,7 +10,7 @@ summary: >-
 
 # W00 — Finish release 1.9.0's housekeeping
 
-Status: done — awaiting integration
+Status: integrated `79e2ecc` (`2026-11-05`)
 Needs: —
 Decisions: Y15 (promote the protocol into Rules, or not)
 Kind: docs (knowledge base only) · Size budget: moves plus ~60 changed lines
