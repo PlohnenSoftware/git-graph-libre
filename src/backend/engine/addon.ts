@@ -28,8 +28,11 @@ import type { EngineComponentStatus, EngineUnavailableReason } from "@/types";
  * `1.0.28` counts other worktrees' HEADs in authors and stats, as `git log
  * --all` does, and declines a linked worktree that no longer exists; a
  * `1.0.27` binary omits their commits and answers from a stale handle.
+ * `1.0.29` refuses a repository Git rejects for ownership at open, with its
+ * own `Untrusted` error kind; a `1.0.28` binary opens it with reduced trust
+ * and silently drops the untrusted configuration.
  */
-export const EXPECTED_ENGINE_VERSION = "1.0.28";
+export const EXPECTED_ENGINE_VERSION = "1.0.29";
 
 /**
  * The napi surface slice 16.3 uses. Extended read by read in later slices —
