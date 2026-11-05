@@ -101,8 +101,8 @@ run one after another, as the integrator procedure says.
 | W08 | [A nested worktree is not a submodule in telemetry](050-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | integrated `6b0e232` |
 | W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | integrated `decdf71` |
 | W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | integrated `a93ddc7` (merge of `a109e9a`) |
-| W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | dispatched `2026-11-05` (Sonnet) |
-| W26H | [Harden the remote tag read](050-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | needs W26F |
+| W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | integrated `43ac7e9` |
+| W26H | [Harden the remote tag read](050-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | dispatched `2026-11-05` (Sonnet) |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | integrated `f9e54a4` |
 | W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | needs W07 |
 | W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | ready; held until W07 is integrated (both bump the engine version) |
@@ -110,7 +110,7 @@ run one after another, as the integrator procedure says.
 | W10F | [Read worktrees through the engine reader](050-release-1-10-0-the-worktrees/205-w10f-read-worktrees-through-the-engine-reader.md) | TS | W03, W10 | C | dispatched `2026-11-05` (Haiku) |
 | W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | ready (queued: one manifest or l10n slice at a time) |
 | W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | needs W07 (it seeds both backends' logs; after W07's engine bump) |
-| W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | ready (queued: one manifest or l10n slice at a time) |
+| W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | dispatched `2026-11-05` (Sonnet) |
 | W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | needs W10, W20 |
 | W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | ready (queued: one manifest or l10n slice at a time) |
 | W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | ready (queued: one manifest or l10n slice at a time) |
@@ -276,3 +276,19 @@ commit, the gate results with numbers, and the Sonar task id.
     - The manifest and l10n slices (W11, W20, W22, W24, W31, W32) queue
       behind W26F, one at a time.
     - The engine slices W12, W40 and W41 wait for W07.
+- `2026-11-05`: W26F integrated at `43ac7e9`. It adds the
+  `repository.showTagRemotes` setting (on by default, gated at both ends)
+  and the review's fixes F4, F5 and F10.
+  - It touched `src/webview/utils/dom.ts` outside its Touch list: an
+    optional `root` argument for `addListenerToClass`, backward
+    compatible. Accepted.
+  - The rebase was clean, but W10's new `branchWorktrees.test.ts` fixture
+    lacked the new required `showTagRemotes` field (TS2741). The
+    integrator's fixup `43ac7e9` adds it.
+  - On the rebased tree: typecheck passes, the backend passes 1228 (60
+    environment skips), the webview passes 822 of 822 with no unhandled
+    errors, and l10n is complete.
+  - The nl, pl, zh-cn and zh-tw strings are the agent's own translations,
+    not yet reviewed by native speakers.
+  - Next: W26H dispatched to Sonnet, and W20 dispatched to Sonnet, taking
+    the manifest and l10n slot.

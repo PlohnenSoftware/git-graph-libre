@@ -11,7 +11,7 @@ summary: >-
 
 # W26F — A setting for the tag remote check
 
-Status: done — awaiting integration
+Status: integrated `43ac7e9` (`2026-11-05`)
 Needs: W26 (integrated `a93ddc7`: PR #47 merged)
 Decisions: Y23, answered (b) on `2026-11-05`: a setting, on by default
 Kind: TypeScript, webview, manifest and l10n · Size budget: ~200 changed

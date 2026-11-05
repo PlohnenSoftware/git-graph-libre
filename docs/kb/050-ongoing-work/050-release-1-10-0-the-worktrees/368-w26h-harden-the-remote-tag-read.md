@@ -10,7 +10,7 @@ summary: >-
 
 # W26H — Harden the remote tag read
 
-Status: ready once W26F is integrated
+Status: ready
 Needs: W26 (integrated `a93ddc7`), W26F (it changes the same handler and
 adds the setting this read obeys)
 Decisions: —
