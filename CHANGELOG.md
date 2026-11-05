@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#45](https://github.com/PlohnenSoftware/git-graph-libre/issues/45)). Reusing
   an existing local branch is still to come.
 
+- **A dialog checkbox toggles from anywhere on its row.** Only the box and
+  its text reacted before; a click on the rest of the row, right of the
+  text, did nothing. In the dialogs, the whole row is now the click target.
+  Locked checkboxes still refuse the change and keep their explanation.
+  Thanks to @rbalet for the request
+  ([#41](https://github.com/PlohnenSoftware/git-graph-libre/issues/41)).
+
 ## [1.9.0] - 2026-10-20
 
 "The Diff": compare any two points in history, a diff tab of Git Graph
