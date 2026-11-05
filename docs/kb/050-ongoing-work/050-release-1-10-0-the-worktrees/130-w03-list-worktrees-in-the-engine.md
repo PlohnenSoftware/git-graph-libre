@@ -10,7 +10,7 @@ summary: >-
 
 # W03 — List worktrees in the engine
 
-Status: claimed by Claude Sonnet 5.5 on 2026-11-05 18:09
+Status: done — awaiting integration
 Needs: W01, W02
 Decisions: —
 Kind: Rust and TypeScript, the Rust arm applies · Size budget: ~250 changed
@@ -82,4 +82,23 @@ older binary without the export loads and uses the CLI.
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Sonnet 5.5, 2026-11-05 18:20
+- **Branch and commits:** `wt-1.10.0/W03` —
+  `8845fac G docs(worktrees): claim W03`,
+  `3316de1 G feat(engine): list worktrees in the engine (W03)`,
+  `727fb30 G test(engine): worktree list parity and declines (W03)`,
+  `3909589 G feat(engine): read the worktree list through the engine (W03)`,
+  `4c09432 G test(engine): worktree reader routing and parity with the CLI (W03)`
+- **Files changed:** `engine/native/core/src/worktrees.rs` (+247, new),
+  `engine/native/core/src/lib.rs` (+1), `engine/native/node/src/lib.rs` (+13/−3),
+  `engine/native/core/tests/worktrees.rs` (+355, new),
+  `src/backend/engine/addon.ts` (+10), `src/backend/engine/worktrees.ts` (+141, new),
+  `tests/backend/engine/worktrees.test.ts` (+283, new)
+- **Tests added or changed:** Rust 14 in `tests/worktrees.rs` (engine suite 196 to 210);
+  TypeScript 24 in `tests/backend/engine/worktrees.test.ts` (backend project 1234 to 1258).
+- **Gates:** biome strict clean on the touched TS; typecheck clean; test backend 1258/1258 and webview 802/802, none skipped (engine built, `diff-wasm` copied read-only); l10n n/a; kb:check clean; Rust arm: fmt, clippy `-D warnings`, check, test (210 passed) all clean, then `engine:build` and `engine:smoke` (1.0.26) OK; Sonar: integrator
+- **Acceptance:** parity identical on every fixture (main, linked, detached, locked with and without a reason, space and non-ASCII names, mixed case, symlinked path, bare main with linked worktrees, `core.ignorecase`, unborn linked branch), listed from the main, a subdirectory and a linked worktree: met. Declines land on the CLI (below): met. An older binary without the export loads and uses the CLI (`noListWorktrees` test): met.
+- **Decline cases (each pinned):** a prunable entry (unlocked, `.git` gone); an admin entry with no `gitdir` file; a stray non-directory in `worktrees/`; a relative `gitdir`; a `gitdir` not ending in `/.git`; a HEAD symbolic outside `refs/heads/`; a git dir not named `.git` (`--separate-git-dir`); a submodule; non-UTF-8 ids, paths or lock files. Any engine error besides these routes to the CLI as `engineThrew`.
+- **Findings against the record:** Git 2.56 does not list an admin entry with no `gitdir` file at all (the Git worktree behavior record says prunable); the engine declines either way. Git sorts linked worktrees with `fspathcmp`, so `core.ignorecase=true` changes the order (ASCII case folding), which the engine copies. A locked worktree whose folder is gone is not prunable, and the engine answers it. Lock reasons are trimmed of space, tab, CR and LF on both sides. gix's own `lock_reason()` trims Unicode whitespace, so the engine reads the file itself. `git worktree add` sanitizes the admin id (`orphan wt` becomes `orphan-wt`). The unborn-branch HEAD prints the null id.
+- **Deviations from the slice:** the engine reads `worktrees/` and each `gitdir`/`locked` file itself rather than through gix's `worktrees()`, which silently skips entries with no `gitdir` and sorts by admin dir. `malformedPayload` is a reason beyond the six the slice lists. No version bump, as instructed.
+- **Open questions / follow-ups:** none.
