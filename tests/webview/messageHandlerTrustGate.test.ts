@@ -1,7 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { git, makeRepo } from "@tests/backend/helpers";
+import { simpleGit } from "simple-git";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AvatarManager } from "@/avatarManager";
 import type { RepoReaderDeps } from "@/backend/engine/index";
 import type { GitClient } from "@/backend/gitClient";
+import type { WorktreeReader } from "@/backend/queries/loadBranches";
+import { loadWorktrees } from "@/backend/queries/worktrees";
+import { setOperationLog } from "@/backend/utils/operationLog";
 import type { Config } from "@/config";
 import { registerMessageHandlers } from "@/extension/messageHandler";
 import type { RepoManager } from "@/extension/repoManager";
@@ -49,15 +57,24 @@ vi.mock("@/backend/engine/index", async (importOriginal) => {
   };
 });
 
-const branches = vi.hoisted(() => ({ error: null as unknown }));
+// The backend setting is read live by the handler, so the test can flip it
+// between calls on the same reader.
+const backendSetting = vi.hoisted(() => ({ value: "auto" as "auto" | "git-cli" }));
+const branches = vi.hoisted(() => ({
+  error: null as unknown,
+  input: null as { readWorktrees?: WorktreeReader } | null
+}));
 vi.mock("@/backend/queries/loadBranches", () => ({
-  loadBranches: async () => ({
-    branches: [],
-    head: null,
-    hard: false,
-    isRepo: true,
-    error: branches.error
-  })
+  loadBranches: async (_git: unknown, input: { readWorktrees?: WorktreeReader }) => {
+    branches.input = input;
+    return {
+      branches: [],
+      head: null,
+      hard: false,
+      isRepo: true,
+      error: branches.error
+    };
+  }
 }));
 
 function register(
@@ -73,7 +90,7 @@ function register(
   } as unknown as WebviewBridge;
   registerMessageHandlers(bridge, {
     config: {
-      backend: () => "auto",
+      backend: () => backendSetting.value,
       gitPath: () => "git",
       dateType: () => "Author Date",
       showUncommittedChanges: () => false
@@ -96,6 +113,8 @@ beforeEach(() => {
   readers.created.length = 0;
   readers.error = null;
   branches.error = null;
+  branches.input = null;
+  backendSetting.value = "auto";
 });
 
 describe("the engine trust gate", () => {
@@ -156,5 +175,95 @@ describe("the engine trust gate", () => {
     });
     await send({ command: "loadRepos", check: true });
     expect(searchWorkspaceForRepos).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the worktree reader the handler gives loadBranches", () => {
+  let savedGlobal: string | undefined;
+  let root: string;
+  let confirmed: string;
+  let unconfirmed: string;
+
+  beforeAll(() => {
+    savedGlobal = process.env.GIT_CONFIG_GLOBAL;
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-handler-wt-"));
+    const emptyConfig = path.join(root, "empty.gitconfig");
+    fs.writeFileSync(emptyConfig, "");
+    process.env.GIT_CONFIG_GLOBAL = emptyConfig;
+
+    confirmed = makeRepo();
+    git(["branch", "feat"], confirmed);
+    git(["worktree", "add", path.join(root, "linked wt"), "feat"], confirmed);
+    unconfirmed = makeRepo();
+  });
+
+  afterAll(() => {
+    if (savedGlobal === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+    else process.env.GIT_CONFIG_GLOBAL = savedGlobal;
+    for (const dir of [confirmed, unconfirmed, root]) {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reads the backend setting live, and offers the engine only a confirmed repository", async () => {
+    const { send } = register({
+      isVerified: (repo) => repo === confirmed,
+      forgetVerification: vi.fn()
+    });
+    await send({ command: "selectRepo", repo: confirmed });
+    await send({ command: "loadBranches", requestId: 4, hard: false, showRemoteBranches: false });
+    const read = branches.input?.readWorktrees;
+    if (read === undefined) throw new Error("loadBranches received no worktree reader");
+
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    try {
+      // The git-cli preference answers from the CLI, for a confirmed repository too.
+      backendSetting.value = "git-cli";
+      const viaCli = await read(simpleGit(confirmed), confirmed);
+      expect(viaCli.error).toBeNull();
+      expect(viaCli.value.map((item) => item.branch)).toEqual(["main", "feat"]);
+      expect(lines.some((line) => line.includes("listWorktrees backend=cli reason=setting"))).toBe(
+        true
+      );
+
+      // The same reader after the setting flips: an unconfirmed repository stays on the CLI.
+      backendSetting.value = "auto";
+      const unverified = await read(simpleGit(unconfirmed), unconfirmed);
+      expect(unverified.error).toBeNull();
+      expect(unverified.value).toHaveLength(1);
+      expect(
+        lines.some((line) => line.includes("listWorktrees backend=cli reason=unverified"))
+      ).toBe(true);
+    } finally {
+      log.dispose();
+    }
+  });
+
+  it("serves a confirmed repository from the engine, as the CLI would list it", async () => {
+    // Needs the built engine (`pnpm run engine:build`), as the W03 parity tests do.
+    const { send } = register({
+      isVerified: (repo) => repo === confirmed,
+      forgetVerification: vi.fn()
+    });
+    await send({ command: "selectRepo", repo: confirmed });
+    await send({ command: "loadBranches", requestId: 5, hard: false, showRemoteBranches: false });
+    const read = branches.input?.readWorktrees;
+    if (read === undefined) throw new Error("loadBranches received no worktree reader");
+
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    try {
+      backendSetting.value = "auto";
+      const served = await read(simpleGit(confirmed), confirmed);
+      const viaCli = await loadWorktrees(simpleGit(confirmed), confirmed);
+      expect(lines).toContainEqual(
+        expect.stringContaining("operation=listWorktrees backend=engine")
+      );
+      expect(served.error).toBeNull();
+      expect(served.value).toEqual(viaCli.value);
+    } finally {
+      log.dispose();
+    }
   });
 });

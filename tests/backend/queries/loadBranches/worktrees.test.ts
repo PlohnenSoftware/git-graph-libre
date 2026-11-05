@@ -197,4 +197,47 @@ describe("loadBranches worktrees", () => {
     expect(result.upstreams).toEqual({});
     expect(lines.some((line) => line.includes("upstreams=unavailable"))).toBe(true);
   });
+
+  it("takes the worktree list from an injected reader, asked about the current repository", async () => {
+    const injected: GitWorktree = {
+      path: "/injected",
+      head: HEAD,
+      branch: "injected",
+      detached: false,
+      bare: false,
+      isMain: true,
+      isCurrent: false,
+      locked: null,
+      prunable: null
+    };
+    const asked: string[] = [];
+    const readWorktrees = async (_git: SimpleGit, repo: string) => {
+      asked.push(repo);
+      return { value: [injected], error: null };
+    };
+
+    const result = await loadBranches(simpleGit(main), { ...input(main), readWorktrees });
+
+    expect(result.worktrees).toEqual([injected]);
+    expect(asked).toEqual([main]);
+  });
+
+  it("logs a failed injected reader, returns no worktrees and keeps the response shape", async () => {
+    const readWorktrees = async () => ({
+      value: [],
+      error: { message: "engine declined", stderr: null, exitCode: null, task: null }
+    });
+
+    const { value: result, lines } = await captureLog(() =>
+      loadBranches(simpleGit(main), { ...input(main), readWorktrees })
+    );
+
+    expect(result.error).toBeNull();
+    expect(result.worktrees).toEqual([]);
+    expect(result.branches).toContain("main");
+    expect(Object.keys(result).sort()).toEqual(
+      ["branches", "error", "hard", "head", "isRepo", "upstreams", "worktrees"].sort()
+    );
+    expect(lines.some((line) => line.includes("worktrees=unavailable"))).toBe(true);
+  });
 });
