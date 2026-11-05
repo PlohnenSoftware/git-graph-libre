@@ -115,6 +115,34 @@
   fill: currentColor;
 }
 
+/* Checked out in another worktree (W11, decision Y4): a segment inside the
+   branch badge, built like the signed-tag badge above but on the editor's
+   badge colors, so "elsewhere" never reads as the signature green. Like the
+   signed tag, the branch icon gives up its right margin so the segment sits
+   flush against it. */
+.gitRef.inWorktree > svg {
+  margin-right: 0;
+}
+.gitRefWorktreeBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  margin-left: 0;
+  padding: 2px;
+  border-radius: 0;
+  vertical-align: top;
+  background-color: var(--vscode-badge-background, var(--ngg-accent));
+  color: var(--vscode-badge-foreground, var(--ngg-accent-foreground));
+}
+.gitRefWorktreeBadge > svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
 /* "HEAD of worktree <folder>" (W12): another worktree's detached HEAD on this
    commit. The ref-label box with a dashed border, so it reads as a place a
    worktree sits, never as a branch that could be checked out. */

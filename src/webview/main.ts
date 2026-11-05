@@ -21,6 +21,7 @@ import type {
 import { COMMIT_ORDERINGS, GIT_PUSH_BRANCH_MODES } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
 import { normalizeContextMenuActionsVisibility } from "@/contextMenuVisibility";
+import { octicon } from "@/octicons";
 import {
   alterGitFileTree,
   COMMIT_DETAILS_COLLAPSED_HEIGHT,
@@ -273,6 +274,47 @@ export function worktreeFolderName(worktreePath: string): string {
   }
   const segments = worktreePath.slice(0, end).split(/[/\\]/);
   return segments.at(-1) || worktreePath;
+}
+
+/** The worktrees other than the current one that have `branch` checked out (W11). */
+export function otherWorktreesHoldingBranch(
+  worktrees: readonly GitWorktree[],
+  branch: string
+): GitWorktree[] {
+  return worktrees.filter((worktree) => !worktree.isCurrent && worktree.branch === branch);
+}
+
+export type WorktreeCheckoutStrings = {
+  checkedOutInWorktree: string;
+  worktreeLocked: string;
+  worktreeLockedNoReason: string;
+  worktreeMissing: string;
+};
+
+/**
+ * "Checked out in worktree <folder> (<path>)", plus the locked or missing
+ * state when Git reports one (W11). Shared by the badge tooltip and the
+ * context-menu header so the two surfaces cannot drift apart.
+ */
+export function describeWorktreeCheckout(
+  worktree: GitWorktree,
+  strings: WorktreeCheckoutStrings
+): string {
+  const parts = [
+    strings.checkedOutInWorktree
+      .replace("{0}", () => worktreeFolderName(worktree.path))
+      .replace("{1}", () => worktree.path)
+  ];
+  if (worktree.locked !== null) {
+    const reason = worktree.locked.reason;
+    parts.push(
+      reason === ""
+        ? strings.worktreeLockedNoReason
+        : strings.worktreeLocked.replace("{0}", () => reason)
+    );
+  }
+  if (worktree.prunable !== null) parts.push(strings.worktreeMissing);
+  return parts.join(", ");
 }
 
 type DeleteBranchPart = {
@@ -4260,12 +4302,14 @@ class GitGraphView {
     refName: string
   ): ContextMenuHeader | undefined {
     const branchName = this.localBranchOfRef(sourceElem, refName);
-    const paths = branchName === null ? [] : this.worktreePathsFor(branchName);
-    if (paths.length === 0) return undefined;
+    const holders =
+      branchName === null ? [] : otherWorktreesHoldingBranch(this.gitWorktrees, branchName);
+    if (holders.length === 0) return undefined;
 
+    const where = holders.map((worktree) => describeWorktreeCheckout(worktree, l10n)).join("; ");
     return {
       title: l10n.branchInWorktreeTitle,
-      caption: l10n.branchInWorktreeCaption.replace("{0}", paths.join(", "))
+      caption: l10n.branchInWorktreeCaption.replace("{0}", () => where)
     };
   }
   /** The local branch a branch or remote-branch label stands for; null for tags, stashes and detached labels. */
@@ -5517,13 +5561,24 @@ class GitGraphView {
     const refActive = ref.type === "head" && ref.name === this.gitBranchHead;
     const signed = ref.type === "tag" && ref.signed === true;
     const remoteTag = ref.type === "tag" ? this.getTagRemoteStatus(ref) : null;
+    const holders =
+      ref.type === "head" ? otherWorktreesHoldingBranch(this.gitWorktrees, ref.name) : [];
+    const worktreeText = holders
+      .map((worktree) => describeWorktreeCheckout(worktree, l10n))
+      .join("; ");
     const title = escapeHtml(
-      [ref.name, signed ? l10n.signedTagTooltip : "", remoteTag?.status].filter(Boolean).join(" — ")
+      [ref.name, signed ? l10n.signedTagTooltip : "", worktreeText, remoteTag?.status]
+        .filter(Boolean)
+        .join(" — ")
     );
     const badge = signed ? `<span class="gitRefSignedBadge">${svgIcons.verified}</span>` : "";
+    const worktreeBadge =
+      holders.length > 0
+        ? `<span class="gitRefWorktreeBadge">${octicon("file-directory", "worktreeIcon")}</span>`
+        : "";
     const primary =
-      `<span class="gitRef ${ref.type}${refActive ? " active" : ""}${signed ? " signed" : ""}${extraClass}" data-name="${refName}" title="${title}">` +
-      `${this.refIcon(ref.type)}${badge}${escapeHtml(label)}</span>`;
+      `<span class="gitRef ${ref.type}${refActive ? " active" : ""}${signed ? " signed" : ""}${holders.length > 0 ? " inWorktree" : ""}${extraClass}" data-name="${refName}" title="${title}">` +
+      `${this.refIcon(ref.type)}${badge}${worktreeBadge}${escapeHtml(label)}</span>`;
     if (!remoteTag?.remotes.length) return primary;
     const aliases = remoteTag.remotes
       .map(
