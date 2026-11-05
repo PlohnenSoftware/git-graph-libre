@@ -102,7 +102,7 @@ run one after another, as the integrator procedure says.
 | W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | integrated `decdf71` |
 | W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | integrated `a93ddc7` (merge of `a109e9a`) |
 | W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | integrated `43ac7e9` |
-| W26H | [Harden the remote tag read](050-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | dispatched `2026-11-05` (Sonnet) |
+| W26H | [Harden the remote tag read](050-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | integrated `d607144` |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | integrated `f9e54a4` |
 | W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | needs W07 |
 | W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | ready; held until W07 is integrated (both bump the engine version) |
@@ -300,3 +300,23 @@ commit, the gate results with numbers, and the Sonar task id.
     the webview 824 of 824.
   - The engine-served trust-gate case needs the built engine, as W03's
     parity tests do.
+- `2026-11-05`: W26H integrated at `d607144`. The remote tag read now:
+  - spawns with stdin ignored, `SSH_ASKPASS_REQUIRE=never` and
+    `windowsHide`;
+  - runs in its own process group off Windows (no controlling terminal),
+    killed as a group on timeout, overflow or abort;
+  - uses `taskkill /T /F` on Windows, unit-tested by injection only;
+  - reads at most 4 remotes at a time, and is abortable;
+  - has its handler trace the real read, catch a rejected post, and abort
+    the previous read.
+
+  Notes:
+  - Workspace trust: `capabilities.untrustedWorkspaces.supported` is
+    `false`, so no `isTrusted` check is needed.
+  - Accepted outside the Touch list: 2 lines in `src/extension.ts` make
+    the panel's `onDispose` abort the read.
+  - Risk noted: a detached group outlives an extension host that dies
+    mid-read, until its own Git or SSH ends.
+  - The rebase onto `4625eca` was clean. Typecheck and strict Biome pass.
+    The backend passes 1238 (60 environment skips) and the webview 827 of
+    827.
