@@ -9,7 +9,7 @@ summary: >-
 
 # W10 — Carry worktrees to the webview
 
-Status: done — awaiting integration
+Status: integrated `2a619c4` (`2026-11-05`)
 Needs: W02 (W03 optional: the reader uses it when present)
 Decisions: —
 Kind: TypeScript · Size budget: ~150 changed lines outside tests
