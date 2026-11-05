@@ -43,14 +43,15 @@ function shortenUpstream(ref: string): string | null {
 
 /** Parses `for-each-ref --format=%(refname)%00%(upstream)` lines, one per local branch. */
 function parseUpstreams(stdout: string): Upstreams {
-  const upstreams: Upstreams = {};
+  // Object.fromEntries makes own properties, so a branch named __proto__ stays a key.
+  const entries: [string, string | null][] = [];
   for (const line of stdout.split("\n")) {
     if (line === "") continue;
     const [ref, upstream = ""] = line.split(NUL);
     if (!ref.startsWith(LOCAL_PREFIX)) continue;
-    upstreams[ref.slice(LOCAL_PREFIX.length)] = shortenUpstream(upstream);
+    entries.push([ref.slice(LOCAL_PREFIX.length), shortenUpstream(upstream)]);
   }
-  return upstreams;
+  return Object.fromEntries(entries);
 }
 
 /** A failure is logged and yields no upstreams, so the branch read still succeeds. */

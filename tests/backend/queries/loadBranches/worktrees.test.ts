@@ -168,6 +168,18 @@ describe("loadBranches worktrees", () => {
     expect(lines.some((line) => line.includes("worktrees=unavailable"))).toBe(true);
   });
 
+  it("keeps a branch named __proto__ as an own upstream key", async () => {
+    const raw = async (args: string[]) => {
+      if (args[0] === "worktree") throw new Error("fatal: worktree list failed");
+      return `refs/heads/__proto__${NUL}refs/remotes/origin/__proto__\n`;
+    };
+
+    const result = await loadBranches(fakeGit(raw), input(main));
+
+    const own = Object.getOwnPropertyDescriptor(result.upstreams, "__proto__");
+    expect(own?.value).toBe("origin/__proto__");
+  });
+
   it("logs a failed upstream read and still returns the branches and worktrees", async () => {
     const raw = async (args: string[]) => {
       if (args[0] === "for-each-ref") throw new Error("fatal: for-each-ref failed");
