@@ -15,6 +15,7 @@ import type {
   GitStash,
   GitTagDetails,
   GitUncommittedChanges,
+  GitWorktree,
   QueryResult
 } from "@/backend/types";
 import { COMMIT_ORDERINGS, GIT_PUSH_BRANCH_MODES } from "@/backend/types";
@@ -230,10 +231,32 @@ function isJsonObject(value: GGL.JsonValue): value is { [key: string]: GGL.JsonV
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Maps each branch checked out in a worktree other than the current one to the
+ * paths of those worktrees. A branch checked out twice (via
+ * --ignore-other-worktrees) lists both; detached and bare worktrees have no branch.
+ */
+export function branchWorktreeMap(worktrees: GitWorktree[]): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const worktree of worktrees) {
+    if (worktree.isCurrent || worktree.branch === null) continue;
+    const paths = map.get(worktree.branch) ?? [];
+    paths.push(worktree.path);
+    map.set(worktree.branch, paths);
+  }
+  return map;
+}
+
 class GitGraphView {
   private gitRepos: GGL.GitRepoSet;
   private gitBranches: string[] = [];
   private gitBranchHead: string | null = null;
+  /** Every worktree of the current repository, from the last branch read; not persisted. */
+  private gitWorktrees: GitWorktree[] = [];
+  /** Local branch to its upstream's short name, or null when it tracks nothing. */
+  private gitUpstreams: Record<string, string | null> = {};
+  /** Derived from gitWorktrees: the branches checked out elsewhere, by path. */
+  private gitBranchWorktrees = new Map<string, string[]>();
   private gitAuthors: string[] = [];
   private gitTags: string[] = [];
   private gitRemotes: GitRemote[] = [];
@@ -375,6 +398,9 @@ class GitGraphView {
       this.gitRemotes = [];
       this.gitStashes = [];
       this.gitConfig = createEmptyGitConfig();
+      this.gitWorktrees = [];
+      this.gitUpstreams = {};
+      this.gitBranchWorktrees = new Map();
       this.closeSettingsWidget();
       this.syncRepoSettingsControls();
       this.updateRemoteActionsVisibility();
@@ -574,7 +600,7 @@ class GitGraphView {
     this.gitRemotes = prevState.gitRemotes ?? [];
     this.gitStashes = prevState.gitStashes ?? [];
     this.syncRepoSettingsControls();
-    this.loadBranches(null, prevState.gitBranches, prevState.gitBranchHead, true, true);
+    this.loadBranches(null, prevState.gitBranches, prevState.gitBranchHead, true, true, [], {});
     this.loadCommits(
       null,
       prevState.commits,
@@ -638,6 +664,9 @@ class GitGraphView {
       this.gitRemotes = [];
       this.gitStashes = [];
       this.gitConfig = createEmptyGitConfig();
+      this.gitWorktrees = [];
+      this.gitUpstreams = {};
+      this.gitBranchWorktrees = new Map();
       this.updateRemoteActionsVisibility();
       this.refresh(true);
     }
@@ -688,6 +717,8 @@ class GitGraphView {
     branchHead: string | null,
     hard: boolean,
     isRepo: boolean,
+    worktrees: GitWorktree[],
+    upstreams: Record<string, string | null>,
     errorReason: string | null = null
   ) {
     if (!this.acceptLoadBranchesResponse(requestId)) return;
@@ -706,7 +737,9 @@ class GitGraphView {
     if (
       !hard &&
       arraysEqual(this.gitBranches, branchOptions, (a, b) => a === b) &&
-      this.gitBranchHead === branchHead
+      this.gitBranchHead === branchHead &&
+      JSON.stringify(this.gitWorktrees) === JSON.stringify(worktrees) &&
+      JSON.stringify(this.gitUpstreams) === JSON.stringify(upstreams)
     ) {
       this.triggerLoadBranchesCallback(false, isRepo);
       return;
@@ -714,6 +747,9 @@ class GitGraphView {
 
     this.gitBranches = branchOptions;
     this.gitBranchHead = branchHead;
+    this.gitWorktrees = worktrees;
+    this.gitUpstreams = upstreams;
+    this.gitBranchWorktrees = branchWorktreeMap(worktrees);
     const defaultBranchAllowed = this.currentBranch === null || this.currentBranch !== "";
     this.currentBranches = this.keepAvailableSelections(
       this.currentBranches,
@@ -1554,6 +1590,11 @@ class GitGraphView {
   }
 
   /* State */
+  /** The other worktrees that have `branch` checked out; W11 and W12 read their markers from here. */
+  public worktreePathsFor(branch: string): string[] {
+    return this.gitBranchWorktrees.get(branch) ?? [];
+  }
+
   private saveState() {
     vscode.setState({
       gitRepos: this.gitRepos,
@@ -6940,6 +6981,8 @@ const responseHandlers: ResponseHandlerMap = {
       msg.head,
       msg.hard,
       msg.isRepo,
+      msg.worktrees,
+      msg.upstreams,
       formatQueryError(msg.error)
     ),
   loadCommits: (msg) =>
