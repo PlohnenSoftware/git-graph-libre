@@ -76,7 +76,7 @@ afterAll(() => {
 describe("registerMessageHandlers", () => {
   function registerHandlersForTest(
     activeRepo = repo,
-    options: { extensionPath?: string; diffTabAvailable?: boolean } = {}
+    options: { extensionPath?: string; diffTabAvailable?: boolean; showTagRemotes?: boolean } = {}
   ) {
     const telemetryEvents: Array<{ feature: string; ok: boolean }> = [];
     const consentPrompts: number[] = [];
@@ -127,6 +127,7 @@ describe("registerMessageHandlers", () => {
         showUncommittedChanges: () => false,
         shortHashLength: () => 4,
         gitPath: () => "git",
+        showTagRemotes: () => options.showTagRemotes ?? true,
         // Pinned to the CLI: the engine routing lives in the reader and
         // parity suites, not in these route-shape tests.
         backend: () => "git-cli"
@@ -366,6 +367,33 @@ describe("registerMessageHandlers", () => {
       expect(posts[0]).toMatchObject({ command: "loadCommits", requestId: 1 });
       expect((posts[0] as { commits: unknown[] }).commits.length).toBeGreaterThan(0);
     });
+  });
+
+  it("answers remoteTags with an empty result and spawns nothing while the setting is off", async () => {
+    const { handlers, posts, outputLines } = registerHandlersForTest(repo, {
+      showTagRemotes: false
+    });
+    await handlers.get("remoteTags")?.({ command: "remoteTags", requestId: 7, repo });
+    // Every Git process the handler starts is traced to the output channel.
+    expect(outputLines.join("\n")).not.toContain("remoteTags");
+    expect(posts).toEqual([
+      {
+        command: "remoteTags",
+        requestId: 7,
+        repo,
+        tags: {},
+        unavailableRemotes: [],
+        error: null
+      }
+    ]);
+  });
+
+  it("reads remote tags through the handler while the setting is on", async () => {
+    const { handlers, posts, outputLines } = registerHandlersForTest(repo);
+    handlers.get("remoteTags")?.({ command: "remoteTags", requestId: 8, repo });
+    await vi.waitFor(() => expect(posts).toHaveLength(1));
+    expect(outputLines.join("\n")).toContain("remoteTags");
+    expect(posts[0]).toMatchObject({ command: "remoteTags", requestId: 8, repo, error: null });
   });
 
   it("echoes request ids when loading repository info", async () => {

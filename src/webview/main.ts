@@ -263,6 +263,8 @@ class GitGraphView {
   private remoteTagsResult: QueryResult<"remoteTags"> | null = null;
   private remoteTagsRepo = "";
   private remoteTagsRequestId: number | null = null;
+  /** A hard refresh keeps the shown snapshot and asks again; the reply replaces it. */
+  private remoteTagsRevalidate = false;
   private gitStashes: GitStash[] = [];
   private gitConfig: GitRepoConfig = createEmptyGitConfig();
   private commits: GitCommitNode[] = [];
@@ -901,31 +903,69 @@ class GitGraphView {
   private forgetRemoteTags() {
     this.remoteTagsResult = null;
     this.remoteTagsRequestId = null;
+    this.remoteTagsRevalidate = false;
+  }
+  /**
+   * Keep the snapshot on screen and ask for a new one: a request still in
+   * flight is dropped, so its late reply is ignored.
+   */
+  private revalidateRemoteTags() {
+    this.remoteTagsRequestId = null;
+    this.remoteTagsRevalidate = true;
+  }
+  private visibleTagRefs() {
+    return this.commits.flatMap((commit) => commit.refs.filter((ref) => ref.type === "tag"));
+  }
+  /** Whether a tag on screen is missing from the snapshot, or points elsewhere now. */
+  private isTagOutsideSnapshot(ref: GitCommitNode["refs"][number]) {
+    return this.remoteTagsResult?.tags[ref.name]?.hash !== ref.hash;
+  }
+  private needsRemoteTags(tags: GitCommitNode["refs"]) {
+    const result = this.remoteTagsResult;
+    if (result === null || this.remoteTagsRevalidate) return true;
+    // A failed read lists no tags at all, so it would flag every one of them.
+    return result.error === null && tags.some((ref) => this.isTagOutsideSnapshot(ref));
   }
   private requestRemoteTags() {
+    if (!this.config.showTagRemotes) return;
     if (this.remoteTagsRepo !== this.currentRepo) {
       this.remoteTagsRepo = this.currentRepo;
       this.forgetRemoteTags();
     }
-    if (
-      this.remoteTagsResult !== null ||
-      this.remoteTagsRequestId !== null ||
-      !this.getShowTags() ||
-      !this.commits.some((commit) => commit.refs.some((ref) => ref.type === "tag"))
-    )
-      return;
+    if (this.remoteTagsRequestId !== null || !this.getShowTags()) return;
+    const tags = this.visibleTagRefs();
+    if (tags.length === 0 || !this.needsRemoteTags(tags)) return;
     const requestId = this.createRequestId();
     this.remoteTagsRequestId = requestId;
+    this.remoteTagsRevalidate = false;
     sendMessage({ command: "remoteTags", requestId, repo: this.currentRepo });
   }
   public loadRemoteTags(msg: Extract<GGL.ResponseMessage, { command: "remoteTags" }>) {
+    if (!this.config.showTagRemotes) return;
     if (msg.repo !== this.currentRepo || msg.requestId !== this.remoteTagsRequestId) return;
     this.remoteTagsRequestId = null;
     this.remoteTagsResult = msg;
-    if (this.isTableMounted()) {
-      this.renderTable();
-      this.renderGraph();
-    }
+    if (this.isTableMounted()) this.patchTagCells();
+  }
+  /**
+   * Redraw the ref badges of the rows that carry a tag, in place, as
+   * `loadCommitSignatures` fills its cells: the rest of the table and the
+   * graph are untouched by a remote tag reply.
+   */
+  private patchTagCells() {
+    this.commits.forEach((commit, index) => {
+      if (commit.stash !== undefined || !commit.refs.some((ref) => ref.type === "tag")) return;
+      const cell = this.tableElem.querySelector(`tr.commit[data-id="${index}"] > td:nth-child(2)`);
+      const message = cell?.querySelector(":scope > .commitMessage");
+      if (!(cell instanceof HTMLElement) || !message) return;
+      for (const node of Array.from(cell.children)) {
+        if (node === message) break;
+        if (!node.classList.contains("commitHeadDot")) node.remove();
+      }
+      message.insertAdjacentHTML("beforebegin", this.renderCommitRefs(commit));
+      this.registerGitRefContextMenuListener(cell);
+      this.registerGitRefActivationListeners(cell);
+    });
   }
   /**
    * A freshly loaded page with the signatures already read for this
@@ -1099,7 +1139,7 @@ class GitGraphView {
   /* Refresh */
   public refresh(hard: boolean) {
     if (hard) {
-      this.forgetRemoteTags();
+      this.revalidateRemoteTags();
       if (this.expandedCommit !== null) {
         this.expandedCommit = null;
         this.saveState();
@@ -1694,6 +1734,7 @@ class GitGraphView {
     const beforeIncludeReflog = this.getIncludeReflog();
     const beforeIncludeUnreachable = this.getIncludeUnreachableCommits();
     const beforeFirstParent = this.getOnlyFollowFirstParent();
+    const beforeTagRemotes = this.config.showTagRemotes;
     let reloadHistory = false;
 
     for (const setting of settings) {
@@ -1726,12 +1767,18 @@ class GitGraphView {
       beforeFirstParent !== this.getOnlyFollowFirstParent();
     reloadHistory = reloadHistory || repoFilterDefaultsChanged;
 
+    // Off drops what is shown, so the next render is the plain badge; on asks
+    // as an explicit Refresh would, once the rows are drawn.
+    if (beforeTagRemotes && !this.config.showTagRemotes) this.forgetRemoteTags();
     this.renderTable();
     this.renderGraph();
+    if (!beforeTagRemotes && this.config.showTagRemotes) this.revalidateRemoteTags();
     if (reloadHistory) {
       this.maxCommits = this.config.initialLoadCommits;
       this.renderShowLoading();
       this.requestLoadBranchesAndCommits(true);
+    } else {
+      this.requestRemoteTags();
     }
   }
 
@@ -1780,6 +1827,9 @@ class GitGraphView {
         return true;
       case "repository.fetchTagsByDefault":
         this.config.fetchTagsByDefault = value;
+        return true;
+      case "repository.showTagRemotes":
+        this.config.showTagRemotes = value;
         return true;
       case "dialog.merge.noFastForward":
         this.config.mergeNoFastForward = value;
@@ -3838,20 +3888,25 @@ class GitGraphView {
       this.toggleCommitDetails(sourceElem, hash);
     });
   }
-  private registerGitRefContextMenuListener() {
-    addListenerToClass("gitRef", "contextmenu", (e: Event) => {
-      e.stopPropagation();
-      const sourceElem = closestHTMLElement(e.target, ".gitRef");
-      const rawRefName = sourceElem?.dataset.name;
-      if (sourceElem === null || rawRefName === undefined) return;
+  private registerGitRefContextMenuListener(root: Document | Element = document) {
+    addListenerToClass(
+      "gitRef",
+      "contextmenu",
+      (e: Event) => {
+        e.stopPropagation();
+        const sourceElem = closestHTMLElement(e.target, ".gitRef");
+        const rawRefName = sourceElem?.dataset.name;
+        if (sourceElem === null || rawRefName === undefined) return;
 
-      const refName = unescapeHtml(rawRefName);
-      showContextMenu(
-        e as MouseEvent,
-        this.buildGitRefContextMenu(sourceElem, refName),
-        sourceElem
-      );
-    });
+        const refName = unescapeHtml(rawRefName);
+        showContextMenu(
+          e as MouseEvent,
+          this.buildGitRefContextMenu(sourceElem, refName),
+          sourceElem
+        );
+      },
+      root
+    );
   }
   private buildGitRefContextMenu(sourceElem: HTMLElement, refName: string) {
     if (sourceElem.classList.contains("stash")) {
@@ -4895,20 +4950,30 @@ class GitGraphView {
       null
     );
   }
-  private registerGitRefActivationListeners() {
-    addListenerToClass("gitRef", "click", (e: Event) => {
-      if (closestHTMLElement(e.target, ".gitRef")?.classList.contains("stash")) return;
-      e.stopPropagation();
-    });
-    addListenerToClass("gitRef", "dblclick", (e: Event) => {
-      e.stopPropagation();
-      hideDialogAndContextMenu();
-      const sourceElem = closestHTMLElement(e.target, ".gitRef");
-      const refName = sourceElem?.dataset.name;
-      if (sourceElem === null || refName === undefined) return;
-      if (sourceElem.classList.contains("stash")) return;
-      this.checkoutBranchAction(sourceElem, unescapeHtml(refName));
-    });
+  private registerGitRefActivationListeners(root: Document | Element = document) {
+    addListenerToClass(
+      "gitRef",
+      "click",
+      (e: Event) => {
+        if (closestHTMLElement(e.target, ".gitRef")?.classList.contains("stash")) return;
+        e.stopPropagation();
+      },
+      root
+    );
+    addListenerToClass(
+      "gitRef",
+      "dblclick",
+      (e: Event) => {
+        e.stopPropagation();
+        hideDialogAndContextMenu();
+        const sourceElem = closestHTMLElement(e.target, ".gitRef");
+        const refName = sourceElem?.dataset.name;
+        if (sourceElem === null || refName === undefined) return;
+        if (sourceElem.classList.contains("stash")) return;
+        this.checkoutBranchAction(sourceElem, unescapeHtml(refName));
+      },
+      root
+    );
   }
   private renderTableHeader() {
     return `<tr id="tableColHeaders"><th id="tableHeaderGraphCol" class="tableColHeader">${l10n.graph}</th><th class="tableColHeader">${l10n.description}</th><th class="tableColHeader">${l10n.date}</th><th class="tableColHeader">${l10n.author}</th><th class="tableColHeader">${l10n.commit}</th><th class="tableColHeader signatureCol">${l10n.signature}</th></tr>`;
@@ -5126,15 +5191,20 @@ class GitGraphView {
     return `<span class="gitRefGroup" role="group" aria-label="${title}">${primary}${aliases}</span>`;
   }
   private getTagRemoteStatus(ref: GitCommitNode["refs"][number]) {
+    // No remotes, nothing to be "not found on": show no status at all.
+    if (!this.config.showTagRemotes || this.gitRemotes.length === 0) return null;
     const result = this.remoteTagsRepo === this.currentRepo ? this.remoteTagsResult : null;
     if (result === null) return null;
     const tag = result.tags[ref.name];
-    const remotes = tag?.hash === ref.hash ? tag.remotes : [];
-    const unavailable =
-      result.error !== null || result.unavailableRemotes.length > 0 || tag?.hash !== ref.hash;
+    const known = tag?.hash === ref.hash;
+    // A tag the snapshot predates waits for the reply already on its way.
+    if (!known && result.error === null && this.remoteTagsRequestId !== null) return null;
+    const remotes = known ? tag.remotes : [];
+    const unavailable = result.error !== null || result.unavailableRemotes.length > 0 || !known;
     let status = unavailable ? l10n.tagRemotesUnavailable : l10n.tagNotOnRemotes;
     if (remotes.length > 0) {
-      status = l10n.tagOnRemotes.replace("{0}", remotes.join(", "));
+      // A replacer function: `$&` and friends in a remote's name stay literal.
+      status = l10n.tagOnRemotes.replace("{0}", () => remotes.join(", "));
       if (unavailable) status += `. ${l10n.tagRemotesUnavailable}`;
     }
     return { remotes, status };
@@ -6851,6 +6921,7 @@ const gitGraph = new GitGraphView(
     muteMergeCommits: viewState.muteMergeCommits,
     boldCheckedOutCommit: viewState.boldCheckedOutCommit,
     fetchTagsByDefault: viewState.fetchTagsByDefault,
+    showTagRemotes: viewState.showTagRemotes,
     mergeNoFastForward: viewState.mergeNoFastForward,
     pullBranchNoFastForward: viewState.pullBranchNoFastForward,
     createBranchCheckout: viewState.createBranchCheckout,

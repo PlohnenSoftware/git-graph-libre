@@ -166,6 +166,7 @@ export const config = {
   muteMergeCommits: (): boolean => getConfig("repository.muteMergeCommits", false),
   boldCheckedOutCommit: (): boolean => getConfig("repository.boldCheckedOutCommit", false),
   fetchTagsByDefault: (): boolean => getConfig("repository.fetchTagsByDefault", true),
+  showTagRemotes: (): boolean => getConfig("repository.showTagRemotes", true),
   mergeNoFastForward: (): boolean => getConfig("dialog.merge.noFastForward", true),
   pullBranchNoFastForward: (): boolean => getConfig("dialog.pullBranch.noFastForward", false),
   createBranchCheckout: (): boolean => getConfig("dialog.createBranch.checkout", true),

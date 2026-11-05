@@ -159,6 +159,7 @@ function makeConfig(consent: TelemetryConsent): Config {
     muteMergeCommits: () => false,
     boldCheckedOutCommit: () => false,
     fetchTagsByDefault: () => false,
+    showTagRemotes: () => true,
     mergeNoFastForward: () => true,
     pullBranchNoFastForward: () => false,
     createBranchCheckout: () => true,

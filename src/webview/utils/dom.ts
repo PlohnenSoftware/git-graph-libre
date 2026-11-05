@@ -1,5 +1,10 @@
-export function addListenerToClass(className: string, event: string, eventListener: EventListener) {
-  const elems = document.getElementsByClassName(className);
+export function addListenerToClass(
+  className: string,
+  event: string,
+  eventListener: EventListener,
+  root: Document | Element = document
+) {
+  const elems = root.getElementsByClassName(className);
   for (const elem of Array.from(elems)) {
     elem.addEventListener(event, eventListener);
   }

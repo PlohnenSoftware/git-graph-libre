@@ -294,6 +294,7 @@ export type GitGraphViewState = {
   muteMergeCommits: boolean;
   boldCheckedOutCommit: boolean;
   fetchTagsByDefault: boolean;
+  showTagRemotes: boolean;
   mergeNoFastForward: boolean;
   pullBranchNoFastForward: boolean;
   createBranchCheckout: boolean;

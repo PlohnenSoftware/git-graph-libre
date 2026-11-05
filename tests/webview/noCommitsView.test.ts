@@ -33,6 +33,7 @@ const defaultViewState: GGL.GitGraphViewState = {
   muteMergeCommits: false,
   boldCheckedOutCommit: false,
   fetchTagsByDefault: true,
+  showTagRemotes: true,
   mergeNoFastForward: true,
   pullBranchNoFastForward: false,
   createBranchCheckout: true,

@@ -774,6 +774,18 @@ export function registerMessageHandlers(
   // --- Query handlers ---
 
   bridge.onMessage("remoteTags", (msg) => {
+    if (!config.showTagRemotes()) {
+      // Off means no process and no network, even for a webview that asks.
+      bridge.post({
+        command: "remoteTags",
+        requestId: msg.requestId,
+        repo: msg.repo,
+        tags: {},
+        unavailableRemotes: [],
+        error: null
+      });
+      return;
+    }
     // Do not keep the file watcher muted while waiting for the network.
     void remoteTags({ repo: msg.repo, gitPath: config.gitPath(), recordGitCommand }).then(
       (result) => {

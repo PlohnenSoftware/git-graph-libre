@@ -63,6 +63,7 @@ const defaultViewState: GGL.GitGraphViewState = {
   // requested" path. The shipped default-on behavior is covered by
   // tests/webview/fetchDialogDefaults.test.ts.
   fetchTagsByDefault: false,
+  showTagRemotes: true,
   mergeNoFastForward: true,
   pullBranchNoFastForward: false,
   createBranchCheckout: true,
@@ -241,6 +242,12 @@ describe("webview rendering", () => {
     document
       .getElementById("refreshBtn")
       ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    receive({
+      command: "loadRepoInfo",
+      requestId: latestLoadRepoInfoRequest().requestId,
+      repoInfo: repoInfoWithRemote,
+      error: null
+    });
     receiveLoadedCommits(twoCommits, "abc123");
     return latestRemoteTagsRequest();
   }
@@ -721,8 +728,16 @@ describe("webview rendering", () => {
     );
     const refreshed = refreshRemoteTags();
     expect(refreshed.requestId).not.toBe(request.requestId);
-    receive(response);
-    expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(0);
+    // Stale-while-revalidate: the old aliases stay while the new read runs,
+    // and the reply to the request a refresh replaced is dropped.
+    expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(2);
+    receive({
+      ...response,
+      tags: { "v1.0.0": { hash: "abc123", remotes: ["stale"] } }
+    });
+    expect(
+      Array.from(document.querySelectorAll(".gitRef.tag.gitRefAlias"), (alias) => alias.textContent)
+    ).toEqual(["origin", "backup<test>"]);
     receive({ ...response, ...refreshed, tags: { "v1.0.0": { hash: "abc123", remotes: [] } } });
     expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain("Local tag not found on any remote");
     refreshRemoteTags();
