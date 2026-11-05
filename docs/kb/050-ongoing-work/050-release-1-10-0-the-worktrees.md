@@ -98,20 +98,20 @@ run one after another, as the integrator procedure says.
 | W05 | [Suggest the full branch name for a remote checkout](050-release-1-10-0-the-worktrees/150-w05-suggest-the-full-branch-name-for-a-remote-checkout.md) | webview | — | A | integrated `659d095` |
 | W06 | [Whole-row checkboxes in dialogs](050-release-1-10-0-the-worktrees/160-w06-whole-row-checkboxes-in-dialogs.md) | CSS | Y13 (ready under (a)) | A | integrated `af7ff04` |
 | W06F | [Whole-row checkboxes in every popup](050-release-1-10-0-the-worktrees/165-w06f-whole-row-checkboxes-in-every-popup.md) | CSS + webview | W06, Y13 | A | dispatched `2026-11-05` (Haiku) |
-| W07 | [Read a linked worktree's local config](050-release-1-10-0-the-worktrees/170-w07-read-a-linked-worktree-s-local-config.md) | Rust + TS | W01 | A | dispatched `2026-11-05` (Sonnet) |
+| W07 | [Read a linked worktree's local config](050-release-1-10-0-the-worktrees/170-w07-read-a-linked-worktree-s-local-config.md) | Rust + TS | W01 | A | integrated `c9ce36c` |
 | W08 | [A nested worktree is not a submodule in telemetry](050-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | integrated `6b0e232` |
 | W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | integrated `decdf71` |
 | W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | integrated `a93ddc7` (merge of `a109e9a`) |
 | W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | integrated `43ac7e9` |
 | W26H | [Harden the remote tag read](050-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | integrated `d607144` |
-| W26HF | [Remote tag read Sonar follow-up](050-release-1-10-0-the-worktrees/369-w26hf-remote-tag-read-sonar-follow-up.md) | TS | W26H | A | dispatched `2026-11-05` (Haiku) |
+| W26HF | [Remote tag read Sonar follow-up](050-release-1-10-0-the-worktrees/369-w26hf-remote-tag-read-sonar-follow-up.md) | TS | W26H | A | integrated `8ff94dd` |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | integrated `f9e54a4` |
-| W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | needs W07 |
-| W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | ready; held until W07 is integrated (both bump the engine version) |
+| W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | dispatched `2026-11-05` (Sonnet) |
+| W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | ready; held until W40 is integrated (both change `repository.rs` and the engine version) |
 | W10 | [Carry worktrees to the webview](050-release-1-10-0-the-worktrees/200-w10-carry-worktrees-to-the-webview.md) | TS | W02 | C | integrated `2a619c4` |
 | W10F | [Read worktrees through the engine reader](050-release-1-10-0-the-worktrees/205-w10f-read-worktrees-through-the-engine-reader.md) | TS | W03, W10 | C | integrated `436e0b0` |
 | W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | ready (queued: one manifest or l10n slice at a time) |
-| W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | needs W07 (it seeds both backends' logs; after W07's engine bump) |
+| W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | ready (queued behind W21: it touches the l10n bundles) |
 | W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | integrated `83f5821` |
 | W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | dispatched `2026-11-05` (Sonnet) |
 | W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | ready (queued: one manifest or l10n slice at a time) |
@@ -364,3 +364,26 @@ commit, the gate results with numbers, and the Sonar task id.
     effect only when `main` is fast-forwarded at W90, by which time W06F
     is in, so the widened scope is closed together.
   - W07 reported done.
+- `2026-11-05`: W07 integrated at `c9ce36c`. The engine's `config_list`
+  and `resolveLocalGitConfigPath()` now read a linked worktree's local
+  config from the common dir. The engine is `1.0.27`. The rebase was
+  clean.
+- `2026-11-05`, gate on `c9ce36c`: W20, W06F's record and W07 since the
+  last gate.
+  - Rust arm: `engine:fmt`, `engine:lint`, `engine:check` and
+    `engine:test` pass. The engine was rebuilt, and `engine:smoke`
+    reports `1.0.27`.
+  - Strict Biome is clean on 15 files. `package`, `l10n:check` and
+    `kb:check` pass.
+  - Fresh `test:coverage`: 167 files, 2,142 of 2,142 tests passed.
+  - Sonar task `07cb1af8-927b-4288-8a6a-f895f6c00259`: quality gate
+    **`OK`**. New coverage is 94.9%, with 0 security issues and 4 new
+    violations against 5 allowed:
+    - W26H's three, cleared by W26HF, integrated right after at
+      `8ff94dd`;
+    - S5906 in W20's `branchWorktreeActions.test.ts:271`, fixed by the
+      integrator at `9c547da`.
+  - Dispatched: W40 to Sonnet, in the recycled W07 worktree with its
+    engine build.
+  - Held: W41 behind W40 (both change `repository.rs` and the engine
+    version), and W12 behind W21 (both touch the l10n bundles).

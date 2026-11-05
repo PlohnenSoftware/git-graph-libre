@@ -8,7 +8,7 @@ summary: >-
 
 # W26HF — Remote tag read Sonar follow-up
 
-Status: done — awaiting integration
+Status: integrated `8ff94dd` (`2026-11-05`)
 Needs: W26H (integrated `d607144`)
 Decisions: —
 Kind: TypeScript · Size budget: ~20 changed lines outside tests

@@ -10,7 +10,7 @@ summary: >-
 
 # W07 — Read a linked worktree's local config
 
-Status: done — awaiting integration
+Status: integrated `c9ce36c` (`2026-11-05`)
 Needs: W01 (serializes the engine changes on gix 0.90)
 Decisions: —
 Kind: Rust and TypeScript, the Rust arm applies · Size budget: ~120 changed
