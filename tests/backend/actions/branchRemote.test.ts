@@ -15,7 +15,7 @@ function gitWithRaw(raw: (args: string[]) => Promise<string>): SimpleGit {
 }
 
 describe("branch remote actions", () => {
-  it("pushes a branch to selected remotes with upstream and force-with-lease", async () => {
+  it("pushes a branch to selected remotes with force-with-lease, upstream on the first only", async () => {
     const git = gitWithRaw(async () => "");
 
     await pushBranch(git, {
@@ -36,11 +36,26 @@ describe("branch remote actions", () => {
     ]);
     expect(git.raw).toHaveBeenNthCalledWith(2, [
       "push",
-      "--set-upstream",
       "--force-with-lease",
       "backup",
       "feature/menu"
     ]);
+  });
+
+  it("never sets upstream on more than one remote, however many are selected", async () => {
+    const git = gitWithRaw(async () => "");
+
+    await pushBranch(git, {
+      repo: "/repo",
+      branchName: "feature/menu",
+      remotes: ["origin", "backup", "mirror"],
+      setUpstream: true,
+      mode: "normal",
+      noVerify: false
+    });
+
+    const pushes = vi.mocked(git.raw).mock.calls.map(([args]) => args);
+    expect(pushes.map((args) => args.includes("--set-upstream"))).toEqual([true, false, false]);
   });
 
   it("rejects pushing when no remote is selected", async () => {

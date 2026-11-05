@@ -107,9 +107,12 @@ export async function pushBranch(
     throw new Error(`No remotes were selected for pushing branch ${input.branchName}.`);
   }
 
-  for (const remote of input.remotes) {
+  // Several `--set-upstream` pushes leave tracking on the last remote pushed, so
+  // only the first remote in `remotes` gets it. The push dialog lists the remote
+  // it pre-checks first; the other remotes are pushed without `-u`.
+  for (const [index, remote] of input.remotes.entries()) {
     const args = ["push"];
-    if (input.setUpstream) args.push("--set-upstream");
+    if (input.setUpstream && index === 0) args.push("--set-upstream");
     const modeArg = pushModeArg(input.mode);
     if (modeArg !== null) args.push(modeArg);
     if (input.noVerify) args.push("--no-verify");
