@@ -1,34 +1,57 @@
 ---
 summary: >-
-  Next (`2026-11-04`, post-`1.9.0`): maintainer decisions on the seven open
-  GitHub issues, documented with their threads and an agent assessment in Open
-  GitHub issues. #36 (push dialog defaults) and #37 (worktrees) are
-  acknowledged for release 1.10.0; #38, #40, #41, #42 and #45 are new and
-  undecided. Then the remaining Phase 2/6/9/10/16/17 items and D90 step 7
-  housekeeping.
+  Next (`2026-11-04`): release 1.10.0 "The Worktrees" under Ongoing work.
+  It brings full Git worktree support, the to-tackle issues (#36, #37, #38,
+  #41, #45) and the gix and Cargo refresh, in 27 slices. Their decisions
+  Y1, Y3–Y22 are open; W00, W01, W02, W04, W05, W06 and W08 are ready. #40
+  and #42 are on hold in the backlog. Then the remaining Phase 2/6/9/10/16/17
+  items.
 always_read: true
 ---
 
 # Near-Term Work Order
 
-**Update (`2026-11-04`): seven open issues, awaiting the maintainer's
-decisions.** Since the `2026-10-27` audit below, `rbalet` opened six more
-issues:
+**Next (`2026-11-04`): release 1.10.0 "The Worktrees".** The maintainer made
+worktrees the next release: "full worktree support", not only what the
+issues ask. It is to analyze the engine's part, include the to-tackle
+issues, and refresh the Cargo dependencies, including gix from GitHub. The
+plan is the section Release 1.10.0 — "The Worktrees" under Ongoing work:
+- 27 slices in six waves, each with its facts, steps, files and acceptance,
+  plus the release slice W90;
+- its agent protocol and integrator procedure;
+- decisions Y1–Y22, of which only Y2 (gix from GitHub) is answered;
+- the Git worktree facts verified on `2026-11-04`, and the engine analysis.
 
-- #38: remove a worktree that blocks a branch;
-- #39: auto pull on checkout, closed `2026-11-02` as a duplicate of #45;
-- #40: fetch that also updates the current branch;
-- #41: whole-row checkbox hit area in dialogs;
-- #42: lighter ref badge icons;
-- #45: checking out a remote branch whose local branch exists, including
-  `cktgh`'s confirmed bug in the suggested local name.
+Ready without a decision: W00, W01, W02, W04, W05, W06 and W08. Answering
+the decisions releases the rest.
 
-Every open issue's thread, the code and Git facts checked, and an agent
-assessment of each proposal are in Open GitHub issues under Future work. Its
-summary table is the place to decide from. Nothing there is decided. Small,
-clearly correct candidates, if the maintainer agrees: #45's name bug (one
-line, with tests) and #41 (one CSS rule). #36 and #37 remain the release's
-anchors, as acknowledged on `2026-10-27`.
+**Issues to tackle (`2026-11-04`), all planned in that release.** The
+maintainer's decision of `2026-11-04` on the seven open GitHub issues:
+
+- **To tackle:**
+  - #36: push dialog default remote and Set upstream;
+  - #37: show Git worktrees;
+  - #38: remove a leftover worktree that blocks a branch;
+  - #41: whole-row checkbox hit area in dialogs;
+  - #45: checking out a remote branch whose local branch exists, including
+    `cktgh`'s confirmed bug in the suggested local name.
+
+  All five are planned in release 1.10.0:
+  - #36 as W25;
+  - #37 as W02–W04, W10–W12 and W30–W33;
+  - #38 as W20 and W21;
+  - #41 as W06;
+  - #45 as W05 and W24.
+- **On hold, in the backlog**, as matters of taste: #40 (fetch that also
+  updates the current branch) and #42 (lighter ref badge icons).
+
+#38, #40, #41, #42 and #45 were opened by `rbalet` after the `2026-10-27`
+audit below, together with #39 (auto pull on checkout), closed on
+`2026-11-02` as a duplicate of #45. **How** each is implemented is settled
+through the release's decisions (Y-series). Every issue's thread, the facts
+checked and the assessment of each option are in Open GitHub issues under
+Future work. Small, clearly correct starting points: #45's name bug (W05,
+one line with tests) and #41 (W06, one CSS rule).
 
 **Earlier next (`2026-10-27`, post-`1.9.0`):** `v1.9.0` ("The Diff") shipped on
 `2026-10-20` (`31e0169`), closing issues `#26`, `#30`, `#31`, and `#32`. Two

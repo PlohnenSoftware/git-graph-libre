@@ -1,7 +1,8 @@
 ---
 summary: >-
-  Open, `rbalet` `2026-10-28`, no reply yet: a button on "Unable to Delete
-  Branch" (the branch is used by a worktree an agent left behind) that
+  To tackle (maintainer, `2026-11-04`); `rbalet`, `2026-10-28`: a button on
+  "Unable to Delete Branch" (the branch is used by a worktree an agent left
+  behind) that
   force-removes the worktree. Verified: deleting the folder does not free the
   branch (the entry turns `prunable`); `git worktree remove --force` deletes
   uncommitted and untracked files. Recommended: detect it up front, offer a
@@ -13,7 +14,10 @@ summary: >-
 **Open.** [Issue #38](https://github.com/PlohnenSoftware/git-graph-libre/issues/38),
 "feata: delete worktree", opened `2026-10-28` by `rbalet`, label
 `enhancement`. Belongs with Phase 18, Git Worktree Support: it is the action
-side of issue #37. **Decision: pending.** There is no maintainer reply yet.
+side of issue #37. **Decision (`2026-11-04`): to tackle.** The approach is not
+chosen yet, and there is no maintainer reply on GitHub yet. It is planned as
+W20 and W21 in Release 1.10.0 — "The Worktrees", with the policy as decision
+Y5.
 
 ## The request
 

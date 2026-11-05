@@ -1,7 +1,8 @@
 ---
 summary: >-
-  Open, `rbalet` `2026-11-02`, label `bug`; #39 closed as its duplicate:
-  checking out a remote branch whose local branch exists ends in Git's
+  To tackle, bug and feature (maintainer, `2026-11-04`); `rbalet`,
+  `2026-11-02`, label `bug`; #39 closed as its duplicate: checking out a remote
+  branch whose local branch exists ends in Git's
   "already exists". Two parts: `cktgh`'s confirmed bug, where the suggested
   local name drops path segments (`origin/feat/admin-gui` becomes
   `admin-gui`), fixed with the existing `parseRemoteBranchName()`; and the
@@ -18,8 +19,11 @@ local is attempted". Opened `2026-11-02` by `rbalet`, label `bug`, on VS Code
 1.144.0, Git Graph Libre 1.9.0, macOS. [Issue
 #39](https://github.com/PlohnenSoftware/git-graph-libre/issues/39) was closed
 the same day as its duplicate. Would belong to Phase 9, Repository and Remote
-Management. **Decision: pending.** The maintainer called the name bug "an
-actual bug" and the rest "more of a feature" (`2026-11-03`).
+Management. **Decision (`2026-11-04`): to tackle, both the name bug and the
+feature.** The maintainer had called the name bug "an actual bug" and the rest
+"more of a feature" (`2026-11-03`). How the feature works is not chosen yet.
+It is planned as W05 (the bug) and W24 (the feature, decision Y14) in Release
+1.10.0 — "The Worktrees".
 
 ## The request
 

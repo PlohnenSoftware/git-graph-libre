@@ -1,7 +1,8 @@
 ---
 summary: >-
-  Open, `KristjanESPERANTO` `2026-10-26`, on the roadmap for 1.10.0 as Phase
-  18: show which branches are checked out in which worktree. Verified:
+  To tackle (maintainer, `2026-11-04`); `KristjanESPERANTO`, `2026-10-26`, on
+  the roadmap for 1.10.0 as Phase 18: show which branches are checked out in
+  which worktree. Verified:
   `git branch` marks them `+`; simple-git already parses that as
   `linkedWorkTree` in CLI-only `loadBranches` and drops it; `%(worktreepath)`
   and `git worktree list --porcelain` give the paths; checkout and delete of
@@ -15,7 +16,10 @@ summary: >-
 "Feature Request: Git worktree support", opened `2026-10-26` by
 `KristjanESPERANTO` (who also wrote PR #1, submodule support), label
 `enhancement`. Roadmap: Phase 18, Git Worktree Support, which holds the
-implementation plan. **Decision: pending** on the scope of the first slice.
+implementation plan. **Decision (`2026-11-04`): to tackle.** The scope of the
+first slice is not chosen yet. It is the core of Release 1.10.0 — "The
+Worktrees" (W02–W04, W10–W12, W30–W33), whose slices supersede Phase 18's
+sketch.
 
 ## The request
 

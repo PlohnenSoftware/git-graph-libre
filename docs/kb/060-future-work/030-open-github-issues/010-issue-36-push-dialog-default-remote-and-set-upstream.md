@@ -1,7 +1,8 @@
 ---
 summary: >-
-  Open, `cktgh` `2026-10-26`, agreed by the maintainer for 1.10.0: the Push
-  Branch dialog pre-checks `origin` and Set upstream. Verified: the webview
+  To tackle (maintainer, `2026-11-04`); `cktgh`, `2026-10-26`, agreed for
+  1.10.0 on `2026-10-27`: the Push Branch dialog pre-checks `origin` and Set
+  upstream. Verified: the webview
   knows no upstreams; `%(push:remotename)` names the remote plain `git push`
   uses (`branch.<b>.pushRemote`, `remote.pushDefault`, upstream); `-u` on
   several remotes leaves the last one tracked. Recommended: Git's push remote,
@@ -13,9 +14,11 @@ summary: >-
 **Open.** [Issue #36](https://github.com/PlohnenSoftware/git-graph-libre/issues/36),
 "Updating push dialog box to better align with default git behavior", opened
 `2026-10-26` by `cktgh` (who also wrote PRs #22–#25), label `enhancement`.
-Roadmap: Phase 9, Repository and Remote Management. **Decision: pending.**
-The maintainer agreed with the request on `2026-10-27`; none of the options
-below has been chosen.
+Roadmap: Phase 9, Repository and Remote Management. **Decision
+(`2026-11-04`): to tackle.** The maintainer agreed with the request on
+`2026-10-27` and put it on the to-tackle list on `2026-11-04`. Which of the
+options below to implement is not chosen yet. It is planned as W25 in
+Release 1.10.0 — "The Worktrees", with the choice as decision Y11.
 
 ## The request
 

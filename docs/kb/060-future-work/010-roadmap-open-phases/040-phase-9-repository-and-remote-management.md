@@ -39,10 +39,11 @@ Implementation plan:
     issues. They cover Git's own push remote via `%(push:remotename)`, honoring
     `remote.pushDefault` rather than adding a setting, and a bug: `-u` on
     several remotes leaves the last remote pushed as the upstream.
-- Also filed against this area, and undecided as of `2026-11-04`: issue #40
-  (fetch that also updates the current branch) and issue #45 (checking out a
-  remote branch whose local branch exists, with a confirmed bug in the
-  suggested local name). See their subsections of Open GitHub issues.
+- Also filed against this area (maintainer decisions, `2026-11-04`): issue #45
+  (checking out a remote branch whose local branch exists, with a confirmed
+  bug in the suggested local name) is to tackle; issue #40 (fetch that also
+  updates the current branch) is on hold in the backlog as a matter of taste.
+  See their subsections of Open GitHub issues.
 
 Acceptance:
 

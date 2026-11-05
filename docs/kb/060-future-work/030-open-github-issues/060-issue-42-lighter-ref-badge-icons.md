@@ -1,7 +1,8 @@
 ---
 summary: >-
-  Open, `rbalet` `2026-10-28`, no reply yet: lighter, less bulky ref badge
-  icons, like "Git Branch & Tag Graph" (`Gxl.git-graph-3`). Verified: that
+  On hold in the backlog (maintainer, `2026-11-04`: a matter of taste);
+  `rbalet`, `2026-10-28`: lighter, less bulky ref badge icons, like "Git Branch
+  & Tag Graph" (`Gxl.git-graph-3`). Verified: that
   extension is a mhutchie-lineage fork whose license forbids derivative works,
   so it is a visual target only; the difference shown is glyph weight, not
   badge layout. Recommended: ask what reads as bulky; if pursued, an opt-in
@@ -13,7 +14,9 @@ summary: >-
 **Open.** [Issue #42](https://github.com/PlohnenSoftware/git-graph-libre/issues/42),
 "design(icon): lighter", opened `2026-10-28` by `rbalet`, label
 `enhancement`. No roadmap phase; it is webview styling under the Webview UI
-Styling Guide. **Decision: pending.** There is no maintainer reply yet.
+Styling Guide. **Decision (`2026-11-04`): on hold, in the backlog.** The
+maintainer parked it as a matter of taste. The assessment and options below are
+kept for when it is picked up again.
 
 ## The request
 
@@ -65,7 +68,7 @@ No comments yet.
 Verification for any variant: CSS regression tests, and a headless render in
 light and dark themes (Verifying webview visuals without a browser).
 
-## Open questions for the maintainer
+## Open questions, for when it is picked up again
 
 - Pursue it at all? If so, as an opt-in style or as a new default?
 - Ask the reporter first which part reads as bulky: the fill, the size, the

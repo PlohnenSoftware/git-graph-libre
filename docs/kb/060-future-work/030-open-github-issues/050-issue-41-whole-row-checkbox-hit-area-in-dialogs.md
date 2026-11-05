@@ -1,7 +1,8 @@
 ---
 summary: >-
-  Open, `rbalet` `2026-10-28`, no reply yet: clicking anywhere on a dialog
-  checkbox's row should toggle it. Verified: the checkbox `<label>` is
+  To tackle (maintainer, `2026-11-04`); `rbalet`, `2026-10-28`: clicking
+  anywhere on a dialog checkbox's row should toggle it. Verified: the checkbox
+  `<label>` is
   `display: inline-flex` (`media/dialogs.css:198`), so only the box and its
   text react, even where the wrapping span is already full width.
   Recommended: agree; one CSS rule, a CSS regression test and a headless
@@ -13,7 +14,9 @@ summary: >-
 **Open.** [Issue #41](https://github.com/PlohnenSoftware/git-graph-libre/issues/41),
 "feat(modal/ux): wide selection", opened `2026-10-28` by `rbalet`, label
 `enhancement`. No roadmap phase; it is webview polish under the Webview UI
-Styling Guide. **Decision: pending.** There is no maintainer reply yet.
+Styling Guide. **Decision (`2026-11-04`): to tackle.** The details below are
+not chosen yet, and there is no maintainer reply on GitHub yet. It is planned
+as W06 in Release 1.10.0 — "The Worktrees", with the scope as decision Y13.
 
 ## The request
 

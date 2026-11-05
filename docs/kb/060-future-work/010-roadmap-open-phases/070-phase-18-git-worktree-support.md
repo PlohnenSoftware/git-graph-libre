@@ -1,14 +1,28 @@
 ---
 summary: >-
-  Planned (`2026-10-27`, issue #37): show Git worktrees and which branches or
-  commits are checked out in each worktree, with clean-room CLI and Rust-engine
-  parity, worktree discovery, and branch-action awareness; issue #38 (removing
-  a leftover worktree that blocks a branch) is undecided.
+  Planned for release 1.10.0 "The Worktrees" (`2026-11-04`), whose slices
+  supersede this section's 18.1–18.4 sketch. The phase: show Git worktrees
+  and which branches or commits are checked out where, with clean-room CLI
+  and Rust-engine parity, worktree actions, discovery, and branch-action
+  awareness (issues #37 and #38).
 ---
 
 # Phase 18: Git Worktree Support
 
-**Status: planned (`2026-10-27`, [issue #37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37))** — requested by `@KristjanESPERANTO` on `2026-10-26` and acknowledged by the maintainer on `2026-10-27` for the upcoming release (first half of November). [Issue #38](https://github.com/PlohnenSoftware/git-graph-libre/issues/38) (`@rbalet`, `2026-10-28`, undecided) asks for removing a leftover worktree that blocks a branch, the action side of slice 18.4.
+**Status: planned for release 1.10.0 "The Worktrees" (`2026-11-04`).** That
+release's slices, under Ongoing work, supersede the 18.1–18.4 plan below,
+which is kept as the phase's first sketch:
+- 18.1 became W02, W03 and W10;
+- 18.2 became W11 and W12;
+- 18.3 became W30–W33;
+- 18.4 became W20 and W21.
+
+The release adds what the sketch lacked:
+- refresh and config fixes (W04, W07);
+- creation, locking and moving (W22, W23);
+- the engine proofs and trust (W40, W41).
+
+Earlier status: planned (`2026-10-27`, [issue #37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)) — requested by `@KristjanESPERANTO` on `2026-10-26` and acknowledged by the maintainer on `2026-10-27` for the upcoming release (first half of November). [Issue #38](https://github.com/PlohnenSoftware/git-graph-libre/issues/38) (`@rbalet`, `2026-10-28`; to tackle, maintainer `2026-11-04`) asks for removing a leftover worktree that blocks a branch, the action side of slice 18.4.
 
 Both threads, the facts checked on `2026-11-04` and the options are in Issue #37: show Git worktrees and Issue #38: remove a leftover worktree that blocks a branch, under Open GitHub issues. The facts:
 

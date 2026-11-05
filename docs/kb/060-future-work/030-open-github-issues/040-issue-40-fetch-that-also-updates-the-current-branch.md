@@ -1,7 +1,8 @@
 ---
 summary: >-
-  Open (reopened `2026-10-31`), `rbalet` `2026-10-28`: Fetch should also bring
-  the current branch up to date. `cktgh` and the maintainer: fetch and pull
+  On hold in the backlog (maintainer, `2026-11-04`: a matter of taste);
+  `rbalet`, `2026-10-28`, reopened `2026-10-31`: Fetch should also bring the
+  current branch up to date. `cktgh` and the maintainer: fetch and pull
   stay separate, one action per Git command; the reporter suggests a setting.
   Recommended: keep Fetch a fetch; at most an unchecked "fast-forward the
   current branch" option in the Fetch dialog, `--ff-only`, its default from a
@@ -14,8 +15,10 @@ summary: >-
 "feat(fetch): auto pull", opened `2026-10-28` by `rbalet`, label
 `enhancement`. The reporter closed it on `2026-10-30` to refile with more
 detail and reopened it on `2026-10-31`. Would belong to Phase 9, Repository
-and Remote Management. **Decision: pending.** The maintainer's reply of
-`2026-10-30` favors keeping actions explicit.
+and Remote Management. **Decision (`2026-11-04`): on hold, in the backlog.**
+The maintainer parked it as a matter of taste; their reply of `2026-10-30`
+favors keeping actions explicit. The assessment and options below are kept for
+when it is picked up again.
 
 ## The request
 
@@ -65,7 +68,7 @@ remote-tracking branches, ☐ Prune deleted tags, ☑ Fetch all tags.
 | An opt-in option in the Fetch dialog (agent) | agent | Recommended if the maintainer wants to meet the request: "Fast-forward `<current branch>` to `<upstream>`", running `git merge --ff-only @{upstream}` after the fetch. Fast-forward only never creates a merge commit. When the branches have diverged, or local changes would be overwritten, Git refuses and nothing is lost. Default unchecked; a setting in the `repository.fetchTagsByDefault` family pre-checks it for people who want it every time. Lock it with a reason (`lock: { reason }`) when HEAD is detached or the branch has no upstream. |
 | A separate toolbar Pull button (agent) | agent | Explicit and simple, but it duplicates VS Code's own status-bar sync and adds a toolbar button. Second choice. |
 
-## Open questions for the maintainer
+## Open questions, for when it is picked up again
 
 - Do nothing, beyond pointing to VS Code's sync button, or add the
   fast-forward option to the Fetch dialog?
