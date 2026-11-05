@@ -498,6 +498,11 @@
           "default": true,
           "description": "%config.repository.fetchTagsByDefault%"
         },
+        "git-graph-libre.repository.showTagRemotes": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.repository.showTagRemotes%"
+        },
         "git-graph-libre.dialog.createBranch.checkout": {
           "type": "boolean",
           "default": true,

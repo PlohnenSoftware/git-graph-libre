@@ -66,6 +66,8 @@
   "config.repository.boldCheckedOutCommit.title": "粗體顯示目前簽出的提交",
   "config.repository.fetchTagsByDefault": "在「擷取」對話框中預先勾選「擷取所有標籤」。預設開啟。",
   "config.repository.fetchTagsByDefault.title": "預設擷取標籤",
+  "config.repository.showTagRemotes": "使用 `git ls-remote` 檢查每個遠端，並在每個標籤徽章上顯示持有該標籤的遠端。關閉後不再為此連線遠端。預設開啟。",
+  "config.repository.showTagRemotes.title": "在標籤上顯示遠端",
   "config.dialog.createBranch.checkout": "在建立分支對話框中預設勾選「建立後切換到新分支」。預設開啟。",
   "config.dialog.createBranch.checkout.title": "建立分支對話框：切換分支",
   "config.dialog.merge.noFastForward": "在合併對話框中預設勾選「即使可以快進也建立新提交」。預設開啟。",
