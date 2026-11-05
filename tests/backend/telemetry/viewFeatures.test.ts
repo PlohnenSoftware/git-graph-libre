@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import * as fs from "node:fs";
+import * as path from "node:path";
+
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { GitRef } from "@/backend/types";
 import {
@@ -18,6 +21,8 @@ import {
   VIEW_FEATURE_UNCOMMITTED_TREE,
   VIEW_FEATURE_UNREACHABLE
 } from "@/telemetry/viewFeatures";
+
+import { git, makeRepo } from "../helpers";
 
 /** Records what reached the reporter, in order. */
 function createTelemetrySpy() {
@@ -395,5 +400,122 @@ describe("view feature reporting", () => {
     ).map((reason) => `${VIEW_FEATURE_ENGINE_UNAVAILABLE_PREFIX}${reason}`)
   ])("%s matches the id pattern the ingest enforces", (feature) => {
     expect(INGEST_FEATURE_NAME_PATTERN.test(feature)).toBe(true);
+  });
+});
+
+// The submodule signals decide from the file system, so these tests build the
+// repositories they assert on under the temporary directory and never reuse
+// this repository's own worktrees. The root is canonicalized with realpath
+// (symlinked temporary directories), and the path with a space and a
+// non-ASCII character is part of the fixture.
+describe("submodule signals against real repositories", () => {
+  const made: string[] = [];
+
+  afterEach(() => {
+    for (const dir of made.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  function fixtureRepo(): string {
+    const dir = fs.realpathSync(makeRepo());
+    made.push(dir);
+    return dir;
+  }
+
+  /** The form the reporter receives: real path, forward slashes. */
+  function repoPath(dir: string): string {
+    return fs.realpathSync(dir).split(path.sep).join("/");
+  }
+
+  it("does not count a linked worktree nested inside its main worktree", () => {
+    const parent = fixtureRepo();
+    const worktree = path.join(parent, ".worktrees", "wt ü feat");
+    git(["worktree", "add", "-b", "feat", worktree], parent);
+    const parentPath = repoPath(parent);
+    const worktreePath = repoPath(worktree);
+    const spy = createTelemetrySpy();
+    const reporter = createViewFeatureReporter(spy.telemetry);
+
+    reporter.recordCommitLoad({
+      ...quietLoad,
+      repoPaths: [parentPath, worktreePath],
+      repo: parentPath
+    });
+    // Opened as its own repository, the worktree is not an active submodule.
+    reporter.recordCommitLoad({
+      ...quietLoad,
+      repoPaths: [parentPath, worktreePath],
+      repo: worktreePath
+    });
+
+    expect(spy.sent).toEqual([]);
+  });
+
+  it("still counts a submodule, and the active one when the graph is drawn for it", () => {
+    const parent = fixtureRepo();
+    const library = fixtureRepo();
+    git(
+      ["-c", "protocol.file.allow=always", "submodule", "add", library, "modules/vendor lib ü"],
+      parent
+    );
+    const parentPath = repoPath(parent);
+    const submodulePath = repoPath(path.join(parent, "modules", "vendor lib ü"));
+    const spy = createTelemetrySpy();
+    const reporter = createViewFeatureReporter(spy.telemetry);
+
+    reporter.recordCommitLoad({
+      ...quietLoad,
+      repoPaths: [parentPath, submodulePath],
+      repo: parentPath
+    });
+    expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_SUBMODULE_REPO, ok: true }]);
+
+    reporter.recordCommitLoad({
+      ...quietLoad,
+      repoPaths: [parentPath, submodulePath],
+      repo: submodulePath
+    });
+    expect(spy.sent).toEqual([
+      { feature: VIEW_FEATURE_SUBMODULE_REPO, ok: true },
+      { feature: VIEW_FEATURE_SUBMODULE_ACTIVE, ok: true }
+    ]);
+  });
+
+  it("never counts a sibling worktree, even one with a name-prefix relation", () => {
+    const parent = fixtureRepo();
+    const sibling = `${parent}-sibling wt ü`;
+    made.push(sibling);
+    git(["worktree", "add", "-b", "side", sibling], parent);
+    const parentPath = repoPath(parent);
+    const siblingPath = repoPath(sibling);
+    const spy = createTelemetrySpy();
+
+    createViewFeatureReporter(spy.telemetry).recordCommitLoad({
+      ...quietLoad,
+      repoPaths: [parentPath, siblingPath],
+      repo: siblingPath
+    });
+
+    expect(spy.sent).toEqual([]);
+  });
+
+  // An independent repository nested by path (a `.git` directory, not a
+  // linked worktree) keeps counting as before: the fix narrows the signal
+  // for worktrees only.
+  it("keeps counting an independent repository nested by path", () => {
+    const parent = fixtureRepo();
+    const nested = path.join(parent, "vendor", "tool");
+    fs.mkdirSync(nested, { recursive: true });
+    git(["init", "-q"], nested);
+    const parentPath = repoPath(parent);
+    const nestedPath = repoPath(nested);
+    const spy = createTelemetrySpy();
+
+    createViewFeatureReporter(spy.telemetry).recordCommitLoad({
+      ...quietLoad,
+      repoPaths: [parentPath, nestedPath],
+      repo: parentPath
+    });
+
+    expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_SUBMODULE_REPO, ok: true }]);
   });
 });
