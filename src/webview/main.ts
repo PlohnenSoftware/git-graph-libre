@@ -875,6 +875,9 @@ class GitGraphView {
     this.moreCommitsAvailable = moreAvailable;
     this.commits = page;
     this.commitHead = commitHead;
+    // Before the rows are drawn: a tag the snapshot lacks then shows no status
+    // while this request runs, rather than "unavailable".
+    this.requestRemoteTags();
     if (this.commits.length > 0 && this.commits[0].hash === "*") {
       const match = /\((\d+)\)$/.exec(this.commits[0].message);
       const count = match ? match[1] : "?";
@@ -898,7 +901,6 @@ class GitGraphView {
     this.triggerLoadCommitsCallback(true);
     this.fetchAvatars(avatarsNeeded);
     this.requestMissingSignatures();
-    this.requestRemoteTags();
   }
   private forgetRemoteTags() {
     this.remoteTagsResult = null;
