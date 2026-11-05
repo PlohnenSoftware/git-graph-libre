@@ -11,7 +11,7 @@ summary: >-
 
 # W26F — A setting for the tag remote check
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 on 2026-11-05 12:00
 Needs: W26 (integrated `a93ddc7`: PR #47 merged)
 Decisions: Y23, answered (b) on `2026-11-05`: a setting, on by default
 Kind: TypeScript, webview, manifest and l10n · Size budget: ~200 changed
