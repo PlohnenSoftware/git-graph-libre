@@ -10,7 +10,7 @@ summary: >-
 
 # W04F — Git dirs Sonar follow-up, and one worktree check
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-11-05 18:14
 Needs: W04, W08 (both integrated)
 Decisions: —
 Kind: TypeScript · Size budget: ~60 changed lines outside tests
