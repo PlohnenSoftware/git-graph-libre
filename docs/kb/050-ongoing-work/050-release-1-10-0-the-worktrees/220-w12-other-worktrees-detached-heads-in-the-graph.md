@@ -10,7 +10,7 @@ summary: >-
 
 # W12 — Other worktrees' detached HEADs in the graph
 
-Status: claimed by Muse Code powered by muse-wonder-full-1.0 on 2026-11-05 19:30
+Status: done — awaiting integration
 Needs: W10, W03 (the engine must accept the same tips)
 Decisions: Y22 (show them by default, and whether a setting turns them off)
 Kind: TypeScript and Rust, the Rust arm applies · Size budget: ~200 changed
@@ -56,4 +56,73 @@ parity test is identical.
 
 ## Report
 
-Not started.
+- **Agent / date:** Muse Code powered by muse-wonder-full-1.0, 2026-11-05 19:40
+- **Branch and commits:** `wt-1.10.0/W12` —
+  `49240d6 G docs(release): claim W12, other worktrees' detached HEADs (W12)`;
+  `50e31e0 G feat(engine): walk from the other worktrees' HEADs, engine 1.0.30 (W12)`;
+  `a2bd356 G feat(worktrees): other worktrees' detached HEADs as CLI log tips (W12)`;
+  `dab0982 G test(worktrees): detached worktree HEAD parity on both backends (W12)`;
+  `c190e29 G feat(webview): mark other worktrees' detached HEAD rows (W12)`;
+  `07d9f7f G test(webview): detached worktree HEAD marker and maps (W12)`;
+  plus this report commit.
+- **Files changed:** 18 files, +412/−16 against `1409d19` before this report
+  commit: `engine/native/core/src/graph.rs` +34, `engine/Cargo.toml`/
+  `Cargo.lock`/`package.json` version lines, `src/backend/engine/addon.ts`
+  +5/−1, `src/backend/queries/loadCommits.ts` +44/−7, `src/webview/main.ts`
+  +50/−1, `media/refs.css` +29, five `l10n/bundle.l10n*.json` +1 each,
+  `src/extension/webviewL10n.ts` +1 (see Deviations), tests +248
+  (`linkedWorktree.test.ts` +43/−1, `branchWorktrees.test.ts` +46, new
+  `worktreeHeadMarker.test.ts` +159), this slice file. About 164 lines
+  outside tests, inside the ~200 hint.
+- **Tests added or changed:** 4 new tests. Backend parity
+  (`linkedWorktree.test.ts`, 5 → 6): "shows another worktree's detached HEAD
+  commit, the same on both backends" over the W40 awkward-path fixture.
+  Webview (`branchWorktrees.test.ts` 4 → 6, new `worktreeHeadMarker.test.ts`
+  1): `detachedWorktreeHeadMap`/`worktreeFolderName` units and a full page
+  load asserting the marker row, folder label and path tooltip. Focused set
+  before: 44 backend (39 loadCommits queries + 5 linkedWorktree), 4 webview;
+  after: those files 45 and 7. Full suite after: backend 1331 passed (102
+  files), webview 865 passed (69 files).
+- **Gates:** strict Biome (`biome.strict.jsonc --error-on-warnings`) on every
+  touched `.ts`/`.json` — clean; `pnpm run typecheck` — clean; `pnpm run
+  test` — 1331 + 865 passed, no failures; `pnpm run l10n:check` — "All
+  translations are complete"; `pnpm run kb:check` — passed on this
+  report before its commit; Rust arm
+  `engine:fmt`, `engine:lint`, `engine:check` OK, `engine:test` 228 passed
+  0 failed; `pnpm run engine:build` then `engine:smoke` — reports
+  `engineVersion()` 1.0.30. Headless render of the badge with PyQt6
+  QtWebEngine + `xvfb-run` against the real `media/*.css`, dark and light:
+  dashed folder badge aligned with the ref badges, readable in both
+  (probe left in `/tmp/w12-shot/`). Sonar: integrator.
+- **Acceptance:** "A detached worktree's commit is drawn and marked on both
+  backends, and the parity test is identical." — Met. Drawn: the parity
+  test asserts Carol's detached-only commit appears from the main, branch
+  and detached worktrees on the CLI query and through the engine reader
+  (`didEngineServeRead()` true), and in neither on a branch-filtered load.
+  Identical: the same test compares the full masked node lists with
+  `toEqual` on every worktree, filtered load included. Marked: the
+  webview render test asserts exactly one `.worktreeHeadRef` on the
+  detached commit's row reading "HEAD of worktree <folder>" with the full
+  path as `title`, and the screenshots above show it in both themes.
+- **Deviations from the slice:** (1) The tips are discovered inside each
+  backend — the CLI reads the worktree list in `loadCommits`
+  (non-current detached entries' hashes beside the unreachable hashes),
+  the engine enumerates `worktrees/<id>/HEAD`/`main-worktree/HEAD` in
+  `graph.rs` — instead of being passed from W10's webview list through
+  `load_commits` options. No file in the Touch list can carry hashes into
+  either backend (`src/backend/engine/index.ts`, `messageHandler.ts` and
+  `engine/native/core/src/types.rs` are outside it), and W40 set the
+  internal-discovery precedent (`log.rs` `other_worktree_heads`). The
+  resulting tip sets are equal: the engine names branch HEADs too, which
+  are already tips and drop out as duplicates. `lib.rs` therefore
+  untouched. (2) The engine version still bumps to 1.0.30: the options
+  shape is unchanged, but TypeScript relies on the new tips for parity and
+  a 1.0.29 binary would silently omit them. (3) `src/extension/
+  webviewL10n.ts` gained one line exposing `ui.worktreeHead`; without it
+  no localized string can reach the webview (the W21 precedent).
+  (4) W11 is not integrated yet, so there is no segment style to reuse:
+  the marker is its own dashed badge with the `file-directory` icon Y4
+  chose (the existing `closedFolder` octicon, so no icon file changed).
+- **Open questions / follow-ups:** When W11 lands its branch-badge segment,
+  the integrator may want the detached-HEAD badge restyled to match; that
+  is a W11 decision, not needed for W12's acceptance. Nothing else.
