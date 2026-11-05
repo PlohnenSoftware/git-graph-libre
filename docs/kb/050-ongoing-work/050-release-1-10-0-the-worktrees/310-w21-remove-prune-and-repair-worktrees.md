@@ -11,7 +11,7 @@ summary: >-
 
 # W21 — Remove, prune and repair worktrees
 
-Status: claimed by Claude Sonnet 5.5 on 2026-11-05 12:00
+Status: done — awaiting integration
 Needs: W10, W20
 Decisions: Y5 (the removal and force policy)
 Kind: TypeScript and webview, l10n · Size budget: ~280 changed lines outside
@@ -85,4 +85,24 @@ safe action, and handles are closed.
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Sonnet 5.5, 2026-11-05. Branch `wt-1.10.0/W21`.
+- **Commits:** claim `22e6c94`; `b94fece` backend actions, types, handler wiring, l10n bundles, backend and handler tests; `e965e44` webview (Delete Branch removal, confirmations, branch-menu items), `webviewL10n.ts`, webview tests, changelog; this report commit.
+- **What happens:**
+  - Clean: Delete Branch on a branch held by a linked worktree has an unchecked "Also remove the worktree at <path>". Ticked: the worktree's files are read (bounded `git -C <path> status --porcelain -z`, at most 20 paths); none, so `worktree remove` (no force) runs, then the branch is deleted.
+  - Dirty: a second dialog lists the uncommitted and untracked files (and says more exist) and says they are deleted permanently; only its confirm sends `--force`. An unreadable status still sends no force, so Git's own refusal is the guard.
+  - Locked: the dialog says it is locked (with the reason) and will be unlocked first; the backend refuses a locked worktree unless `unlock` is set, then runs `worktree unlock` and `remove`. Never `-f -f`, never `--force` implied by unlock.
+  - Stale (folder gone): removed with plain `remove`, no read and no warning ("nothing on disk is deleted"). Branch menu: Remove Stale Worktree Entry.
+  - Moved: branch menu Repair Worktree… opens a folder picker (`showOpenDialog`) and runs `worktree repair <folder>`; success is checked against the worktree list (the old path must no longer be stale), otherwise a localized error. A cancelled picker changes nothing.
+  - Prune: branch menu Prune Stale Worktrees… (shown only while a stale, unlocked entry exists) previews the entries and then runs `worktree prune`. Locked stale entries are neither previewed nor pruned.
+  - The main worktree and the worktree the graph shows are refused by the backend; the main worktree keeps W20's explain-only dialog.
+  - After remove or prune: `closeEngineRepository(path)` for every removed path and `removeRepo` for any known repository at that canonical path, then the repo list is re-sent.
+- **Decisions from the list, not messages:** the prune preview is the list's `prunable` entries without `locked` (tested equal to the count `prune -n -v` reports), not a parse of `prune -n -v` text.
+- **Gates:** strict Biome on touched files clean; typecheck clean; `pnpm run test`: backend 1254 passed, 60 skipped of 1314; webview 851 of 851; no "Unhandled Errors"; `l10n:check` 100% in all four locales. Sonar: integrator.
+- **l10n:** 29 keys in all five bundles, real translations for nl, pl, zh-cn, zh-tw (machine-written by the agent, worth a native glance).
+- **Deviations / follow-ups:**
+  - Command Palette "Prune Stale Worktrees": not done. The Touch list does not name `package.json` or `package.nls*`, so it is a follow-up (a command plus nls strings; the webview dialog and `pruneWorktrees` action exist).
+  - W30 (worktree list) does not exist yet, so the entry points are the Delete Branch dialog and the local branch menu.
+  - Outside the Touch list: `src/backend/types/queries.types.ts` (the `worktreeChanges` query the confirmation needs), `src/extension/webviewL10n.ts` (the pattern requires it), `src/extension/messageHandler.ts` also registers the query and the folder picker; the status read lives in `worktree.ts` instead of a new queries file.
+  - Existing W20 test "explains instead of deleting" now uses the main-worktree case (the linked case became the removal dialog); nothing loosened.
+  - A removal that unlocked a worktree but then failed leaves it unlocked.
+- **Open questions:** none blocking.
