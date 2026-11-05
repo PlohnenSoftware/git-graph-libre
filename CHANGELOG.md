@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rather than shown as unavailable, and a refresh keeps the remotes on screen
   while it re-checks, redrawing only the tag badges.
 
+- **Free a branch that a leftover worktree blocks.** Delete Branch on a branch
+  checked out in another worktree now offers to remove that worktree first, then
+  deletes the branch. A worktree with uncommitted or untracked files is removed
+  only after a second confirmation that lists them, a locked worktree is
+  unlocked first and never forced twice, and a stale entry whose folder is gone
+  is removed with no warning. The branch menu also gains Repair Worktree (for a
+  worktree moved by hand) and Prune Stale Worktrees, which previews what it
+  removes. Thanks to @rbalet for the request
+  ([#38](https://github.com/PlohnenSoftware/git-graph-libre/issues/38)).
+
 ### Fixed
 
 - **Checking out a remote branch suggests its full name.** The name in the

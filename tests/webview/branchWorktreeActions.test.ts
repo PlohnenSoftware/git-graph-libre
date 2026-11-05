@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { GitCommitNode, GitRepoInfo, GitWorktree } from "@/backend/types";
+import type { GitCommitNode, GitQueryError, GitRepoInfo, GitWorktree } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import type * as GGL from "@/types";
 
@@ -260,13 +260,17 @@ describe("a local branch checked out in another worktree", () => {
     expect(vscodeMock.sentMessages.some((msg) => msg.command === "checkoutBranch")).toBe(false);
   });
 
-  it("explains instead of deleting, and submits nothing", async () => {
-    const vscodeMock = await bootWebview(WORKTREES_WITH_FEATURE);
+  it("explains instead of deleting, and submits nothing, when the main worktree holds the branch", async () => {
+    // Only the main worktree can never be removed, so only it keeps the explanation.
+    const vscodeMock = await bootWebview([
+      worktree({ path: OTHER_WORKTREE, branch: "main", isMain: false, isCurrent: true }),
+      worktree({ path: REPO, branch: "feature/menu", isMain: true, isCurrent: false })
+    ]);
     const before = vscodeMock.sentMessages.length;
     openRefContextMenu("head");
     clickContextMenuItem("Delete Branch…");
 
-    expect(dialogText()).toContain(OTHER_WORKTREE);
+    expect(dialogText()).toContain(REPO);
     expect(document.getElementById("dialogAction")).toBeNull();
     expect(vscodeMock.sentMessages).toHaveLength(before);
   });
@@ -320,5 +324,247 @@ describe("a remote branch whose local branch is checked out in another worktree"
     expect(items).toContain("Checkout Branch…");
     expect(items).toContain("Fetch into local branch…");
     expect(contextMenuHeader()).toBeNull();
+  });
+});
+
+function tickDialogCheckbox(index: number) {
+  const box = document.getElementById(`dialogInput${index}`) as HTMLInputElement;
+  box.checked = true;
+  box.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function removeWorktreeRequests(vscodeMock: { sentMessages: GGL.RequestMessage[] }) {
+  return vscodeMock.sentMessages.filter((msg) => msg.command === "removeWorktree");
+}
+
+function answerChanges(
+  vscodeMock: { sentMessages: GGL.RequestMessage[] },
+  files: string[],
+  extra: { truncated?: boolean; error?: GitQueryError | null } = {}
+) {
+  const request = latestRequest(vscodeMock.sentMessages, "worktreeChanges");
+  receive({
+    command: "worktreeChanges",
+    requestId: request.requestId,
+    path: request.path,
+    files,
+    truncated: extra.truncated ?? false,
+    error: extra.error ?? null
+  });
+}
+
+describe("removing the worktree that holds a branch (W21)", () => {
+  it("offers the removal as an unchecked option, and a dialog left unchecked sends nothing", async () => {
+    const vscodeMock = await bootWebview(WORKTREES_WITH_FEATURE);
+    const before = vscodeMock.sentMessages.length;
+    openRefContextMenu("head");
+    clickContextMenuItem("Delete Branch…");
+
+    expect(dialogText()).toContain(OTHER_WORKTREE);
+    expect(dialogText()).toContain("Also remove the worktree at");
+    expect((document.getElementById("dialogInput0") as HTMLInputElement).checked).toBe(false);
+    submitDialog();
+
+    expect(vscodeMock.sentMessages.length).toBe(before);
+  });
+
+  it("removes a clean worktree with plain remove, then the branch", async () => {
+    const vscodeMock = await bootWebview(WORKTREES_WITH_FEATURE);
+    openRefContextMenu("head");
+    clickContextMenuItem("Delete Branch…");
+    tickDialogCheckbox(0);
+    submitDialog();
+
+    // The files it would lose are read first, and nothing is removed yet.
+    expect(latestRequest(vscodeMock.sentMessages, "worktreeChanges").path).toBe(OTHER_WORKTREE);
+    expect(removeWorktreeRequests(vscodeMock)).toHaveLength(0);
+
+    answerChanges(vscodeMock, []);
+
+    expect(latestRequest(vscodeMock.sentMessages, "removeWorktree")).toMatchObject({
+      path: OTHER_WORKTREE,
+      force: false,
+      unlock: false,
+      deleteBranch: { branchName: "feature/menu", forceDelete: false }
+    });
+  });
+
+  it("names the files a forced removal deletes, and forces only after the second confirmation", async () => {
+    const vscodeMock = await bootWebview(WORKTREES_WITH_FEATURE);
+    openRefContextMenu("head");
+    clickContextMenuItem("Delete Branch…");
+    tickDialogCheckbox(0);
+    submitDialog();
+
+    answerChanges(vscodeMock, ["notes é.txt", "src/edited.ts"], { truncated: true });
+
+    expect(removeWorktreeRequests(vscodeMock)).toHaveLength(0);
+    expect(dialogText()).toContain("deleted permanently");
+    expect(dialogText()).toContain("notes é.txt");
+    expect(dialogText()).toContain("src/edited.ts");
+    expect(dialogText()).toContain("more files");
+    submitDialog();
+
+    expect(latestRequest(vscodeMock.sentMessages, "removeWorktree")).toMatchObject({
+      path: OTHER_WORKTREE,
+      force: true,
+      unlock: false
+    });
+  });
+
+  it("never forces after an unreadable status: Git's refusal stays the guard", async () => {
+    const vscodeMock = await bootWebview(WORKTREES_WITH_FEATURE);
+    openRefContextMenu("head");
+    clickContextMenuItem("Delete Branch…");
+    tickDialogCheckbox(0);
+    submitDialog();
+
+    answerChanges(vscodeMock, [], {
+      error: { message: "boom", stderr: null, exitCode: null, task: null }
+    });
+
+    expect(latestRequest(vscodeMock.sentMessages, "removeWorktree").force).toBe(false);
+  });
+
+  it("says a locked worktree is unlocked first, and asks for that, never a double force", async () => {
+    const vscodeMock = await bootWebview([
+      worktree({}),
+      worktree({
+        path: OTHER_WORKTREE,
+        branch: "feature/menu",
+        isMain: false,
+        isCurrent: false,
+        locked: { reason: "on a usb stick" }
+      })
+    ]);
+    openRefContextMenu("head");
+    clickContextMenuItem("Delete Branch…");
+
+    expect(dialogText()).toContain("on a usb stick");
+    expect(dialogText()).toContain("unlocked");
+    tickDialogCheckbox(0);
+    submitDialog();
+    answerChanges(vscodeMock, []);
+
+    expect(latestRequest(vscodeMock.sentMessages, "removeWorktree")).toMatchObject({
+      unlock: true,
+      force: false
+    });
+  });
+
+  it("removes a stale entry at once, with no read and no data-loss warning", async () => {
+    const vscodeMock = await bootWebview([
+      worktree({}),
+      worktree({
+        path: OTHER_WORKTREE,
+        branch: "feature/menu",
+        isMain: false,
+        isCurrent: false,
+        prunable: { reason: "gitdir file points to non-existent location" }
+      })
+    ]);
+    openRefContextMenu("head");
+    clickContextMenuItem("Delete Branch…");
+
+    expect(dialogText()).toContain("nothing on disk is deleted");
+    tickDialogCheckbox(0);
+    submitDialog();
+
+    expect(vscodeMock.sentMessages.some((msg) => msg.command === "worktreeChanges")).toBe(false);
+    expect(latestRequest(vscodeMock.sentMessages, "removeWorktree")).toMatchObject({
+      path: OTHER_WORKTREE,
+      force: false
+    });
+  });
+});
+
+describe("stale and moved worktrees (W21)", () => {
+  const STALE = "/workspace/worktrees/gone é";
+  const LOCKED_STALE = "/workspace/worktrees/gone locked";
+  const withStale = [
+    ...WORKTREES_WITH_FEATURE.slice(0, 1),
+    worktree({
+      path: OTHER_WORKTREE,
+      branch: "feature/menu",
+      isMain: false,
+      isCurrent: false,
+      prunable: { reason: "gitdir file points to non-existent location" }
+    }),
+    worktree({
+      path: STALE,
+      branch: null,
+      detached: true,
+      isMain: false,
+      isCurrent: false,
+      prunable: { reason: "gitdir file points to non-existent location" }
+    }),
+    worktree({
+      path: LOCKED_STALE,
+      branch: null,
+      detached: true,
+      isMain: false,
+      isCurrent: false,
+      locked: { reason: "keep" },
+      prunable: { reason: "gitdir file points to non-existent location" }
+    })
+  ];
+
+  it("offers Remove, Repair and Prune for a branch whose worktree folder is gone", async () => {
+    const vscodeMock = await bootWebview(withStale);
+    openRefContextMenu("head");
+
+    expect(contextMenuItems()).toEqual(
+      expect.arrayContaining([
+        "Remove Stale Worktree Entry",
+        "Repair Worktree…",
+        "Prune Stale Worktrees…"
+      ])
+    );
+
+    clickContextMenuItem("Repair Worktree…");
+    expect(latestRequest(vscodeMock.sentMessages, "repairWorktree")).toEqual({
+      command: "repairWorktree",
+      repo: REPO,
+      path: OTHER_WORKTREE,
+      newPath: null
+    });
+  });
+
+  it("removes the stale entry from the menu without a confirmation", async () => {
+    const vscodeMock = await bootWebview(withStale);
+    openRefContextMenu("head");
+    clickContextMenuItem("Remove Stale Worktree Entry");
+
+    expect(latestRequest(vscodeMock.sentMessages, "removeWorktree")).toMatchObject({
+      path: OTHER_WORKTREE,
+      force: false
+    });
+  });
+
+  it("previews the entries prune removes, leaving a locked one out, then prunes", async () => {
+    const vscodeMock = await bootWebview(withStale);
+    openRefContextMenu("head");
+    clickContextMenuItem("Prune Stale Worktrees…");
+
+    expect(dialogText()).toContain(OTHER_WORKTREE);
+    expect(dialogText()).toContain(STALE);
+    expect(dialogText()).not.toContain(LOCKED_STALE);
+    expect(vscodeMock.sentMessages.some((msg) => msg.command === "pruneWorktrees")).toBe(false);
+    submitDialog();
+
+    expect(latestRequest(vscodeMock.sentMessages, "pruneWorktrees")).toEqual({
+      command: "pruneWorktrees",
+      repo: REPO
+    });
+  });
+
+  it("shows none of these items when no worktree is stale", async () => {
+    await bootWebview(WORKTREES_WITH_FEATURE);
+    openRefContextMenu("head");
+
+    const items = contextMenuItems();
+    expect(items).not.toContain("Remove Stale Worktree Entry");
+    expect(items).not.toContain("Repair Worktree…");
+    expect(items).not.toContain("Prune Stale Worktrees…");
   });
 });

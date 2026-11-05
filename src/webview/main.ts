@@ -247,6 +247,12 @@ export function branchWorktreeMap(worktrees: GitWorktree[]): Map<string, string[
   return map;
 }
 
+type DeleteBranchPart = {
+  branchName: string;
+  forceDelete: boolean;
+  deleteOnRemotes?: string[];
+};
+
 class GitGraphView {
   private gitRepos: GGL.GitRepoSet;
   private gitBranches: string[] = [];
@@ -365,6 +371,11 @@ class GitGraphView {
     hash: string;
     ref: string;
     baseLabel?: string;
+  } | null = null;
+  /** A worktree removal waiting for the read of the local files a forced removal would delete. */
+  private pendingWorktreeRemoval: {
+    requestId: number;
+    request: Extract<GGL.RequestMessage, { command: "removeWorktree" }>;
   } | null = null;
   /** The Push Branch dialog's submission still awaiting its `branchPushDefaults` reply. */
   private pendingPushBranchDialog: {
@@ -4136,6 +4147,7 @@ class GitGraphView {
     menu.push(...this.buildBranchMetadataItems(refName, sourceElem));
     this.appendBranchRemoteItems(menu, refName);
     this.appendBranchMutationItems(menu, sourceElem, refName);
+    this.appendWorktreeMaintenanceItems(menu, refName);
     this.appendBranchArchiveItem(menu, refName);
     this.appendBranchPullRequestItem(menu, refName, sourceElem);
     return menu;
@@ -4766,7 +4778,10 @@ class GitGraphView {
   }
   private showDeleteBranchDialog(refName: string) {
     const worktreePath = this.otherWorktreePath(refName);
-    if (worktreePath !== null) {
+    const holder = worktreePath === null ? null : this.worktreeAtPath(worktreePath);
+    if (worktreePath !== null && (holder === null || holder.isMain)) {
+      // The main worktree cannot be removed, so the branch stays until it
+      // switches to another one.
       showErrorDialog(
         l10n.dialogDeleteBranchInWorktree
           .replace("{0}", escapeHtml(refName))
@@ -4777,9 +4792,30 @@ class GitGraphView {
       return;
     }
     const deleteOnRemotes = this.getRemotesWithBranch(refName);
-    const inputs: DialogInput[] = [
-      { type: "checkbox", name: l10n.dialogDeleteForceDelete, value: false }
-    ];
+    const confirm = l10n.dialogDeleteConfirm
+      .replace("{0}", l10n.labelBranch)
+      .replace("{1}", `<b><i>${escapeHtml(refName)}</i></b>`);
+    showFormDialog(
+      holder === null
+        ? confirm
+        : `${this.worktreeHoldsBranchMessage(refName, holder)}<br><br>${confirm}`,
+      this.deleteBranchInputs(holder, deleteOnRemotes),
+      l10n.deleteBranch,
+      (values) => this.submitDeleteBranch(refName, holder, deleteOnRemotes, values),
+      null
+    );
+  }
+  /** The dialog's checkboxes: the worktree removal first, when a worktree holds the branch. */
+  private deleteBranchInputs(holder: GitWorktree | null, deleteOnRemotes: string[]): DialogInput[] {
+    const inputs: DialogInput[] = [];
+    if (holder !== null) {
+      inputs.push({
+        type: "checkbox",
+        name: l10n.dialogDeleteBranchRemoveWorktree.replace("{0}", escapeHtml(holder.path)),
+        value: false
+      });
+    }
+    inputs.push({ type: "checkbox", name: l10n.dialogDeleteForceDelete, value: false });
     if (deleteOnRemotes.length > 0) {
       inputs.push({
         type: "checkbox",
@@ -4787,28 +4823,155 @@ class GitGraphView {
         value: false
       });
     }
-
+    return inputs;
+  }
+  private submitDeleteBranch(
+    refName: string,
+    holder: GitWorktree | null,
+    deleteOnRemotes: string[],
+    values: string[]
+  ) {
+    const forceIndex = holder === null ? 0 : 1;
+    const deleteBranch: DeleteBranchPart = {
+      branchName: refName,
+      forceDelete: values[forceIndex] === "checked"
+    };
+    if (deleteOnRemotes.length > 0 && values[forceIndex + 1] === "checked") {
+      deleteBranch.deleteOnRemotes = deleteOnRemotes;
+    }
+    if (holder === null) {
+      sendMessage({ command: "deleteBranch", repo: this.currentRepo, ...deleteBranch });
+      showActionRunningDialog(l10n.statusDeletingBranch);
+    } else if (values[0] === "checked") {
+      // Left unticked, the dialog only explained, and nothing is sent.
+      this.removeWorktreeAction(holder, deleteBranch);
+    }
+  }
+  private worktreeAtPath(path: string): GitWorktree | null {
+    return this.gitWorktrees.find((worktree) => worktree.path === path) ?? null;
+  }
+  /** Why Git keeps the branch, and what removing the worktree does, for each kind of worktree. */
+  private worktreeHoldsBranchMessage(refName: string, holder: GitWorktree): string {
+    const notes = [
+      l10n.dialogDeleteBranchRemovable
+        .replace("{0}", escapeHtml(refName))
+        .replace("{1}", escapeHtml(holder.path))
+    ];
+    if (holder.prunable !== null) notes.push(l10n.dialogDeleteBranchStaleNote);
+    if (holder.locked !== null) {
+      notes.push(
+        l10n.dialogDeleteBranchLockedNote.replace("{0}", escapeHtml(holder.locked.reason))
+      );
+    }
+    return notes.join(" ");
+  }
+  /**
+   * Removes a worktree. A worktree with files on disk is read first: Git's own
+   * refusal is the last guard, but only a second confirmation that lists what
+   * would be lost sends `--force`. A stale entry has nothing on disk to lose.
+   */
+  private removeWorktreeAction(holder: GitWorktree, deleteBranch?: DeleteBranchPart) {
+    const request: Extract<GGL.RequestMessage, { command: "removeWorktree" }> = {
+      command: "removeWorktree",
+      repo: this.currentRepo,
+      path: holder.path,
+      force: false,
+      unlock: holder.locked !== null
+    };
+    if (deleteBranch !== undefined) request.deleteBranch = deleteBranch;
+    if (holder.prunable !== null) {
+      this.sendRemoveWorktree(request);
+      return;
+    }
+    const requestId = this.createRequestId();
+    this.pendingWorktreeRemoval = { requestId, request };
+    sendMessage({
+      command: "worktreeChanges",
+      repo: this.currentRepo,
+      path: holder.path,
+      requestId
+    });
+    showActionRunningDialog(l10n.statusCheckingWorktree);
+  }
+  private sendRemoveWorktree(request: Extract<GGL.RequestMessage, { command: "removeWorktree" }>) {
+    sendMessage(request);
+    showActionRunningDialog(l10n.statusRemovingWorktree);
+  }
+  public loadWorktreeChanges(msg: Extract<GGL.ResponseMessage, { command: "worktreeChanges" }>) {
+    const pending = this.pendingWorktreeRemoval;
+    if (pending?.requestId !== msg.requestId) return;
+    this.pendingWorktreeRemoval = null;
+    // A failed read still removes without force: Git refuses a worktree with
+    // local changes, so nothing is deleted unconfirmed.
+    if (msg.error !== null || msg.files.length === 0) {
+      this.sendRemoveWorktree(pending.request);
+      return;
+    }
+    hideDialog();
+    const files = msg.files.map((file) => `<li>${escapeHtml(file)}</li>`).join("");
+    const more = msg.truncated ? `<p>${l10n.dialogRemoveWorktreeMoreFiles}</p>` : "";
     showFormDialog(
-      l10n.dialogDeleteConfirm
-        .replace("{0}", l10n.labelBranch)
-        .replace("{1}", `<b><i>${escapeHtml(refName)}</i></b>`),
-      inputs,
-      l10n.deleteBranch,
-      (values) => {
-        const request: Extract<GGL.RequestMessage, { command: "deleteBranch" }> = {
-          command: "deleteBranch",
-          repo: this.currentRepo,
-          branchName: refName,
-          forceDelete: values[0] === "checked"
-        };
-        if (deleteOnRemotes.length > 0 && values[1] === "checked") {
-          request.deleteOnRemotes = deleteOnRemotes;
-        }
-        sendMessage(request);
-        showActionRunningDialog(l10n.statusDeletingBranch);
+      `${l10n.dialogRemoveWorktreeForce.replace("{0}", `<b><i>${escapeHtml(msg.path)}</i></b>`)}<ul>${files}</ul>${more}`,
+      [],
+      l10n.dialogRemoveWorktreeForceSubmit,
+      () => this.sendRemoveWorktree({ ...pending.request, force: true }),
+      null
+    );
+  }
+  /** The entries `git worktree prune` removes: folder gone, not locked. */
+  private staleWorktrees(): GitWorktree[] {
+    return this.gitWorktrees.filter(
+      (worktree) => worktree.prunable !== null && worktree.locked === null
+    );
+  }
+  private showPruneWorktreesDialog() {
+    const stale = this.staleWorktrees();
+    if (stale.length === 0) return;
+
+    const entries = stale.map((worktree) => `<li>${escapeHtml(worktree.path)}</li>`).join("");
+    showFormDialog(
+      `${l10n.dialogPruneWorktreesMessage}<ul>${entries}</ul>`,
+      [],
+      l10n.dialogPruneWorktreesSubmit,
+      () => {
+        sendMessage({ command: "pruneWorktrees", repo: this.currentRepo });
+        showActionRunningDialog(l10n.statusPruningWorktrees);
       },
       null
     );
+  }
+  /** Stale worktree actions for a branch, and Prune Stale Worktrees when any entry is stale. */
+  private appendWorktreeMaintenanceItems(menu: ContextMenuElement[], refName: string) {
+    const holder = this.worktreePathsFor(refName)
+      .map((path) => this.worktreeAtPath(path))
+      .find((worktree) => worktree?.prunable != null);
+    const items: ContextMenuElement[] = [];
+    if (holder !== undefined && holder !== null) {
+      items.push(
+        {
+          title: l10n.removeStaleWorktree,
+          onClick: () => this.removeWorktreeAction(holder)
+        },
+        {
+          title: l10n.repairWorktree + ELLIPSIS,
+          onClick: () => {
+            sendMessage({
+              command: "repairWorktree",
+              repo: this.currentRepo,
+              path: holder.path,
+              newPath: null
+            });
+          }
+        }
+      );
+    }
+    if (this.staleWorktrees().length > 0) {
+      items.push({
+        title: l10n.pruneWorktrees + ELLIPSIS,
+        onClick: () => this.showPruneWorktreesDialog()
+      });
+    }
+    if (items.length > 0) menu.push(null, ...items);
   }
   private showPushBranchDialog(refName: string) {
     const remoteNames = this.getRemoteNames();
@@ -7055,6 +7218,9 @@ const actionErrorLabels = {
   createBranch: l10n.unableToCreateBranch,
   createPullRequest: l10n.unableToCreatePullRequest,
   deleteBranch: l10n.unableToDeleteBranch,
+  pruneWorktrees: l10n.unableToPruneWorktrees,
+  removeWorktree: l10n.unableToRemoveWorktree,
+  repairWorktree: l10n.unableToRepairWorktree,
   deleteRemote: l10n.unableToDeleteRemote,
   deleteRemoteBranch: l10n.unableToDeleteRemoteBranch,
   deleteTag: l10n.unableToDeleteTag,
@@ -7135,6 +7301,7 @@ type ResponseHandlerMap = {
 
 const responseHandlers: ResponseHandlerMap = {
   remoteTags: (msg) => gitGraph.loadRemoteTags(msg),
+  worktreeChanges: (msg) => gitGraph.loadWorktreeChanges(msg),
   branchPushDefaults: (msg) =>
     gitGraph.loadBranchPushDefaults(msg.requestId, {
       upstreamRemote: msg.upstreamRemote,
