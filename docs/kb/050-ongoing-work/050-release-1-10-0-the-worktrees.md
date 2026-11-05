@@ -106,8 +106,8 @@ run one after another, as the integrator procedure says.
 | W26H | [Harden the remote tag read](050-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | integrated `d607144` |
 | W26HF | [Remote tag read Sonar follow-up](050-release-1-10-0-the-worktrees/369-w26hf-remote-tag-read-sonar-follow-up.md) | TS | W26H | A | integrated `8ff94dd` |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | integrated `f9e54a4` |
-| W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | dispatched `2026-11-05` (Sonnet) |
-| W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | ready; held until W40 is integrated (both change `repository.rs` and the engine version) |
+| W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | integrated `f1dcbb6` |
+| W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | dispatched `2026-11-05` (Sonnet) |
 | W10 | [Carry worktrees to the webview](050-release-1-10-0-the-worktrees/200-w10-carry-worktrees-to-the-webview.md) | TS | W02 | C | integrated `2a619c4` |
 | W10F | [Read worktrees through the engine reader](050-release-1-10-0-the-worktrees/205-w10f-read-worktrees-through-the-engine-reader.md) | TS | W03, W10 | C | integrated `436e0b0` |
 | W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | ready (queued: one manifest or l10n slice at a time) |
@@ -405,3 +405,26 @@ commit, the gate results with numbers, and the Sonar task id.
     gated record.
   - Next in the manifest and l10n slot: W31 (Haiku), with W21's Command
     Palette prune folded in, as recorded in W31's slice.
+- `2026-11-05`: W40 integrated at `f1dcbb6`. Every wired engine read is
+  proven on linked worktrees, against Git.
+  - Fixed: authors and stats now count other worktrees' HEADs, as
+    `--all` does.
+  - Fixed: a removed or moved linked worktree's handle is evicted and
+    declined, instead of being served or resolving to the enclosing
+    repository.
+  - The engine is `1.0.28`. The rebase was clean.
+- `2026-11-05`, gate on `f1dcbb6`: W21, W31's slice note and W40 since
+  `c9ce36c`.
+  - Rust arm: `engine:fmt`, `engine:lint`, `engine:check` and
+    `engine:test` pass. The engine was rebuilt, and `engine:smoke`
+    reports `1.0.28`.
+  - Strict Biome is clean on 17 files. `package`, `l10n:check` and
+    `kb:check` pass.
+  - Fresh `test:coverage`: 170 files, 2,173 of 2,173 tests passed.
+  - Sonar task `bf1c37b1-f4c1-42e8-9c61-2b7625d11d86`: quality gate
+    **`OK`**. New coverage is 94.8%, with 0 security issues. New
+    violations are 5, exactly the threshold, all W21's: S3801, S6557
+    twice, S4624 and S5906. The integrator cleared all five at `741462d`.
+  - Issue #38 is complete with W21 and gated, so this record closes it.
+  - W41 was dispatched to Sonnet, on W40's tip, bumping the engine to
+    `1.0.29`.
