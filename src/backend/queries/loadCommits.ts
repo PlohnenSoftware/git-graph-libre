@@ -17,6 +17,7 @@ import { toGitQueryError } from "@/backend/utils/queryError";
 import { isHiddenRemoteRef, remoteExcludeArgs } from "@/backend/utils/remoteRefs";
 
 import { loadStashes } from "./stashes";
+import { loadWorktrees } from "./worktrees";
 
 const eolRegex = /\r\n|\r|\n/g;
 const gitLogFormatFieldSeparator = "%x00";
@@ -240,6 +241,37 @@ export function parseUnreachableCommitHashes(stdout: string): string[] {
   return [...hashes];
 }
 
+/**
+ * The HEAD commits of the other worktrees with a detached HEAD, as extra log
+ * tips on a show-all load. A worktree on a branch needs none: `--branches`
+ * already walks from that branch. A detached HEAD on a commit no branch,
+ * tag or remote reaches is named by no ref the log starts from, so without
+ * its hash as a tip that worktree's commit is never drawn (W12, Y22: always
+ * shown). Filtered loads (explicit refs) get no extra tips, as with
+ * unreachable commits.
+ *
+ * A failed worktree read resolves to no tips rather than a failed graph:
+ * the worktree list is also read by `loadBranches`, which surfaces its own
+ * state, and losing the whole graph over rows it could not add would be
+ * the wrong trade (the stash-row precedent below).
+ */
+async function getOtherWorktreeHeadTips(
+  git: SimpleGit,
+  refs: string[] | null,
+  context: GitQueryContext
+): Promise<string[]> {
+  if (refs !== null || context.repo === null) return [];
+  const result = await loadWorktrees(git, context.repo, context.record);
+  if (result.error !== null) return [];
+  const heads = new Set<string>();
+  for (const worktree of result.value) {
+    if (!worktree.isCurrent && worktree.detached && worktree.head !== null) {
+      heads.add(worktree.head);
+    }
+  }
+  return [...heads];
+}
+
 async function getUnreachableCommitHashes(
   git: SimpleGit,
   enabled: boolean,
@@ -397,12 +429,10 @@ export async function loadCommits(
     showTags || selectedTags !== null,
     context
   );
-  const unreachableResult = await getUnreachableCommitHashes(
-    git,
-    includeUnreachableCommits,
-    refs,
-    context
-  );
+  const [unreachableResult, worktreeHeadTips] = await Promise.all([
+    getUnreachableCommitHashes(git, includeUnreachableCommits, refs, context),
+    getOtherWorktreeHeadTips(git, refs, context)
+  ]);
   const sharedLogOptions = {
     authors: input.authors ?? null,
     showRemoteBranches,
@@ -420,7 +450,7 @@ export async function loadCommits(
       label: "loadCommits.log",
       refs,
       maxCommits: maxCommits + 1,
-      additionalRefs: unreachableResult.value
+      additionalRefs: [...unreachableResult.value, ...worktreeHeadTips]
     }),
     refsPromise
   ]);
