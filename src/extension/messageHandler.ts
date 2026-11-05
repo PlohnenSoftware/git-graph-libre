@@ -48,6 +48,7 @@ import {
 import { addTag, deleteTag, pushAllTags, pushTag } from "@/backend/actions/tag";
 import { deleteUserDetails, editUserDetails } from "@/backend/actions/userConfig";
 import {
+  addWorktree,
   pruneWorktrees,
   removeWorktree,
   repairWorktree,
@@ -681,6 +682,9 @@ export function registerMessageHandlers(
   registerAction("deleteBranch", (msg) =>
     deleteBranch(gitClient.getInstance(), msg, recordGitCommand)
   );
+  registerAction("addWorktree", async (msg) => {
+    await addWorktree(gitClient.getInstance(), msg, recordGitCommand);
+  });
   registerAction("removeWorktree", async (msg) => {
     await forgetWorktrees([await removeWorktree(gitClient.getInstance(), msg, recordGitCommand)]);
   });

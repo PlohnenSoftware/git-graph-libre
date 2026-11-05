@@ -123,6 +123,21 @@ type ActionPayloads = {
    * files; `unlock` unlocks a locked worktree first (it is never forced twice).
    * `deleteBranch` runs once the worktree is gone, for the Delete Branch dialog.
    */
+  /**
+   * Creates a linked worktree with `git worktree add`. Exactly one checkout
+   * mode is sent: `branch` checks that branch out, `newBranch` creates it at
+   * `startPoint` (which may be a remote branch, a commit or a tag), and
+   * `detach` leaves a detached HEAD at `startPoint`. `lockReason` is null for
+   * no lock, "" to lock without a reason, and text to lock with that reason.
+   */
+  addWorktree: {
+    path: string;
+    branch: string | null;
+    newBranch: string | null;
+    startPoint: string | null;
+    detach: boolean;
+    lockReason: string | null;
+  };
   removeWorktree: {
     path: string;
     force: boolean;

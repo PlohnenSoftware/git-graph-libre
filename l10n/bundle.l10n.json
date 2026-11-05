@@ -719,6 +719,10 @@
   "error.worktreeNotStale": "{0} is not a stale worktree entry, so there is nothing to repair.",
   "error.worktreeRepairNoFolder": "Choose the folder the worktree was moved to.",
   "error.worktreeRepairFailed": "The folder {1} is not the moved worktree {0}, so nothing was repaired.",
+  "error.worktreePathRequired": "Choose a folder for the new worktree.",
+  "error.worktreeBranchInUse": "The branch {0} is already checked out in the worktree {1}, so it cannot be checked out in a new worktree. Open that worktree instead.",
+  "error.worktreePathListed": "{0} is already a worktree of this repository.",
+  "error.worktreePathExists": "{0} already exists and is not empty, so a worktree cannot be created there.",
   "dialog.repairWorktree.pickFolder": "Choose the folder the worktree was moved to",
   "dialog.repairWorktree.pickFolderLabel": "Repair Worktree"
 }

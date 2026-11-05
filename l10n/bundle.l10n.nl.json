@@ -719,6 +719,10 @@
   "error.worktreeNotStale": "{0} is geen verouderde worktree-vermelding, dus er valt niets te herstellen.",
   "error.worktreeRepairNoFolder": "Kies de map waarnaar de worktree is verplaatst.",
   "error.worktreeRepairFailed": "De map {1} is niet de verplaatste worktree {0}, dus er is niets hersteld.",
+  "error.worktreePathRequired": "Kies een map voor de nieuwe worktree.",
+  "error.worktreeBranchInUse": "De branch {0} is al uitgecheckt in de worktree {1}, dus deze kan niet in een nieuwe worktree worden uitgecheckt. Open in plaats daarvan die worktree.",
+  "error.worktreePathListed": "{0} is al een worktree van deze repository.",
+  "error.worktreePathExists": "{0} bestaat al en is niet leeg, dus daar kan geen worktree worden gemaakt.",
   "dialog.repairWorktree.pickFolder": "Kies de map waarnaar de worktree is verplaatst",
   "dialog.repairWorktree.pickFolderLabel": "Worktree herstellen"
 }

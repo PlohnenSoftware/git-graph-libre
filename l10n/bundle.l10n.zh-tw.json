@@ -719,6 +719,10 @@
   "error.worktreeNotStale": "{0} 不是失效的工作樹項目，無需修復。",
   "error.worktreeRepairNoFolder": "請選擇該工作樹被移動到的資料夾。",
   "error.worktreeRepairFailed": "資料夾 {1} 不是已移動的工作樹 {0}，因此未做任何修復。",
+  "error.worktreePathRequired": "為新工作樹選擇一個資料夾。",
+  "error.worktreeBranchInUse": "分支 {0} 已在工作樹 {1} 中簽出，因此無法在新工作樹中簽出。請改為打開那個工作樹。",
+  "error.worktreePathListed": "{0} 已經是此儲存庫的工作樹。",
+  "error.worktreePathExists": "{0} 已存在且不為空，因此無法在那裡建立工作樹。",
   "dialog.repairWorktree.pickFolder": "選擇該工作樹被移動到的資料夾",
   "dialog.repairWorktree.pickFolderLabel": "修復工作樹"
 }

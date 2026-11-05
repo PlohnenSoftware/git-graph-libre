@@ -1,3 +1,5 @@
+import { readdir, stat } from "node:fs/promises";
+
 import type { SimpleGit } from "simple-git";
 
 import { deleteBranch } from "@/backend/actions/branch";
@@ -57,6 +59,77 @@ async function assertRemovable(target: GitWorktree, unlock: boolean): Promise<vo
   if (target.locked === null || unlock) return;
   if (target.locked.reason === "") await fail("error.worktreeLocked", target.path);
   await fail("error.worktreeLockedReason", target.path, target.locked.reason);
+}
+
+/** An empty string from a dialog field means "not given", never a ref name. */
+function nonEmpty(value: string | null): string | null {
+  return value === null || value === "" ? null : value;
+}
+
+/**
+ * Refuses a creation the worktree list already rules out, before Git runs:
+ * the branch that would be checked out is held by another worktree, the
+ * folder is already a worktree, or it exists and is not empty (Git allows an
+ * existing empty folder). Nothing here reads Git's translated messages.
+ */
+async function assertCreatable(
+  worktrees: GitWorktree[],
+  input: ActionPayload<"addWorktree">
+): Promise<void> {
+  for (const branch of [input.branch, input.newBranch]) {
+    if (branch === null) continue;
+    const holder = worktrees.find((worktree) => worktree.branch === branch);
+    if (holder !== undefined) await fail("error.worktreeBranchInUse", branch, holder.path);
+  }
+  if ((await findWorktree(worktrees, input.path)) !== null) {
+    await fail("error.worktreePathListed", input.path);
+  }
+  const existing = await stat(input.path).catch(() => null);
+  if (existing === null) return;
+  if (!existing.isDirectory() || (await readdir(input.path)).length > 0) {
+    await fail("error.worktreePathExists", input.path);
+  }
+}
+
+/**
+ * Creates a linked worktree with `git worktree add` on the CLI (the engine
+ * never writes) and returns its path as Git lists it afterwards. Every value
+ * is a separate argument; `--` ends the options before the folder, so a
+ * folder or start point that starts with "-" stays a positional argument. A
+ * new branch started from a remote branch tracks it, as Git sets that up.
+ */
+export async function addWorktree(
+  git: SimpleGit,
+  input: ActionPayload<"addWorktree"> & RepoInput,
+  record?: GitCommandRecorder
+): Promise<string> {
+  const repo = input.repo ?? null;
+  const path = input.path.trim();
+  if (path === "") return fail("error.worktreePathRequired");
+  const request = {
+    ...input,
+    path,
+    branch: nonEmpty(input.branch),
+    newBranch: nonEmpty(input.newBranch),
+    startPoint: nonEmpty(input.startPoint)
+  };
+  await assertCreatable(await listWorktrees(git, repo, record), request);
+
+  const args = ["worktree", "add"];
+  if (request.lockReason !== null) {
+    args.push("--lock");
+    if (request.lockReason !== "") args.push("--reason", request.lockReason);
+  }
+  if (request.newBranch !== null) args.push("-b", request.newBranch);
+  if (request.detach) args.push("--detach");
+  args.push("--", request.path);
+  const startPoint = request.startPoint ?? request.branch;
+  if (startPoint !== null) args.push(startPoint);
+  await runGitRaw(git, { label: "worktree.add", kind: "action", args, repo, record });
+
+  const created = await findWorktree(await listWorktrees(git, repo, record), request.path);
+  if (created === null) return fail("error.worktreeNotListed", request.path);
+  return created.path;
 }
 
 /**

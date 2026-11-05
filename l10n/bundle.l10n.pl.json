@@ -719,6 +719,10 @@
   "error.worktreeNotStale": "{0} nie jest nieaktualnym wpisem worktree, więc nie ma czego naprawiać.",
   "error.worktreeRepairNoFolder": "Wybierz folder, do którego przeniesiono worktree.",
   "error.worktreeRepairFailed": "Folder {1} nie jest przeniesionym worktree {0}, więc nic nie naprawiono.",
+  "error.worktreePathRequired": "Wybierz folder dla nowego worktree.",
+  "error.worktreeBranchInUse": "Gałąź {0} jest już wymeldowana w worktree {1}, więc nie można jej wymeldować w nowym worktree. Otwórz zamiast tego tamto worktree.",
+  "error.worktreePathListed": "{0} jest już worktree tego repozytorium.",
+  "error.worktreePathExists": "{0} już istnieje i nie jest pusty, więc nie można tam utworzyć worktree.",
   "dialog.repairWorktree.pickFolder": "Wybierz folder, do którego przeniesiono worktree",
   "dialog.repairWorktree.pickFolderLabel": "Napraw worktree"
 }
