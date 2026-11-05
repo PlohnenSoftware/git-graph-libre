@@ -25,8 +25,11 @@ pub struct Repo {
     inner: gix::ThreadSafeRepository,
     /// The worktree root, or the git directory for a bare repository.
     root: PathBuf,
-    /// The git directory. Cached because the shared handle does not expose it.
+    /// The git directory: the private admin directory (`<common>/worktrees/<id>`) in a linked
+    /// worktree. Cached so that accessing it needs no thread-local view.
     git_dir: PathBuf,
+    /// Is this a linked worktree, whose existence the `.git` file and the admin directory decide?
+    linked: bool,
     /// The configuration files the handle was opened with, as they were then.
     config: ConfigStamp,
 }
@@ -63,10 +66,12 @@ impl Repo {
             )));
         }
         let config = ConfigStamp::of(&repo);
+        let linked = repo.kind() == gix::repository::Kind::LinkedWorkTree;
         Ok(Repo {
             inner: repo.into_sync(),
             root,
             git_dir,
+            linked,
             config,
         })
     }
@@ -74,6 +79,16 @@ impl Repo {
     /// Is the configuration this handle read at open still what is on disk?
     pub fn config_is_current(&self) -> bool {
         self.config.is_current()
+    }
+
+    /// Has a linked worktree vanished since this handle was opened: its `.git` file or its admin
+    /// directory is gone (`git worktree remove`, `move`, `prune`, or the folder deleted)?
+    ///
+    /// Refs and objects are shared, so a handle for such a worktree would otherwise keep
+    /// answering from the shared refs, with no HEAD, as if the worktree still existed. Always
+    /// false for anything but a linked worktree.
+    pub fn is_gone(&self) -> bool {
+        self.linked && !(self.root.join(".git").is_file() && self.git_dir.is_dir())
     }
 
     /// A thread-local view of the repository, for use within a single request.
@@ -296,12 +311,14 @@ impl RepoManager {
     /// Get the open handle for `path`, opening it if this is the first request for it — or
     /// reopening it when its configuration changed on disk since it was opened (see
     /// [`ConfigStamp`]).
+    ///
+    /// A linked worktree that has vanished since (see [`Repo::is_gone`]) has its handle evicted
+    /// and is reported as not a repository, rather than being reopened: searching upwards from
+    /// the missing folder could land on an unrelated enclosing repository.
     pub fn get(&self, path: impl AsRef<Path>) -> Result<Arc<Repo>> {
         let key = path.as_ref().to_path_buf();
-        if let Some(repo) = self.repos.lock().unwrap().get(&key) {
-            if repo.config_is_current() {
-                return Ok(Arc::clone(repo));
-            }
+        if let Some(repo) = self.cached(&key)? {
+            return Ok(repo);
         }
         // Opening happens outside the lock: it touches the disk, and a slow open of one repository
         // must not block requests for the others.
@@ -318,6 +335,23 @@ impl RepoManager {
                 Ok(repo)
             }
         }
+    }
+
+    /// The cached handle for `key` when it is current. A vanished linked worktree is evicted and
+    /// declined; any other stale handle is left for the caller to replace.
+    fn cached(&self, key: &Path) -> Result<Option<Arc<Repo>>> {
+        let mut repos = self.repos.lock().unwrap();
+        let Some(repo) = repos.get(key) else {
+            return Ok(None);
+        };
+        if repo.is_gone() {
+            repos.remove(key);
+            return Err(Error::not_a_repository(format!(
+                "{}: the linked worktree no longer exists",
+                key.display()
+            )));
+        }
+        Ok(repo.config_is_current().then(|| Arc::clone(repo)))
     }
 
     /// Drop the handle for `path` (e.g. because the folder was removed from the workspace).

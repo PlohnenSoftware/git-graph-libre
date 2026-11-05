@@ -140,7 +140,9 @@ impl Engine {
         self.repo.root()
     }
 
-    /// The git directory (`.git`, or the repository itself when bare).
+    /// The git directory: `.git`, the repository itself when bare, or the private
+    /// `<common>/worktrees/<id>` directory of a linked worktree (its shared refs and objects live
+    /// in the main repository's directory).
     pub fn git_dir(&self) -> &Path {
         self.repo.git_dir()
     }
