@@ -197,7 +197,7 @@ function createVsCodeFolderApi(): WorktreeFolderApi {
 function parseWorktreeRequest(value: unknown): WorktreeRequest {
   const request = value as Partial<Record<keyof WorktreeRequest, unknown>> | null | undefined;
   if (typeof request?.repo !== "string" || typeof request.path !== "string") {
-    throw new Error(l10n.t("command.worktree.badRequest"));
+    throw new TypeError(l10n.t("command.worktree.badRequest"));
   }
   return { repo: request.repo, path: request.path, newWindow: request.newWindow === true };
 }
