@@ -98,12 +98,7 @@ function latest<T extends GGL.RequestMessage["command"]>(
   throw new Error(`Missing ${command} request`);
 }
 
-function node(
-  hash: string,
-  parents: string[],
-  message: string,
-  branch: string
-): GitCommitNode {
+function node(hash: string, parents: string[], message: string, branch: string): GitCommitNode {
   return {
     hash,
     parentHashes: parents,
