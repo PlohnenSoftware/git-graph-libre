@@ -142,6 +142,11 @@ describe("readWorktrees routing", () => {
       "declined"
     ],
     [
+      "a trust refusal",
+      engineDeps(() => listAddon(new Error("Untrusted: not owned by the current user")).provider()),
+      "declined"
+    ],
+    [
       "another engine error",
       engineDeps(() => listAddon(new Error("Io: disk")).provider()),
       "engineThrew"

@@ -215,6 +215,28 @@ describe("inspectRepository with the Git executable missing", () => {
     expect(result.detectedBy).toBe("engine");
   });
 
+  it("never reads the engine's trust refusal as absence (W41)", async () => {
+    // The engine refuses a repository Git rejects for ownership with its own
+    // kind. With Git missing that must stay unknown presence on a
+    // git-unavailable screen — for a repository, a linked worktree and a
+    // submodule alike — never proof that no repository is there. With Git
+    // present the same fixtures report `untrusted` (above), which is what
+    // the startup screen turns into the trust prompt.
+    for (const dir of [repo, worktree, submodule]) {
+      const result = await inspectRepository(dir, {
+        gitPath: MISSING_GIT,
+        useEngine: true,
+        engineRoot: async () => {
+          throw new Error("Untrusted: not owned by the current user");
+        }
+      });
+      expect(result.state).toBe("gitUnavailable");
+      expect(result.repository).toBeNull();
+      expect(result.detectedBy).toBe("engine");
+      expect(result.engineDetail).toContain("Untrusted:");
+    }
+  });
+
   it("uses the filesystem answer for marker-less folders", async () => {
     const result = await inspectRepository(plain, { gitPath: MISSING_GIT, useEngine: false });
     expect(result.state).toBe("gitUnavailable");

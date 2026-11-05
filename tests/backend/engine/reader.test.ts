@@ -176,12 +176,13 @@ function failingAddon(message: string): AddonProvider {
 }
 
 describe("isEngineFallbackError", () => {
-  it.each(["NotARepository: no git dir", "Unsupported: reflog tips"])(
-    "treats %s as a decline",
-    (message) => {
-      expect(isEngineFallbackError(new Error(message))).toBe(true);
-    }
-  );
+  it.each([
+    "NotARepository: no git dir",
+    "Unsupported: reflog tips",
+    "Untrusted: not owned by the current user"
+  ])("treats %s as a decline", (message) => {
+    expect(isEngineFallbackError(new Error(message))).toBe(true);
+  });
 
   it.each([
     "Git: corrupt object",
@@ -332,20 +333,48 @@ describe("createRepoReader remoteUrl", () => {
     expect(didEngineServeRead()).toBe(true);
   });
 
-  it.each(["NotARepository: not a repo", "Unsupported: declined"])(
-    "falls back to the CLI on %s",
-    async (message) => {
+  it.each([
+    "NotARepository: not a repo",
+    "Unsupported: declined",
+    "Untrusted: not owned by the current user"
+  ])("falls back to the CLI on %s", async (message) => {
+    const reader = createRepoReader({
+      preference: "auto",
+      gitPath: "git",
+      addonProvider: failingAddon(message)
+    });
+
+    expect(await reader.getRemoteUrl(repoWithRemote)).toBe(ORIGIN_URL);
+    expect(cliCalls.count).toBe(1);
+    expect(didEngineServeRead()).toBe(false);
+  });
+
+  it("logs a trust refusal with cause untrusted and counts it as a decline, not a failure", async () => {
+    const lines: string[] = [];
+    const log = setOperationLog((line) => lines.push(line));
+    try {
       const reader = createRepoReader({
         preference: "auto",
         gitPath: "git",
-        addonProvider: failingAddon(message)
+        addonProvider: failingAddon("Untrusted: not owned by the current user")
       });
 
+      // Git decides: this repository is owned and trusted, so the CLI answer
+      // is the read's answer, exactly as a git-cli reader would give.
       expect(await reader.getRemoteUrl(repoWithRemote)).toBe(ORIGIN_URL);
       expect(cliCalls.count).toBe(1);
+      expect(lines).toContainEqual(
+        expect.stringContaining(
+          "operation=remoteUrl backend=cli reason=engineDeclined kind=Untrusted cause=untrusted"
+        )
+      );
+      expect(didEngineDeclineRead()).toBe(true);
+      expect(didEngineFailRead()).toBe(false);
       expect(didEngineServeRead()).toBe(false);
+    } finally {
+      log.dispose();
     }
-  );
+  });
 
   it("converts genuine engine failures to null without retrying the CLI", async () => {
     const reader = createRepoReader({
@@ -474,63 +503,64 @@ describe("createRepoReader repoInfo", () => {
     }
   });
 
-  it.each(["NotARepository: no git dir", "Unsupported: declined"])(
-    "falls back to the whole CLI read on %s",
-    async (message) => {
-      const provider: AddonProvider = () => ({
-        engineVersion: () => "fake",
-        remoteUrl: async () => null,
-        loadRepoInfo: async () => {
-          throw new Error(message);
-        },
-        loadCommits: async () => {
-          throw new Error("Unsupported: commits not stubbed");
-        },
-        loadCommitDetails: async () => {
-          throw new Error("Unsupported: details not stubbed");
-        },
-        loadLineCounts: async () => {
-          throw new Error("Unsupported: counts not stubbed");
-        },
-        loadStashes: async () => {
-          throw new Error("Unsupported: stashes not stubbed");
-        },
-        loadStashDetails: async () => {
-          throw new Error("Unsupported: stash details not stubbed");
-        },
-        compareCommits: async () => {
-          throw new Error("Unsupported: compare not stubbed");
-        },
-        loadCommitFile: async () => {
-          throw new Error("Unsupported: file not stubbed");
-        },
-        authors: async () => "[]",
-        loadConfig: async () => JSON.stringify({ remotes: [] }),
-        searchCommits: async () => "[]",
-        loadRefs: async () => JSON.stringify({ head: null }),
-        configList: async () => {
-          throw new Error("Unsupported: config not stubbed");
-        },
-        closeRepository: () => {
-          throw new Error("Unsupported: close not stubbed");
-        },
-        closeAllRepositories: () => {
-          throw new Error("Unsupported: close not stubbed");
-        },
-        openRepositoryCount: () => {
-          throw new Error("Unsupported: count not stubbed");
-        }
-      });
-      const [viaReader, direct] = await Promise.all([
-        repoInfoReader("auto", provider),
-        loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote })
-      ]);
+  it.each([
+    "NotARepository: no git dir",
+    "Unsupported: declined",
+    "Untrusted: not owned by the current user"
+  ])("falls back to the whole CLI read on %s", async (message) => {
+    const provider: AddonProvider = () => ({
+      engineVersion: () => "fake",
+      remoteUrl: async () => null,
+      loadRepoInfo: async () => {
+        throw new Error(message);
+      },
+      loadCommits: async () => {
+        throw new Error("Unsupported: commits not stubbed");
+      },
+      loadCommitDetails: async () => {
+        throw new Error("Unsupported: details not stubbed");
+      },
+      loadLineCounts: async () => {
+        throw new Error("Unsupported: counts not stubbed");
+      },
+      loadStashes: async () => {
+        throw new Error("Unsupported: stashes not stubbed");
+      },
+      loadStashDetails: async () => {
+        throw new Error("Unsupported: stash details not stubbed");
+      },
+      compareCommits: async () => {
+        throw new Error("Unsupported: compare not stubbed");
+      },
+      loadCommitFile: async () => {
+        throw new Error("Unsupported: file not stubbed");
+      },
+      authors: async () => "[]",
+      loadConfig: async () => JSON.stringify({ remotes: [] }),
+      searchCommits: async () => "[]",
+      loadRefs: async () => JSON.stringify({ head: null }),
+      configList: async () => {
+        throw new Error("Unsupported: config not stubbed");
+      },
+      closeRepository: () => {
+        throw new Error("Unsupported: close not stubbed");
+      },
+      closeAllRepositories: () => {
+        throw new Error("Unsupported: close not stubbed");
+      },
+      openRepositoryCount: () => {
+        throw new Error("Unsupported: count not stubbed");
+      }
+    });
+    const [viaReader, direct] = await Promise.all([
+      repoInfoReader("auto", provider),
+      loadRepoInfo(simpleGit(repoWithRemote), { repo: repoWithRemote })
+    ]);
 
-      expect(viaReader).toEqual(direct);
-      expect(fallbackReads.count).toBe(2);
-      expect(didEngineServeRead()).toBe(false);
-    }
-  );
+    expect(viaReader).toEqual(direct);
+    expect(fallbackReads.count).toBe(2);
+    expect(didEngineServeRead()).toBe(false);
+  });
 
   it("falls back to the whole CLI read on a reserved partial error", async () => {
     const provider: AddonProvider = () => ({
@@ -950,64 +980,65 @@ describe("createRepoReader loadCommits", () => {
     expect(didEngineServeRead()).toBe(true);
   });
 
-  it.each(["NotARepository: no git dir", "Unsupported: declined"])(
-    "falls back to the whole CLI read on %s",
-    async (message) => {
-      const provider: AddonProvider = () => ({
-        engineVersion: () => "fake",
-        remoteUrl: async () => null,
-        loadRepoInfo: async () => {
-          throw new Error("Unsupported: repoInfo not stubbed");
-        },
-        loadCommits: async () => {
-          throw new Error(message);
-        },
-        loadCommitDetails: async () => {
-          throw new Error("Unsupported: details not stubbed");
-        },
-        loadLineCounts: async () => {
-          throw new Error("Unsupported: counts not stubbed");
-        },
-        loadStashes: async () => {
-          throw new Error("Unsupported: stashes not stubbed");
-        },
-        loadStashDetails: async () => {
-          throw new Error("Unsupported: stash details not stubbed");
-        },
-        compareCommits: async () => {
-          throw new Error("Unsupported: compare not stubbed");
-        },
-        loadCommitFile: async () => {
-          throw new Error("Unsupported: file not stubbed");
-        },
-        authors: async () => "[]",
-        loadConfig: async () => JSON.stringify({ remotes: [] }),
-        searchCommits: async () => "[]",
-        loadRefs: async () => JSON.stringify({ head: null }),
-        configList: async () => {
-          throw new Error("Unsupported: config not stubbed");
-        },
-        closeRepository: () => {
-          throw new Error("Unsupported: close not stubbed");
-        },
-        closeAllRepositories: () => {
-          throw new Error("Unsupported: close not stubbed");
-        },
-        openRepositoryCount: () => {
-          throw new Error("Unsupported: count not stubbed");
-        }
-      });
-      const [viaReader, direct] = await Promise.all([commitsReader("auto", provider), directCli()]);
+  it.each([
+    "NotARepository: no git dir",
+    "Unsupported: declined",
+    "Untrusted: not owned by the current user"
+  ])("falls back to the whole CLI read on %s", async (message) => {
+    const provider: AddonProvider = () => ({
+      engineVersion: () => "fake",
+      remoteUrl: async () => null,
+      loadRepoInfo: async () => {
+        throw new Error("Unsupported: repoInfo not stubbed");
+      },
+      loadCommits: async () => {
+        throw new Error(message);
+      },
+      loadCommitDetails: async () => {
+        throw new Error("Unsupported: details not stubbed");
+      },
+      loadLineCounts: async () => {
+        throw new Error("Unsupported: counts not stubbed");
+      },
+      loadStashes: async () => {
+        throw new Error("Unsupported: stashes not stubbed");
+      },
+      loadStashDetails: async () => {
+        throw new Error("Unsupported: stash details not stubbed");
+      },
+      compareCommits: async () => {
+        throw new Error("Unsupported: compare not stubbed");
+      },
+      loadCommitFile: async () => {
+        throw new Error("Unsupported: file not stubbed");
+      },
+      authors: async () => "[]",
+      loadConfig: async () => JSON.stringify({ remotes: [] }),
+      searchCommits: async () => "[]",
+      loadRefs: async () => JSON.stringify({ head: null }),
+      configList: async () => {
+        throw new Error("Unsupported: config not stubbed");
+      },
+      closeRepository: () => {
+        throw new Error("Unsupported: close not stubbed");
+      },
+      closeAllRepositories: () => {
+        throw new Error("Unsupported: close not stubbed");
+      },
+      openRepositoryCount: () => {
+        throw new Error("Unsupported: count not stubbed");
+      }
+    });
+    const [viaReader, direct] = await Promise.all([commitsReader("auto", provider), directCli()]);
 
-      expect(viaReader).toEqual(direct);
-      expect(commitReads.count).toBe(2);
-      expect(didEngineServeRead()).toBe(false);
-      expect(lastGraphLoadRoute()).toBe("handedBack");
-      // A decline is the design working: the read succeeded through the CLI.
-      expect(didEngineDeclineRead()).toBe(true);
-      expect(didEngineFailRead()).toBe(false);
-    }
-  );
+    expect(viaReader).toEqual(direct);
+    expect(commitReads.count).toBe(2);
+    expect(didEngineServeRead()).toBe(false);
+    expect(lastGraphLoadRoute()).toBe("handedBack");
+    // A decline is the design working: the read succeeded through the CLI.
+    expect(didEngineDeclineRead()).toBe(true);
+    expect(didEngineFailRead()).toBe(false);
+  });
 
   it("falls back to the whole CLI read on a reserved partial error", async () => {
     const result = await commitsReader(
@@ -1599,26 +1630,27 @@ describe("createRepoReader loadCommitDetails", () => {
     expect(didEngineServeRead()).toBe(false);
   });
 
-  it.each(["NotARepository: no git dir", "Unsupported: declined"])(
-    "falls back to the whole CLI read on %s",
-    async (message) => {
-      const provider = detailsAddon({
-        details: async () => {
-          throw new Error(message);
-        },
-        counts: async () => countsPayload,
-        stashes: async () => "[]"
-      });
-      const [viaReader, direct] = await Promise.all([
-        detailsReader("auto", provider),
-        directDetails()
-      ]);
+  it.each([
+    "NotARepository: no git dir",
+    "Unsupported: declined",
+    "Untrusted: not owned by the current user"
+  ])("falls back to the whole CLI read on %s", async (message) => {
+    const provider = detailsAddon({
+      details: async () => {
+        throw new Error(message);
+      },
+      counts: async () => countsPayload,
+      stashes: async () => "[]"
+    });
+    const [viaReader, direct] = await Promise.all([
+      detailsReader("auto", provider),
+      directDetails()
+    ]);
 
-      expect(viaReader).toEqual(direct);
-      expect(detailsReads.count).toBe(2);
-      expect(didEngineServeRead()).toBe(false);
-    }
-  );
+    expect(viaReader).toEqual(direct);
+    expect(detailsReads.count).toBe(2);
+    expect(didEngineServeRead()).toBe(false);
+  });
 });
 
 describe("createRepoReader loadCommitComparison", () => {

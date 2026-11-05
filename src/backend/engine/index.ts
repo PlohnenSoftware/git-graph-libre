@@ -8,11 +8,14 @@
  * CLI behavior. The fallback rule is upstream's and is worth keeping: fall
  * back only on "not a repository" and "unsupported" — a genuine Git failure
  * must not be retried through the CLI, because it will fail again more slowly
- * and hide the real error.
+ * and hide the real error. "Untrusted" (W41) is the one addition: the engine
+ * refuses a repository whose ownership Git would reject, and Git itself is
+ * the authority there, so the CLI answers — including where gix's ownership
+ * check is stricter than Git's and Git accepts the repository.
  *
  * Engine error kinds arrive as `Kind: message` prefixes on the thrown Error
- * (see `to_js_error` in `engine/native/node/src/lib.rs`); only the two
- * decline prefixes below route to the CLI.
+ * (see `to_js_error` in `engine/native/node/src/lib.rs`); only the decline
+ * prefixes below route to the CLI.
  */
 
 import type { SimpleGit } from "simple-git";
@@ -80,9 +83,10 @@ export type RepoReaderDeps = {
   forceCli?: boolean;
   /**
    * Git has not confirmed in this session that it accepts this repository.
-   * The engine would open a repository Git rejects for ownership (gix grants
-   * it reduced trust instead of failing), so every read goes to the CLI,
-   * which reports the rejection instead of bypassing it.
+   * Every read goes to the CLI, which reports Git's own rejection. Since
+   * engine 1.0.29 the engine refuses such a repository at open too
+   * (`Untrusted`, rerouted below), but this gate stays first: Git is the
+   * authority on ownership, and its answer drives the trust screen.
    */
   unverified?: boolean;
 };
@@ -141,7 +145,7 @@ export type CommitComparisonArgs = {
 };
 
 /** Prefixes the engine uses for declines the CLI must serve instead. */
-const FALLBACK_ERROR_PREFIXES = ["NotARepository:", "Unsupported:"];
+const FALLBACK_ERROR_PREFIXES = ["NotARepository:", "Unsupported:", "Untrusted:"];
 
 /**
  * Whether an engine failure is a decline (route to the CLI) rather than a
@@ -180,8 +184,8 @@ export function didEngineFailRead(): boolean {
 
 /**
  * Whether the engine handed a read back to the CLI at run time this session
- * (`NotARepository` / `Unsupported`): the read still succeeded, served by the
- * CLI. Feeds the `view.engineDeclined` signal.
+ * (`NotARepository` / `Unsupported` / `Untrusted`): the read still succeeded,
+ * served by the CLI. Feeds the `view.engineDeclined` signal.
  */
 export function didEngineDeclineRead(): boolean {
   return engineDeclinedRead;
@@ -217,7 +221,11 @@ function noteEngineThrow(
   if (declined) {
     engineDeclinedRead = true;
     noteServedBy("cli");
-    logBackendRoute(operation, `backend=cli reason=engineDeclined kind=${declineKind(error)}`);
+    const kind = declineKind(error);
+    // A trust refusal is logged with its fixed cause, like the other
+    // reroutes: Git decides, and the log must say that is why the CLI ran.
+    const causePart = kind === "Untrusted" ? " cause=untrusted" : "";
+    logBackendRoute(operation, `backend=cli reason=engineDeclined kind=${kind}${causePart}`);
   } else {
     engineFailedRead = true;
     noteServedBy(onFailure === "fails" ? "engine" : "cli");
