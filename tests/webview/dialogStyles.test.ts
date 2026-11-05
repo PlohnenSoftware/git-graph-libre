@@ -197,6 +197,36 @@ describe("dialog styles", () => {
     expect(ruleFor(css, ".dialogLockGlyph")).toContain("border-radius: 50%;");
   });
 
+  it("makes a whole checkbox row the hit area, keeping locked rows locked", () => {
+    // Issue #41: the label was inline-flex, so only the box and its text
+    // reacted. The wrapper and label now fill the row, and a click anywhere
+    // on it reaches the label (which toggles the input). The row keeps its
+    // inline-level box, so grouped and single rows keep their heights.
+    const row = ruleFor(css, '#dialog table.dialogForm td[colspan="2"] > .dialogFormCheckbox');
+    const pointer = ruleFor(
+      css,
+      '#dialog table.dialogForm td[colspan="2"] > .dialogFormCheckbox:not(.locked)'
+    );
+    const label = ruleFor(
+      css,
+      '#dialog table.dialogForm td[colspan="2"] .dialogFormCheckbox > label'
+    );
+    expect(row).toContain("display: inline-block;");
+    expect(row).toContain("width: 100%;");
+    expect(pointer).toContain("cursor: pointer;");
+    expect(label).toContain("display: inline-flex;");
+    expect(label).toContain("width: 100%;");
+    // The label must not set its own cursor: that would override the help
+    // cursor a locked row takes from its own rule.
+    expect(label).not.toContain("cursor:");
+    // A locked row takes the help cursor across the whole row, and is kept
+    // out of the pointer rule above.
+    expect(ruleFor(css, "#dialog table.dialogForm .dialogFormCheckbox.locked")).toContain(
+      "cursor: help;"
+    );
+    expect(pointer).not.toContain("help");
+  });
+
   it("keeps repository settings as a viewport popup above graph chrome", () => {
     const backing = ruleFor(css, "#settingsWidgetBacking");
     const popup = ruleFor(css, "#settingsWidget");
