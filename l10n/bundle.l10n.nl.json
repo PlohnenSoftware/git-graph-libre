@@ -692,6 +692,7 @@
   "dialog.removeWorktree.forceSubmit": "Worktree en bestanden verwijderen",
   "dialog.pruneWorktrees.message": "Deze verouderde worktrees opschonen? Hun mappen bestaan niet meer, dus alleen het gegeven van elk in Git wordt verwijderd:",
   "dialog.pruneWorktrees.submit": "Opschonen",
+  "dialog.pruneWorktrees.none": "Geen verouderde worktrees om op te ruimen.",
   "action.removeStaleWorktree": "Verouderde worktree-vermelding verwijderen",
   "action.repairWorktree": "Worktree herstellen",
   "action.pruneWorktrees": "Verouderde worktrees opschonen",

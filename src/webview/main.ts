@@ -4193,9 +4193,10 @@ class GitGraphView {
     };
   }
   /**
-   * The one place "Open Worktree…" goes through; W31 replaces its body with the
-   * real open or switch request. Until then it names the worktree and offers its
-   * path on the clipboard, so the menu never promises more than it does.
+   * The one place "Open Worktree…" goes through (W31). The branch cannot be
+   * checked out here, so the worktree that has it opens in a new window. The
+   * extension lists the worktrees again before acting, so a worktree removed
+   * since this graph loaded is refused instead of opened.
    */
   private openWorktreeAction(branchName: string) {
     const worktreePath = this.otherWorktreePath(branchName);
@@ -4207,7 +4208,13 @@ class GitGraphView {
         .replace("{1}", `<b><i>${escapeHtml(worktreePath)}</i></b>`),
       [],
       l10n.dialogOpenWorktreeSubmit,
-      () => sendMessage({ command: "copyToClipboard", type: "File Path", data: worktreePath }),
+      () =>
+        sendMessage({
+          command: "openWorktree",
+          repo: this.currentRepo,
+          path: worktreePath,
+          newWindow: true
+        }),
       null
     );
   }
@@ -4925,6 +4932,18 @@ class GitGraphView {
     return this.gitWorktrees.filter(
       (worktree) => worktree.prunable !== null && worktree.locked === null
     );
+  }
+  /**
+   * The Command Palette's Prune Stale Worktrees (W31) opens the same preview
+   * as the branch menu, but says so when there is nothing stale: the menu
+   * only offers the item when a stale entry exists, the palette cannot know.
+   */
+  public showPruneWorktrees() {
+    if (this.staleWorktrees().length === 0) {
+      showErrorDialog(l10n.dialogPruneWorktreesNone, null, null);
+      return;
+    }
+    this.showPruneWorktreesDialog();
   }
   private showPruneWorktreesDialog() {
     const stale = this.staleWorktrees();
@@ -7223,6 +7242,10 @@ const actionErrorLabels = {
   pruneWorktrees: l10n.unableToPruneWorktrees,
   removeWorktree: l10n.unableToRemoveWorktree,
   repairWorktree: l10n.unableToRepairWorktree,
+  openWorktree: l10n.unableToOpenWorktree,
+  addWorktreeToWorkspace: l10n.unableToAddWorktreeToWorkspace,
+  revealWorktree: l10n.unableToRevealWorktree,
+  switchGraphToWorktree: l10n.unableToSwitchGraphToWorktree,
   deleteRemote: l10n.unableToDeleteRemote,
   deleteRemoteBranch: l10n.unableToDeleteRemoteBranch,
   deleteTag: l10n.unableToDeleteTag,
@@ -7358,6 +7381,7 @@ const responseHandlers: ResponseHandlerMap = {
   searchCommits: (msg) =>
     gitGraph.loadSearchCommitResults(msg.requestId, msg.results, formatQueryError(msg.error)),
   startHistorySearch: () => gitGraph.startHistorySearch(),
+  showPruneWorktrees: () => gitGraph.showPruneWorktrees(),
   tagDetails: handleTagDetailsResponse,
   uncommittedDetails: handleUncommittedDetailsResponse,
   openDiffTab: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewDiff),

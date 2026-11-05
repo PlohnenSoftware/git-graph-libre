@@ -692,6 +692,7 @@
   "dialog.removeWorktree.forceSubmit": "Usuń worktree i pliki",
   "dialog.pruneWorktrees.message": "Wyczyścić te nieaktualne worktree? Ich foldery już nie istnieją, więc usuwany jest tylko zapis każdego w Git:",
   "dialog.pruneWorktrees.submit": "Wyczyść",
+  "dialog.pruneWorktrees.none": "Brak nieaktualnych worktree do wyczyszczenia.",
   "action.removeStaleWorktree": "Usuń nieaktualny wpis worktree",
   "action.repairWorktree": "Napraw worktree",
   "action.pruneWorktrees": "Wyczyść nieaktualne worktree",

@@ -692,6 +692,7 @@
   "dialog.removeWorktree.forceSubmit": "刪除工作樹及檔案",
   "dialog.pruneWorktrees.message": "要清理這些失效的工作樹嗎？它們的資料夾已不存在，因此只會移除 Git 中各自的記錄：",
   "dialog.pruneWorktrees.submit": "清理",
+  "dialog.pruneWorktrees.none": "沒有可清理的過期工作樹。",
   "action.removeStaleWorktree": "移除失效的工作樹項目",
   "action.repairWorktree": "修復工作樹",
   "action.pruneWorktrees": "清理失效的工作樹",

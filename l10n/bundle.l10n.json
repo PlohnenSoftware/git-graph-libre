@@ -692,6 +692,7 @@
   "dialog.removeWorktree.forceSubmit": "Delete Worktree and Files",
   "dialog.pruneWorktrees.message": "Prune these stale worktrees? Their folders are gone, so only Git's record of each is removed:",
   "dialog.pruneWorktrees.submit": "Prune",
+  "dialog.pruneWorktrees.none": "No stale worktrees to prune.",
   "action.removeStaleWorktree": "Remove Stale Worktree Entry",
   "action.repairWorktree": "Repair Worktree",
   "action.pruneWorktrees": "Prune Stale Worktrees",
