@@ -100,8 +100,9 @@ run one after another, as the integrator procedure says.
 | W07 | [Read a linked worktree's local config](050-release-1-10-0-the-worktrees/170-w07-read-a-linked-worktree-s-local-config.md) | Rust + TS | W01 | A | dispatched `2026-11-05` (Sonnet) |
 | W08 | [A nested worktree is not a submodule in telemetry](050-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | integrated `6b0e232` |
 | W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | dispatched `2026-11-05` (Haiku) |
-| W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | review dispatched `2026-11-05` (Sonnet) |
-| W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | needs W26 |
+| W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | integrated `a93ddc7` (merge of `a109e9a`) |
+| W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | dispatched `2026-11-05` (Sonnet) |
+| W26H | [Harden the remote tag read](050-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | needs W26F |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | dispatched `2026-11-05` (Sonnet) |
 | W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | needs W07 |
 | W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | ready; held until W07 is integrated (both bump the engine version) |
@@ -222,3 +223,16 @@ commit, the gate results with numbers, and the Sonar task id.
   standing Rules section Multi-agent releases and points 1.10.0's protocol
   and integrator procedure to it. The integrator procedure's "ask which
   agent and model" bullet now records Y16 as the answer.
+- `2026-11-05`: W26.
+  - The PR #47 review (Sonnet, read-only) says merge as is, then follow
+    up, with no blocker. The PR's claimed baseline failures do not
+    reproduce on Linux.
+  - PR #47 was merged at `a93ddc7`, a plain merge commit (Y24) with
+    `a109e9a` unchanged. The `CHANGELOG.md` and index conflicts are
+    resolved, and the record moved to prefix `180`.
+  - On the merged tree, `package` passes, `test` passes (backend 1241 of
+    1241, webview 804 of 804), and `l10n:check` and `kb:check` pass.
+  - Follow-ups: W26F (Y23's setting plus the webview findings F4, F5 and
+    F10), dispatched to Sonnet; W26H (the process findings), which needs
+    W26F.
+  - W04F (the Sonar fixes) was dispatched to Haiku.

@@ -12,7 +12,7 @@ summary: >-
 
 # W26 — Tags show the remotes that hold them (PR #47)
 
-Status: ready (review, then the integrator merges per Y24)
+Status: integrated `a93ddc7` (`2026-11-05`), the merge of `a109e9a`
 Needs: —
 Decisions: Y23 answered (b): a setting, on by default, built as W26F;
 Y24 answered: a plain merge commit into the integration branch
@@ -165,4 +165,80 @@ and the Integration log.
 
 ## Report
 
-Not started.
+- **Agent / date:** review by Claude Sonnet 5.5, `2026-11-05`, read-only in
+  a worktree detached at `a109e9a`. Merge by the integrator, Claude Opus
+  5.5. The full review text was kept at `/tmp/claude-1000/w26-review.md`
+  (scratch).
+- **Verdict:** merge as is, then fix in follow-ups. No blocker. The feature
+  works and follows the webview conventions: it reuses
+  `gitRefGroup`/`gitRefAlias`, escapes every name, and tag actions work on
+  the aliases. The tests use real bare repositories in temporary
+  directories.
+- **Gate at `a109e9a`** (Linux x64):
+  - strict Biome is clean on the 7 touched TypeScript files;
+  - `package` passes;
+  - `test`: backend 1151 passed and 60 skipped of 1211; webview 793 of
+    793;
+  - `l10n:check` is at 100%, and `kb:check` passes.
+- **The PR's five "baseline" failures do not reproduce on Linux.** At
+  `c47207e`, `repositoryProbe.test.ts` passes 23 of 23 and
+  `commandManager.test.ts` 43 of 43. They pass at the PR head too, so the
+  failures are probably specific to macOS (the PR's platform). Ask the
+  contributor for the names and messages.
+- **Merge** (`a93ddc7`, a plain merge commit per Y24, `a109e9a` unchanged):
+  - `CHANGELOG.md` conflicted: the PR's `### Added` now sits above the
+    branch's `### Fixed`.
+  - The generated index conflicted and was regenerated.
+  - The PR's record moved to History prefix `180`.
+  - On the merged tree, `package` passes, `test` passes (backend 1241 of
+    1241, webview 804 of 804), and `l10n:check` and `kb:check` pass.
+- **Findings, all should-fix or nit:**
+  - **F1** (W26F): no off switch for the network reads. Gate them on the
+    extension side too.
+  - **F2** (W26H): SSH is not reliably non-interactive.
+    - An empty `SSH_ASKPASS` lets OpenSSH fall back to its compiled-in
+      askpass.
+    - Without `BatchMode`, host-key and passphrase prompts read `/dev/tty`.
+    - A hardware-key touch just burns the timeout.
+    - Use `SSH_ASKPASS_REQUIRE=never` and close stdin. Don't override the
+      user's `core.sshCommand` or `GIT_SSH`.
+  - **F3** (W26H): the child process.
+    - The timeout kills only `git`. On Windows the ssh or remote-helper
+      child survives.
+    - Remotes are queried all at once; cap at about 4.
+    - Add `windowsHide`.
+    - Make the read abortable when the panel closes or the repository
+      switches.
+  - **F4** (W26F): the snapshot survives soft refreshes. A tag created or
+    moved in a terminal then shows "unavailable". Re-request when a visible
+    tag is missing from the snapshot or its hash differs.
+  - **F5** (W26F): two webview problems.
+    - Hard refreshes forget the snapshot, so the aliases blink. Keep the
+      old snapshot while revalidating.
+    - The reply re-renders the whole table and graph. Patch the tag cells
+      only, as `loadCommitSignatures` does.
+  - **F6** (W26H): the `.then` on `bridge.post()` has no `.catch`, and the
+    request trace logs about 0 ms.
+  - **F7** (W26H, nit): explain in a file comment why the read bypasses
+    `runGitRaw`, and list `remoteTags` beside `runGitWithInput` in the
+    architecture note.
+  - **F8** (W26H, nit):
+    - check that the extension is disabled in untrusted workspaces
+      (`package.json` `untrustedWorkspaces`), or return an empty result
+      when `!vscode.workspace.isTrusted`;
+    - document the 16 MB `maxBuffer` limit.
+  - **F9** (W26H, nit): set `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_NOSYSTEM`
+    in the remote-tags tests, and cover the timeout and CRLF.
+  - **F10** (W26F, nit): `l10n.tagOnRemotes.replace("{0}", …)` interprets
+    `$&` in a remote's name. Use a replacer function. The "not found on any
+    remote" text shows even with no remotes at all.
+- **Draft review comment for the maintainer to post on PR #47:** thanks.
+  The gate is green on Linux, including the two files listed as failing,
+  which pass on `main` and on the branch, so the failures are probably
+  macOS-specific: could you share the names and messages? The commit is
+  merged unchanged with a merge commit, so the authorship and the
+  `Closes #46` line are kept. Bookkeeping is on our side: the History
+  number, and the changelog in the release notes with credit. The
+  follow-ups are ours too: a setting to switch the checks off (on by
+  default), non-interactive SSH, the timeout cleanup on Windows, and no
+  blinking while a refresh re-checks.

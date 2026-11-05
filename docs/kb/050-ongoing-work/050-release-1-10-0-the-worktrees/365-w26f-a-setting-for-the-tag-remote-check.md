@@ -1,19 +1,20 @@
 ---
 summary: >-
-  W26F · wave A · needs W26 · TypeScript + webview + manifest + l10n · ~100
-  lines: decision Y23 (b). Add `git-graph-libre.repository.showTagRemotes`,
-  a boolean on by default. When it is off, the webview never asks for
-  `remoteTags`, the extension contacts no remote, and tag badges look as
-  they did before PR #47. Wired at both ends, since settings reach the
-  webview twice.
+  W26F · wave A · ready · TypeScript + webview + manifest + l10n · ~200
+  lines: decision Y23 (b), plus the review's webview findings. Add
+  `git-graph-libre.repository.showTagRemotes`, a boolean on by default. When
+  it is off, nothing asks for or reads remote tags, and badges look as before
+  PR #47. Also: re-request when a visible tag is missing from the snapshot or
+  has moved (F4); keep old aliases while revalidating, and patch only the tag
+  cells (F5); a replacer function for remote names (F10).
 ---
 
 # W26F — A setting for the tag remote check
 
-Status: ready once W26 is integrated
-Needs: W26 (PR #47 merged into the integration branch)
+Status: ready
+Needs: W26 (integrated `a93ddc7`: PR #47 merged)
 Decisions: Y23, answered (b) on `2026-11-05`: a setting, on by default
-Kind: TypeScript, webview, manifest and l10n · Size budget: ~100 changed
+Kind: TypeScript, webview, manifest and l10n · Size budget: ~200 changed
 lines outside tests
 Source: decision Y23; W26 — Tags show the remotes that hold them (PR #47);
 Settings reach the webview twice, and the second time is raw (Reference)
@@ -65,7 +66,22 @@ is on by default, so the feature shows out of the box.
    - webview: off means no request and plain badges; switching it on live
      sends the request;
    - extension: off means the handler spawns nothing.
-6. README: add a configuration table row, and mention the setting in the
+6. The review's webview findings (W26's report, F4, F5 and F10):
+   - **F4.** A tag created or moved outside the extension (a soft refresh)
+     must not read as "unavailable". When a visible tag is missing from the
+     snapshot, or its hash differs, re-request, and show no remote status
+     for that tag until the reply arrives.
+   - **F5.** A hard refresh or an action keeps the previous snapshot shown
+     while the new request runs: stale-while-revalidate, still dropping
+     stale replies. A reply updates only the tag cells it changes, as
+     `loadCommitSignatures` does, rather than re-rendering the whole table
+     and graph.
+   - **F10.** Use a replacer function when putting remote names into
+     `l10n.tagOnRemotes`, so `$&` in a name is literal. With no remotes at
+     all, show no remote status rather than "not found on any remote".
+
+   Each gets a test.
+7. README: add a configuration table row, and mention the setting in the
    tag feature line that PR #47 added. `CHANGELOG.md` `[Unreleased]`: one
    line, beside PR #47's entry.
 
@@ -86,6 +102,7 @@ needs adding there), tests, `README.md`, `CHANGELOG.md`
 - With it on, the default: PR #47's behavior is unchanged.
 - Toggling it in the Settings popup takes effect without a reload.
 - `l10n:check` passes at 100%.
+- F4, F5 and F10 each have a passing test.
 
 ## Report
 
