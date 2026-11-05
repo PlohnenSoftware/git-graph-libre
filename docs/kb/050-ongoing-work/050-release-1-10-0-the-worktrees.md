@@ -114,7 +114,8 @@ run one after another, as the integrator procedure says.
 | W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | integrated `fbc0c22` |
 | W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | integrated `83f5821` |
 | W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | integrated `88ed629` |
-| W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | ready (queued: one manifest or l10n slice at a time) |
+| W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | integrated `63cdd97` |
+| W22F | [Worktree path setting, browse, and persisted finish choice](050-release-1-10-0-the-worktrees/325-w22f-worktree-path-setting-browse-and-persisted-finish.md) | TS + webview + manifest | W22, Y7, Y8 | D | ready |
 | W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | ready (queued: one manifest or l10n slice at a time) |
 | W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | integrated `fcc76c4` |
 | W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | ready |
@@ -524,6 +525,24 @@ commit, the gate results with numbers, and the Sonar task id.
   - Fresh `test:coverage`: 170 files, 2,203 of 2,203 tests passed.
   - Sonar task `b4019517-4a1c-44a6-a2df-9a0ae47d4265`: quality gate
     **`OK`**. New coverage is 94.3%, with 0 new violations.
+- `2026-11-05`: W22 integrated at `63cdd97`. Create Worktree… from a
+  branch, a remote branch, a commit or a tag, with the Y7 (a) default
+  folder, refusals decided from the worktree list before Git runs, and
+  the Y8 finish over W31's messages. Accepted outside the Touch list,
+  in its own flagged commit: the context-menu visibility registration
+  (`src/types.ts`, `src/contextMenuVisibility.ts`), without which the
+  new menu item could never be hidden and five existing tests fail.
+  The Y7 (d) template setting, the browse button and a persisted Y8
+  memory needed files this slice did not have; they are W22F, ready.
+- `2026-11-05`, gate on `63cdd97`: W22 since `54065b5`.
+  - Strict Biome is clean; `package`, `typecheck`, `l10n:check`
+    (complete) and `kb:check` pass. Tests: backend 1,337, webview 882,
+    all passing. The agent's headless renders (both themes, create and
+    finish dialogs) are in `/tmp/w22-render/`.
+  - Fresh `test:coverage`: 170 files, 2,219 of 2,219 tests passed.
+  - Sonar task `0e516fc0-8d11-40ed-ad5f-598f07170c2f`: quality gate
+    **`OK`**. New coverage is 94.1%, with 0 new violations; the one
+    finding the first scan raised (S9382) is cleared at `4aa010e`.
 - `2026-11-05`: trusted publishing integrated at `f9aad9c` (not a
   release slice; maintainer instruction of the same day). `publish.yml`
   now publishes to both registries by OIDC (`vsce publish --oidc`,

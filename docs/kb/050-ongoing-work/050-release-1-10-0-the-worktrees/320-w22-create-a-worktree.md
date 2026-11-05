@@ -11,7 +11,7 @@ summary: >-
 
 # W22 — Create a worktree
 
-Status: done — awaiting integration
+Status: integrated `63cdd97` (`2026-11-05`)
 Needs: W10
 Decisions: Y7 (default location), Y8 (what happens after)
 Kind: TypeScript and webview, l10n · Size budget: ~250 changed lines outside
