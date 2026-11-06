@@ -11,6 +11,8 @@
 //!    `refs/remotes/<remote>/tags/*` created by an explicit fetch refspec — are peeled, because
 //!    only tags can point at something other than a commit.
 
+use std::collections::HashMap;
+
 use crate::error::{Result, ResultExt};
 use crate::repository::Repo;
 use crate::types::{GitRef, GitRefData, GitTagRef, RefReadOptions, RefSnapshot};
@@ -25,6 +27,9 @@ pub fn read_refs(repo: &Repo, options: &RefReadOptions) -> Result<RefSnapshot> {
     let mut ref_data = GitRefData::default();
     let mut branches: Vec<String> = Vec::new();
     let mut tag_names: Vec<String> = Vec::new();
+    // Each local tag's own (unpeeled) object id, so a remote-tracking tag ref that merely mirrors
+    // one can be told apart from one that differs.
+    let mut local_tag_ids: HashMap<String, String> = HashMap::new();
 
     /* HEAD */
     // A detached HEAD still resolves to a commit; an unborn branch (a fresh repository with no
@@ -93,6 +98,7 @@ pub fn read_refs(repo: &Repo, options: &RefReadOptions) -> Result<RefSnapshot> {
             signed,
         });
         tag_names.push(name.clone());
+        local_tag_ids.insert(name.clone(), hash.clone());
 
         if let Ok(peeled) = reference.peel_to_id() {
             let peeled = peeled.detach().to_string();
@@ -109,7 +115,7 @@ pub fn read_refs(repo: &Repo, options: &RefReadOptions) -> Result<RefSnapshot> {
 
     /* Remote-tracking refs */
     if options.show_remote_branches {
-        read_remote_refs(&git, options, &mut ref_data, &mut branches)?;
+        read_remote_refs(&git, options, &local_tag_ids, &mut ref_data, &mut branches)?;
     }
 
     /* The checked-out branch is listed first, as `git branch` lists it */
@@ -140,6 +146,7 @@ pub fn read_refs(repo: &Repo, options: &RefReadOptions) -> Result<RefSnapshot> {
 fn read_remote_refs(
     git: &gix::Repository,
     options: &RefReadOptions,
+    local_tag_ids: &HashMap<String, String>,
     ref_data: &mut GitRefData,
     branches: &mut Vec<String>,
 ) -> Result<()> {
@@ -186,13 +193,13 @@ fn read_remote_refs(
             },
         };
 
-        if let Some(tags_index) = remote_ref.find("/tags/") {
-            // `refs/remotes/<remote>/tags/<tag>` is displayed as the tag `<remote>/<tag>`.
-            let name = format!(
-                "{}/{}",
-                &remote_ref[..tags_index],
-                &remote_ref[tags_index + 6..]
-            );
+        if let Some((name, tag)) = remote_tag_name(remote_ref) {
+            // A refspec such as `+refs/tags/*:refs/remotes/<remote>/tags/*` mirrors every tag. The
+            // mirror of a local tag that is the very same object adds nothing but a second badge
+            // on the same commit, so it is dropped; one that differs, or has no local tag, stays.
+            if local_tag_ids.get(tag) == Some(&hash) {
+                continue;
+            }
             remote_tags_to_peel.push((ref_data.tags.len(), full_name.clone()));
             ref_data.tags.push(GitTagRef {
                 hash,
@@ -236,6 +243,13 @@ fn read_remote_refs(
     }
 
     Ok(())
+}
+
+/// For `<remote>/tags/<tag>`, the displayed tag name `<remote>/<tag>` and the bare `<tag>`.
+fn remote_tag_name(remote_ref: &str) -> Option<(String, &str)> {
+    let tags_index = remote_ref.find("/tags/")?;
+    let tag = &remote_ref[tags_index + 6..];
+    Some((format!("{}/{}", &remote_ref[..tags_index], tag), tag))
 }
 
 /// The object a ref points at, without following symbolic refs or reading any object.

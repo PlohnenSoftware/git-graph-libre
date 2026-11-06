@@ -633,3 +633,88 @@ fn resolves_a_symbolic_remote_head_rather_than_dropping_it() {
         .expect("the symbolic remote HEAD was dropped");
     assert_eq!(entry.hash, head, "the symref resolved to the wrong object");
 }
+
+fn tag_hashes(snapshot: &git_graph_core::types::RefSnapshot, name: &str) -> Vec<String> {
+    snapshot
+        .ref_data
+        .tags
+        .iter()
+        .filter(|tag| tag.name == name)
+        .map(|tag| tag.hash.clone())
+        .collect()
+}
+
+#[test]
+fn hides_a_remote_tracking_tag_that_mirrors_the_same_local_tag() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    let first = repo.commit_file("a.txt", "1", "first");
+    let second = repo.commit_file("b.txt", "2", "second");
+    repo.git(&["tag", "-a", "annotated", "-m", "annotated", &first]);
+    repo.git(&["tag", "light", &second]);
+    let annotated = repo.rev_parse("refs/tags/annotated");
+    for remote in ["origin", "dev"] {
+        repo.update_ref(&format!("refs/remotes/{remote}/tags/annotated"), &annotated);
+        repo.update_ref(&format!("refs/remotes/{remote}/tags/light"), &second);
+    }
+
+    let engine = open(&repo);
+    let options = RefReadOptions {
+        show_remote_branches: true,
+        ..Default::default()
+    };
+    let snapshot = read_refs(&engine, &options).unwrap();
+
+    for remote in ["origin", "dev"] {
+        assert!(tag_hashes(&snapshot, &format!("{remote}/annotated")).is_empty());
+        assert!(tag_hashes(&snapshot, &format!("{remote}/light")).is_empty());
+    }
+    // The local tags are untouched.
+    assert_eq!(tag_hashes(&snapshot, "annotated").len(), 2);
+    assert_eq!(tag_hashes(&snapshot, "light"), vec![second]);
+}
+
+#[test]
+fn keeps_a_remote_tracking_tag_that_differs_or_has_no_local_tag() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    let first = repo.commit_file("a.txt", "1", "first");
+    let second = repo.commit_file("b.txt", "2", "second");
+    repo.git(&["tag", "moved", &first]);
+    repo.git(&["tag", "-a", "note", "-m", "one", &first]);
+    // Same commit, but a different tag object: not the same tag.
+    repo.git(&["tag", "-a", "other", "-m", "two", &first]);
+    let other = repo.rev_parse("refs/tags/other");
+    repo.update_ref("refs/remotes/origin/tags/moved", &second);
+    repo.update_ref("refs/remotes/origin/tags/note", &other);
+    repo.update_ref("refs/remotes/origin/tags/remote-only", &second);
+
+    let engine = open(&repo);
+    let options = RefReadOptions {
+        show_remote_branches: true,
+        ..Default::default()
+    };
+    let snapshot = read_refs(&engine, &options).unwrap();
+
+    assert_eq!(tag_hashes(&snapshot, "origin/moved"), vec![second.clone()]);
+    assert_eq!(tag_hashes(&snapshot, "origin/remote-only"), vec![second]);
+    // The annotated mirror keeps both records: the tag object and the peeled commit.
+    assert_eq!(tag_hashes(&snapshot, "origin/note").len(), 2);
+}
+
+#[test]
+fn a_hidden_remote_shows_no_tracking_tag_at_all() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    let first = repo.commit_file("a.txt", "1", "first");
+    repo.update_ref("refs/remotes/dev/tags/only", &first);
+
+    let engine = open(&repo);
+    let options = RefReadOptions {
+        show_remote_branches: true,
+        hide_remotes: vec!["dev".to_string()],
+        ..Default::default()
+    };
+    let snapshot = read_refs(&engine, &options).unwrap();
+    assert!(tag_hashes(&snapshot, "dev/only").is_empty());
+}
