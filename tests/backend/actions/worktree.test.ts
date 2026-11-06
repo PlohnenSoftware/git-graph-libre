@@ -8,14 +8,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   addWorktree,
+  lockWorktree,
   MAX_WORKTREE_CHANGES,
+  moveWorktree,
   prunableWorktrees,
   pruneWorktrees,
   removeWorktree,
   repairWorktree,
+  unlockWorktree,
   worktreeChanges
 } from "@/backend/actions/worktree";
 import { loadWorktrees } from "@/backend/queries/worktrees";
+import { canonicalizePath } from "@/backend/utils/git";
 import type { GitCommandRecord } from "@/backend/utils/gitRunner";
 
 import { git, makeRepo } from "../helpers";
@@ -196,6 +200,183 @@ describe("removeWorktree", () => {
       removeWorktree(client, { repo, path: path.join(repo, "nope"), force: false, unlock: false })
     ).rejects.toThrow("not a worktree");
     expect(fs.existsSync(featPath)).toBe(true);
+  });
+});
+
+describe("lockWorktree and unlockWorktree", () => {
+  it("locks with a reason, which the list shows, and passes it as one --reason argument", async () => {
+    const { repo, featPath, client } = makeFixture();
+    const records: GitCommandRecord[] = [];
+
+    await lockWorktree(client, { repo, path: featPath, reason: "on a usb stick" }, (record) =>
+      records.push(record)
+    );
+
+    const feat = (await list(client, repo)).find((worktree) => worktree.branch === "feat");
+    expect(feat?.locked).toEqual({ reason: "on a usb stick" });
+    const args = records.find((record) => record.label === "worktree.lock")?.args ?? [];
+    expect(args.slice(0, 4)).toEqual(["worktree", "lock", "--reason=on a usb stick", "--"]);
+  });
+
+  it("locks without a reason, whether the reason is null or empty", async () => {
+    const { repo, featPath, otherPath, client } = makeFixture();
+    const records: GitCommandRecord[] = [];
+
+    await lockWorktree(client, { repo, path: otherPath, reason: null }, (record) =>
+      records.push(record)
+    );
+    await lockWorktree(client, { repo, path: featPath, reason: "" }, (record) =>
+      records.push(record)
+    );
+
+    const worktrees = await list(client, repo);
+    expect(worktrees.find((worktree) => worktree.branch === "other")?.locked).toEqual({
+      reason: ""
+    });
+    expect(worktrees.find((worktree) => worktree.branch === "feat")?.locked).toEqual({
+      reason: ""
+    });
+    for (const record of records.filter((r) => r.label === "worktree.lock")) {
+      expect(record.args.some((arg) => arg.startsWith("--reason"))).toBe(false);
+    }
+  });
+
+  it("keeps a reason that begins with a dash as the reason", async () => {
+    const { repo, featPath, client } = makeFixture();
+
+    await lockWorktree(client, { repo, path: featPath, reason: "-n keep" });
+
+    const feat = (await list(client, repo)).find((worktree) => worktree.branch === "feat");
+    expect(feat?.locked).toEqual({ reason: "-n keep" });
+  });
+
+  it("refuses the main worktree and a worktree already locked, before Git runs", async () => {
+    const { repo, featPath, client } = makeFixture();
+    const records: GitCommandRecord[] = [];
+
+    await expect(lockWorktree(client, { repo, path: repo, reason: null })).rejects.toThrow(
+      "main worktree"
+    );
+    await lockWorktree(client, { repo, path: featPath, reason: "first" });
+    await expect(
+      lockWorktree(client, { repo, path: featPath, reason: "second" }, (record) =>
+        records.push(record)
+      )
+    ).rejects.toThrow("already locked");
+    expect(records.some((record) => record.label === "worktree.lock")).toBe(false);
+    expect((await list(client, repo)).find((w) => w.branch === "feat")?.locked).toEqual({
+      reason: "first"
+    });
+  });
+
+  it("locks the worktree the graph shows, as Git allows", async () => {
+    const { repo, featPath } = makeFixture();
+
+    await lockWorktree(simpleGit(featPath), { repo: featPath, path: featPath, reason: null });
+
+    expect((await list(simpleGit(featPath), featPath)).find((w) => w.isCurrent)?.locked).toEqual({
+      reason: ""
+    });
+  });
+
+  it("unlocks a locked worktree, and refuses one that is not locked", async () => {
+    const { repo, featPath, client } = makeFixture();
+    await lockWorktree(client, { repo, path: featPath, reason: "usb" });
+
+    await unlockWorktree(client, { repo, path: featPath });
+
+    expect((await list(client, repo)).find((w) => w.branch === "feat")?.locked).toBeNull();
+    await expect(unlockWorktree(client, { repo, path: featPath })).rejects.toThrow(
+      "nothing to unlock"
+    );
+  });
+});
+
+describe("moveWorktree", () => {
+  it("moves a clean worktree to a path with a space and a non-ASCII letter", async () => {
+    const { repo, parent, featPath, client } = makeFixture();
+    const target = path.join(parent, "moved dir é");
+
+    const moved = await moveWorktree(client, { repo, path: featPath, newPath: target });
+
+    expect(fs.existsSync(featPath)).toBe(false);
+    expect(fs.existsSync(target)).toBe(true);
+    expect(await canonicalizePath(moved.from)).toBe(await canonicalizePath(featPath));
+    expect(await canonicalizePath(moved.to)).toBe(await canonicalizePath(target));
+    const feat = (await list(client, repo)).find((worktree) => worktree.branch === "feat");
+    expect(await canonicalizePath(feat?.path ?? "")).toBe(await canonicalizePath(target));
+    expect(feat?.prunable).toBeNull();
+  });
+
+  it("refuses a locked worktree before Git runs, and moves it once it is unlocked", async () => {
+    const { repo, parent, featPath, client } = makeFixture();
+    const target = path.join(parent, "moved locked");
+    const records: GitCommandRecord[] = [];
+    await lockWorktree(client, { repo, path: featPath, reason: "on a usb stick" });
+
+    await expect(
+      moveWorktree(client, { repo, path: featPath, newPath: target }, (record) =>
+        records.push(record)
+      )
+    ).rejects.toThrow("Unlock it before moving it");
+    expect(fs.existsSync(featPath)).toBe(true);
+    expect(records.some((record) => record.label === "worktree.move")).toBe(false);
+
+    await unlockWorktree(client, { repo, path: featPath });
+    await moveWorktree(client, { repo, path: featPath, newPath: target });
+    expect(fs.existsSync(target)).toBe(true);
+  });
+
+  it("refuses a locked worktree with no reason, naming the unlock step too", async () => {
+    const { repo, parent, otherPath, client } = makeFixture();
+    await lockWorktree(client, { repo, path: otherPath, reason: null });
+
+    await expect(
+      moveWorktree(client, { repo, path: otherPath, newPath: path.join(parent, "x") })
+    ).rejects.toThrow(/is locked\. Unlock it before moving it/);
+  });
+
+  it("refuses an existing target, empty or not, and a path already listed, before Git runs", async () => {
+    const { repo, parent, featPath, otherPath, client } = makeFixture();
+    const empty = path.join(parent, "empty dir");
+    const full = path.join(parent, "full dir");
+    fs.mkdirSync(empty);
+    fs.mkdirSync(full);
+    fs.writeFileSync(path.join(full, "f"), "x");
+    const records: GitCommandRecord[] = [];
+    const move = (newPath: string) =>
+      moveWorktree(client, { repo, path: featPath, newPath }, (record) => records.push(record));
+
+    await expect(move(empty)).rejects.toThrow("already exists");
+    await expect(move(full)).rejects.toThrow("already exists");
+    await expect(move(otherPath)).rejects.toThrow("already a worktree");
+    expect(records.some((record) => record.label === "worktree.move")).toBe(false);
+    expect(fs.existsSync(featPath)).toBe(true);
+  });
+
+  it("refuses the main worktree, the worktree the graph shows, and a stale entry", async () => {
+    const { repo, parent, featPath, client } = makeFixture();
+    const target = path.join(parent, "elsewhere");
+
+    await expect(moveWorktree(client, { repo, path: repo, newPath: target })).rejects.toThrow(
+      "main worktree"
+    );
+    await expect(
+      moveWorktree(simpleGit(featPath), { repo: featPath, path: featPath, newPath: target })
+    ).rejects.toThrow("this graph shows");
+    fs.rmSync(featPath, { recursive: true });
+    await expect(moveWorktree(client, { repo, path: featPath, newPath: target })).rejects.toThrow(
+      "stale worktree entry"
+    );
+    expect(fs.existsSync(target)).toBe(false);
+  });
+
+  it("refuses an empty new folder", async () => {
+    const { repo, featPath, client } = makeFixture();
+
+    await expect(moveWorktree(client, { repo, path: featPath, newPath: "  " })).rejects.toThrow(
+      "Choose a new folder"
+    );
   });
 });
 
