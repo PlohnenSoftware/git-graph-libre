@@ -2,7 +2,6 @@ import type { GitWorktree } from "@/backend/types";
 import type { LocalizedStrings } from "@/extension/webviewL10n";
 import { octicon } from "@/octicons";
 
-import { ELLIPSIS } from "./utils/git";
 import { escapeHtml } from "./utils/html";
 
 /**
@@ -49,6 +48,9 @@ export type WorktreeListHandlers = {
   onRowAction: (action: WorktreeRowAction, worktree: GitWorktree) => void;
   onFooterAction: (action: WorktreeFooterAction) => void;
 };
+
+/** A real ellipsis: these labels are escaped as text, so the HTML entity would show as typed. */
+const ELLIPSIS = "\u2026";
 
 /** The popup's labels from the localized strings the extension passes to the webview. */
 export function buildWorktreeListLabels(strings: LocalizedStrings): WorktreeListLabels {
