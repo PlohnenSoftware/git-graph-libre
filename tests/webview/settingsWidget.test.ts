@@ -31,6 +31,7 @@ const labels: SettingsWidgetModel["labels"] = {
   contributorsAgentsNote: "Agents co-authored commits.",
   general: "General",
   repositoryName: "Repository name",
+  repositoryWorktreesNote: "Git settings on this tab apply to every worktree of this repository.",
   edit: "Edit",
   clear: "Clear",
   showRemoteBranches: "Show remote branches",
@@ -109,12 +110,13 @@ function setting(partial: Partial<ExtensionSetting> & Pick<ExtensionSetting, "ke
   };
 }
 
-function render(extensionSettings: ExtensionSetting[] | null) {
+function render(extensionSettings: ExtensionSetting[] | null, hasLinkedWorktrees = false) {
   return renderSettingsWidget({
     repo: "/workspace/project",
     repoState,
     config,
     remotes: [],
+    hasLinkedWorktrees,
     defaults: {
       includeReflog: false,
       includeUnreachableCommits: false,
@@ -130,6 +132,21 @@ function render(extensionSettings: ExtensionSetting[] | null) {
 }
 
 describe("settings widget rendering", () => {
+  it("shows the worktree note on the Repository tab when worktrees are linked", () => {
+    const html = render(null, true);
+
+    expect(html).toMatch(
+      /id="settingsRepositoryPanel"[\s\S]*<p class="settingsRepoNote">Git settings on this tab apply to every worktree of this repository\.<\/p>/
+    );
+  });
+
+  it("hides the worktree note when the repository has no linked worktrees", () => {
+    const html = render(null, false);
+
+    expect(html).not.toContain("settingsRepoNote");
+    expect(html).not.toContain(labels.repositoryWorktreesNote);
+  });
+
   it("renders the contributors tab with its role, aria wiring and panel", () => {
     const html = render(null);
 

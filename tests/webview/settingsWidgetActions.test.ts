@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { GitCommitNode, GitRepoInfo } from "@/backend/types";
+import type { GitCommitNode, GitRepoInfo, GitWorktree } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import type * as GGL from "@/types";
 
@@ -108,7 +108,7 @@ function latest<T extends GGL.RequestMessage["command"]>(command: T) {
   throw new Error(`Missing ${command} request`);
 }
 
-async function bootWithSettingsOpen() {
+async function bootWithSettingsOpen(worktrees: GitWorktree[] = []) {
   vi.resetModules();
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   vscodeMock = createVscodeMock();
@@ -128,7 +128,7 @@ async function bootWithSettingsOpen() {
     hard: true,
     isRepo: true,
     error: null,
-    worktrees: [],
+    worktrees,
     upstreams: {}
   });
   receive({
@@ -199,7 +199,39 @@ const messageActions = [
 // These two live on the extension tab, so they only exist once it is selected.
 const extensionTabActions = ["settingsExportExtensionSettings", "settingsImportExtensionSettings"];
 
+const mainWorktree: GitWorktree = {
+  path: REPO,
+  head: "abc123",
+  branch: "main",
+  detached: false,
+  bare: false,
+  isMain: true,
+  isCurrent: true,
+  locked: null,
+  prunable: null
+};
+
 describe("repository settings widget actions", () => {
+  it.each([
+    {
+      name: "with a linked worktree",
+      worktrees: [
+        mainWorktree,
+        { ...mainWorktree, path: `${REPO}-feat`, branch: "feat", isMain: false, isCurrent: false }
+      ],
+      shown: true
+    },
+    { name: "with only the main worktree", worktrees: [mainWorktree], shown: false }
+  ])(
+    "shows the worktree note on the Repository tab $name: $shown",
+    async ({ worktrees, shown }) => {
+      await bootWithSettingsOpen(worktrees);
+
+      const note = document.querySelector("#settingsRepositoryPanel .settingsRepoNote");
+      expect(note !== null).toBe(shown);
+    }
+  );
+
   it("opens the widget from the toolbar", async () => {
     await bootWithSettingsOpen();
 
