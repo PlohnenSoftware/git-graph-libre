@@ -9,7 +9,7 @@ summary: >-
 
 # W26J — No duplicate remote-tracking tag badges
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 on 2026-11-06 12:00
 Needs: —
 Decisions: the maintainer, `2026-11-06`: "Hide duplicates only". Drop the
 `<remote>/<tag>` badge when the local tag `<tag>` is the same object. Keep
