@@ -161,6 +161,8 @@ declare global {
    */
   interface DialogChoice {
     label: string;
+    description: string;
+    icon: import("@/octicons").OcticonName;
     /** The default choice, drawn as the dialog's primary button. */
     primary?: boolean;
     onClick: () => void;

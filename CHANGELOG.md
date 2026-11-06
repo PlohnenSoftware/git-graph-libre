@@ -128,6 +128,11 @@ checkout defaults that follow Git.
 
 ### Fixed
 
+- **The existing-branch checkout dialog is easier to scan.** Switch,
+  fast-forward and create-another-branch actions have aligned rows with
+  short labels and explanations. Long branch names wrap within the popup,
+  and its title and Cancel button stay visible while the choices scroll.
+
 - **Checking out a remote branch suggests its full name.** The name in the
   prompt was the last path segment, so `origin/feat/admin-gui` suggested
   `admin-gui`, and the next checkout of that branch failed because a branch

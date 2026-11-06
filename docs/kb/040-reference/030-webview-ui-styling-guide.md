@@ -111,19 +111,24 @@ may not define the token):
   `dialogBtnPrimary`, and a dismiss-only dialog promotes dismiss to primary.
   Keep ids `dialogAction`/`dialogDismiss` stable; tests and disabled-state CSS
   key off them.
-- **A short list of mutually exclusive actions is a row of buttons, never a
+- **A short list of mutually exclusive actions uses one-click buttons, never a
   `<select>` plus a generic submit** (`2026-11-06`, replacing W24's first
-  form). `showChoiceDialog()` renders one `.dialogBtn.dialogChoice` per
-  action in a `.dialogChoices` flex row that wraps when a label (which can
-  carry two branch names) cannot share the row, on a panel widened by
-  `#dialog.choiceDialog`; each button acts in one click, the default choice
-  is primary, and Cancel is demoted back to secondary because the choices
-  are the actions. A native select of full-sentence options opened an OS
+  form). After the maintainer's visual review on the same date,
+  `showChoiceDialog()` renders one full-width `.dialogBtn.dialogChoice` per
+  action in a vertical `.dialogChoices` list. Each row has an octicon, a
+  short label and a separate description; long branch names appear in the
+  introductory context or description, with `overflow-wrap: anywhere` and
+  `min-width: 0` on the text column. The panel has a short title and a
+  separate Cancel footer; both stay visible while `.dialogChoiceBody`
+  scrolls. Each button acts in one click, the default choice is primary,
+  and Cancel is secondary and keyboard-focusable. A native select of
+  full-sentence options opened an OS
   dropdown wider than the dialog, repeated the selected value above itself,
   and made every choice two clicks. A choice that needs further input
   ("another name") opens its own dialog from its button — its `Enter`
   keydown must `stopPropagation()`, or the document-level Enter handler
-  confirms the dialog it just opened.
+  confirms the dialog it just opened. The rows expose their short label
+  through `aria-labelledby` and their explanation through `aria-describedby`.
 - Text fields and selects: `--vscode-input-*` (`-background`, `-foreground`,
   `-border`, `-placeholderForeground`), focus ring `--vscode-focusBorder`,
   invalid state `--vscode-inputValidation-errorBackground/-errorBorder`;

@@ -144,3 +144,45 @@ are removed from all five bundles. Verified by the rewritten
 `checkoutRemoteExistingBranch.test.ts` (buttons, keyboard, both name-prompt
 defaults), a CSS regression test, and headless QtWebEngine renders in dark
 and light tokens with short and long branch names.
+
+## Follow-up — aligned action rows (`2026-11-06`)
+
+The maintainer's screenshot of `development_Q2_2026` showed that the
+wrapping button row produced three unrelated widths and a two-line,
+centered fast-forward label. The new choice dialog has a short title,
+branch context in monospace, and one full-width row for each action. Each
+row has an existing octicon, a short label and a separate explanation. The
+fast-forward explanation names the clicked remote ref and says that the
+update is fast-forward only. Cancel has a separate footer and now accepts
+Enter and Space as well as a click. All five language bundles use this
+structure. Git actions and the worktree alternative keep the same payloads.
+
+Verification completed `2026-11-07`:
+
+- Strict Biome on the touched files, `pnpm run package` (typecheck and full
+  lint included), `pnpm run test` (1,426 backend and 986 webview tests),
+  and `pnpm run l10n:check` (100% in all four translated locales) pass.
+- Fresh `pnpm run test:coverage`: 2,412/2,412 tests, 92.33% line coverage
+  (10,372/11,234). The checkout cases include Enter/Space on the name prompt
+  and Cancel, literal refs containing markup characters, tracking under
+  another name and worktree routing.
+- The actual dialog markup and repository CSS were rendered with
+  QtWebEngine/Xvfb in 13 cases: dark/light, short/long refs, the worktree
+  alternative, Polish/Dutch and 360px-wide views. All action rows stay
+  within the panel. For very long refs only `.dialogChoiceBody` scrolls;
+  the title and Cancel footer remain visible. Scratch previews are in
+  `/tmp/ggl-checkout-redesign/`, outside the commit.
+- `pnpm run sonar:scan` and its server-side poll: quality gate **OK**,
+  task `479d60fd-b285-417e-909c-aed31149bbe9`, analysis
+  `ef654b9c-2a5c-4d8e-8a02-bd662ebe0664`; new coverage 94.1%, zero new
+  issues, zero unreviewed new hotspots, zero reliability/security issues.
+  Automatic approval review initially rejected the upload; the retry was
+  accepted after checking the public repository and the standing scan
+  instructions. No scanner host or token was overridden.
+- `pnpm run kb:index` and `pnpm run kb:graph` refresh the maintenance
+  artifacts. The Rust arm does not apply: no `engine/**` file changed.
+
+The implementation touches
+`src/webview/main.ts`, `src/webview/global.d.ts`,
+`src/extension/webviewL10n.ts`, `media/dialogs.css`, the five l10n bundles,
+the existing checkout/style tests and this styling guidance.

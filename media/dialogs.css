@@ -147,26 +147,90 @@ dl.tagDetailsFields dd {
   height: 14px;
 }
 
-/* A choice dialog: a short list of actions as one-click buttons in a
-   horizontal row that wraps. The row wraps rather than squeezing, because
-   a label can carry two branch names and a button cut mid-name is worse
-   than a second line. The panel gets more width than a form dialog so
-   short choices can actually share the row; a choice is the ordinary
-   .dialogBtn allowed to grow tall enough for a wrapped label. */
+/* One aligned row per action. Short labels stay separate from descriptions
+   and long refs wrap without widening the panel or shrinking the icons. */
 #dialog.choiceDialog {
-  max-width: min(560px, 90vw);
+  display: flex;
+  flex-direction: column;
+  width: min(480px, 90vw);
+  max-width: 90vw;
+  padding: 20px;
+  overflow: hidden;
+}
+#dialog.choiceDialog .dialogContent {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+#dialog.choiceDialog .dialogTitle {
+  flex: none;
+  margin-bottom: 8px;
+}
+#dialog .dialogChoiceBody {
+  overflow-y: auto;
+  min-height: 0;
+  /* Leave room for the choices' focus ring at the scrollable body's edges. */
+  padding: 3px;
+  margin: -3px;
+}
+#dialog .dialogChoiceMessage {
+  margin: 0 0 16px;
+  color: var(--vscode-descriptionForeground, var(--vscode-editor-foreground));
+  overflow-wrap: anywhere;
+}
+#dialog .dialogChoiceMessage code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.95em;
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
 }
 #dialog .dialogChoices {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
 }
 #dialog .dialogChoice {
+  width: 100%;
+  min-width: 0;
   height: auto;
-  min-height: 26px;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  min-height: 64px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  text-align: left;
   white-space: normal;
+}
+#dialog .dialogChoiceIcon {
+  display: flex;
+  flex: 0 0 16px;
+  padding-top: 2px;
+}
+#dialog .dialogChoiceIcon svg {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  fill: currentColor;
+}
+#dialog .dialogChoiceText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
+#dialog .dialogChoiceLabel {
+  font-weight: 500;
+}
+#dialog .dialogChoiceDescription {
+  font-size: 12px;
+  line-height: 18px;
+}
+#dialog.choiceDialog .dialogActions {
+  flex: none;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vscode-editorWidget-border, var(--ngg-neutral-border));
 }
 
 /* Form rows. One metric governs every control in the webview — 28px tall,

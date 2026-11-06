@@ -57,17 +57,23 @@ describe("dialog styles", () => {
     expect(ruleFor(css, "#dialog .dialogActions")).toContain("justify-content: flex-end;");
   });
 
-  it("lays choice-dialog buttons out as a wrapping horizontal row", () => {
+  it("keeps choice actions aligned and long refs inside the dialog", () => {
     const choices = ruleFor(css, "#dialog .dialogChoices");
     const choice = ruleFor(css, "#dialog .dialogChoice");
 
     expect(choices).toContain("display: flex;");
-    expect(choices).toContain("flex-wrap: wrap;");
-    // A label can carry two branch names: it wraps inside its button
-    // instead of pushing the panel wider.
+    expect(choices).toContain("flex-direction: column;");
+    expect(choice).toContain("width: 100%;");
+    expect(choice).toContain("text-align: left;");
     expect(choice).toContain("white-space: normal;");
     expect(choice).toContain("height: auto;");
-    expect(ruleFor(css, "#dialog.choiceDialog")).toContain("max-width: min(560px, 90vw);");
+    expect(ruleFor(css, "#dialog .dialogChoiceText")).toContain("min-width: 0;");
+    expect(ruleFor(css, "#dialog .dialogChoiceText")).toContain("overflow-wrap: anywhere;");
+    expect(ruleFor(css, "#dialog .dialogChoiceMessage")).toContain("overflow-wrap: anywhere;");
+    expect(ruleFor(css, "#dialog.choiceDialog")).toContain("width: min(480px, 90vw);");
+    expect(ruleFor(css, "#dialog .dialogChoiceBody")).toContain("overflow-y: auto;");
+    expect(ruleFor(css, "#dialog.choiceDialog .dialogTitle")).toContain("flex: none;");
+    expect(ruleFor(css, "#dialog.choiceDialog .dialogActions")).toContain("flex: none;");
   });
 
   it("styles dialog form notes as wrapping secondary text", () => {

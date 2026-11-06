@@ -188,6 +188,10 @@ function dialogChoices() {
   return Array.from(document.querySelectorAll<HTMLElement>("#dialog .dialogChoice"));
 }
 
+function dialogChoiceLabels() {
+  return dialogChoices().map((elem) => elem.querySelector(".dialogChoiceLabel")?.textContent);
+}
+
 function clickDialogChoice(text: string) {
   const choice = dialogChoices().find((elem) => elem.textContent?.includes(text));
   expect(choice).not.toBeUndefined();
@@ -216,11 +220,27 @@ describe("checking out a remote branch whose local branch exists (W24)", () => {
 
     expect(dialogText()).toContain(`A local branch named ${LOCAL_NAME} already exists.`);
     // One button per choice, no native dropdown and no generic submit.
-    expect(dialogChoices().map((elem) => elem.textContent)).toEqual([
-      `Switch to ${LOCAL_NAME}`,
-      `Switch to ${LOCAL_NAME} and fast-forward it to ${REMOTE_REF}`,
-      "Create a branch with another name"
+    expect(dialogChoiceLabels()).toEqual([
+      "Switch to branch",
+      "Switch and fast-forward",
+      "Create another branch…"
     ]);
+    expect(document.querySelector("#dialog .dialogTitle")?.textContent).toBe(
+      "Local branch already exists"
+    );
+    expect(document.querySelector(".dialogChoiceMessage code")?.textContent).toBe(LOCAL_NAME);
+    expect(dialogChoices()[1]?.querySelector(".dialogChoiceDescription")?.textContent).toBe(
+      `Update to ${REMOTE_REF} using fast-forward only.`
+    );
+    for (const choice of dialogChoices()) {
+      expect(document.getElementById(choice.getAttribute("aria-labelledby") ?? "")).toBe(
+        choice.querySelector(".dialogChoiceLabel")
+      );
+      expect(document.getElementById(choice.getAttribute("aria-describedby") ?? "")).toBe(
+        choice.querySelector(".dialogChoiceDescription")
+      );
+    }
+    expect(document.activeElement).toBe(dialogChoices()[0]);
     expect(document.querySelector("#dialog select")).toBeNull();
     expect(document.getElementById("dialogAction")).toBeNull();
     expect(dialogChoices()[0]?.className).toContain("dialogBtnPrimary");
@@ -238,30 +258,67 @@ describe("checking out a remote branch whose local branch exists (W24)", () => {
       branches: ["main", LOCAL_NAME, `remotes/${REMOTE_REF}`]
     });
     openCheckoutDialog(REMOTE_REF);
-    clickDialogChoice(`fast-forward it to ${REMOTE_REF}`);
+    clickDialogChoice("Switch and fast-forward");
 
     expect(checkoutMessages(vscodeMock)).toEqual([
       { command: "checkoutAndFastForward", repo: REPO, branchName: LOCAL_NAME, target: REMOTE_REF }
     ]);
   });
 
-  it("takes a choice by keyboard, without confirming the name prompt it opens", async () => {
+  it.each(["Enter", " "])(
+    "takes a choice with %j without submitting the name prompt it opens",
+    async (key) => {
+      const vscodeMock = await bootWebview({
+        branches: ["main", LOCAL_NAME, `remotes/${REMOTE_REF}`]
+      });
+      openCheckoutDialog(REMOTE_REF);
+
+      const create = dialogChoices().find((elem) =>
+        elem.textContent?.includes("Create another branch…")
+      );
+      create?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+
+      // The name prompt is open, empty and unsubmitted: the same Enter must
+      // not have confirmed it through the document-level handler.
+      const input = document.getElementById("dialogInput0") as HTMLInputElement | null;
+      expect(input?.value).toBe("");
+      expect(document.getElementById("dialog")?.className).toContain("noInput");
+      expect(checkoutMessages(vscodeMock)).toEqual([]);
+    }
+  );
+
+  it.each(["Enter", " "])("cancels with %j without sending an action", async (key) => {
     const vscodeMock = await bootWebview({
       branches: ["main", LOCAL_NAME, `remotes/${REMOTE_REF}`]
     });
     openCheckoutDialog(REMOTE_REF);
+    const cancel = document.getElementById("dialogDismiss");
+    expect(cancel?.tabIndex).toBe(0);
+    cancel?.focus();
+    cancel?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
 
-    const create = dialogChoices().find((elem) =>
-      elem.textContent?.includes("Create a branch with another name")
-    );
-    create?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-
-    // The name prompt is open, empty and unsubmitted: the same Enter must
-    // not have confirmed it through the document-level handler.
-    const input = document.getElementById("dialogInput0") as HTMLInputElement | null;
-    expect(input?.value).toBe("");
-    expect(document.getElementById("dialog")?.className).toContain("noInput");
+    expect(document.getElementById("dialog")?.classList.contains("active")).toBe(false);
     expect(checkoutMessages(vscodeMock)).toEqual([]);
+  });
+
+  it("renders long refs with markup characters as literal text in context and descriptions", async () => {
+    const branch = `feature/${"long-name-".repeat(12)}<topic>&$&`;
+    const remoteRef = `origin/${branch}`;
+    const vscodeMock = await bootWebview({
+      refName: remoteRef,
+      branches: ["main", branch, `remotes/${remoteRef}`]
+    });
+    openCheckoutDialog(remoteRef);
+
+    expect(document.querySelector(".dialogChoiceMessage code")?.textContent).toBe(branch);
+    expect(dialogChoices()[1]?.querySelector(".dialogChoiceDescription")?.textContent).toBe(
+      `Update to ${remoteRef} using fast-forward only.`
+    );
+    expect(document.querySelector("#dialog topic")).toBeNull();
+    clickDialogChoice("Switch and fast-forward");
+    expect(checkoutMessages(vscodeMock)).toEqual([
+      { command: "checkoutAndFastForward", repo: REPO, branchName: branch, target: remoteRef }
+    ]);
   });
 
   it("finds a local branch tracking the clicked remote branch under another name", async () => {
@@ -272,7 +329,7 @@ describe("checking out a remote branch whose local branch exists (W24)", () => {
     openCheckoutDialog(REMOTE_REF);
 
     expect(dialogText()).toContain(`The local branch admin-gui already tracks ${REMOTE_REF}.`);
-    clickDialogChoice("Switch to admin-gui and");
+    clickDialogChoice("Switch and fast-forward");
 
     expect(checkoutMessages(vscodeMock)).toEqual([
       { command: "checkoutAndFastForward", repo: REPO, branchName: "admin-gui", target: REMOTE_REF }
@@ -284,7 +341,7 @@ describe("checking out a remote branch whose local branch exists (W24)", () => {
       branches: ["main", LOCAL_NAME, `remotes/${REMOTE_REF}`]
     });
     openCheckoutDialog(REMOTE_REF);
-    clickDialogChoice("Create a branch with another name");
+    clickDialogChoice("Create another branch…");
 
     // The same-name collision leaves no free default to offer.
     const input = document.getElementById("dialogInput0") as HTMLInputElement;
@@ -308,7 +365,7 @@ describe("checking out a remote branch whose local branch exists (W24)", () => {
       upstreams: { "admin-gui": REMOTE_REF }
     });
     openCheckoutDialog(REMOTE_REF);
-    clickDialogChoice("Create a branch with another name");
+    clickDialogChoice("Create another branch…");
 
     const input = document.getElementById("dialogInput0") as HTMLInputElement;
     expect(input.value).toBe(LOCAL_NAME);
@@ -324,7 +381,7 @@ describe("checking out a remote branch whose local branch exists (W24)", () => {
       branches: ["main", LOCAL_NAME, `remotes/${REMOTE_REF}`]
     });
     openCheckoutDialog(REMOTE_REF);
-    clickDialogChoice("Create a branch with another name");
+    clickDialogChoice("Create another branch…");
     typeIntoDialogInput(0, "main");
 
     const dialog = document.getElementById("dialog");
@@ -349,10 +406,7 @@ describe("checking out a remote branch whose local branch exists (W24)", () => {
     openCheckoutDialog(REMOTE_REF);
 
     expect(dialogText()).toContain(OTHER_WORKTREE);
-    expect(dialogChoices().map((elem) => elem.textContent)).toEqual([
-      "Open in New Window",
-      "Create a branch with another name"
-    ]);
+    expect(dialogChoiceLabels()).toEqual(["Open in New Window", "Create another branch…"]);
     dialogChoices()[0]?.click();
 
     expect(vscodeMock.sentMessages.at(-1)).toEqual({
@@ -373,7 +427,7 @@ describe("checking out a remote branch whose local branch exists (W24)", () => {
     openCheckoutDialog("origin/main");
 
     expect(dialogText()).toContain("A local branch named main already exists.");
-    clickDialogChoice("fast-forward it to origin/main");
+    clickDialogChoice("Switch and fast-forward");
 
     expect(checkoutMessages(vscodeMock)).toEqual([
       { command: "checkoutAndFastForward", repo: REPO, branchName: "main", target: "origin/main" }

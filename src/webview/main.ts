@@ -449,18 +449,18 @@ function existingBranchMessage(
   remoteRef: string,
   worktreePath: string | null
 ): string {
-  const bold = (name: string) => `<b><i>${escapeHtml(name)}</i></b>`;
+  const ref = (name: string) => `<code>${escapeHtml(name)}</code>`;
   if (worktreePath !== null) {
     return l10n.dialogOpenWorktreeMessage
-      .replace("{0}", () => bold(existing))
-      .replace("{1}", () => bold(worktreePath));
+      .replace("{0}", () => ref(existing))
+      .replace("{1}", () => ref(worktreePath));
   }
   if (existing === suggestedName) {
-    return l10n.dialogCheckoutRemoteExists.replace("{0}", () => bold(existing));
+    return l10n.dialogCheckoutRemoteExists.replace("{0}", () => ref(existing));
   }
   return l10n.dialogCheckoutRemoteTracks
-    .replace("{0}", () => bold(existing))
-    .replace("{1}", () => bold(remoteRef));
+    .replace("{0}", () => ref(existing))
+    .replace("{1}", () => ref(remoteRef));
 }
 
 class GitGraphView {
@@ -6643,6 +6643,8 @@ class GitGraphView {
     const message = existingBranchMessage(existing, suggestedName, remoteRef, worktreePath);
     const createOther: DialogChoice = {
       label: l10n.dialogCheckoutRemoteCreateOther,
+      description: l10n.dialogCheckoutRemoteCreateOtherDescription,
+      icon: "git-branch",
       onClick: () =>
         this.showCheckoutRemoteOtherNameDialog(existing, remoteRef, suggestedName, sourceElem)
     };
@@ -6651,6 +6653,8 @@ class GitGraphView {
         ? [
             {
               label: l10n.dialogOpenWorktreeSubmit,
+              description: l10n.dialogCheckoutRemoteOpenWorktreeDescription,
+              icon: "link-external",
               primary: true,
               onClick: () => {
                 sendMessage({
@@ -6665,7 +6669,9 @@ class GitGraphView {
           ]
         : [
             {
-              label: l10n.dialogCheckoutRemoteSwitch.replace("{0}", () => existing),
+              label: l10n.dialogCheckoutRemoteSwitch,
+              description: l10n.dialogCheckoutRemoteSwitchDescription,
+              icon: "arrow-switch",
               primary: true,
               onClick: () => {
                 sendMessage({
@@ -6677,9 +6683,12 @@ class GitGraphView {
               }
             },
             {
-              label: l10n.dialogCheckoutRemoteSwitchAndFastForward
-                .replace("{0}", () => existing)
-                .replace("{1}", () => remoteRef),
+              label: l10n.dialogCheckoutRemoteSwitchAndFastForward,
+              description: l10n.dialogCheckoutRemoteFastForwardDescription.replace(
+                "{0}",
+                () => remoteRef
+              ),
+              icon: "arrow-down",
               onClick: () => {
                 sendMessage({
                   command: "checkoutAndFastForward",
@@ -6691,7 +6700,7 @@ class GitGraphView {
             },
             createOther
           ];
-    showChoiceDialog(message, choices, sourceElem);
+    showChoiceDialog(l10n.dialogCheckoutRemoteTitle, message, choices, sourceElem);
   }
   /**
    * "Create a branch with another name" from the choice dialog above: the
@@ -8640,13 +8649,12 @@ function showSelectDialog(
 /**
  * A dialog whose whole content is a short list of actions, one button each.
  *
- * The choices sit in a horizontal row that wraps when a label — a branch
- * name, say — is too long to share it, and each button takes its action in
- * one click. The alternative, a `<select>` of long sentences above a
- * generic submit button, put the options in an operating-system dropdown
- * that overflowed the dialog and repeated the selected value above itself.
+ * Each action gets a full-width row with a short label and its explanation
+ * underneath. Branch names belong in the context and descriptions, so long
+ * refs never determine the width or alignment of the action labels.
  */
 function showChoiceDialog(
+  title: string,
   message: string,
   choices: DialogChoice[],
   sourceElem: HTMLElement | null
@@ -8656,11 +8664,17 @@ function showChoiceDialog(
       (choice, index) =>
         `<div id="dialogChoice${index}" class="dialogBtn dialogChoice${
           choice.primary === true ? " dialogBtnPrimary" : ""
-        }" role="button" tabindex="0">${escapeHtml(choice.label)}</div>`
+        }" role="button" tabindex="0" aria-labelledby="dialogChoiceLabel${index}" aria-describedby="dialogChoiceDescription${index}">
+          <span class="dialogChoiceIcon" aria-hidden="true">${octicon(choice.icon)}</span>
+          <span class="dialogChoiceText">
+            <span class="dialogChoiceLabel" id="dialogChoiceLabel${index}">${escapeHtml(choice.label)}</span>
+            <span class="dialogChoiceDescription" id="dialogChoiceDescription${index}">${escapeHtml(choice.description)}</span>
+          </span>
+        </div>`
     )
     .join("");
   showDialog(
-    `${dialogTitleHtml(message)}<div class="dialogChoices">${buttons}</div>`,
+    `${dialogTitleHtml(escapeHtml(title))}<div class="dialogChoiceBody"><p class="dialogChoiceMessage">${message}</p><div class="dialogChoices">${buttons}</div></div>`,
     null,
     l10n.dialogCancel,
     null,
@@ -8669,7 +8683,13 @@ function showChoiceDialog(
   dialog.classList.add("choiceDialog");
   // A dismiss-only dialog promotes its dismiss button to primary; here the
   // choices are the actions, so Cancel stays a secondary button.
-  document.getElementById("dialogDismiss")?.classList.remove("dialogBtnPrimary");
+  const dismiss = document.getElementById("dialogDismiss");
+  if (dismiss !== null) {
+    dismiss.classList.remove("dialogBtnPrimary");
+    dismiss.setAttribute("role", "button");
+    dismiss.tabIndex = 0;
+    bindDialogChoiceKeyboard(dismiss, hideDialog);
+  }
   for (const [index, choice] of choices.entries()) {
     const button = document.getElementById(`dialogChoice${index}`);
     if (button === null) continue;
@@ -8678,17 +8698,19 @@ function showChoiceDialog(
       choice.onClick();
     };
     button.addEventListener("click", run);
-    button.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter" && e.key !== " ") return;
-      e.preventDefault();
-      // The document-level Enter handler confirms whatever dialog is open;
-      // a choice may open a dialog of its own, which must not be confirmed
-      // by the same keypress.
-      e.stopPropagation();
-      run();
-    });
+    bindDialogChoiceKeyboard(button, run);
   }
   document.getElementById("dialogChoice0")?.focus();
+}
+function bindDialogChoiceKeyboard(button: HTMLElement, run: () => void) {
+  button.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    // A choice can open a name prompt. The same keypress must not submit it
+    // through the document-level Enter handler.
+    e.stopPropagation();
+    run();
+  });
 }
 function showFormDialog(
   message: string,
