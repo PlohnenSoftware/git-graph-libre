@@ -45,6 +45,16 @@ Client rules that must survive any refactor:
   `^[a-z][a-zA-Z0-9._-]{0,63}$` — a malformed id makes the ingest reject the
   **whole batch**, silently losing up to 25 unrelated events, which is why the
   pattern is mirrored in the client and asserted in tests.
+- **Worktree signals** (`view.worktreeMarker`, `view.linkedWorktreeRepo`,
+  `2026-11-06`, decision Y19 (a)) are read from the file system, never from a
+  Git process. The linked-worktree answer is `resolveGitDirs()`'s git dir
+  differing from its common dir. The marker compares the branch heads the
+  loaded graph draws with the HEAD of every other worktree's admin directory,
+  and with the main worktree's HEAD unless the common dir sets `core.bare`
+  (a bare repository has no main worktree, so its HEAD checks out nothing).
+  Only the fixed id is sent. The marker covers the W11 branch badge only: the
+  W12 detached-HEAD marker sits on a commit row, not a branch, and is not
+  reported. The marker's read runs only until it has fired.
 - **Client modules** in `src/telemetry/`: `index.ts`
   (`createTelemetryReporter()`), `endpoint.ts` (the compiled-in ingest URL),
   `sender.ts` (TelemetrySender → fetch transport), `eventQueue.ts` (pure

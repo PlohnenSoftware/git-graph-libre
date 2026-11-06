@@ -180,7 +180,9 @@ third-party analytics provider.
   submodule appearing in the repository dropdown, the graph actually being
   opened on one, the uncommitted-changes staging panel being opened, that
   panel actually grouping changes into folders, a stash row appearing in
-  the graph, the built-in Rust engine actually serving a repository read,
+  the graph, a branch in the graph being marked as checked out in another
+  worktree, the graph being opened on a linked worktree, the built-in Rust
+  engine actually serving a repository read,
   that engine being unable to start although the `backend` setting allowed
   it (only which of the five fixed reasons — missing, failed to load, wrong
   version, incompatible, unsupported platform — never a path or error
@@ -188,9 +190,9 @@ third-party analytics provider.
   command line, or the Hidden menu's one-off "Reload once with Git CLI"
   being used. These
   are recorded once, not once per refresh, and each is a yes/no about the
-  feature: the repository paths behind the submodule answers
+  feature: the repository paths behind the submodule and worktree answers
   are compared inside the extension and never leave it, so nothing is sent
-  about which repositories or submodules you have.
+  about which repositories, submodules, worktrees or branches you have.
 - Once per session: the language Visual Studio Code is running in and which of
   this extension's translations served you — so missing translations can be
   spotted, since a mismatch between the two is a request nobody has answered.
