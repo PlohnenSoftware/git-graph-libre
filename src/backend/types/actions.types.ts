@@ -125,12 +125,6 @@ type ActionPayloads = {
   unstageFiles: { filePaths: string[] };
   undoLastCommit: unknown;
   /**
-   * Removes a linked worktree with plain `git worktree remove`. `force` is sent
-   * only after the user confirmed the loss of its uncommitted and untracked
-   * files; `unlock` unlocks a locked worktree first (it is never forced twice).
-   * `deleteBranch` runs once the worktree is gone, for the Delete Branch dialog.
-   */
-  /**
    * Creates a linked worktree with `git worktree add`. Exactly one checkout
    * mode is sent: `branch` checks that branch out, `newBranch` creates it at
    * `startPoint` (which may be a remote branch, a commit or a tag), and
@@ -145,12 +139,28 @@ type ActionPayloads = {
     detach: boolean;
     lockReason: string | null;
   };
+  /**
+   * Removes a linked worktree with plain `git worktree remove`. `force` is sent
+   * only after the user confirmed the loss of its uncommitted and untracked
+   * files; `unlock` unlocks a locked worktree first (it is never forced twice).
+   * `deleteBranch` runs once the worktree is gone, for the Delete Branch dialog.
+   */
   removeWorktree: {
     path: string;
     force: boolean;
     unlock: boolean;
     deleteBranch?: { branchName: string; forceDelete: boolean; deleteOnRemotes?: string[] };
   };
+  /** Locks a listed worktree. `reason` is null or "" for no reason, else the text Git records. */
+  lockWorktree: { path: string; reason: string | null };
+  /** Unlocks a listed, locked worktree. A locked worktree is never moved or removed by force. */
+  unlockWorktree: { path: string };
+  /**
+   * Moves a listed worktree to `newPath`, which must not exist yet. The
+   * extension refuses a locked worktree (Unlock first), the main worktree, the
+   * worktree this graph shows and a stale entry; the reply says where it went.
+   */
+  moveWorktree: { path: string; newPath: string };
   /**
    * Opens a listed worktree in a new window or this one, adds it to the
    * workspace, reveals it in the OS file manager, or switches the graph to it.

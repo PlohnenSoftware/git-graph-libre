@@ -175,6 +175,106 @@ export async function removeWorktree(
   return target.path;
 }
 
+/**
+ * Refuses a move the worktree list already rules out, before Git runs: the
+ * main worktree, the worktree this graph shows, a stale entry, a locked
+ * worktree (it is unlocked first, by the user, never moved by force), a target
+ * that is already listed, and any existing target path, empty or not.
+ */
+async function assertMovable(
+  worktrees: GitWorktree[],
+  target: GitWorktree,
+  newPath: string
+): Promise<void> {
+  if (target.isMain) await fail("error.worktreeMainNoMove", target.path);
+  if (target.isCurrent) await fail("error.worktreeMoveCurrent", target.path);
+  if (target.prunable !== null) await fail("error.worktreeMoveStale", target.path);
+  if (target.locked !== null) {
+    if (target.locked.reason === "") await fail("error.worktreeMoveLocked", target.path);
+    await fail("error.worktreeMoveLockedReason", target.path, target.locked.reason);
+  }
+  if ((await findWorktree(worktrees, newPath)) !== null) {
+    await fail("error.worktreePathListed", newPath);
+  }
+  if ((await stat(newPath).catch(() => null)) !== null) {
+    await fail("error.worktreeMoveTargetExists", newPath);
+  }
+}
+
+/**
+ * Locks a listed worktree with `git worktree lock`, with the reason when one
+ * is given. The main worktree and a worktree that is already locked are refused
+ * from the list before Git runs. The reason goes in as one `--reason=` argument,
+ * so text that starts with "-" stays the reason.
+ */
+export async function lockWorktree(
+  git: SimpleGit,
+  input: ActionPayload<"lockWorktree"> & RepoInput,
+  record?: GitCommandRecorder
+): Promise<void> {
+  const repo = input.repo ?? null;
+  const target = await findWorktree(await listWorktrees(git, repo, record), input.path);
+  if (target === null) return fail("error.worktreeNotListed", input.path);
+  if (target.isMain) return fail("error.worktreeMainNoLock", target.path);
+  if (target.locked !== null) return fail("error.worktreeAlreadyLocked", target.path);
+
+  const args = ["worktree", "lock"];
+  const reason = nonEmpty(input.reason);
+  if (reason !== null) args.push(`--reason=${reason}`);
+  args.push("--", target.path);
+  await runGitRaw(git, { label: "worktree.lock", kind: "action", args, repo, record });
+}
+
+/** Unlocks a listed worktree with `git worktree unlock`; one that is not locked is refused from the list. */
+export async function unlockWorktree(
+  git: SimpleGit,
+  input: ActionPayload<"unlockWorktree"> & RepoInput,
+  record?: GitCommandRecorder
+): Promise<void> {
+  const repo = input.repo ?? null;
+  const target = await findWorktree(await listWorktrees(git, repo, record), input.path);
+  if (target === null) return fail("error.worktreeNotListed", input.path);
+  if (target.locked === null) return fail("error.worktreeNotLocked", target.path);
+
+  await runGitRaw(git, {
+    label: "worktree.unlock",
+    kind: "action",
+    args: ["worktree", "unlock", "--", target.path],
+    repo,
+    record
+  });
+}
+
+/**
+ * Moves a listed worktree to a new folder with `git worktree move`, then
+ * returns where it was and where Git lists it now, so the caller can follow
+ * the repository to its new path. A locked worktree is never moved by force.
+ */
+export async function moveWorktree(
+  git: SimpleGit,
+  input: ActionPayload<"moveWorktree"> & RepoInput,
+  record?: GitCommandRecorder
+): Promise<{ from: string; to: string }> {
+  const repo = input.repo ?? null;
+  const newPath = input.newPath.trim();
+  if (newPath === "") return fail("error.worktreeMoveNoFolder");
+  const worktrees = await listWorktrees(git, repo, record);
+  const target = await findWorktree(worktrees, input.path);
+  if (target === null) return fail("error.worktreeNotListed", input.path);
+  await assertMovable(worktrees, target, newPath);
+
+  await runGitRaw(git, {
+    label: "worktree.move",
+    kind: "action",
+    args: ["worktree", "move", "--", target.path, newPath],
+    repo,
+    record
+  });
+  const moved = await findWorktree(await listWorktrees(git, repo, record), newPath);
+  if (moved === null) return fail("error.worktreeMoveNotListed", newPath);
+  return { from: target.path, to: moved.path };
+}
+
 /** Prunes the stale entries and returns their paths, as they were listed before. */
 export async function pruneWorktrees(
   git: SimpleGit,

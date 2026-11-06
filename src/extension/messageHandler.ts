@@ -55,9 +55,12 @@ import { addTag, deleteTag, pushAllTags, pushTag } from "@/backend/actions/tag";
 import { deleteUserDetails, editUserDetails } from "@/backend/actions/userConfig";
 import {
   addWorktree,
+  lockWorktree,
+  moveWorktree,
   pruneWorktrees,
   removeWorktree,
   repairWorktree,
+  unlockWorktree,
   worktreeChanges
 } from "@/backend/actions/worktree";
 import {
@@ -631,6 +634,29 @@ export function registerMessageHandlers(
     if (removed) repoManager.sendRepos();
   }
 
+  /**
+   * After a move the repository known at the old folder follows the worktree to
+   * its new path, keeping its settings (W23, step 3). `removeRepo` closes
+   * the old engine handle, and the new path is read as it is listed. A worktree
+   * that was never a known repository only has its old handle closed.
+   */
+  async function followMovedWorktree(from: string, to: string) {
+    const canonicalFrom = await canonicalizePath(from);
+    const known = await Promise.all(
+      Object.keys(repoManager.getRepos()).map(
+        async (repo) => [repo, await canonicalizePath(repo)] as const
+      )
+    );
+    closeEngineRepository(from);
+    const match = known.find(([, canonicalRepo]) => canonicalRepo === canonicalFrom);
+    if (match === undefined) return;
+    const [repo] = match;
+    const repoState = repoManager.getRepos()[repo];
+    repoManager.removeRepo(repo);
+    repoManager.setRepoState(to, repoState);
+    repoManager.sendRepos();
+  }
+
   function getKnownRepoState(repo: string): GitRepoState {
     const repoState = repoManager.getRepos()[repo];
     if (repoState === undefined) throw new Error("Unknown repository.");
@@ -702,6 +728,16 @@ export function registerMessageHandlers(
     // A cancelled picker changes nothing.
     if (newPath === null) return;
     await repairWorktree(gitClient.getInstance(), { ...msg, newPath }, recordGitCommand);
+  });
+  registerAction("lockWorktree", (msg) =>
+    lockWorktree(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("unlockWorktree", (msg) =>
+    unlockWorktree(gitClient.getInstance(), msg, recordGitCommand)
+  );
+  registerAction("moveWorktree", async (msg) => {
+    const { from, to } = await moveWorktree(gitClient.getInstance(), msg, recordGitCommand);
+    await followMovedWorktree(from, to);
   });
   // The four open actions run as the hidden commands in commandManager, which
   // list the worktree again before acting, so a stale graph cannot open a removed path.
