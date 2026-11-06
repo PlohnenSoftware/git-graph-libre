@@ -3,7 +3,7 @@ resolver = "2"
 members = ["native/core", "native/node", "native/diff"]
 
 [workspace.package]
-version = "1.0.30"
+version = "1.0.31"
 edition = "2021"
 rust-version = "1.88"
 license = "AGPL-3.0-or-later AND MIT AND BSD-3-Clause"
