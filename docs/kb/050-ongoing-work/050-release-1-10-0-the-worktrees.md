@@ -707,3 +707,7 @@ commit, the gate results with numbers, and the Sonar task id.
   the draft question is moot. #37 stays open until its last slice (W33).
   The integrator pushes nothing. The closed issues' subsections move to
   History in W90H.
+- `2026-11-06`: Y1 changed by the maintainer. From now on the integrator
+  pushes `the-worktrees` to `origin` after each integration, every commit
+  checked for a signature first. Slice agents still never push. Pushing
+  this branch closes no issue, since GitHub acts on `Closes` only on `main`.
