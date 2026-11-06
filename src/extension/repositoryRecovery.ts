@@ -8,6 +8,7 @@ import {
   trustGitRepository,
   untrustedSiblingEntries
 } from "@/backend/utils/repositoryProbe";
+import { mapSequential } from "@/backend/utils/sequential";
 import type { Config } from "@/config";
 import * as l10n from "@/l10n";
 import type { TelemetryReporter } from "@/telemetry";
@@ -65,11 +66,12 @@ export async function confirmGitTrust(repo: string, deps: TrustDeps): Promise<st
       accept
     );
     if (answer !== accept) return null;
-    for (const { directory, entry } of entries) {
+    // One write at a time: every entry adds to Git's global config, and parallel writes race.
+    await mapSequential(entries, async ({ directory, entry }) => {
       await trustGitRepository(directory, gitPath, entry);
       closeEngineRepository(directory);
       deps.outputChannel?.appendLine(`[repos] Git trust granted for ${JSON.stringify(entry)}`);
-    }
+    });
     return null;
   } catch (error_) {
     const error = normalizeGitError(error_).message;

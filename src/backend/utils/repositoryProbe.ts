@@ -9,6 +9,7 @@ import { canonicalizePath } from "./git";
 import { resolveGitDirs } from "./gitDirs";
 import { normalizeGitError } from "./gitRunner";
 import { traceBackend } from "./operationLog";
+import { mapSequential } from "./sequential";
 
 const execute = promisify(execFile);
 
@@ -215,11 +216,13 @@ async function namedWorktreeFolders(commonDir: string): Promise<string[]> {
   const folders = path.basename(commonDir) === ".git" ? [path.dirname(commonDir)] : [];
   const adminRoot = path.join(commonDir, "worktrees");
   const ids = await fs.readdir(adminRoot).catch(() => [] as string[]);
-  for (const id of ids) {
-    const line = await fs
+  const lines = await mapSequential(ids, (id) =>
+    fs
       .readFile(path.join(adminRoot, id, "gitdir"), "utf8")
       .then((text) => (text.split(/\r?\n/)[0] ?? "").trim())
-      .catch(() => "");
+      .catch(() => "")
+  );
+  for (const line of lines) {
     // The file names the worktree's own `.git` file; the worktree is its folder.
     if (path.basename(line) === ".git") folders.push(path.dirname(line));
   }
@@ -240,22 +243,34 @@ async function sharesCommonDir(folder: string, commonDir: string): Promise<boole
  * name this repository back are considered, and only those Git itself still
  * answers "untrusted" for. `repo` is never in the result.
  */
+/** The trust entry for one sibling folder, or null when it is not an untrusted worktree of this repository. */
+async function siblingEntry(
+  folder: string,
+  commonDir: string,
+  gitPath: string
+): Promise<TrustEntry | null> {
+  if (!(await sharesCommonDir(folder, commonDir))) return null;
+  const probe = await inspectRepository(folder, { gitPath, useEngine: false });
+  if (probe.state !== "untrusted") return null;
+  return { directory: folder, entry: await safeDirectoryEntry(folder, gitPath) };
+}
+
 export async function untrustedSiblingEntries(
   repo: string,
   gitPath: string
 ): Promise<TrustEntry[]> {
   const commonDir = resolveGitDirs(repo).commonDir;
   const own = await canonicalizePath(repo);
+  const folders = await namedWorktreeFolders(commonDir);
+  const canonicals = await mapSequential(folders, (folder) => canonicalizePath(folder));
+  // The first folder that canonicalizes to a path wins, in the order the admin data lists them.
   const seen = new Set<string>([own]);
-  const entries: TrustEntry[] = [];
-  for (const folder of await namedWorktreeFolders(commonDir)) {
-    const canonical = await canonicalizePath(folder);
-    if (seen.has(canonical)) continue;
+  const fresh = folders.filter((_folder, index) => {
+    const canonical = canonicals[index];
+    if (seen.has(canonical)) return false;
     seen.add(canonical);
-    if (!(await sharesCommonDir(folder, commonDir))) continue;
-    const probe = await inspectRepository(folder, { gitPath, useEngine: false });
-    if (probe.state !== "untrusted") continue;
-    entries.push({ directory: folder, entry: await safeDirectoryEntry(folder, gitPath) });
-  }
-  return entries;
+    return true;
+  });
+  const entries = await mapSequential(fresh, (folder) => siblingEntry(folder, commonDir, gitPath));
+  return entries.filter((entry): entry is TrustEntry => entry !== null);
 }
