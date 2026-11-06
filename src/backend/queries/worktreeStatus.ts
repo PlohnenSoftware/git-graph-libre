@@ -21,7 +21,7 @@ const UNKNOWN: WorktreeChangeStatus = { state: "unknown", count: 0, truncated: f
  * read succeeded.
  */
 function toStatus(result: QueryResult<"worktreeChanges"> | null): WorktreeChangeStatus {
-  if (result === null || result.error !== null) return UNKNOWN;
+  if (result?.error !== null) return UNKNOWN;
   if (result.files.length === 0 && !result.truncated) {
     return { state: "clean", count: 0, truncated: false };
   }
@@ -58,7 +58,7 @@ async function statusOf(
   options: ReadOptions
 ): Promise<WorktreeChangeStatus> {
   const target = listed.get(await canonicalizePath(path));
-  if (target === undefined || target.prunable !== null || target.bare) return UNKNOWN;
+  if (target?.prunable !== null || target.bare) return UNKNOWN;
   const read = worktreeChanges(git, {
     repo,
     path: target.path,

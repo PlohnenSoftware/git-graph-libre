@@ -8684,7 +8684,7 @@ function requestFolderPick(index: number) {
 /** The picker's answer: a picked folder fills the field, and a cancelled picker changes nothing. */
 function finishFolderPick(msg: Extract<GGL.ResponseMessage, { command: "pickFolder" }>) {
   const pending = pendingFolderPick;
-  if (pending === null || pending.requestId !== msg.requestId) return;
+  if (pending?.requestId !== msg.requestId) return;
   pendingFolderPick = null;
   if (msg.path === null || !pending.field.isConnected) return;
   pending.field.value = msg.path;
