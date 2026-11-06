@@ -73,6 +73,12 @@ checkout defaults that follow Git.
   trust
   ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
 
+- **Bare repositories with worktrees.** In the bare-clone-plus-worktrees
+  layout, the repository dropdown shows the bare repository as a header
+  ("<folder> · bare repository") above its worktrees. Selecting the
+  header opens nothing, since a bare repository has no working tree to graph
+  ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
+
 - **Free a branch that a leftover worktree blocks.** Delete Branch on a branch
   checked out in another worktree now offers to remove that worktree first, then
   deletes the branch. A worktree with uncommitted or untracked files is removed
