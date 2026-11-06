@@ -249,6 +249,12 @@ The extension is already split into clean layers:
   new-code window is the previous version's, so advancing it while W32's
   13 findings were open would have moved them out of new code unfixed.
   Every 1.10.0 integration analysis before the advance ran at `1.9.0`.
+  The first `1.10.0` analysis, on `b450242`, reports the window
+  `PREVIOUS_VERSION 1.9.0`, starting `2026-11-06T13:28:22Z` (gate 9's
+  analysis), as expected. It is task
+  `d7b4bea1-fe45-407c-b3ec-3021387ab3b0`, quality gate **`OK`**, with
+  `new_violations` 0, reliability and security issues 0, and new coverage
+  100%.
 - The project uses the maintainer's `ZAM` quality gate, and **not all of its
   conditions are scoped to new code**. As of `2026-07-29` it has six conditions:
   `new_duplicated_lines_density` at most `1` and `new_violations` at most `3` on

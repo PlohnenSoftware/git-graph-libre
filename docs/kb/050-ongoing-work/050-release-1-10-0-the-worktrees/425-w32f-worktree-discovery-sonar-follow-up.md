@@ -10,7 +10,7 @@ summary: >-
 
 # W32F — Worktree discovery Sonar follow-up
 
-Status: done — awaiting integration
+Status: integrated `3b13162` (`2026-11-06`)
 Needs: W32 (integrated `426b789`)
 Decisions: —
 Kind: TypeScript · Size budget: ~80 changed lines outside tests

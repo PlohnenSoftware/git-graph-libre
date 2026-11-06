@@ -122,7 +122,7 @@ run one after another, as the integrator procedure says.
 | W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | integrated `5cdfa9e` |
 | W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | dispatched `2026-11-06` (Haiku) |
 | W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | integrated `426b789` |
-| W32F | [Worktree discovery Sonar follow-up](050-release-1-10-0-the-worktrees/425-w32f-worktree-discovery-sonar-follow-up.md) | TS | W32 | E | dispatched `2026-11-06` (Haiku) |
+| W32F | [Worktree discovery Sonar follow-up](050-release-1-10-0-the-worktrees/425-w32f-worktree-discovery-sonar-follow-up.md) | TS | W32 | E | integrated `3b13162` |
 | W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | ready (queued: one manifest or l10n slice at a time) |
 | W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | ready (queued: one manifest or l10n slice at a time) |
 | W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | ready (queued: one manifest or l10n slice at a time) |
@@ -673,3 +673,29 @@ commit, the gate results with numbers, and the Sonar task id.
   - The rebase was clean. Typecheck passes, the backend passes 1373 of
     1373, the webview 937 of 937, and l10n is complete.
   - W23 was dispatched to Haiku, into the manifest and l10n slot.
+- `2026-11-06`: W32F integrated at `3b13162`. It clears W32's 13 findings
+  through one shared `mapSequential()` helper, so the trust writes stay
+  strictly sequential. The rebase was clean. Typecheck passes, the backend
+  passes 1317 (60 environment skips), and the webview 937 of 937.
+- `2026-11-06`: version and documents, at the maintainer's request.
+  - `package.json` is `1.10.0` (`dc29ba6`).
+  - `CHANGELOG.md` and the README were brought up to date (`a9a587c`,
+    `406d999`). Several slices had them outside their Touch list, so #37's
+    features, the engine changes and three fixes were missing. The section
+    is `[1.10.0]` "The Worktrees". The maintainer set its date to TBA
+    (`43c2b56`), and W90 fills it in.
+  - The maintainer fast-forwarded `main` to `the-worktrees` locally at
+    `43c2b56`. Nothing is pushed. `main` is now kept fast-forwarded to
+    `the-worktrees` after each integration.
+- `2026-11-06`, gate 9 on `406d999`: W26G, W32F, the version bump and the
+  documents since `e023aeb`.
+  - The Rust arm was skipped, with no engine change.
+  - Strict Biome is clean on 57 files. `package`, `l10n:check` and
+    `kb:check` pass.
+  - Fresh `test:coverage`: 182 files, 2,314 of 2,314 tests passed.
+  - Sonar task `56b8345e-572a-419c-8b78-b270a5ef61e7`: quality gate
+    **`OK`**. W32F cleared all 13 findings. One new S9381, in W32F's
+    helper, was fixed at `5c5e395`.
+  - `sonar.projectVersion` then advanced to `1.10.0` (`b450242`). The
+    first `1.10.0` analysis (`d7b4bea1`) is **`OK`**, with 0 new
+    violations and the window `PREVIOUS_VERSION 1.9.0`.
