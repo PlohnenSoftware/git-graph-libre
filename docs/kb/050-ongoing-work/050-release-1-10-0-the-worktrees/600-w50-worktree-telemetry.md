@@ -10,7 +10,7 @@ summary: >-
 
 # W50 — Worktree telemetry
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-11-06 15:09
 Needs: W11, W32
 Decisions: Y19 (add the two features, or none)
 Kind: TypeScript and docs · Size budget: ~80 changed lines outside tests
