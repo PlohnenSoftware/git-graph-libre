@@ -1,8 +1,10 @@
 ---
 summary: >-
-  Record (`2026-11-04`) of the eight closed GitHub issues (#2, #3, #7, #26,
-  #30, #31, #32, #39): what each asked, the proposals in its thread, how it was
-  resolved and where the work is recorded. Two loose ends remain: #31's
+  Record of the closed GitHub issues: the eight closed by `2026-11-04` (#2, #3,
+  #7, #26, #30, #31, #32, #39), and the five closed on `2026-11-06` when the
+  maintainer pushed `main` (#36, #38, #41, #45, #46). For each: what it asked,
+  the proposals in its thread, how it was resolved, with its dates and closing
+  commit, and where the work is recorded. Two loose ends remain: #31's
   untested Flatpak and Snap installs, and #4's suggested Rebase on remote
   branches.
 ---
@@ -120,4 +122,69 @@ that is behind should pull automatically when there are no local changes.
   action should match one Git command. The reporter then showed their other
   tool's "Checkout the existing branch & pull changes" choice.
 - The thread is recorded in full, with an assessment, in Issue #45: checking
-  out a remote branch whose local branch exists, under Open GitHub issues.
+  out a remote branch whose local branch exists, below in this record.
+
+**Closed on `2026-11-06`.** The maintainer pushed `main` (at `43c2b56`, as the
+release 1.10.0 record notes), and GitHub closed the five issues below from the
+integrator's gated closing lines, under the rule in Closing issues from
+commits. Each entry links its subsection, which keeps the thread and the
+assessment as they were when the issue was open.
+
+**#36 — "Updating push dialog box to better align with default git behavior"**
+(`cktgh`, `2026-10-26`, closed `2026-11-06`). The Push Branch dialog pre-checked
+`origin` and Set upstream, where plain `git push` uses Git's push remote and
+sets upstream only when asked.
+
+- Thread: `zamkorus` (`2026-10-27`) agreed it would be fixed in the upcoming
+  release.
+- Resolution: shipped in 1.10.0 as W25 (`decdf71`). Gated and closed by
+  `613fbb4` (`2026-11-05`), on the push of `main` (`2026-11-06`).
+- Record: [Issue #36: push dialog default remote and Set upstream](160-closed-github-issues-and-their-threads/010-issue-36-push-dialog-default-remote-and-set-upstream.md).
+
+**#38 — "feata: delete worktree"** (`rbalet`, `2026-10-28`, closed
+`2026-11-06`). A force-delete button on "Unable to Delete Branch", for a branch
+that a leftover agent worktree still held.
+
+- Thread: no comments.
+- Resolution: shipped in 1.10.0 as W20 (`83f5821`), which explains why a branch
+  checked out elsewhere cannot be acted on, and W21 (`88ed629`), which adds
+  worktree removal (`--force` only after a second confirmation), stale-entry
+  removal, repair and prune. Gated and closed by `f983598` (`2026-11-05`), on
+  the push of `main` (`2026-11-06`).
+- Record: [Issue #38: remove a leftover worktree that blocks a branch](160-closed-github-issues-and-their-threads/030-issue-38-remove-a-leftover-worktree-that-blocks-a-branch.md).
+
+**#41 — "feat(modal/ux): wide selection"** (`rbalet`, `2026-10-28`, closed
+`2026-11-06`). Clicking anywhere on a checkbox's row should toggle it.
+
+- Thread: no comments. The maintainer re-answered the scope on `2026-11-05`:
+  every popup, not only modal dialogs.
+- Resolution: W06 (`af7ff04`) for the dialog rows, and W06F (`0c1437e`) for every
+  popup. Gated and closed by `31417ec` (`2026-11-05`), on the push of `main`
+  (`2026-11-06`).
+- Record: [Issue #41: whole-row checkbox hit area in dialogs](160-closed-github-issues-and-their-threads/050-issue-41-whole-row-checkbox-hit-area-in-dialogs.md).
+
+**#45 — "fix(checkout remote branch): Allow one click switch and pull when checkout on remote branch with existing local is attempted"** (`rbalet`,
+`2026-11-02`, closed `2026-11-06`, label `bug`). Checking out a remote branch
+whose local branch exists ended in Git's "already exists", and the suggested
+name dropped path segments.
+
+- Thread: `cktgh` confirmed the name bug; the maintainer called the rest a
+  feature. The duplicate #39 was closed into it (above).
+- Resolution: W05 (`659d095`) pre-fills the full branch name with
+  `parseRemoteBranchName()`; W24 (`65725f7`) offers switch, switch and
+  fast-forward (`--ff-only`), or another name. Gated and closed by `6f815c5`
+  (`2026-11-06`), on the push of `main` the same day.
+- Record: [Issue #45: checking out a remote branch whose local branch exists](160-closed-github-issues-and-their-threads/070-issue-45-checking-out-a-remote-branch-whose-local-branch-exists.md).
+
+**#46 — "feat(tag): origine"** (`rbalet`, `2026-11-05`, closed `2026-11-06`).
+Show which remotes hold a tag.
+
+- Thread: none. The reporter opened draft PR #47 the same day, with one commit,
+  `a109e9a`, which carries the closing line.
+- Resolution: PR #47 was reviewed and landed as a plain merge (`a93ddc7`, Y24),
+  with its later update `dc1886c` merged at `d1bc642`. Its behavior was
+  refined by W26F (`43ac7e9`), W26G (`697423e`, the `repository.showTagRemotes`
+  setting, default `origin`) and W26H (`d607144`, the hardened remote read).
+  GitHub marked PR #47 merged on `2026-11-06` (`13:30:05Z`), and `a109e9a`'s
+  line closed the issue when `main` was pushed.
+- Record: [Issue #46: show which remotes hold a tag](160-closed-github-issues-and-their-threads/080-issue-46-show-which-remotes-hold-a-tag.md).

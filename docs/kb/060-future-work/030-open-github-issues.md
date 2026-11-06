@@ -1,17 +1,22 @@
 ---
 summary: >-
-  Register of the eight open GitHub issues, read in full with `gh` on
-  `2026-11-04` (#46 on `2026-11-05`). To tackle (maintainer, `2026-11-04`):
-  #36 push dialog defaults, #37 worktrees, #38 removing a leftover worktree,
-  #41 whole-row checkboxes, #45 checking out a remote branch whose local
-  branch exists (#39 closed as its duplicate); and (`2026-11-05`) #46 which
-  remotes hold a tag, implemented by the reporter's PR #47. On hold in the backlog, as matters of taste: #40
-  fetch that also updates the current branch, #42 lighter ref badge icons.
-  One subsection per issue holds the thread, the verified facts and an agent
-  assessment; how to implement each is still open.
+  Register of the three open GitHub issues, read in full with `gh` on
+  `2026-11-04` and updated on `2026-11-06`. To tackle: #37 worktrees, still
+  open, its core planned for release 1.10.0. On hold in the backlog, as
+  matters of taste: #40 fetch that also updates the current branch, #42
+  lighter ref badge icons. The five issues closed on `2026-11-06` (#36, #38,
+  #41, #45, #46) moved to Closed GitHub issues and their threads under
+  History. One subsection per open issue holds the thread, the verified facts
+  and an agent assessment; how to implement #37 is still open.
 ---
 
 # Open GitHub issues (`2026-11-04`)
+
+**Updated `2026-11-06`.** GitHub closed #36, #38, #41, #45 and #46 when the
+maintainer pushed `main`. Their subsections moved to History with `git mv`,
+under Closed GitHub issues and their threads. Still open: #37 (to tackle),
+and #40 and #42 (on hold). The rest of this register is as read on
+`2026-11-04`.
 
 Every open issue of `PlohnenSoftware/git-graph-libre`, read in full on
 `2026-11-04` with `gh issue list --state all`, `gh issue view` and the issue
@@ -56,28 +61,20 @@ licensing verdict under Licensing require.
 
 ## To tackle (maintainer, `2026-11-04`; #46 `2026-11-05`)
 
-All six are planned in Release 1.10.0 — "The Worktrees" under Ongoing work
-(`2026-11-04`):
-- #36 as W25;
-- #37 as the release's core: W02–W04, W10–W12 and W30–W33;
-- #38 as W20 and W21;
-- #41 as W06;
-- #45 as W05 (the bug) and W24 (the feature);
-- #46 as W26, which reviews and lands the reporter's PR #47 (`a109e9a`).
+Five of the six are closed as of `2026-11-06`, when the maintainer pushed
+`main` and GitHub closed #36, #38, #41, #45 and #46. They are no longer listed
+here: their subsections, with the closing commits and the slices that shipped
+them, are under History in Closed GitHub issues and their threads.
 
-Their open choices are that release's decisions: Y11 for #36, Y3, Y4 and Y22
-for #37, Y5 for #38, Y13 for #41, Y14 for #45, and Y23 and Y24 for #46. Each
-issue closes through the commit that completes it (Closing issues from
-commits, under Rules).
+Only #37 is still open to tackle. It is planned in Release 1.10.0 — "The
+Worktrees" under Ongoing work, as the release's core: W02–W04, W10–W12 and
+W30–W33 (`2026-11-04`). Its open choices are that release's decisions Y3, Y4
+and Y22. It closes through the commit that completes it (Closing issues from
+commits, under Rules), which the integrator writes once W33 is integrated.
 
 | Issue | Opened by | Has a point? | Recommended direction (agent; details in the subsection) | Maintainer on GitHub |
 | --- | --- | --- | --- | --- |
-| [#36](https://github.com/PlohnenSoftware/git-graph-libre/issues/36) push dialog defaults | `cktgh`, `2026-10-26` | Yes, both points | Pre-check the remote plain `git push` would use (`%(push:remotename)`: `branch.<b>.pushRemote`, then `remote.pushDefault`, then the upstream's remote), then `origin`, then the first remote. Honor Git's `remote.pushDefault` instead of adding a setting. Pre-check Set upstream only for a branch with no upstream. Fix `-u` on several remotes, where the last remote pushed ends up tracked | Agreed `2026-10-27`, for 1.10.0 |
 | [#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37) worktree support | `KristjanESPERANTO`, `2026-10-26` | Yes | Phase 18. First slice is display only: a marker on branches checked out in another worktree, with the path on hover. Cheapest route is CLI-only `loadBranches`, where simple-git already parses the marker as `linkedWorkTree` and drops it | On the roadmap `2026-10-27`, for 1.10.0 |
-| [#38](https://github.com/PlohnenSoftware/git-graph-libre/issues/38) delete worktree | `rbalet`, `2026-10-28` | Yes, but not as a force button | Detect the worktree up front (Phase 18's data) and offer a plain `git worktree remove` in the Delete Branch dialog. Use `--force` only after a second confirmation naming the files it deletes. A stale entry (folder already gone) and `git worktree prune` are safe | No reply yet |
-| [#41](https://github.com/PlohnenSoftware/git-graph-libre/issues/41) wide checkbox selection | `rbalet`, `2026-10-28` | Yes | Make the checkbox `<label>` full width (`media/dialogs.css:198`, one rule), with a CSS regression test and a headless render | No reply yet |
-| [#45](https://github.com/PlohnenSoftware/git-graph-libre/issues/45) checkout remote branch, local exists | `rbalet`, `2026-11-02` (duplicate: #39) | Yes, a bug and a feature | Bug (`cktgh`, confirmed): the suggested name drops path segments, so fix it with `parseRemoteBranchName()`. Feature: detect the existing branch before `git checkout -b` and offer switch, switch and fast-forward (`--ff-only`), or another name | Bug acknowledged `2026-11-03`; the rest is a feature |
-| [#46](https://github.com/PlohnenSoftware/git-graph-libre/issues/46) tag on origin | `rbalet`, `2026-11-05` | Yes | Already implemented by the reporter's draft [PR #47](https://github.com/PlohnenSoftware/git-graph-libre/pull/47) (`a109e9a`): remote segments on tag badges from background `git ls-remote`, exact object match. Decide when remotes are contacted (Y23); rebase onto `main` and land with Rebase and merge (Y24) | No reply yet |
 
 ## On hold: backlog (maintainer, `2026-11-04`)
 
@@ -89,7 +86,8 @@ subsections keep the assessment and options for that day.
 | [#40](https://github.com/PlohnenSoftware/git-graph-libre/issues/40) fetch also pulls | `rbalet`, `2026-10-28` | Partly: the need, not the coupling | Keep Fetch a fetch. If anything, add an unchecked "fast-forward the current branch" option to the Fetch dialog (`--ff-only`), pre-checked by a setting like `repository.fetchTagsByDefault` | Keep actions explicit (`2026-10-30`) |
 | [#42](https://github.com/PlohnenSoftware/git-graph-libre/issues/42) lighter icons | `rbalet`, `2026-10-28` | Taste; partly | Ask which part reads as bulky. If pursued, build an opt-in light badge style of our own, contrast-checked for any `graphColors`. The model extension is no-derivatives licensed, so it is a visual target only | No reply yet |
 
-Cross-issue links: #36 and #45 both want a per-branch upstream map. #37, #38
+Cross-issue links, as of `2026-11-04` (#36, #38 and #45 are closed now): #36
+and #45 both wanted a per-branch upstream map. #37, #38
 and #45 meet where a branch is checked out in another worktree, and Git then
 refuses both checkout and delete. #40 and #45 (with #39) share one principle
 in the maintainer's replies: each action does what it says, and nothing is
