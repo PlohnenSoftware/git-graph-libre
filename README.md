@@ -19,6 +19,16 @@
   lines and characters as VS Code's diff editor does. Open it from a file in
   the Source Control view or in commit details (**Open in GGL Diff**)
 - **Branch actions**: Create, checkout, rename, delete, and merge
+- **Worktrees**: See which branch is checked out in which worktree, on its
+  badge, and other worktrees' detached HEADs as marked rows. The Worktrees
+  button lists every worktree with its state, and opens, switches to,
+  creates, removes, repairs and prunes them. A branch held by another
+  worktree offers that worktree instead of the actions Git refuses there,
+  and Delete Branch can free a branch a leftover worktree blocks, removing
+  local changes only after a second confirmation that lists them. The
+  repository dropdown groups a repository's worktrees, including nested ones
+  and, if `repository.worktreesOutsideWorkspace` allows, ones outside the
+  workspace
 - **Tag actions**: Create, push, view details, and delete locally or on selected
   remotes; signed tags are marked with a verified badge in the graph
   - Tags show whether remotes hold the same tag object. Set
@@ -142,6 +152,7 @@ All settings use the `git-graph-libre` prefix.
 | `repository.includeUnreachableCommits`         | `false`         | Scan for unreachable commits in Show All         |
 | `repository.muteMergeCommits`                  | `false`         | Mute merge commit messages (opt-in)              |
 | `repository.showTagRemotes`                    | `"origin"`      | Remotes checked for tag badges: `"off"`, `"origin"` or `"all"` |
+| `repository.worktreesOutsideWorkspace`         | `true`          | List linked worktrees outside the workspace in the dropdown |
 | `repository.stashDisplay`                      | `"both"`        | Show stashes in the `"table"`, the `"graph"`, or `"both"` |
 | `uncommittedChanges.fileViewMode`              | `"tree"`        | Staging panel shows changes as a `"tree"` or flat `"list"` |
 | `showCurrentBranchByDefault`                   | `false`         | Show only current branch on open                 |

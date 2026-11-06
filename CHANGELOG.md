@@ -5,21 +5,36 @@ All notable changes to this extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.10.0] - 2026-11-06
+
+"The Worktrees": every Git worktree of a repository, seen and managed from
+the graph, with tag badges that say which remote holds a tag and push and
+checkout defaults that follow Git.
 
 ### Added
 
-- Tag badges show which remotes hold the same tag, with background checks and
-  hover text distinguishing local tags from unavailable remote information
-  ([#46](https://github.com/PlohnenSoftware/git-graph-libre/issues/46)).
-- **New setting `git-graph-libre.repository.showTagRemotes`**: `"off"`,
-  `"origin"` (the default) or `"all"`. `"origin"` checks and shows only
-  `origin`, and only when the repository has one, as @rbalet's pull request
-  does; `"all"` checks every remote; with `"off"` no remote is contacted to
-  badge tags, and badges look as they did before. Switching takes effect
-  without a reload. A tag created or moved outside the extension is checked again
-  rather than shown as unavailable, and a refresh keeps the remotes on screen
-  while it re-checks, redrawing only the tag badges.
+- **See where each branch is checked out.** A branch checked out in another
+  worktree carries a folder segment on its badge, and its tooltip and menu
+  header name that worktree's folder and path, and whether it is locked or
+  missing. A commit that another worktree has checked out as a detached
+  HEAD, which no branch reaches, now appears in the graph as a marked row.
+  Thanks to @KristjanESPERANTO for the request
+  ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
+
+- **A Worktrees list.** The new Worktrees button in the toolbar lists the
+  repository's worktrees, each with its branch or detached HEAD and whether it
+  is the main, current, locked, missing or bare one. From the list you can
+  open a worktree in a new window or this one, switch the graph to it, copy
+  its path, remove it, repair one that was moved by hand, create a worktree,
+  and prune stale entries after a preview
+  ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
+
+- **Open a worktree from the graph.** A branch checked out in another
+  worktree offers **Open Worktree…**: open it in a new window or this one,
+  add it to the workspace, reveal it in the file manager, or switch the graph
+  to it. **Git Graph Libre: Prune Stale Worktrees…** is also in the Command
+  Palette
+  ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
 
 - **Create a worktree from the graph.** **Create Worktree…** on a branch, a
   remote branch, a commit or a tag opens one dialog: the folder (defaulting to
@@ -31,6 +46,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   window, add it to the workspace, switch the graph to it, or do nothing, and
   remembers the last choice
   ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
+
+- **Worktrees in the repository dropdown.** A repository's worktrees are
+  listed together under it, labelled with their branch, including worktrees
+  nested inside it. With the new setting
+  `git-graph-libre.repository.worktreesOutsideWorkspace` (on by default),
+  linked worktrees outside the workspace are listed too, marked "outside
+  workspace", and added when chosen. When Git refuses several worktrees of
+  one repository for ownership, a single confirmation lists every folder to
+  trust
+  ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
+
+- **Free a branch that a leftover worktree blocks.** Delete Branch on a branch
+  checked out in another worktree now offers to remove that worktree first, then
+  deletes the branch. A worktree with uncommitted or untracked files is removed
+  only after a second confirmation that lists them, a locked worktree is
+  unlocked first and never forced twice, and a stale entry whose folder is gone
+  is removed with no warning. The branch menu also gains Repair Worktree (for a
+  worktree moved by hand) and Prune Stale Worktrees, which previews what it
+  removes. Thanks to @rbalet for the request
+  ([#38](https://github.com/PlohnenSoftware/git-graph-libre/issues/38)).
 
 - **Checking out a remote branch whose local branch exists asks what to do.**
   Checkout Branch on a remote branch used to end in Git's "a branch named …
@@ -44,15 +79,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   duplicate report
   ([#45](https://github.com/PlohnenSoftware/git-graph-libre/issues/45)).
 
-- **Free a branch that a leftover worktree blocks.** Delete Branch on a branch
-  checked out in another worktree now offers to remove that worktree first, then
-  deletes the branch. A worktree with uncommitted or untracked files is removed
-  only after a second confirmation that lists them, a locked worktree is
-  unlocked first and never forced twice, and a stale entry whose folder is gone
-  is removed with no warning. The branch menu also gains Repair Worktree (for a
-  worktree moved by hand) and Prune Stale Worktrees, which previews what it
-  removes. Thanks to @rbalet for the request
-  ([#38](https://github.com/PlohnenSoftware/git-graph-libre/issues/38)).
+- **Tag badges say which remote holds the tag.** A tag badge gains a remote
+  segment when that remote holds the identical tag object, checked in the
+  background with `git ls-remote`, without prompts, and with an unreachable
+  remote reported as unknown rather than absent. The new setting
+  `git-graph-libre.repository.showTagRemotes` chooses `"origin"` (the
+  default: only `origin` is checked and shown), `"all"` (every remote) or
+  `"off"` (no remote is contacted, and badges look as before), and takes
+  effect without a reload. Thanks to @rbalet for the request and the pull
+  request ([#46](https://github.com/PlohnenSoftware/git-graph-libre/issues/46),
+  [#47](https://github.com/PlohnenSoftware/git-graph-libre/pull/47)).
+
+### Changed
+
+- **Branch actions know about worktrees.** For a branch checked out in
+  another worktree, Checkout becomes Open Worktree…, and Pull and Fetch into
+  Local Branch, which Git refuses there, are no longer offered; the menu
+  header says why. Rename says that the other worktree follows the new name
+  ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
+
+- **The Rust engine** is built on gix 0.90 with refreshed dependencies. It
+  now refuses any repository Git itself does not trust, and every read it
+  serves is proven to match Git on linked worktrees: authors and statistics
+  count other worktrees' HEADs, as `git log --all` does, and a worktree that
+  was removed or moved is no longer read from a stale handle.
 
 ### Fixed
 
@@ -79,6 +129,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ended on whichever one was pushed last; it now goes to the first remote
   only, the pre-checked one. Thanks to @cktgh for the request
   ([#36](https://github.com/PlohnenSoftware/git-graph-libre/issues/36)).
+
+- **A graph opened on a linked worktree refreshes.** Commits, checkouts and
+  fetches made outside the extension were missed in a linked worktree, and
+  every graph missed another worktree checking out, being locked, added or
+  removed. Both are watched now
+  ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
+
+- **A linked worktree shows its repository's identity.** Its local
+  `user.name` and `user.email`, which Git reads from the repository's shared
+  config, were missing on the Rust engine path; both backends now agree.
+
+- **Telemetry no longer counts a nested worktree as a submodule.** A linked
+  worktree placed inside its main worktree was reported as submodule use.
 
 ## [1.9.0] - 2026-10-20
 
