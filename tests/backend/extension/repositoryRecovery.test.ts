@@ -9,7 +9,10 @@ const vscodeStub = vi.hoisted(() => ({
 // symlink), so every case can tell which of the two was shown and written.
 const trust = vi.hoisted(() => ({
   fn: vi.fn(async () => {}),
-  entry: vi.fn(async (repo: string) => `/real${repo}`)
+  entry: vi.fn(async (repo: string) => `/real${repo}`),
+  siblings: vi.fn(
+    async (_repo: string, _git: string) => [] as { directory: string; entry: string }[]
+  )
 }));
 const engine = vi.hoisted(() => ({ close: vi.fn() }));
 const components = vi.hoisted(() => ({
@@ -33,7 +36,8 @@ vi.mock("@/l10n", () => ({
 }));
 vi.mock("@/backend/utils/repositoryProbe", () => ({
   trustGitRepository: trust.fn,
-  safeDirectoryEntry: trust.entry
+  safeDirectoryEntry: trust.entry,
+  untrustedSiblingEntries: trust.siblings
 }));
 vi.mock("@/backend/engine/index", () => ({ closeEngineRepository: engine.close }));
 vi.mock("@/extension/componentStatus", () => ({ buildComponentStatus: components.build }));
@@ -96,6 +100,8 @@ beforeEach(() => {
   trust.fn.mockReset();
   trust.entry.mockReset();
   trust.entry.mockImplementation(async (repo: string) => `/real${repo}`);
+  trust.siblings.mockReset();
+  trust.siblings.mockResolvedValue([]);
   engine.close.mockClear();
   components.build.mockClear();
 });
@@ -148,6 +154,40 @@ describe("registerRepositoryRecovery trust", () => {
       repoSearch.searchWorkspaceForRepos.mock.invocationCallOrder.at(-1) ?? 0
     );
     expect(output.some((line) => line.includes("trust granted"))).toBe(true);
+  });
+
+  it("asks once for a repository whose other worktrees need trust, and trusts each entry as Git spells it (Y10)", async () => {
+    vscodeStub.showWarningMessage.mockImplementation(
+      async (_msg: string, _opts: unknown, accept: string) => accept
+    );
+    trust.siblings.mockResolvedValue([
+      { directory: "/repo-wt", entry: "/real/repo-wt" },
+      { directory: "/repo/.worktrees/x", entry: "/real/repo/.worktrees/x" }
+    ]);
+    const { handlers, output } = makeRecovery([untrustedRepo]);
+    await handlers.get("trustRepository")?.({ command: "trustRepository", repo: "/repo" } as never);
+
+    expect(vscodeStub.showWarningMessage).toHaveBeenCalledTimes(1);
+    expect(vscodeStub.showWarningMessage).toHaveBeenCalledWith(
+      "startup.trustConfirmMany:3,/real/repo\n/real/repo-wt\n/real/repo/.worktrees/x",
+      { modal: true },
+      "startup.trust"
+    );
+    expect(trust.fn.mock.calls).toEqual([
+      ["/repo", "git", "/real/repo"],
+      ["/repo-wt", "git", "/real/repo-wt"],
+      ["/repo/.worktrees/x", "git", "/real/repo/.worktrees/x"]
+    ]);
+    expect(engine.close).toHaveBeenCalledTimes(3);
+    expect(output.filter((line) => line.includes("trust granted"))).toHaveLength(3);
+  });
+
+  it("writes nothing for any worktree when the one confirmation is declined", async () => {
+    vscodeStub.showWarningMessage.mockResolvedValue(undefined);
+    trust.siblings.mockResolvedValue([{ directory: "/repo-wt", entry: "/real/repo-wt" }]);
+    const { handlers } = makeRecovery([untrustedRepo]);
+    await handlers.get("trustRepository")?.({ command: "trustRepository", repo: "/repo" } as never);
+    expect(trust.fn).not.toHaveBeenCalled();
   });
 
   it("does nothing when the confirmation is declined", async () => {

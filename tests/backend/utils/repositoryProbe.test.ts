@@ -8,7 +8,8 @@ import {
   inspectRepository,
   isGitTrustError,
   safeDirectoryEntry,
-  trustGitRepository
+  trustGitRepository,
+  untrustedSiblingEntries
 } from "@/backend/utils/repositoryProbe";
 
 // Every Git child in this file runs against an isolated global/system config
@@ -357,6 +358,72 @@ describe("trustGitRepository", () => {
     await expect(trustGitRepository(repo, GIT, fs.realpathSync(repo))).rejects.toThrow(
       /no longer needs/
     );
+  });
+});
+
+describe("untrustedSiblingEntries (Y10)", () => {
+  let main: string;
+  let sibling: string;
+  let nested: string;
+  let stranger: string;
+
+  beforeAll(() => {
+    isolate(false);
+    main = path.join(root, "multi main");
+    initRepo(main);
+    sibling = path.join(root, "multi-wt é");
+    git(["worktree", "add", sibling, "-b", "multi-sibling"], main);
+    nested = path.join(main, ".worktrees", "nested wt");
+    git(["worktree", "add", nested, "-b", "multi-nested"], main);
+    stranger = path.join(root, "stranger");
+    initRepo(stranger);
+  });
+
+  const real = (directory: string) => fs.realpathSync(directory);
+
+  it("lists the other worktrees that need trust, sibling and nested, with the entry Git spells", async () => {
+    isolate(true);
+    const entries = await untrustedSiblingEntries(main, GIT);
+    expect(entries.map((item) => item.entry).toSorted()).toEqual(
+      [real(nested), real(sibling)].toSorted()
+    );
+    expect(entries.map((item) => path.resolve(item.directory)).toSorted()).toEqual(
+      [path.resolve(nested), path.resolve(sibling)].toSorted()
+    );
+    expect(fs.readFileSync(globalConfig, "utf8")).toBe("");
+  });
+
+  it("reaches the main worktree and the others from a linked worktree, never itself", async () => {
+    isolate(true);
+    const entries = await untrustedSiblingEntries(sibling, GIT);
+    expect(entries.map((item) => item.entry).toSorted()).toEqual(
+      [real(main), real(nested)].toSorted()
+    );
+  });
+
+  it("leaves out a worktree that is already trusted", async () => {
+    isolate(true);
+    await trustConfirmed(sibling);
+    const entries = await untrustedSiblingEntries(main, GIT);
+    expect(entries.map((item) => item.entry)).toEqual([real(nested)]);
+  });
+
+  it("does not follow an admin file that names a folder of another repository", async () => {
+    isolate(true);
+    const forged = path.join(main, ".git", "worktrees", "forged");
+    fs.mkdirSync(forged);
+    fs.writeFileSync(path.join(forged, "gitdir"), `${path.join(stranger, ".git")}\n`);
+    try {
+      const entries = await untrustedSiblingEntries(main, GIT);
+      expect(entries.map((item) => item.entry)).not.toContain(real(stranger));
+    } finally {
+      fs.rmSync(forged, { recursive: true, force: true });
+    }
+  });
+
+  it("answers nothing for a repository with no other worktree", async () => {
+    isolate(true);
+    expect(await untrustedSiblingEntries(stranger, GIT)).toEqual([]);
   });
 });
 

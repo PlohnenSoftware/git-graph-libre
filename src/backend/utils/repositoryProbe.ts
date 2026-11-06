@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { loadEngineAddon } from "@/backend/engine/addon";
 import type { RepositoryProbe } from "@/types";
 import { canonicalizePath } from "./git";
+import { resolveGitDirs } from "./gitDirs";
 import { normalizeGitError } from "./gitRunner";
 import { traceBackend } from "./operationLog";
 
@@ -195,4 +196,66 @@ export async function trustGitRepository(
       env: { ...process.env, LC_ALL: "C" }
     })
   );
+}
+
+export type TrustEntry = {
+  /** The worktree folder that needs trust. */
+  directory: string;
+  /** The exact `safe.directory` value for it, as `safeDirectoryEntry` spells it. */
+  entry: string;
+};
+
+/**
+ * Folders the repository's admin data names as its worktrees: the main
+ * worktree beside a `.git` common dir, and each linked worktree's `gitdir`
+ * file under `worktrees/`. Read from the file system, because Git itself
+ * refuses to list the worktrees of a repository it does not trust.
+ */
+async function namedWorktreeFolders(commonDir: string): Promise<string[]> {
+  const folders = path.basename(commonDir) === ".git" ? [path.dirname(commonDir)] : [];
+  const adminRoot = path.join(commonDir, "worktrees");
+  const ids = await fs.readdir(adminRoot).catch(() => [] as string[]);
+  for (const id of ids) {
+    const line = await fs
+      .readFile(path.join(adminRoot, id, "gitdir"), "utf8")
+      .then((text) => (text.split(/\r?\n/)[0] ?? "").trim())
+      .catch(() => "");
+    // The file names the worktree's own `.git` file; the worktree is its folder.
+    if (path.basename(line) === ".git") folders.push(path.dirname(line));
+  }
+  return folders;
+}
+
+/** Whether `folder` names this common dir back, so a forged admin file cannot name a stranger's folder. */
+async function sharesCommonDir(folder: string, commonDir: string): Promise<boolean> {
+  const theirs = resolveGitDirs(folder).commonDir;
+  return (await canonicalizePath(theirs)) === (await canonicalizePath(commonDir));
+}
+
+/**
+ * The other worktrees of `repo`'s repository that Git also rejects for
+ * ownership, each with the exact entry it needs (Y10): trusting one worktree
+ * leaves the others untrusted, so they are offered in one confirmation rather
+ * than one prompt each. Only folders that both the admin data names and that
+ * name this repository back are considered, and only those Git itself still
+ * answers "untrusted" for. `repo` is never in the result.
+ */
+export async function untrustedSiblingEntries(
+  repo: string,
+  gitPath: string
+): Promise<TrustEntry[]> {
+  const commonDir = resolveGitDirs(repo).commonDir;
+  const own = await canonicalizePath(repo);
+  const seen = new Set<string>([own]);
+  const entries: TrustEntry[] = [];
+  for (const folder of await namedWorktreeFolders(commonDir)) {
+    const canonical = await canonicalizePath(folder);
+    if (seen.has(canonical)) continue;
+    seen.add(canonical);
+    if (!(await sharesCommonDir(folder, commonDir))) continue;
+    const probe = await inspectRepository(folder, { gitPath, useEngine: false });
+    if (probe.state !== "untrusted") continue;
+    entries.push({ directory: folder, entry: await safeDirectoryEntry(folder, gitPath) });
+  }
+  return entries;
 }

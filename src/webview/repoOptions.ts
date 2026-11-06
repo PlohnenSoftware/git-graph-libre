@@ -159,7 +159,9 @@ export function buildRepoOptions(
       treeBranch: treeBranchOf(last)
     });
     const kids = children.get(node) ?? [];
-    kids.forEach((kid, index) => visit(kid, depth + 1, index === kids.length - 1));
+    for (const [index, kid] of kids.entries()) {
+      visit(kid, depth + 1, index === kids.length - 1);
+    }
   };
   for (const root of children.get(null) ?? []) visit(root, 0, null);
   // A parent loop (worktree folders nested inside each other's group) leaves

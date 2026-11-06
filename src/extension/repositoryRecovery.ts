@@ -2,7 +2,12 @@ import * as vscode from "vscode";
 import { closeEngineRepository } from "@/backend/engine/index";
 import { normalizeGitError } from "@/backend/utils/gitRunner";
 import { logApplication } from "@/backend/utils/operationLog";
-import { safeDirectoryEntry, trustGitRepository } from "@/backend/utils/repositoryProbe";
+import {
+  safeDirectoryEntry,
+  type TrustEntry,
+  trustGitRepository,
+  untrustedSiblingEntries
+} from "@/backend/utils/repositoryProbe";
 import type { Config } from "@/config";
 import * as l10n from "@/l10n";
 import type { TelemetryReporter } from "@/telemetry";
@@ -21,11 +26,23 @@ type TrustDeps = {
 /** One trust request at a time, whether it came from a graph tab or the palette. */
 let trusting = false;
 
+/** The confirmation text: the one entry as before, or every worktree that needs trust, listed. */
+function trustQuestion(entries: readonly TrustEntry[]): string {
+  if (entries.length === 1) return l10n.t("startup.trustConfirm", entries[0].entry);
+  return l10n.t(
+    "startup.trustConfirmMany",
+    entries.length,
+    entries.map((item) => item.entry).join("\n")
+  );
+}
+
 /**
  * Asks, then adds one discovered repository Git rejects for ownership to
- * Git's global safe.directory list. The dialog names the exact entry that
- * will be written (see `safeDirectoryEntry`). Returns the error to show, or
- * null when it was trusted, declined, or another request is already open.
+ * Git's global safe.directory list. When other worktrees of the same
+ * repository are rejected too, one confirmation lists them all (Y10) and each
+ * is added exactly as Git spells it. The dialog names every entry that will be
+ * written (see `safeDirectoryEntry`). Returns the error to show, or null when
+ * it was trusted, declined, or another request is already open.
  */
 export async function confirmGitTrust(repo: string, deps: TrustDeps): Promise<string | null> {
   if (trusting) return null;
@@ -37,17 +54,22 @@ export async function confirmGitTrust(repo: string, deps: TrustDeps): Promise<st
     if (!known)
       throw new Error("This directory is not a discovered repository awaiting Git trust.");
     const gitPath = deps.config.gitPath();
-    const entry = await safeDirectoryEntry(repo, gitPath);
+    const entries: TrustEntry[] = [
+      { directory: repo, entry: await safeDirectoryEntry(repo, gitPath) },
+      ...(await untrustedSiblingEntries(repo, gitPath))
+    ];
     const accept = l10n.t("startup.trust");
     const answer = await (deps.window ?? vscode.window).showWarningMessage(
-      l10n.t("startup.trustConfirm", entry),
+      trustQuestion(entries),
       { modal: true },
       accept
     );
     if (answer !== accept) return null;
-    await trustGitRepository(repo, gitPath, entry);
-    closeEngineRepository(repo);
-    deps.outputChannel?.appendLine(`[repos] Git trust granted for ${JSON.stringify(entry)}`);
+    for (const { directory, entry } of entries) {
+      await trustGitRepository(directory, gitPath, entry);
+      closeEngineRepository(directory);
+      deps.outputChannel?.appendLine(`[repos] Git trust granted for ${JSON.stringify(entry)}`);
+    }
     return null;
   } catch (error_) {
     const error = normalizeGitError(error_).message;
