@@ -89,7 +89,27 @@ type WorktreeChangesResult = {
   error: GitQueryError | null;
 };
 
+/**
+ * Whether a linked worktree has uncommitted or untracked files: `unknown` when
+ * the read failed or timed out, which is never shown as `clean`.
+ */
+export type WorktreeChangeStatus = {
+  state: "clean" | "dirty" | "unknown";
+  /** The changed paths counted, at most the worktree actions' path limit; zero unless dirty. */
+  count: number;
+  /** True when the worktree has more changes than `count` counts. */
+  truncated: boolean;
+};
+
 type QueryPayloads = {
+  worktreeStatus: {
+    request: { requestId: number; repo: string; paths: string[] };
+    result: { statuses: Record<string, WorktreeChangeStatus> };
+    /** Keyed by each requested path as it was sent; `repo` lets the webview drop an answer for another repository. */
+    response: { requestId: number; repo: string } & {
+      statuses: Record<string, WorktreeChangeStatus>;
+    };
+  };
   worktreeChanges: {
     request: { requestId: number; repo: string; path: string };
     result: WorktreeChangesResult;

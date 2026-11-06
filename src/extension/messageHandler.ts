@@ -80,6 +80,7 @@ import { remoteTags } from "@/backend/queries/remoteTags";
 import { resolveRef } from "@/backend/queries/resolveRef";
 import { tagDetails } from "@/backend/queries/tagDetails";
 import { uncommittedDetails } from "@/backend/queries/uncommittedDetails";
+import { worktreeStatus } from "@/backend/queries/worktreeStatus";
 import type { GitFileChangeType, GitQueryError } from "@/backend/types";
 import { canonicalizePath } from "@/backend/utils/git";
 import { formatGitCommandRecord } from "@/backend/utils/gitCommandLog";
@@ -1157,6 +1158,19 @@ export function registerMessageHandlers(
       ...(await tagDetails(gitClient.getInstance(), {
         repo: msg.repo,
         tagName: msg.tagName,
+        recordGitCommand
+      }))
+    });
+  });
+
+  bridge.onMessage("worktreeStatus", async (msg) => {
+    bridge.post({
+      command: "worktreeStatus",
+      requestId: msg.requestId,
+      repo: msg.repo,
+      ...(await worktreeStatus(gitClient.getInstance(), {
+        repo: msg.repo,
+        paths: msg.paths,
         recordGitCommand
       }))
     });
