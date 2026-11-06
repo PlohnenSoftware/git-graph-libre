@@ -9,7 +9,7 @@ summary: >-
 
 # W34F — Repository-tab note for worktrees
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-11-06 15:31
 Needs: W34 (integrated `a9d58f2`), W32 (the worktree layout)
 Decisions: Y18 (a)
 Kind: webview and l10n · Size budget: ~40 changed lines outside tests
