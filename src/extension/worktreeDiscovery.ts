@@ -23,6 +23,7 @@ import { readWorktrees } from "@/backend/engine/worktrees";
 import type { GitWorktree } from "@/backend/types";
 import { canonicalizePath } from "@/backend/utils/git";
 import { inspectRepository } from "@/backend/utils/repositoryProbe";
+import { mapSequential } from "@/backend/utils/sequential";
 import type { Config } from "@/config";
 import type { OutsideWorktree } from "@/types";
 
@@ -72,6 +73,19 @@ function groupByCommonDir(repoPaths: readonly string[]): Map<string, string[]> {
   return groups;
 }
 
+/** The listed worktrees that are not bare, with the forward-slash and canonical path of each. */
+async function describe(listing: readonly GitWorktree[]): Promise<ListedWorktree[]> {
+  return Promise.all(
+    listing
+      .filter((worktree) => !worktree.bare)
+      .map(async (worktree) => ({
+        worktree,
+        path: toSlashes(worktree.path),
+        canonical: await canonicalizePath(worktree.path)
+      }))
+  );
+}
+
 export function createWorktreeDiscovery(deps: WorktreeDiscoveryDeps) {
   const { repoManager, config } = deps;
 
@@ -117,18 +131,6 @@ export function createWorktreeDiscovery(deps: WorktreeDiscoveryDeps) {
     return null;
   }
 
-  async function describe(listing: readonly GitWorktree[]): Promise<ListedWorktree[]> {
-    return Promise.all(
-      listing
-        .filter((worktree) => !worktree.bare)
-        .map(async (worktree) => ({
-          worktree,
-          path: toSlashes(worktree.path),
-          canonical: await canonicalizePath(worktree.path)
-        }))
-    );
-  }
-
   /** A listed worktree no member has yet: add it inside the workspace, offer it outside. */
   async function place(pass: Pass, entry: ListedWorktree, commonDir: string, repo: string) {
     const roots = deps.roots();
@@ -161,8 +163,9 @@ export function createWorktreeDiscovery(deps: WorktreeDiscoveryDeps) {
     if (!config.worktreesOutsideWorkspace()) return;
     const roots = deps.roots();
     const canonicalRoots = await Promise.all(roots.map(canonicalizePath));
-    for (const member of members) {
-      const canonical = await canonicalizePath(member);
+    const canonicals = await Promise.all(members.map((member) => canonicalizePath(member)));
+    for (const [index, member] of members.entries()) {
+      const canonical = canonicals[index];
       if (present.has(canonical) || !worktreeGroupOf(member).linked) continue;
       if (isInsideRoots(member, roots) || isInsideRoots(canonical, canonicalRoots)) continue;
       repoManager.removeRepo(member);
@@ -179,6 +182,7 @@ export function createWorktreeDiscovery(deps: WorktreeDiscoveryDeps) {
     const entries = await describe(listing);
     const memberCanonical = new Set(await Promise.all(members.map(canonicalizePath)));
     const present = new Set<string>();
+    const fresh: ListedWorktree[] = [];
     for (const entry of entries) {
       pass.details.set(entry.path, {
         branch: entry.worktree.branch,
@@ -186,10 +190,10 @@ export function createWorktreeDiscovery(deps: WorktreeDiscoveryDeps) {
       });
       if (entry.worktree.prunable !== null) continue;
       present.add(entry.canonical);
-      if (!memberCanonical.has(entry.canonical)) {
-        await place(pass, entry, commonDir, members[0]);
-      }
+      if (!memberCanonical.has(entry.canonical)) fresh.push(entry);
     }
+    // Placed one at a time: each may add a repository or an outside entry, in listing order.
+    await mapSequential(fresh, (entry) => place(pass, entry, commonDir, members[0]));
     await dropUnlisted(pass, members, present);
   }
 
@@ -203,10 +207,10 @@ export function createWorktreeDiscovery(deps: WorktreeDiscoveryDeps) {
     async reconcile(isVerified: (repo: string) => boolean = () => false): Promise<boolean> {
       const pass: Pass = { details: new Map(), outside: [], changed: false };
       const groups = groupByCommonDir(Object.keys(repoManager.getRepos()));
-      for (const [commonDir, members] of groups) {
+      await mapSequential([...groups], async ([commonDir, members]) => {
         const listing = await listGroup(members, isVerified);
         if (listing !== null) await applyListing(pass, commonDir, members, listing);
-      }
+      });
       repoManager.setWorktreeDetails(pass.details, pass.outside);
       return pass.changed;
     }

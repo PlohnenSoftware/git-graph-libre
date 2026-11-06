@@ -25,6 +25,14 @@ function sortRepos(repos: GitRepoSet) {
   return sorted;
 }
 
+function workspaceRoots(): string[] {
+  return (vscode.workspace.workspaceFolders ?? []).map((folder) => getPathFromUri(folder.uri));
+}
+
+function isInsideRoots(repoPath: string, roots: readonly string[]) {
+  return roots.some((root) => repoPath === root || repoPath.startsWith(`${root}/`));
+}
+
 export function createRepoManager(
   extensionState: ExtensionState,
   statusBarItem: StatusBarItem,
@@ -113,14 +121,6 @@ export function createRepoManager(
   function setRepoState(repo: string, state: GitRepoState) {
     repos[repo] = state;
     extensionState.saveRepos(repos);
-  }
-
-  function workspaceRoots(): string[] {
-    return (vscode.workspace.workspaceFolders ?? []).map((folder) => getPathFromUri(folder.uri));
-  }
-
-  function isInsideRoots(repoPath: string, roots: readonly string[]) {
-    return roots.some((root) => repoPath === root || repoPath.startsWith(`${root}/`));
   }
 
   /**
