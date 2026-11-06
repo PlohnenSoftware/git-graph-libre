@@ -126,6 +126,7 @@ run one after another, as the integrator procedure says.
 | W32F | [Worktree discovery Sonar follow-up](050-release-1-10-0-the-worktrees/425-w32f-worktree-discovery-sonar-follow-up.md) | TS | W32 | E | integrated `3b13162` |
 | W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | integrated `48f3ee3` |
 | W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | integrated `a9d58f2` (step 2, the Repository-tab note, left for W34F) |
+| W34F | [Repository-tab note for worktrees](050-release-1-10-0-the-worktrees/445-w34f-repository-tab-note-for-worktrees.md) | webview + l10n | W34 | E | dispatched `2026-11-06` (Haiku) |
 | W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | integrated `5ff9385` |
 | W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | integrated `2e37454` |
 | W90 | [Release 1.10.0](050-release-1-10-0-the-worktrees/900-w90-release-1-10-0.md) | release | every slice in scope | — | maintainer |
