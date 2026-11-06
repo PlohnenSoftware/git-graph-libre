@@ -10,7 +10,7 @@ summary: >-
 
 # W22F — Worktree path setting, browse, and persisted finish choice
 
-Status: done — awaiting integration
+Status: integrated `d1959f0` (`2026-11-06`)
 Needs: W22 (integrated `63cdd97`)
 Decisions: Y7 (a) with (d) and Y8 (a), answered `2026-11-05`
 Kind: TypeScript, webview, manifest and l10n · Size budget: ~200 changed
