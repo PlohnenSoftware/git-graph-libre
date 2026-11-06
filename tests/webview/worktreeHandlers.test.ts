@@ -48,6 +48,7 @@ function setup() {
 
   const known = new Set([repo, featPath]);
   const removeRepo = vi.fn((repoPath: string) => known.delete(repoPath));
+  const setRepoState = vi.fn((repoPath: string) => known.add(repoPath));
   const sendRepos = vi.fn();
   const handlers = new Map<string, (msg: RequestMessage) => void | Promise<void>>();
   const posts: ResponseMessage[] = [];
@@ -63,6 +64,7 @@ function setup() {
     repoManager: {
       getRepos: () => Object.fromEntries([...known].map((repoPath) => [repoPath, {}])),
       removeRepo,
+      setRepoState,
       sendRepos
     } as unknown as RepoManager,
     extensionState: {} as ExtensionState,
@@ -73,7 +75,7 @@ function setup() {
       start: vi.fn()
     } as unknown as RepoFileWatcher
   });
-  return { repo, parent, featPath, handlers, posts, removeRepo, sendRepos };
+  return { repo, parent, featPath, known, handlers, posts, removeRepo, setRepoState, sendRepos };
 }
 
 describe("worktree handlers", () => {
@@ -155,6 +157,91 @@ describe("worktree handlers", () => {
     expect(posts[0]).toMatchObject({ command: "removeWorktree" });
     expect((posts[0] as { status: string | null }).status).not.toBeNull();
     expect(fs.existsSync(path.join(featPath, "unsaved.txt"))).toBe(true);
+    expect(removeRepo).not.toHaveBeenCalled();
+    expect(closeEngineRepository).not.toHaveBeenCalled();
+  });
+
+  it("locks and unlocks a worktree through the handlers, with a reason", async () => {
+    const { repo, featPath, handlers, posts } = setup();
+
+    await handlers.get("lockWorktree")?.({
+      command: "lockWorktree",
+      repo,
+      path: featPath,
+      reason: "keep é"
+    });
+    expect(posts[0]).toEqual({ command: "lockWorktree", status: null });
+    expect(
+      cp.execFileSync("git", ["worktree", "list", "--porcelain", "-z"], {
+        cwd: repo,
+        encoding: "utf8"
+      })
+    ).toContain("locked keep é\0");
+
+    await handlers.get("unlockWorktree")?.({ command: "unlockWorktree", repo, path: featPath });
+
+    expect(posts).toEqual([
+      { command: "lockWorktree", status: null },
+      { command: "unlockWorktree", status: null }
+    ]);
+    expect(
+      cp.execFileSync("git", ["worktree", "list", "--porcelain", "-z"], {
+        cwd: repo,
+        encoding: "utf8"
+      })
+    ).not.toContain("locked");
+  });
+
+  it("moving a worktree closes its old handle, and the repository list follows the new path", async () => {
+    const { repo, parent, featPath, handlers, posts, removeRepo, setRepoState, sendRepos } =
+      setup();
+    const target = path.join(parent, "moved é dir");
+
+    await handlers.get("moveWorktree")?.({
+      command: "moveWorktree",
+      repo,
+      path: featPath,
+      newPath: target
+    });
+
+    expect(posts).toEqual([{ command: "moveWorktree", status: null }]);
+    expect(fs.existsSync(target)).toBe(true);
+    expect(removeRepo).toHaveBeenCalledWith(featPath);
+    expect(setRepoState).toHaveBeenCalledTimes(1);
+    expect(fs.realpathSync(setRepoState.mock.calls[0][0])).toBe(fs.realpathSync(target));
+    expect(closeEngineRepository).toHaveBeenCalledWith(featPath);
+    expect(sendRepos).toHaveBeenCalled();
+  });
+
+  it("moving an unknown worktree only closes its old handle", async () => {
+    const { repo, parent, featPath, known, handlers, removeRepo, setRepoState } = setup();
+    known.delete(featPath);
+
+    await handlers.get("moveWorktree")?.({
+      command: "moveWorktree",
+      repo,
+      path: featPath,
+      newPath: path.join(parent, "moved unknown")
+    });
+
+    expect(removeRepo).not.toHaveBeenCalled();
+    expect(setRepoState).not.toHaveBeenCalled();
+    expect(closeEngineRepository).toHaveBeenCalledWith(featPath);
+  });
+
+  it("a refused move of a locked worktree keeps the handle and the repository", async () => {
+    const { repo, parent, featPath, handlers, posts, removeRepo } = setup();
+    git(["worktree", "lock", "--reason", "usb", featPath], repo);
+
+    await handlers.get("moveWorktree")?.({
+      command: "moveWorktree",
+      repo,
+      path: featPath,
+      newPath: path.join(parent, "moved locked")
+    });
+
+    expect((posts[0] as { status: string | null }).status).toContain("Unlock it before moving it");
+    expect(fs.existsSync(featPath)).toBe(true);
     expect(removeRepo).not.toHaveBeenCalled();
     expect(closeEngineRepository).not.toHaveBeenCalled();
   });
