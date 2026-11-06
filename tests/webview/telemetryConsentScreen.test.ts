@@ -163,6 +163,7 @@ function makeConfig(consent: TelemetryConsent): Config {
     boldCheckedOutCommit: () => false,
     fetchTagsByDefault: () => false,
     showTagRemotes: () => "all",
+    worktreePathTemplate: () => "",
     mergeNoFastForward: () => true,
     pullBranchNoFastForward: () => false,
     createBranchCheckout: () => true,
