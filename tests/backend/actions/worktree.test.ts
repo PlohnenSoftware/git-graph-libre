@@ -270,7 +270,7 @@ describe("lockWorktree and unlockWorktree", () => {
   });
 
   it("locks the worktree the graph shows, as Git allows", async () => {
-    const { repo, featPath } = makeFixture();
+    const { featPath } = makeFixture();
 
     await lockWorktree(simpleGit(featPath), { repo: featPath, path: featPath, reason: null });
 
