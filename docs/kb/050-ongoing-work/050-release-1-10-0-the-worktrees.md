@@ -122,6 +122,7 @@ run one after another, as the integrator procedure says.
 | W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | integrated `5cdfa9e` |
 | W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | ready (queued: one manifest or l10n slice at a time) |
 | W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | integrated `426b789` |
+| W32F | [Worktree discovery Sonar follow-up](050-release-1-10-0-the-worktrees/425-w32f-worktree-discovery-sonar-follow-up.md) | TS | W32 | E | dispatched `2026-11-06` (Haiku) |
 | W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | ready (queued: one manifest or l10n slice at a time) |
 | W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | ready (queued: one manifest or l10n slice at a time) |
 | W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | ready (queued: one manifest or l10n slice at a time) |
@@ -648,3 +649,15 @@ commit, the gate results with numbers, and the Sonar task id.
     1370, the webview 932 of 932, and l10n and kb are complete.
   - W33, W34 and W50 are now ready, queued. W26G, the maintainer's
     three-mode tag setting, was dispatched to Sonnet into the slot.
+- `2026-11-06`, gate on `e023aeb`: W32, the PR #47 merge and W26G's
+  record since `eeaa424`.
+  - The Rust arm was skipped, with no engine change.
+  - Strict Biome is clean on 40 files. `package`, `l10n:check` and
+    `kb:check` pass.
+  - Fresh `test:coverage`: 181 files, 2,302 of 2,302 tests passed.
+  - Sonar task `8e5b06cb-73c9-418c-9733-c5a2f8494685`: quality gate
+    **`ERROR`**, with 13 new violations against 5 allowed. New coverage
+    is 93.9%, with 0 security and 0 reliability issues.
+  - All 13 are in W32's code: ten S9382 (`await` in a loop) and three
+    S7721 (a nested function). W32F was added and dispatched to Haiku. It
+    touches no manifest or l10n file, so it runs beside W26G.
