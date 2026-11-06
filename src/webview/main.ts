@@ -67,6 +67,7 @@ import { rewritePaletteLightnessChroma, toOklch } from "./utils/oklchColor";
 import { sendMessage, vscode } from "./utils/vscode";
 import {
   buildWorktreeListLabels,
+  lifecycleRowActions,
   type WorktreeFooterAction,
   WorktreePopup,
   type WorktreeRowAction
@@ -4409,6 +4410,7 @@ class GitGraphView {
     this.appendBranchRemoteItems(menu, refName);
     this.appendBranchMutationItems(menu, sourceElem, refName);
     this.appendWorktreeMaintenanceItems(menu, refName);
+    this.appendWorktreeLifecycleItems(menu, refName);
     this.appendBranchArchiveItem(menu, refName);
     this.appendBranchPullRequestItem(menu, refName, sourceElem);
     return menu;
@@ -5357,6 +5359,15 @@ class GitGraphView {
       case "copyPath":
         sendMessage({ command: "copyToClipboard", type: "Worktree Path", data: worktree.path });
         break;
+      case "lock":
+        this.lockWorktreeAction(worktree);
+        break;
+      case "unlock":
+        sendMessage({ command: "unlockWorktree", ...base });
+        break;
+      case "move":
+        this.moveWorktreeAction(worktree);
+        break;
       case "repair":
         sendMessage({ command: "repairWorktree", ...base, newPath: null });
         break;
@@ -5386,6 +5397,106 @@ class GitGraphView {
     const reason = worktree.locked.reason;
     if (reason === "") return l10n.dialogRemoveWorktreeLockedNote;
     return l10n.dialogDeleteBranchLockedNote.replace("{0}", () => escapeHtml(reason));
+  }
+  /**
+   * Lock Worktree… (W23): an optional reason, which Git records and the list
+   * shows. An empty reason locks without one.
+   */
+  private lockWorktreeAction(worktree: GitWorktree) {
+    showFormDialog(
+      l10n.dialogLockWorktreeMessage.replace(
+        "{0}",
+        () => `<b><i>${escapeHtml(worktree.path)}</i></b>`
+      ),
+      [
+        {
+          type: "text",
+          name: l10n.dialogCreateWorktreeLockReason,
+          default: "",
+          placeholder: l10n.dialogAddTagOptional
+        }
+      ],
+      l10n.dialogLockWorktreeSubmit,
+      (values) => {
+        sendMessage({
+          command: "lockWorktree",
+          repo: this.currentRepo,
+          path: worktree.path,
+          reason: values[0].trim()
+        });
+      },
+      null
+    );
+  }
+  /**
+   * Move Worktree… (W23): the new folder must not exist yet, and Git moves the
+   * folder and its record. A locked worktree is never moved from here: the
+   * dialog says why and offers the Unlock that comes first.
+   */
+  private moveWorktreeAction(worktree: GitWorktree) {
+    if (worktree.locked !== null) {
+      this.offerUnlockBeforeMove(worktree);
+      return;
+    }
+    showFormDialog(
+      l10n.dialogMoveWorktreeMessage.replace(
+        "{0}",
+        () => `<b><i>${escapeHtml(worktree.path)}</i></b>`
+      ),
+      [
+        {
+          type: "text",
+          name: l10n.dialogMoveWorktreeFolder,
+          default: "",
+          placeholder: null,
+          required: true
+        }
+      ],
+      l10n.dialogMoveWorktreeSubmit,
+      (values) => {
+        sendMessage({
+          command: "moveWorktree",
+          repo: this.currentRepo,
+          path: worktree.path,
+          newPath: values[0].trim()
+        });
+      },
+      null
+    );
+  }
+  private offerUnlockBeforeMove(worktree: GitWorktree) {
+    const reason = worktree.locked?.reason ?? "";
+    const target = `<b><i>${escapeHtml(worktree.path)}</i></b>`;
+    const message =
+      reason === ""
+        ? l10n.dialogMoveWorktreeLockedNoReason.replace("{0}", () => target)
+        : l10n.dialogMoveWorktreeLocked
+            .replace("{1}", () => escapeHtml(reason))
+            .replace("{0}", () => target);
+    showFormDialog(
+      message,
+      [],
+      l10n.worktreeUnlock,
+      () => sendMessage({ command: "unlockWorktree", repo: this.currentRepo, path: worktree.path }),
+      null
+    );
+  }
+  /** The branch's worktree gets the Lock, Unlock and Move items the popup's row offers (W23). */
+  private appendWorktreeLifecycleItems(menu: ContextMenuElement[], refName: string) {
+    const holder = this.worktreePathsFor(refName)
+      .map((path) => this.worktreeAtPath(path))
+      .find((worktree): worktree is GitWorktree => worktree !== null && worktree.prunable === null);
+    if (holder === undefined) return;
+    const items = lifecycleRowActions(holder).map((action) => ({
+      title: this.worktreeLifecycleTitle(action),
+      onClick: () => this.handleWorktreeRowAction(action, holder)
+    }));
+    menu.push(null, ...items);
+  }
+  private worktreeLifecycleTitle(action: WorktreeRowAction): string {
+    if (action === "lock") return l10n.worktreeLock + ELLIPSIS;
+    if (action === "move") return l10n.worktreeMove + ELLIPSIS;
+    return l10n.worktreeUnlock;
   }
   /** The popup's footer: Create Worktree… from HEAD (W22) and Prune Stale Worktrees… (W21). */
   private handleWorktreeFooterAction(action: WorktreeFooterAction) {
@@ -7918,6 +8029,9 @@ const actionErrorLabels = {
   createPullRequest: l10n.unableToCreatePullRequest,
   deleteBranch: l10n.unableToDeleteBranch,
   pruneWorktrees: l10n.unableToPruneWorktrees,
+  lockWorktree: l10n.unableToLockWorktree,
+  unlockWorktree: l10n.unableToUnlockWorktree,
+  moveWorktree: l10n.unableToMoveWorktree,
   removeWorktree: l10n.unableToRemoveWorktree,
   repairWorktree: l10n.unableToRepairWorktree,
   openWorktree: l10n.unableToOpenWorktree,

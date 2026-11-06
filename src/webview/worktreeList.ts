@@ -9,16 +9,19 @@ import { escapeHtml } from "./utils/html";
  * and acts on them. It only draws what Git's worktree list says, from the
  * data `loadBranches` carries, and hands every action to the host (`main.ts`),
  * which routes it through the existing flows: open, switch, copy (W31),
- * remove, repair, prune (W21) and create (W22). Nothing here decides from
+ * lock, unlock, move (W23), remove, repair, prune (W21) and create (W22). Nothing here decides from
  * Git's translated text.
  */
 
-/** Every button a row can carry. Lock, Unlock and Move join here with W23. */
+/** Every button a row can carry. Lock, Unlock and Move are offered by `lifecycleRowActions`. */
 export type WorktreeRowAction =
   | "openNewWindow"
   | "openHere"
   | "switchGraph"
   | "copyPath"
+  | "lock"
+  | "unlock"
+  | "move"
   | "remove"
   | "repair"
   | "removeStale";
@@ -71,6 +74,9 @@ export function buildWorktreeListLabels(strings: LocalizedStrings): WorktreeList
       openHere: strings.worktreeOpenHere,
       switchGraph: strings.worktreeSwitchGraph,
       copyPath: strings.worktreeCopyPath,
+      lock: strings.worktreeLock + ELLIPSIS,
+      unlock: strings.worktreeUnlock,
+      move: strings.worktreeMove + ELLIPSIS,
       remove: strings.worktreeRemove + ELLIPSIS,
       repair: strings.repairWorktree + ELLIPSIS,
       removeStale: strings.removeStaleWorktree
@@ -93,21 +99,33 @@ export function prunableWorktrees(worktrees: readonly GitWorktree[]): GitWorktre
 }
 
 /**
+ * The lock buttons a worktree offers, from its listed state alone: Lock when it
+ * is not locked, Unlock when it is. Git never locks the main worktree, so it
+ * gets none. Move comes with them, for every linked worktree except the one
+ * the graph shows (W23 refuses that one). A locked worktree still offers Move:
+ * the flow says why and offers Unlock, so nothing is moved by force.
+ */
+export function lifecycleRowActions(worktree: GitWorktree): WorktreeRowAction[] {
+  if (worktree.isMain) return [];
+  const actions: WorktreeRowAction[] = [worktree.locked === null ? "lock" : "unlock"];
+  if (!worktree.isCurrent) actions.push("move");
+  return actions;
+}
+
+/**
  * The buttons a worktree's row offers, decided from its listed state alone.
  * A stale entry cannot be opened or switched to (W31 refuses it) and offers
  * Repair or removing the record instead. The main and the current worktree
  * cannot be removed (W21 refuses them), and the current one is already open.
  * A bare main has no files to open as a graph, so it only offers its path.
- *
- * The seam for W23: its Lock, Unlock and Move buttons are appended here,
- * from `locked` and `isMain`, with their handlers in `main.ts`.
+ * Lock, Unlock and Move follow the path (W23, `lifecycleRowActions`).
  */
 export function worktreeRowActions(worktree: GitWorktree): WorktreeRowAction[] {
   if (worktree.prunable !== null) return ["repair", "removeStale", "copyPath"];
   const actions: WorktreeRowAction[] = [];
   if (!worktree.isCurrent) actions.push("openNewWindow", "openHere");
   if (!worktree.isCurrent && !worktree.bare) actions.push("switchGraph");
-  actions.push("copyPath");
+  actions.push("copyPath", ...lifecycleRowActions(worktree));
   if (!worktree.isCurrent && !worktree.isMain) actions.push("remove");
   return actions;
 }
