@@ -10,7 +10,7 @@ summary: >-
 
 # W34 — Share repository settings across worktrees
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-11-06 15:08
 Needs: W32 (`commonDir` per repository)
 Decisions: Y18
 Kind: TypeScript · Size budget: ~120 changed lines outside tests
