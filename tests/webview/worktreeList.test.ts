@@ -3,6 +3,7 @@ import type { GitWorktree } from "@/backend/types";
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
 import {
   buildWorktreeListLabels,
+  lifecycleRowActions,
   prunableWorktrees,
   renderWorktreeList,
   type WorktreeRowAction,
@@ -41,11 +42,20 @@ describe("worktreeRowActions", () => {
       ["openNewWindow", "openHere", "switchGraph", "copyPath"]
     ],
     ["the current worktree", { isCurrent: true, isMain: true }, ["copyPath"]],
-    ["a linked worktree", {}, ["openNewWindow", "openHere", "switchGraph", "copyPath", "remove"]],
+    [
+      "a linked worktree",
+      {},
+      ["openNewWindow", "openHere", "switchGraph", "copyPath", "lock", "move", "remove"]
+    ],
     [
       "a locked linked worktree",
       { locked: { reason: "usb" } },
-      ["openNewWindow", "openHere", "switchGraph", "copyPath", "remove"]
+      ["openNewWindow", "openHere", "switchGraph", "copyPath", "unlock", "move", "remove"]
+    ],
+    [
+      "the linked worktree this graph shows: lock it, but never move it",
+      { isCurrent: true },
+      ["copyPath", "lock"]
     ],
     ["a stale entry", { prunable: { reason: "gone" } }, ["repair", "removeStale", "copyPath"]],
     [
@@ -153,5 +163,22 @@ describe("renderWorktreeList", () => {
     expect(labels.actions.openNewWindow).toBe("action.worktreeOpenNewWindow");
     expect(english.create).toBe("Create Worktree…");
     expect(english.prune).toBe("Prune Stale Worktrees…");
+  });
+
+  it("labels Lock and Move as dialogs, and Unlock as a direct action (W23)", () => {
+    expect(labels.actions.lock).toBe("action.worktreeLock…");
+    expect(labels.actions.move).toBe("action.worktreeMove…");
+    expect(labels.actions.unlock).toBe("action.worktreeUnlock");
+    expect(english.actions.lock).toBe("Lock Worktree…");
+    expect(english.actions.unlock).toBe("Unlock Worktree");
+    expect(english.actions.move).toBe("Move Worktree…");
+  });
+});
+
+describe("lifecycleRowActions", () => {
+  it("offers nothing for the main worktree, Lock or Unlock for the rest", () => {
+    expect(lifecycleRowActions(worktree({ isMain: true, isCurrent: true }))).toEqual([]);
+    expect(lifecycleRowActions(worktree({}))).toEqual(["lock", "move"]);
+    expect(lifecycleRowActions(worktree({ locked: { reason: "" } }))).toEqual(["unlock", "move"]);
   });
 });

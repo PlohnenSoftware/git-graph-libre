@@ -270,3 +270,91 @@ describe("the Worktrees toolbar popup", () => {
     expect(document.querySelectorAll(".worktreeRow")).toHaveLength(1);
   });
 });
+
+const LOCKED_SIDE = [
+  worktree({ isMain: true, isCurrent: true }),
+  worktree({ path: SIDE, branch: "side", locked: { reason: "usb stick" } })
+];
+
+function dialogField(index: number): HTMLInputElement {
+  const elem = document.getElementById(`dialogInput${index}`) as HTMLInputElement | null;
+  expect(elem).not.toBeNull();
+  return elem as HTMLInputElement;
+}
+
+function submitDialog() {
+  document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
+}
+
+function dialogText(): string {
+  return document.getElementById("dialog")?.textContent ?? "";
+}
+
+describe("the Worktrees popup's lock, unlock and move (W23)", () => {
+  it("locks with a typed reason, trimmed, and an empty one locks without a reason", async () => {
+    const mock = await boot(LISTED);
+    click("#worktreesBtn");
+
+    rowAction(1, "lock");
+    expect(dialogText()).toContain(SIDE);
+    dialogField(0).value = "  keep é  ";
+    submitDialog();
+    expect(latest(mock.sentMessages, "lockWorktree")).toMatchObject({
+      repo: REPO,
+      path: SIDE,
+      reason: "keep é"
+    });
+
+    rowAction(1, "lock");
+    dialogField(0).value = "";
+    submitDialog();
+    expect(latest(mock.sentMessages, "lockWorktree")).toMatchObject({ path: SIDE, reason: "" });
+  });
+
+  it("moves to the typed folder, and sends nothing for an empty folder", async () => {
+    const mock = await boot(LISTED);
+    click("#worktreesBtn");
+    const moves = () => mock.sentMessages.filter((msg) => msg.command === "moveWorktree").length;
+
+    rowAction(1, "move");
+    submitDialog();
+    expect(moves()).toBe(0);
+
+    const target = "/workspace/moved é dir";
+    dialogField(0).value = target;
+    dialogField(0).dispatchEvent(new Event("input", { bubbles: true }));
+    submitDialog();
+    expect(latest(mock.sentMessages, "moveWorktree")).toMatchObject({
+      repo: REPO,
+      path: SIDE,
+      newPath: target
+    });
+  });
+
+  it("explains a locked worktree's move and offers Unlock first, never a move", async () => {
+    const mock = await boot(LOCKED_SIDE);
+    click("#worktreesBtn");
+
+    rowAction(1, "move");
+    expect(dialogText()).toContain("usb stick");
+    expect(dialogText()).toContain("Unlock it first?");
+    submitDialog();
+
+    expect(latest(mock.sentMessages, "unlockWorktree")).toMatchObject({ repo: REPO, path: SIDE });
+    expect(mock.sentMessages.some((msg) => msg.command === "moveWorktree")).toBe(false);
+  });
+
+  it("unlocks at once from the row, which offers Unlock where a locked worktree has Lock", async () => {
+    const mock = await boot(LOCKED_SIDE);
+    click("#worktreesBtn");
+    const row = (action: string) =>
+      document.querySelector(
+        `.worktreeRow[data-worktree-index="1"] [data-worktree-action="${action}"]`
+      );
+    expect(row("lock")).toBeNull();
+    expect(row("unlock")).not.toBeNull();
+
+    rowAction(1, "unlock");
+    expect(latest(mock.sentMessages, "unlockWorktree")).toMatchObject({ repo: REPO, path: SIDE });
+  });
+});
