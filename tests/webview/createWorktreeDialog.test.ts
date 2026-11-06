@@ -446,6 +446,38 @@ describe("the worktree folder template (W22F)", () => {
   });
 });
 
+describe("the folder template at every entry point (W22F)", () => {
+  const template = `${token("repo")}-wt/${token("branch")}`;
+
+  it("names the folder after the remote branch", async () => {
+    await bootWebview({
+      branches: ["main", `remotes/${REMOTE_REF}`],
+      worktreePathTemplate: template
+    });
+    openRefContextMenu(".gitRef.remote", "feature/menu");
+    clickContextMenuItem("Create Worktree…");
+
+    expect(dialogInput<HTMLInputElement>(0).value).toBe("/workspace/createrepo-wt/feature/menu");
+  });
+
+  it("names the folder after the clicked commit", async () => {
+    await bootWebview({ worktreePathTemplate: template });
+    const row = document.querySelector<HTMLElement>('tr.commit[data-hash="fed789"]');
+    row?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    clickContextMenuItem("Create Worktree…");
+
+    expect(dialogInput<HTMLInputElement>(0).value).toBe("/workspace/createrepo-wt/fed789");
+  });
+
+  it("names the folder after the clicked tag", async () => {
+    await bootWebview({ worktreePathTemplate: template });
+    openRefContextMenu(".gitRef.tag", "v1");
+    clickContextMenuItem("Create Worktree…");
+
+    expect(dialogInput<HTMLInputElement>(0).value).toBe("/workspace/createrepo-wt/v1");
+  });
+});
+
 describe("the Browse button (W22F)", () => {
   function clickBrowse() {
     document.getElementById("dialogBrowse0")?.dispatchEvent(new MouseEvent("click"));
