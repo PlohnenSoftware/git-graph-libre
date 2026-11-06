@@ -33,6 +33,12 @@ export type OutsideWorktree = {
 export type RepoLayout = {
   worktrees: { [repo: string]: RepoWorktreeInfo };
   outside: OutsideWorktree[];
+  /**
+   * Common dirs of bare repositories (read from the file system). A bare group
+   * with no main worktree listed gets a header row in the dropdown, which is
+   * not selectable. Absent in older states, which means none.
+   */
+  bareGroups?: string[];
 };
 export type RepositoryProbe = {
   path: string;
