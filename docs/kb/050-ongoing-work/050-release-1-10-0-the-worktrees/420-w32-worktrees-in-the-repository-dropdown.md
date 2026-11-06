@@ -10,7 +10,7 @@ summary: >-
 
 # W32 — Worktrees in the repository dropdown
 
-Status: done — awaiting integration
+Status: integrated `426b789` (`2026-11-06`)
 Needs: W02, W04 (`resolveGitDirs`), W10
 Decisions: Y9 (worktrees outside the workspace), Y10 (trust prompts)
 Kind: TypeScript and webview · Size budget: ~250 changed lines outside tests

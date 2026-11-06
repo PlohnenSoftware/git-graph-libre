@@ -10,7 +10,7 @@ summary: >-
 
 # W34 — Share repository settings across worktrees
 
-Status: ready once W32 is integrated
+Status: ready
 Needs: W32 (`commonDir` per repository)
 Decisions: Y18
 Kind: TypeScript · Size budget: ~120 changed lines outside tests

@@ -103,7 +103,7 @@ run one after another, as the integrator procedure says.
 | W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | integrated `decdf71` |
 | W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | integrated `a93ddc7` (merge of `a109e9a`), PR update `dc1886c` merged at `d1bc642` |
 | W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | integrated `43ac7e9` |
-| W26G | [Off, origin or all remotes for tag badges](050-release-1-10-0-the-worktrees/366-w26g-off-origin-or-all-remotes-for-tag-badges.md) | TS + webview + manifest + l10n | W26F, W26H, W26HF | A | ready (next in the manifest and l10n slot, after W32) |
+| W26G | [Off, origin or all remotes for tag badges](050-release-1-10-0-the-worktrees/366-w26g-off-origin-or-all-remotes-for-tag-badges.md) | TS + webview + manifest + l10n | W26F, W26H, W26HF | A | dispatched `2026-11-06` (Sonnet) |
 | W26H | [Harden the remote tag read](050-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | integrated `d607144` |
 | W26HF | [Remote tag read Sonar follow-up](050-release-1-10-0-the-worktrees/369-w26hf-remote-tag-read-sonar-follow-up.md) | TS | W26H | A | integrated `8ff94dd` |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | integrated `f9e54a4` |
@@ -121,10 +121,10 @@ run one after another, as the integrator procedure says.
 | W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | integrated `fcc76c4` |
 | W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | integrated `5cdfa9e` |
 | W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | ready (queued: one manifest or l10n slice at a time) |
-| W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | dispatched `2026-11-06` (Sonnet) |
-| W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | needs W32 |
-| W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | needs W32 |
-| W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | needs W11, W32 |
+| W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | integrated `426b789` |
+| W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | ready (queued: one manifest or l10n slice at a time) |
+| W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | ready (queued: one manifest or l10n slice at a time) |
+| W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | ready (queued: one manifest or l10n slice at a time) |
 | W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | ready (queued: one manifest or l10n slice at a time) |
 | W90 | [Release 1.10.0](050-release-1-10-0-the-worktrees/900-w90-release-1-10-0.md) | release | every slice in scope | — | maintainer |
 
@@ -627,3 +627,24 @@ commit, the gate results with numbers, and the Sonar task id.
   - The maintainer asked for a three-way setting: off, only origin, all.
     The contributor's narrowing becomes the default `"origin"` mode in
     W26G, added and queued next in the manifest and l10n slot after W32.
+- `2026-11-06`: W32 integrated at `426b789`. The dropdown now groups a
+  repository's worktrees by common dir: the main worktree first, its
+  linked worktrees beneath, labelled with their branch.
+  - Discovery: nested worktrees (such as `.worktrees/x`) are found by
+    listing each common dir after a scan.
+  - Outside the workspace: a new host-only setting,
+    `repository.worktreesOutsideWorkspace` (default `true`, Y9 (c)), lists
+    them as "outside workspace", added on selection through W31.
+  - Trust (Y10 (b)): one confirmation lists every untrusted worktree of a
+    repository. A sibling counts only if its `.git` file names the same
+    common dir back and Git itself reports it untrusted, and each entry is
+    spelled by Git. The integrator reviewed this in
+    `repositoryRecovery.ts` and `untrustedSiblingEntries()`.
+  - Size: ~720 source lines against a ~250 guide, 480 of them in three
+    new modules. Several files outside the Touch list were accepted, each
+    in flagged commits: the setting's wiring, `repositoryRecovery.ts`,
+    `repoLayout.ts`, `worktreeDiscovery.ts` and `repoOptions.ts`.
+  - The rebase was clean. Typecheck passes, the backend passes 1370 of
+    1370, the webview 932 of 932, and l10n and kb are complete.
+  - W33, W34 and W50 are now ready, queued. W26G, the maintainer's
+    three-mode tag setting, was dispatched to Sonnet into the slot.
