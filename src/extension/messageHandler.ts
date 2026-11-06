@@ -860,7 +860,8 @@ export function registerMessageHandlers(
   let remoteTagsRead: AbortController | null = null;
 
   bridge.onMessage("remoteTags", (msg) => {
-    if (!config.showTagRemotes()) {
+    const tagRemotesMode = config.showTagRemotes();
+    if (tagRemotesMode === "off") {
       // Off means no process and no network, even for a webview that asks.
       bridge.post({
         command: "remoteTags",
@@ -885,7 +886,8 @@ export function registerMessageHandlers(
         repo: msg.repo,
         gitPath: config.gitPath(),
         recordGitCommand,
-        signal: read.signal
+        signal: read.signal,
+        mode: tagRemotesMode
       });
       if (read.signal.aborted) return;
       await bridge.post({

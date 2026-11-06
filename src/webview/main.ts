@@ -232,6 +232,11 @@ function normalizeCustomBranchGlobPattern(
   };
 }
 
+/** A known tag remote mode, else the default (`origin`): a stale boolean is not one. */
+function parseTagRemotesMode(value: unknown): GGL.TagRemotesMode {
+  return value === "off" || value === "all" || value === "origin" ? value : "origin";
+}
+
 function isJsonObject(value: GGL.JsonValue): value is { [key: string]: GGL.JsonValue } {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -1131,7 +1136,7 @@ class GitGraphView {
     return result.error === null && tags.some((ref) => this.isTagOutsideSnapshot(ref));
   }
   private requestRemoteTags() {
-    if (!this.config.showTagRemotes) return;
+    if (this.config.showTagRemotes === "off") return;
     if (this.remoteTagsRepo !== this.currentRepo) {
       this.remoteTagsRepo = this.currentRepo;
       this.forgetRemoteTags();
@@ -1145,7 +1150,7 @@ class GitGraphView {
     sendMessage({ command: "remoteTags", requestId, repo: this.currentRepo });
   }
   public loadRemoteTags(msg: Extract<GGL.ResponseMessage, { command: "remoteTags" }>) {
-    if (!this.config.showTagRemotes) return;
+    if (this.config.showTagRemotes === "off") return;
     if (msg.repo !== this.currentRepo || msg.requestId !== this.remoteTagsRequestId) return;
     this.remoteTagsRequestId = null;
     this.remoteTagsResult = msg;
@@ -1984,10 +1989,11 @@ class GitGraphView {
 
     // Off drops what is shown, so the next render is the plain badge; on asks
     // as an explicit Refresh would, once the rows are drawn.
-    if (beforeTagRemotes && !this.config.showTagRemotes) this.forgetRemoteTags();
+    const tagRemotesChanged = beforeTagRemotes !== this.config.showTagRemotes;
+    if (tagRemotesChanged) this.forgetRemoteTags();
     this.renderTable();
     this.renderGraph();
-    if (!beforeTagRemotes && this.config.showTagRemotes) this.revalidateRemoteTags();
+    if (tagRemotesChanged && this.config.showTagRemotes !== "off") this.revalidateRemoteTags();
     if (reloadHistory) {
       this.maxCommits = this.config.initialLoadCommits;
       this.renderShowLoading();
@@ -2001,6 +2007,11 @@ class GitGraphView {
     const value = setting.value;
     if (setting.configKey === "dateType") return true;
     if (setting.configKey === "showUncommittedChanges") return typeof value === "boolean";
+    if (setting.configKey === "repository.showTagRemotes") {
+      // Raw echo: anything but a known mode, a stale boolean included, is the default.
+      this.config.showTagRemotes = parseTagRemotesMode(value);
+      return false;
+    }
     if (this.applyBooleanExtensionSetting(setting.configKey, value)) return false;
     if (this.applyNumberExtensionSetting(setting.configKey, value)) return false;
     if (this.applyStringExtensionSetting(setting.configKey, value)) return false;
@@ -2042,9 +2053,6 @@ class GitGraphView {
         return true;
       case "repository.fetchTagsByDefault":
         this.config.fetchTagsByDefault = value;
-        return true;
-      case "repository.showTagRemotes":
-        this.config.showTagRemotes = value;
         return true;
       case "dialog.merge.noFastForward":
         this.config.mergeNoFastForward = value;
@@ -5984,7 +5992,9 @@ class GitGraphView {
   }
   private getTagRemoteStatus(ref: GitCommitNode["refs"][number]) {
     // No remotes, nothing to be "not found on": show no status at all.
-    if (!this.config.showTagRemotes || this.gitRemotes.length === 0) return null;
+    const mode = this.config.showTagRemotes;
+    if (mode === "off" || this.gitRemotes.length === 0) return null;
+    if (mode === "origin") return this.getOriginTagStatus(ref);
     const result = this.remoteTagsRepo === this.currentRepo ? this.remoteTagsResult : null;
     if (result === null) return null;
     const tag = result.tags[ref.name];
@@ -6000,6 +6010,19 @@ class GitGraphView {
       if (unavailable) status += `. ${l10n.tagRemotesUnavailable}`;
     }
     return { remotes, status };
+  }
+  /** The single-segment status of the `origin` mode; none without an `origin` remote. */
+  private getOriginTagStatus(ref: GitCommitNode["refs"][number]) {
+    if (!this.gitRemotes.some((remote) => remote.name === "origin")) return null;
+    const result = this.remoteTagsRepo === this.currentRepo ? this.remoteTagsResult : null;
+    if (result === null) return null;
+    const tag = result.tags[ref.name];
+    const known = tag?.hash === ref.hash;
+    if (!known && result.error === null && this.remoteTagsRequestId !== null) return null;
+    const onOrigin = known && tag.remotes.includes("origin");
+    const unavailable = result.error !== null || result.unavailableRemotes.length > 0 || !known;
+    if (onOrigin) return { remotes: ["origin"], status: l10n.tagOnOrigin };
+    return { remotes: [], status: unavailable ? l10n.tagOriginUnavailable : l10n.tagNotOnOrigin };
   }
   private refIcon(type: GitCommitNode["refs"][number]["type"]) {
     return type === "tag" ? svgIcons.tag : svgIcons.branch;
@@ -7867,7 +7890,7 @@ const gitGraph = new GitGraphView(
     muteMergeCommits: viewState.muteMergeCommits,
     boldCheckedOutCommit: viewState.boldCheckedOutCommit,
     fetchTagsByDefault: viewState.fetchTagsByDefault,
-    showTagRemotes: viewState.showTagRemotes,
+    showTagRemotes: parseTagRemotesMode(viewState.showTagRemotes),
     mergeNoFastForward: viewState.mergeNoFastForward,
     pullBranchNoFastForward: viewState.pullBranchNoFastForward,
     createBranchCheckout: viewState.createBranchCheckout,

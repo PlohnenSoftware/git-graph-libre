@@ -373,6 +373,9 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     tagOnRemotes: translate("ref.tagOnRemotes"),
     tagNotOnRemotes: translate("ref.tagNotOnRemotes"),
     tagRemotesUnavailable: translate("ref.tagRemotesUnavailable"),
+    tagOnOrigin: translate("ref.tagOnOrigin"),
+    tagNotOnOrigin: translate("ref.tagNotOnOrigin"),
+    tagOriginUnavailable: translate("ref.tagOriginUnavailable"),
 
     typeCommitHash: translate("type.commitHash"),
     typeCommitSubject: translate("type.commitSubject"),

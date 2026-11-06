@@ -33,7 +33,7 @@ declare global {
     muteMergeCommits: boolean;
     boldCheckedOutCommit: boolean;
     fetchTagsByDefault: boolean;
-    showTagRemotes: boolean;
+    showTagRemotes: GGL.TagRemotesMode;
     mergeNoFastForward: boolean;
     pullBranchNoFastForward: boolean;
     createBranchCheckout: boolean;

@@ -540,8 +540,18 @@
           "description": "%config.repository.fetchTagsByDefault%"
         },
         "git-graph-libre.repository.showTagRemotes": {
-          "type": "boolean",
-          "default": true,
+          "type": "string",
+          "enum": [
+            "off",
+            "origin",
+            "all"
+          ],
+          "enumDescriptions": [
+            "%config.repository.showTagRemotes.off%",
+            "%config.repository.showTagRemotes.origin%",
+            "%config.repository.showTagRemotes.all%"
+          ],
+          "default": "origin",
           "description": "%config.repository.showTagRemotes%"
         },
         "git-graph-libre.repository.worktreesOutsideWorkspace": {

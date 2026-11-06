@@ -222,6 +222,9 @@ export type ExtensionSetting = {
 
 export type StashDisplay = "table" | "graph" | "both";
 
+/** Which remotes tag badges are checked against: none, `origin` only, or every remote. */
+export type TagRemotesMode = "off" | "origin" | "all";
+
 /**
  * Which backend serves repository reads. `auto` tries the built-in Rust
  * engine first and falls back to the Git command line; `git-cli` never loads
@@ -323,7 +326,7 @@ export type GitGraphViewState = {
   muteMergeCommits: boolean;
   boldCheckedOutCommit: boolean;
   fetchTagsByDefault: boolean;
-  showTagRemotes: boolean;
+  showTagRemotes: TagRemotesMode;
   mergeNoFastForward: boolean;
   pullBranchNoFastForward: boolean;
   createBranchCheckout: boolean;

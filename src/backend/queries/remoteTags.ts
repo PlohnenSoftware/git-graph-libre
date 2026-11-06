@@ -41,6 +41,11 @@ type RemoteTagsInput = {
   signal?: AbortSignal;
   /** Per-process limit in milliseconds; defaults to {@link READ_TIMEOUT_MS}. */
   timeoutMs?: number;
+  /**
+   * Which remotes to read: `"origin"` reads only `origin`, and only when the
+   * repository lists it; `"all"` (the default) reads every remote.
+   */
+  mode?: "origin" | "all";
 };
 
 const READ_TIMEOUT_MS = 10_000;
@@ -180,6 +185,14 @@ async function mapWithLimit<T, R>(
   return results;
 }
 
+/** The remotes to read: none without tags, only a configured `origin` in origin mode. */
+function selectRemotes(tagCount: number, remotesOutput: string, mode: "origin" | "all"): string[] {
+  if (tagCount === 0) return [];
+  const listed = remotesOutput.trim().split(/\r?\n/).filter(Boolean);
+  if (mode === "all") return listed;
+  return listed.includes("origin") ? ["origin"] : [];
+}
+
 export async function remoteTags(input: RemoteTagsInput): Promise<QueryResult<"remoteTags">> {
   try {
     const read = (label: string, args: string[]) =>
@@ -208,8 +221,7 @@ export async function remoteTags(input: RemoteTagsInput): Promise<QueryResult<"r
         const [objectHash, ref, peeledHash] = line.trim().split("\t");
         return { objectHash, ref, hash: peeledHash || objectHash };
       });
-    const remotes =
-      localTags.length === 0 ? [] : remotesOutput.trim().split(/\r?\n/).filter(Boolean);
+    const remotes = selectRemotes(localTags.length, remotesOutput, input.mode ?? "all");
     const results = await mapWithLimit(remotes, MAX_CONCURRENT_READS, async (remote) => {
       try {
         const output = await read("remoteTags.remote", [
