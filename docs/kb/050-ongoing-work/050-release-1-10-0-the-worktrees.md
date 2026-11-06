@@ -124,7 +124,7 @@ run one after another, as the integrator procedure says.
 | W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | integrated `6a33321` |
 | W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | integrated `426b789` |
 | W32F | [Worktree discovery Sonar follow-up](050-release-1-10-0-the-worktrees/425-w32f-worktree-discovery-sonar-follow-up.md) | TS | W32 | E | integrated `3b13162` |
-| W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | dispatched `2026-11-06` (Haiku) |
+| W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | integrated `48f3ee3` |
 | W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | integrated `a9d58f2` (step 2, the Repository-tab note, left for W34F) |
 | W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | integrated `5ff9385` |
 | W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | integrated `2e37454` |
@@ -805,3 +805,25 @@ commit, the gate results with numbers, and the Sonar task id.
   - Sonar task `3437427c-db86-45e7-bf54-865659960c67`: quality gate
     **`OK`**. New coverage is 94.0%, with 0 security and 0 reliability
     issues. Its three S6582 optional-chain findings were fixed at `8caaa47`.
+- `2026-11-06`: W33 integrated at `48f3ee3`. A bare repository with linked
+  worktrees appears in the dropdown as a non-selectable header ("<folder>
+  · bare repository") above its worktrees, per Y17 (a). Bare is decided
+  from the file system.
+  - Accepted outside the Touch list: the files that hold W32's grouping
+    and the dropdown, each in a flagged commit.
+  - The integrator added the `CHANGELOG.md` line (`5b54802`).
+  - The rebase was clean. Typecheck passes, the backend passes 1366 (60
+    environment skips), the webview 975 of 975, and l10n is complete.
+  - Follow-up idea, not planned: the dropdown filter can hide a bare header
+    while its matching worktrees stay visible.
+- `2026-11-06`, gate 12 on `5b54802`: W33 since `f374166`.
+  - The Rust arm was skipped, with no engine change.
+  - Strict Biome is clean on 15 files. `package`, `l10n:check` and
+    `kb:check` pass.
+  - Fresh `test:coverage`: 185 files, 2,401 of 2,401 tests passed.
+  - Sonar task `5e885995-8aad-41e7-ab24-79e030f73bab`: quality gate
+    **`OK`**. New coverage is 94.5%, with 0 new violations and 0 security
+    and 0 reliability issues.
+  - Issue #37 is complete with W33, the last of its slices (W02–W04,
+    W10–W12, W30–W33), and gated, so this record closes it. It takes
+    effect when `main` is fast-forwarded and pushed.

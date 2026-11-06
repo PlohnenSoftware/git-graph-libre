@@ -9,7 +9,7 @@ summary: >-
 
 # W33 — Bare repositories with worktrees
 
-Status: done — awaiting integration
+Status: integrated `48f3ee3` (`2026-11-06`)
 Needs: W32
 Decisions: Y17 ((a) a group header only; (b) also a read-only graph of the
 bare repository)
