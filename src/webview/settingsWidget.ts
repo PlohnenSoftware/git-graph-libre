@@ -45,6 +45,7 @@ type SettingsLabels = {
   contributorsAgentsNote: string;
   general: string;
   repositoryName: string;
+  repositoryWorktreesNote: string;
   edit: string;
   clear: string;
   showRemoteBranches: string;
@@ -116,6 +117,7 @@ export type SettingsWidgetModel = {
   repoState: GitRepoState;
   config: GitRepoConfig;
   remotes: GitRemote[];
+  hasLinkedWorktrees: boolean;
   defaults: Record<RepoBooleanSettingKey, boolean>;
   activeTab: SettingsWidgetTab;
   extensionSettings: ExtensionSetting[] | null;
@@ -334,11 +336,17 @@ function renderRepositoryConfigurationSection(model: SettingsWidgetModel) {
   </section>`;
 }
 
+/** Git's own settings are shared by every worktree, so say so once when there are any (W34F). */
+function renderWorktreeNote(model: SettingsWidgetModel) {
+  if (!model.hasLinkedWorktrees) return "";
+  return `<p class="settingsRepoNote">${escapeHtml(model.labels.repositoryWorktreesNote)}</p>`;
+}
+
 function renderRepositoryTab(model: SettingsWidgetModel) {
   const labels = model.labels;
   const repoName = getRepoDisplayName(model.repo, model.repoState);
   const hasDetails = hasUserDetails(model.config);
-  return `<section class="settingsSection">
+  return `${renderWorktreeNote(model)}<section class="settingsSection">
       <h3>${escapeHtml(labels.general)}</h3>
       <div class="settingsRow">
         <span>${escapeHtml(labels.repositoryName)}</span>
