@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+
 import * as vscode from "vscode";
 
 import { closeEngineRepository } from "@/backend/engine/index";
@@ -23,6 +25,15 @@ function sortRepos(repos: GitRepoSet) {
     sorted[repoPath] = repos[repoPath];
   }
   return sorted;
+}
+
+/** A folder with symlinks resolved and forward slashes, comparable with `worktreeGroupOf`. */
+function realFolder(folder: string): string {
+  try {
+    return fs.realpathSync(folder).replaceAll("\\", "/");
+  } catch {
+    return folder.replaceAll("\\", "/");
+  }
 }
 
 function workspaceRoots(): string[] {
@@ -98,10 +109,42 @@ export function createRepoManager(
     return false;
   }
 
+  /**
+   * The repository-level settings of the main worktree that owns the linked
+   * worktree `repo`, or null when `repo` is not linked or its main worktree is
+   * not in the list. The main worktree is the folder whose `.git` is the common
+   * dir, read from the file system, so a bare repository never qualifies.
+   */
+  function mainWorktreeState(repo: string): GitRepoState | null {
+    const group = worktreeGroupOf(repo);
+    if (!group.linked) return null;
+    const mainPath = mainWorktreeOf(group.commonDir);
+    if (mainPath === null) return null;
+    const main = Object.keys(repos).find(
+      (candidate) => realFolder(candidate) === mainPath && !worktreeGroupOf(candidate).linked
+    );
+    return main === undefined ? null : repos[main];
+  }
+
+  /**
+   * The issue-linking and pull-request settings a new linked worktree starts
+   * with (release 1.10.0, Y18 (a)): copied once, when the worktree is first
+   * added, and never synchronized afterwards. View options stay per worktree.
+   */
+  function inheritedRepoSettings(repo: string): Partial<GitRepoState> {
+    const main = mainWorktreeState(repo);
+    if (main === null) return {};
+    const inherited: Partial<GitRepoState> = {};
+    if (main.issueLinking !== undefined)
+      inherited.issueLinking = structuredClone(main.issueLinking);
+    if (main.pullRequest !== undefined) inherited.pullRequest = structuredClone(main.pullRequest);
+    return inherited;
+  }
+
   function addRepo(repo: string) {
     unavailable.delete(repo);
     if (repos[repo]) return;
-    repos[repo] = { columnWidths: null };
+    repos[repo] = { columnWidths: null, ...inheritedRepoSettings(repo) };
     extensionState.saveRepos(repos);
   }
 
