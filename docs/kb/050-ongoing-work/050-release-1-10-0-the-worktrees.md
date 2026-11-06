@@ -118,13 +118,13 @@ run one after another, as the integrator procedure says.
 | W22F | [Worktree path setting, browse, and persisted finish choice](050-release-1-10-0-the-worktrees/325-w22f-worktree-path-setting-browse-and-persisted-finish.md) | TS + webview + manifest | W22, Y7, Y8 | D | ready |
 | W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | integrated `65725f7` |
 | W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | integrated `fcc76c4` |
-| W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | dispatched `2026-11-06` (Sonnet) |
-| W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | needs W21, W30 |
-| W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | ready (queued: one manifest or l10n slice at a time) |
+| W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | integrated `5cdfa9e` |
+| W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | ready (queued: one manifest or l10n slice at a time) |
+| W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | dispatched `2026-11-06` (Sonnet) |
 | W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | needs W32 |
 | W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | needs W32 |
 | W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | needs W11, W32 |
-| W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | needs W30 |
+| W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | ready (queued: one manifest or l10n slice at a time) |
 | W90 | [Release 1.10.0](050-release-1-10-0-the-worktrees/900-w90-release-1-10-0.md) | release | every slice in scope | — | maintainer |
 
 **Order, if one agent does everything:**
@@ -584,3 +584,19 @@ commit, the gate results with numbers, and the Sonar task id.
   - Issue #45 is complete with W24 and gated, so this record closes it.
   - W30, the worktree list, was dispatched to Sonnet, taking the
     manifest and l10n slot.
+- `2026-11-06`: W30 integrated at `5cdfa9e`. It adds a Worktrees toolbar
+  button (Y3 (a), always shown) opening a popup with every worktree:
+  - each row shows its folder, path, branch or detached hash, and its
+    main, current, bare, locked or prunable state;
+  - row actions reuse W31's open and switch, and W21's remove, stale
+    remove and repair;
+  - the footer has W22's Create and W21's Prune.
+
+  More:
+  - W23's lock, unlock and move go in at `worktreeRowActions()`.
+  - The rebase was clean. Typecheck passes, the backend passes 1341 of
+    1341, the webview 913 of 913, and l10n is complete.
+  - No `CHANGELOG.md` line, since it was outside the Touch list. W90's
+    `[1.10.0]` covers it.
+  - W23 and W51 are now ready, queued behind W32, which was dispatched to
+    Sonnet into the manifest and l10n slot.

@@ -9,7 +9,7 @@ summary: >-
 
 # W23 — Lock, unlock and move a worktree
 
-Status: ready once W21 and W30 are integrated
+Status: ready
 Needs: W21 (shared action file), W30 (entry points)
 Decisions: —
 Kind: TypeScript and webview, l10n · Size budget: ~150 changed lines outside
