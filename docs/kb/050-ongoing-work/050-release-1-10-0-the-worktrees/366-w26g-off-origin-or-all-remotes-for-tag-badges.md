@@ -10,7 +10,7 @@ summary: >-
 
 # W26G — Off, origin or all remotes for tag badges
 
-Status: claimed by Claude Sonnet 5.5 on 2026-11-06 12:00
+Status: done — awaiting integration
 Needs: W26F, W26H, W26HF (integrated); PR #47's update `dc1886c`
 (merged at `d1bc642`)
 Decisions: the maintainer, `2026-11-06`: "for these tag labels make settings
@@ -116,4 +116,30 @@ handler only), `src/backend/queries/remoteTags.ts`,
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Sonnet 5.5, 2026-11-06
+- **Branch and commits:** `wt-1.10.0/W26G`
+  - `9c7f342 G feat(tags): off, origin or all remotes for tag badges (W26G)`
+  - `df75ce9 G test(tags): cover the three tag remote modes (W26G)`
+  - `c4d79bd G docs(tags): document the three tag remote modes (W26G)`
+  - (the claim, `4b99ff5`, and this report are separate commits)
+- **Behavior:**
+  - `off`: no request from the webview, handler answers empty and spawns
+    nothing; badges as before PR #47.
+  - `origin` (default): the handler passes `mode: "origin"`; `remoteTags`
+    reads only `origin` and only if `git remote` lists it, else no network
+    read; the webview shows one `origin` segment with the contributor's three
+    strings, and nothing without an `origin` remote.
+  - `all`: as integrated.
+  - Any mode change forgets the snapshot and re-requests (not when off).
+  - Validation: `getStringUnionConfig` at boot, `parseTagRemotesMode` at the
+    webview boot config and the raw echo; booleans and junk mean `origin`.
+- **Tests:** backend 1373 of 1373, webview 937 of 937, no unhandled errors;
+  new: 3 backend mode tests, 2 handler tests, 3 webview tests, config and
+  manifest tests rewritten for the enum. Fixtures changed from `true` to `"all"`.
+- **Gates:** strict Biome clean on 51 touched files; `typecheck` passes;
+  `l10n:check` 100%; Sonar: integrator
+- **Deviations:** `queries.types.ts` untouched (the mode is read from the
+  config by the handler, not sent in the request); translations for the new
+  nls strings (nl, pl, zh-cn, zh-tw) are mine, the origin strings are the
+  contributor's.
+- **Open questions:** none.
