@@ -9,7 +9,7 @@ summary: >-
 
 # W23 — Lock, unlock and move a worktree
 
-Status: done — awaiting integration
+Status: integrated `6a33321` (`2026-11-06`)
 Needs: W21 (shared action file), W30 (entry points)
 Decisions: —
 Kind: TypeScript and webview, l10n · Size budget: ~150 changed lines outside

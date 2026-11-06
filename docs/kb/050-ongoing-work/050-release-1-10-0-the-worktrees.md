@@ -105,6 +105,7 @@ run one after another, as the integrator procedure says.
 | W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | integrated `43ac7e9` |
 | W26G | [Off, origin or all remotes for tag badges](050-release-1-10-0-the-worktrees/366-w26g-off-origin-or-all-remotes-for-tag-badges.md) | TS + webview + manifest + l10n | W26F, W26H, W26HF | A | integrated `697423e` |
 | W26H | [Harden the remote tag read](050-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | integrated `d607144` |
+| W26J | [No duplicate remote-tracking tag badges](050-release-1-10-0-the-worktrees/367-w26j-no-duplicate-remote-tracking-tag-badges.md) | Rust + TS | — | A | dispatched `2026-11-06` (Sonnet) |
 | W26HF | [Remote tag read Sonar follow-up](050-release-1-10-0-the-worktrees/369-w26hf-remote-tag-read-sonar-follow-up.md) | TS | W26H | A | integrated `8ff94dd` |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | integrated `f9e54a4` |
 | W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | integrated `f1dcbb6` |
@@ -120,7 +121,7 @@ run one after another, as the integrator procedure says.
 | W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | integrated `65725f7` |
 | W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | integrated `fcc76c4` |
 | W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | integrated `5cdfa9e` |
-| W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | dispatched `2026-11-06` (Haiku) |
+| W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | integrated `6a33321` |
 | W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | integrated `426b789` |
 | W32F | [Worktree discovery Sonar follow-up](050-release-1-10-0-the-worktrees/425-w32f-worktree-discovery-sonar-follow-up.md) | TS | W32 | E | integrated `3b13162` |
 | W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | ready (queued: one manifest or l10n slice at a time) |
@@ -712,3 +713,20 @@ commit, the gate results with numbers, and the Sonar task id.
   checked for a signature first. Slice agents still never push. Pushing
   this branch closes no issue, since GitHub acts on `Closes` only on `main`.
 - `2026-11-06`: W90H integrated at `f51e65e`. The five closed issues' subsections moved to History, under Closed GitHub issues and their threads. The register now lists #37 as the only open issue to tackle, and the tracker table marks the five Closed. The Phase 9 and Phase 18 status lines were updated to match. W23 was dispatched to Haiku: its earlier "dispatched" line was premature, since the agent call came after the version-bump request.
+- `2026-11-06`: W23 integrated at `6a33321`. It adds Lock (with a reason),
+  Unlock and Move, from the Worktrees list and from a branch held by
+  another worktree.
+  - A locked worktree is never moved by force (no `-f -f`), and after a
+    move the repository list follows the new path.
+  - The rebase was clean. Typecheck passes, the backend passes 1389 of
+    1389, the webview 948 of 948, and l10n is complete.
+  - Accepted outside the Touch list: `worktreeList.ts` and
+    `webviewL10n.ts`. The integrator added its `CHANGELOG.md` line.
+- `2026-11-06`: a maintainer-reported bug. With a
+  `refs/tags/*:refs/remotes/<remote>/tags/*` fetch refspec, the engine
+  showed `refs/remotes/dev/tags/Script` as an extra tag badge `dev/Script`
+  beside `Script`, while the CLI path showed nothing.
+  - This is engine behavior inherited since its import (`refs.rs:189`),
+    surfaced beside W26G's remote segment.
+  - The maintainer chose to hide only the duplicates, with backend parity.
+    W26J was added and dispatched to Sonnet.

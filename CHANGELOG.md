@@ -29,6 +29,13 @@ checkout defaults that follow Git.
   and prune stale entries after a preview
   ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
 
+- **Lock, unlock and move a worktree.** From the Worktrees list, or a
+  branch held by another worktree: Lock Worktree… with an optional reason,
+  Unlock, and Move Worktree… to a new folder. A locked worktree is never
+  moved by force; it is unlocked first, by choice. After a move, the
+  repository list and the graph follow the new path
+  ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
+
 - **Open a worktree from the graph.** A branch checked out in another
   worktree offers **Open Worktree…**: open it in a new window or this one,
   add it to the workspace, reveal it in the file manager, or switch the graph
