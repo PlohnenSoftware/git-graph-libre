@@ -125,7 +125,7 @@ run one after another, as the integrator procedure says.
 | W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | integrated `426b789` |
 | W32F | [Worktree discovery Sonar follow-up](050-release-1-10-0-the-worktrees/425-w32f-worktree-discovery-sonar-follow-up.md) | TS | W32 | E | integrated `3b13162` |
 | W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | ready (queued: one manifest or l10n slice at a time) |
-| W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | dispatched `2026-11-06` (Haiku) |
+| W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | integrated `a9d58f2` (step 2, the Repository-tab note, left for W34F) |
 | W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | dispatched `2026-11-06` (Haiku) |
 | W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | integrated `2e37454` |
 | W90 | [Release 1.10.0](050-release-1-10-0-the-worktrees/900-w90-release-1-10-0.md) | release | every slice in scope | — | maintainer |
@@ -759,3 +759,17 @@ commit, the gate results with numbers, and the Sonar task id.
     integrator added the `CHANGELOG.md` line.
   - Dispatched: W22F to Haiku, into the manifest and l10n slot; W34 and
     W50 to Haiku in parallel, since neither touches the manifest or l10n.
+- `2026-11-06`: W34 integrated at `a9d58f2`. When a linked worktree is first
+  added, it copies its main worktree's `issueLinking` and `pullRequest`
+  settings (cloned, never overwriting). There is no migration and no later
+  sync, per Y18 (a). Main versus linked is decided from the file system.
+  - Step 2, a note in the Repository tab, needs l10n strings. W22F holds
+    that slot, so the note is W34F, next in the slot.
+  - The integrator accepts two behaviors under Y18's "no migration": a
+    worktree added before its main inherits nothing, and one re-added
+    after removal inherits again.
+  - Risk noted: `realFolder` uses `fs.realpathSync`, which does not fold
+    the drive-letter case on Windows as `canonicalizePath` does. This is
+    untested on Windows.
+  - The rebase was clean. Typecheck passes, the backend passes 1354 (60
+    environment skips), and the webview 954 of 954.

@@ -10,7 +10,7 @@ summary: >-
 
 # W34 — Share repository settings across worktrees
 
-Status: blocked — the Repository-tab note (step 2) needs new strings in `l10n/`, which this slice may not touch; steps 1 and 3 (inheritance and its tests) are done and committed
+Status: integrated `a9d58f2` (`2026-11-06`), without step 2: the Repository-tab note needs l10n strings, so it is W34F, in the manifest and l10n slot after W22F
 Needs: W32 (`commonDir` per repository)
 Decisions: Y18
 Kind: TypeScript · Size budget: ~120 changed lines outside tests
