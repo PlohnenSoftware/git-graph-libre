@@ -644,7 +644,7 @@ export function registerMessageHandlers(
     const canonicalFrom = await canonicalizePath(from);
     const known = await Promise.all(
       Object.keys(repoManager.getRepos()).map(
-        async (repo) => [repo, await canonicalizePath(repo)] as const
+        async (knownRepo) => [knownRepo, await canonicalizePath(knownRepo)] as const
       )
     );
     closeEngineRepository(from);

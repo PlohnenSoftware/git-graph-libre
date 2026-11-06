@@ -214,9 +214,18 @@ export async function lockWorktree(
 ): Promise<void> {
   const repo = input.repo ?? null;
   const target = await findWorktree(await listWorktrees(git, repo, record), input.path);
-  if (target === null) return fail("error.worktreeNotListed", input.path);
-  if (target.isMain) return fail("error.worktreeMainNoLock", target.path);
-  if (target.locked !== null) return fail("error.worktreeAlreadyLocked", target.path);
+  if (target === null) {
+    await fail("error.worktreeNotListed", input.path);
+    return;
+  }
+  if (target.isMain) {
+    await fail("error.worktreeMainNoLock", target.path);
+    return;
+  }
+  if (target.locked !== null) {
+    await fail("error.worktreeAlreadyLocked", target.path);
+    return;
+  }
 
   const args = ["worktree", "lock"];
   const reason = nonEmpty(input.reason);
@@ -233,8 +242,14 @@ export async function unlockWorktree(
 ): Promise<void> {
   const repo = input.repo ?? null;
   const target = await findWorktree(await listWorktrees(git, repo, record), input.path);
-  if (target === null) return fail("error.worktreeNotListed", input.path);
-  if (target.locked === null) return fail("error.worktreeNotLocked", target.path);
+  if (target === null) {
+    await fail("error.worktreeNotListed", input.path);
+    return;
+  }
+  if (target.locked === null) {
+    await fail("error.worktreeNotLocked", target.path);
+    return;
+  }
 
   await runGitRaw(git, {
     label: "worktree.unlock",
