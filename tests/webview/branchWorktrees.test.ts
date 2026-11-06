@@ -215,7 +215,7 @@ describe("detachedWorktreeHeadMap and worktreeFolderName", () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     createVscodeMock();
     setupHtml(makeViewState());
-    const { worktreeFolderName } = await import("@/webview/main");
+    const { worktreeFolderName } = await import("@/webview/utils/git");
 
     expect(worktreeFolderName("/workspace/wt side")).toBe("wt side");
     expect(worktreeFolderName("C:\\repos\\wt ünï")).toBe("wt ünï");

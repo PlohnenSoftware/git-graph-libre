@@ -8,3 +8,13 @@ export function arraysEqual<T>(a: T[], b: T[], equalElements: (a: T, b: T) => bo
   }
   return true;
 }
+
+/** A worktree's folder name: the last segment of its path, on either separator. */
+export function worktreeFolderName(worktreePath: string): string {
+  let end = worktreePath.length;
+  while (end > 0 && (worktreePath[end - 1] === "/" || worktreePath[end - 1] === "\\")) {
+    end -= 1;
+  }
+  const segments = worktreePath.slice(0, end).split(/[/\\]/);
+  return segments.at(-1) || worktreePath;
+}

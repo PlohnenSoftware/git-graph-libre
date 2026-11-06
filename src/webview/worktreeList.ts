@@ -1,7 +1,7 @@
 import type { GitWorktree } from "@/backend/types";
 import type { LocalizedStrings } from "@/extension/webviewL10n";
 import { octicon } from "@/octicons";
-
+import { worktreeFolderName } from "./utils/git";
 import { escapeHtml } from "./utils/html";
 
 /**
@@ -112,11 +112,6 @@ export function worktreeRowActions(worktree: GitWorktree): WorktreeRowAction[] {
   return actions;
 }
 
-function folderName(path: string): string {
-  const segments = path.replace(/[/\\]+$/, "").split(/[/\\]/);
-  return segments.at(-1) || path;
-}
-
 function badge(kind: string, text: string): string {
   return `<span class="worktreeBadge ${kind}">${escapeHtml(text)}</span>`;
 }
@@ -148,7 +143,7 @@ function renderRow(
   labels: WorktreeListLabels,
   hashLength: number
 ): string {
-  const name = escapeHtml(folderName(worktree.path));
+  const name = escapeHtml(worktreeFolderName(worktree.path));
   const path = escapeHtml(worktree.path);
   const buttons = worktreeRowActions(worktree)
     .map(

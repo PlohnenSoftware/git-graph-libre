@@ -61,7 +61,7 @@ import {
 } from "./uncommittedDetailsView";
 import { formatRelativeDate, getMonth, pad2 } from "./utils/date";
 import { addListenerToClass, insertAfter, startRevealHighlight } from "./utils/dom";
-import { arraysEqual, ELLIPSIS, refInvalid } from "./utils/git";
+import { arraysEqual, ELLIPSIS, refInvalid, worktreeFolderName } from "./utils/git";
 import { escapeHtml, unescapeHtml } from "./utils/html";
 import { svgIcons } from "./utils/icons";
 import { extractIssueLinks } from "./utils/linkify";
@@ -292,16 +292,6 @@ export function existingLocalBranchForRemote(
     if (upstreams[branch] === remoteRef) return branch;
   }
   return null;
-}
-
-/** A worktree's folder name: the last segment of its path, on either separator. */
-export function worktreeFolderName(worktreePath: string): string {
-  let end = worktreePath.length;
-  while (end > 0 && (worktreePath[end - 1] === "/" || worktreePath[end - 1] === "\\")) {
-    end -= 1;
-  }
-  const segments = worktreePath.slice(0, end).split(/[/\\]/);
-  return segments.at(-1) || worktreePath;
 }
 
 /**
