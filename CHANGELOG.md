@@ -57,7 +57,10 @@ checkout defaults that follow Git.
   checked out in another worktree is refused up front, offering that worktree
   instead. Afterwards it asks whether to open the new worktree in a new
   window, add it to the workspace, switch the graph to it, or do nothing, and
-  remembers the last choice
+  remembers the last choice, across a reload of the graph too. The folder
+  has a Browse button, and a new `repository.worktreePathTemplate` setting
+  changes the default folder: `${repo}` and `${branch}` are filled in, and a
+  relative path is taken from the repository's parent folder
   ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
 
 - **Worktrees in the repository dropdown.** A repository's worktrees are
