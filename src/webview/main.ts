@@ -542,6 +542,8 @@ class GitGraphView {
     requestId: number;
     request: Extract<GGL.RequestMessage, { command: "removeWorktree" }>;
   } | null = null;
+  /** The Worktrees popup's read of its worktrees' uncommitted changes, awaiting its answer. */
+  private pendingWorktreeStatus: { requestId: number; repo: string } | null = null;
   /** The Push Branch dialog's submission still awaiting its `branchPushDefaults` reply. */
   private pendingPushBranchDialog: {
     requestId: number;
@@ -680,7 +682,8 @@ class GitGraphView {
       () => this.config.shortHashLength,
       {
         onRowAction: (action, worktree) => this.handleWorktreeRowAction(action, worktree),
-        onFooterAction: (action) => this.handleWorktreeFooterAction(action)
+        onFooterAction: (action) => this.handleWorktreeFooterAction(action),
+        onOpen: (paths) => this.requestWorktreeStatus(paths)
       }
     );
     document.getElementById("findBtn")?.addEventListener("click", () => {
@@ -5320,6 +5323,18 @@ class GitGraphView {
     sendMessage(request);
     showActionRunningDialog(l10n.statusRemovingWorktree);
   }
+  /** Asks for the uncommitted changes of the popup's worktrees, when it opens. */
+  private requestWorktreeStatus(paths: string[]) {
+    const requestId = this.createRequestId();
+    this.pendingWorktreeStatus = { requestId, repo: this.currentRepo };
+    sendMessage({ command: "worktreeStatus", repo: this.currentRepo, paths, requestId });
+  }
+  public loadWorktreeStatus(msg: Extract<GGL.ResponseMessage, { command: "worktreeStatus" }>) {
+    const pending = this.pendingWorktreeStatus;
+    if (pending?.requestId !== msg.requestId || pending.repo !== msg.repo) return;
+    this.pendingWorktreeStatus = null;
+    this.worktreePopup.setChanges(msg.statuses);
+  }
   public loadWorktreeChanges(msg: Extract<GGL.ResponseMessage, { command: "worktreeChanges" }>) {
     const pending = this.pendingWorktreeRemoval;
     if (pending?.requestId !== msg.requestId) return;
@@ -8123,6 +8138,7 @@ type ResponseHandlerMap = {
 const responseHandlers: ResponseHandlerMap = {
   remoteTags: (msg) => gitGraph.loadRemoteTags(msg),
   worktreeChanges: (msg) => gitGraph.loadWorktreeChanges(msg),
+  worktreeStatus: (msg) => gitGraph.loadWorktreeStatus(msg),
   branchPushDefaults: (msg) =>
     gitGraph.loadBranchPushDefaults(msg.requestId, {
       upstreamRemote: msg.upstreamRemote,

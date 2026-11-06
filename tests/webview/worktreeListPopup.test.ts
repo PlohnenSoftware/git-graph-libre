@@ -250,6 +250,56 @@ describe("the Worktrees toolbar popup", () => {
     expect(document.getElementById("dialog")?.textContent).toContain("Create a worktree from HEAD");
   });
 
+  it("asks once when it opens for the other worktrees' changes, shows the answer, and never on a refresh", async () => {
+    const mock = await boot(LISTED);
+    click("#worktreesBtn");
+
+    const first = latest(mock.sentMessages, "worktreeStatus");
+    expect(first).toMatchObject({ repo: REPO, paths: [SIDE] });
+    expect(
+      document.querySelector(".worktreeRow[data-worktree-index='1'] .worktreeBadge.checking")
+    ).not.toBeNull();
+
+    receive({
+      command: "worktreeStatus",
+      requestId: first.requestId,
+      repo: REPO,
+      statuses: { [SIDE]: { state: "dirty", count: 2, truncated: false } }
+    });
+    expect(document.querySelector(".worktreeRow[data-worktree-index='1']")?.textContent).toContain(
+      "2 local changes"
+    );
+
+    const before = mock.sentMessages.filter((msg) => msg.command === "worktreeStatus").length;
+    click("#refreshBtn");
+    expect(mock.sentMessages.filter((msg) => msg.command === "worktreeStatus")).toHaveLength(
+      before
+    );
+
+    click("#worktreeListClose");
+    click("#worktreesBtn");
+    expect(mock.sentMessages.filter((msg) => msg.command === "worktreeStatus")).toHaveLength(
+      before + 1
+    );
+  });
+
+  it("drops an answer whose request is not the one awaited", async () => {
+    const mock = await boot(LISTED);
+    click("#worktreesBtn");
+    const request = latest(mock.sentMessages, "worktreeStatus");
+
+    receive({
+      command: "worktreeStatus",
+      requestId: request.requestId + 100,
+      repo: REPO,
+      statuses: { [SIDE]: { state: "dirty", count: 9, truncated: false } }
+    });
+
+    expect(document.querySelector(".worktreeRow[data-worktree-index='1']")?.textContent).toContain(
+      "checking changes"
+    );
+  });
+
   it("redraws when the worktree list changes while open", async () => {
     const mock = await boot(LISTED);
     click("#worktreesBtn");
