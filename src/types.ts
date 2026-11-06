@@ -613,6 +613,18 @@ export type ResponseResolveRef = {
   error: GitQueryError | null;
 };
 
+/** Asks the extension for a folder with VS Code's folder picker (the Create Worktree dialog's Browse, W22F). */
+export type RequestPickFolder = {
+  command: "pickFolder";
+  requestId: number;
+};
+export type ResponsePickFolder = {
+  command: "pickFolder";
+  requestId: number;
+  /** The folder the user picked, or null when the picker was cancelled. */
+  path: string | null;
+};
+
 export type RequestOpenExternalDirDiff = {
   command: "openExternalDirDiff";
   repo: string;
@@ -650,7 +662,8 @@ export type RequestMessage =
   | RequestOpenExternalDirDiff
   | RequestResolveRef
   | RequestSetTemporaryLanguage
-  | RequestShowTelemetryConsent;
+  | RequestShowTelemetryConsent
+  | RequestPickFolder;
 
 export type ResponseMessage =
   | ResponseRepositoryStatus
@@ -677,4 +690,5 @@ export type ResponseMessage =
   | ResponseRefresh
   | ResponseResolveRef
   | ResponseStartHistorySearch
-  | ResponseShowPruneWorktrees;
+  | ResponseShowPruneWorktrees
+  | ResponsePickFolder;

@@ -423,6 +423,59 @@ describe("the worktree folder template (W22F)", () => {
   });
 });
 
+describe("the Browse button (W22F)", () => {
+  function clickBrowse() {
+    document.getElementById("dialogBrowse0")?.dispatchEvent(new MouseEvent("click"));
+  }
+
+  it("fills the folder with the picked folder and creates the worktree there", async () => {
+    const { vscodeMock } = await bootWebview();
+    openRefContextMenu(".gitRef.head", "feature/menu");
+    clickContextMenuItem("Create Worktree…");
+    clickBrowse();
+
+    const pick = latestRequest(vscodeMock.sentMessages, "pickFolder");
+    receive({ command: "pickFolder", requestId: pick.requestId, path: "/picked/elsewhere" });
+    expect(dialogInput<HTMLInputElement>(0).value).toBe("/picked/elsewhere");
+    submitDialog();
+
+    expect(latestRequest(vscodeMock.sentMessages, "addWorktree")).toMatchObject({
+      path: "/picked/elsewhere"
+    });
+  });
+
+  it("leaves the folder as it was when the picker is cancelled", async () => {
+    const { vscodeMock } = await bootWebview();
+    openRefContextMenu(".gitRef.head", "feature/menu");
+    clickContextMenuItem("Create Worktree…");
+    clickBrowse();
+
+    const pick = latestRequest(vscodeMock.sentMessages, "pickFolder");
+    receive({ command: "pickFolder", requestId: pick.requestId, path: null });
+    expect(dialogInput<HTMLInputElement>(0).value).toBe(
+      "/workspace/createrepo.worktrees/feature/menu"
+    );
+  });
+
+  it("ignores an answer to a pick the dialog no longer waits for", async () => {
+    const { vscodeMock } = await bootWebview();
+    openRefContextMenu(".gitRef.head", "feature/menu");
+    clickContextMenuItem("Create Worktree…");
+    clickBrowse();
+    clickBrowse();
+
+    const picks = vscodeMock.sentMessages.filter(
+      (msg): msg is Extract<GGL.RequestMessage, { command: "pickFolder" }> =>
+        msg.command === "pickFolder"
+    );
+    expect(picks).toHaveLength(2);
+    receive({ command: "pickFolder", requestId: picks[0].requestId, path: "/stale" });
+    expect(dialogInput<HTMLInputElement>(0).value).toBe(
+      "/workspace/createrepo.worktrees/feature/menu"
+    );
+  });
+});
+
 describe("Create Worktree from a branch", () => {
   it("pre-fills the Y7 folder and checks the branch out", async () => {
     const { vscodeMock } = await bootWebview();

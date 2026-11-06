@@ -283,6 +283,18 @@ describe("worktree handlers", () => {
     expect(simpleGitList(repo)).not.toContain("prunable");
   });
 
+  it("answers pickFolder with the folder picked, or null when the picker is cancelled (W22F)", async () => {
+    const { posts, handlers } = setup();
+
+    openDialogResults.push([{ fsPath: "/picked/folder" } as never]);
+    await handlers.get("pickFolder")?.({ command: "pickFolder", requestId: 7 });
+    expect(posts.at(-1)).toEqual({ command: "pickFolder", requestId: 7, path: "/picked/folder" });
+
+    openDialogResults.push(undefined);
+    await handlers.get("pickFolder")?.({ command: "pickFolder", requestId: 8 });
+    expect(posts.at(-1)).toEqual({ command: "pickFolder", requestId: 8, path: null });
+  });
+
   it("forwards each open message to its hidden command, which re-lists first (W31)", async () => {
     const { repo, featPath, handlers, posts } = setup();
 

@@ -72,6 +72,12 @@ declare global {
     name: string;
     default: string;
   }
+  /** A folder path typed or picked: a text field with a Browse button beside it (W22F). */
+  interface DialogFolderInput {
+    type: "folder";
+    name: string;
+    default: string;
+  }
   interface DialogTextareaInput {
     type: "textarea";
     name: string;
@@ -132,6 +138,7 @@ declare global {
   type DialogInput = (
     | DialogTextInput
     | DialogTextRefInput
+    | DialogFolderInput
     | DialogTextareaInput
     | DialogSelectInput
     | DialogCheckboxInput

@@ -4581,14 +4581,13 @@ class GitGraphView {
       ),
       [
         {
-          type: "text",
+          type: "folder",
           name: l10n.dialogCreateWorktreeFolder,
           default: defaultWorktreePath(
             this.currentRepo,
             source.folderName,
             this.config.worktreePathTemplate
           ),
-          placeholder: null,
           required: true
         },
         { type: "select", name: l10n.dialogCreateWorktreeCheckout, options, default: mode },
@@ -8248,6 +8247,7 @@ const responseHandlers: ResponseHandlerMap = {
   openFile: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenFile),
   openSourceControl: (msg) => handleSuccessFlagResponse(msg, l10n.unableToOpenSourceControl),
   refresh: () => gitGraph.refresh(false),
+  pickFolder: (msg) => finishFolderPick(msg),
   resolveRef: (msg) =>
     gitGraph.loadResolvedComparison(msg.requestId, msg.hash, formatQueryError(msg.error)),
   searchCommits: (msg) =>
@@ -8654,6 +8654,36 @@ function showFormDialog(
     bindFormDialogInputs(inputs, textRefInput, actionName);
   }
   bindLockedDialogInputs(inputs);
+  bindFolderDialogInputs(inputs);
+}
+/** The folder field a Browse click is filling, until the picker answers (W22F). */
+let pendingFolderPick: { requestId: number; field: HTMLInputElement } | null = null;
+let folderPickRequests = 0;
+/** Wires each folder field's Browse button to the folder picker (W22F). */
+function bindFolderDialogInputs(inputs: DialogInput[]) {
+  for (const [index, input] of inputs.entries()) {
+    if (input.type !== "folder") continue;
+    document
+      .getElementById(`dialogBrowse${index}`)
+      ?.addEventListener("click", () => requestFolderPick(index));
+  }
+}
+function requestFolderPick(index: number) {
+  const field = document.getElementById(`dialogInput${index}`) as HTMLInputElement | null;
+  if (field === null) return;
+  folderPickRequests += 1;
+  pendingFolderPick = { requestId: folderPickRequests, field };
+  sendMessage({ command: "pickFolder", requestId: folderPickRequests });
+}
+/** The picker's answer: a picked folder fills the field, and a cancelled picker changes nothing. */
+function finishFolderPick(msg: Extract<GGL.ResponseMessage, { command: "pickFolder" }>) {
+  const pending = pendingFolderPick;
+  if (pending === null || pending.requestId !== msg.requestId) return;
+  pendingFolderPick = null;
+  if (msg.path === null || !pending.field.isConnected) return;
+  pending.field.value = msg.path;
+  // An input event re-runs the dialog's own check, which unblocks the action.
+  pending.field.dispatchEvent(new Event("input"));
 }
 /**
  * Hold locked checkboxes at their forced value.
@@ -8732,7 +8762,12 @@ function renderDialogInput(
   if (input.type === "select") return renderDialogSelectInput(input, index);
   if (input.type === "checkbox") return renderDialogCheckboxInput(input, index, multiElementForm);
   if (input.type === "textarea") return renderDialogTextareaInput(input, index);
+  if (input.type === "folder") return renderDialogFolderInput(input, index);
   return renderDialogTextInput(input, index);
+}
+/** A folder field with its Browse button beside it; the picker's answer fills the field (W22F). */
+function renderDialogFolderInput(input: Extract<DialogInput, { type: "folder" }>, index: number) {
+  return `<span class="dialogFormFolder"><input id="dialogInput${index}" type="text" value="${escapeHtml(input.default)}"/><button id="dialogBrowse${index}" class="dialogBtn" type="button">${escapeHtml(l10n.dialogCreateWorktreeBrowse)}</button></span>`;
 }
 function renderDialogSelectInput(input: Extract<DialogInput, { type: "select" }>, index: number) {
   let html = `<select id="dialogInput${index}">`;
@@ -8816,7 +8851,10 @@ function isDialogInputVisible(inputs: DialogInput[], input: DialogInput) {
   return getDialogInputValue(controller, input.dependsOn.input) === input.dependsOn.value;
 }
 function isRequiredDialogInput(input: DialogInput) {
-  return (input.type === "text" || input.type === "textarea") && input.required === true;
+  return (
+    (input.type === "text" || input.type === "textarea" || input.type === "folder") &&
+    input.required === true
+  );
 }
 function getFormDialogInputState(inputs: DialogInput[]) {
   let noInput = false;

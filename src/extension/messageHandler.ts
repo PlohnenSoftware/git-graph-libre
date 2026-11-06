@@ -479,16 +479,24 @@ function openInteractiveRebaseTerminal(
   terminal.sendText(`git rebase --interactive ${quoteTerminalArg(msg.target)}`);
 }
 
-/** Asks for the folder a worktree was moved to; null when the picker is cancelled. */
-async function pickWorktreeFolder(): Promise<string | null> {
+/** Asks the user for a folder with VS Code's folder picker; null when the picker is cancelled. */
+async function pickFolder(title: string, openLabel: string): Promise<string | null> {
   const picked = await vscode.window.showOpenDialog({
     canSelectFolders: true,
     canSelectFiles: false,
     canSelectMany: false,
-    title: l10n.t("dialog.repairWorktree.pickFolder"),
-    openLabel: l10n.t("dialog.repairWorktree.pickFolderLabel")
+    title,
+    openLabel
   });
   return picked?.[0]?.fsPath ?? null;
+}
+
+/** Asks for the folder a worktree was moved to; null when the picker is cancelled. */
+function pickWorktreeFolder(): Promise<string | null> {
+  return pickFolder(
+    l10n.t("dialog.repairWorktree.pickFolder"),
+    l10n.t("dialog.repairWorktree.pickFolderLabel")
+  );
 }
 
 export function registerMessageHandlers(
@@ -1197,6 +1205,18 @@ export function registerMessageHandlers(
         branch: msg.branch,
         recordGitCommand
       }))
+    });
+  });
+
+  // The Create Worktree dialog's Browse button: the folder the user picks fills its field.
+  bridge.onMessage("pickFolder", async (msg) => {
+    bridge.post({
+      command: "pickFolder",
+      requestId: msg.requestId,
+      path: await pickFolder(
+        l10n.t("dialog.createWorktree.pickFolder"),
+        l10n.t("dialog.createWorktree.pickFolderLabel")
+      )
     });
   });
 
