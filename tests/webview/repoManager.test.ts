@@ -1,4 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { git, makeRepo } from "@tests/backend/helpers";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as vscode from "vscode";
 
 const probeState = vi.hoisted(() => ({ states: new Map<string, string>() }));
@@ -165,5 +169,127 @@ describe("repository manager availability", () => {
 
     expect(Object.keys(manager.getKnownRepos())).toEqual(["/workspace/blocked"]);
     expect(manager.getRepos()).toEqual({});
+  });
+});
+
+describe("repository manager worktrees outside the workspace (Y9)", () => {
+  const savedGlobal = process.env.GIT_CONFIG_GLOBAL;
+  const savedNoSystem = process.env.GIT_CONFIG_NOSYSTEM;
+  let root: string;
+  let workspace: string;
+  let main: string;
+  let outsideLinked: string;
+  let orphanMain: string;
+  let orphanLinked: string;
+
+  const slash = (file: string) => file.replaceAll("\\", "/");
+
+  beforeAll(() => {
+    root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "ngg-manager-")));
+    const emptyConfig = path.join(root, "empty.gitconfig");
+    fs.writeFileSync(emptyConfig, "");
+    process.env.GIT_CONFIG_GLOBAL = emptyConfig;
+    process.env.GIT_CONFIG_NOSYSTEM = "1";
+    workspace = path.join(root, "work space");
+    fs.mkdirSync(workspace);
+    main = makeRepo();
+    fs.renameSync(main, path.join(workspace, "main"));
+    main = path.join(workspace, "main");
+    outsideLinked = path.join(root, "elsewhere", "linked é");
+    fs.mkdirSync(path.dirname(outsideLinked));
+    git(["worktree", "add", "-b", "out-b", outsideLinked], main);
+    // A second repository whose main worktree is outside the workspace.
+    orphanMain = makeRepo();
+    orphanLinked = path.join(root, "elsewhere", "orphan wt");
+    git(["worktree", "add", "-b", "orphan-b", orphanLinked], orphanMain);
+  });
+
+  afterAll(() => {
+    if (savedGlobal === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+    else process.env.GIT_CONFIG_GLOBAL = savedGlobal;
+    if (savedNoSystem === undefined) delete process.env.GIT_CONFIG_NOSYSTEM;
+    else process.env.GIT_CONFIG_NOSYSTEM = savedNoSystem;
+    fs.rmSync(orphanMain, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  function makeManager(repos: GitRepoSet, outsideSetting: boolean) {
+    const extensionState = {
+      getRepos: () => repos,
+      saveRepos: vi.fn()
+    } as unknown as ExtensionState;
+    const statusBar = { setNumRepos: vi.fn() } as unknown as StatusBarItem;
+    const config = {
+      gitPath: () => "git",
+      backend: () => "auto",
+      worktreesOutsideWorkspace: () => outsideSetting
+    } as unknown as Config;
+    mutableWorkspace.workspaceFolders = [
+      { uri: vscode.Uri.file(workspace), name: "workspace", index: 0 }
+    ];
+    return createRepoManager(extensionState, statusBar, config);
+  }
+
+  const known = (...paths: string[]): GitRepoSet =>
+    Object.fromEntries(paths.map((repo) => [slash(repo), { columnWidths: null }]));
+
+  it("keeps an outside linked worktree through activation while its main worktree is known", () => {
+    const repos = known(main, outsideLinked);
+    makeManager(repos, true).removeReposNotInWorkspace();
+
+    expect(Object.keys(repos).toSorted()).toEqual([slash(main), slash(outsideLinked)].toSorted());
+  });
+
+  it("purges outside worktrees as before when the setting is off", () => {
+    const repos = known(main, outsideLinked);
+    makeManager(repos, false).removeReposNotInWorkspace();
+
+    expect(Object.keys(repos)).toEqual([slash(main)]);
+  });
+
+  it("purges an outside linked worktree whose main worktree is not a known repository", () => {
+    const repos = known(main, orphanLinked);
+    makeManager(repos, true).removeReposNotInWorkspace();
+
+    expect(Object.keys(repos)).toEqual([slash(main)]);
+  });
+
+  it("still purges an outside repository that is not a linked worktree", () => {
+    const repos = known(main, orphanMain);
+    makeManager(repos, true).removeReposNotInWorkspace();
+
+    expect(Object.keys(repos)).toEqual([slash(main)]);
+  });
+
+  it("publishes the layout with the repository list, and drops an outside entry once it joins", () => {
+    const repos = known(main);
+    const manager = makeManager(repos, true);
+    const callback = vi.fn();
+    manager.registerViewCallback(callback);
+    const entry = {
+      path: slash(outsideLinked),
+      commonDir: "ignored",
+      linked: true,
+      branch: "out-b",
+      detached: false,
+      repo: slash(main)
+    };
+    manager.setWorktreeDetails(new Map([[slash(main), { branch: "main", detached: false }]]), [
+      entry
+    ]);
+
+    manager.sendRepos();
+
+    const layout = callback.mock.calls[0]?.[2];
+    expect(layout.outside).toEqual([entry]);
+    expect(layout.worktrees[slash(main)]).toMatchObject({ linked: false, branch: "main" });
+
+    manager.addRepo(slash(outsideLinked));
+    const joined = manager.getLayout();
+    expect(joined.outside).toEqual([]);
+    expect(joined.worktrees[slash(outsideLinked)]).toMatchObject({ linked: true });
+    expect(joined.worktrees[slash(outsideLinked)].commonDir).toBe(
+      joined.worktrees[slash(main)].commonDir
+    );
   });
 });

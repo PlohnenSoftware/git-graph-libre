@@ -78,8 +78,11 @@ export function createRepoSearch(
       repoManager.addRepo(repo);
       changed = true;
     }
-    // A repository just found may own worktrees the walk cannot see.
-    if (changed && worktreeDiscovery) await worktreeDiscovery.reconcile(isVerified);
+    // A repository a watcher just found may own worktrees the walk cannot see.
+    // A scan reconciles once, after it publishes its verification.
+    if (changed && scanning === null && worktreeDiscovery) {
+      await worktreeDiscovery.reconcile(isVerified);
+    }
     return changed;
   }
 

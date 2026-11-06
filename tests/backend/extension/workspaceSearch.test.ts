@@ -334,3 +334,53 @@ describe("createRepoSearch verification", () => {
     ]);
   });
 });
+
+describe("createRepoSearch worktree discovery (W32)", () => {
+  it("reconciles worktrees after a scan, before the list is published, with the scan's verification", async () => {
+    workspaceState.folders = [{ uri: { fsPath: "/workspace" } }];
+    probeStates.set("/workspace/repo", "ready");
+    searchUtilMock.mockImplementation(
+      async (_dir: string, _depth: number, _git: string, _known: string[], probe: never) => {
+        await (probe as (d: string) => Promise<boolean>)("/workspace/repo");
+        return ["/workspace/repo"];
+      }
+    );
+    const repoManager = makeRepoManager();
+    const reconcile = vi.fn(async (isVerified: (repo: string) => boolean) => {
+      expect(isVerified("/workspace/repo")).toBe(true);
+      expect(isVerified("/workspace/other")).toBe(false);
+      return false;
+    });
+    const search = createRepoSearch(repoManager as never, makeConfig(), makeLogger(), {
+      reconcile
+    });
+
+    await search.searchWorkspaceForRepos();
+
+    expect(reconcile).toHaveBeenCalledTimes(1);
+    expect(reconcile.mock.invocationCallOrder[0]).toBeLessThan(
+      repoManager.sendRepos.mock.invocationCallOrder[0]
+    );
+  });
+
+  it("reconciles again when a watcher's directory search finds a repository", async () => {
+    probeStates.set("/workspace/new", "ready");
+    searchUtilMock.mockImplementation(
+      async (_dir: string, _depth: number, _git: string, _known: string[], probe: never) => {
+        await (probe as (d: string) => Promise<boolean>)("/workspace/new");
+        return ["/workspace/new"];
+      }
+    );
+    const reconcile = vi.fn(async () => false);
+    const search = createRepoSearch(makeRepoManager() as never, makeConfig(), makeLogger(), {
+      reconcile
+    });
+
+    await search.searchDirectoryForRepos("/workspace/new", 2);
+    expect(reconcile).toHaveBeenCalledTimes(1);
+
+    searchUtilMock.mockResolvedValue([]);
+    await search.searchDirectoryForRepos("/workspace/empty", 2);
+    expect(reconcile).toHaveBeenCalledTimes(1);
+  });
+});

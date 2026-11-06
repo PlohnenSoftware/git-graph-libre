@@ -22,7 +22,6 @@ import { simpleGit } from "simple-git";
 import { readWorktrees } from "@/backend/engine/worktrees";
 import type { GitWorktree } from "@/backend/types";
 import { canonicalizePath } from "@/backend/utils/git";
-import { getPathFromStr } from "@/backend/utils/path";
 import { inspectRepository } from "@/backend/utils/repositoryProbe";
 import type { Config } from "@/config";
 import type { OutsideWorktree } from "@/types";
@@ -54,6 +53,11 @@ type Pass = {
   outside: OutsideWorktree[];
   changed: boolean;
 };
+
+/** Forward slashes, like every repository path the extension keeps (`getPathFromStr`, which needs `vscode`). */
+function toSlashes(file: string) {
+  return file.replaceAll("\\", "/");
+}
 
 function isInsideRoots(candidate: string, roots: readonly string[]) {
   return roots.some((root) => candidate === root || candidate.startsWith(`${root}/`));
@@ -119,7 +123,7 @@ export function createWorktreeDiscovery(deps: WorktreeDiscoveryDeps) {
         .filter((worktree) => !worktree.bare)
         .map(async (worktree) => ({
           worktree,
-          path: getPathFromStr(worktree.path),
+          path: toSlashes(worktree.path),
           canonical: await canonicalizePath(worktree.path)
         }))
     );
