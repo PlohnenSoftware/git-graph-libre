@@ -293,13 +293,11 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     dialogOpenWorktreeSubmit: translate("dialog.openWorktree.submit"),
     dialogCheckoutRemoteExists: translate("dialog.checkoutRemote.exists"),
     dialogCheckoutRemoteTracks: translate("dialog.checkoutRemote.tracks"),
-    dialogCheckoutRemoteAction: translate("dialog.checkoutRemote.action"),
     dialogCheckoutRemoteSwitch: translate("dialog.checkoutRemote.switch"),
     dialogCheckoutRemoteSwitchAndFastForward: translate(
       "dialog.checkoutRemote.switchAndFastForward"
     ),
     dialogCheckoutRemoteCreateOther: translate("dialog.checkoutRemote.createOther"),
-    dialogCheckoutRemoteNewName: translate("dialog.checkoutRemote.newName"),
     branchNameTaken: translate("error.branchNameTaken"),
     unableToCheckoutAndFastForward: translate("error.unableToCheckoutAndFastForward"),
     dialogDeleteBranchInWorktree: translate("dialog.deleteBranch.inWorktree"),

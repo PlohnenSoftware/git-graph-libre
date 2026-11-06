@@ -125,3 +125,22 @@ integration is fast-forward only, and only when chosen.
   `checkoutRemoteBranchName.test.ts` was adjusted for the new dialog.
 - **Open questions / follow-ups:** the nl, pl, zh-cn and zh-tw strings
   were not reviewed by native speakers.
+
+## Follow-up — the choices as buttons (`2026-11-06`)
+
+Maintainer request, from using the integrated dialog: the `<select>` of
+three full-sentence choices opened a native dropdown that overflowed the
+panel and repeated the selected value, and every choice still needed the
+generic "Checkout Branch" submit. `showChoiceDialog()` now presents the
+same three choices (the plain switch included — the option upstream's
+two-button dialog lacks) as one-click buttons in a horizontal row that
+wraps, with the switch primary and Cancel secondary; "Create a branch
+with another name" opens the ordinary name prompt with the same inline
+taken-name block, and the worktree case offers its two buttons the same
+way. The standing pattern is recorded in the Webview UI Styling Guide.
+Behavior, messages and the `--ff-only` rule are unchanged; the select's
+two labels (`dialog.checkoutRemote.action`, `dialog.checkoutRemote.newName`)
+are removed from all five bundles. Verified by the rewritten
+`checkoutRemoteExistingBranch.test.ts` (buttons, keyboard, both name-prompt
+defaults), a CSS regression test, and headless QtWebEngine renders in dark
+and light tokens with short and long branch names.

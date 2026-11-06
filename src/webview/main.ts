@@ -6621,7 +6621,7 @@ class GitGraphView {
         },
         null
       );
-      this.bindTakenBranchNameValidation(0, null);
+      this.bindTakenBranchNameValidation(0);
     }
   }
   /**
@@ -6641,96 +6641,102 @@ class GitGraphView {
   ) {
     const worktreePath = this.otherWorktreePath(existing);
     const message = existingBranchMessage(existing, suggestedName, remoteRef, worktreePath);
-    const createOther = {
-      name: l10n.dialogCheckoutRemoteCreateOther,
-      value: "create"
+    const createOther: DialogChoice = {
+      label: l10n.dialogCheckoutRemoteCreateOther,
+      onClick: () =>
+        this.showCheckoutRemoteOtherNameDialog(existing, remoteRef, suggestedName, sourceElem)
     };
-    const options =
+    const choices: DialogChoice[] =
       worktreePath !== null
-        ? [{ name: l10n.dialogOpenWorktreeSubmit, value: "openWorktree" }, createOther]
+        ? [
+            {
+              label: l10n.dialogOpenWorktreeSubmit,
+              primary: true,
+              onClick: () => {
+                sendMessage({
+                  command: "openWorktree",
+                  repo: this.currentRepo,
+                  path: worktreePath,
+                  newWindow: true
+                });
+              }
+            },
+            createOther
+          ]
         : [
             {
-              name: l10n.dialogCheckoutRemoteSwitch.replace("{0}", () => existing),
-              value: "switch"
+              label: l10n.dialogCheckoutRemoteSwitch.replace("{0}", () => existing),
+              primary: true,
+              onClick: () => {
+                sendMessage({
+                  command: "checkoutBranch",
+                  repo: this.currentRepo,
+                  branchName: existing,
+                  remoteBranch: null
+                });
+              }
             },
             {
-              name: l10n.dialogCheckoutRemoteSwitchAndFastForward
+              label: l10n.dialogCheckoutRemoteSwitchAndFastForward
                 .replace("{0}", () => existing)
                 .replace("{1}", () => remoteRef),
-              value: "switchAndFastForward"
+              onClick: () => {
+                sendMessage({
+                  command: "checkoutAndFastForward",
+                  repo: this.currentRepo,
+                  branchName: existing,
+                  target: remoteRef
+                });
+              }
             },
             createOther
           ];
-    showFormDialog(
-      message,
-      [
-        {
-          type: "select",
-          name: l10n.dialogCheckoutRemoteAction,
-          options,
-          default: options[0].value
-        },
-        {
-          type: "text-ref",
-          name: l10n.dialogCheckoutRemoteNewName,
-          // The suggested name is the collision itself in the same-name
-          // case; only a tracking branch leaves it free to offer.
-          default: existing === suggestedName ? "" : suggestedName,
-          dependsOn: { input: 0, value: "create" }
-        }
-      ],
+    showChoiceDialog(message, choices, sourceElem);
+  }
+  /**
+   * "Create a branch with another name" from the choice dialog above: the
+   * same name prompt as a collision-free remote checkout, with the same
+   * inline block on a taken name. The suggested name is the collision
+   * itself in the same-name case, so only a tracking branch leaves it free
+   * to offer as the default.
+   */
+  private showCheckoutRemoteOtherNameDialog(
+    existing: string,
+    remoteRef: string,
+    suggestedName: string,
+    sourceElem: HTMLElement | null
+  ) {
+    showRefInputDialog(
+      l10n.dialogCreateBranchTitle.replace("{0}", `<b><i>${escapeHtml(remoteRef)}</i></b>`),
+      existing === suggestedName ? "" : suggestedName,
       l10n.checkoutBranch,
-      (values) => {
-        if (values[0] === "switch") {
-          sendMessage({
-            command: "checkoutBranch",
-            repo: this.currentRepo,
-            branchName: existing,
-            remoteBranch: null
-          });
-        } else if (values[0] === "switchAndFastForward") {
-          sendMessage({
-            command: "checkoutAndFastForward",
-            repo: this.currentRepo,
-            branchName: existing,
-            target: remoteRef
-          });
-        } else if (values[0] === "openWorktree" && worktreePath !== null) {
-          sendMessage({
-            command: "openWorktree",
-            repo: this.currentRepo,
-            path: worktreePath,
-            newWindow: true
-          });
-        } else if (this.hasLocalBranch(values[1])) {
-          this.showExistingLocalBranchDialog(values[1], remoteRef, suggestedName, sourceElem);
-        } else {
-          sendMessage({
-            command: "checkoutBranch",
-            repo: this.currentRepo,
-            branchName: values[1],
-            remoteBranch: remoteRef
-          });
+      (newBranch) => {
+        if (this.hasLocalBranch(newBranch)) {
+          this.showExistingLocalBranchDialog(newBranch, remoteRef, suggestedName, sourceElem);
+          return;
         }
+        sendMessage({
+          command: "checkoutBranch",
+          repo: this.currentRepo,
+          branchName: newBranch,
+          remoteBranch: remoteRef
+        });
       },
       sourceElem
     );
-    this.bindTakenBranchNameValidation(1, 0);
+    this.bindTakenBranchNameValidation(0);
   }
   /**
    * Inline validation that a name about to be created is free: a taken name
    * puts the dialog in the same `inputInvalid` state as invalid characters,
    * which is what blocks its submit button, with the reason as the button's
    * title. Runs after the form's own state refresh on the same events, so a
-   * free name keeps whatever state that refresh chose; the hidden-row case
-   * (another choice selected) leaves the state alone entirely.
+   * free name keeps whatever state that refresh chose.
    */
-  private bindTakenBranchNameValidation(inputIndex: number, selectIndex: number | null) {
+  private bindTakenBranchNameValidation(inputIndex: number) {
     const input = document.getElementById(`dialogInput${inputIndex}`) as HTMLInputElement | null;
     if (input === null) return;
     const validate = () => {
-      const row = document.getElementById(`dialogInputRow${inputIndex}`);
-      if (row?.hidden === true) return;
       const name = input.value;
       const action = document.getElementById("dialogAction");
       if (name !== "" && this.hasLocalBranch(name)) {
@@ -6753,9 +6759,6 @@ class GitGraphView {
     };
     input.addEventListener("keyup", validate);
     input.addEventListener("input", validate);
-    if (selectIndex !== null) {
-      document.getElementById(`dialogInput${selectIndex}`)?.addEventListener("change", validate);
-    }
     validate();
   }
   private createArchiveAction(refName: string) {
@@ -8633,6 +8636,59 @@ function showSelectDialog(
     (values) => actioned(values[0]),
     sourceElem
   );
+}
+/**
+ * A dialog whose whole content is a short list of actions, one button each.
+ *
+ * The choices sit in a horizontal row that wraps when a label — a branch
+ * name, say — is too long to share it, and each button takes its action in
+ * one click. The alternative, a `<select>` of long sentences above a
+ * generic submit button, put the options in an operating-system dropdown
+ * that overflowed the dialog and repeated the selected value above itself.
+ */
+function showChoiceDialog(
+  message: string,
+  choices: DialogChoice[],
+  sourceElem: HTMLElement | null
+) {
+  const buttons = choices
+    .map(
+      (choice, index) =>
+        `<div id="dialogChoice${index}" class="dialogBtn dialogChoice${
+          choice.primary === true ? " dialogBtnPrimary" : ""
+        }" role="button" tabindex="0">${escapeHtml(choice.label)}</div>`
+    )
+    .join("");
+  showDialog(
+    `${dialogTitleHtml(message)}<div class="dialogChoices">${buttons}</div>`,
+    null,
+    l10n.dialogCancel,
+    null,
+    sourceElem
+  );
+  dialog.classList.add("choiceDialog");
+  // A dismiss-only dialog promotes its dismiss button to primary; here the
+  // choices are the actions, so Cancel stays a secondary button.
+  document.getElementById("dialogDismiss")?.classList.remove("dialogBtnPrimary");
+  for (const [index, choice] of choices.entries()) {
+    const button = document.getElementById(`dialogChoice${index}`);
+    if (button === null) continue;
+    const run = () => {
+      hideDialog();
+      choice.onClick();
+    };
+    button.addEventListener("click", run);
+    button.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      // The document-level Enter handler confirms whatever dialog is open;
+      // a choice may open a dialog of its own, which must not be confirmed
+      // by the same keypress.
+      e.stopPropagation();
+      run();
+    });
+  }
+  document.getElementById("dialogChoice0")?.focus();
 }
 function showFormDialog(
   message: string,

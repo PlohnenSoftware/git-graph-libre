@@ -25,4 +25,4 @@ panic = "unwind"
 # unreleased fixes the engine needs (replacement refs, the rename limit, Myers xdiff parity).
 # Replace this with a crates.io release once one carries them.
 [patch.crates-io]
-gix = { git = "https://github.com/GitoxideLabs/gitoxide", rev = "39e093fb541fc7a7acf6d7fef58f30827150cb00" }
+gix = { git = "https://github.com/GitoxideLabs/gitoxide"}

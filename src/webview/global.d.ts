@@ -153,6 +153,20 @@ declare global {
   type DialogInputValue = string | boolean;
 
   /**
+   * One button of a choice dialog: a short list of mutually exclusive
+   * actions, each taken by clicking its own button. A native `<select>`
+   * plus a generic submit button hides the options behind an OS dropdown
+   * and makes every choice two clicks, so a handful of actions is shown
+   * as buttons instead. See `showChoiceDialog`.
+   */
+  interface DialogChoice {
+    label: string;
+    /** The default choice, drawn as the dialog's primary button. */
+    primary?: boolean;
+    onClick: () => void;
+  }
+
+  /**
    * The two points a comparison shows. A label is what the user picked for
    * that side (a branch or tag name, or `HEAD`); a side picked as a commit
    * has none and shows its abbreviated hash.

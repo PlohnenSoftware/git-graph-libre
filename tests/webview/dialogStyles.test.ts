@@ -57,6 +57,19 @@ describe("dialog styles", () => {
     expect(ruleFor(css, "#dialog .dialogActions")).toContain("justify-content: flex-end;");
   });
 
+  it("lays choice-dialog buttons out as a wrapping horizontal row", () => {
+    const choices = ruleFor(css, "#dialog .dialogChoices");
+    const choice = ruleFor(css, "#dialog .dialogChoice");
+
+    expect(choices).toContain("display: flex;");
+    expect(choices).toContain("flex-wrap: wrap;");
+    // A label can carry two branch names: it wraps inside its button
+    // instead of pushing the panel wider.
+    expect(choice).toContain("white-space: normal;");
+    expect(choice).toContain("height: auto;");
+    expect(ruleFor(css, "#dialog.choiceDialog")).toContain("max-width: min(560px, 90vw);");
+  });
+
   it("styles dialog form notes as wrapping secondary text", () => {
     const noteCell = ruleFor(css, "#dialog table.dialogForm td.dialogFormNoteCell");
     const note = ruleFor(css, "#dialog table.dialogForm .dialogFormNote");

@@ -147,6 +147,28 @@ dl.tagDetailsFields dd {
   height: 14px;
 }
 
+/* A choice dialog: a short list of actions as one-click buttons in a
+   horizontal row that wraps. The row wraps rather than squeezing, because
+   a label can carry two branch names and a button cut mid-name is worse
+   than a second line. The panel gets more width than a form dialog so
+   short choices can actually share the row; a choice is the ordinary
+   .dialogBtn allowed to grow tall enough for a wrapped label. */
+#dialog.choiceDialog {
+  max-width: min(560px, 90vw);
+}
+#dialog .dialogChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#dialog .dialogChoice {
+  height: auto;
+  min-height: 26px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  white-space: normal;
+}
+
 /* Form rows. One metric governs every control in the webview — 28px tall,
    4px radius, matching .toolbarFindInput — and the dialogs now obey it too.
    Rows are laid on a single 8px rhythm, and cells are middle-aligned: with
