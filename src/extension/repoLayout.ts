@@ -52,6 +52,18 @@ export function mainWorktreeOf(commonDir: string): string | null {
   return normalized.slice(0, slash);
 }
 
+/**
+ * Whether a common dir is a bare repository's. Its own `.git` is absent, so
+ * `resolveGitDirs` answers the directory for both git dirs, which a normal
+ * repository's `.git` does too; the name tells those apart.
+ */
+export function isBareCommonDir(commonDir: string): boolean {
+  const normalized = normalize(commonDir);
+  if (normalized.endsWith("/.git")) return false;
+  const dirs = resolveGitDirs(commonDir);
+  return normalize(dirs.gitDir) === normalized && normalize(dirs.commonDir) === normalized;
+}
+
 export function buildRepoLayout(
   repoPaths: readonly string[],
   details: ReadonlyMap<string, WorktreeDetails>,
@@ -67,5 +79,11 @@ export function buildRepoLayout(
     };
   }
   const known = new Set(repoPaths.map(normalize));
-  return { worktrees, outside: outside.filter((entry) => !known.has(normalize(entry.path))) };
+  const shown = outside.filter((entry) => !known.has(normalize(entry.path)));
+  const commonDirs = [
+    ...Object.values(worktrees).map((info) => info.commonDir),
+    ...shown.map((entry) => realPath(entry.commonDir))
+  ];
+  const bareGroups = [...new Set(commonDirs)].filter(isBareCommonDir);
+  return { worktrees, outside: shown, bareGroups };
 }

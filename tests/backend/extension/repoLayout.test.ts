@@ -5,6 +5,7 @@ import { git, makeRepo } from "@tests/backend/helpers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   buildRepoLayout,
+  isBareCommonDir,
   mainWorktreeOf,
   type WorktreeDetails,
   worktreeGroupOf
@@ -108,6 +109,13 @@ describe("buildRepoLayout", () => {
     expect(layout.worktrees[nested]).toMatchObject({ linked: true, branch: null, detached: true });
     expect(layout.worktrees[main]).toMatchObject({ linked: false, branch: null, detached: false });
     expect(layout.worktrees[main].commonDir).toBe(layout.worktrees[sibling].commonDir);
+    expect(layout.bareGroups).toEqual([]);
+  });
+
+  it("lists the bare common dir of a bare repository's linked worktrees", () => {
+    const layout = buildRepoLayout([bareLinked], new Map(), []);
+
+    expect(layout.bareGroups).toEqual([slash(fs.realpathSync(bare))]);
   });
 
   it("leaves out an outside entry that has since joined the repository list", () => {
@@ -124,5 +132,29 @@ describe("buildRepoLayout", () => {
     const layout = buildRepoLayout([main, sibling], new Map(), [joined, other]);
 
     expect(layout.outside).toEqual([other]);
+  });
+
+  it("names the bare group of a listed outside entry, and no group for a normal .git", () => {
+    const outsideBare = {
+      path: "/elsewhere/bare-wt",
+      commonDir: slash(fs.realpathSync(bare)),
+      linked: true,
+      branch: "bare-b",
+      detached: false,
+      repo: slash(main)
+    };
+
+    const layout = buildRepoLayout([main], new Map(), [outsideBare]);
+
+    expect(layout.bareGroups).toEqual([slash(fs.realpathSync(bare))]);
+    expect(buildRepoLayout([main], new Map(), []).bareGroups).toEqual([]);
+  });
+});
+
+describe("isBareCommonDir", () => {
+  it("is true for a bare repository directory, false for a .git dir and a missing path", () => {
+    expect(isBareCommonDir(fs.realpathSync(bare))).toBe(true);
+    expect(isBareCommonDir(path.join(fs.realpathSync(main), ".git"))).toBe(false);
+    expect(isBareCommonDir(path.join(root, "missing.git"))).toBe(false);
   });
 });
