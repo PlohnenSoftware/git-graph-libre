@@ -10,7 +10,7 @@ summary: >-
 
 # W22F — Worktree path setting, browse, and persisted finish choice
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-11-06 15:10
 Needs: W22 (integrated `63cdd97`)
 Decisions: Y7 (a) with (d) and Y8 (a), answered `2026-11-05`
 Kind: TypeScript, webview, manifest and l10n · Size budget: ~200 changed
