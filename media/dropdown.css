@@ -129,7 +129,7 @@
   opacity: 0.8;
 }
 .dropdownOptionHeader:hover {
-  background-color: transparent;
+  background-color: var(--ngg-transparent);
   color: inherit;
 }
 .dropdownOptionInfo {
