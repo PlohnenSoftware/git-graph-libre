@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { GitRepoSet, OutsideWorktree, RepoLayout, RepoWorktreeInfo } from "@/types";
 import { buildRepoOptions } from "@/webview/repoOptions";
 
-const labels = { detached: "detached", outsideWorkspace: "outside workspace" };
+const labels = {
+  detached: "detached",
+  outsideWorkspace: "outside workspace",
+  bareRepository: "bare repository"
+};
 
 const repos = (...paths: string[]): GitRepoSet =>
   Object.fromEntries(paths.map((repo) => [repo, { columnWidths: null }]));
@@ -98,7 +102,7 @@ describe("buildRepoOptions", () => {
     ]);
   });
 
-  it("lists linked worktrees of a bare repository together, flat when the bare main is not listed", () => {
+  it("lists linked worktrees of a bare group flat when the host names no bare group", () => {
     const set = repos("/ws/one", "/ws/two");
     const layout: RepoLayout = {
       worktrees: {
@@ -112,6 +116,61 @@ describe("buildRepoOptions", () => {
       ["one (one-b)", 0, undefined],
       ["two (detached)", 0, undefined]
     ]);
+  });
+
+  it("gives a bare group a header row above its linked worktrees, which sit beneath it", () => {
+    const set = repos("/ws/one", "/ws/two", "/ws/unrelated");
+    const layout: RepoLayout = {
+      worktrees: {
+        "/ws/one": info("/store.git", true, "one-b"),
+        "/ws/two": info("/store.git", true, null),
+        "/ws/unrelated": info("/unrelated/.git", false, "main")
+      },
+      outside: [],
+      bareGroups: ["/store.git"]
+    };
+
+    expect(rows(set, layout)).toEqual([
+      ["store.git · bare repository", 0, undefined],
+      ["one (one-b)", 1, "middle"],
+      ["two (detached)", 1, "last"],
+      ["unrelated", 0, undefined]
+    ]);
+    const headers = buildRepoOptions(set, layout, labels).filter((option) => option.header);
+    expect(headers.map((option) => option.value)).toEqual(["/store.git"]);
+  });
+
+  it("gives a bare group a header with its outside worktrees beneath it", () => {
+    const set = repos("/ws/one");
+    const layout: RepoLayout = {
+      worktrees: { "/ws/one": info("/store.git", true, "one-b") },
+      outside: [outsideEntry("/elsewhere/two", "/store.git", { branch: "two-b" })],
+      bareGroups: ["/store.git"]
+    };
+
+    expect(rows(set, layout)).toEqual([
+      ["store.git · bare repository", 0, undefined],
+      ["one (one-b)", 1, "middle"],
+      ["two (two-b) · outside workspace", 1, "last"]
+    ]);
+  });
+
+  it("shows no header for a bare common dir whose main worktree is listed", () => {
+    const set = repos("/ws/main", "/ws/wt");
+    const layout: RepoLayout = {
+      worktrees: {
+        "/ws/main": info("/store.git", false, "main"),
+        "/ws/wt": info("/store.git", true, "wt-b")
+      },
+      outside: [],
+      bareGroups: ["/store.git"]
+    };
+
+    expect(rows(set, layout)).toEqual([
+      ["main (main)", 0, undefined],
+      ["wt (wt-b)", 1, "last"]
+    ]);
+    expect(buildRepoOptions(set, layout, labels).some((option) => option.header)).toBe(false);
   });
 
   it("follows a group with its outside worktrees, marked and labelled with the branch", () => {

@@ -18,6 +18,7 @@ import { getRepoBasename, getRepoDisplayName } from "./settingsWidget";
 export type RepoOptionLabels = {
   detached: string;
   outsideWorkspace: string;
+  bareRepository: string;
 };
 
 type RepoNode = {
@@ -28,6 +29,8 @@ type RepoNode = {
   commonDir: string | null;
   branch: string | null;
   detached: boolean;
+  /** A bare repository's header row: not a repository, so it is never selected. */
+  header: boolean;
 };
 
 function normalize(file: string) {
@@ -44,7 +47,8 @@ function toNodes(repos: GitRepoSet, layout: RepoLayout | undefined): RepoNode[] 
       linked: info?.linked ?? false,
       commonDir: info?.commonDir ?? null,
       branch: info?.branch ?? null,
-      detached: info?.detached ?? false
+      detached: info?.detached ?? false,
+      header: false
     };
   });
   const outside: OutsideWorktree[] = layout?.outside ?? [];
@@ -57,10 +61,39 @@ function toNodes(repos: GitRepoSet, layout: RepoLayout | undefined): RepoNode[] 
       linked: entry.linked,
       commonDir: entry.commonDir,
       branch: entry.branch,
-      detached: entry.detached
+      detached: entry.detached,
+      header: false
     });
   }
   return nodes;
+}
+
+function headerOf(commonDir: string): RepoNode {
+  return {
+    path: commonDir,
+    name: getRepoBasename(commonDir),
+    outside: false,
+    linked: false,
+    commonDir,
+    branch: null,
+    detached: false,
+    header: true
+  };
+}
+
+/**
+ * A bare group with no main worktree listed gets a header row before its first
+ * member. A group that has a main worktree already reads as that repository.
+ */
+function withBareHeaders(nodes: readonly RepoNode[], bareGroups: readonly string[]): RepoNode[] {
+  const result = [...nodes];
+  for (const commonDir of bareGroups) {
+    const members = result.filter((node) => node.commonDir === commonDir);
+    if (members.length === 0 || members.some((node) => !node.linked)) continue;
+    const first = result.findIndex((node) => node.commonDir === commonDir);
+    result.splice(first, 0, headerOf(commonDir));
+  }
+  return result;
 }
 
 /** The main worktree of each group, keyed by common dir. */
@@ -79,7 +112,7 @@ function enclosingRepo(node: RepoNode, nodes: readonly RepoNode[]): RepoNode | n
   const own = normalize(node.path);
   let best: RepoNode | null = null;
   for (const candidate of nodes) {
-    if (candidate.outside || candidate === node) continue;
+    if (candidate.outside || candidate.header || candidate === node) continue;
     const prefix = normalize(candidate.path);
     if (!own.startsWith(`${prefix}/`)) continue;
     if (best === null || prefix.length > best.path.length) best = candidate;
@@ -92,6 +125,7 @@ function parentOf(
   nodes: readonly RepoNode[],
   mains: ReadonlyMap<string, RepoNode>
 ): RepoNode | null {
+  if (node.header) return null;
   if (node.linked && node.commonDir !== null) {
     const main = mains.get(node.commonDir);
     if (main !== undefined && main !== node) return main;
@@ -115,6 +149,7 @@ function treeBranchOf(last: boolean | null): DropdownOption["treeBranch"] {
 
 /** A grouped worktree, and any outside one, says which branch it has checked out. */
 function labelOf(node: RepoNode, grouped: boolean, labels: RepoOptionLabels): string {
+  if (node.header) return `${node.name} · ${labels.bareRepository}`;
   const parts = [node.name];
   const branch = node.branch ?? (node.detached ? labels.detached : null);
   if ((grouped || node.outside) && branch !== null) parts.push(` (${branch})`);
@@ -141,7 +176,7 @@ export function buildRepoOptions(
   layout: RepoLayout | undefined,
   labels: RepoOptionLabels
 ): DropdownOption[] {
-  const nodes = toNodes(repos, layout);
+  const nodes = withBareHeaders(toNodes(repos, layout), layout?.bareGroups ?? []);
   const mains = mainsByGroup(nodes);
   const sizes = groupSizes(nodes);
   const children = childrenByParent(nodes, mains);
@@ -156,7 +191,8 @@ export function buildRepoOptions(
       name: labelOf(node, grouped, labels),
       value: node.path,
       indentLevel: depth,
-      treeBranch: treeBranchOf(last)
+      treeBranch: treeBranchOf(last),
+      ...(node.header ? { header: true } : {})
     });
     const kids = children.get(node) ?? [];
     for (const [index, kid] of kids.entries()) {
