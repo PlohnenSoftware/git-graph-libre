@@ -796,3 +796,12 @@ commit, the gate results with numbers, and the Sonar task id.
     environment skips), the webview 971 of 971, and l10n is complete.
   - W33 was dispatched to Haiku, into the manifest and l10n slot. W34F
     follows.
+- `2026-11-06`, gate 11 on `f374166`: W51, W34, W50 and W22F since
+  `eedb048`.
+  - The Rust arm was skipped, with no engine change.
+  - Strict Biome is clean on 37 files. `package`, `l10n:check` and
+    `kb:check` pass.
+  - Fresh `test:coverage`: 185 files, 2,394 of 2,394 tests passed.
+  - Sonar task `3437427c-db86-45e7-bf54-865659960c67`: quality gate
+    **`OK`**. New coverage is 94.0%, with 0 security and 0 reliability
+    issues. Its three S6582 optional-chain findings were fixed at `8caaa47`.
