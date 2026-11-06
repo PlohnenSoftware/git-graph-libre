@@ -142,7 +142,6 @@ describe("extension manifest", () => {
   //  - boldCheckedOutCommit: the checked-out commit message used to be bolded
   //    unconditionally.
   //  - fetchTagsByDefault: on, so the Fetch dialog's tags option is pre-checked.
-  //  - showTagRemotes: on, so tag badges show their remotes out of the box.
   //  - dialog.merge.noFastForward / dialog.pullBranch.noFastForward: these two
   //    reproduce the values the merge and pull dialogs used to hardcode, so
   //    flipping either changes what those dialogs do out of the box.
@@ -155,7 +154,6 @@ describe("extension manifest", () => {
     ["git-graph-libre.repository.muteMergeCommits", false],
     ["git-graph-libre.repository.boldCheckedOutCommit", false],
     ["git-graph-libre.repository.fetchTagsByDefault", true],
-    ["git-graph-libre.repository.showTagRemotes", true],
     ["git-graph-libre.dialog.merge.noFastForward", true],
     ["git-graph-libre.dialog.pullBranch.noFastForward", false],
     ["git-graph-libre.dialog.createBranch.checkout", true],
@@ -169,6 +167,22 @@ describe("extension manifest", () => {
       default: expectedDefault,
       description: `%${key.replace("git-graph-libre.", "config.")}%`
     });
+  });
+
+  // Origin is what issue #46 asked for and the one remote contacted by default;
+  // a stale boolean would turn the three-way choice back into on or off.
+  it("contributes showTagRemotes as off, origin or all defaulting to origin", () => {
+    const manifest = readManifest();
+    const key = "git-graph-libre.repository.showTagRemotes";
+    const setting = manifest.contributes.configuration.properties[key];
+
+    expect(setting).toMatchObject({
+      type: "string",
+      enum: ["off", "origin", "all"],
+      default: "origin",
+      description: "%config.repository.showTagRemotes%"
+    });
+    expect(setting.enumDescriptions).toHaveLength(3);
   });
 
   // The default is the consent model: nothing is sent until the user answers,

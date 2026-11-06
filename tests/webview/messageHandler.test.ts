@@ -79,7 +79,7 @@ describe("registerMessageHandlers", () => {
     options: {
       extensionPath?: string;
       diffTabAvailable?: boolean;
-      showTagRemotes?: boolean;
+      showTagRemotes?: "off" | "origin" | "all";
       postFails?: boolean;
     } = {}
   ) {
@@ -134,7 +134,7 @@ describe("registerMessageHandlers", () => {
         showUncommittedChanges: () => false,
         shortHashLength: () => 4,
         gitPath: () => "git",
-        showTagRemotes: () => options.showTagRemotes ?? true,
+        showTagRemotes: () => options.showTagRemotes ?? "all",
         // Pinned to the CLI: the engine routing lives in the reader and
         // parity suites, not in these route-shape tests.
         backend: () => "git-cli"
@@ -379,7 +379,7 @@ describe("registerMessageHandlers", () => {
 
   it("answers remoteTags with an empty result and spawns nothing while the setting is off", async () => {
     const { handlers, posts, outputLines } = registerHandlersForTest(repo, {
-      showTagRemotes: false
+      showTagRemotes: "off"
     });
     await handlers.get("remoteTags")?.({ command: "remoteTags", requestId: 7, repo });
     // Every Git process the handler starts is traced to the output channel.
@@ -402,6 +402,43 @@ describe("registerMessageHandlers", () => {
     await vi.waitFor(() => expect(posts).toHaveLength(1));
     expect(outputLines.join("\n")).toContain("remoteTags");
     expect(posts[0]).toMatchObject({ command: "remoteTags", requestId: 8, repo, error: null });
+  });
+
+  describe("tag remote modes through the handler", () => {
+    let dir: string;
+    beforeEach(() => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), "ggl-handler-modes-"));
+      fs.writeFileSync(path.join(dir, "gitconfig"), "");
+      vi.stubEnv("GIT_CONFIG_GLOBAL", path.join(dir, "gitconfig"));
+      vi.stubEnv("GIT_CONFIG_NOSYSTEM", "1");
+      cp.execFileSync("git", ["init", "--bare", path.join(dir, "bare")]);
+      cp.execFileSync("git", ["remote", "add", "backup", path.join(dir, "bare")], { cwd: repo });
+      cp.execFileSync("git", ["tag", "mode-release"], { cwd: repo });
+    });
+    afterEach(() => {
+      cp.execFileSync("git", ["remote", "remove", "backup"], { cwd: repo });
+      cp.execFileSync("git", ["tag", "-d", "mode-release"], { cwd: repo });
+      fs.rmSync(dir, { recursive: true, force: true });
+      vi.unstubAllEnvs();
+    });
+    const remoteReads = (outputLines: string[]) =>
+      outputLines.filter((line) => line.includes("remoteTags.remote")).length;
+
+    it.each([
+      ["origin", 1],
+      ["all", 2]
+    ] as const)(
+      "%s mode reads %i remotes of a repository with origin and a backup",
+      async (mode, reads) => {
+        const { handlers, posts, outputLines } = registerHandlersForTest(repo, {
+          showTagRemotes: mode
+        });
+        handlers.get("remoteTags")?.({ command: "remoteTags", requestId: 20, repo });
+        await vi.waitFor(() => expect(posts).toHaveLength(1));
+        expect(remoteReads(outputLines)).toBe(reads);
+        expect(posts[0]).toMatchObject({ error: null });
+      }
+    );
   });
 
   it("logs a remoteTags reply the webview rejects instead of leaving it unhandled", async () => {

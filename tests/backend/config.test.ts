@@ -52,12 +52,19 @@ describe("configuration", () => {
     expect(config.boldCheckedOutCommit()).toBe(true);
   });
 
-  it("checks tag remotes by default and honors an opt-out", async () => {
+  it("checks origin only by default, honors off and all, and rejects anything else", async () => {
     const { config } = await import("@/config");
-    expect(config.showTagRemotes()).toBe(true);
+    expect(config.showTagRemotes()).toBe("origin");
 
-    settings.set("git-graph-libre.repository.showTagRemotes", false);
-    expect(config.showTagRemotes()).toBe(false);
+    settings.set("git-graph-libre.repository.showTagRemotes", "off");
+    expect(config.showTagRemotes()).toBe("off");
+    settings.set("git-graph-libre.repository.showTagRemotes", "all");
+    expect(config.showTagRemotes()).toBe("all");
+    // The unreleased boolean and any other value mean the default.
+    for (const stale of [true, false, "everything", 3, null]) {
+      settings.set("git-graph-libre.repository.showTagRemotes", stale);
+      expect(config.showTagRemotes()).toBe("origin");
+    }
   });
 
   it("lists worktrees outside the workspace by default and honors an opt-out", async () => {
@@ -287,7 +294,7 @@ describe("configuration", () => {
     { accessor: "muteMergeCommits", expected: false },
     { accessor: "boldCheckedOutCommit", expected: false },
     { accessor: "fetchTagsByDefault", expected: true },
-    { accessor: "showTagRemotes", expected: true },
+    { accessor: "showTagRemotes", expected: "origin" },
     { accessor: "worktreesOutsideWorkspace", expected: true },
     { accessor: "mergeNoFastForward", expected: true },
     { accessor: "pullBranchNoFastForward", expected: false },

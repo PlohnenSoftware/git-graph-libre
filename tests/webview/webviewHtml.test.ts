@@ -37,7 +37,7 @@ function makeConfig(): Config {
     muteMergeCommits: () => false,
     boldCheckedOutCommit: () => true,
     fetchTagsByDefault: () => false,
-    showTagRemotes: () => false,
+    showTagRemotes: () => "off",
     worktreesOutsideWorkspace: () => true,
     mergeNoFastForward: () => false,
     pullBranchNoFastForward: () => true,
@@ -110,7 +110,7 @@ describe("webview HTML", () => {
     // accessor reaches the view state rather than matching a coincidental default.
     expect(viewState.boldCheckedOutCommit).toBe(true);
     expect(viewState.fetchTagsByDefault).toBe(false);
-    expect(viewState.showTagRemotes).toBe(false);
+    expect(viewState.showTagRemotes).toBe("off");
     expect(viewState.mergeNoFastForward).toBe(false);
     expect(viewState.pullBranchNoFastForward).toBe(true);
     expect(viewState.shortHashLength).toBe(12);

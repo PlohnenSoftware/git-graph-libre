@@ -37,7 +37,7 @@ function makeViewState({ mergeNoFastForward, pullBranchNoFastForward }: Defaults
     muteMergeCommits: false,
     boldCheckedOutCommit: false,
     fetchTagsByDefault: true,
-    showTagRemotes: true,
+    showTagRemotes: "all",
     mergeNoFastForward,
     pullBranchNoFastForward,
     createBranchCheckout: true,

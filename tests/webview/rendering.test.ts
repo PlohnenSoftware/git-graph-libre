@@ -63,7 +63,7 @@ const defaultViewState: GGL.GitGraphViewState = {
   // requested" path. The shipped default-on behavior is covered by
   // tests/webview/fetchDialogDefaults.test.ts.
   fetchTagsByDefault: false,
-  showTagRemotes: true,
+  showTagRemotes: "all",
   mergeNoFastForward: true,
   pullBranchNoFastForward: false,
   createBranchCheckout: true,
@@ -2917,7 +2917,7 @@ describe("webview rendering", () => {
     receive(remoteTagsReply(request, { "v1.0.0": { hash: "abc123", remotes: ["origin"] } }));
     expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(1);
 
-    receiveExtensionSetting("repository.showTagRemotes", false);
+    receiveExtensionSetting("repository.showTagRemotes", "off");
     // The snapshot is dropped: the badge is the one from before the feature.
     expect(document.querySelectorAll(".gitRefGroup")).toHaveLength(0);
     expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toBe("v1.0.0");
@@ -2930,7 +2930,7 @@ describe("webview rendering", () => {
     receive(remoteTagsReply(request, { "v1.0.0": { hash: "abc123", remotes: ["origin"] } }));
     expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(0);
 
-    receiveExtensionSetting("repository.showTagRemotes", true);
+    receiveExtensionSetting("repository.showTagRemotes", "all");
     expect(remoteTagsRequestCount()).toBe(before + 1);
     receive(
       remoteTagsReply(latestRemoteTagsRequest(), {
@@ -2938,6 +2938,70 @@ describe("webview rendering", () => {
       })
     );
     expect(document.querySelectorAll(".gitRef.tag.gitRefAlias")).toHaveLength(1);
+  });
+
+  it("origin mode shows one origin segment with the origin strings, and mode switches re-request live", () => {
+    receiveExtensionSetting("repository.showTagRemotes", "origin");
+    const request = refreshRemoteTags();
+    receive(remoteTagsReply(request, { "v1.0.0": { hash: "abc123", remotes: ["origin"] } }));
+    const aliases = document.querySelectorAll(".gitRef.tag.gitRefAlias");
+    expect(aliases).toHaveLength(1);
+    expect(aliases[0].textContent).toBe("origin");
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain("On origin");
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).not.toContain("remotes");
+
+    receive(remoteTagsReply(request, { "v1.0.0": { hash: "abc123", remotes: [] } }));
+    // Not found on origin reads as the origin string, never "any remote".
+    refreshRemoteTags();
+    receive(
+      remoteTagsReply(latestRemoteTagsRequest(), { "v1.0.0": { hash: "abc123", remotes: [] } })
+    );
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain("Local tag not found on origin");
+
+    // origin -> all: the snapshot is forgotten and asked for again.
+    const beforeAll = remoteTagsRequestCount();
+    receiveExtensionSetting("repository.showTagRemotes", "all");
+    expect(remoteTagsRequestCount()).toBe(beforeAll + 1);
+    receive(
+      remoteTagsReply(latestRemoteTagsRequest(), {
+        "v1.0.0": { hash: "abc123", remotes: ["origin"] }
+      })
+    );
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain("On remotes: origin");
+
+    // all -> origin asks again as well; origin -> off stops asking.
+    const beforeOrigin = remoteTagsRequestCount();
+    receiveExtensionSetting("repository.showTagRemotes", "origin");
+    expect(remoteTagsRequestCount()).toBe(beforeOrigin + 1);
+    receiveExtensionSetting("repository.showTagRemotes", "off");
+    expect(document.querySelectorAll(".gitRefGroup")).toHaveLength(0);
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toBe("v1.0.0");
+    receiveExtensionSetting("repository.showTagRemotes", "all");
+  });
+
+  it("origin mode shows no status without an origin remote", () => {
+    receiveExtensionSetting("repository.showTagRemotes", "origin");
+    refreshWithRepoInfo({
+      ...repoInfoWithRemote,
+      remotes: [{ ...repoInfoWithRemote.remotes[0], name: "backup" }]
+    });
+    const request = latestRemoteTagsRequest();
+    receive(remoteTagsReply(request, { "v1.0.0": { hash: "abc123", remotes: [] } }));
+    expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toBe("v1.0.0");
+    receiveExtensionSetting("repository.showTagRemotes", "all");
+  });
+
+  it("falls back to the origin default for a raw settings echo that is not a mode", () => {
+    receiveExtensionSetting("repository.showTagRemotes", "off");
+    for (const stale of [true, false, "everything", 3, null]) {
+      receiveExtensionSetting("repository.showTagRemotes", "all");
+      receiveExtensionSetting("repository.showTagRemotes", stale);
+      const request = refreshRemoteTags();
+      receive(remoteTagsReply(request, { "v1.0.0": { hash: "abc123", remotes: ["origin"] } }));
+      // Origin mode: the single origin segment with the origin wording.
+      expect(gitRef("v1.0.0", ".gitRef.tag")?.title).toContain("On origin");
+    }
+    receiveExtensionSetting("repository.showTagRemotes", "all");
   });
 
   it("mutes stash rows outside the HEAD ancestry when enabled", () => {

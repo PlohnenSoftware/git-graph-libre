@@ -12,7 +12,7 @@ let repo: string;
 let remote: string;
 let isolation: string;
 const records: GitCommandRecord[] = [];
-const read = (extra: { signal?: AbortSignal; timeoutMs?: number } = {}) =>
+const read = (extra: { signal?: AbortSignal; timeoutMs?: number; mode?: "origin" | "all" } = {}) =>
   remoteTags({
     repo,
     gitPath: "git",
@@ -37,6 +37,47 @@ afterEach(() => {
   rmSync(remote, { recursive: true, force: true });
   rmSync(isolation, { recursive: true, force: true });
   vi.unstubAllEnvs();
+});
+
+describe("remote tag modes", () => {
+  const remoteReads = () => records.filter((record) => record.label === "remoteTags.remote");
+
+  it("origin mode queries only origin; a backup remote is neither read nor shown", async () => {
+    git(["remote", "add", "backup", remote], repo);
+    git(["tag", "release"], repo);
+    git(["push", "origin", "refs/tags/release"], repo);
+    git(["push", "backup", "refs/tags/release"], repo);
+    const result = await read({ mode: "origin" });
+    expect(result.tags.release.remotes).toEqual(["origin"]);
+    expect(result.unavailableRemotes).toEqual([]);
+    const reads = remoteReads();
+    expect(reads).toHaveLength(1);
+    expect(reads[0].args.at(-1)).toBe("origin");
+  });
+
+  it("origin mode makes no network read without origin", async () => {
+    git(["remote", "remove", "origin"], repo);
+    git(["remote", "add", "backup", remote], repo);
+    git(["tag", "release"], repo);
+    const result = await read({ mode: "origin" });
+    expect(result).toEqual({
+      tags: { release: { hash: expect.any(String), remotes: [] } },
+      unavailableRemotes: [],
+      error: null
+    });
+    expect(remoteReads()).toHaveLength(0);
+  });
+
+  it("all mode (also the default) reads every remote", async () => {
+    git(["remote", "add", "backup", remote], repo);
+    git(["tag", "release"], repo);
+    git(["push", "origin", "refs/tags/release"], repo);
+    expect((await read({ mode: "all" })).tags.release.remotes).toEqual(["backup", "origin"]);
+    expect(remoteReads()).toHaveLength(2);
+    records.length = 0;
+    await read();
+    expect(remoteReads()).toHaveLength(2);
+  });
 });
 
 describe("remote tag status", () => {
