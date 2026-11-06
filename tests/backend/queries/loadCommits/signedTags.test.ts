@@ -141,4 +141,29 @@ describe("toGitRef", () => {
   it("ignores refs outside heads, tags, and remotes", () => {
     expect(toGitRef({ ...record, refName: "refs/stash" }, undefined)).toBeNull();
   });
+
+  describe("remote-tracking tags", () => {
+    const remoteTag = { ...record, refName: "refs/remotes/dev/tags/v1" };
+
+    it("maps one to the tag `<remote>/<tag>` on the peeled commit, signed like a local tag", () => {
+      expect(toGitRef(remoteTag, undefined)).toEqual({
+        hash: "bbb",
+        name: "dev/v1",
+        type: "tag",
+        signed: true
+      });
+    });
+
+    it("drops one that mirrors the same local tag object", () => {
+      expect(toGitRef(remoteTag, undefined, new Map([["v1", "aaa"]]))).toBeNull();
+    });
+
+    it("keeps one whose object differs from the local tag", () => {
+      expect(toGitRef(remoteTag, undefined, new Map([["v1", "ccc"]]))?.name).toBe("dev/v1");
+    });
+
+    it("drops one from a hidden remote", () => {
+      expect(toGitRef(remoteTag, ["dev"])).toBeNull();
+    });
+  });
 });

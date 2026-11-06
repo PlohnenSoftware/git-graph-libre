@@ -107,36 +107,85 @@ function buildRefFormat() {
 
 type ParsedRefRecord = NonNullable<ReturnType<typeof parseRefRecord>>;
 
+const remoteRefPrefix = "refs/remotes/";
+const remoteTagMarker = "/tags/";
+
+/**
+ * `refs/remotes/<remote>/tags/<tag>`, which a fetch refspec such as
+ * `+refs/tags/*:refs/remotes/<remote>/tags/*` creates, as the tag name the
+ * engine shows (`<remote>/<tag>`) and the bare `<tag>` it mirrors.
+ */
+function remoteTagNames(refName: string): { name: string; tag: string } | null {
+  if (!refName.startsWith(remoteRefPrefix)) return null;
+  const remoteRef = refName.substring(remoteRefPrefix.length);
+  const markerIndex = remoteRef.indexOf(remoteTagMarker);
+  if (markerIndex === -1) return null;
+  const tag = remoteRef.substring(markerIndex + remoteTagMarker.length);
+  return { name: `${remoteRef.substring(0, markerIndex)}/${tag}`, tag };
+}
+
+function toGitTagRef(record: ParsedRefRecord, name: string): GitRef {
+  const { objectHash, peeledHash, objectType, hasSignature } = record;
+  return {
+    hash: peeledHash || objectHash,
+    name,
+    type: "tag",
+    // Only an annotated tag has a tag object that can carry a signature.
+    signed: objectType === "tag" && hasSignature
+  };
+}
+
+/**
+ * Maps one `for-each-ref` record. `localTagObjects` holds each local tag's own
+ * (unpeeled) object id: a remote-tracking tag that mirrors the same object is
+ * dropped, since it would only add a second badge to the same commit. The
+ * engine applies the same rule.
+ */
 export function toGitRef(
   record: ParsedRefRecord,
-  hiddenRemotes: string[] | undefined
+  hiddenRemotes: string[] | undefined,
+  localTagObjects?: ReadonlyMap<string, string>
 ): GitRef | null {
-  const { objectHash, refName, peeledHash, objectType, hasSignature } = record;
+  const { objectHash, refName } = record;
   if (refName.startsWith("refs/heads/")) {
     return { hash: objectHash, name: refName.substring(11), type: "head" };
   }
   if (refName.startsWith("refs/tags/")) {
-    return {
-      hash: peeledHash || objectHash,
-      name: refName.substring(10),
-      type: "tag",
-      // Only an annotated tag has a tag object that can carry a signature.
-      signed: objectType === "tag" && hasSignature
-    };
+    return toGitTagRef(record, refName.substring(10));
   }
-  if (refName.startsWith("refs/remotes/") && !isHiddenRemoteRef(refName, hiddenRemotes)) {
+  if (!refName.startsWith(remoteRefPrefix) || isHiddenRemoteRef(refName, hiddenRemotes)) {
+    return null;
+  }
+  const remoteTag = remoteTagNames(refName);
+  if (remoteTag === null) {
     return { hash: objectHash, name: refName.substring(13), type: "remote" };
   }
-  return null;
+  if (localTagObjects?.get(remoteTag.tag) === objectHash) return null;
+  return toGitTagRef(record, remoteTag.name);
 }
 
-function parseRefLines(stdout: string, hiddenRemotes: string[] | undefined): GitRef[] {
-  const refs: GitRef[] = [];
+function parseRefLines(
+  stdout: string,
+  hiddenRemotes: string[] | undefined,
+  tagsScanned: boolean
+): GitRef[] {
+  const records: ParsedRefRecord[] = [];
+  const localTagObjects = new Map<string, string>();
   for (const line of stdout.split(eolRegex)) {
     if (line === "") continue;
     const record = parseRefRecord(line);
     if (record === null) continue;
-    const ref = toGitRef(record, hiddenRemotes);
+    records.push(record);
+    if (record.refName.startsWith("refs/tags/")) {
+      localTagObjects.set(record.refName.substring(10), record.objectHash);
+    }
+  }
+  const refs: GitRef[] = [];
+  for (const record of records) {
+    // Without the tag scan the local tags are unknown, and the engine shows no
+    // tags at all then, so neither backend shows a remote-tracking one.
+    if (!tagsScanned && remoteTagNames(record.refName) !== null) continue;
+    const ref = toGitRef(record, hiddenRemotes, localTagObjects);
     if (ref !== null) refs.push(ref);
   }
   return refs;
@@ -170,7 +219,7 @@ async function getRefs(
     return {
       value: {
         head: headStdout.trim() || null,
-        refs: parseRefLines(refsStdout, hiddenRemotes)
+        refs: parseRefLines(refsStdout, hiddenRemotes, showTags)
       },
       error: null
     };
