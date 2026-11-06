@@ -76,6 +76,8 @@
   "config.repository.showTagRemotes.origin": "Alleen origin controleren, als de repository er een heeft",
   "config.repository.showTagRemotes.all": "Elke remote controleren",
   "config.repository.showTagRemotes.title": "Remotes op tags tonen",
+  "config.repository.worktreePathTemplate": "Map voor een nieuwe worktree, als pad. Een relatief pad wordt genomen vanaf de map waarin de repository staat, en een absoluut pad wordt gebruikt zoals het is geschreven. ${repo} is de mapnaam van de repository en ${branch} de branch waarmee de dialoog Worktree maken begint. Laat leeg voor de standaard, <repo>.worktrees/<branch>, naast de repository.",
+  "config.repository.worktreePathTemplate.title": "Mappatroon voor worktrees",
   "config.repository.worktreesOutsideWorkspace": "Toon gekoppelde worktrees buiten de werkruimtemappen in de repositorylijst als vermeldingen \"buiten werkruimte\". Een worktree selecteren voegt hem toe aan de lijst en hij blijft staan zolang Git hem vermeldt. Schakel uit om alleen worktrees binnen de werkruimte te tonen. Standaard ingeschakeld.",
   "config.repository.worktreesOutsideWorkspace.title": "Worktrees buiten de werkruimte",
   "config.dialog.createBranch.checkout": "In het branch-aanmaakdialoogvenster standaard \"Nieuwe branch uitchecken na het aanmaken\" aanvinken. Standaard ingeschakeld.",

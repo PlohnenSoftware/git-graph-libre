@@ -10,6 +10,11 @@ const REPO = "/workspace/createrepo";
 const OTHER_WORKTREE = "/workspace/worktrees/feature menu é";
 const REMOTE_REF = "origin/feature/menu";
 
+/** A folder-template placeholder, built at run time so no string literal in this file spells one. */
+function token(name: string): string {
+  return `\${${name}}`;
+}
+
 const defaultViewState: GGL.GitGraphViewState = {
   autoCenterCommitDetailsView: true,
   commitDetailsCompactFolders: false,
@@ -129,11 +134,18 @@ function latestRequest<T extends GGL.RequestMessage["command"]>(
   throw new Error(`Missing ${command} request`);
 }
 
-async function bootWebview(options: { branches?: string[]; worktrees?: GitWorktree[] } = {}) {
+async function bootWebview(
+  options: {
+    branches?: string[];
+    worktrees?: GitWorktree[];
+    worktreePathTemplate?: string;
+    savedState?: WebViewState | null;
+  } = {}
+) {
   vi.resetModules();
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
-  const vscodeMock = createVscodeMock();
-  setupHtml(defaultViewState);
+  const vscodeMock = createVscodeMock(options.savedState ?? null);
+  setupHtml({ ...defaultViewState, worktreePathTemplate: options.worktreePathTemplate ?? "" });
   const main = await import("@/webview/main");
 
   receive({
@@ -278,6 +290,136 @@ describe("defaultWorktreePath (decision Y7)", () => {
       String.raw`C:\dev\proj.worktrees\feat`
     );
     expect(main.defaultWorktreePath("proj", "feat")).toBe("proj.worktrees/feat");
+  });
+});
+
+describe("the worktree folder template (W22F)", () => {
+  it("resolves the template that spells out the default to the Y7 folder", async () => {
+    const { main } = await bootWebview();
+
+    expect(
+      main.defaultWorktreePath(
+        "/home/u/proj",
+        "feat/x",
+        `${token("repo")}.worktrees/${token("branch")}`
+      )
+    ).toBe("/home/u/proj.worktrees/feat/x");
+  });
+
+  it("takes a relative template from the repository's parent folder and resolves ..", async () => {
+    const { main } = await bootWebview();
+
+    expect(
+      main.defaultWorktreePath("/home/u/proj", "feat", `../${token("repo")}-wt/${token("branch")}`)
+    ).toBe("/home/proj-wt/feat");
+  });
+
+  it("uses an absolute template as written", async () => {
+    const { main } = await bootWebview();
+
+    expect(
+      main.defaultWorktreePath(
+        "/home/u/proj",
+        "feat",
+        `/srv/wt/${token("repo")}/${token("branch")}`
+      )
+    ).toBe("/srv/wt/proj/feat");
+  });
+
+  it("leaves an unknown placeholder as written", async () => {
+    const { main } = await bootWebview();
+
+    expect(
+      main.defaultWorktreePath(
+        "/home/u/proj",
+        "feat",
+        `${token("repo")}-${token("owner")}/${token("branch")}`
+      )
+    ).toBe(`/home/u/proj-${token("owner")}/feat`);
+  });
+
+  it("keeps the repository's Windows separator and never climbs above a root", async () => {
+    const { main } = await bootWebview();
+
+    expect(
+      main.defaultWorktreePath(
+        String.raw`C:\dev\proj`,
+        "feat",
+        `${token("repo")}-wt\\${token("branch")}`
+      )
+    ).toBe(String.raw`C:\dev\proj-wt\feat`);
+    expect(main.defaultWorktreePath("/proj", "feat", `../../${token("branch")}`)).toBe("/feat");
+  });
+
+  it("trims the setting and reads anything that is not text as the default", async () => {
+    const { main } = await bootWebview();
+
+    expect(main.normalizeWorktreePathTemplate(`  ${token("repo")}-wt/${token("branch")}  `)).toBe(
+      `${token("repo")}-wt/${token("branch")}`
+    );
+    expect(main.normalizeWorktreePathTemplate("   ")).toBe("");
+    expect(main.normalizeWorktreePathTemplate(true)).toBe("");
+    expect(main.normalizeWorktreePathTemplate(undefined)).toBe("");
+  });
+
+  it("pre-fills the dialog's folder from the setting the graph booted with", async () => {
+    await bootWebview({ worktreePathTemplate: `${token("repo")}-wt/${token("branch")}` });
+    openRefContextMenu(".gitRef.head", "feature/menu");
+    clickContextMenuItem("Create Worktree…");
+
+    expect(dialogInput<HTMLInputElement>(0).value).toBe("/workspace/createrepo-wt/feature/menu");
+  });
+
+  it("applies a changed setting to the next dialog without a reload", async () => {
+    await bootWebview();
+    receive({
+      command: "updateExtensionSetting",
+      key: "git-graph-libre.repository.worktreePathTemplate",
+      status: null,
+      settings: [
+        {
+          key: "git-graph-libre.repository.worktreePathTemplate",
+          configKey: "repository.worktreePathTemplate",
+          title: "",
+          description: "",
+          type: "string",
+          value: `  /srv/wt/${token("branch")}  `,
+          defaultValue: "",
+          scope: "default"
+        }
+      ]
+    });
+    openRefContextMenu(".gitRef.head", "feature/menu");
+    clickContextMenuItem("Create Worktree…");
+
+    expect(dialogInput<HTMLInputElement>(0).value).toBe("/srv/wt/feature/menu");
+  });
+
+  it("falls back to the default folder for a stale, non-text setting value", async () => {
+    await bootWebview({ worktreePathTemplate: `${token("repo")}-wt/${token("branch")}` });
+    receive({
+      command: "updateExtensionSetting",
+      key: "git-graph-libre.repository.worktreePathTemplate",
+      status: null,
+      settings: [
+        {
+          key: "git-graph-libre.repository.worktreePathTemplate",
+          configKey: "repository.worktreePathTemplate",
+          title: "",
+          description: "",
+          type: "string",
+          value: true,
+          defaultValue: "",
+          scope: "default"
+        }
+      ]
+    });
+    openRefContextMenu(".gitRef.head", "feature/menu");
+    clickContextMenuItem("Create Worktree…");
+
+    expect(dialogInput<HTMLInputElement>(0).value).toBe(
+      "/workspace/createrepo.worktrees/feature/menu"
+    );
   });
 });
 

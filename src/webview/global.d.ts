@@ -34,6 +34,7 @@ declare global {
     boldCheckedOutCommit: boolean;
     fetchTagsByDefault: boolean;
     showTagRemotes: GGL.TagRemotesMode;
+    worktreePathTemplate: string;
     mergeNoFastForward: boolean;
     pullBranchNoFastForward: boolean;
     createBranchCheckout: boolean;

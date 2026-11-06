@@ -76,6 +76,8 @@
   "config.repository.showTagRemotes.origin": "僅檢查 origin（儲存庫中存在時）",
   "config.repository.showTagRemotes.all": "檢查每個遠端",
   "config.repository.showTagRemotes.title": "在標籤上顯示遠端",
+  "config.repository.worktreePathTemplate": "新工作樹的資料夾路徑。相對路徑從存放儲存庫的資料夾開始計算，絕對路徑則照原樣使用。${repo} 是儲存庫的資料夾名稱，${branch} 是「建立工作樹」對話框起始所用的分支。留空則使用預設的 <repo>.worktrees/<branch>，位於儲存庫旁邊。",
+  "config.repository.worktreePathTemplate.title": "工作樹資料夾範本",
   "config.repository.worktreesOutsideWorkspace": "在儲存庫下拉選單中，將位於工作區資料夾之外的連結工作樹顯示為「工作區外」項目。選取後會將其加入清單，只要 Git 仍列出它就會保留。關閉後僅顯示工作區內的工作樹。預設啟用。",
   "config.repository.worktreesOutsideWorkspace.title": "工作區外的工作樹",
   "config.dialog.createBranch.checkout": "在建立分支對話框中預設勾選「建立後切換到新分支」。預設開啟。",

@@ -337,6 +337,8 @@ export type GitGraphViewState = {
   showRemoteBranches: boolean;
   showStashes: boolean;
   stashDisplay?: StashDisplay;
+  /** The folder template for a new worktree; empty, or missing in older saved states, is the default. */
+  worktreePathTemplate?: string;
   showTags: boolean;
   includeReflog: boolean;
   includeUnreachableCommits: boolean;

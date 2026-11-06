@@ -76,6 +76,8 @@
   "config.repository.showTagRemotes.origin": "Check only origin, when the repository has one",
   "config.repository.showTagRemotes.all": "Check every remote",
   "config.repository.showTagRemotes.title": "Show Remotes on Tags",
+  "config.repository.worktreePathTemplate": "Folder for a new worktree, as a path. A relative path is taken from the folder that holds the repository, and an absolute one is used as written. ${repo} is the repository's folder name and ${branch} the branch the Create Worktree dialog starts from. Leave empty for the default, <repo>.worktrees/<branch>, beside the repository.",
+  "config.repository.worktreePathTemplate.title": "Worktree Folder Template",
   "config.repository.worktreesOutsideWorkspace": "List linked worktrees that live outside the workspace folders in the repository dropdown as \"outside workspace\" entries. Selecting one adds it to the list, and it stays while Git lists it. Turn off to show only worktrees inside the workspace. Enabled by default.",
   "config.repository.worktreesOutsideWorkspace.title": "Worktrees Outside the Workspace",
   "config.dialog.createBranch.checkout": "Pre-check \"Check out the branch after creating it\" in the create-branch dialog. Enabled by default.",

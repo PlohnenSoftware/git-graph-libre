@@ -328,6 +328,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     createWorktree: translate("action.createWorktree"),
     dialogCreateWorktreeTitle: translate("dialog.createWorktree.title"),
     dialogCreateWorktreeFolder: translate("dialog.createWorktree.folder"),
+    dialogCreateWorktreeBrowse: translate("dialog.createWorktree.browse"),
     dialogCreateWorktreeCheckout: translate("dialog.createWorktree.checkout"),
     dialogCreateWorktreeCheckoutBranch: translate("dialog.createWorktree.checkoutBranch"),
     dialogCreateWorktreeNewBranchFrom: translate("dialog.createWorktree.newBranchFrom"),

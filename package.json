@@ -554,6 +554,11 @@
           "default": "origin",
           "description": "%config.repository.showTagRemotes%"
         },
+        "git-graph-libre.repository.worktreePathTemplate": {
+          "type": "string",
+          "default": "",
+          "description": "%config.repository.worktreePathTemplate%"
+        },
         "git-graph-libre.repository.worktreesOutsideWorkspace": {
           "type": "boolean",
           "default": true,

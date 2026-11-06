@@ -96,6 +96,15 @@ function getStringUnionConfig<T extends string>(
   return allowedValues.includes(value as T) ? (value as T) : defaultValue;
 }
 
+/**
+ * The folder template for a new worktree (W22F): the trimmed text, or empty for
+ * the default folder. Anything that is not text is empty too, so a stale or
+ * hand-edited value falls back to the default.
+ */
+export function normalizeWorktreePathTemplate(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function isGraphColor(value: string): boolean {
   return (
     hexGraphColorRegex.exec(value) !== null ||
@@ -169,6 +178,8 @@ export const config = {
   fetchTagsByDefault: (): boolean => getConfig("repository.fetchTagsByDefault", true),
   showTagRemotes: (): TagRemotesMode =>
     getStringUnionConfig("repository.showTagRemotes", "origin", ["off", "origin", "all"]),
+  worktreePathTemplate: (): string =>
+    normalizeWorktreePathTemplate(getConfig<unknown>("repository.worktreePathTemplate", "")),
   worktreesOutsideWorkspace: (): boolean => getConfig("repository.worktreesOutsideWorkspace", true),
   mergeNoFastForward: (): boolean => getConfig("dialog.merge.noFastForward", true),
   pullBranchNoFastForward: (): boolean => getConfig("dialog.pullBranch.noFastForward", false),

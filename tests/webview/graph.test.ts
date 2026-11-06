@@ -28,6 +28,7 @@ const config: Config = {
   boldCheckedOutCommit: false,
   fetchTagsByDefault: true,
   showTagRemotes: "all",
+  worktreePathTemplate: "",
   mergeNoFastForward: true,
   pullBranchNoFastForward: false,
   createBranchCheckout: true,

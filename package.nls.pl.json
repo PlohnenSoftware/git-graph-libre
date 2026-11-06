@@ -76,6 +76,8 @@
   "config.repository.showTagRemotes.origin": "Sprawdzaj tylko origin, jeśli repozytorium je ma",
   "config.repository.showTagRemotes.all": "Sprawdzaj każde zdalne repozytorium",
   "config.repository.showTagRemotes.title": "Pokazuj zdalne repozytoria na tagach",
+  "config.repository.worktreePathTemplate": "Folder nowego worktree jako ścieżka. Ścieżka względna jest liczona od folderu, w którym leży repozytorium, a bezwzględna jest używana tak, jak została zapisana. ${repo} to nazwa folderu repozytorium, a ${branch} to gałąź, od której zaczyna się okno Utwórz worktree. Zostaw puste, aby użyć domyślnego <repo>.worktrees/<branch> obok repozytorium.",
+  "config.repository.worktreePathTemplate.title": "Szablon folderu worktree",
   "config.repository.worktreesOutsideWorkspace": "Pokazuj powiązane worktree spoza folderów obszaru roboczego na liście repozytoriów jako pozycje „poza obszarem roboczym”. Wybranie jednego dodaje go do listy i pozostaje on, dopóki Git go wymienia. Wyłącz, aby pokazywać tylko worktree w obszarze roboczym. Domyślnie włączone.",
   "config.repository.worktreesOutsideWorkspace.title": "Worktree poza obszarem roboczym",
   "config.dialog.createBranch.checkout": "Domyślnie zaznaczaj opcję „Przełącz na utworzoną gałąź” w oknie tworzenia gałęzi. Domyślnie włączone.",

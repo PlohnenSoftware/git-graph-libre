@@ -298,23 +298,73 @@ export function existingLocalBranchForRemote(
   return null;
 }
 
+/** A placeholder of the worktree folder template: `${repo}` or `${branch}`. */
+const WORKTREE_PLACEHOLDER = /\$\{(repo|branch)\}/g;
+const ABSOLUTE_FOLDER = /^(?:[/\\]|[A-Za-z]:[/\\])/;
+/** The drive and root a path starts with; a `..` segment never climbs above them. */
+const FOLDER_ROOT = /^(?:[A-Za-z]:)?[/\\]?/;
+
 /**
- * The default folder for a new worktree (decision Y7): a `<repo>.worktrees`
- * folder beside the repository, holding one folder per checked-out name, so
- * `<parent>/<repo>.worktrees/<branch>`. The separator follows the repository
- * path's own, and the name is used as given — the user edits the result in
- * the dialog, and the backend refuses a folder that cannot take a worktree.
+ * The folder template text, trimmed (W22F). Empty means the default folder, and
+ * so does anything that is not text, so a stale or hand-edited value is safe.
+ * Mirrors `normalizeWorktreePathTemplate` in `src/config.ts`.
  */
-export function defaultWorktreePath(repoPath: string, name: string): string {
-  const separator = repoPath.includes("\\") ? "\\" : "/";
+export function normalizeWorktreePathTemplate(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/** The parent folder of a repository path (null when it has none) and the folder's own name. */
+function splitRepoPath(repoPath: string): { parent: string | null; repoName: string } {
   let end = repoPath.length;
   while (end > 0 && (repoPath[end - 1] === "/" || repoPath[end - 1] === "\\")) end -= 1;
   const trimmed = repoPath.slice(0, end);
   const lastSeparator = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
-  if (lastSeparator === -1) return `${trimmed}.worktrees${separator}${name}`;
-  const parent = trimmed.slice(0, lastSeparator);
-  const repoName = trimmed.slice(lastSeparator + 1);
-  return `${parent}${separator}${repoName}.worktrees${separator}${name}`;
+  if (lastSeparator === -1) return { parent: null, repoName: trimmed };
+  return { parent: trimmed.slice(0, lastSeparator), repoName: trimmed.slice(lastSeparator + 1) };
+}
+
+/** The template with `${repo}` and `${branch}` filled in; any other `${...}` is left as written. */
+function fillWorktreeTemplate(template: string, repoName: string, name: string): string {
+  const values: Record<string, string> = { repo: repoName, branch: name };
+  return template.replace(WORKTREE_PLACEHOLDER, (_match, key: string) => values[key] ?? "");
+}
+
+/**
+ * Drops `.` segments and resolves `..` ones, so the dialog shows the folder Git
+ * is given. A `..` at a root stays there; a relative path keeps the `..` it
+ * cannot resolve.
+ */
+function resolveFolderSegments(folder: string, separator: string): string {
+  const root = FOLDER_ROOT.exec(folder)?.[0] ?? "";
+  const kept: string[] = [];
+  for (const segment of folder.slice(root.length).split(/[/\\]/)) {
+    if (segment === "" || segment === ".") continue;
+    if (segment !== "..") kept.push(segment);
+    else if (kept.length > 0 && kept.at(-1) !== "..") kept.pop();
+    else if (root === "") kept.push(segment);
+  }
+  return root + kept.join(separator);
+}
+
+/**
+ * The default folder for a new worktree (decision Y7): a `<repo>.worktrees`
+ * folder beside the repository, holding one folder per checked-out name, so
+ * `<parent>/<repo>.worktrees/<branch>`. A folder template (W22F) replaces that
+ * folder: a relative template is taken from the repository's parent folder, an
+ * absolute one is used as written. The separator follows the repository path's
+ * own, and the name is used as given. The user edits the result in the dialog,
+ * and the backend refuses a folder that cannot take a worktree.
+ */
+export function defaultWorktreePath(repoPath: string, name: string, template = ""): string {
+  const separator = repoPath.includes("\\") ? "\\" : "/";
+  const { parent, repoName } = splitRepoPath(repoPath);
+  const folder =
+    template === ""
+      ? `${repoName}.worktrees${separator}${name}`
+      : fillWorktreeTemplate(template, repoName, name);
+  const absolute = template !== "" && ABSOLUTE_FOLDER.test(folder);
+  const joined = parent === null || absolute ? folder : `${parent}${separator}${folder}`;
+  return resolveFolderSegments(joined, separator);
 }
 
 /** What the Create Worktree dialog was opened from, and where it starts (W22). */
@@ -2011,6 +2061,11 @@ class GitGraphView {
     const value = setting.value;
     if (setting.configKey === "dateType") return true;
     if (setting.configKey === "showUncommittedChanges") return typeof value === "boolean";
+    if (setting.configKey === "repository.worktreePathTemplate") {
+      // Raw echo: text is trimmed, anything else is the default folder.
+      this.config.worktreePathTemplate = normalizeWorktreePathTemplate(value);
+      return false;
+    }
     if (setting.configKey === "repository.showTagRemotes") {
       // Raw echo: anything but a known mode, a stale boolean included, is the default.
       this.config.showTagRemotes = parseTagRemotesMode(value);
@@ -4528,7 +4583,11 @@ class GitGraphView {
         {
           type: "text",
           name: l10n.dialogCreateWorktreeFolder,
-          default: defaultWorktreePath(this.currentRepo, source.folderName),
+          default: defaultWorktreePath(
+            this.currentRepo,
+            source.folderName,
+            this.config.worktreePathTemplate
+          ),
           placeholder: null,
           required: true
         },
@@ -8017,6 +8076,7 @@ const gitGraph = new GitGraphView(
     boldCheckedOutCommit: viewState.boldCheckedOutCommit,
     fetchTagsByDefault: viewState.fetchTagsByDefault,
     showTagRemotes: parseTagRemotesMode(viewState.showTagRemotes),
+    worktreePathTemplate: normalizeWorktreePathTemplate(viewState.worktreePathTemplate),
     mergeNoFastForward: viewState.mergeNoFastForward,
     pullBranchNoFastForward: viewState.pullBranchNoFastForward,
     createBranchCheckout: viewState.createBranchCheckout,

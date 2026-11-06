@@ -76,6 +76,8 @@
   "config.repository.showTagRemotes.origin": "仅检查 origin（仓库中存在时）",
   "config.repository.showTagRemotes.all": "检查每个远程仓库",
   "config.repository.showTagRemotes.title": "在标签上显示远程仓库",
+  "config.repository.worktreePathTemplate": "新工作树的文件夹路径。相对路径从存放仓库的文件夹开始计算，绝对路径按原样使用。${repo} 是仓库的文件夹名，${branch} 是“创建工作树”对话框起始所用的分支。留空则使用默认的 <repo>.worktrees/<branch>，位于仓库旁边。",
+  "config.repository.worktreePathTemplate.title": "工作树文件夹模板",
   "config.repository.worktreesOutsideWorkspace": "在仓库下拉列表中将位于工作区文件夹之外的关联工作树显示为“工作区外”条目。选中后会将其加入列表，只要 Git 仍列出它就会保留。关闭后仅显示工作区内的工作树。默认启用。",
   "config.repository.worktreesOutsideWorkspace.title": "工作区外的工作树",
   "config.dialog.createBranch.checkout": "在创建分支对话框中默认勾选“创建后切换到新分支”。默认开启。",

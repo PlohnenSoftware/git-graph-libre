@@ -14,6 +14,11 @@ vi.mock("vscode", () => ({
   }
 }));
 
+/** A folder-template placeholder, built at run time so no string literal in this file spells one. */
+function token(name: string): string {
+  return `\${${name}}`;
+}
+
 describe("configuration", () => {
   afterEach(() => {
     settings.clear();
@@ -64,6 +69,21 @@ describe("configuration", () => {
     for (const stale of [true, false, "everything", 3, null]) {
       settings.set("git-graph-libre.repository.showTagRemotes", stale);
       expect(config.showTagRemotes()).toBe("origin");
+    }
+  });
+
+  it("uses the default worktree folder unless the template is text, trimmed", async () => {
+    const { config } = await import("@/config");
+    expect(config.worktreePathTemplate()).toBe("");
+
+    settings.set(
+      "git-graph-libre.repository.worktreePathTemplate",
+      `  ${token("repo")}.worktrees/${token("branch")}  `
+    );
+    expect(config.worktreePathTemplate()).toBe(`${token("repo")}.worktrees/${token("branch")}`);
+    for (const stale of [true, 3, null]) {
+      settings.set("git-graph-libre.repository.worktreePathTemplate", stale);
+      expect(config.worktreePathTemplate()).toBe("");
     }
   });
 

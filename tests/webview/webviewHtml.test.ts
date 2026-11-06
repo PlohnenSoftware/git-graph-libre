@@ -38,6 +38,7 @@ function makeConfig(): Config {
     boldCheckedOutCommit: () => true,
     fetchTagsByDefault: () => false,
     showTagRemotes: () => "off",
+    worktreePathTemplate: () => "",
     worktreesOutsideWorkspace: () => true,
     mergeNoFastForward: () => false,
     pullBranchNoFastForward: () => true,

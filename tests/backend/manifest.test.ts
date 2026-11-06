@@ -185,6 +185,19 @@ describe("extension manifest", () => {
     expect(setting.enumDescriptions).toHaveLength(3);
   });
 
+  it("contributes the worktree folder template as text, empty by default", () => {
+    const setting =
+      readManifest().contributes.configuration.properties[
+        "git-graph-libre.repository.worktreePathTemplate"
+      ];
+
+    expect(setting).toMatchObject({
+      type: "string",
+      default: "",
+      description: "%config.repository.worktreePathTemplate%"
+    });
+  });
+
   // The default is the consent model: nothing is sent until the user answers,
   // so a default of "enabled" — or a slip back to a boolean, where VS Code
   // would treat an absent value as false-ish rather than as "not asked" —
