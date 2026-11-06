@@ -1,6 +1,6 @@
 ---
 summary: >-
-  Planned for release 1.10.0 "The Worktrees" (`2026-11-04`), whose slices
+  In progress in release 1.10.0 "The Worktrees" (`2026-11-06`), whose slices
   supersede this section's 18.1–18.4 sketch. The phase: show Git worktrees
   and which branches or commits are checked out where, with clean-room CLI
   and Rust-engine parity, worktree actions, discovery, and branch-action
@@ -9,7 +9,7 @@ summary: >-
 
 # Phase 18: Git Worktree Support
 
-**Status: planned for release 1.10.0 "The Worktrees" (`2026-11-04`).** That
+**Status: in progress in release 1.10.0 "The Worktrees" (`2026-11-06`):** most slices are integrated, #38 is closed and #37 stays open until W33; see the release's slice table. Planned `2026-11-04`. That
 release's slices, under Ongoing work, supersede the 18.1–18.4 plan below,
 which is kept as the phase's first sketch:
 - 18.1 became W02, W03 and W10;
