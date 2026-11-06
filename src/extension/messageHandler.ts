@@ -1178,7 +1178,8 @@ export function registerMessageHandlers(
       bridge.post({
         command: "loadRepos",
         repos: repoManager.getRepos(),
-        lastActiveRepo: extensionState.getLastActiveRepo()
+        lastActiveRepo: extensionState.getLastActiveRepo(),
+        layout: repoManager.getLayout()
       });
     }
   });

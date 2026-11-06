@@ -7,7 +7,7 @@ import type { ExtensionState } from "@/extensionState";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
 import type { TelemetryReporter } from "@/telemetry";
 import { isConsentPending } from "@/telemetry/consentPrompt";
-import type { GitRepoSet } from "@/types";
+import type { GitRepoSet, RepoLayout } from "@/types";
 
 import { buildComponentStatus, describeEngineStatus } from "./componentStatus";
 import type { RepoManager } from "./repoManager";
@@ -135,7 +135,8 @@ export function createWebviewPanel(opts: {
     bridge.post({
       command: "loadRepos",
       repos: repoManager.getRepos(),
-      lastActiveRepo: extensionState.getLastActiveRepo()
+      lastActiveRepo: extensionState.getLastActiveRepo(),
+      layout: repoManager.getLayout()
     });
     bridge.post({ command: "refresh" });
   }
@@ -183,7 +184,7 @@ export function createWebviewPanel(opts: {
     disposables
   );
 
-  repoManager.registerViewCallback((repos: GitRepoSet, numRepos: number) => {
+  repoManager.registerViewCallback((repos: GitRepoSet, numRepos: number, layout: RepoLayout) => {
     if (!panel.visible) return;
     outputChannel?.appendLine(`[panel] repos update repos=${numRepos} graph=${isGraphViewLoaded}`);
     if (hadRepositories !== numRepos > 0) {
@@ -195,7 +196,8 @@ export function createWebviewPanel(opts: {
     bridge.post({
       command: "loadRepos",
       repos,
-      lastActiveRepo: extensionState.getLastActiveRepo()
+      lastActiveRepo: extensionState.getLastActiveRepo(),
+      layout
     });
   });
 

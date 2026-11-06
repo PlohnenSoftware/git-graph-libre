@@ -95,7 +95,10 @@ describe("which screen the webview builds", () => {
         isAvatarStorageAvailable: () => true,
         getLastActiveRepo: () => "/repo"
       } as ExtensionState,
-      repoManager: { getRepos: () => repos } as unknown as RepoManager,
+      repoManager: {
+        getRepos: () => repos,
+        getLayout: () => ({ worktrees: {}, outside: [] })
+      } as unknown as RepoManager,
       extensionVersion: "1.3.0"
     });
   }

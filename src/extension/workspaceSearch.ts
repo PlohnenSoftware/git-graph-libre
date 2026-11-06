@@ -9,6 +9,7 @@ import type { RepositoryProbe } from "@/types";
 
 import type { RepoManager } from "./repoManager";
 import type { Logger } from "./utils/logger";
+import type { WorktreeDiscovery } from "./worktreeDiscovery";
 
 export type ScanLogger = Pick<Logger, "log" | "warn">;
 
@@ -25,7 +26,12 @@ export function scanLogLevel(totalRepos: number): "log" | "warn" {
   return totalRepos === 0 ? "warn" : "log";
 }
 
-export function createRepoSearch(repoManager: RepoManager, config: Config, logger?: ScanLogger) {
+export function createRepoSearch(
+  repoManager: RepoManager,
+  config: Config,
+  logger?: ScanLogger,
+  worktreeDiscovery?: WorktreeDiscovery
+) {
   let maxDepthOfRepoSearch = config.maxDepthOfRepoSearch();
 
   // The last completed scan's answers. A scan in flight fills its own map and
@@ -50,6 +56,14 @@ export function createRepoSearch(repoManager: RepoManager, config: Config, logge
     return result.state === "ready" || result.state === "untrusted" || result.repository === true;
   }
 
+  function isVerified(repo: string): boolean {
+    // A scan still running may already have seen Git refuse it; that
+    // answer counts at once, even before the scan publishes the rest.
+    const pending = scanning?.get(repo);
+    if (pending !== undefined && pending.state !== "ready") return false;
+    return diagnostics.get(repo)?.state === "ready";
+  }
+
   async function searchDirectoryForRepos(directory: string, maxDepth: number): Promise<boolean> {
     const found = await searchDirectoryForReposUtil(
       directory,
@@ -64,6 +78,8 @@ export function createRepoSearch(repoManager: RepoManager, config: Config, logge
       repoManager.addRepo(repo);
       changed = true;
     }
+    // A repository just found may own worktrees the walk cannot see.
+    if (changed && worktreeDiscovery) await worktreeDiscovery.reconcile(isVerified);
     return changed;
   }
 
@@ -76,6 +92,9 @@ export function createRepoSearch(repoManager: RepoManager, config: Config, logge
       scanning = null;
     }
     diagnostics = results;
+    // Worktrees nested in a repository, or outside the workspace, are found by
+    // asking Git, after the walk and its verification are published.
+    await worktreeDiscovery?.reconcile(isVerified);
     // Always publish completion, including an empty result: a failure screen
     // needs updated evidence just as much as a graph needs a repository list.
     repoManager.sendRepos();
@@ -139,13 +158,7 @@ export function createRepoSearch(repoManager: RepoManager, config: Config, logge
      * trust rather than an error), so only a confirmed one may be read through
      * it; anything else goes to the CLI, which reports the rejection.
      */
-    isVerified(repo: string): boolean {
-      // A scan still running may already have seen Git refuse it; that
-      // answer counts at once, even before the scan publishes the rest.
-      const pending = scanning?.get(repo);
-      if (pending !== undefined && pending.state !== "ready") return false;
-      return diagnostics.get(repo)?.state === "ready";
-    },
+    isVerified,
     /** A read just saw Git reject this repository: stop trusting the last answer. */
     forgetVerification(repo: string): void {
       diagnostics.delete(repo);

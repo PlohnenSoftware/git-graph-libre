@@ -38,6 +38,7 @@ function makeConfig(): Config {
     boldCheckedOutCommit: () => true,
     fetchTagsByDefault: () => false,
     showTagRemotes: () => false,
+    worktreesOutsideWorkspace: () => true,
     mergeNoFastForward: () => false,
     pullBranchNoFastForward: () => true,
     createBranchCheckout: () => true,
@@ -79,7 +80,8 @@ describe("webview HTML", () => {
         getLastActiveRepo: () => "/repo"
       } as ExtensionState,
       repoManager: {
-        getRepos: () => ({ "/repo": { columnWidths: null } })
+        getRepos: () => ({ "/repo": { columnWidths: null } }),
+        getLayout: () => ({ worktrees: {}, outside: [] })
       } as unknown as RepoManager,
       extensionVersion: "1.2.0"
     });
@@ -129,7 +131,8 @@ describe("webview HTML", () => {
         getLastActiveRepo: () => "/repo"
       } as ExtensionState,
       repoManager: {
-        getRepos: () => ({ "/repo": { columnWidths: null } })
+        getRepos: () => ({ "/repo": { columnWidths: null } }),
+        getLayout: () => ({ worktrees: {}, outside: [] })
       } as unknown as RepoManager,
       extensionVersion: "1.2.0"
     });
@@ -155,7 +158,10 @@ describe("webview HTML", () => {
         isAvatarStorageAvailable: () => true,
         getLastActiveRepo: () => null
       } as ExtensionState,
-      repoManager: { getRepos: () => ({}) } as unknown as RepoManager,
+      repoManager: {
+        getRepos: () => ({}),
+        getLayout: () => ({ worktrees: {}, outside: [] })
+      } as unknown as RepoManager,
       extensionVersion: "1.2.0"
     });
 

@@ -26,6 +26,7 @@ import { type WebviewBridge, webviewBridgeFactory } from "./extension/webviewBri
 import { createWebviewPanel, type WebviewPanel } from "./extension/webviewPanel";
 import { createRepoSearch } from "./extension/workspaceSearch";
 import { createRepoWatcher } from "./extension/workspaceWatcher";
+import { createWorktreeDiscovery } from "./extension/worktreeDiscovery";
 import { ExtensionState } from "./extensionState";
 import * as l10n from "./l10n";
 import { initL10n } from "./l10n";
@@ -86,7 +87,15 @@ export function activate(context: vscode.ExtensionContext) {
   const consentPrompt = createConsentPrompt({ config, logger });
   const gitClient = gitClientFactory(extensionState.getLastActiveRepo() ?? "", config.gitPath());
   const repoManager = createRepoManager(extensionState, statusBarItem, config);
-  const repoSearch = createRepoSearch(repoManager, config, logger);
+  const worktreeDiscovery = createWorktreeDiscovery({
+    repoManager,
+    config,
+    roots: () =>
+      (vscode.workspace.workspaceFolders ?? []).map((folder) =>
+        folder.uri.fsPath.replaceAll("\\", "/")
+      )
+  });
+  const repoSearch = createRepoSearch(repoManager, config, logger, worktreeDiscovery);
   const repoWatcher = createRepoWatcher(repoManager, config, repoSearch);
   let currentPanel: WebviewPanel | undefined;
 
@@ -251,6 +260,10 @@ export function activate(context: vscode.ExtensionContext) {
         statusBarItem.refresh();
       } else if (e.affectsConfiguration("git-graph-libre.maxDepthOfRepoSearch")) {
         repoSearch.maxDepthChanged();
+      } else if (e.affectsConfiguration("git-graph-libre.repository.worktreesOutsideWorkspace")) {
+        // Whether outside-workspace worktrees are listed is decided at a
+        // scan, so the setting takes effect on the open graph by rescanning.
+        void repoSearch.searchWorkspaceForRepos(true);
       } else if (e.affectsConfiguration("git-graph-libre.backend")) {
         // Readers take the preference live, so only the status indicator
         // has to be told: it would otherwise keep the old engine state.

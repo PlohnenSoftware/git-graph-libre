@@ -7,7 +7,14 @@ import { inspectRepository } from "@/backend/utils/repositoryProbe";
 import type { Config } from "@/config";
 import type { ExtensionState } from "@/extensionState";
 import type { StatusBarItem } from "@/statusBarItem";
-import type { GitRepoSet, GitRepoState } from "@/types";
+import type { GitRepoSet, GitRepoState, OutsideWorktree, RepoLayout } from "@/types";
+
+import {
+  buildRepoLayout,
+  mainWorktreeOf,
+  type WorktreeDetails,
+  worktreeGroupOf
+} from "./repoLayout";
 
 function sortRepos(repos: GitRepoSet) {
   const repoPaths = Object.keys(repos).toSorted((a, b) => a.localeCompare(b));
@@ -25,7 +32,12 @@ export function createRepoManager(
 ) {
   const repos = extensionState.getRepos();
   const unavailable = new Set<string>();
-  let viewCallback: ((repos: GitRepoSet, numRepos: number) => void) | null = null;
+  type ViewCallback = (repos: GitRepoSet, numRepos: number, layout: RepoLayout) => void;
+  let viewCallback: ViewCallback | null = null;
+  // What `git worktree list` said at the last scan, for branch labels and the
+  // worktrees outside the workspace. The grouping itself needs neither.
+  let worktreeDetails: ReadonlyMap<string, WorktreeDetails> = new Map();
+  let outsideWorktrees: readonly OutsideWorktree[] = [];
 
   function getRepos() {
     return sortRepos(
@@ -33,11 +45,23 @@ export function createRepoManager(
     );
   }
 
+  function getLayout(): RepoLayout {
+    return buildRepoLayout(Object.keys(getRepos()), worktreeDetails, outsideWorktrees);
+  }
+
+  function setWorktreeDetails(
+    details: ReadonlyMap<string, WorktreeDetails>,
+    outside: readonly OutsideWorktree[]
+  ) {
+    worktreeDetails = details;
+    outsideWorktrees = outside;
+  }
+
   function sendRepos() {
     const sorted = getRepos();
     const numRepos = Object.keys(sorted).length;
     statusBarItem.setNumRepos(numRepos);
-    if (viewCallback !== null) viewCallback(sorted, numRepos);
+    if (viewCallback !== null) viewCallback(sorted, numRepos, getLayout());
   }
 
   function removeRepo(repo: string) {
@@ -50,7 +74,7 @@ export function createRepoManager(
     closeEngineRepository(repo);
   }
 
-  function registerViewCallback(cb: (repos: GitRepoSet, numRepos: number) => void) {
+  function registerViewCallback(cb: ViewCallback) {
     viewCallback = cb;
   }
 
@@ -91,25 +115,33 @@ export function createRepoManager(
     extensionState.saveRepos(repos);
   }
 
+  function workspaceRoots(): string[] {
+    return (vscode.workspace.workspaceFolders ?? []).map((folder) => getPathFromUri(folder.uri));
+  }
+
+  function isInsideRoots(repoPath: string, roots: readonly string[]) {
+    return roots.some((root) => repoPath === root || repoPath.startsWith(`${root}/`));
+  }
+
+  /**
+   * Whether an outside-workspace repository stays through activation (Y9): the
+   * setting is on, it is a linked worktree, and the main worktree that owns it
+   * is a known repository inside the workspace. A later scan drops it if Git
+   * no longer lists it.
+   */
+  function keepsOutsideWorktree(repoPath: string, roots: readonly string[]) {
+    if (!config.worktreesOutsideWorkspace()) return false;
+    const group = worktreeGroupOf(repoPath);
+    if (!group.linked) return false;
+    const main = mainWorktreeOf(group.commonDir);
+    return main !== null && Object.hasOwn(repos, main) && isInsideRoots(main, roots);
+  }
+
   function removeReposNotInWorkspace() {
-    const rootsExact: string[] = [];
-    const rootsFolder: string[] = [];
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    const repoPaths = Object.keys(repos);
-    if (workspaceFolders !== undefined) {
-      for (const folder of workspaceFolders) {
-        const path = getPathFromUri(folder.uri);
-        rootsExact.push(path);
-        rootsFolder.push(`${path}/`);
-      }
-    }
-    for (const repoPath of repoPaths) {
-      if (
-        !rootsExact.includes(repoPath) &&
-        !rootsFolder.some((root) => repoPath.startsWith(root))
-      ) {
-        removeRepo(repoPath);
-      }
+    const roots = workspaceRoots();
+    for (const repoPath of Object.keys(repos)) {
+      if (isInsideRoots(repoPath, roots) || keepsOutsideWorktree(repoPath, roots)) continue;
+      removeRepo(repoPath);
     }
   }
 
@@ -144,6 +176,8 @@ export function createRepoManager(
     registerViewCallback,
     deregisterViewCallback,
     getRepos,
+    getLayout,
+    setWorktreeDetails,
     getKnownRepos: () => sortRepos(repos),
     setRepoUnavailable(repo: string) {
       if (unavailable.has(repo)) return;

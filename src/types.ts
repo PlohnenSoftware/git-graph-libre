@@ -9,6 +9,31 @@ import type {
 } from "@/backend/types";
 
 export type GitRepoSet = { [repo: string]: GitRepoState };
+/** How one listed repository sits among the worktrees of its Git repository. */
+export type RepoWorktreeInfo = {
+  /** The shared git directory: listed repositories with the same value are one repository's worktrees. */
+  commonDir: string;
+  /** A linked worktree, as opposed to the main worktree (or a submodule or plain repository). */
+  linked: boolean;
+  /** Short branch name Git lists for the worktree; null when detached or not listed yet. */
+  branch: string | null;
+  detached: boolean;
+};
+/** A worktree Git lists that is outside the workspace and not yet in the repository list. */
+export type OutsideWorktree = {
+  path: string;
+  commonDir: string;
+  /** A linked worktree, as opposed to the main worktree. */
+  linked: boolean;
+  branch: string | null;
+  detached: boolean;
+  /** A listed repository of the same Git repository, named when switching the graph to this worktree. */
+  repo: string;
+};
+export type RepoLayout = {
+  worktrees: { [repo: string]: RepoWorktreeInfo };
+  outside: OutsideWorktree[];
+};
 export type RepositoryProbe = {
   path: string;
   state: "ready" | "untrusted" | "gitUnavailable" | "notRepository" | "error";
@@ -304,6 +329,7 @@ export type GitGraphViewState = {
   createBranchCheckout: boolean;
   onlyFollowFirstParent: boolean;
   repos: GitRepoSet;
+  repoLayout?: RepoLayout;
   showCurrentBranchByDefault: boolean;
   showRemoteBranches: boolean;
   showStashes: boolean;
@@ -357,6 +383,7 @@ export type ResponseLoadRepos = {
   command: "loadRepos";
   repos: GitRepoSet;
   lastActiveRepo: string | null;
+  layout?: RepoLayout;
 };
 
 export type RequestSaveRepoState = {

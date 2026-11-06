@@ -8,13 +8,21 @@ import type { WebviewBridge } from "@/extension/webviewBridge";
 import { createWebviewPanel } from "@/extension/webviewPanel";
 import type { ExtensionState } from "@/extensionState";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
-import type { ComponentStatus, EngineComponentStatus, GitRepoSet, TelemetryConsent } from "@/types";
+import type {
+  ComponentStatus,
+  EngineComponentStatus,
+  GitRepoSet,
+  RepoLayout,
+  TelemetryConsent
+} from "@/types";
 
 const ACTIVE_ENGINE: EngineComponentStatus = {
   state: "active",
   version: "1.0.25",
   platform: "linux-x64"
 };
+
+const emptyLayout: RepoLayout = { worktrees: {}, outside: [] };
 
 const mocks = vi.hoisted(() => ({
   buildWebviewHtml: vi.fn(
@@ -46,7 +54,7 @@ vi.mock("@/extension/componentStatus", async (importOriginal) => ({
 }));
 
 type ViewStateHandler = () => void;
-type RepoCallback = (repos: GitRepoSet, numRepos: number) => void;
+type RepoCallback = (repos: GitRepoSet, numRepos: number, layout: RepoLayout) => void;
 type DisposeHandler = () => void;
 
 function createHarness(opts?: {
@@ -95,6 +103,7 @@ function createHarness(opts?: {
   let repoCallback: RepoCallback | undefined;
   const repoManager = {
     getRepos: vi.fn(() => currentRepos),
+    getLayout: vi.fn(() => emptyLayout),
     registerViewCallback: vi.fn((handler: RepoCallback) => {
       repoCallback = handler;
     }),
@@ -164,7 +173,7 @@ function createHarness(opts?: {
     repos,
     emitRepos: (next: GitRepoSet) => {
       currentRepos = next;
-      repoCallback?.(next, Object.keys(next).length);
+      repoCallback?.(next, Object.keys(next).length, emptyLayout);
     },
     show: () => {
       panel.visible = true;
@@ -210,7 +219,8 @@ describe("createWebviewPanel", () => {
     expect(harness.bridge.post).toHaveBeenNthCalledWith(1, {
       command: "loadRepos",
       repos: harness.repos,
-      lastActiveRepo: "/repo"
+      lastActiveRepo: "/repo",
+      layout: emptyLayout
     });
     expect(harness.bridge.post).toHaveBeenNthCalledWith(2, { command: "refresh" });
     expect(harness.webview.html).toBe("<html>graph</html>");
@@ -236,7 +246,8 @@ describe("createWebviewPanel", () => {
     expect(harness.bridge.post).toHaveBeenCalledWith({
       command: "loadRepos",
       repos: { "/repo": { columnWidths: null }, "/repo2": { columnWidths: null } },
-      lastActiveRepo: "/repo"
+      lastActiveRepo: "/repo",
+      layout: emptyLayout
     });
     expect(mocks.buildWebviewHtml).toHaveBeenCalledTimes(1);
     expect(harness.webview.html).toBe("<html>graph</html>");
@@ -456,7 +467,7 @@ describe("createWebviewPanel", () => {
     const harness = createHarness();
     harness.send("setTemporaryLanguage", { command: "setTemporaryLanguage", language: "nl" });
 
-    harness.repoCallback()?.(harness.repos, 1);
+    harness.repoCallback()?.(harness.repos, 1, emptyLayout);
 
     for (const call of mocks.buildWebviewHtml.mock.calls.slice(1)) {
       expect(call[0]).toMatchObject({ language: "nl" });

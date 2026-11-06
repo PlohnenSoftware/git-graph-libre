@@ -82,6 +82,7 @@ export function buildWebviewHtml(opts: {
     pullBranchNoFastForward: config.pullBranchNoFastForward(),
     onlyFollowFirstParent: config.onlyFollowFirstParent(),
     repos: repoManager.getRepos(),
+    repoLayout: repoManager.getLayout(),
     showCurrentBranchByDefault: config.showCurrentBranchByDefault(),
     showRemoteBranches: config.showRemoteBranches(),
     showStashes: config.showStashes(),

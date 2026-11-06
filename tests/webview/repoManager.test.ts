@@ -47,7 +47,7 @@ describe("repository manager", () => {
       saveRepos: vi.fn()
     } as unknown as ExtensionState;
     const statusBar = { setNumRepos: vi.fn() } as unknown as StatusBarItem;
-    const config = { gitPath: () => "git" } as Config;
+    const config = { gitPath: () => "git", worktreesOutsideWorkspace: () => true } as Config;
     const manager = createRepoManager(extensionState, statusBar, config);
 
     expect(Object.keys(manager.getRepos())).toEqual([
@@ -82,7 +82,11 @@ describe("repository manager availability", () => {
       saveRepos: vi.fn()
     } as unknown as ExtensionState;
     const statusBar = { setNumRepos: vi.fn() } as unknown as StatusBarItem;
-    const config = { gitPath: () => "git", backend: () => "auto" } as unknown as Config;
+    const config = {
+      gitPath: () => "git",
+      backend: () => "auto",
+      worktreesOutsideWorkspace: () => true
+    } as unknown as Config;
     return {
       manager: createRepoManager(extensionState, statusBar, config),
       extensionState,
