@@ -108,6 +108,7 @@
   "settings.contributorsAgents": "AI 代理",
   "settings.contributorsAgentsNote": "這些 AI 代理與上述人員合作，共同撰寫了本儲存庫中的提交。",
   "settings.repositoryName": "存放庫名稱",
+  "settings.repositoryWorktreesNote": "此頁籤中的 Git 設定（遠端、使用者資訊與組態）適用於本存放庫的每個工作樹。",
   "settings.edit": "編輯",
   "settings.clear": "清除",
   "settings.close": "關閉設定",

@@ -108,6 +108,7 @@
   "settings.contributorsAgents": "Agenci AI",
   "settings.contributorsAgentsNote": "Ci agenci AI współtworzyli commity w tym repozytorium we współpracy z osobami wymienionymi powyżej.",
   "settings.repositoryName": "Nazwa repozytorium",
+  "settings.repositoryWorktreesNote": "Ustawienia Git na tej karcie (zdalne repozytoria, dane użytkownika i konfiguracja) obowiązują dla każdego drzewa roboczego tego repozytorium.",
   "settings.edit": "Edytuj",
   "settings.clear": "Wyczyść",
   "settings.close": "Zamknij ustawienia",

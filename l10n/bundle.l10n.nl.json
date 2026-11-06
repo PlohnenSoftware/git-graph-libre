@@ -108,6 +108,7 @@
   "settings.contributorsAgents": "AI-agents",
   "settings.contributorsAgentsNote": "Deze AI-agents hebben in deze repository commits mede geschreven in samenwerking met de hierboven genoemde mensen.",
   "settings.repositoryName": "Repositorynaam",
+  "settings.repositoryWorktreesNote": "De Git-instellingen op dit tabblad (externe repositories, gebruikersgegevens en configuratie) gelden voor elke worktree van deze repository.",
   "settings.edit": "Bewerken",
   "settings.clear": "Wissen",
   "settings.close": "Instellingen sluiten",

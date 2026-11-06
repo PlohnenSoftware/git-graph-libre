@@ -108,6 +108,7 @@
   "settings.contributorsAgents": "AI 代理",
   "settings.contributorsAgentsNote": "这些 AI 代理与上述人员合作，共同撰写了本仓库中的提交。",
   "settings.repositoryName": "仓库名称",
+  "settings.repositoryWorktreesNote": "此选项卡中的 Git 设置（远程、用户信息和配置）适用于本仓库的每个工作树。",
   "settings.edit": "编辑",
   "settings.clear": "清除",
   "settings.close": "关闭设置",

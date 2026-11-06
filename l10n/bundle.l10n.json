@@ -108,6 +108,7 @@
   "settings.contributorsAgents": "AI agents",
   "settings.contributorsAgentsNote": "These AI agents co-authored commits in this repository in cooperation with the people above.",
   "settings.repositoryName": "Repository name",
+  "settings.repositoryWorktreesNote": "Git settings on this tab (remotes, user details and config) apply to every worktree of this repository.",
   "settings.edit": "Edit",
   "settings.clear": "Clear",
   "settings.close": "Close settings",

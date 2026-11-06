@@ -93,6 +93,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     settingsContributorsAgents: translate("settings.contributorsAgents"),
     settingsContributorsAgentsNote: translate("settings.contributorsAgentsNote"),
     settingsRepositoryName: translate("settings.repositoryName"),
+    settingsRepositoryWorktreesNote: translate("settings.repositoryWorktreesNote"),
     settingsEdit: translate("settings.edit"),
     settingsClear: translate("settings.clear"),
     settingsClose: translate("settings.close"),
