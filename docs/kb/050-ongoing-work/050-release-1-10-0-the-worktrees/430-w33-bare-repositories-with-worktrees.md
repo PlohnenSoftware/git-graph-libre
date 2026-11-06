@@ -9,7 +9,7 @@ summary: >-
 
 # W33 — Bare repositories with worktrees
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-11-06 15:24
 Needs: W32
 Decisions: Y17 ((a) a group header only; (b) also a read-only graph of the
 bare repository)
