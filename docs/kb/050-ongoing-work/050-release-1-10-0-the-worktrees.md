@@ -711,3 +711,4 @@ commit, the gate results with numbers, and the Sonar task id.
   pushes `the-worktrees` to `origin` after each integration, every commit
   checked for a signature first. Slice agents still never push. Pushing
   this branch closes no issue, since GitHub acts on `Closes` only on `main`.
+- `2026-11-06`: W90H integrated at `f51e65e`. The five closed issues' subsections moved to History, under Closed GitHub issues and their threads. The register now lists #37 as the only open issue to tackle, and the tracker table marks the five Closed. The Phase 9 and Phase 18 status lines were updated to match. W23 was dispatched to Haiku: its earlier "dispatched" line was premature, since the agent call came after the version-bump request.
