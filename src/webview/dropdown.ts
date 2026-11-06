@@ -7,6 +7,8 @@ export interface DropdownOption {
   value: string;
   indentLevel?: number;
   treeBranch?: "middle" | "last";
+  /** A group label, such as a bare repository's header: shown, but never selected. */
+  header?: boolean;
 }
 
 export interface DropdownDisplayOptions {
@@ -341,6 +343,7 @@ export class Dropdown {
   }
 
   private renderOption(option: DropdownOption, index: number) {
+    if (option.header === true) return this.renderHeader(option);
     const isSelected = this.isOptionIndexSelected(index);
     const className = isSelected ? "dropdownOption selected" : "dropdownOption";
     const indentLevel = Math.max(0, Math.floor(option.indentLevel ?? 0));
@@ -355,6 +358,14 @@ export class Dropdown {
     )}${this.renderOptionCheck(isSelected)}<span class="dropdownOptionLabel">${escapeHtml(
       displayName
     )}</span>${this.renderOptionInfo(option.value)}</div>`;
+  }
+
+  /** A header has no `data-id`, so a click on it selects nothing and leaves the menu open. */
+  private renderHeader(option: DropdownOption) {
+    const displayName = this.formatDisplayName(option.name);
+    return `<div class="dropdownOption dropdownOptionHeader" aria-disabled="true"><span class="dropdownOptionLabel">${escapeHtml(
+      displayName
+    )}</span></div>`;
   }
 
   private renderOptionTree(treeBranch: DropdownOption["treeBranch"]) {

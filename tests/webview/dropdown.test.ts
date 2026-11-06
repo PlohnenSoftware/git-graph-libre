@@ -28,7 +28,11 @@ describe("Dropdown", () => {
     const built = buildRepoOptions(
       Object.fromEntries(repoPaths.map((repoPath) => [repoPath, { columnWidths: null }])),
       undefined,
-      { detached: "detached", outsideWorkspace: "outside workspace" }
+      {
+        detached: "detached",
+        outsideWorkspace: "outside workspace",
+        bareRepository: "bare repository"
+      }
     );
     expect(built.map((option) => [option.value, option.indentLevel, option.treeBranch])).toEqual([
       [repoPaths[0], 0, undefined],
@@ -55,6 +59,33 @@ describe("Dropdown", () => {
     expect(childOption.querySelector(".dropdownOptionTree")).not.toBeNull();
     expect(childOption.querySelector(".dropdownOptionLabel")?.textContent).toBe("child");
     expect(toolsOption.dataset.treeBranch).toBe("last");
+  });
+
+  it("renders a header as an unselectable label that a click leaves alone", () => {
+    const changed: string[] = [];
+    const dropdown = new Dropdown("repoSelect", false, "repo", (value) => changed.push(value));
+    dropdown.setOptions(
+      [
+        { name: "store.git · bare repository", value: "/store.git", header: true },
+        { name: "one (one-b)", value: "/ws/one", indentLevel: 1, treeBranch: "last" },
+        { name: "two", value: "/ws/two" }
+      ],
+      "/ws/one"
+    );
+    const currentValue = document.querySelector<HTMLElement>(".dropdownCurrentValue");
+    currentValue?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const header = document.querySelectorAll<HTMLElement>(".dropdownOption")[0];
+    expect(header.classList.contains("dropdownOptionHeader")).toBe(true);
+    expect(header.dataset.id).toBeUndefined();
+    expect(header.textContent).toBe("store.git · bare repository");
+    header.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(changed).toEqual([]);
+    expect(document.querySelector(".dropdown")?.classList.contains("dropdownOpen")).toBe(true);
+    expect(document.querySelectorAll<HTMLElement>(".dropdownOption.selected")[0]?.dataset.id).toBe(
+      "1"
+    );
   });
 
   it("shows full-value tooltips on info dropdowns", () => {

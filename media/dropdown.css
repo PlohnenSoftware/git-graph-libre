@@ -123,6 +123,15 @@
   background-color: var(--vscode-list-hoverBackground, var(--vscode-menu-selectionBackground));
   color: var(--vscode-list-hoverForeground, var(--vscode-menu-selectionForeground));
 }
+.dropdownOptionHeader {
+  cursor: default;
+  font-weight: 600;
+  opacity: 0.8;
+}
+.dropdownOptionHeader:hover {
+  background-color: transparent;
+  color: inherit;
+}
 .dropdownOptionInfo {
   position: absolute;
   width: 14px;
