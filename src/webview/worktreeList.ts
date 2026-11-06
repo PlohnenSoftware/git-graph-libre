@@ -1,4 +1,4 @@
-import type { GitWorktree } from "@/backend/types";
+import type { GitWorktree, WorktreeChangeStatus } from "@/backend/types";
 import type { LocalizedStrings } from "@/extension/webviewL10n";
 import { octicon } from "@/octicons";
 import { worktreeFolderName } from "./utils/git";
@@ -41,6 +41,12 @@ export type WorktreeListLabels = {
   locked: string;
   lockedNoReason: string;
   missing: string;
+  changesClean: string;
+  changesOne: string;
+  changesMany: string;
+  changesMore: string;
+  changesUnknown: string;
+  changesChecking: string;
   actions: Record<WorktreeRowAction, string>;
   create: string;
   prune: string;
@@ -50,7 +56,20 @@ export type WorktreeListHandlers = {
   /** A row's button, for the worktree as it was listed when the popup last drew. */
   onRowAction: (action: WorktreeRowAction, worktree: GitWorktree) => void;
   onFooterAction: (action: WorktreeFooterAction) => void;
+  /** The popup opened: read the changes of these worktrees' paths (Y20 (a)). Absent in tests that do not check them. */
+  onOpen?: (paths: string[]) => void;
 };
+
+/**
+ * What the popup knows about uncommitted changes: each answer by path, and
+ * whether an answer to the read sent when it opened is still due.
+ */
+export type WorktreeChanges = {
+  statuses: ReadonlyMap<string, WorktreeChangeStatus>;
+  pending: boolean;
+};
+
+const NO_CHANGES: WorktreeChanges = { statuses: new Map(), pending: false };
 
 /** A real ellipsis: these labels are escaped as text, so the HTML entity would show as typed. */
 const ELLIPSIS = "\u2026";
@@ -69,6 +88,12 @@ export function buildWorktreeListLabels(strings: LocalizedStrings): WorktreeList
     locked: strings.worktreeLocked,
     lockedNoReason: strings.worktreeLockedNoReason,
     missing: strings.worktreeMissing,
+    changesClean: strings.worktreeChangesClean,
+    changesOne: strings.worktreeChangesOne,
+    changesMany: strings.worktreeChangesMany,
+    changesMore: strings.worktreeChangesMore,
+    changesUnknown: strings.worktreeChangesUnknown,
+    changesChecking: strings.worktreeChangesChecking,
     actions: {
       openNewWindow: strings.worktreeOpenNewWindow,
       openHere: strings.worktreeOpenHere,
@@ -92,6 +117,19 @@ const CLOSING_ROW_ACTIONS: ReadonlySet<WorktreeRowAction> = new Set([
   "openHere",
   "switchGraph"
 ]);
+
+/**
+ * The worktrees whose uncommitted changes are read: every other one with a
+ * folder on disk. The current worktree is the graph's own, and a stale or bare
+ * entry has no working tree to inspect.
+ */
+export function isStatusCandidate(worktree: GitWorktree): boolean {
+  return !worktree.isCurrent && worktree.prunable === null && !worktree.bare;
+}
+
+export function statusCandidates(worktrees: readonly GitWorktree[]): GitWorktree[] {
+  return worktrees.filter(isStatusCandidate);
+}
 
 /** Prunable entries Git's `prune` removes: the folder is gone and the entry is not locked. */
 export function prunableWorktrees(worktrees: readonly GitWorktree[]): GitWorktree[] {
@@ -134,6 +172,32 @@ function badge(kind: string, text: string): string {
   return `<span class="worktreeBadge ${kind}">${escapeHtml(text)}</span>`;
 }
 
+function changeText(status: WorktreeChangeStatus, labels: WorktreeListLabels): string {
+  if (status.state === "unknown") return labels.changesUnknown;
+  if (status.state === "clean") return labels.changesClean;
+  if (status.truncated) return labels.changesMore.replace("{0}", () => String(status.count));
+  if (status.count === 1) return labels.changesOne;
+  return labels.changesMany.replace("{0}", () => String(status.count));
+}
+
+/**
+ * The changes mark of a row: clean, changes (with the count), or unknown when
+ * the read failed or timed out. A row still waiting for its answer shows
+ * "checking" while the popup has a read outstanding, and nothing otherwise.
+ */
+function changesBadge(
+  worktree: GitWorktree,
+  labels: WorktreeListLabels,
+  changes: WorktreeChanges
+): string {
+  if (!isStatusCandidate(worktree)) return "";
+  const status = changes.statuses.get(worktree.path);
+  if (status === undefined) {
+    return changes.pending ? badge("checking", labels.changesChecking) : "";
+  }
+  return badge(status.state, changeText(status, labels));
+}
+
 function stateBadges(worktree: GitWorktree, labels: WorktreeListLabels): string {
   const badges: string[] = [];
   if (worktree.isMain) badges.push(badge("main", labels.badgeMain));
@@ -159,7 +223,8 @@ function renderRow(
   worktree: GitWorktree,
   index: number,
   labels: WorktreeListLabels,
-  hashLength: number
+  hashLength: number,
+  changes: WorktreeChanges
 ): string {
   const name = escapeHtml(worktreeFolderName(worktree.path));
   const path = escapeHtml(worktree.path);
@@ -172,7 +237,7 @@ function renderRow(
   return (
     `<li class="worktreeRow" data-worktree-index="${index}">` +
     `<div class="worktreeInfo">` +
-    `<div class="worktreeTitle"><span class="worktreeName" title="${path}">${octicon("file-directory")}${name}</span>${stateBadges(worktree, labels)}</div>` +
+    `<div class="worktreeTitle"><span class="worktreeName" title="${path}">${octicon("file-directory")}${name}</span>${stateBadges(worktree, labels)}${changesBadge(worktree, labels, changes)}</div>` +
     `<div class="worktreeBranch">${octicon("git-branch")}<span>${branchLine(worktree, labels, hashLength)}</span></div>` +
     `<div class="worktreePath" title="${path}">${path}</div>` +
     `</div>` +
@@ -185,12 +250,13 @@ function renderRow(
 export function renderWorktreeList(
   worktrees: readonly GitWorktree[],
   labels: WorktreeListLabels,
-  hashLength: number
+  hashLength: number,
+  changes: WorktreeChanges = NO_CHANGES
 ): string {
   const rows =
     worktrees.length === 0
       ? `<p class="worktreeEmpty">${escapeHtml(labels.empty)}</p>`
-      : `<ul class="worktreeRows">${worktrees.map((worktree, index) => renderRow(worktree, index, labels, hashLength)).join("")}</ul>`;
+      : `<ul class="worktreeRows">${worktrees.map((worktree, index) => renderRow(worktree, index, labels, hashLength, changes)).join("")}</ul>`;
   const prune =
     prunableWorktrees(worktrees).length > 0
       ? `<button type="button" class="worktreeAction" data-worktree-footer="prune">${escapeHtml(labels.prune)}</button>`
@@ -208,6 +274,7 @@ export class WorktreePopup {
   private readonly backing: HTMLElement;
   private readonly panel: HTMLElement;
   private worktrees: readonly GitWorktree[] = [];
+  private changes: WorktreeChanges = NO_CHANGES;
   private open = false;
 
   constructor(
@@ -240,10 +307,20 @@ export class WorktreePopup {
     else this.show();
   }
 
+  /** Opens the popup and asks once for the changes of its worktrees; nothing else asks. */
   show() {
     this.open = true;
+    const paths = statusCandidates(this.worktrees).map((worktree) => worktree.path);
+    this.changes = { statuses: new Map(), pending: paths.length > 0 };
     this.draw();
     this.panel.focus({ preventScroll: true });
+    if (paths.length > 0) this.handlers.onOpen?.(paths);
+  }
+
+  /** The answer to the read `show` asked for, by path. */
+  setChanges(statuses: Record<string, WorktreeChangeStatus>) {
+    this.changes = { statuses: new Map(Object.entries(statuses)), pending: false };
+    if (this.open) this.draw();
   }
 
   close() {
@@ -270,7 +347,12 @@ export class WorktreePopup {
     }
     const labels = this.getLabels();
     this.panel.setAttribute("aria-label", labels.title);
-    this.panel.innerHTML = renderWorktreeList(this.worktrees, labels, this.getHashLength());
+    this.panel.innerHTML = renderWorktreeList(
+      this.worktrees,
+      labels,
+      this.getHashLength(),
+      this.changes
+    );
   }
 
   private handleClick(event: MouseEvent) {

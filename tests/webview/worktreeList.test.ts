@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { GitWorktree } from "@/backend/types";
+import type { GitWorktree, WorktreeChangeStatus } from "@/backend/types";
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
 import {
   buildWorktreeListLabels,
+  isStatusCandidate,
   lifecycleRowActions,
   prunableWorktrees,
   renderWorktreeList,
+  type WorktreeChanges,
   type WorktreeRowAction,
   worktreeRowActions
 } from "@/webview/worktreeList";
@@ -66,6 +68,70 @@ describe("worktreeRowActions", () => {
   ];
   it.each(cases)("%s", (_name, overrides, expected) => {
     expect(worktreeRowActions(worktree(overrides))).toEqual(expected);
+  });
+});
+
+describe("the changes mark (W51)", () => {
+  const MAIN = "/work/repo";
+  const SIDE = "/work/repo.worktrees/side";
+  const GONE = "/work/repo.worktrees/gone";
+  const LISTED = [
+    worktree({ path: MAIN, isMain: true, isCurrent: true }),
+    worktree({ path: SIDE, branch: "side" }),
+    worktree({ path: GONE, branch: "gone", prunable: { reason: "gone" } })
+  ];
+
+  function changesRow(changes: WorktreeChanges): Record<string, string[]> {
+    const root = document.createElement("div");
+    root.innerHTML = renderWorktreeList(LISTED, english, 7, changes);
+    const names = [...root.querySelectorAll(".worktreeName")].map((name) => name.textContent ?? "");
+    const badges = [...root.querySelectorAll(".worktreeRow")].map((row) =>
+      [
+        ...row.querySelectorAll(
+          ".worktreeBadge.clean, .worktreeBadge.dirty, .worktreeBadge.unknown, .worktreeBadge.checking"
+        )
+      ].map((badge) => badge.textContent ?? "")
+    );
+    return Object.fromEntries(names.map((name, index) => [name, badges[index] ?? []]));
+  }
+
+  it("names how many local changes a worktree has, singular, plural and beyond the limit", () => {
+    const statuses = new Map<string, WorktreeChangeStatus>([
+      [SIDE, { state: "dirty" as const, count: 1, truncated: false }]
+    ]);
+    expect(changesRow({ statuses, pending: false }).side).toEqual(["1 local change"]);
+
+    statuses.set(SIDE, { state: "dirty", count: 3, truncated: false });
+    expect(changesRow({ statuses, pending: false }).side).toEqual(["3 local changes"]);
+
+    statuses.set(SIDE, { state: "dirty", count: 20, truncated: true });
+    expect(changesRow({ statuses, pending: false }).side).toEqual(["more than 20 local changes"]);
+  });
+
+  it("marks a clean worktree clean, and one whose read failed unknown, never clean", () => {
+    const statuses = new Map<string, WorktreeChangeStatus>([
+      [SIDE, { state: "unknown" as const, count: 0, truncated: false }]
+    ]);
+    expect(changesRow({ statuses, pending: false }).side).toEqual(["changes unknown"]);
+
+    statuses.set(SIDE, { state: "clean", count: 0, truncated: false });
+    expect(changesRow({ statuses, pending: false }).side).toEqual(["clean"]);
+  });
+
+  it("shows checking while the answer is due, and nothing once it is not", () => {
+    expect(changesRow({ statuses: new Map(), pending: true }).side).toEqual(["checking changes"]);
+    expect(changesRow({ statuses: new Map(), pending: false }).side).toEqual([]);
+  });
+
+  it("marks only the other worktrees with a folder: not the current, stale or bare ones", () => {
+    const changes = { statuses: new Map(), pending: true };
+    const marks = changesRow(changes);
+    expect(marks.repo).toEqual([]);
+    expect(marks.gone).toEqual([]);
+    expect(marks.side).toEqual(["checking changes"]);
+    expect(isStatusCandidate(LISTED[0] as GitWorktree)).toBe(false);
+    expect(isStatusCandidate(LISTED[1] as GitWorktree)).toBe(true);
+    expect(isStatusCandidate(worktree({ bare: true }))).toBe(false);
   });
 });
 
