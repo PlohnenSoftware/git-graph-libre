@@ -116,9 +116,9 @@ run one after another, as the integrator procedure says.
 | W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | integrated `88ed629` |
 | W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | integrated `63cdd97` |
 | W22F | [Worktree path setting, browse, and persisted finish choice](050-release-1-10-0-the-worktrees/325-w22f-worktree-path-setting-browse-and-persisted-finish.md) | TS + webview + manifest | W22, Y7, Y8 | D | ready |
-| W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | ready (queued: one manifest or l10n slice at a time) |
+| W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | integrated `65725f7` |
 | W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | integrated `fcc76c4` |
-| W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | ready |
+| W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | dispatched `2026-11-06` (Sonnet) |
 | W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | needs W21, W30 |
 | W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | ready (queued: one manifest or l10n slice at a time) |
 | W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | needs W32 |
@@ -555,3 +555,32 @@ commit, the gate results with numbers, and the Sonar task id.
   this docs-and-workflow change: YAML parse, `kb:check` and the full
   test suite (1,330 + 862) pass; no source file changed, so no new
   coverage or Sonar run.
+- `2026-11-06`: integration resumed by Claude Opus 5.5 after both agents
+  were cut off by the usage limit on `2026-11-05` (W41 and W31 had been
+  finished and integrated meanwhile by the other integrator session).
+  - Found an extra local branch `the_worktrees`, identical to
+    `the-worktrees` at `ddbe602` and checked out in the main checkout,
+    while `the-worktrees` was checked out in `../ggl-W06F`. It is left in
+    place: it is not the integration branch, and nothing was lost. The
+    main checkout is back on `the-worktrees`, and `ggl-W06F` is detached.
+  - The main checkout's engine binary was still `1.0.28`, so the `1.0.30`
+    build was copied in from W24's worktree.
+- `2026-11-06`: W24 integrated at `65725f7`. Muse Code wrote it on
+  `2026-11-05` and stopped after its changelog commit, before the report.
+  - The integrator verified the slice and wrote its report: seven `G`
+    commits, typecheck and strict Biome clean, backend 1341 of 1341,
+    webview 891 of 891, and l10n and kb complete.
+  - Acceptance is met. A remote checkout never ends in "already exists",
+    and integration is `--ff-only`, only when chosen.
+- `2026-11-06`, gate on `65725f7`: W24 since `63cdd97`.
+  - The Rust arm was skipped, with no engine change.
+  - Strict Biome is clean on 14 files. `package`, `l10n:check` and
+    `kb:check` pass.
+  - Fresh `test:coverage`: 175 files, 2,232 of 2,232 tests passed.
+  - Sonar task `173dcf6b-6fb9-4e49-a601-6f6fbf6b3446`: quality gate
+    **`OK`**. New coverage is 93.7%, with 0 security and 0 reliability
+    issues. Its one new violation, S3358 (a nested ternary in W24's
+    dialog), was fixed at `a6634f5`.
+  - Issue #45 is complete with W24 and gated, so this record closes it.
+  - W30, the worktree list, was dispatched to Sonnet, taking the
+    manifest and l10n slot.
