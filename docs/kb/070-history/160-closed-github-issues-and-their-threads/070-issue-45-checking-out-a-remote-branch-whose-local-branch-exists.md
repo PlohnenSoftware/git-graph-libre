@@ -1,6 +1,7 @@
 ---
 summary: >-
-  To tackle, bug and feature (maintainer, `2026-11-04`); `rbalet`,
+  Closed `2026-11-06` by `6f815c5`: the name bug as W05 (`659d095`), the
+  feature as W24 (`65725f7`). `rbalet`,
   `2026-11-02`, label `bug`; #39 closed as its duplicate: checking out a remote
   branch whose local branch exists ends in Git's
   "already exists". Two parts: `cktgh`'s confirmed bug, where the suggested
@@ -12,7 +13,7 @@ summary: >-
 
 # Issue #45: checking out a remote branch whose local branch exists
 
-**Open.** [Issue #45](https://github.com/PlohnenSoftware/git-graph-libre/issues/45),
+**Closed on `2026-11-06`.** [Issue #45](https://github.com/PlohnenSoftware/git-graph-libre/issues/45),
 retitled by the maintainer on `2026-11-02` to "fix(checkout remote branch):
 Allow one click switch and pull when checkout on remote branch with existing
 local is attempted". Opened `2026-11-02` by `rbalet`, label `bug`, on VS Code
@@ -21,9 +22,11 @@ local is attempted". Opened `2026-11-02` by `rbalet`, label `bug`, on VS Code
 the same day as its duplicate. Would belong to Phase 9, Repository and Remote
 Management. **Decision (`2026-11-04`): to tackle, both the name bug and the
 feature.** The maintainer had called the name bug "an actual bug" and the rest
-"more of a feature" (`2026-11-03`). How the feature works is not chosen yet.
-It is planned as W05 (the bug) and W24 (the feature, decision Y14) in Release
-1.10.0 — "The Worktrees".
+"more of a feature" (`2026-11-03`). How the feature works was not chosen
+when it was decided. It was planned as W05 (the bug) and W24 (the feature,
+decision Y14) in Release 1.10.0 — "The Worktrees", and shipped as W05
+(`659d095`) and W24 (`65725f7`). Closed by `6f815c5`, the integrator's gated
+record of W24, when the maintainer pushed `main` on `2026-11-06`.
 
 ## The request
 

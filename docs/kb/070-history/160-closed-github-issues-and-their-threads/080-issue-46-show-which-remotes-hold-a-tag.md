@@ -1,22 +1,29 @@
 ---
 summary: >-
-  To tackle (maintainer, `2026-11-05`), in release 1.10.0 as W26; `rbalet`,
+  Closed `2026-11-06` by `a109e9a`, the reporter's PR #47, merged in 1.10.0
+  with `a93ddc7` and `d1bc642` (W26, with W26F, W26G and W26H). `rbalet`,
   `2026-11-05`: show whether a tag has been pushed to origin. Already
   implemented by the reporter's draft PR #47 (`a109e9a`, `Closes …#46`): each
   tag badge names the remotes holding the identical tag object, read with
-  background `git ls-remote`. Open: when remotes are contacted (Y23) and how
-  the PR lands (Y24).
+  background `git ls-remote`. Decided: when remotes are contacted (Y23, the
+  `repository.showTagRemotes` setting, default `origin`) and how the PR lands
+  (Y24, a plain merge).
 ---
 
 # Issue #46: show which remotes hold a tag
 
-**Open.** [Issue #46](https://github.com/PlohnenSoftware/git-graph-libre/issues/46),
+**Closed on `2026-11-06`.** [Issue #46](https://github.com/PlohnenSoftware/git-graph-libre/issues/46),
 "feat(tag): origine", opened `2026-11-05` by `rbalet`, label `enhancement`.
 It is a follow-up to Phase 15 (tag surfaces, under History), which added
 signed-tag badges and remote tag deletion but nothing that says where a tag
 already is. **Decision (maintainer, `2026-11-05`): to tackle, in release
-1.10.0,** as W26 in Release 1.10.0 — "The Worktrees". The open choices are
-that release's decisions Y23 and Y24.
+1.10.0,** as W26 in Release 1.10.0 — "The Worktrees". Those choices were that
+release's decisions Y23 and Y24. Closed by `a109e9a`, the reporter's commit,
+which the integrator merged unchanged (`a93ddc7`, a plain merge, Y24). The
+PR's later update `dc1886c` was merged at `d1bc642`, and Y23's setting came
+as W26F (`43ac7e9`) and W26G (`697423e`). GitHub marked PR #47 merged on
+`2026-11-06`, and the commit's closing line closed the issue when the
+maintainer pushed `main` on `2026-11-06`.
 
 ## The request
 

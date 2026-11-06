@@ -1,24 +1,27 @@
 ---
 summary: >-
-  To tackle (maintainer, `2026-11-04`); `cktgh`, `2026-10-26`, agreed for
-  1.10.0 on `2026-10-27`: the Push Branch dialog pre-checks `origin` and Set
-  upstream. Verified: the webview
-  knows no upstreams; `%(push:remotename)` names the remote plain `git push`
-  uses (`branch.<b>.pushRemote`, `remote.pushDefault`, upstream); `-u` on
-  several remotes leaves the last one tracked. Recommended: Git's push remote,
-  then `origin`, then the first; Set upstream only for a branch with none.
+  Closed `2026-11-06` by `613fbb4`, shipped in 1.10.0 as W25 (`decdf71`).
+  `cktgh`, `2026-10-26`, agreed on `2026-10-27`: the Push Branch dialog
+  pre-checked `origin` and Set upstream. Verified before the change: the
+  webview knows no upstreams; `%(push:remotename)` names the remote plain
+  `git push` uses (`branch.<b>.pushRemote`, `remote.pushDefault`, upstream);
+  `-u` on several remotes leaves the last one tracked. Recommended, and built
+  by W25: Git's push remote, then `origin`, then the first; Set upstream only
+  for a branch with none.
 ---
 
 # Issue #36: push dialog default remote and Set upstream
 
-**Open.** [Issue #36](https://github.com/PlohnenSoftware/git-graph-libre/issues/36),
+**Closed on `2026-11-06`.** [Issue #36](https://github.com/PlohnenSoftware/git-graph-libre/issues/36),
 "Updating push dialog box to better align with default git behavior", opened
 `2026-10-26` by `cktgh` (who also wrote PRs #22–#25), label `enhancement`.
 Roadmap: Phase 9, Repository and Remote Management. **Decision
 (`2026-11-04`): to tackle.** The maintainer agreed with the request on
-`2026-10-27` and put it on the to-tackle list on `2026-11-04`. Which of the
-options below to implement is not chosen yet. It is planned as W25 in
-Release 1.10.0 — "The Worktrees", with the choice as decision Y11.
+`2026-10-27` and put it on the to-tackle list on `2026-11-04`. When it was
+decided, the options below were not yet chosen. It was planned as W25 in
+Release 1.10.0 — "The Worktrees", with the choice as decision Y11, and
+integrated as `decdf71`. Closed by `613fbb4`, the integrator's gated record
+of W25, when the maintainer pushed `main` on `2026-11-06`.
 
 ## The request
 

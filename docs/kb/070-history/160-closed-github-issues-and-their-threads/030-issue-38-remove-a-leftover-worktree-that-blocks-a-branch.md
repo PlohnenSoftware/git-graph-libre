@@ -1,6 +1,7 @@
 ---
 summary: >-
-  To tackle (maintainer, `2026-11-04`); `rbalet`, `2026-10-28`: a button on
+  Closed `2026-11-06` by `f983598`, shipped in 1.10.0 as W20 (`83f5821`) and
+  W21 (`88ed629`). `rbalet`, `2026-10-28`: a button on
   "Unable to Delete Branch" (the branch is used by a worktree an agent left
   behind) that
   force-removes the worktree. Verified: deleting the folder does not free the
@@ -11,13 +12,17 @@ summary: >-
 
 # Issue #38: remove a leftover worktree that blocks a branch
 
-**Open.** [Issue #38](https://github.com/PlohnenSoftware/git-graph-libre/issues/38),
+**Closed on `2026-11-06`.** [Issue #38](https://github.com/PlohnenSoftware/git-graph-libre/issues/38),
 "feata: delete worktree", opened `2026-10-28` by `rbalet`, label
 `enhancement`. Belongs with Phase 18, Git Worktree Support: it is the action
-side of issue #37. **Decision (`2026-11-04`): to tackle.** The approach is not
-chosen yet, and there is no maintainer reply on GitHub yet. It is planned as
-W20 and W21 in Release 1.10.0 — "The Worktrees", with the policy as decision
-Y5.
+side of issue #37. **Decision (`2026-11-04`): to tackle.** When it was
+decided, the approach was not chosen and there was no maintainer reply on
+GitHub. It was planned as W20 and W21 in Release 1.10.0 — "The Worktrees",
+with the policy as decision Y5. W20 (`83f5821`) explains why a branch checked
+out in another worktree cannot be acted on, and W21 (`88ed629`) adds worktree
+removal, stale-entry removal, repair and prune to the Delete Branch dialog.
+Closed by `f983598`, the integrator's gated record of W21, when the maintainer
+pushed `main` on `2026-11-06`.
 
 ## The request
 

@@ -1,6 +1,7 @@
 ---
 summary: >-
-  To tackle (maintainer, `2026-11-04`); `rbalet`, `2026-10-28`: clicking
+  Closed `2026-11-06` by `31417ec`: W06 (`af7ff04`) and W06F (`0c1437e`)
+  made it so in every popup. `rbalet`, `2026-10-28`: clicking
   anywhere on a dialog checkbox's row should toggle it. Verified: the checkbox
   `<label>` is
   `display: inline-flex` (`media/dialogs.css:198`), so only the box and its
@@ -11,12 +12,14 @@ summary: >-
 
 # Issue #41: whole-row checkbox hit area in dialogs
 
-**Open.** [Issue #41](https://github.com/PlohnenSoftware/git-graph-libre/issues/41),
+**Closed on `2026-11-06`.** [Issue #41](https://github.com/PlohnenSoftware/git-graph-libre/issues/41),
 "feat(modal/ux): wide selection", opened `2026-10-28` by `rbalet`, label
 `enhancement`. No roadmap phase; it is webview polish under the Webview UI
-Styling Guide. **Decision (`2026-11-04`): to tackle.** The details below are
-not chosen yet, and there is no maintainer reply on GitHub yet. It is planned
-as W06 in Release 1.10.0 — "The Worktrees", with the scope as decision Y13.
+Styling Guide. **Decision (`2026-11-04`): to tackle.** When it was decided,
+the details below were not chosen and there was no maintainer reply on
+GitHub. It was planned as W06 in Release 1.10.0 — "The Worktrees", with the
+scope as decision Y13. Closed by `31417ec`, the integrator's gated record of
+W06 and W06F, when the maintainer pushed `main` on `2026-11-06`.
 
 ## The request
 
