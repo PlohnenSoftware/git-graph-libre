@@ -1,11 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getWebviewLocalizedStrings } from "@/extension/webviewL10n";
 import { Dropdown } from "@/webview/dropdown";
-import {
-  getRepoDisplayName,
-  getRepoIndentLevel,
-  getRepoTreeBranch
-} from "@/webview/settingsWidget";
+import { buildRepoOptions } from "@/webview/repoOptions";
+import { getRepoDisplayName } from "@/webview/settingsWidget";
 
 describe("Dropdown", () => {
   beforeEach(() => {
@@ -28,11 +25,17 @@ describe("Dropdown", () => {
 
     expect(parentName).toBe("main");
     expect(childName).toBe("child");
-    expect(getRepoIndentLevel(repoPaths[0], repoPaths)).toBe(0);
-    expect(getRepoIndentLevel(repoPaths[1], repoPaths)).toBe(1);
-    expect(getRepoTreeBranch(repoPaths[1], repoPaths)).toBe("middle");
-    expect(getRepoTreeBranch(repoPaths[2], repoPaths)).toBe("last");
-    expect(getRepoTreeBranch(repoPaths[3], repoPaths)).toBeUndefined();
+    const built = buildRepoOptions(
+      Object.fromEntries(repoPaths.map((repoPath) => [repoPath, { columnWidths: null }])),
+      undefined,
+      { detached: "detached", outsideWorkspace: "outside workspace" }
+    );
+    expect(built.map((option) => [option.value, option.indentLevel, option.treeBranch])).toEqual([
+      [repoPaths[0], 0, undefined],
+      [repoPaths[1], 1, "middle"],
+      [repoPaths[2], 1, "last"],
+      [repoPaths[3], 0, undefined]
+    ]);
 
     const dropdown = new Dropdown("repoSelect", false, "repo", () => {});
     dropdown.setOptions(

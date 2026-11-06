@@ -769,5 +769,8 @@
   "action.worktreeCopyPath": "Copy Path",
   "action.worktreeRemove": "Remove",
   "dialog.removeWorktree.confirm": "Remove the worktree {0}? Its folder and the files in it are deleted from disk.",
-  "dialog.removeWorktree.lockedNote": "It is locked, so it is unlocked before it is removed."
+  "dialog.removeWorktree.lockedNote": "It is locked, so it is unlocked before it is removed.",
+  "ui.repoDetached": "detached",
+  "ui.repoOutsideWorkspace": "outside workspace",
+  "startup.trustConfirmMany": "Allow Git to use these {0} worktrees of one repository? This adds only these exact directories to your global safe.directory list:\n{1}"
 }

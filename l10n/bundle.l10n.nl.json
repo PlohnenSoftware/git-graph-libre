@@ -769,5 +769,8 @@
   "action.worktreeCopyPath": "Pad kopiëren",
   "action.worktreeRemove": "Verwijderen",
   "dialog.removeWorktree.confirm": "De worktree {0} verwijderen? De map en de bestanden erin worden van schijf verwijderd.",
-  "dialog.removeWorktree.lockedNote": "De worktree is vergrendeld en wordt daarom eerst ontgrendeld."
+  "dialog.removeWorktree.lockedNote": "De worktree is vergrendeld en wordt daarom eerst ontgrendeld.",
+  "ui.repoDetached": "losgekoppeld",
+  "ui.repoOutsideWorkspace": "buiten werkruimte",
+  "startup.trustConfirmMany": "Git toestaan deze {0} worktrees van één repository te gebruiken? Hiermee worden alleen deze exacte mappen toegevoegd aan uw globale safe.directory-lijst:\n{1}"
 }

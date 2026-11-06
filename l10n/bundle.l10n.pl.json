@@ -769,5 +769,8 @@
   "action.worktreeCopyPath": "Kopiuj ścieżkę",
   "action.worktreeRemove": "Usuń",
   "dialog.removeWorktree.confirm": "Usunąć worktree {0}? Jego folder i znajdujące się w nim pliki zostaną usunięte z dysku.",
-  "dialog.removeWorktree.lockedNote": "Jest zablokowane, więc przed usunięciem zostanie odblokowane."
+  "dialog.removeWorktree.lockedNote": "Jest zablokowane, więc przed usunięciem zostanie odblokowane.",
+  "ui.repoDetached": "odłączony",
+  "ui.repoOutsideWorkspace": "poza obszarem roboczym",
+  "startup.trustConfirmMany": "Zezwolić Git na używanie tych worktree ({0}) jednego repozytorium? Zostaną dodane tylko te dokładne katalogi do globalnej listy safe.directory:\n{1}"
 }

@@ -42,11 +42,9 @@ import { createFailureScreenReporter } from "./failureScreen";
 import { Graph } from "./graph";
 import { resolveGlobalShortcut } from "./keyboardShortcuts";
 import { groupCommitRefs, parseRemoteBranchName } from "./refLabels";
+import { buildRepoOptions } from "./repoOptions";
 import {
   getRepoBasename,
-  getRepoDisplayName,
-  getRepoIndentLevel,
-  getRepoTreeBranch,
   normalizeRepoBooleanOverride,
   type RepoBooleanSettingKey,
   renderSettingsWidget,
@@ -403,6 +401,8 @@ function existingBranchMessage(
 
 class GitGraphView {
   private gitRepos: GGL.GitRepoSet;
+  /** How the repositories group into Git repositories, and the worktrees outside the workspace. */
+  private repoLayout: GGL.RepoLayout | undefined = viewState.repoLayout;
   private gitBranches: string[] = [];
   private gitBranchHead: string | null = null;
   /** Every worktree of the current repository, from the last branch read; not persisted. */
@@ -558,6 +558,7 @@ class GitGraphView {
     this.footerElem = requireElement("footer");
     this.graphContainerElem = requireElement("commitGraph");
     this.repoDropdown = new Dropdown("repoSelect", true, l10n.repo, (value) => {
+      if (this.switchToOutsideWorktree(value)) return;
       this.currentRepo = value;
       this.maxCommits = this.config.initialLoadCommits;
       this.expandedCommit = null;
@@ -805,8 +806,37 @@ class GitGraphView {
   }
 
   /* Loading Data */
-  public loadRepos(repos: GGL.GitRepoSet, lastActiveRepo: string | null) {
+  /**
+   * An "outside workspace" entry is not a repository yet: choosing it asks the
+   * host to add it and switch the graph, as the Worktrees popup's Switch Graph
+   * does. The dropdown snaps back to the current repository until the host
+   * answers with the new list.
+   */
+  private switchToOutsideWorktree(value: string): boolean {
+    const entry = this.repoLayout?.outside.find((outside) => outside.path === value);
+    if (entry === undefined || Object.hasOwn(this.gitRepos, value)) return false;
+    sendMessage({ command: "switchGraphToWorktree", repo: entry.repo, path: entry.path });
+    this.renderRepoDropdown();
+    return true;
+  }
+
+  private renderRepoDropdown() {
+    const options = buildRepoOptions(this.gitRepos, this.repoLayout, {
+      detached: l10n.repoDetached,
+      outsideWorkspace: l10n.repoOutsideWorkspace
+    });
+    const repoControl = document.getElementById("repoControl");
+    if (repoControl !== null) repoControl.style.display = options.length > 1 ? "" : "none";
+    this.repoDropdown.setOptions(options, this.currentRepo);
+  }
+
+  public loadRepos(
+    repos: GGL.GitRepoSet,
+    lastActiveRepo: string | null,
+    layout: GGL.RepoLayout | undefined = this.repoLayout
+  ) {
     this.gitRepos = repos;
+    this.repoLayout = layout;
     this.saveState();
 
     const repoPaths = Object.keys(repos);
@@ -821,20 +851,7 @@ class GitGraphView {
       changedRepo = true;
     }
 
-    const options: DropdownOption[] = [];
-    for (const repoPath of repoPaths) {
-      options.push({
-        name: getRepoDisplayName(repoPath, repos[repoPath]),
-        value: repoPath,
-        indentLevel: getRepoIndentLevel(repoPath, repoPaths),
-        treeBranch: getRepoTreeBranch(repoPath, repoPaths)
-      });
-    }
-    const repoControl = document.getElementById("repoControl");
-    if (repoControl !== null) {
-      repoControl.style.display = repoPaths.length > 1 ? "" : "none";
-    }
-    this.repoDropdown.setOptions(options, this.currentRepo);
+    this.renderRepoDropdown();
     this.syncRepoSettingsControls();
     this.renderSettingsWidget();
 
@@ -8010,7 +8027,7 @@ const responseHandlers: ResponseHandlerMap = {
   loadRepoInfo: (msg) => gitGraph.loadRepoInfo(msg.requestId, msg.repoInfo),
   loadExtensionSettings: (msg) =>
     gitGraph.loadExtensionSettings(msg.requestId, msg.settings, msg.status),
-  loadRepos: (msg) => gitGraph.loadRepos(msg.repos, msg.lastActiveRepo),
+  loadRepos: (msg) => gitGraph.loadRepos(msg.repos, msg.lastActiveRepo, msg.layout),
   compareFileWithWorkingTree: (msg) =>
     handleSuccessFlagResponse(msg, l10n.unableToCompareFileWithWorkingTree),
   openExternalDirDiff: handleExternalDirDiffResponse,

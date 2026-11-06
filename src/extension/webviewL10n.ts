@@ -15,6 +15,8 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
   return {
     // UI labels
     repo: translate("ui.repo"),
+    repoDetached: translate("ui.repoDetached"),
+    repoOutsideWorkspace: translate("ui.repoOutsideWorkspace"),
     branch: translate("ui.branch"),
     branches: translate("ui.branches"),
     authors: translate("ui.authors"),

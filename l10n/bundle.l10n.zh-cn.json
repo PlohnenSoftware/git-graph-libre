@@ -769,5 +769,8 @@
   "action.worktreeCopyPath": "复制路径",
   "action.worktreeRemove": "移除",
   "dialog.removeWorktree.confirm": "移除工作树 {0}？其文件夹及其中的文件将从磁盘上删除。",
-  "dialog.removeWorktree.lockedNote": "它已被锁定，因此会先解锁再移除。"
+  "dialog.removeWorktree.lockedNote": "它已被锁定，因此会先解锁再移除。",
+  "ui.repoDetached": "已分离",
+  "ui.repoOutsideWorkspace": "工作区外",
+  "startup.trustConfirmMany": "允许 Git 使用同一仓库的这 {0} 个工作树吗？这只会将以下确切目录添加到你的全局 safe.directory 列表：\n{1}"
 }
