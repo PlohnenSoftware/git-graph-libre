@@ -9,7 +9,7 @@ summary: >-
 
 # W51 — Local changes in other worktrees
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-11-06 15:02
 Needs: W30
 Decisions: Y20 ((a) on demand in the list; (b) defer)
 Kind: TypeScript · Size budget: ~120 changed lines outside tests
