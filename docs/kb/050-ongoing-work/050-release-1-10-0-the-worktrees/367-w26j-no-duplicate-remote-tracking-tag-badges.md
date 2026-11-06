@@ -9,7 +9,7 @@ summary: >-
 
 # W26J — No duplicate remote-tracking tag badges
 
-Status: claimed by Claude Sonnet 5.5 on 2026-11-06 12:00
+Status: done — awaiting integration
 Needs: —
 Decisions: the maintainer, `2026-11-06`: "Hide duplicates only". Drop the
 `<remote>/<tag>` badge when the local tag `<tag>` is the same object. Keep
@@ -81,4 +81,26 @@ Source: the maintainer's report, with a screenshot and log
 
 ## Report
 
-Not started.
+Branch `wt-1.10.0/W26J`. Sonar: integrator.
+
+- Engine (`refs.rs`): local tags' unpeeled ids are collected in the scan;
+  a `refs/remotes/<remote>/tags/<tag>` ref is dropped when local `<tag>` has
+  the same id. New helper `remote_tag_name` keeps `read_remote_refs` simple.
+- CLI (`loadCommits.ts`): the ref maps to tag `<remote>/<tag>` (peeled hash,
+  `signed` as local tags, hidden remotes respected), dropped under the same
+  rule. When the tag scan is off (tags neither shown nor selected) neither
+  backend shows a remote-tracking tag, since the engine's graph drops all tags
+  then and the local ids are unknown to the CLI.
+- Engine 1.0.30 to 1.0.31 in `Cargo.toml`, `Cargo.lock`, `package.json`,
+  `EXPECTED_ENGINE_VERSION`.
+- Tests: three Rust unit tests; `toGitRef` unit tests; parity file
+  `tests/backend/engine/remoteTagParity.test.ts` (two local bare remotes, the
+  tags refspec, `GIT_CONFIG_GLOBAL` on an empty file). It fails on the old
+  code. Results on both backends, identical: same annotated one badge, same
+  lightweight one badge, moved tag both badges, remote-only `<remote>/<tag>`,
+  hidden remote none.
+- Gates: engine fmt, clippy, check, test (all pass, 0 failed), engine:build,
+  smoke 1.0.31; typecheck clean; `pnpm run test` 107 files / 1395 tests and
+  76 files / 948 tests, no unhandled errors; Biome strict clean on touched
+  files.
+
