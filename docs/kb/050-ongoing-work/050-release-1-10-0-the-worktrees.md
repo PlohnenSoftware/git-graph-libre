@@ -126,7 +126,7 @@ run one after another, as the integrator procedure says.
 | W32F | [Worktree discovery Sonar follow-up](050-release-1-10-0-the-worktrees/425-w32f-worktree-discovery-sonar-follow-up.md) | TS | W32 | E | integrated `3b13162` |
 | W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | ready (queued: one manifest or l10n slice at a time) |
 | W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | integrated `a9d58f2` (step 2, the Repository-tab note, left for W34F) |
-| W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | dispatched `2026-11-06` (Haiku) |
+| W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | integrated `5ff9385` |
 | W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | integrated `2e37454` |
 | W90 | [Release 1.10.0](050-release-1-10-0-the-worktrees/900-w90-release-1-10-0.md) | release | every slice in scope | — | maintainer |
 
@@ -773,3 +773,14 @@ commit, the gate results with numbers, and the Sonar task id.
     untested on Windows.
   - The rebase was clean. Typecheck passes, the backend passes 1354 (60
     environment skips), and the webview 954 of 954.
+- `2026-11-06`: W50 integrated at `5ff9385`. It adds two once-per-session
+  boolean view features at the commit-load chokepoint (Y19 (a)), disclosed
+  in the README's "What is sent", `telemetry.json` and the Telemetry
+  reference:
+  - `view.worktreeMarker`: a loaded branch is checked out in another
+    worktree;
+  - `view.linkedWorktreeRepo`: a graph was opened on a linked worktree.
+
+  W12's detached-HEAD row is deliberately not counted, since Y19 names
+  exactly these two. The rebase was clean. Typecheck passes, the backend
+  passes 1421 of 1421, and the webview 954 of 954.

@@ -10,7 +10,7 @@ summary: >-
 
 # W50 — Worktree telemetry
 
-Status: done — awaiting integration
+Status: integrated `5ff9385` (`2026-11-06`)
 Needs: W11, W32
 Decisions: Y19 (add the two features, or none)
 Kind: TypeScript and docs · Size budget: ~80 changed lines outside tests
