@@ -600,3 +600,17 @@ commit, the gate results with numbers, and the Sonar task id.
     `[1.10.0]` covers it.
   - W23 and W51 are now ready, queued behind W32, which was dispatched to
     Sonnet into the manifest and l10n slot.
+- `2026-11-06`, gate on `4d03668`: W30 since `65725f7`.
+  - The Rust arm was skipped, with no engine change.
+  - Strict Biome is clean on 12 files. `package`, `l10n:check` and
+    `kb:check` pass.
+  - Fresh `test:coverage`: 177 files, 2,254 of 2,254 tests passed.
+  - The first scan (`f3ec1b4f`) read **`ERROR`**, on one reliability
+    issue. W30's `folderName()` trimmed trailing separators with
+    `/[/\\]+$/` (S8786), the regex W12 had already replaced with a scan
+    in `main.ts`'s `worktreeFolderName()`. W30 could not import that,
+    since `main.ts` imports `worktreeList.ts`. The integrator moved
+    `worktreeFolderName()` to `src/webview/utils/git.ts`, used it from
+    both, and deleted the copy (`eeaa424`).
+  - Coverage rerun: 2,254 of 2,254. Rescan `1bd296d1-2954-431a-aaee-7b6bcef05780`:
+    quality gate **`OK`**, with new coverage 93.7% and 0 new violations.
