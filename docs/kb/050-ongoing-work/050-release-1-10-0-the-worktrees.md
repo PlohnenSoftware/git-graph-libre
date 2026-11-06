@@ -127,7 +127,7 @@ run one after another, as the integrator procedure says.
 | W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | ready (queued: one manifest or l10n slice at a time) |
 | W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | ready (queued: one manifest or l10n slice at a time) |
 | W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | ready (queued: one manifest or l10n slice at a time) |
-| W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | ready (queued: one manifest or l10n slice at a time) |
+| W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | dispatched `2026-11-06` (Haiku) |
 | W90 | [Release 1.10.0](050-release-1-10-0-the-worktrees/900-w90-release-1-10-0.md) | release | every slice in scope | — | maintainer |
 
 **Order, if one agent does everything:**
