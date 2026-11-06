@@ -699,3 +699,11 @@ commit, the gate results with numbers, and the Sonar task id.
   - `sonar.projectVersion` then advanced to `1.10.0` (`b450242`). The
     first `1.10.0` analysis (`d7b4bea1`) is **`OK`**, with 0 new
     violations and the window `PREVIOUS_VERSION 1.9.0`.
+- `2026-11-06` 14:30: the maintainer pushed `main` at `43c2b56` to
+  `origin`. GitHub closed issues #36, #38, #41 and #45 from the integrator's
+  gated `Closes` lines (`613fbb4`, `f983598`, `31417ec`, `6f815c5`), and #46
+  from `a109e9a`. It marked PR #47 merged (`2026-11-06T13:30:05Z`). Closing
+  issues from commits worked as written. PR #47 was no longer a draft, so
+  the draft question is moot. #37 stays open until its last slice (W33).
+  The integrator pushes nothing. The closed issues' subsections move to
+  History in W90H.
