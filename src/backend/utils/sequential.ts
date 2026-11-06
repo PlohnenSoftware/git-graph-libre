@@ -5,23 +5,17 @@
  * as Git's global config, from racing. The first rejection stops the chain, so
  * later items never start. An empty list resolves to an empty array.
  *
- * Written as a promise chain rather than an `await` inside a loop (Sonar
- * S9382). Tasks are called lazily, from inside the chain.
+ * Written as a chain of async reducer steps rather than an `await` inside a
+ * loop (Sonar S9382) or nested promises (S9381). Each step awaits the
+ * previous one before calling its task, so tasks are called lazily, in order.
  */
 export function mapSequential<T, R>(
   items: readonly T[],
   task: (item: T) => Promise<R>
 ): Promise<R[]> {
-  const results: R[] = Array.from({ length: items.length });
-  return items
-    .reduce<Promise<void>>(
-      (chain, item, index) =>
-        chain.then(() =>
-          task(item).then((result) => {
-            results[index] = result;
-          })
-        ),
-      Promise.resolve()
-    )
-    .then(() => results);
+  return items.reduce<Promise<R[]>>(async (previous, item) => {
+    const results = await previous;
+    results.push(await task(item));
+    return results;
+  }, Promise.resolve([]));
 }
