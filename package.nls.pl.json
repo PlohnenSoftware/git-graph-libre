@@ -73,6 +73,8 @@
   "config.repository.fetchTagsByDefault.title": "Domyślne pobieranie tagów",
   "config.repository.showTagRemotes": "Sprawdzaj każde zdalne repozytorium poleceniem `git ls-remote` i pokazuj na plakietce każdego tagu repozytoria, które go zawierają. Wyłącz, aby nigdy nie łączyć się w tym celu ze zdalnymi repozytoriami. Domyślnie włączone.",
   "config.repository.showTagRemotes.title": "Pokazuj zdalne repozytoria na tagach",
+  "config.repository.worktreesOutsideWorkspace": "Pokazuj powiązane worktree spoza folderów obszaru roboczego na liście repozytoriów jako pozycje „poza obszarem roboczym”. Wybranie jednego dodaje go do listy i pozostaje on, dopóki Git go wymienia. Wyłącz, aby pokazywać tylko worktree w obszarze roboczym. Domyślnie włączone.",
+  "config.repository.worktreesOutsideWorkspace.title": "Worktree poza obszarem roboczym",
   "config.dialog.createBranch.checkout": "Domyślnie zaznaczaj opcję „Przełącz na utworzoną gałąź” w oknie tworzenia gałęzi. Domyślnie włączone.",
   "config.dialog.createBranch.checkout.title": "Okno tworzenia gałęzi: przełączenie",
   "config.dialog.merge.noFastForward": "Domyślnie zaznaczaj opcję „Utwórz nowy commit nawet wtedy, gdy możliwy jest fast-forward” w oknach scalania. Domyślnie włączone.",

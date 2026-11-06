@@ -73,6 +73,8 @@
   "config.repository.fetchTagsByDefault.title": "Fetch Tags by Default",
   "config.repository.showTagRemotes": "Check each remote with `git ls-remote` and show the remotes that hold each tag on its badge. Turn off to never contact remotes for this. Enabled by default.",
   "config.repository.showTagRemotes.title": "Show Remotes on Tags",
+  "config.repository.worktreesOutsideWorkspace": "List linked worktrees that live outside the workspace folders in the repository dropdown as \"outside workspace\" entries. Selecting one adds it to the list, and it stays while Git lists it. Turn off to show only worktrees inside the workspace. Enabled by default.",
+  "config.repository.worktreesOutsideWorkspace.title": "Worktrees Outside the Workspace",
   "config.dialog.createBranch.checkout": "Pre-check \"Check out the branch after creating it\" in the create-branch dialog. Enabled by default.",
   "config.dialog.createBranch.checkout.title": "Create Branch Dialog: Checkout",
   "config.dialog.merge.noFastForward": "Pre-check \"Create a new commit even if fast-forward is possible\" in merge dialogs. Enabled by default.",

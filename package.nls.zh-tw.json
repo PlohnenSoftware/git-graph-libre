@@ -73,6 +73,8 @@
   "config.repository.fetchTagsByDefault.title": "預設擷取標籤",
   "config.repository.showTagRemotes": "使用 `git ls-remote` 檢查每個遠端，並在每個標籤徽章上顯示持有該標籤的遠端。關閉後不再為此連線遠端。預設開啟。",
   "config.repository.showTagRemotes.title": "在標籤上顯示遠端",
+  "config.repository.worktreesOutsideWorkspace": "在儲存庫下拉選單中，將位於工作區資料夾之外的連結工作樹顯示為「工作區外」項目。選取後會將其加入清單，只要 Git 仍列出它就會保留。關閉後僅顯示工作區內的工作樹。預設啟用。",
+  "config.repository.worktreesOutsideWorkspace.title": "工作區外的工作樹",
   "config.dialog.createBranch.checkout": "在建立分支對話框中預設勾選「建立後切換到新分支」。預設開啟。",
   "config.dialog.createBranch.checkout.title": "建立分支對話框：切換分支",
   "config.dialog.merge.noFastForward": "在合併對話框中預設勾選「即使可以快進也建立新提交」。預設開啟。",

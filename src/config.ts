@@ -167,6 +167,7 @@ export const config = {
   boldCheckedOutCommit: (): boolean => getConfig("repository.boldCheckedOutCommit", false),
   fetchTagsByDefault: (): boolean => getConfig("repository.fetchTagsByDefault", true),
   showTagRemotes: (): boolean => getConfig("repository.showTagRemotes", true),
+  worktreesOutsideWorkspace: (): boolean => getConfig("repository.worktreesOutsideWorkspace", true),
   mergeNoFastForward: (): boolean => getConfig("dialog.merge.noFastForward", true),
   pullBranchNoFastForward: (): boolean => getConfig("dialog.pullBranch.noFastForward", false),
   createBranchCheckout: (): boolean => getConfig("dialog.createBranch.checkout", true),

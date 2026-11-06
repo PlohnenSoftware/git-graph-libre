@@ -73,6 +73,8 @@
   "config.repository.fetchTagsByDefault.title": "Standaard tags fetchen",
   "config.repository.showTagRemotes": "Controleer elke remote met `git ls-remote` en toon op elke tagbadge de remotes die de tag bevatten. Schakel uit om hiervoor nooit remotes te benaderen. Standaard ingeschakeld.",
   "config.repository.showTagRemotes.title": "Remotes op tags tonen",
+  "config.repository.worktreesOutsideWorkspace": "Toon gekoppelde worktrees buiten de werkruimtemappen in de repositorylijst als vermeldingen \"buiten werkruimte\". Een worktree selecteren voegt hem toe aan de lijst en hij blijft staan zolang Git hem vermeldt. Schakel uit om alleen worktrees binnen de werkruimte te tonen. Standaard ingeschakeld.",
+  "config.repository.worktreesOutsideWorkspace.title": "Worktrees buiten de werkruimte",
   "config.dialog.createBranch.checkout": "In het branch-aanmaakdialoogvenster standaard \"Nieuwe branch uitchecken na het aanmaken\" aanvinken. Standaard ingeschakeld.",
   "config.dialog.createBranch.checkout.title": "Branch-dialoogvenster: uitchecken",
   "config.dialog.merge.noFastForward": "In merge-dialoogvensters standaard \"Maak een nieuwe commit, zelfs als fast-forward mogelijk is\" aanvinken. Standaard ingeschakeld.",

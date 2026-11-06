@@ -544,6 +544,11 @@
           "default": true,
           "description": "%config.repository.showTagRemotes%"
         },
+        "git-graph-libre.repository.worktreesOutsideWorkspace": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.repository.worktreesOutsideWorkspace%"
+        },
         "git-graph-libre.dialog.createBranch.checkout": {
           "type": "boolean",
           "default": true,

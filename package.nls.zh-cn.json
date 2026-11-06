@@ -73,6 +73,8 @@
   "config.repository.fetchTagsByDefault.title": "默认抓取标签",
   "config.repository.showTagRemotes": "使用 `git ls-remote` 检查每个远程仓库，并在每个标签徽章上显示包含该标签的远程仓库。关闭后不再为此连接远程仓库。默认开启。",
   "config.repository.showTagRemotes.title": "在标签上显示远程仓库",
+  "config.repository.worktreesOutsideWorkspace": "在仓库下拉列表中将位于工作区文件夹之外的关联工作树显示为“工作区外”条目。选中后会将其加入列表，只要 Git 仍列出它就会保留。关闭后仅显示工作区内的工作树。默认启用。",
+  "config.repository.worktreesOutsideWorkspace.title": "工作区外的工作树",
   "config.dialog.createBranch.checkout": "在创建分支对话框中默认勾选“创建后切换到新分支”。默认开启。",
   "config.dialog.createBranch.checkout.title": "创建分支对话框：切换分支",
   "config.dialog.merge.noFastForward": "在合并对话框中默认勾选“即使可以快进合并，也要创建新提交”。默认开启。",
