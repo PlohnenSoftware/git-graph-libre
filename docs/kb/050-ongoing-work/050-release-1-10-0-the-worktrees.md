@@ -101,8 +101,9 @@ run one after another, as the integrator procedure says.
 | W07 | [Read a linked worktree's local config](050-release-1-10-0-the-worktrees/170-w07-read-a-linked-worktree-s-local-config.md) | Rust + TS | W01 | A | integrated `c9ce36c` |
 | W08 | [A nested worktree is not a submodule in telemetry](050-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | integrated `6b0e232` |
 | W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | integrated `decdf71` |
-| W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | integrated `a93ddc7` (merge of `a109e9a`) |
+| W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | integrated `a93ddc7` (merge of `a109e9a`), PR update `dc1886c` merged at `d1bc642` |
 | W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | integrated `43ac7e9` |
+| W26G | [Off, origin or all remotes for tag badges](050-release-1-10-0-the-worktrees/366-w26g-off-origin-or-all-remotes-for-tag-badges.md) | TS + webview + manifest + l10n | W26F, W26H, W26HF | A | ready (next in the manifest and l10n slot, after W32) |
 | W26H | [Harden the remote tag read](050-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | integrated `d607144` |
 | W26HF | [Remote tag read Sonar follow-up](050-release-1-10-0-the-worktrees/369-w26hf-remote-tag-read-sonar-follow-up.md) | TS | W26H | A | integrated `8ff94dd` |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | integrated `f9e54a4` |
@@ -614,3 +615,15 @@ commit, the gate results with numbers, and the Sonar task id.
     both, and deleted the copy (`eeaa424`).
   - Coverage rerun: 2,254 of 2,254. Rescan `1bd296d1-2954-431a-aaee-7b6bcef05780`:
     quality gate **`OK`**, with new coverage 93.7% and 0 new violations.
+- `2026-11-06`: PR #47's update merged at `d1bc642`, a plain merge commit
+  with `dc1886c` unchanged (maintainer: "please merge dc1886c… so PR
+  updated by raphael balet is merged in full"). The PR is no longer a
+  draft. Its head adds `0ded155` (a simplified screenshot, taken) and
+  `dc1886c` (origin-only badges).
+  - `dc1886c`'s code conflicted with W26F, W26H and W26HF, and was
+    resolved to the integrated code, so no source differs from the gated
+    `afdbe4c`. The History record took the contributor's text, with an
+    integration note appended.
+  - The maintainer asked for a three-way setting: off, only origin, all.
+    The contributor's narrowing becomes the default `"origin"` mode in
+    W26G, added and queued next in the manifest and l10n slot after W32.
