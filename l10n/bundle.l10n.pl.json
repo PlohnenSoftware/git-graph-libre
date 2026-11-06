@@ -754,5 +754,20 @@
   "error.branchNameTaken": "Gałąź o nazwie {0} już istnieje.",
   "error.unableToCheckoutAndFastForward": "Nie można przełączyć na gałąź i wykonać na niej fast-forward",
   "error.checkoutStepFailed": "Nie można było przełączyć na gałąź {0}, więc nie wykonano na niej fast-forward do {1}. {2}",
-  "error.fastForwardStepFailed": "Przełączono na gałąź {0}, ale nie można było wykonać na niej fast-forward do {1}, więc gałąź pozostaje bez zmian. {2}"
+  "error.fastForwardStepFailed": "Przełączono na gałąź {0}, ale nie można było wykonać na niej fast-forward do {1}, więc gałąź pozostaje bez zmian. {2}",
+  "ui.worktrees": "Worktree",
+  "ui.worktreesClose": "Zamknij",
+  "ui.worktreeBadgeMain": "główne",
+  "ui.worktreeBadgeCurrent": "bieżące",
+  "ui.worktreeBadgeBare": "puste",
+  "ui.worktreeBareNoBranch": "puste repozytorium, bez katalogu roboczego",
+  "ui.worktreeDetachedAt": "odłączony na {0}",
+  "ui.worktreesEmpty": "Git nie wyświetla żadnych worktree dla tego repozytorium.",
+  "action.worktreeOpenNewWindow": "Otwórz w nowym oknie",
+  "action.worktreeOpenHere": "Otwórz tutaj",
+  "action.worktreeSwitchGraph": "Przełącz graf",
+  "action.worktreeCopyPath": "Kopiuj ścieżkę",
+  "action.worktreeRemove": "Usuń",
+  "dialog.removeWorktree.confirm": "Usunąć worktree {0}? Jego folder i znajdujące się w nim pliki zostaną usunięte z dysku.",
+  "dialog.removeWorktree.lockedNote": "Jest zablokowane, więc przed usunięciem zostanie odblokowane."
 }

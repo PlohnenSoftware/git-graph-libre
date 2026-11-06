@@ -411,3 +411,145 @@
   display: block;
   margin: 0;
 }
+
+/* Worktrees popup (W30): the settings popup's frame at list size. */
+#worktreeListBacking {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background-color: var(--ngg-backdrop);
+}
+#worktreeListBacking[hidden],
+#worktreeList[hidden] {
+  display: none;
+}
+#worktreeList {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  z-index: 301;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  transform: translateX(-50%);
+  border: 1px solid var(--vscode-editorWidget-border, var(--ngg-neutral-border-strong));
+  border-radius: 8px;
+  background-color: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
+  color: var(--vscode-editor-foreground);
+  box-shadow: 0 8px 24px var(--vscode-widget-shadow);
+  font-size: 13px;
+}
+#worktreeList:focus {
+  outline: none;
+}
+.worktreeBody {
+  flex: 1 1 auto;
+  padding: 0 16px 8px;
+}
+.worktreeRows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.worktreeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+}
+.worktreeInfo {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.worktreeTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  font-weight: 600;
+}
+.worktreeName,
+.worktreeBranch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.worktreeName svg,
+.worktreeBranch svg {
+  flex: none;
+  fill: currentColor;
+}
+.worktreeBranch,
+.worktreePath {
+  margin-top: 2px;
+  color: var(--vscode-descriptionForeground);
+}
+.worktreePath {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.worktreeBadge {
+  padding: 0 6px;
+  border-radius: 8px;
+  background-color: var(--vscode-badge-background, var(--ngg-neutral-overlay-strong));
+  color: var(--vscode-badge-foreground, var(--vscode-foreground));
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 16px;
+}
+.worktreeBadge.locked,
+.worktreeBadge.prunable {
+  background-color: var(--ngg-transparent);
+  border: 1px solid var(--ngg-warning);
+  color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
+}
+.worktreeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.worktreeAction {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--vscode-button-border, var(--ngg-transparent));
+  border-radius: 2px;
+  background-color: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-muted));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  font: inherit;
+  cursor: pointer;
+}
+.worktreeAction:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground, var(--ngg-neutral-overlay-strong));
+}
+.worktreeAction:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+.worktreeEmpty {
+  margin: 8px 0;
+  color: var(--vscode-descriptionForeground);
+}
+.worktreeFooter {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  background-color: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
+}
+.worktreeFooter .worktreeAction:first-child {
+  background-color: var(--vscode-button-background, var(--ngg-accent));
+  color: var(--vscode-button-foreground, var(--ngg-accent-foreground));
+}
+.worktreeFooter .worktreeAction:first-child:hover {
+  background-color: var(--vscode-button-hoverBackground, var(--ngg-accent));
+}

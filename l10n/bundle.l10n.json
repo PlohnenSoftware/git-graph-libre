@@ -754,5 +754,20 @@
   "error.branchNameTaken": "A branch named {0} already exists.",
   "error.unableToCheckoutAndFastForward": "Unable to Switch to and Fast-Forward Branch",
   "error.checkoutStepFailed": "Could not switch to the branch {0}, so it was not fast-forwarded to {1}. {2}",
-  "error.fastForwardStepFailed": "Switched to the branch {0}, but it could not be fast-forwarded to {1}, so the branch stays as it was. {2}"
+  "error.fastForwardStepFailed": "Switched to the branch {0}, but it could not be fast-forwarded to {1}, so the branch stays as it was. {2}",
+  "ui.worktrees": "Worktrees",
+  "ui.worktreesClose": "Close",
+  "ui.worktreeBadgeMain": "main",
+  "ui.worktreeBadgeCurrent": "current",
+  "ui.worktreeBadgeBare": "bare",
+  "ui.worktreeBareNoBranch": "bare repository, no working tree",
+  "ui.worktreeDetachedAt": "detached at {0}",
+  "ui.worktreesEmpty": "Git lists no worktrees for this repository.",
+  "action.worktreeOpenNewWindow": "Open in New Window",
+  "action.worktreeOpenHere": "Open Here",
+  "action.worktreeSwitchGraph": "Switch Graph",
+  "action.worktreeCopyPath": "Copy Path",
+  "action.worktreeRemove": "Remove",
+  "dialog.removeWorktree.confirm": "Remove the worktree {0}? Its folder and the files in it are deleted from disk.",
+  "dialog.removeWorktree.lockedNote": "It is locked, so it is unlocked before it is removed."
 }

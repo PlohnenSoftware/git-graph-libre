@@ -754,5 +754,20 @@
   "error.branchNameTaken": "名为 {0} 的分支已存在。",
   "error.unableToCheckoutAndFastForward": "无法切换到分支并将其快进",
   "error.checkoutStepFailed": "无法切换到分支 {0}，因此未将其快进到 {1}。{2}",
-  "error.fastForwardStepFailed": "已切换到分支 {0}，但无法将其快进到 {1}，因此该分支保持不变。{2}"
+  "error.fastForwardStepFailed": "已切换到分支 {0}，但无法将其快进到 {1}，因此该分支保持不变。{2}",
+  "ui.worktrees": "工作树",
+  "ui.worktreesClose": "关闭",
+  "ui.worktreeBadgeMain": "主",
+  "ui.worktreeBadgeCurrent": "当前",
+  "ui.worktreeBadgeBare": "裸",
+  "ui.worktreeBareNoBranch": "裸仓库，没有工作目录",
+  "ui.worktreeDetachedAt": "分离于 {0}",
+  "ui.worktreesEmpty": "Git 没有列出此仓库的工作树。",
+  "action.worktreeOpenNewWindow": "在新窗口中打开",
+  "action.worktreeOpenHere": "在此窗口中打开",
+  "action.worktreeSwitchGraph": "切换图表",
+  "action.worktreeCopyPath": "复制路径",
+  "action.worktreeRemove": "移除",
+  "dialog.removeWorktree.confirm": "移除工作树 {0}？其文件夹及其中的文件将从磁盘上删除。",
+  "dialog.removeWorktree.lockedNote": "它已被锁定，因此会先解锁再移除。"
 }

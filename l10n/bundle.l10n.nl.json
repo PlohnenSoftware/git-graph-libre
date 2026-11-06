@@ -754,5 +754,20 @@
   "error.branchNameTaken": "Er bestaat al een branch met de naam {0}.",
   "error.unableToCheckoutAndFastForward": "Kan niet overschakelen naar de branch en deze fast-forwarden",
   "error.checkoutStepFailed": "Kon niet overschakelen naar de branch {0}, dus deze is niet gefast-forward naar {1}. {2}",
-  "error.fastForwardStepFailed": "Overgeschakeld naar de branch {0}, maar deze kon niet worden gefast-forward naar {1}, dus de branch blijft zoals deze was. {2}"
+  "error.fastForwardStepFailed": "Overgeschakeld naar de branch {0}, maar deze kon niet worden gefast-forward naar {1}, dus de branch blijft zoals deze was. {2}",
+  "ui.worktrees": "Worktrees",
+  "ui.worktreesClose": "Sluiten",
+  "ui.worktreeBadgeMain": "hoofd",
+  "ui.worktreeBadgeCurrent": "huidig",
+  "ui.worktreeBadgeBare": "kaal",
+  "ui.worktreeBareNoBranch": "kale repository, geen werkmap",
+  "ui.worktreeDetachedAt": "losgekoppeld op {0}",
+  "ui.worktreesEmpty": "Git toont geen worktrees voor deze repository.",
+  "action.worktreeOpenNewWindow": "Openen in nieuw venster",
+  "action.worktreeOpenHere": "Hier openen",
+  "action.worktreeSwitchGraph": "Graaf wisselen",
+  "action.worktreeCopyPath": "Pad kopiëren",
+  "action.worktreeRemove": "Verwijderen",
+  "dialog.removeWorktree.confirm": "De worktree {0} verwijderen? De map en de bestanden erin worden van schijf verwijderd.",
+  "dialog.removeWorktree.lockedNote": "De worktree is vergrendeld en wordt daarom eerst ontgrendeld."
 }

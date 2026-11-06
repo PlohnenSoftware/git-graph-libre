@@ -67,6 +67,12 @@ import { svgIcons } from "./utils/icons";
 import { extractIssueLinks } from "./utils/linkify";
 import { rewritePaletteLightnessChroma, toOklch } from "./utils/oklchColor";
 import { sendMessage, vscode } from "./utils/vscode";
+import {
+  buildWorktreeListLabels,
+  type WorktreeFooterAction,
+  WorktreePopup,
+  type WorktreeRowAction
+} from "./worktreeList";
 
 const searchHistoryMaxResults = 50;
 const failureScreens = createFailureScreenReporter(sendMessage);
@@ -501,6 +507,7 @@ class GitGraphView {
   private readonly settingsBtn: HTMLButtonElement;
   private readonly settingsWidgetBackingElem: HTMLElement;
   private readonly settingsWidgetElem: HTMLElement;
+  private readonly worktreePopup: WorktreePopup;
   private settingsWidgetOpen = false;
   private settingsWidgetTab: GGL.SettingsWidgetTab = "repository";
   private extensionSettings: GGL.ExtensionSetting[] | null = null;
@@ -577,6 +584,8 @@ class GitGraphView {
       this.gitUpstreams = {};
       this.gitBranchWorktrees = new Map();
       this.gitDetachedWorktreeHeads = new Map();
+      this.worktreePopup.close();
+      this.worktreePopup.update([]);
       this.closeSettingsWidget();
       this.syncRepoSettingsControls();
       this.updateRemoteActionsVisibility();
@@ -668,6 +677,15 @@ class GitGraphView {
     this.settingsBtn = requireElement<HTMLButtonElement>("settingsBtn");
     this.settingsWidgetBackingElem = requireElement("settingsWidgetBacking");
     this.settingsWidgetElem = requireElement("settingsWidget");
+    this.worktreePopup = new WorktreePopup(
+      requireElement("worktreesBtn"),
+      () => buildWorktreeListLabels(l10n),
+      () => this.config.shortHashLength,
+      {
+        onRowAction: (action, worktree) => this.handleWorktreeRowAction(action, worktree),
+        onFooterAction: (action) => this.handleWorktreeFooterAction(action)
+      }
+    );
     document.getElementById("findBtn")?.addEventListener("click", () => {
       this.showFindWidget();
     });
@@ -928,6 +946,7 @@ class GitGraphView {
     this.gitUpstreams = upstreams;
     this.gitBranchWorktrees = branchWorktreeMap(worktrees);
     this.gitDetachedWorktreeHeads = detachedWorktreeHeadMap(worktrees);
+    this.worktreePopup.update(worktrees);
     const defaultBranchAllowed = this.currentBranch === null || this.currentBranch !== "";
     this.currentBranches = this.keepAvailableSelections(
       this.currentBranches,
@@ -1687,6 +1706,17 @@ class GitGraphView {
     }
   }
   public handleGlobalKeyboardShortcut(event: KeyboardEvent) {
+    if (
+      event.key === "Escape" &&
+      this.worktreePopup.isOpen() &&
+      !isEditableTarget(event.target) &&
+      !isDialogActive() &&
+      !isContextMenuActive()
+    ) {
+      event.preventDefault();
+      this.worktreePopup.close();
+      return true;
+    }
     if (
       event.key === "Escape" &&
       this.settingsWidgetOpen &&
@@ -5293,6 +5323,71 @@ class GitGraphView {
       [],
       l10n.dialogRemoveWorktreeForceSubmit,
       () => this.sendRemoveWorktree({ ...pending.request, force: true }),
+      null
+    );
+  }
+  /** A button of the Worktrees popup's row (W30): each goes through the flow that owns it. */
+  private handleWorktreeRowAction(action: WorktreeRowAction, worktree: GitWorktree) {
+    const base = { repo: this.currentRepo, path: worktree.path };
+    switch (action) {
+      case "openNewWindow":
+        sendMessage({ command: "openWorktree", ...base, newWindow: true });
+        break;
+      case "openHere":
+        sendMessage({ command: "openWorktree", ...base, newWindow: false });
+        break;
+      case "switchGraph":
+        sendMessage({ command: "switchGraphToWorktree", ...base });
+        break;
+      case "copyPath":
+        sendMessage({ command: "copyToClipboard", type: "Worktree Path", data: worktree.path });
+        break;
+      case "repair":
+        sendMessage({ command: "repairWorktree", ...base, newPath: null });
+        break;
+      case "removeStale":
+        this.removeWorktreeAction(worktree);
+        break;
+      case "remove":
+        this.confirmRemoveWorktree(worktree);
+        break;
+    }
+  }
+  /** Removing a worktree with files asks first; W21's flow then reads its local changes. */
+  private confirmRemoveWorktree(worktree: GitWorktree) {
+    const message = l10n.dialogRemoveWorktreeConfirm.replace(
+      "{0}",
+      () => `<b><i>${escapeHtml(worktree.path)}</i></b>`
+    );
+    showConfirmationDialog(
+      `${message} ${this.removeLockedNote(worktree)}`.trim(),
+      () => this.removeWorktreeAction(worktree),
+      null
+    );
+  }
+  /** What the removal says about a lock: it is lifted first, never forced. */
+  private removeLockedNote(worktree: GitWorktree): string {
+    if (worktree.locked === null) return "";
+    const reason = worktree.locked.reason;
+    if (reason === "") return l10n.dialogRemoveWorktreeLockedNote;
+    return l10n.dialogDeleteBranchLockedNote.replace("{0}", () => escapeHtml(reason));
+  }
+  /** The popup's footer: Create Worktree… from HEAD (W22) and Prune Stale Worktrees… (W21). */
+  private handleWorktreeFooterAction(action: WorktreeFooterAction) {
+    if (action === "prune") {
+      this.showPruneWorktreesDialog();
+      return;
+    }
+    const onBranch = this.gitBranchHead !== null;
+    this.showCreateWorktreeDialog(
+      {
+        label: "HEAD",
+        startPoint: "HEAD",
+        folderName: this.gitBranchHead ?? "head",
+        branch: null,
+        newBranchName: "",
+        mode: onBranch ? "new" : "detach"
+      },
       null
     );
   }
