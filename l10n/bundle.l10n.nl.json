@@ -808,5 +808,6 @@
   "error.worktreeMoveNotListed": "De worktree is niet naar {0} verplaatst.",
   "ui.repoDetached": "losgekoppeld",
   "ui.repoOutsideWorkspace": "buiten werkruimte",
+  "ui.repoBareRepository": "kale repository",
   "startup.trustConfirmMany": "Git toestaan deze {0} worktrees van één repository te gebruiken? Hiermee worden alleen deze exacte mappen toegevoegd aan uw globale safe.directory-lijst:\n{1}"
 }

@@ -808,5 +808,6 @@
   "error.worktreeMoveNotListed": "工作樹未移動到 {0}。",
   "ui.repoDetached": "已分離",
   "ui.repoOutsideWorkspace": "工作區外",
+  "ui.repoBareRepository": "裸倉庫",
   "startup.trustConfirmMany": "允許 Git 使用同一儲存庫的這 {0} 個工作樹嗎？這只會將以下確切的目錄加入你的全域 safe.directory 清單：\n{1}"
 }

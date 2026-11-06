@@ -808,5 +808,6 @@
   "error.worktreeMoveNotListed": "The worktree was not moved to {0}.",
   "ui.repoDetached": "detached",
   "ui.repoOutsideWorkspace": "outside workspace",
+  "ui.repoBareRepository": "bare repository",
   "startup.trustConfirmMany": "Allow Git to use these {0} worktrees of one repository? This adds only these exact directories to your global safe.directory list:\n{1}"
 }

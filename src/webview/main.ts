@@ -890,7 +890,8 @@ class GitGraphView {
   private renderRepoDropdown() {
     const options = buildRepoOptions(this.gitRepos, this.repoLayout, {
       detached: l10n.repoDetached,
-      outsideWorkspace: l10n.repoOutsideWorkspace
+      outsideWorkspace: l10n.repoOutsideWorkspace,
+      bareRepository: l10n.repoBareRepository
     });
     const repoControl = document.getElementById("repoControl");
     if (repoControl !== null) repoControl.style.display = options.length > 1 ? "" : "none";

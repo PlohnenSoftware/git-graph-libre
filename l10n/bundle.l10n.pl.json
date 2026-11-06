@@ -808,5 +808,6 @@
   "error.worktreeMoveNotListed": "Drzewa roboczego nie przeniesiono do {0}.",
   "ui.repoDetached": "odłączony",
   "ui.repoOutsideWorkspace": "poza obszarem roboczym",
+  "ui.repoBareRepository": "puste repozytorium",
   "startup.trustConfirmMany": "Zezwolić Git na używanie tych worktree ({0}) jednego repozytorium? Zostaną dodane tylko te dokładne katalogi do globalnej listy safe.directory:\n{1}"
 }
