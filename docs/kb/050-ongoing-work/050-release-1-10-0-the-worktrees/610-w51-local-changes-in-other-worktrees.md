@@ -9,7 +9,7 @@ summary: >-
 
 # W51 — Local changes in other worktrees
 
-Status: done — awaiting integration
+Status: integrated `2e37454` (`2026-11-06`)
 Needs: W30
 Decisions: Y20 ((a) on demand in the list; (b) defer)
 Kind: TypeScript · Size budget: ~120 changed lines outside tests

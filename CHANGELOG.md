@@ -29,6 +29,12 @@ checkout defaults that follow Git.
   and prune stale entries after a preview
   ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
 
+- **See which worktrees have local changes.** When the Worktrees list
+  opens, each other worktree is checked once for uncommitted changes, and
+  its row says "clean", how many local changes it has, or "changes unknown"
+  when the check could not finish. Nothing is checked on a refresh
+  ([#37](https://github.com/PlohnenSoftware/git-graph-libre/issues/37)).
+
 - **Lock, unlock and move a worktree.** From the Worktrees list, or a
   branch held by another worktree: Lock Worktree… with an optional reason,
   Unlock, and Move Worktree… to a new folder. A locked worktree is never

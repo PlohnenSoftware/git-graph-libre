@@ -117,7 +117,7 @@ run one after another, as the integrator procedure says.
 | W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | integrated `83f5821` |
 | W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | integrated `88ed629` |
 | W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | integrated `63cdd97` |
-| W22F | [Worktree path setting, browse, and persisted finish choice](050-release-1-10-0-the-worktrees/325-w22f-worktree-path-setting-browse-and-persisted-finish.md) | TS + webview + manifest | W22, Y7, Y8 | D | ready |
+| W22F | [Worktree path setting, browse, and persisted finish choice](050-release-1-10-0-the-worktrees/325-w22f-worktree-path-setting-browse-and-persisted-finish.md) | TS + webview + manifest | W22, Y7, Y8 | D | dispatched `2026-11-06` (Haiku) |
 | W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | integrated `65725f7` |
 | W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | integrated `fcc76c4` |
 | W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | integrated `5cdfa9e` |
@@ -125,9 +125,9 @@ run one after another, as the integrator procedure says.
 | W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | integrated `426b789` |
 | W32F | [Worktree discovery Sonar follow-up](050-release-1-10-0-the-worktrees/425-w32f-worktree-discovery-sonar-follow-up.md) | TS | W32 | E | integrated `3b13162` |
 | W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | ready (queued: one manifest or l10n slice at a time) |
-| W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | ready (queued: one manifest or l10n slice at a time) |
-| W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | ready (queued: one manifest or l10n slice at a time) |
-| W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | dispatched `2026-11-06` (Haiku) |
+| W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | dispatched `2026-11-06` (Haiku) |
+| W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | dispatched `2026-11-06` (Haiku) |
+| W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | integrated `2e37454` |
 | W90 | [Release 1.10.0](050-release-1-10-0-the-worktrees/900-w90-release-1-10-0.md) | release | every slice in scope | — | maintainer |
 
 **Order, if one agent does everything:**
@@ -748,3 +748,14 @@ commit, the gate results with numbers, and the Sonar task id.
     **`OK`**. New coverage is 94.3%, with 0 security and 0 reliability
     issues. Its three new violations, all W23's (S3801 twice, S1117), were
     fixed at `07b90b2`.
+- `2026-11-06`: W51 integrated at `2e37454`. When the Worktrees list opens,
+  each other worktree is checked for local changes, once, at most 3 at a
+  time with a 5 s timeout, reusing W21's `worktreeChanges`. Each row shows
+  "clean", a change count, or "changes unknown".
+  - Noted: a timed-out `git status` is dropped but not killed, since
+    simple-git's `raw` cannot abort.
+  - The rebase was clean. Typecheck passes, the backend passes 1344 (60
+    environment skips), the webview 954 of 954, and l10n is complete. The
+    integrator added the `CHANGELOG.md` line.
+  - Dispatched: W22F to Haiku, into the manifest and l10n slot; W34 and
+    W50 to Haiku in parallel, since neither touches the manifest or l10n.
