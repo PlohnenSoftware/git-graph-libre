@@ -152,8 +152,8 @@ All settings use the `git-graph-libre` prefix.
 | `repository.includeUnreachableCommits`         | `false`         | Scan for unreachable commits in Show All         |
 | `repository.muteMergeCommits`                  | `false`         | Mute merge commit messages (opt-in)              |
 | `repository.showTagRemotes`                    | `"origin"`      | Remotes checked for tag badges: `"off"`, `"origin"` or `"all"` |
-| `repository.worktreesOutsideWorkspace`         | `true`          | List linked worktrees outside the workspace in the dropdown |
 | `repository.stashDisplay`                      | `"both"`        | Show stashes in the `"table"`, the `"graph"`, or `"both"` |
+| `repository.worktreesOutsideWorkspace`         | `true`          | List linked worktrees outside the workspace in the dropdown |
 | `uncommittedChanges.fileViewMode`              | `"tree"`        | Staging panel shows changes as a `"tree"` or flat `"list"` |
 | `showCurrentBranchByDefault`                   | `false`         | Show only current branch on open                 |
 | `showStatusBarItem`                            | `true`          | Show status bar button                           |
