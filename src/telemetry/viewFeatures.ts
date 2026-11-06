@@ -22,6 +22,9 @@
  * and hence the test that checks the ids against that pattern.
  */
 
+import * as fs from "node:fs";
+import * as path from "node:path";
+
 import type { GitCommitNode } from "@/backend/types";
 import { resolveGitDirs } from "@/backend/utils/gitDirs";
 import type { EngineUnavailableReason } from "@/types";
@@ -76,6 +79,13 @@ export const VIEW_FEATURE_FORCE_CLI_RELOAD = "view.forceCliReload";
  * flat list either way, and reporting that would count intent rather than use.
  */
 export const VIEW_FEATURE_UNCOMMITTED_TREE = "view.uncommittedTree";
+/**
+ * A branch badge in the graph was marked as checked out in another worktree
+ * (W11): a branch the loaded graph draws is also checked out elsewhere.
+ */
+export const VIEW_FEATURE_WORKTREE_MARKER = "view.worktreeMarker";
+/** The graph was loaded on a linked worktree, not on a main worktree or a plain repository. */
+export const VIEW_FEATURE_LINKED_WORKTREE_REPO = "view.linkedWorktreeRepo";
 
 /** Exactly the pattern the ingest applies. Kept here so a test can assert it. */
 export const INGEST_FEATURE_NAME_PATTERN = /^[a-z][a-zA-Z0-9._-]{0,63}$/;
@@ -148,6 +158,83 @@ function hasSignedTag(commits: readonly Pick<GitCommitNode, "refs">[]): boolean 
 
 function hasStashRows(commits: readonly Pick<GitCommitNode, "stash">[]): boolean {
   return commits.some((commit) => commit.stash !== undefined);
+}
+
+function readText(file: string): string | null {
+  try {
+    return fs.readFileSync(file, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+const headBranchPrefix = "ref: refs/heads/";
+
+/** The branch a worktree's HEAD names, or null for a detached or unreadable HEAD. */
+function branchOfHead(gitDir: string): string | null {
+  const line = readText(path.join(gitDir, "HEAD"))?.split(/\r?\n/)[0] ?? "";
+  return line.startsWith(headBranchPrefix) ? line.slice(headBranchPrefix.length).trim() : null;
+}
+
+/** Whether a common dir's `config` sets `core.bare`: such a repository has no main worktree. */
+function isBareRepository(commonDir: string): boolean {
+  let section = "";
+  for (const line of (readText(path.join(commonDir, "config")) ?? "").split(/\r?\n/)) {
+    const header = /^\s*\[([^\]\s"]+)\]/.exec(line);
+    if (header) {
+      section = header[1]?.toLowerCase() ?? "";
+    } else if (section === "core" && /^\s*bare\s*=\s*(true|yes|on|1)\b/i.test(line)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * The branches checked out in worktrees other than `repo`'s own: the HEAD of
+ * every linked worktree under `<common>/worktrees/` except this one, and the
+ * main worktree's HEAD when `repo` is itself linked and the common dir is not
+ * bare. That is the set the branch badge marks (W11), read from the admin
+ * directories so no Git process is spawned. A detached HEAD names no branch,
+ * and a worktree whose folder has gone still counts, as Git still lists it.
+ */
+function branchesCheckedOutElsewhere(repo: string): Set<string> {
+  const { gitDir, commonDir } = resolveGitDirs(repo);
+  const branches = new Set<string>();
+  const worktreesDir = path.join(commonDir, "worktrees");
+  let adminNames: string[] = [];
+  try {
+    adminNames = fs.readdirSync(worktreesDir);
+  } catch {
+    adminNames = [];
+  }
+  for (const name of adminNames) {
+    const admin = path.join(worktreesDir, name);
+    if (path.resolve(admin) === path.resolve(gitDir)) continue;
+    const branch = branchOfHead(admin);
+    if (branch !== null) branches.add(branch);
+  }
+  const isLinked = path.resolve(gitDir) !== path.resolve(commonDir);
+  if (isLinked && !isBareRepository(commonDir)) {
+    const mainBranch = branchOfHead(commonDir);
+    if (mainBranch !== null) branches.add(mainBranch);
+  }
+  return branches;
+}
+
+/**
+ * Whether the loaded graph draws a branch that is checked out in another
+ * worktree, which is exactly when the branch badge carries the W11 marker.
+ * Only branch (`head`) refs qualify, as the webview marks nothing else.
+ */
+function hasBranchCheckedOutElsewhere(
+  commits: readonly Pick<GitCommitNode, "refs">[],
+  repo: string
+): boolean {
+  const drawn = commits.flatMap((commit) => commit.refs).filter((ref) => ref.type === "head");
+  if (drawn.length === 0) return false;
+  const elsewhere = branchesCheckedOutElsewhere(repo);
+  return drawn.some((ref) => elsewhere.has(ref.name));
 }
 
 /**
@@ -236,6 +323,21 @@ export function createViewFeatureReporter(
     if (facts.forcedCli) reportOnce(VIEW_FEATURE_FORCE_CLI_RELOAD);
   }
 
+  // The linked-worktree answer is cached by `isWorktree`. The marker reads the
+  // other worktrees' branches from the file system, so it is asked only until
+  // it has fired, and only when the load draws a branch at all.
+  function reportWorktreeSignals(facts: CommitLoadFacts) {
+    if (!reported.has(VIEW_FEATURE_LINKED_WORKTREE_REPO) && isWorktree(facts.repo)) {
+      reportOnce(VIEW_FEATURE_LINKED_WORKTREE_REPO);
+    }
+    if (
+      !reported.has(VIEW_FEATURE_WORKTREE_MARKER) &&
+      hasBranchCheckedOutElsewhere(facts.commits, facts.repo)
+    ) {
+      reportOnce(VIEW_FEATURE_WORKTREE_MARKER);
+    }
+  }
+
   return {
     recordCommitLoad(facts) {
       if (facts.includeReflog) reportOnce(VIEW_FEATURE_REFLOG);
@@ -254,6 +356,7 @@ export function createViewFeatureReporter(
         reportOnce(VIEW_FEATURE_STASH_ROWS);
       }
       reportEngineSignals(facts);
+      reportWorktreeSignals(facts);
       // Submodules are a shown feature as well: discovery puts them in the
       // repository dropdown as indented entries and there is no command
       // behind them, so neither action chokepoint can see them. Two signals

@@ -12,6 +12,7 @@ import {
   VIEW_FEATURE_ENGINE_FAILED,
   VIEW_FEATURE_ENGINE_UNAVAILABLE_PREFIX,
   VIEW_FEATURE_FORCE_CLI_RELOAD,
+  VIEW_FEATURE_LINKED_WORKTREE_REPO,
   VIEW_FEATURE_REFLOG,
   VIEW_FEATURE_SIGNED_TAG,
   VIEW_FEATURE_STASH_ROWS,
@@ -19,7 +20,8 @@ import {
   VIEW_FEATURE_SUBMODULE_REPO,
   VIEW_FEATURE_UNCOMMITTED_PANEL,
   VIEW_FEATURE_UNCOMMITTED_TREE,
-  VIEW_FEATURE_UNREACHABLE
+  VIEW_FEATURE_UNREACHABLE,
+  VIEW_FEATURE_WORKTREE_MARKER
 } from "@/telemetry/viewFeatures";
 
 import { git, makeRepo } from "../helpers";
@@ -384,6 +386,8 @@ describe("view feature reporting", () => {
   // so a malformed id here would silently drop up to 25 unrelated events.
   it.each([
     VIEW_FEATURE_UNCOMMITTED_TREE,
+    VIEW_FEATURE_WORKTREE_MARKER,
+    VIEW_FEATURE_LINKED_WORKTREE_REPO,
     VIEW_FEATURE_ENGINE_BACKEND,
     VIEW_FEATURE_REFLOG,
     VIEW_FEATURE_UNREACHABLE,
@@ -403,12 +407,12 @@ describe("view feature reporting", () => {
   });
 });
 
-// The submodule signals decide from the file system, so these tests build the
-// repositories they assert on under the temporary directory and never reuse
-// this repository's own worktrees. The root is canonicalized with realpath
-// (symlinked temporary directories), and the path with a space and a
-// non-ASCII character is part of the fixture.
-describe("submodule signals against real repositories", () => {
+// The submodule and worktree signals decide from the file system, so these tests
+// build the repositories they assert on under the temporary directory and never
+// reuse this repository's own worktrees. The root is canonicalized with realpath
+// (symlinked temporary directories), and the path with a space and a non-ASCII
+// character is part of the fixture.
+describe("submodule and worktree signals against real repositories", () => {
   const made: string[] = [];
 
   afterEach(() => {
@@ -447,7 +451,11 @@ describe("submodule signals against real repositories", () => {
       repo: worktreePath
     });
 
-    expect(spy.sent).toEqual([]);
+    // The worktree signals may fire here (it is a linked worktree, and `main`
+    // is checked out in the parent), so only the submodule ids are asserted.
+    const features = spy.sent.map((entry) => entry.feature);
+    expect(features).not.toContain(VIEW_FEATURE_SUBMODULE_REPO);
+    expect(features).not.toContain(VIEW_FEATURE_SUBMODULE_ACTIVE);
   });
 
   it("still counts a submodule, and the active one when the graph is drawn for it", () => {
@@ -495,7 +503,11 @@ describe("submodule signals against real repositories", () => {
       repo: siblingPath
     });
 
-    expect(spy.sent).toEqual([]);
+    // The sibling is a linked worktree, so the worktree signals may fire; it is
+    // never a submodule.
+    const features = spy.sent.map((entry) => entry.feature);
+    expect(features).not.toContain(VIEW_FEATURE_SUBMODULE_REPO);
+    expect(features).not.toContain(VIEW_FEATURE_SUBMODULE_ACTIVE);
   });
 
   // An independent repository nested by path (a `.git` directory, not a
@@ -517,5 +529,109 @@ describe("submodule signals against real repositories", () => {
     });
 
     expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_SUBMODULE_REPO, ok: true }]);
+  });
+
+  // A branch the graph draws, checked out in a linked worktree, is what the
+  // badge marks: the main worktree sees it, and the linked one reports itself.
+  it("marks a drawn branch held by a linked worktree, once per session", () => {
+    const parent = fixtureRepo();
+    const worktree = path.join(parent, ".worktrees", "wt ü feat");
+    git(["worktree", "add", "-b", "feat", worktree], parent);
+    const parentPath = repoPath(parent);
+    const spy = createTelemetrySpy();
+    const reporter = createViewFeatureReporter(spy.telemetry);
+    const featBranch = { ...branch, name: "feat" };
+
+    reporter.recordCommitLoad({
+      ...quietLoad,
+      commits: [commitWith(featBranch)],
+      repo: parentPath
+    });
+    reporter.recordCommitLoad({
+      ...quietLoad,
+      commits: [commitWith(featBranch)],
+      repo: parentPath
+    });
+
+    expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_WORKTREE_MARKER, ok: true }]);
+  });
+
+  it("reports the linked worktree and marks the main worktree's branch it shares a repository with", () => {
+    const parent = fixtureRepo();
+    const worktree = path.join(parent, ".worktrees", "wt ü feat");
+    git(["worktree", "add", "-b", "feat", worktree], parent);
+    const parentPath = repoPath(parent);
+    const worktreePath = repoPath(worktree);
+    const spy = createTelemetrySpy();
+
+    createViewFeatureReporter(spy.telemetry).recordCommitLoad({
+      ...quietLoad,
+      commits: [commitWith(branch)],
+      repoPaths: [parentPath, worktreePath],
+      repo: worktreePath
+    });
+
+    expect(spy.sent).toEqual([
+      { feature: VIEW_FEATURE_LINKED_WORKTREE_REPO, ok: true },
+      { feature: VIEW_FEATURE_WORKTREE_MARKER, ok: true }
+    ]);
+  });
+
+  it("does not mark the branch the linked worktree itself holds", () => {
+    const parent = fixtureRepo();
+    const worktree = path.join(parent, ".worktrees", "wt ü feat");
+    git(["worktree", "add", "-b", "feat", worktree], parent);
+    const parentPath = repoPath(parent);
+    const worktreePath = repoPath(worktree);
+    const spy = createTelemetrySpy();
+
+    createViewFeatureReporter(spy.telemetry).recordCommitLoad({
+      ...quietLoad,
+      commits: [commitWith({ ...branch, name: "feat" })],
+      repoPaths: [parentPath, worktreePath],
+      repo: worktreePath
+    });
+
+    expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_LINKED_WORKTREE_REPO, ok: true }]);
+  });
+
+  it("does not mark a branch when the only other worktree is detached", () => {
+    const parent = fixtureRepo();
+    const worktree = path.join(parent, ".worktrees", "wt ü detached");
+    git(["worktree", "add", "--detach", worktree], parent);
+    const parentPath = repoPath(parent);
+    const spy = createTelemetrySpy();
+
+    createViewFeatureReporter(spy.telemetry).recordCommitLoad({
+      ...quietLoad,
+      commits: [commitWith(branch)],
+      repoPaths: [parentPath],
+      repo: parentPath
+    });
+
+    expect(spy.sent).toEqual([]);
+  });
+
+  // A bare repository's HEAD names a branch but it is no worktree: with `main`
+  // drawn, only the linked worktree on `feat` is a holder, and that is not drawn.
+  it("does not count a bare repository's HEAD as a checkout", () => {
+    const parent = fixtureRepo();
+    const bareDir = `${parent}-bare ü.git`;
+    made.push(bareDir);
+    git(["clone", "--bare", "-q", parent, bareDir], parent);
+    const worktree = `${parent}-wt ü feat`;
+    made.push(worktree);
+    git(["worktree", "add", "-b", "feat", worktree, "main"], bareDir);
+    const worktreePath = repoPath(worktree);
+    const spy = createTelemetrySpy();
+
+    createViewFeatureReporter(spy.telemetry).recordCommitLoad({
+      ...quietLoad,
+      commits: [commitWith(branch)],
+      repoPaths: [worktreePath],
+      repo: worktreePath
+    });
+
+    expect(spy.sent).toEqual([{ feature: VIEW_FEATURE_LINKED_WORKTREE_REPO, ok: true }]);
   });
 });
