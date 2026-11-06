@@ -9,7 +9,7 @@ summary: >-
 
 # W26J — No duplicate remote-tracking tag badges
 
-Status: done — awaiting integration
+Status: integrated `eedb048` (`2026-11-06`)
 Needs: —
 Decisions: the maintainer, `2026-11-06`: "Hide duplicates only". Drop the
 `<remote>/<tag>` badge when the local tag `<tag>` is the same object. Keep

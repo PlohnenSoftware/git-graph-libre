@@ -105,7 +105,7 @@ run one after another, as the integrator procedure says.
 | W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | integrated `43ac7e9` |
 | W26G | [Off, origin or all remotes for tag badges](050-release-1-10-0-the-worktrees/366-w26g-off-origin-or-all-remotes-for-tag-badges.md) | TS + webview + manifest + l10n | W26F, W26H, W26HF | A | integrated `697423e` |
 | W26H | [Harden the remote tag read](050-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | integrated `d607144` |
-| W26J | [No duplicate remote-tracking tag badges](050-release-1-10-0-the-worktrees/367-w26j-no-duplicate-remote-tracking-tag-badges.md) | Rust + TS | — | A | dispatched `2026-11-06` (Sonnet) |
+| W26J | [No duplicate remote-tracking tag badges](050-release-1-10-0-the-worktrees/367-w26j-no-duplicate-remote-tracking-tag-badges.md) | Rust + TS | — | A | integrated `eedb048` |
 | W26HF | [Remote tag read Sonar follow-up](050-release-1-10-0-the-worktrees/369-w26hf-remote-tag-read-sonar-follow-up.md) | TS | W26H | A | integrated `8ff94dd` |
 | W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | integrated `f9e54a4` |
 | W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | integrated `f1dcbb6` |
@@ -730,3 +730,21 @@ commit, the gate results with numbers, and the Sonar task id.
     surfaced beside W26G's remote segment.
   - The maintainer chose to hide only the duplicates, with backend parity.
     W26J was added and dispatched to Sonnet.
+- `2026-11-06`: W26J integrated at `eedb048`. A
+  `refs/remotes/<remote>/tags/<tag>` ref that mirrors the same local tag
+  object no longer draws a second badge. A differing or remote-only tag
+  still shows as `<remote>/<tag>`. The CLI path now maps these refs like
+  the engine, so the two agree in all five fixture cases. The engine is
+  `1.0.31`.
+- `2026-11-06`, gate 10 on `eedb048`: W23, W90H, the docs and W26J since
+  `b450242`.
+  - Rust arm: `engine:fmt`, `engine:lint`, `engine:check` and
+    `engine:test` pass. The engine was rebuilt, and `engine:smoke`
+    reports `1.0.31`.
+  - Strict Biome is clean on 19 files. `package`, `l10n:check` and
+    `kb:check` pass.
+  - Fresh `test:coverage`: 183 files, 2,343 of 2,343 tests passed.
+  - Sonar task `6ed6d226-3105-4929-8a8a-63b3e87c7437`: quality gate
+    **`OK`**. New coverage is 94.3%, with 0 security and 0 reliability
+    issues. Its three new violations, all W23's (S3801 twice, S1117), were
+    fixed at `07b90b2`.
