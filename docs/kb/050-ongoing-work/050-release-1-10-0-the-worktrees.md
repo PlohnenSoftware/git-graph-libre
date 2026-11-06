@@ -126,7 +126,7 @@ run one after another, as the integrator procedure says.
 | W32F | [Worktree discovery Sonar follow-up](050-release-1-10-0-the-worktrees/425-w32f-worktree-discovery-sonar-follow-up.md) | TS | W32 | E | integrated `3b13162` |
 | W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | integrated `48f3ee3` |
 | W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | integrated `a9d58f2` (step 2, the Repository-tab note, left for W34F) |
-| W34F | [Repository-tab note for worktrees](050-release-1-10-0-the-worktrees/445-w34f-repository-tab-note-for-worktrees.md) | webview + l10n | W34 | E | dispatched `2026-11-06` (Haiku) |
+| W34F | [Repository-tab note for worktrees](050-release-1-10-0-the-worktrees/445-w34f-repository-tab-note-for-worktrees.md) | webview + l10n | W34 | E | integrated `1738001` |
 | W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | integrated `5ff9385` |
 | W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | integrated `2e37454` |
 | W90 | [Release 1.10.0](050-release-1-10-0-the-worktrees/900-w90-release-1-10-0.md) | release | every slice in scope | — | maintainer |
@@ -828,3 +828,27 @@ commit, the gate results with numbers, and the Sonar task id.
   - Issue #37 is complete with W33, the last of its slices (W02–W04,
     W10–W12, W30–W33), and gated, so this record closes it. It takes
     effect when `main` is fast-forwarded and pushed.
+- `2026-11-06`: W34F integrated at `1738001`. The Repository tab notes that
+  Git settings apply to every worktree of the repository, shown only when
+  it has linked worktrees.
+- `2026-11-06`, final gate on `1738001`, everything since `5b54802`:
+  - The Rust arm was skipped, with no engine change since gate 10, which
+    ran it with engine `1.0.31`.
+  - Strict Biome is clean on 10 files. `package`, `l10n:check` and
+    `kb:check` pass.
+  - Fresh `test:coverage`: 185 files, 2,405 of 2,405 tests passed.
+  - Sonar task `68fa8533-925d-4962-8919-cce4380959ca`: quality gate
+    **`OK`**. New coverage is 94.5%, with 0 new violations and 0 security
+    and 0 reliability issues.
+  - **Every slice in scope is integrated.** Issues #36, #37, #38, #41, #45
+    and #46 are closed by gated commits, and #37's line takes effect when
+    `main` is next fast-forwarded and pushed.
+  - What remains is W90, the maintainer's:
+    - rebuild every platform binary (`pnpm run engine:build:all`);
+    - run `verify-vsix.yml` as a manual dry run on every leg;
+    - set the `[1.10.0]` date in `CHANGELOG.md` (TBA now);
+    - fast-forward and push `main`, sign the `v1.10.0` tag, and publish.
+      Trusted publishing needs the registry registrations first.
+  - Open for the maintainer: a native-speaker review of the agents' nl, pl,
+    zh-cn and zh-tw strings. The integrator has not yet hand-tested the
+    worktree features in VS Code.

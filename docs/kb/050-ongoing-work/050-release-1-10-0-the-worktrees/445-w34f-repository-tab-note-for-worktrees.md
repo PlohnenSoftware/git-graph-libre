@@ -9,7 +9,7 @@ summary: >-
 
 # W34F — Repository-tab note for worktrees
 
-Status: done — awaiting integration
+Status: integrated `1738001` (`2026-11-06`)
 Needs: W34 (integrated `a9d58f2`), W32 (the worktree layout)
 Decisions: Y18 (a)
 Kind: webview and l10n · Size budget: ~40 changed lines outside tests
