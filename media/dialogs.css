@@ -212,6 +212,21 @@ dl.tagDetailsFields dd {
 #dialog table.dialogForm.single select {
   width: 100%;
 }
+/* A folder field and its Browse button share the row: the field takes the
+   room the button leaves, and the button keeps its own width (W22F). */
+#dialog table.dialogForm .dialogFormFolder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#dialog table.dialogForm .dialogFormFolder input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+#dialog table.dialogForm .dialogFormFolder .dialogBtn {
+  flex: none;
+  min-width: 0;
+}
 #dialog table.dialogForm input[type="text"] {
   width: 100%;
 }
