@@ -10,7 +10,7 @@ summary: >-
 
 # W32F — Worktree discovery Sonar follow-up
 
-Status: ready
+Status: claimed by Claude Haiku 5.5 on 2026-11-06 14:24
 Needs: W32 (integrated `426b789`)
 Decisions: —
 Kind: TypeScript · Size budget: ~80 changed lines outside tests
