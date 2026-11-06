@@ -10,7 +10,7 @@ summary: >-
 
 # W26G — Off, origin or all remotes for tag badges
 
-Status: ready
+Status: claimed by Claude Sonnet 5.5 on 2026-11-06 12:00
 Needs: W26F, W26H, W26HF (integrated); PR #47's update `dc1886c`
 (merged at `d1bc642`)
 Decisions: the maintainer, `2026-11-06`: "for these tag labels make settings
