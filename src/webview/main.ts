@@ -380,6 +380,31 @@ type DeleteBranchPart = {
   deleteOnRemotes?: string[];
 };
 
+/**
+ * The question shown when a remote checkout meets an existing local branch:
+ * the branch is held by another worktree, has the proposed name, or already
+ * tracks the clicked remote branch under another name.
+ */
+function existingBranchMessage(
+  existing: string,
+  suggestedName: string,
+  remoteRef: string,
+  worktreePath: string | null
+): string {
+  const bold = (name: string) => `<b><i>${escapeHtml(name)}</i></b>`;
+  if (worktreePath !== null) {
+    return l10n.dialogOpenWorktreeMessage
+      .replace("{0}", () => bold(existing))
+      .replace("{1}", () => bold(worktreePath));
+  }
+  if (existing === suggestedName) {
+    return l10n.dialogCheckoutRemoteExists.replace("{0}", () => bold(existing));
+  }
+  return l10n.dialogCheckoutRemoteTracks
+    .replace("{0}", () => bold(existing))
+    .replace("{1}", () => bold(remoteRef));
+}
+
 class GitGraphView {
   private gitRepos: GGL.GitRepoSet;
   private gitBranches: string[] = [];
@@ -6297,17 +6322,7 @@ class GitGraphView {
     sourceElem: HTMLElement | null
   ) {
     const worktreePath = this.otherWorktreePath(existing);
-    const bold = (name: string) => `<b><i>${escapeHtml(name)}</i></b>`;
-    const message =
-      worktreePath !== null
-        ? l10n.dialogOpenWorktreeMessage
-            .replace("{0}", () => bold(existing))
-            .replace("{1}", () => bold(worktreePath))
-        : existing === suggestedName
-          ? l10n.dialogCheckoutRemoteExists.replace("{0}", () => bold(existing))
-          : l10n.dialogCheckoutRemoteTracks
-              .replace("{0}", () => bold(existing))
-              .replace("{1}", () => bold(remoteRef));
+    const message = existingBranchMessage(existing, suggestedName, remoteRef, worktreePath);
     const createOther = {
       name: l10n.dialogCheckoutRemoteCreateOther,
       value: "create"
