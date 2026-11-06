@@ -313,6 +313,14 @@ export function normalizeWorktreePathTemplate(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** The finish step's choices after a worktree is created (decision Y8). */
+type WorktreeFinishChoice = "newWindow" | "workspace" | "switch" | "nothing";
+
+/** A saved finish choice, else the first one offered: an older saved state has none (W22F). */
+function normalizeWorktreeFinish(value: unknown): WorktreeFinishChoice {
+  return value === "workspace" || value === "switch" || value === "nothing" ? value : "newWindow";
+}
+
 /** The parent folder of a repository path (null when it has none) and the folder's own name. */
 function splitRepoPath(repoPath: string): { parent: string | null; repoName: string } {
   let end = repoPath.length;
@@ -583,10 +591,9 @@ class GitGraphView {
   private pendingCreatedWorktree: string | null = null;
   /**
    * The finish step (Y8) the user last picked after creating a worktree; the
-   * dialog opens on it. Kept for the panel's lifetime — persisting it with
-   * the rest of the view state would widen the slice beyond its file list.
+   * dialog opens on it. It is kept in the view state, so it survives a reload.
    */
-  private lastWorktreeFinish: "newWindow" | "workspace" | "switch" | "nothing" = "newWindow";
+  private lastWorktreeFinish: WorktreeFinishChoice = "newWindow";
   /** A worktree removal waiting for the read of the local files a forced removal would delete. */
   private pendingWorktreeRemoval: {
     requestId: number;
@@ -801,6 +808,7 @@ class GitGraphView {
     this.showRemoteBranchesElem.checked = this.showRemoteBranches;
     this.settingsWidgetOpen = prevState.settingsWidgetOpen === true;
     this.settingsWidgetTab = this.normalizeSettingsWidgetTab(prevState.settingsWidgetTab);
+    this.lastWorktreeFinish = normalizeWorktreeFinish(prevState.worktreeFinish);
     this.restoreHiddenColumns(
       prevState.hiddenColumns ?? [],
       prevState.columnVisibilityVersion === COLUMN_VISIBILITY_STATE_VERSION
@@ -1933,7 +1941,8 @@ class GitGraphView {
       hiddenColumns: [...this.hiddenColumns],
       columnVisibilityVersion: COLUMN_VISIBILITY_STATE_VERSION,
       settingsWidgetOpen: this.settingsWidgetOpen,
-      settingsWidgetTab: this.settingsWidgetTab
+      settingsWidgetTab: this.settingsWidgetTab,
+      worktreeFinish: this.lastWorktreeFinish
     });
   }
 
@@ -4651,17 +4660,14 @@ class GitGraphView {
       ],
       l10n.dialogWorktreeCreatedSubmit,
       (value) => {
-        if (value === "newWindow" || value === "workspace" || value === "switch") {
-          this.lastWorktreeFinish = value;
-        } else {
-          this.lastWorktreeFinish = "nothing";
-        }
+        this.lastWorktreeFinish = normalizeWorktreeFinish(value);
+        this.saveState();
         this.applyWorktreeFinish(path, this.lastWorktreeFinish);
       },
       null
     );
   }
-  private applyWorktreeFinish(path: string, choice: typeof this.lastWorktreeFinish) {
+  private applyWorktreeFinish(path: string, choice: WorktreeFinishChoice) {
     if (choice === "newWindow") {
       sendMessage({ command: "openWorktree", repo: this.currentRepo, path, newWindow: true });
     } else if (choice === "workspace") {

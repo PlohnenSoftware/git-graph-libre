@@ -226,6 +226,8 @@ declare global {
     gitStashes?: GitStash[];
     settingsWidgetOpen?: boolean;
     settingsWidgetTab?: GGL.SettingsWidgetTab;
+    /** The finish step's last choice after creating a worktree (W22F); absent in older saved states. */
+    worktreeFinish?: "newWindow" | "workspace" | "switch" | "nothing";
     commits: GitCommitNode[];
     commitHead: string | null;
     avatars: AvatarImageCollection;

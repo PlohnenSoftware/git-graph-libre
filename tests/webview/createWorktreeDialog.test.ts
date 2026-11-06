@@ -275,6 +275,29 @@ describe("the finish step (decision Y8)", () => {
     expect(dialogText()).toContain("git said no");
     expect(document.querySelector("#dialog select")).toBeNull();
   });
+
+  it("opens on the last finish choice after a panel reload, and on the first one for an older state", async () => {
+    const first = await createFromBranch();
+    receive({ command: "addWorktree", status: null });
+    dialogInput<HTMLSelectElement>(0).value = "switch";
+    submitDialog();
+    const saved = first.vscodeMock.getState();
+    expect(saved?.worktreeFinish).toBe("switch");
+
+    await bootWebview({ savedState: saved });
+    openRefContextMenu(".gitRef.head", "feature/menu");
+    clickContextMenuItem("Create Worktree…");
+    submitDialog();
+    receive({ command: "addWorktree", status: null });
+    expect(dialogInput<HTMLSelectElement>(0).value).toBe("switch");
+
+    await bootWebview({ savedState: { ...saved, worktreeFinish: undefined } as WebViewState });
+    openRefContextMenu(".gitRef.head", "feature/menu");
+    clickContextMenuItem("Create Worktree…");
+    submitDialog();
+    receive({ command: "addWorktree", status: null });
+    expect(dialogInput<HTMLSelectElement>(0).value).toBe("newWindow");
+  });
 });
 
 describe("defaultWorktreePath (decision Y7)", () => {
