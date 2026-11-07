@@ -209,7 +209,7 @@ class Vertex {
   private isCurrent: boolean = false;
   private isStashRow: boolean = false;
   private nextX: number = 0;
-  private connections: UnavailablePoint[] = [];
+  private readonly connections: UnavailablePoint[] = [];
 
   constructor(y: number) {
     this.y = y;
@@ -378,10 +378,10 @@ export class Graph {
     const defs = document.createElementNS(svgNamespace, "defs");
     const linearGradient = document.createElementNS(svgNamespace, "linearGradient");
     const mask = document.createElementNS(svgNamespace, "mask");
-    this.svg = <SVGElement>document.createElementNS(svgNamespace, "svg");
-    this.svgMaskRect = <SVGRectElement>document.createElementNS(svgNamespace, "rect");
-    this.svgGradientStop1 = <SVGStopElement>document.createElementNS(svgNamespace, "stop");
-    this.svgGradientStop2 = <SVGStopElement>document.createElementNS(svgNamespace, "stop");
+    this.svg = document.createElementNS(svgNamespace, "svg");
+    this.svgMaskRect = document.createElementNS(svgNamespace, "rect");
+    this.svgGradientStop1 = document.createElementNS(svgNamespace, "stop");
+    this.svgGradientStop2 = document.createElementNS(svgNamespace, "stop");
 
     linearGradient.setAttribute("id", "GraphGradient");
     this.svgGradientStop1.setAttribute("stop-color", MASK_VISIBLE_COLOR);
@@ -458,7 +458,7 @@ export class Graph {
    * staging panel expands a row too and has no ExpandedCommit of its own.
    */
   public render(expandAt: number | null) {
-    const group = <SVGGElement>document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const width = this.getWidth();
     group.setAttribute("mask", "url(#GraphMask)");
 
