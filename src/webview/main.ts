@@ -39,7 +39,7 @@ import { findCommitIndexes, formatFindMatchCount } from "./commitFind";
 import { applyComponentStatus, initComponentStatus } from "./componentStatus";
 import { Dropdown, type DropdownOption } from "./dropdown";
 import { createFailureScreenReporter } from "./failureScreen";
-import { Graph } from "./graph";
+import { Graph, parentsBeyondPage } from "./graph";
 import { resolveGlobalShortcut } from "./keyboardShortcuts";
 import { groupCommitRefs, parseRemoteBranchName } from "./refLabels";
 import { buildRepoOptions } from "./repoOptions";
@@ -315,6 +315,18 @@ export function normalizeWorktreePathTemplate(value: unknown): string {
 
 /** The finish step's choices after a worktree is created (decision Y8). */
 type WorktreeFinishChoice = "newWindow" | "workspace" | "switch" | "nothing";
+
+/** A `loadBranches` response as the view applies it; saved state replays one too. */
+type LoadedBranches = {
+  requestId: number | null;
+  branches: string[];
+  head: string | null;
+  hard: boolean;
+  isRepo: boolean;
+  worktrees: GitWorktree[];
+  upstreams: Record<string, string | null>;
+  errorReason?: string | null;
+};
 
 /** A saved finish choice, else the first one offered: an older saved state has none (W22F). */
 function normalizeWorktreeFinish(value: unknown): WorktreeFinishChoice {
@@ -852,7 +864,15 @@ class GitGraphView {
     this.gitRemotes = prevState.gitRemotes ?? [];
     this.gitStashes = prevState.gitStashes ?? [];
     this.syncRepoSettingsControls();
-    this.loadBranches(null, prevState.gitBranches, prevState.gitBranchHead, true, true, [], {});
+    this.loadBranches({
+      requestId: null,
+      branches: prevState.gitBranches,
+      head: prevState.gitBranchHead,
+      hard: true,
+      isRepo: true,
+      worktrees: [],
+      upstreams: {}
+    });
     this.loadCommits(
       null,
       prevState.commits,
@@ -981,16 +1001,16 @@ class GitGraphView {
     return true;
   }
 
-  public loadBranches(
-    requestId: number | null,
-    branchOptions: string[],
-    branchHead: string | null,
-    hard: boolean,
-    isRepo: boolean,
-    worktrees: GitWorktree[],
-    upstreams: Record<string, string | null>,
-    errorReason: string | null = null
-  ) {
+  public loadBranches({
+    requestId,
+    branches: branchOptions,
+    head: branchHead,
+    hard,
+    isRepo,
+    worktrees,
+    upstreams,
+    errorReason = null
+  }: LoadedBranches) {
     if (!this.acceptLoadBranchesResponse(requestId)) return;
     if (errorReason !== null) {
       this.renderShowError(l10n.unableToLoadGitGraph, errorReason);
@@ -1159,7 +1179,16 @@ class GitGraphView {
     const { expandedCommitVisible, avatarsNeeded } = this.rebuildCommitIndexes();
     this.keepVisibleCommitSelection();
 
-    this.graph.loadCommits(this.commits, this.commitHead, this.commitLookup);
+    this.graph.loadCommits(
+      this.commits,
+      this.commitHead,
+      this.commitLookup,
+      parentsBeyondPage({
+        moreAvailable: this.moreCommitsAvailable,
+        onlyFollowFirstParent: this.getOnlyFollowFirstParent(),
+        authorFiltered: this.currentAuthors !== null
+      })
+    );
 
     if (this.expandedCommit !== null && !expandedCommitVisible) {
       this.expandedCommit = null;
@@ -4474,9 +4503,9 @@ class GitGraphView {
             },
             sourceElem
           )
-      })
+      }),
+      ...this.buildBranchMetadataItems(refName, sourceElem)
     );
-    menu.push(...this.buildBranchMetadataItems(refName, sourceElem));
     this.appendBranchRemoteItems(menu, refName);
     this.appendBranchMutationItems(menu, sourceElem, refName);
     this.appendWorktreeMaintenanceItems(menu, refName);
@@ -8238,16 +8267,16 @@ const responseHandlers: ResponseHandlerMap = {
   createArchive: handleCreateArchiveResponse,
   fetchAvatar: (msg) => gitGraph.loadAvatar(msg.email, msg.image),
   loadBranches: (msg) =>
-    gitGraph.loadBranches(
-      msg.requestId,
-      msg.branches,
-      msg.head,
-      msg.hard,
-      msg.isRepo,
-      msg.worktrees,
-      msg.upstreams,
-      formatQueryError(msg.error)
-    ),
+    gitGraph.loadBranches({
+      requestId: msg.requestId,
+      branches: msg.branches,
+      head: msg.head,
+      hard: msg.hard,
+      isRepo: msg.isRepo,
+      worktrees: msg.worktrees,
+      upstreams: msg.upstreams,
+      errorReason: formatQueryError(msg.error)
+    }),
   loadCommits: (msg) =>
     gitGraph.loadCommits(
       msg.requestId,

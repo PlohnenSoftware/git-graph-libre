@@ -5402,6 +5402,53 @@ describe("webview rendering", () => {
     receiveLoadedCommits(twoCommits, "abc123");
   });
 
+  it("continues a missing parent's line only where the loaded walk reaches it", () => {
+    const page: GitCommitNode[] = [
+      { ...twoCommits[0], hash: "merge1", parentHashes: ["first1", "side1"], refs: [] },
+      { ...twoCommits[1], hash: "first1", parentHashes: ["older1"] }
+    ];
+    const receivePage = (moreCommitsAvailable: boolean) =>
+      receive({
+        command: "loadCommits",
+        requestId: null,
+        commits: page,
+        head: "merge1",
+        moreCommitsAvailable,
+        hard: true,
+        error: null
+      } as unknown as GGL.ResponseMessage);
+    // A continuation ends one row below the last, outside the SVG's height.
+    const linesPastLastRow = () => {
+      const height = Number(document.querySelector("#commitGraph svg")?.getAttribute("height"));
+      return Array.from(document.querySelectorAll("#commitGraph path.line")).filter((path) => {
+        const numbers = (path.getAttribute("d") ?? "").match(/-?\d+(?:\.\d+)?/g) ?? [];
+        return Number(numbers.at(-1)) > height;
+      }).length;
+    };
+
+    receiveExtensionSetting("repository.onlyFollowFirstParent", false);
+    receivePage(true);
+    expect(linesPastLastRow()).toBe(2);
+
+    // `--first-parent` walks first1 onward, never side1.
+    receiveExtensionSetting("repository.onlyFollowFirstParent", true);
+    receivePage(true);
+    expect(linesPastLastRow()).toBe(1);
+    receiveExtensionSetting("repository.onlyFollowFirstParent", false);
+
+    // Under an author filter a missing parent was filtered out, not paged out.
+    clickDropdownOption("authorSelect", "Alice");
+    receivePage(true);
+    expect(linesPastLastRow()).toBe(0);
+    clickDropdownOption("authorSelect", "Show All");
+
+    receivePage(false);
+    expect(linesPastLastRow()).toBe(0);
+    expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(0);
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
   it("wraps the commit message in its own span, outside the ref labels", () => {
     receiveLoadedCommits(twoCommits, "abc123");
 
