@@ -1,15 +1,18 @@
 ---
 summary: >-
   Maintainer report (`2026-11-07`, 1.9.0): a merge shows only one parent
-  line although details list both. Fixed locally: retain and draw unloaded
-  parent connections; 14 graph tests and real-history screenshots verify it.
-  Full gate pending the compiled engine, SonarQube scanner, and Graphify.
+  line although details list both. PR #51 (`Arezim`) keeps unloaded parents
+  as slots that draw continuations. The review limited them to parents the
+  walk reaches (`parentsBeyondPage`), after measuring first-parent pages at
+  4 → 133 lanes; gate `OK` before and after. Awaiting merge.
 ---
 
 # Missing merge-parent lines (`2026-11-07`)
 
-**Status:** fixed locally, uncommitted; full verification has environment gaps
-listed below. The installed extension was not changed or repackaged as a VSIX.
+**Status:** submitted as PR #51 (`fix/parent-rendering`, `2e24ddd`, by
+`Arezim`), then reviewed and gated on `2026-11-07`. The review found one
+regression and fixed it on the branch; see Review and gate below. Awaiting
+merge: move this record to History when it lands on `main`.
 
 ## Report and evidence
 
@@ -113,8 +116,66 @@ Checks on `2026-11-07`:
   cannot run, `graphify: command not found`; the tracked graph remains stale.
   No `engine/**` file changed, so the Rust gate arm does not apply.
 
-**Next:** in the configured maintainer environment, build the engine addon,
-rerun the full gate through SonarQube `OK`, refresh Graphify, then make the
-signed commit. Move this record to History when verification is complete.
-The missing-addon tests, scanner, and graph refresh are the remaining gaps;
-the renderer fix and its focused regression checks are complete.
+**Next (as submitted):** build the engine addon, rerun the full gate through
+SonarQube `OK`, refresh Graphify. The first two were done in the review below.
+
+## Review and gate (`2026-11-07`)
+
+**The pull request as submitted passes the gate.** On `2e24ddd`, on the
+maintainer's machine with the engine addon built: strict Biome on both
+TypeScript files, `pnpm run package`, `pnpm run test` (backend 1,426 and
+webview 992, all passed, including the six cases that need the addon),
+`pnpm run l10n:check` at 100%, fresh `pnpm run test:coverage` (2,418
+passed), then `pnpm run sonar:scan`: task
+`16844ef1-6a5e-4fbb-993f-55bfae78bf13`, quality gate **`OK`**, window
+`PREVIOUS_VERSION 1.9.0`, `new_violations` 0, `new_coverage` 94.4, the new
+lines of `graph.ts` 100% covered, no new-code hotspots.
+
+**It also carried a regression the gate cannot see.** The fix assumed that a
+parent missing from the page lies further down the same walk. Two walks break
+that, because both backends report every parent of a commit whatever the
+walk: the CLI's `%P`, and the engine to match it (`parity.test.ts`).
+
+- `--first-parent` (Follow First Parent Only) never walks a merge's other
+  parents. So every merge got a continuation that could never connect. On a
+  250-row page of a merge-heavy clone (135 merges, read only), `main` draws
+  4 lanes and the pull request 133.
+- `--author` drops other authors' commits, so most missing parents were
+  filtered out, not paged out: 10 lanes on `main`, 51 with the pull request.
+
+The plain walk of the same clone stayed at 4 lanes and gained 3
+continuations, which is the intended fix. The first 50 rows of the
+first-parent page, rendered headlessly with the real `media/table.css`:
+[before, as submitted, fixed](../../screenshots/merge-parent-first-parent-review.png).
+
+**The fix, on the branch.** `parentsBeyondPage()` in `src/webview/graph.ts`
+says which missing parents lie beyond the page: `all` for the plain walk,
+`first` under first-parent, and `none` when no more history can load or an
+author filter is active. The webview passes it from the `loadCommits`
+response to `Graph.loadCommits`. A parent outside that set gets no slot,
+only `hasUndrawnParent`, which keeps the root square off as
+`hasParentBeyondGraph` used to. After it: first-parent 5 lanes (four
+first-parent chains genuinely continue past the page), author-filtered 4
+(fewer than `main`'s 10, whose chain tops ran to the page bottom), plain walk
+unchanged. Tests: two layout cases and a five-row policy table in
+`tests/webview/graph.test.ts`. A view case in `tests/webview/rendering.test.ts`
+drives the first-parent setting, the author dropdown and a last page.
+
+Also cleared, in the files the branch touches: the five open S4137 casts in
+`graph.ts` (redundant, since `createElementNS` with the SVG namespace already
+returns the element type), `Vertex.connections` made `readonly` (S2933), and
+`main.ts`'s two open findings, S107 (`loadBranches` now takes one object) and
+S7778.
+
+Gate on the final tree, before the commits: strict Biome on the four touched
+TypeScript files, `pnpm run package`, `pnpm run test` (backend 1,426,
+webview 1,000), `pnpm run l10n:check` at 100%, fresh
+`pnpm run test:coverage` (2,426 passed), then `pnpm run sonar:scan`: task
+`af7e9349-c609-4b9d-a3ed-737b369f807e`, quality gate **`OK`**, window
+`PREVIOUS_VERSION 1.9.0`, `new_violations` 0, `new_coverage` 94.7,
+project-wide maintainability issues 43 → 36, no open issue left in the four
+touched files, no new-code hotspots.
+
+Not done: `pnpm run kb:graph`. It rewrites the tracked `graphify-out/`, so it
+is left for `main` after the merge rather than carried in this branch. The
+submitted before/after screenshots show the plain walk and still hold.
