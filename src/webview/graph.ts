@@ -201,11 +201,11 @@ class Branch {
 class Vertex {
   private x: number = 0;
   private readonly y: number;
-  private readonly parents: Vertex[] = [];
+  // A null slot is a real parent outside the loaded page, not a root.
+  private readonly parents: VertexOrNull[] = [];
   private nextParent: number = 0;
   private onBranch: Branch | null = null;
   private isCommitted: boolean = true;
-  private hasParentBeyondGraph: boolean = false;
   private isCurrent: boolean = false;
   private isStashRow: boolean = false;
   private nextX: number = 0;
@@ -215,15 +215,14 @@ class Vertex {
     this.y = y;
   }
 
-  public addParent(vertex: Vertex) {
+  public addParent(vertex: VertexOrNull) {
     this.parents.push(vertex);
-  }
-  /** The commit names a parent the loaded window does not draw. */
-  public setParentBeyondGraph() {
-    this.hasParentBeyondGraph = true;
   }
   public hasParents() {
     return this.parents.length > 0;
+  }
+  public hasPendingParents() {
+    return this.nextParent < this.parents.length;
   }
   public getNextParent(): Vertex | null {
     if (this.nextParent < this.parents.length) return this.parents[this.nextParent];
@@ -333,11 +332,9 @@ class Vertex {
       return;
     }
 
-    // `parents` holds drawn parents only, so an empty list alone does not
-    // make a root: the oldest commit of a loaded page has none drawn either.
-    // The square is reserved for commits git itself reports parentless —
-    // both backends normalize those to a single empty parent hash.
-    const isRoot = this.parents.length === 0 && !this.hasParentBeyondGraph;
+    // Unloaded parents retain null slots, so only a genuinely parentless
+    // commit takes the square (both backends report roots as [""]).
+    const isRoot = !this.hasParents();
     const node = document.createElementNS("http://www.w3.org/2000/svg", isRoot ? "rect" : "circle");
     if (isRoot) {
       node.setAttribute("x", (cx - NODE_RADIUS).toString());
@@ -436,9 +433,8 @@ export class Graph {
   }
 
   /**
-   * Connects each vertex to the parents that are on this page and marks stash
-   * rows. A parent beyond the loaded page is only recorded as existing, which
-   * keeps the root square for commits that have no parents at all (`[""]`).
+   * Keeps parent order, including null slots for parents outside this page.
+   * Those slots draw continuations; only an empty hash denotes a true root.
    */
   private linkVertices(commits: GitCommitNode[], commitLookup: { [hash: string]: number }) {
     for (const [i, commit] of commits.entries()) {
@@ -446,7 +442,7 @@ export class Graph {
         if (typeof commitLookup[parentHash] === "number") {
           this.vertices[i].addParent(this.vertices[commitLookup[parentHash]]);
         } else if (parentHash !== "") {
-          this.vertices[i].setParentBeyondGraph();
+          this.vertices[i].addParent(null);
         }
       }
       if (commit.stash !== undefined) this.vertices[i].setStashRow();
@@ -604,7 +600,7 @@ export class Graph {
     vertex.registerUnavailablePoint(lastPoint.x, vertex, branch);
 
     let i = startAt + 1;
-    for (; i < this.vertices.length; i++) {
+    for (; vertex.hasPendingParents() && i < this.vertices.length; i++) {
       const curVertex = this.vertices[i];
       const curPoint = this.getNormalPathPoint(parentVertex, curVertex);
       branch.addLine(lastPoint, curPoint, vertex.getIsCommitted(), lastPoint.x < curPoint.x);
@@ -617,8 +613,20 @@ export class Graph {
         parentVertex.addToBranch(branch, curPoint.x);
         vertex = parentVertex;
         parentVertex = vertex.getNextParent();
-        if (parentVertexOnBranch || parentVertex === null) break;
+        if (parentVertexOnBranch || !vertex.hasPendingParents()) break;
       }
+    }
+
+    if (i === this.vertices.length && vertex.hasPendingParents() && parentVertex === null) {
+      // The parent exists beyond this page. Finish below the last row so
+      // even a one-row page shows a continuation, clipped by the SVG bounds.
+      const endPoint = { x: lastPoint.x, y: this.vertices.length };
+      if (startAt === this.vertices.length - 1 && !vertex.isOnThisBranch(branch)) {
+        endPoint.x = vertex.getNextPoint().x;
+        vertex.registerUnavailablePoint(endPoint.x, null, branch);
+      }
+      branch.addLine(lastPoint, endPoint, vertex.getIsCommitted(), true);
+      vertex.registerParentProcessed();
     }
 
     branch.setEnd(i);
@@ -635,7 +643,7 @@ export class Graph {
 
   private findStart() {
     for (let i = 0; i < this.vertices.length; i++) {
-      if (this.vertices[i].getNextParent() !== null || this.vertices[i].isNotOnBranch()) return i;
+      if (this.vertices[i].hasPendingParents() || this.vertices[i].isNotOnBranch()) return i;
     }
     return -1;
   }

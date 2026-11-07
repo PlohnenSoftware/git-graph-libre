@@ -131,6 +131,85 @@ describe("graph rendering", () => {
     expect(document.querySelectorAll("#commitGraph g circle")).toHaveLength(1);
   });
 
+  it.each([
+    ["outside", "loaded"],
+    ["loaded", "outside"]
+  ])("draws both merge edges when parents are %s and %s", (first, second) => {
+    const graph = makeGraph();
+    const commits = [makeCommit("merge", [first, second]), makeCommit("loaded")];
+    graph.loadCommits(commits, "merge", { merge: 0, loaded: 1 });
+    graph.render(null);
+
+    const paths = Array.from(document.querySelectorAll("#commitGraph path.line"));
+    const mergeEdges = paths.filter((path) => path.getAttribute("d")?.startsWith("M8,12.0"));
+    expect(mergeEdges).toHaveLength(2);
+    expect(paths.some((path) => path.getAttribute("d")?.endsWith(",60.0"))).toBe(true);
+    expect(document.querySelectorAll("#commitGraph g circle")).toHaveLength(1);
+    expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(1);
+  });
+
+  it("draws separate continuations when neither merge parent is loaded", () => {
+    const graph = makeGraph();
+    graph.loadCommits([makeCommit("merge", ["outside1", "outside2"])], "merge", { merge: 0 });
+    graph.render(null);
+
+    const paths = Array.from(document.querySelectorAll("#commitGraph path.line"));
+    expect(paths).toHaveLength(2);
+    expect(paths.every((path) => path.getAttribute("d")?.startsWith("M8,12.0"))).toBe(true);
+    expect(new Set(paths.map((path) => path.getAttribute("d"))).size).toBe(2);
+    expect(document.querySelectorAll("#commitGraph g circle")).toHaveLength(1);
+    expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(0);
+  });
+
+  it("continues a last-row parent beyond the page and reconnects it on load more", () => {
+    const graph = makeGraph();
+    graph.loadCommits([makeCommit("child", ["parent"])], "child", { child: 0 });
+    graph.render(null);
+    expect(document.querySelector("#commitGraph path.line")?.getAttribute("d")).toBe(
+      "M8,12.0L8,36.0"
+    );
+
+    graph.loadCommits([makeCommit("child", ["parent"]), makeCommit("parent")], "child", {
+      child: 0,
+      parent: 1
+    });
+    graph.render(null);
+    expect(document.querySelector("#commitGraph path.line")?.getAttribute("d")).toBe(
+      "M8,12.0L8,36.0"
+    );
+    expect(document.querySelectorAll("#commitGraph path.line")).toHaveLength(1);
+    expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(1);
+  });
+
+  it("replaces a merge continuation with a connection when its parent loads", () => {
+    const graph = makeGraph();
+    const commits = [makeCommit("merge", ["outside", "loaded"]), makeCommit("loaded")];
+    graph.loadCommits(commits, "merge", { merge: 0, loaded: 1 });
+    graph.render(null);
+
+    graph.loadCommits([...commits, makeCommit("outside")], "merge", {
+      merge: 0,
+      loaded: 1,
+      outside: 2
+    });
+    graph.render(null);
+    const paths = Array.from(document.querySelectorAll("#commitGraph path.line"));
+    expect(paths.filter((path) => path.getAttribute("d")?.startsWith("M8,12.0"))).toHaveLength(2);
+    expect(paths.some((path) => path.getAttribute("d")?.endsWith(",84.0"))).toBe(false);
+    expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(2);
+  });
+
+  it("does not draw a continuation from a standalone root above other history", () => {
+    const graph = makeGraph();
+    graph.loadCommits([makeCommit("root", [""]), makeCommit("otherRoot")], "root", {
+      root: 0,
+      otherRoot: 1
+    });
+    graph.render(null);
+    const paths = Array.from(document.querySelectorAll("#commitGraph path.line"));
+    expect(paths.every((path) => path.getAttribute("d") === "")).toBe(true);
+  });
+
   it("draws stash nodes as a ringed pendant of their base", () => {
     const graph = makeGraph();
     const stash = {
