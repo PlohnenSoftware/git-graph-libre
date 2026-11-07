@@ -128,6 +128,15 @@ checkout defaults that follow Git.
 
 ### Fixed
 
+- **Merge lines continue beyond the loaded history.** A merge could show only
+  one parent connection when its other parent fell outside the loaded page,
+  even though commit details listed both. Each unloaded parent now keeps a
+  continuation line, which connects to its commit after loading more history.
+  Only a parent that more history can bring gets one: with Follow First
+  Parent Only, a merge's other parents get none, and an author filter draws
+  none. Thanks to @Arezim for the fix
+  ([#51](https://github.com/PlohnenSoftware/git-graph-libre/pull/51)).
+
 - **The existing-branch checkout dialog is easier to scan.** Switch,
   fast-forward and create-another-branch actions have aligned rows with
   short labels and explanations. Long branch names wrap within the popup,

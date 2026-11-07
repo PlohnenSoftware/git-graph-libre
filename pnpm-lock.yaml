@@ -135,8 +135,8 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(vitest@5.1.0)
       '@vscode/diff':
-        specifier: 0.0.2-93
-        version: 0.0.2-93
+        specifier: 0.0.2-123
+        version: 0.0.2-123
       '@vscode/l10n-dev':
         specifier: ^0.0.35
         version: 0.0.35(supports-color@8.1.1)
@@ -1748,8 +1748,8 @@ packages:
   '@vitest/spy@5.1.0':
     resolution: {integrity: sha512-2DPO5OMHWKrBngC+fCmTQqemNF0gidRhp3lxbBmRhW+M1XJrfgPpqNqWVevXtn2f2ufD5ZaR1B6B641aAlcX5A==}
 
-  '@vscode/diff@0.0.2-93':
-    resolution: {integrity: sha512-OJhq5x2NyIaikjSfvEBDlk2+jDSlDZ2IDHxPnng5siC0k8PTjQOyKSK3z6sCeYTR/1Bq8D/WSunuDYTDnUc1pw==}
+  '@vscode/diff@0.0.2-123':
+    resolution: {integrity: sha512-i+yYDhjUX5XmIiLQm1vlWnzRJHhBknhVMRvetNCVu46Pae57mnvI99Ug6jvpIlIfOx2xBKsVsePM6HNteCwehQ==}
 
   '@vscode/l10n-dev@0.0.35':
     resolution: {integrity: sha512-s6uzBXsVDSL69Z85HSqpc5dfKswQkeucY8L00t1TWzGalw7wkLQUKMRwuzqTq+AMwQKrRd7Po14cMoTcd11iDw==}
@@ -4549,7 +4549,7 @@ snapshots:
 
   '@vitest/spy@5.1.0': {}
 
-  '@vscode/diff@0.0.2-93': {}
+  '@vscode/diff@0.0.2-123': {}
 
   '@vscode/l10n-dev@0.0.35(supports-color@8.1.1)':
     dependencies:

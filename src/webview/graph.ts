@@ -201,15 +201,19 @@ class Branch {
 class Vertex {
   private x: number = 0;
   private readonly y: number;
-  private readonly parents: Vertex[] = [];
+  // A null slot is a parent further down the same walk, past this page: its
+  // line runs on to the page's edge and connects once more history loads.
+  private readonly parents: VertexOrNull[] = [];
   private nextParent: number = 0;
+  // A parent this view never draws: one the walk filtered out (Graph's
+  // `ParentsBeyondPage`). It gets no line, but still keeps the root square off.
+  private hasUndrawnParent: boolean = false;
   private onBranch: Branch | null = null;
   private isCommitted: boolean = true;
-  private hasParentBeyondGraph: boolean = false;
   private isCurrent: boolean = false;
   private isStashRow: boolean = false;
   private nextX: number = 0;
-  private connections: UnavailablePoint[] = [];
+  private readonly connections: UnavailablePoint[] = [];
 
   constructor(y: number) {
     this.y = y;
@@ -218,12 +222,19 @@ class Vertex {
   public addParent(vertex: Vertex) {
     this.parents.push(vertex);
   }
-  /** The commit names a parent the loaded window does not draw. */
-  public setParentBeyondGraph() {
-    this.hasParentBeyondGraph = true;
+  /** A parent further down the walk, past this page: its line continues to the page's edge. */
+  public addParentBeyondPage() {
+    this.parents.push(null);
+  }
+  /** A parent the walk filtered out: it gets no line, but this commit is still no root. */
+  public addUndrawnParent() {
+    this.hasUndrawnParent = true;
   }
   public hasParents() {
     return this.parents.length > 0;
+  }
+  public hasPendingParents() {
+    return this.nextParent < this.parents.length;
   }
   public getNextParent(): Vertex | null {
     if (this.nextParent < this.parents.length) return this.parents[this.nextParent];
@@ -333,11 +344,9 @@ class Vertex {
       return;
     }
 
-    // `parents` holds drawn parents only, so an empty list alone does not
-    // make a root: the oldest commit of a loaded page has none drawn either.
-    // The square is reserved for commits git itself reports parentless —
-    // both backends normalize those to a single empty parent hash.
-    const isRoot = this.parents.length === 0 && !this.hasParentBeyondGraph;
+    // Only a genuinely parentless commit takes the square: both backends
+    // report roots as [""], and a missing parent keeps a slot or the flag.
+    const isRoot = !this.hasParents() && !this.hasUndrawnParent;
     const node = document.createElementNS("http://www.w3.org/2000/svg", isRoot ? "rect" : "circle");
     if (isRoot) {
       node.setAttribute("x", (cx - NODE_RADIUS).toString());
@@ -358,6 +367,29 @@ class Vertex {
 
     svg.appendChild(node);
   }
+}
+
+/**
+ * Which parents missing from a loaded page lie further down the same walk, so
+ * their lines continue past the page's last row and connect after Load More.
+ * Both backends report every parent of a commit, whichever walk loaded it.
+ */
+export type ParentsBeyondPage = "all" | "first" | "none";
+
+/**
+ * - `none` when nothing more can load, or under an author filter: `--author`
+ *   drops commits from the walk, so a missing parent was usually filtered out
+ *   rather than paged out, and its line would never connect.
+ * - `first` under `--first-parent`, which walks only a merge's first parent.
+ * - `all` otherwise: every missing parent is further down the page order.
+ */
+export function parentsBeyondPage(walk: {
+  moreAvailable: boolean;
+  onlyFollowFirstParent: boolean;
+  authorFiltered: boolean;
+}): ParentsBeyondPage {
+  if (!walk.moreAvailable || walk.authorFiltered) return "none";
+  return walk.onlyFollowFirstParent ? "first" : "all";
 }
 
 export class Graph {
@@ -381,10 +413,10 @@ export class Graph {
     const defs = document.createElementNS(svgNamespace, "defs");
     const linearGradient = document.createElementNS(svgNamespace, "linearGradient");
     const mask = document.createElementNS(svgNamespace, "mask");
-    this.svg = <SVGElement>document.createElementNS(svgNamespace, "svg");
-    this.svgMaskRect = <SVGRectElement>document.createElementNS(svgNamespace, "rect");
-    this.svgGradientStop1 = <SVGStopElement>document.createElementNS(svgNamespace, "stop");
-    this.svgGradientStop2 = <SVGStopElement>document.createElementNS(svgNamespace, "stop");
+    this.svg = document.createElementNS(svgNamespace, "svg");
+    this.svgMaskRect = document.createElementNS(svgNamespace, "rect");
+    this.svgGradientStop1 = document.createElementNS(svgNamespace, "stop");
+    this.svgGradientStop2 = document.createElementNS(svgNamespace, "stop");
 
     linearGradient.setAttribute("id", "GraphGradient");
     this.svgGradientStop1.setAttribute("stop-color", MASK_VISIBLE_COLOR);
@@ -408,7 +440,8 @@ export class Graph {
   public loadCommits(
     commits: GitCommitNode[],
     commitHead: string | null,
-    commitLookup: { [hash: string]: number }
+    commitLookup: { [hash: string]: number },
+    beyondPage: ParentsBeyondPage = "all"
   ) {
     this.vertices = [];
     this.branches = [];
@@ -417,7 +450,7 @@ export class Graph {
     for (let i = 0; i < commits.length; i++) {
       this.vertices.push(new Vertex(i));
     }
-    this.linkVertices(commits, commitLookup);
+    this.linkVertices(commits, commitLookup, beyondPage);
 
     if (commits.length > 0) {
       if (commits[0].hash === "*") {
@@ -436,20 +469,30 @@ export class Graph {
   }
 
   /**
-   * Connects each vertex to the parents that are on this page and marks stash
-   * rows. A parent beyond the loaded page is only recorded as existing, which
-   * keeps the root square for commits that have no parents at all (`[""]`).
+   * Keeps parent order. A parent off this page keeps a null slot, drawn as a
+   * continuation, only where `beyondPage` says the walk reaches it; any other
+   * is recorded as undrawn. Only an empty hash denotes a true root.
    */
-  private linkVertices(commits: GitCommitNode[], commitLookup: { [hash: string]: number }) {
+  private linkVertices(
+    commits: GitCommitNode[],
+    commitLookup: { [hash: string]: number },
+    beyondPage: ParentsBeyondPage
+  ) {
     for (const [i, commit] of commits.entries()) {
-      for (const parentHash of commit.parentHashes) {
-        if (typeof commitLookup[parentHash] === "number") {
-          this.vertices[i].addParent(this.vertices[commitLookup[parentHash]]);
-        } else if (parentHash !== "") {
-          this.vertices[i].setParentBeyondGraph();
+      const vertex = this.vertices[i];
+      for (const [index, parentHash] of commit.parentHashes.entries()) {
+        const parentRow = commitLookup[parentHash];
+        if (typeof parentRow === "number") {
+          vertex.addParent(this.vertices[parentRow]);
+        } else if (parentHash === "") {
+          // A root: there is no parent to draw or record.
+        } else if (beyondPage === "all" || (beyondPage === "first" && index === 0)) {
+          vertex.addParentBeyondPage();
+        } else {
+          vertex.addUndrawnParent();
         }
       }
-      if (commit.stash !== undefined) this.vertices[i].setStashRow();
+      if (commit.stash !== undefined) vertex.setStashRow();
     }
   }
 
@@ -462,7 +505,7 @@ export class Graph {
    * staging panel expands a row too and has no ExpandedCommit of its own.
    */
   public render(expandAt: number | null) {
-    const group = <SVGGElement>document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const width = this.getWidth();
     group.setAttribute("mask", "url(#GraphMask)");
 
@@ -604,7 +647,7 @@ export class Graph {
     vertex.registerUnavailablePoint(lastPoint.x, vertex, branch);
 
     let i = startAt + 1;
-    for (; i < this.vertices.length; i++) {
+    for (; vertex.hasPendingParents() && i < this.vertices.length; i++) {
       const curVertex = this.vertices[i];
       const curPoint = this.getNormalPathPoint(parentVertex, curVertex);
       branch.addLine(lastPoint, curPoint, vertex.getIsCommitted(), lastPoint.x < curPoint.x);
@@ -617,8 +660,20 @@ export class Graph {
         parentVertex.addToBranch(branch, curPoint.x);
         vertex = parentVertex;
         parentVertex = vertex.getNextParent();
-        if (parentVertexOnBranch || parentVertex === null) break;
+        if (parentVertexOnBranch || !vertex.hasPendingParents()) break;
       }
+    }
+
+    if (i === this.vertices.length && vertex.hasPendingParents() && parentVertex === null) {
+      // The parent exists beyond this page. Finish below the last row so
+      // even a one-row page shows a continuation, clipped by the SVG bounds.
+      const endPoint = { x: lastPoint.x, y: this.vertices.length };
+      if (startAt === this.vertices.length - 1 && !vertex.isOnThisBranch(branch)) {
+        endPoint.x = vertex.getNextPoint().x;
+        vertex.registerUnavailablePoint(endPoint.x, null, branch);
+      }
+      branch.addLine(lastPoint, endPoint, vertex.getIsCommitted(), true);
+      vertex.registerParentProcessed();
     }
 
     branch.setEnd(i);
@@ -635,7 +690,7 @@ export class Graph {
 
   private findStart() {
     for (let i = 0; i < this.vertices.length; i++) {
-      if (this.vertices[i].getNextParent() !== null || this.vertices[i].isNotOnBranch()) return i;
+      if (this.vertices[i].hasPendingParents() || this.vertices[i].isNotOnBranch()) return i;
     }
     return -1;
   }

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { GitCommitNode } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import { COMMIT_DETAILS_DEFAULT_HEIGHT } from "@/webview/commitDetailsView";
-import { Graph } from "@/webview/graph";
+import { Graph, parentsBeyondPage } from "@/webview/graph";
 
 const config: Config = {
   autoCenterCommitDetailsView: true,
@@ -129,6 +129,123 @@ describe("graph rendering", () => {
 
     expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(1);
     expect(document.querySelectorAll("#commitGraph g circle")).toHaveLength(1);
+  });
+
+  it.each([
+    ["outside", "loaded"],
+    ["loaded", "outside"]
+  ])("draws both merge edges when parents are %s and %s", (first, second) => {
+    const graph = makeGraph();
+    const commits = [makeCommit("merge", [first, second]), makeCommit("loaded")];
+    graph.loadCommits(commits, "merge", { merge: 0, loaded: 1 });
+    graph.render(null);
+
+    const paths = Array.from(document.querySelectorAll("#commitGraph path.line"));
+    const mergeEdges = paths.filter((path) => path.getAttribute("d")?.startsWith("M8,12.0"));
+    expect(mergeEdges).toHaveLength(2);
+    expect(paths.some((path) => path.getAttribute("d")?.endsWith(",60.0"))).toBe(true);
+    expect(document.querySelectorAll("#commitGraph g circle")).toHaveLength(1);
+    expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(1);
+  });
+
+  it("draws separate continuations when neither merge parent is loaded", () => {
+    const graph = makeGraph();
+    graph.loadCommits([makeCommit("merge", ["outside1", "outside2"])], "merge", { merge: 0 });
+    graph.render(null);
+
+    const paths = Array.from(document.querySelectorAll("#commitGraph path.line"));
+    expect(paths).toHaveLength(2);
+    expect(paths.every((path) => path.getAttribute("d")?.startsWith("M8,12.0"))).toBe(true);
+    expect(new Set(paths.map((path) => path.getAttribute("d"))).size).toBe(2);
+    expect(document.querySelectorAll("#commitGraph g circle")).toHaveLength(1);
+    expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(0);
+  });
+
+  it("continues a last-row parent beyond the page and reconnects it on load more", () => {
+    const graph = makeGraph();
+    graph.loadCommits([makeCommit("child", ["parent"])], "child", { child: 0 });
+    graph.render(null);
+    expect(document.querySelector("#commitGraph path.line")?.getAttribute("d")).toBe(
+      "M8,12.0L8,36.0"
+    );
+
+    graph.loadCommits([makeCommit("child", ["parent"]), makeCommit("parent")], "child", {
+      child: 0,
+      parent: 1
+    });
+    graph.render(null);
+    expect(document.querySelector("#commitGraph path.line")?.getAttribute("d")).toBe(
+      "M8,12.0L8,36.0"
+    );
+    expect(document.querySelectorAll("#commitGraph path.line")).toHaveLength(1);
+    expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(1);
+  });
+
+  it("replaces a merge continuation with a connection when its parent loads", () => {
+    const graph = makeGraph();
+    const commits = [makeCommit("merge", ["outside", "loaded"]), makeCommit("loaded")];
+    graph.loadCommits(commits, "merge", { merge: 0, loaded: 1 });
+    graph.render(null);
+
+    graph.loadCommits([...commits, makeCommit("outside")], "merge", {
+      merge: 0,
+      loaded: 1,
+      outside: 2
+    });
+    graph.render(null);
+    const paths = Array.from(document.querySelectorAll("#commitGraph path.line"));
+    expect(paths.filter((path) => path.getAttribute("d")?.startsWith("M8,12.0"))).toHaveLength(2);
+    expect(paths.some((path) => path.getAttribute("d")?.endsWith(",84.0"))).toBe(false);
+    expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(2);
+  });
+
+  it("does not draw a continuation from a standalone root above other history", () => {
+    const graph = makeGraph();
+    graph.loadCommits([makeCommit("root", [""]), makeCommit("otherRoot")], "root", {
+      root: 0,
+      otherRoot: 1
+    });
+    graph.render(null);
+    const paths = Array.from(document.querySelectorAll("#commitGraph path.line"));
+    expect(paths.every((path) => path.getAttribute("d") === "")).toBe(true);
+  });
+
+  it("continues only a merge's first parent when the walk follows first parents", () => {
+    const graph = makeGraph();
+    const commits = [makeCommit("merge", ["outside", "side"]), makeCommit("loaded")];
+    graph.loadCommits(commits, "merge", { merge: 0, loaded: 1 }, "first");
+    graph.render(null);
+
+    // `git log --first-parent` still prints `side`, but never walks it.
+    const paths = Array.from(document.querySelectorAll("#commitGraph path.line"))
+      .map((path) => path.getAttribute("d"))
+      .filter((d) => d !== "");
+    expect(paths).toHaveLength(1);
+    expect(paths[0]?.startsWith("M8,12.0")).toBe(true);
+    expect(paths[0]?.endsWith(",60.0")).toBe(true);
+    expect(document.querySelectorAll("#commitGraph g circle")).toHaveLength(1);
+  });
+
+  it("draws a parent the walk filtered out as neither a line nor a root", () => {
+    const graph = makeGraph();
+    const commits = [makeCommit("child", ["filtered"]), makeCommit("merge", ["kept", "filtered"])];
+    graph.loadCommits(commits, "child", { child: 0, merge: 1 }, "none");
+    graph.render(null);
+
+    const paths = Array.from(document.querySelectorAll("#commitGraph path.line"));
+    expect(paths.every((path) => path.getAttribute("d") === "")).toBe(true);
+    expect(document.querySelectorAll("#commitGraph g circle")).toHaveLength(2);
+    expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(0);
+  });
+
+  it.each([
+    [{ moreAvailable: true, onlyFollowFirstParent: false, authorFiltered: false }, "all"],
+    [{ moreAvailable: true, onlyFollowFirstParent: true, authorFiltered: false }, "first"],
+    [{ moreAvailable: true, onlyFollowFirstParent: false, authorFiltered: true }, "none"],
+    [{ moreAvailable: true, onlyFollowFirstParent: true, authorFiltered: true }, "none"],
+    [{ moreAvailable: false, onlyFollowFirstParent: false, authorFiltered: false }, "none"]
+  ] as const)("continues %o parents as %s", (walk, expected) => {
+    expect(parentsBeyondPage(walk)).toBe(expected);
   });
 
   it("draws stash nodes as a ringed pendant of their base", () => {
