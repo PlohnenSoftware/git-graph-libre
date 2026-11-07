@@ -27,6 +27,11 @@ updates:
       # Raise both together, by hand, when the minimum VS Code moves.
       - dependency-name: "@types/vscode"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # The diff port's test oracle, pinned exactly by the licensing verdict
+      # (D3). A new version can change VS Code's algorithm under the port and
+      # its fixtures: 0.0.2-123 broke the oracle suites. Move it only with a
+      # deliberate re-sync of the port, the fixtures and both NOTICE files.
+      - dependency-name: "@vscode/diff"
 
   # The Rust engine. rust-toolchain.toml is left out on purpose: raising the
   # channel is a deliberate act (see that file).

@@ -25,6 +25,12 @@ Its npm tarball is MIT, Copyright (c) Microsoft Corporation, with no runtime
 dependencies or install lifecycle scripts. It is excluded from the VSIX.
 X5 requires the whole port in 1.9.0; D5 defers CI WebAssembly wiring and
 keeps comparison local for now. D20 itself contains no port or fixtures.
+Dependabot moved the pin twice, to `0.0.2-93` (`cd79710`, `2026-10-24`)
+and `0.0.2-123` (`39bb777`, `2026-11-07`, which failed three oracle tests
+on `invalid-diff-trimws` and a generated case). It was restored to
+`0.0.2-87` on `2026-11-08`, and `.github/dependabot.yml` now ignores
+`@vscode/diff`: the oracle moves only with a re-sync of the port, the
+fixtures and both notices.
 
 **Placements (Phase 17 Legal plan):** (1) extend D40's existing Microsoft
 section in `LICENSE.mit`, keeping both copyright lines and the full MIT text;
