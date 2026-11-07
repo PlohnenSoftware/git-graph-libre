@@ -99,3 +99,14 @@ locale), fresh `test:coverage` `119` files / `1262` tests at `93.1%` lines
 `107` passed / `0` failed), the release addon rebuilt and smoke-tested at
 `1.0.25`, and the Author Date parity case run against it, not skipped. Sonar
 numbers are in the `1.8.1` entry under Current Architecture.
+
+**A click opens the popup at once (`2026-11-08`, maintainer request).** The
+700 ms hover was the only reliable way in: a click focused the indicator and
+opened it once, but the indicator keeps focus after the popup closes on
+leaving, so later clicks focused nothing new and did nothing. `#statusSummary`
+now has its own click handler, sharing `openNow()` with focus. Either opens
+without the pause and asks for fresh answers only when no hover has asked
+already. The popup still closes 200 ms after the pointer leaves both the
+indicator and the popup. The indicator carries `cursor: pointer`. Tests: three
+click cases in `tests/webview/componentStatus.test.ts`, each failing on the
+old module, and the cursor in `tests/webview/tableStyles.test.ts`.

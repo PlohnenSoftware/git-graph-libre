@@ -219,8 +219,8 @@
 .statusStrip[data-state="error"] .statusIndicator {
   background-color: var(--vscode-errorForeground);
 }
-/* The indicator and the status text are one hover and focus target: resting
-   on it opens the component popup. */
+/* The indicator and the status text are one hover, click and focus target:
+   resting on it opens the component popup, and a click opens it at once. */
 .statusSummary {
   display: inline-flex;
   align-items: center;

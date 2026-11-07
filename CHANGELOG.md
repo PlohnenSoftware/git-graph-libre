@@ -126,6 +126,12 @@ checkout defaults that follow Git.
   count other worktrees' HEADs, as `git log --all` does, and a worktree that
   was removed or moved is no longer read from a stale handle.
 
+- **A click opens the status popup at once.** Clicking the status dot or the
+  "Ready" text beside it shows the Git, Rust engine and graph-load details
+  without the hover pause, and every click works, not only the first. The
+  popup stays open while the pointer is over the dot or the popup, and closes
+  once it leaves.
+
 ### Fixed
 
 - **Merge lines continue beyond the loaded history.** A merge could show only

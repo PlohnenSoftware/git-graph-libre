@@ -3,7 +3,9 @@
  *
  * A pointer resting on the indicator (the dot and the status text beside it)
  * opens the popup after a deliberate pause, so passing over the strip on the
- * way to the toolbar shows nothing; focusing the indicator opens it at once.
+ * way to the toolbar shows nothing. Clicking the indicator, or focusing it,
+ * opens it at once. Either way it stays open while the pointer is over the
+ * indicator or the popup, and closes once it leaves both.
  * Fresh answers are asked for the moment the hover begins, so they have
  * usually arrived by the time the popup opens, and an answer that arrives
  * while it is open re-renders it in place.
@@ -59,10 +61,14 @@ export function initComponentStatus(requestStatus: () => void): void {
     }, COMPONENT_STATUS_HOVER_DELAY_MS);
   });
   summary.addEventListener("mouseleave", onPointerLeave);
-  summary.addEventListener("focus", () => {
-    requestStatus();
-    openPopup();
+  // A click skips the hover pause. It cannot rely on focus to open the popup:
+  // the indicator keeps focus after the popup closes on leaving, so a later
+  // click focuses nothing new.
+  summary.addEventListener("click", () => {
+    pointerOver = true;
+    openNow(requestStatus);
   });
+  summary.addEventListener("focus", () => openNow(requestStatus));
   // Clicking into the popup to select its text blurs the indicator; the
   // pointer is still over the popup then, and leaving it closes it later.
   summary.addEventListener("blur", () => {
@@ -93,6 +99,17 @@ export function resetComponentStatus(): void {
 function isPopupOpen(): boolean {
   const popup = document.getElementById(POPUP_ID);
   return popup !== null && !popup.hidden;
+}
+
+/** Open without the hover pause, or keep an open popup from closing. */
+function openNow(requestStatus: () => void): void {
+  if (isPopupOpen()) {
+    cancelClose();
+    return;
+  }
+  // A hover that has begun asked already; its answer re-renders the popup.
+  if (openTimer === null) requestStatus();
+  openPopup();
 }
 
 function openPopup(): void {

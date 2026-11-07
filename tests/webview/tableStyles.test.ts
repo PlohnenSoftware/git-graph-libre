@@ -385,6 +385,8 @@ describe("commit table styles", () => {
     expect(css.match(/^\.statusSummary:focus-visible \{[^}]+\}/m)?.[0] ?? "").toContain(
       "var(--vscode-focusBorder)"
     );
+    // A click opens the popup at once, so the indicator reads as clickable.
+    expect(css.match(/^\.statusSummary \{[^}]+\}/m)?.[0] ?? "").not.toContain("cursor: pointer;");
   });
 
   it("styles the staged and unstaged panes with drag affordances", () => {

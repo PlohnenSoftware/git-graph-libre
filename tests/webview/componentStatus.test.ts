@@ -127,6 +127,43 @@ describe("status indicator popup", () => {
     expect(isOpen()).toBe(false);
   });
 
+  it("opens at once on a click, and stays open until the pointer leaves", () => {
+    summary().dispatchEvent(new MouseEvent("mouseenter"));
+    summary().dispatchEvent(new MouseEvent("click"));
+    expect(isOpen()).toBe(true);
+
+    // The hover asked for fresh answers already; clicks ask no second time.
+    summary().dispatchEvent(new MouseEvent("click"));
+    vi.advanceTimersByTime(COMPONENT_STATUS_HOVER_DELAY_MS * 2);
+    expect(isOpen()).toBe(true);
+    expect(requestStatus).toHaveBeenCalledTimes(1);
+
+    summary().dispatchEvent(new MouseEvent("mouseleave"));
+    vi.advanceTimersByTime(1000);
+    expect(isOpen()).toBe(false);
+    expect(summary().hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("opens on a click although the indicator kept focus from the last one", () => {
+    // A click focuses the indicator, and leaving closes the popup, not the focus,
+    // so the next click focuses nothing new.
+    summary().dispatchEvent(new FocusEvent("focus"));
+    summary().dispatchEvent(new MouseEvent("mouseleave"));
+    vi.advanceTimersByTime(1000);
+    expect(isOpen()).toBe(false);
+
+    summary().dispatchEvent(new MouseEvent("mouseenter"));
+    summary().dispatchEvent(new MouseEvent("click"));
+    expect(isOpen()).toBe(true);
+  });
+
+  it("asks for fresh answers on a click that no hover came before", () => {
+    summary().dispatchEvent(new MouseEvent("click"));
+
+    expect(isOpen()).toBe(true);
+    expect(requestStatus).toHaveBeenCalledTimes(1);
+  });
+
   it("says every row is being checked until the first answer arrives", () => {
     summary().dispatchEvent(new FocusEvent("focus"));
 
