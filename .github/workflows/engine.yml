@@ -50,8 +50,10 @@ jobs:
   # Phase 17 (22h, 22i): the five-arm differential Vitest suite needs both of
   # our builds, the WebAssembly one and the native addon; without either it
   # skips every pair involving ours, so both are built and checked first.
-  # `wasm-bindgen-cli` is pinned to the `wasm-bindgen` crate version in
-  # engine/native/diff/Cargo.toml, like the pinned zig.
+  # `wasm-bindgen-cli` must match the `wasm-bindgen` crate exactly (the crate
+  # pins it with `=` in engine/native/diff/Cargo.toml), so its version is read
+  # from engine/Cargo.lock rather than repeated here: a Dependabot bump of the
+  # crate then moves the CLI with it.
   diff-wasm:
     name: diff crate wasm build and differential suite
     runs-on: ubuntu-latest
@@ -70,7 +72,11 @@ jobs:
       - run: rustup target add wasm32-unknown-unknown
 
       - name: Install wasm-bindgen-cli (same version as the crate)
-        run: cargo install --locked wasm-bindgen-cli --version 0.2.129
+        run: |
+          pkgid=$(cargo pkgid --manifest-path engine/Cargo.toml --locked wasm-bindgen)
+          version=${pkgid##*[#@]}
+          echo "wasm-bindgen ${version}, from engine/Cargo.lock"
+          cargo install --locked wasm-bindgen-cli --version "${version}"
 
       - name: Build the diff crate for Node
         run: pnpm run diff:wasm

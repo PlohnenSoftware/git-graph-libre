@@ -148,8 +148,14 @@ re-sync procedure below).
 5. **Continuous integration.**
    - `engine.yml` runs the cargo layers.
    - The TypeScript test job runs layer 3, which needs the WebAssembly build.
-     `wasm-bindgen-cli` is pinned to the `wasm-bindgen` crate version, the
-     same discipline as the pinned zig.
+     `wasm-bindgen-cli` must match the `wasm-bindgen` crate exactly, which
+     `engine/native/diff/Cargo.toml` pins with `=`. Since `2026-11-08` the
+     `diff-wasm` job reads that version from `engine/Cargo.lock`
+     (`cargo pkgid`) instead of repeating it: Dependabot's 0.2.130 bump
+     (PR #48) changed the crate but not the workflow's copy, and the job
+     failed on the schema mismatch. Locally, `pnpm run diff:wasm` needs the
+     same CLI version on `PATH`: `cargo install --locked wasm-bindgen-cli
+     --version <the locked version>`.
 
 ## Using it in Git Graph Libre (decision D4)
 
