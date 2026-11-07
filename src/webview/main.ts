@@ -39,7 +39,7 @@ import { findCommitIndexes, formatFindMatchCount } from "./commitFind";
 import { applyComponentStatus, initComponentStatus } from "./componentStatus";
 import { Dropdown, type DropdownOption } from "./dropdown";
 import { createFailureScreenReporter } from "./failureScreen";
-import { Graph } from "./graph";
+import { Graph, parentsBeyondPage } from "./graph";
 import { resolveGlobalShortcut } from "./keyboardShortcuts";
 import { groupCommitRefs, parseRemoteBranchName } from "./refLabels";
 import { buildRepoOptions } from "./repoOptions";
@@ -1159,7 +1159,16 @@ class GitGraphView {
     const { expandedCommitVisible, avatarsNeeded } = this.rebuildCommitIndexes();
     this.keepVisibleCommitSelection();
 
-    this.graph.loadCommits(this.commits, this.commitHead, this.commitLookup);
+    this.graph.loadCommits(
+      this.commits,
+      this.commitHead,
+      this.commitLookup,
+      parentsBeyondPage({
+        moreAvailable: this.moreCommitsAvailable,
+        onlyFollowFirstParent: this.getOnlyFollowFirstParent(),
+        authorFiltered: this.currentAuthors !== null
+      })
+    );
 
     if (this.expandedCommit !== null && !expandedCommitVisible) {
       this.expandedCommit = null;

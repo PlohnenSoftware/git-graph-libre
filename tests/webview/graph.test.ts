@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { GitCommitNode } from "@/backend/types";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import { COMMIT_DETAILS_DEFAULT_HEIGHT } from "@/webview/commitDetailsView";
-import { Graph } from "@/webview/graph";
+import { Graph, parentsBeyondPage } from "@/webview/graph";
 
 const config: Config = {
   autoCenterCommitDetailsView: true,
@@ -208,6 +208,44 @@ describe("graph rendering", () => {
     graph.render(null);
     const paths = Array.from(document.querySelectorAll("#commitGraph path.line"));
     expect(paths.every((path) => path.getAttribute("d") === "")).toBe(true);
+  });
+
+  it("continues only a merge's first parent when the walk follows first parents", () => {
+    const graph = makeGraph();
+    const commits = [makeCommit("merge", ["outside", "side"]), makeCommit("loaded")];
+    graph.loadCommits(commits, "merge", { merge: 0, loaded: 1 }, "first");
+    graph.render(null);
+
+    // `git log --first-parent` still prints `side`, but never walks it.
+    const paths = Array.from(document.querySelectorAll("#commitGraph path.line"))
+      .map((path) => path.getAttribute("d"))
+      .filter((d) => d !== "");
+    expect(paths).toHaveLength(1);
+    expect(paths[0]?.startsWith("M8,12.0")).toBe(true);
+    expect(paths[0]?.endsWith(",60.0")).toBe(true);
+    expect(document.querySelectorAll("#commitGraph g circle")).toHaveLength(1);
+  });
+
+  it("draws a parent the walk filtered out as neither a line nor a root", () => {
+    const graph = makeGraph();
+    const commits = [makeCommit("child", ["filtered"]), makeCommit("merge", ["kept", "filtered"])];
+    graph.loadCommits(commits, "child", { child: 0, merge: 1 }, "none");
+    graph.render(null);
+
+    const paths = Array.from(document.querySelectorAll("#commitGraph path.line"));
+    expect(paths.every((path) => path.getAttribute("d") === "")).toBe(true);
+    expect(document.querySelectorAll("#commitGraph g circle")).toHaveLength(2);
+    expect(document.querySelectorAll("#commitGraph g rect")).toHaveLength(0);
+  });
+
+  it.each([
+    [{ moreAvailable: true, onlyFollowFirstParent: false, authorFiltered: false }, "all"],
+    [{ moreAvailable: true, onlyFollowFirstParent: true, authorFiltered: false }, "first"],
+    [{ moreAvailable: true, onlyFollowFirstParent: false, authorFiltered: true }, "none"],
+    [{ moreAvailable: true, onlyFollowFirstParent: true, authorFiltered: true }, "none"],
+    [{ moreAvailable: false, onlyFollowFirstParent: false, authorFiltered: false }, "none"]
+  ] as const)("continues %o parents as %s", (walk, expected) => {
+    expect(parentsBeyondPage(walk)).toBe(expected);
   });
 
   it("draws stash nodes as a ringed pendant of their base", () => {

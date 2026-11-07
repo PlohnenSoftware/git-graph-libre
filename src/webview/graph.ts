@@ -201,9 +201,13 @@ class Branch {
 class Vertex {
   private x: number = 0;
   private readonly y: number;
-  // A null slot is a real parent outside the loaded page, not a root.
+  // A null slot is a parent further down the same walk, past this page: its
+  // line runs on to the page's edge and connects once more history loads.
   private readonly parents: VertexOrNull[] = [];
   private nextParent: number = 0;
+  // A parent this view never draws: one the walk filtered out (Graph's
+  // `ParentsBeyondPage`). It gets no line, but still keeps the root square off.
+  private hasUndrawnParent: boolean = false;
   private onBranch: Branch | null = null;
   private isCommitted: boolean = true;
   private isCurrent: boolean = false;
@@ -215,8 +219,16 @@ class Vertex {
     this.y = y;
   }
 
-  public addParent(vertex: VertexOrNull) {
+  public addParent(vertex: Vertex) {
     this.parents.push(vertex);
+  }
+  /** A parent further down the walk, past this page: its line continues to the page's edge. */
+  public addParentBeyondPage() {
+    this.parents.push(null);
+  }
+  /** A parent the walk filtered out: it gets no line, but this commit is still no root. */
+  public addUndrawnParent() {
+    this.hasUndrawnParent = true;
   }
   public hasParents() {
     return this.parents.length > 0;
@@ -332,9 +344,9 @@ class Vertex {
       return;
     }
 
-    // Unloaded parents retain null slots, so only a genuinely parentless
-    // commit takes the square (both backends report roots as [""]).
-    const isRoot = !this.hasParents();
+    // Only a genuinely parentless commit takes the square: both backends
+    // report roots as [""], and a missing parent keeps a slot or the flag.
+    const isRoot = !this.hasParents() && !this.hasUndrawnParent;
     const node = document.createElementNS("http://www.w3.org/2000/svg", isRoot ? "rect" : "circle");
     if (isRoot) {
       node.setAttribute("x", (cx - NODE_RADIUS).toString());
@@ -355,6 +367,29 @@ class Vertex {
 
     svg.appendChild(node);
   }
+}
+
+/**
+ * Which parents missing from a loaded page lie further down the same walk, so
+ * their lines continue past the page's last row and connect after Load More.
+ * Both backends report every parent of a commit, whichever walk loaded it.
+ */
+export type ParentsBeyondPage = "all" | "first" | "none";
+
+/**
+ * - `none` when nothing more can load, or under an author filter: `--author`
+ *   drops commits from the walk, so a missing parent was usually filtered out
+ *   rather than paged out, and its line would never connect.
+ * - `first` under `--first-parent`, which walks only a merge's first parent.
+ * - `all` otherwise: every missing parent is further down the page order.
+ */
+export function parentsBeyondPage(walk: {
+  moreAvailable: boolean;
+  onlyFollowFirstParent: boolean;
+  authorFiltered: boolean;
+}): ParentsBeyondPage {
+  if (!walk.moreAvailable || walk.authorFiltered) return "none";
+  return walk.onlyFollowFirstParent ? "first" : "all";
 }
 
 export class Graph {
@@ -405,7 +440,8 @@ export class Graph {
   public loadCommits(
     commits: GitCommitNode[],
     commitHead: string | null,
-    commitLookup: { [hash: string]: number }
+    commitLookup: { [hash: string]: number },
+    beyondPage: ParentsBeyondPage = "all"
   ) {
     this.vertices = [];
     this.branches = [];
@@ -414,7 +450,7 @@ export class Graph {
     for (let i = 0; i < commits.length; i++) {
       this.vertices.push(new Vertex(i));
     }
-    this.linkVertices(commits, commitLookup);
+    this.linkVertices(commits, commitLookup, beyondPage);
 
     if (commits.length > 0) {
       if (commits[0].hash === "*") {
@@ -433,19 +469,30 @@ export class Graph {
   }
 
   /**
-   * Keeps parent order, including null slots for parents outside this page.
-   * Those slots draw continuations; only an empty hash denotes a true root.
+   * Keeps parent order. A parent off this page keeps a null slot, drawn as a
+   * continuation, only where `beyondPage` says the walk reaches it; any other
+   * is recorded as undrawn. Only an empty hash denotes a true root.
    */
-  private linkVertices(commits: GitCommitNode[], commitLookup: { [hash: string]: number }) {
+  private linkVertices(
+    commits: GitCommitNode[],
+    commitLookup: { [hash: string]: number },
+    beyondPage: ParentsBeyondPage
+  ) {
     for (const [i, commit] of commits.entries()) {
-      for (const parentHash of commit.parentHashes) {
-        if (typeof commitLookup[parentHash] === "number") {
-          this.vertices[i].addParent(this.vertices[commitLookup[parentHash]]);
-        } else if (parentHash !== "") {
-          this.vertices[i].addParent(null);
+      const vertex = this.vertices[i];
+      for (const [index, parentHash] of commit.parentHashes.entries()) {
+        const parentRow = commitLookup[parentHash];
+        if (typeof parentRow === "number") {
+          vertex.addParent(this.vertices[parentRow]);
+        } else if (parentHash === "") {
+          // A root: there is no parent to draw or record.
+        } else if (beyondPage === "all" || (beyondPage === "first" && index === 0)) {
+          vertex.addParentBeyondPage();
+        } else {
+          vertex.addUndrawnParent();
         }
       }
-      if (commit.stash !== undefined) this.vertices[i].setStashRow();
+      if (commit.stash !== undefined) vertex.setStashRow();
     }
   }
 
