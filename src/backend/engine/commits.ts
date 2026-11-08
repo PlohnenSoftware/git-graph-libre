@@ -18,10 +18,12 @@
  *   engine;
  * - a `--glob=` branch pattern: the engine's tip resolution silently skips
  *   revisions it cannot resolve instead of expanding the glob.
- * - the `topo` commit ordering: the engine walks each line of history
- *   depth-first while git interleaves branch lines by date within the same
- *   topological constraint — both valid, visibly different row orders, so
- *   topo loads stay on the CLI (pinned by the parity table).
+ *
+ * `topo` was a decline until the engine started from the newest tip and broke
+ * ties the way git does (traversal by committer date, first found first, then
+ * a topological sort that takes the most recently readied commit): it now
+ * matches `git log --topo-order` byte for byte on merges, criss-cross merges,
+ * equal dates, skewed clocks, several tips, branch and author filters.
  *
  * `Author Date` was a decline until engine `1.0.25`, whose `load_commits`
  * takes `useAuthorDate` and answers with the date the CLI formats as `%at`.
@@ -78,8 +80,6 @@ export function engineLoadCommitsRefs(input: EngineLoadCommitsInput): string[] |
  * CLI, unchanged, and the status indicator names the reason.
  */
 export function loadCommitsDecline(input: EngineLoadCommitsInput): GraphLoadDecline | null {
-  // The engine's topo tie-breaks differ visibly from git's (see above).
-  if (input.commitOrdering === "topo") return "topoOrdering";
   const refs = engineLoadCommitsRefs(input);
   // `--glob=` is not understood by the engine's tip resolution.
   if (refs?.some((ref) => ref.startsWith("--glob="))) return "globPattern";

@@ -54,8 +54,8 @@ describe("loadCommitsDecline", () => {
     expect(loadCommitsDecline({ ...BASE, dateType: "Author Date" })).toBeNull();
   });
 
-  it("declines topo ordering, whose tie-breaks differ visibly from git", () => {
-    expect(loadCommitsDecline({ ...BASE, commitOrdering: "topo" })).toBe("topoOrdering");
+  it("serves every commit ordering, topo included, which matches git byte for byte", () => {
+    expect(loadCommitsDecline({ ...BASE, commitOrdering: "topo" })).toBeNull();
     expect(loadCommitsDecline({ ...BASE, commitOrdering: "date" })).toBeNull();
     expect(loadCommitsDecline({ ...BASE, commitOrdering: "author-date" })).toBeNull();
   });
@@ -83,9 +83,9 @@ describe("loadCommitsDecline", () => {
 
   it("names the first decline that holds when several apply", () => {
     // The order is the predicate's: the reason shown is the first that holds.
-    expect(loadCommitsDecline({ ...BASE, commitOrdering: "topo", includeReflog: true })).toBe(
-      "topoOrdering"
-    );
+    expect(
+      loadCommitsDecline({ ...BASE, branches: ["--glob=feature/*"], includeReflog: true })
+    ).toBe("globPattern");
   });
 });
 

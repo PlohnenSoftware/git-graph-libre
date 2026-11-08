@@ -535,8 +535,26 @@ describe("engine/CLI parity: loadCommits", () => {
     for (const commitOrdering of ["date", "author-date"] as const) {
       await expectCommitsParity(branchy, `ordering=${commitOrdering}`, { commitOrdering }, true);
     }
-    // Topo stays on the CLI (tie-breaks differ visibly) — still identical.
-    await expectCommitsParity(branchy, "ordering=topo", { commitOrdering: "topo" }, false);
+    // Topo is served by the engine and identical to `git log --topo-order`.
+    await expectCommitsParity(branchy, "ordering=topo", { commitOrdering: "topo" }, true);
+    await expectCommitsParity(
+      branchy,
+      "ordering=topo branches",
+      { commitOrdering: "topo", branches: ["feature"] },
+      true
+    );
+    await expectCommitsParity(
+      branchy,
+      "ordering=topo authors",
+      { commitOrdering: "topo", authors: ["Ada"] },
+      true
+    );
+    await expectCommitsParity(
+      branchy,
+      "ordering=topo maxCommits",
+      { commitOrdering: "topo", maxCommits: 3 },
+      true
+    );
     await expectCommitsParity(branchy, "showStashes", { showStashes: true }, true);
     await expectCommitsParity(branchy, "maxCommits", { maxCommits: 1 }, true);
     await expectCommitsParity(branchy, "maxCommits", { maxCommits: 3 }, true);
@@ -634,7 +652,14 @@ describe("engine/CLI parity: loadCommits", () => {
         true
       );
     }
-    await expectCommitsParity(fixtures.roomy, "ordering=topo", { commitOrdering: "topo" }, false);
+    await expectCommitsParity(fixtures.roomy, "ordering=topo", { commitOrdering: "topo" }, true);
+    await expectCommitsParity(
+      fixtures.roomy,
+      "ordering=topo authors",
+      { commitOrdering: "topo", authors: ["Bob"] },
+      true,
+      true
+    );
     await expectCommitsParity(fixtures.roomy, "maxCommits", { maxCommits: 15 }, true);
     await expectCommitsParity(fixtures.roomy, "authors", { authors: ["Bob"] }, true, true);
   }, 180000);
@@ -655,7 +680,7 @@ describe("engine/CLI parity: loadCommits", () => {
     expect(await cliDates("Author Date")).not.toEqual(await cliDates("Commit Date"));
 
     for (const dateType of ["Author Date", "Commit Date"] as const) {
-      for (const commitOrdering of ["date", "author-date"] as const) {
+      for (const commitOrdering of ["date", "author-date", "topo"] as const) {
         await expectCommitsParity(
           skewed,
           `${dateType} ordering=${commitOrdering}`,
