@@ -9,7 +9,7 @@ summary: >-
 
 # R09 — Remove the topo decline surface
 
-Status: claimed by Claude Haiku on 2026-11-08 23:55
+Status: done — awaiting integration
 
 Needs: R03
 
@@ -51,4 +51,38 @@ Report Sonar: integrator.
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Haiku 5.5, 2026-11-08 23:56
+- **Branch and commits:** `engine-review/R09`
+  - `cf2cc47 G docs(engine): claim R09 for the topo decline removal`
+  - `5a4a96b G refactor(engine): remove the topoOrdering decline surface (R09)`
+  - `a461a40 G test(webview): drop the topoOrdering route row (R09)`
+  - the commit recording this report, which follows these (signed; see `git log`)
+- **Files changed** (`git diff --stat eb7a9d8 HEAD`, 10 files, +2 −10):
+  `src/types.ts` (+1 −1, `GraphLoadDecline` now `"reflog" | "unreachableCommits" | "globPattern"`),
+  `src/webview/componentStatus.ts` (−1), `src/extension/webviewL10n.ts` (−1),
+  `l10n/bundle.l10n.json`, `.nl.json`, `.pl.json`, `.zh-cn.json`, `.zh-tw.json` (−1 each),
+  `tests/webview/componentStatus.test.ts` (−1), and the slice file's status line
+  (claim and this report). The webview l10n strings are a plain inferred return
+  object, so no separate type declared the removed key.
+- **Tests added or changed:** one `it.each` row removed (`topoOrdering`). Webview
+  `componentStatus.test.ts`: 29 passing after the removal (the count before
+  the removal was not measured). Backend `commits.test.ts` and
+  `reader.test.ts`: 112 passing, unchanged (they never named `topoOrdering`).
+- **Telemetry check:** `telemetry.json` and the telemetry sources name no `topoOrdering`, so nothing needed the maintainer.
+- **Gates** (focused, run after the edits, before the code commits):
+  - `git grep -n topoOrdering -- ':!docs' ':!graphify-out' ':!CHANGELOG.md'`: no matches (exit 1), met.
+  - `pnpm run l10n:check`: "All translations are complete"; bundle 100% for nl, pl, zh-cn, zh-tw.
+  - `pnpm run typecheck`: exit 0.
+  - `npx biome check --config-path biome.strict.jsonc --error-on-warnings` on the four touched `.ts` files: "Checked 4 files ... No fixes applied", exit 0. Biome printed a configuration schema-version notice (`biome.strict.jsonc` names schema 2.5.13, the installed CLI is 2.6.5). This is a notice, not a finding, and predates this slice; not changed here.
+  - `npx vitest run --project webview tests/webview/componentStatus.test.ts`: 29 passed.
+  - `npx vitest run --project backend tests/backend/engine/commits.test.ts tests/backend/engine/reader.test.ts`: 112 passed.
+  - Sonar: integrator.
+- **Acceptance:**
+  - `git grep topoOrdering` outside `docs/`, `graphify-out/`, `CHANGELOG.md`: met (no matches).
+  - `pnpm run l10n:check` complete: met.
+  - `pnpm run typecheck` clean: met.
+  - Strict Biome clean on touched TypeScript: met (see the notice above).
+  - Webview componentStatus test and both backend engine test files pass: met.
+  - `src/backend/engine/commits.ts` untouched: met.
+- **Deviations from the slice:** none. Note: R03's report listed the same leftover ids as deviation (2); this slice removes them.
+- **Open questions / follow-ups:** none for R09. The rest of the `topoOrdering` history is in `docs/` and `CHANGELOG.md`, which the slice excludes by design. Biome's schema-version notice may be worth the maintainer's attention as a separate chore; it is not R09's.
