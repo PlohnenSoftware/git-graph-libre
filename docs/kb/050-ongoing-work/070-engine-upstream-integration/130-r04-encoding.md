@@ -6,7 +6,7 @@ summary: >-
 
 # R04 — Encoding and subjects
 
-Status: ready
+Status: claimed by Claude Sonnet on 2026-11-08 23:32
 
 Needs: R03
 
