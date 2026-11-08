@@ -6,7 +6,7 @@ summary: >-
 
 # R06 — Remote-ref classification
 
-Status: ready
+Status: claimed by Claude Haiku on 2026-11-08 23:17
 
 Needs: R01
 
