@@ -25,6 +25,7 @@ use authors::AuthorPatterns;
 
 use crate::error::{Error, Result, ResultExt};
 use crate::repository::{Repo, Shallow};
+use crate::text::{self, CommitText};
 use crate::types::{CommitOrdering, CommitRecord, GitAuthor};
 
 /// How many commits are read for every commit displayed, so that the topological re-ordering has
@@ -58,6 +59,7 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
         return Ok(Vec::new());
     }
     let git = repo.borrow();
+    text::ensure_utf8_output(&git)?;
     let filtering = !options.filter_paths.is_empty();
     // An author filter has the same problem as a path filter: matches can be sparse, so a fixed
     // window can run dry and silently return fewer commits than asked for (and hide "Load More"
@@ -275,9 +277,7 @@ pub fn read_commit(commit: &gix::Commit<'_>, shallow: &Shallow) -> Result<Commit
     let committer = commit
         .committer()
         .git_ctx("Could not decode the commit committer")?;
-    let message = commit
-        .message()
-        .git_ctx("Could not decode the commit message")?;
+    let text = CommitText::of(commit)?;
 
     Ok(CommitRecord {
         hash: commit.id().detach().to_string(),
@@ -286,13 +286,13 @@ pub fn read_commit(commit: &gix::Commit<'_>, shallow: &Shallow) -> Result<Commit
             .iter()
             .map(ToString::to_string)
             .collect(),
-        author: author.name.to_string(),
-        email: author.email.to_string(),
+        author: text.decode(author.name)?.into_owned(),
+        email: text.decode(author.email)?.into_owned(),
         // The graph's date column follows git's default and shows the *committer* date, unless
         // the view asks for the author date (`LogOptions::use_author_date`).
         date: committer.time().map(|time| time.seconds).unwrap_or(0),
         author_date: author.time().map(|time| time.seconds).unwrap_or(0),
-        message: message.summary().to_string(),
+        message: text.subject(commit)?,
     })
 }
 
@@ -705,6 +705,7 @@ pub fn authors(repo: &Repo) -> Result<Vec<GitAuthor>> {
     let tips = every_tip(repo)?;
 
     let git = repo.borrow();
+    text::ensure_utf8_output(&git)?;
     let mut counts: HashMap<(String, String), usize> = HashMap::new();
     for info in git
         .rev_walk(tips.iter().copied())
@@ -721,8 +722,13 @@ pub fn authors(repo: &Repo) -> Result<Vec<GitAuthor>> {
         let Ok(author) = commit.author() else {
             continue;
         };
+        // A commit this read cannot show as Git does fails the whole read, never one name.
+        let text = CommitText::of(&commit)?;
         *counts
-            .entry((author.name.to_string(), author.email.to_string()))
+            .entry((
+                text.decode(author.name)?.into_owned(),
+                text.decode(author.email)?.into_owned(),
+            ))
             .or_insert(0) += 1;
     }
 

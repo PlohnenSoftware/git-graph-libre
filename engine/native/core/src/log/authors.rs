@@ -1,6 +1,7 @@
 //! The `--author` match, with its patterns prepared once per walk.
 
 use crate::error::{Result, ResultExt};
+use crate::text::CommitText;
 
 /// The patterns of an author filter, lowered once.
 ///
@@ -31,7 +32,13 @@ impl AuthorPatterns {
         let author = commit
             .author()
             .git_ctx("Could not decode the commit author")?;
-        let haystack = format!("{} <{}>", author.name, author.email).to_lowercase();
+        let text = CommitText::of(commit)?;
+        let haystack = format!(
+            "{} <{}>",
+            text.decode(author.name)?,
+            text.decode(author.email)?
+        )
+        .to_lowercase();
         Ok(self.0.iter().any(|pattern| haystack.contains(pattern)))
     }
 }
