@@ -99,7 +99,10 @@ fn changes_and_tags_segments_follow_the_cli_classification() {
     let mut listed: Vec<String> = remotes.iter().map(|(name, _)| name.clone()).collect();
     expected.sort();
     listed.sort();
-    assert_eq!(listed, expected, "the engine lists other remote branches than git");
+    assert_eq!(
+        listed, expected,
+        "the engine lists other remote branches than git"
+    );
 
     for name in ["origin/changes/foo", "origin/feature/changes"] {
         assert!(
@@ -141,11 +144,17 @@ fn an_annotated_remote_tag_mirror_peels_to_its_commit() {
 
     // Two records, as for any annotated tag: the tag object, and the peeled commit.
     let records = tags_named(&snapshot, "origin/ann");
-    assert_eq!(records.len(), 2, "expected the tag object and the peeled commit");
+    assert_eq!(
+        records.len(),
+        2,
+        "expected the tag object and the peeled commit"
+    );
     assert!(records
         .iter()
         .any(|tag| tag.hash == tag_object && !tag.annotated));
-    assert!(records.iter().any(|tag| tag.hash == commit && tag.annotated));
+    assert!(records
+        .iter()
+        .any(|tag| tag.hash == commit && tag.annotated));
     assert!(!remote_branches(&snapshot)
         .iter()
         .any(|(name, _)| name == "origin/ann"));
