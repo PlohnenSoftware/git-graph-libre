@@ -64,7 +64,7 @@ now recorded with this plan before dispatch.
 | R04 | Encoding and subjects | integrated `a0170ee` |
 | R05 | Gitlink file content | integrated `8ca2f01` |
 | R06 | Remote-ref classification and allocations | integrated `83cdd5d` |
-| R07 | Remote-tag label order (found by R06) | ready — engine change, per invariant 3 |
+| R07 | Remote-tag label order (found by R06) | integrated `288d48d` |
 | R08 | CJK encodings against Git (R04 follow-up) | ready |
 | R09 | Remove the topo decline surface (R03 follow-up) | integrated `66c29d6` |
 
@@ -172,14 +172,24 @@ passed. No push or release publication in this integration.
   strict Biome on the four touched files clean; `l10n:check` complete;
   `pnpm run test` backend 1,445 and webview 1,014 passed (one route row
   removed).
+- 2026-11-08: R07 integrated at `288d48d`. The first pass (Claude Haiku)
+  proved the payload could not carry the CLI's order. The cleanup (Claude
+  Sonnet, by the escalation rule) gives every tag its full `ref_name`
+  (`refName` on the wire, kept inside `commits.ts`), and the mapper sorts a
+  commit's labels by full ref name, as `for-each-ref` does. The red test
+  `9d8880d` turned green with its assertions unchanged. Gates on
+  `288d48d`: engine fmt, clippy, check clean; engine tests 282 passed, 0
+  failed; addon rebuilt, smoke `1.0.32`; typecheck clean; strict Biome on
+  the three touched files clean; `pnpm run test` backend 1,448 and webview
+  1,014 passed; KB check clean.
 
 ## Follow-ups and notes for the maintainer
 
-- **R07 is unblocked by a standing rule, not a new decision.** Its agent
+- **R07 was unblocked by a standing rule, not a new decision.** Its agent
   offered two options: an engine change that gives each tag its real ref
   name or owning remote, or accepting the divergence. Phase 16 invariant 3
-  ("a divergence is an engine bug, not a test to relax") already chooses the
-  first, so R07 continues as an engine and mapper change in its worktree.
+  ("a divergence is an engine bug, not a test to relax") already chose the
+  first, which is what was integrated.
 - **R08** verifies the CJK and other unverified encodings R04 accepts
   against Git's iconv, and declines any that differ.
 - **R09** removes the `topoOrdering` decline id and its route text, l10n

@@ -7,7 +7,7 @@ summary: >-
 
 # R07 — Remote-tag label order
 
-Status: done — awaiting integration
+Status: integrated `288d48d`
 
 Needs: R03
 
