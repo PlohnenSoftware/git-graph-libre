@@ -7,7 +7,7 @@ summary: >-
 
 # R07 — Remote-tag label order
 
-Status: blocked — the engine payload cannot carry the CLI's label order for remote tags (see Report)
+Status: claimed by Claude Sonnet on 2026-11-08 23:55
 
 Needs: R03
 
