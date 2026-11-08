@@ -6,7 +6,7 @@ summary: >-
 
 # R01 — Ref failures
 
-Status: ready
+Status: claimed by Codex on 2026-11-08 23:02
 
 Needs: none
 
