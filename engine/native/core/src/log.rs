@@ -6,14 +6,15 @@
 //! one of its children, and within that constraint the ready commits are ranked by commit date,
 //! author date, or by staying on the current line of history.
 //!
-//! gix's traversal offers a commit-time priority queue but no topological guarantee, so the
-//! ordering is done here instead: the traversal collects a **window** of commits, and the window is
-//! then re-ordered by a Kahn-style topological sort whose ready set is ranked according to the
-//! requested ordering. The window is a multiple of the requested page rather than the whole
-//! history, which is what makes the first screen of a million-commit repository affordable —
-//! ordering is exact within the window, and commits beyond it are not considered.
+//! The ordering is done in [`ranked`], which has git's shape: a traversal by committer date, then
+//! a Kahn-style topological sort whose ready set is ranked according to the requested ordering.
+//! Topological and author-date pages read the whole reachable history's headers, because neither
+//! can be decided from a date-ordered prefix (see `walk_ranked`). A committer-date page reads a
+//! **window**, a multiple of the requested page, which is what makes the first screen of a
+//! million-commit repository affordable: ordering is exact within the window, and commits beyond
+//! it are not considered.
 
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use gix::ObjectId;
 
@@ -76,19 +77,9 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
             searching,
             &mut visited_parents,
         )?
-    } else if !searching && options.ordering == CommitOrdering::AuthorDate {
-        let window = window_size(options.limit, searching);
-        let records = collect_window(&git, tips, options, &shallow, window, &mut visited_parents)?;
-        order(records, options.ordering, options.limit)
     } else {
-        collect_window(
-            &git,
-            tips,
-            options,
-            &shallow,
-            window_size(options.limit, searching),
-            &mut visited_parents,
-        )?
+        let window = window_size(options.limit, searching);
+        collect_window(&git, tips, options, &shallow, window, &mut visited_parents)?
     };
 
     let mut records = records;
@@ -102,13 +93,14 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
 
 /// Does `ordering` go through the git-shaped traversal in [`ranked`]?
 ///
-/// The date orderings of a filtered walk do not: they read commits in commit-time order only as
-/// far as the page needs, which is what keeps a sparse filter from paying for the whole history.
+/// Only the committer-date ordering of a filtered walk does not: it reads commits in commit-time
+/// order only as far as the page needs, which is what keeps a sparse filter from paying for the
+/// whole history. Topological and author-date order cannot be cut short that way (see
+/// [`walk_ranked`]), so every walk in those orderings, filtered or not, is ranked.
 fn uses_ranked_walk(ordering: CommitOrdering, searching: bool) -> bool {
     match ordering {
-        CommitOrdering::Topo => true,
         CommitOrdering::Date => !searching,
-        CommitOrdering::AuthorDate => false,
+        CommitOrdering::Topo | CommitOrdering::AuthorDate => true,
     }
 }
 
@@ -121,17 +113,32 @@ fn walk_ranked(
     searching: bool,
     visited_parents: &mut Vec<(String, Vec<String>)>,
 ) -> Result<Vec<CommitRecord>> {
-    // Topological order has no safe window. git starts from every tip, newest first, and takes the
-    // most recently readied commit next, so a tip with an old date surfaces as soon as the line
-    // above it ends — and the commits that follow it are old too. A window cut by date would
-    // miss them, so the whole reachable history is visited, as `git log --topo-order` does.
+    // Topological and author-date order have no safe window.
+    //
+    // Topological order starts from every tip, newest first, and takes the most recently readied
+    // commit next, so a tip with an old date surfaces as soon as the line above it ends, and the
+    // commits that follow it are old too.
+    //
+    // Author-date order ranks the ready commits by author date while the traversal reads them by
+    // committer date, so a commit authored recently but committed long ago (a rebase, an import)
+    // belongs at the top of the page and is far from the top of a committer-date window. Which
+    // commits are ready at all depends on every child having been counted.
+    //
+    // A window cut by date would drop exactly those commits, so the whole reachable history is
+    // visited, as `git log --topo-order` and `--author-date-order` do. Only headers are read for
+    // that; full records are read for the page.
     let window = match options.ordering {
-        CommitOrdering::Topo => None,
-        _ => Some(window_size(options.limit, searching)),
+        CommitOrdering::Topo | CommitOrdering::AuthorDate => None,
+        CommitOrdering::Date => Some(window_size(options.limit, searching)),
     };
     let graph = ranked::discover(git, shallow, tips, options.first_parent_only, window);
     let mut records: Vec<CommitRecord> = Vec::new();
-    for index in graph.ranked(options.ordering) {
+    for (judged, index) in graph.ranked(options.ordering).enumerate() {
+        // A walk that searches gives up on filling its page after the same number of commits the
+        // unranked search does, so a filter nothing matches cannot judge a huge history in full.
+        if searching && judged >= FILTERED_WALK_LIMIT {
+            break;
+        }
         let Ok(commit) = git.find_commit(graph.id(index)) else {
             continue;
         };
@@ -448,113 +455,6 @@ fn rewrite_parents(records: &mut [CommitRecord], visited: &[(String, Vec<String>
             record.parents = parents.clone();
         }
     }
-}
-
-/// Ranking key for the ready set, matching what each of git's orderings prioritises.
-#[derive(PartialEq, Eq)]
-struct Ready {
-    /// The date the ordering ranks by; unused (and zero) for topological order.
-    date: i64,
-    /// Position in the traversal, used to break ties and to drive topological order.
-    sequence: usize,
-    index: usize,
-    ordering: CommitOrdering,
-}
-
-impl Ord for Ready {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match self.ordering {
-            // Newest first, ties broken by the order the traversal found them.
-            CommitOrdering::Date | CommitOrdering::AuthorDate => self
-                .date
-                .cmp(&other.date)
-                .then_with(|| other.sequence.cmp(&self.sequence)),
-            // Topological order keeps walking down the line of history it is already on, rather
-            // than intermixing branches: the most recently readied commit wins.
-            CommitOrdering::Topo => self.sequence.cmp(&other.sequence),
-        }
-    }
-}
-
-impl PartialOrd for Ready {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-/// Topologically sort `records`, ranking the commits that are ready to be shown by `ordering`.
-fn order(records: Vec<CommitRecord>, ordering: CommitOrdering, limit: usize) -> Vec<CommitRecord> {
-    let index_of: HashMap<&str, usize> = records
-        .iter()
-        .enumerate()
-        .map(|(index, record)| (record.hash.as_str(), index))
-        .collect();
-
-    // How many children inside the window each commit is still waiting for.
-    let mut pending = vec![0usize; records.len()];
-    for record in &records {
-        for parent in &record.parents {
-            if let Some(&parent_index) = index_of.get(parent.as_str()) {
-                pending[parent_index] += 1;
-            }
-        }
-    }
-
-    let key = |record: &CommitRecord| match ordering {
-        CommitOrdering::Date => record.date,
-        CommitOrdering::AuthorDate => record.author_date,
-        CommitOrdering::Topo => 0,
-    };
-
-    let mut initial: Vec<usize> = (0..records.len())
-        .filter(|&index| pending[index] == 0)
-        .collect();
-    // Topological order pops the highest sequence first, so seeding the ready set in walk order
-    // would start from the *oldest* tip. git reverses its initial queue (`prio_queue_reverse` in
-    // `sort_in_topological_order`) so the newest tip comes out first; seeding in reverse does the
-    // same. The date orderings rank by date and only use the sequence to break ties, lowest first.
-    if ordering == CommitOrdering::Topo {
-        initial.reverse();
-    }
-
-    let mut sequence = 0usize;
-    let mut ready: BinaryHeap<Ready> = BinaryHeap::new();
-    for index in initial {
-        ready.push(Ready {
-            date: key(&records[index]),
-            sequence,
-            index,
-            ordering,
-        });
-        sequence += 1;
-    }
-
-    let mut ordered: Vec<CommitRecord> = Vec::with_capacity(limit.min(records.len()));
-    let mut taken = vec![false; records.len()];
-    while let Some(next) = ready.pop() {
-        if ordered.len() == limit {
-            break;
-        }
-        taken[next.index] = true;
-        for parent in &records[next.index].parents {
-            let Some(&parent_index) = index_of.get(parent.as_str()) else {
-                continue;
-            };
-            pending[parent_index] -= 1;
-            if pending[parent_index] == 0 {
-                ready.push(Ready {
-                    date: key(&records[parent_index]),
-                    sequence,
-                    index: parent_index,
-                    ordering,
-                });
-                sequence += 1;
-            }
-        }
-        ordered.push(records[next.index].clone());
-    }
-
-    ordered
 }
 
 /// Resolve the revisions a view load starts its walk from.

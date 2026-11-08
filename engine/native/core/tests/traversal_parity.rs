@@ -583,3 +583,208 @@ fn a_path_filtered_topological_page_matches_git() {
         ])
     );
 }
+
+#[test]
+fn author_date_order_matches_git_on_generated_histories() {
+    require_git!();
+    assert_parity(
+        CommitOrdering::AuthorDate,
+        "--author-date-order",
+        &[None, Some("Alice"), Some("Bob")],
+    );
+}
+
+/// 300 commits ticking a minute apart on one line, plus one out-of-band commit off the oldest:
+/// authored a day after the base (the newest author date of the repository, authored by `Bob`),
+/// committed a minute after it (among the oldest committer dates).
+fn out_of_band_history() -> Vec<Spec> {
+    let mut specs: Vec<Spec> = (0..300)
+        .map(|index| {
+            let date = BASE + index as i64 * 60;
+            Spec {
+                parents: if index == 0 {
+                    Vec::new()
+                } else {
+                    vec![index - 1]
+                },
+                author: date,
+                committer: date,
+                author_name: "Alice",
+            }
+        })
+        .collect();
+    specs.push(Spec {
+        parents: vec![0],
+        author: BASE + 86_400,
+        committer: BASE + 60,
+        author_name: "Bob",
+    });
+    specs
+}
+
+#[test]
+fn the_author_date_page_holds_the_commits_git_puts_on_it() {
+    require_git!();
+    let repo = TestRepo::new();
+    let specs = out_of_band_history();
+    let imported = import(&repo, &specs);
+    let tips = leaves(&specs, &imported);
+    assert_eq!(tips.len(), 2);
+
+    // git's own page: the out-of-band commit first (newest author date), then the newest-authored
+    // commits of the main line. A committer-date window of 256 commits cannot contain it.
+    let expected = repo.log_hashes(&["--author-date-order", "--all", "-n", "10"]);
+    assert_eq!(expected[0], imported[300]);
+
+    let options = WalkOptions {
+        limit: 10,
+        ordering: CommitOrdering::AuthorDate,
+        ..Default::default()
+    };
+    assert_eq!(engine_hashes(&repo, &tips, &options), expected);
+
+    // The control: under date order the same commit stays off the page.
+    let expected_date = repo.log_hashes(&["--date-order", "--all", "-n", "10"]);
+    let options = WalkOptions {
+        limit: 10,
+        ordering: CommitOrdering::Date,
+        ..Default::default()
+    };
+    let got = engine_hashes(&repo, &tips, &options);
+    assert_eq!(got, expected_date);
+    assert!(!got.contains(&imported[300]));
+}
+
+#[test]
+fn filtered_author_date_pages_hold_the_commits_git_puts_on_them() {
+    require_git!();
+    let repo = TestRepo::new();
+    let specs = out_of_band_history();
+    let imported = import(&repo, &specs);
+    let tips = leaves(&specs, &imported);
+
+    // An author filter: Bob wrote only the out-of-band commit, Alice the 300 others.
+    for (name, limit) in [("Bob", 5), ("Alice", 10)] {
+        let pattern = format!("--author={name} <");
+        let expected = repo.log_hashes(&[
+            "--author-date-order",
+            "--all",
+            "-n",
+            &limit.to_string(),
+            &pattern,
+        ]);
+        let options = WalkOptions {
+            limit,
+            ordering: CommitOrdering::AuthorDate,
+            authors: Some(vec![name.to_string()]),
+            ..Default::default()
+        };
+        assert_eq!(engine_hashes(&repo, &tips, &options), expected, "{name}");
+    }
+
+    // A branch filter: only the main line, whose newest-authored commits lead; and only the
+    // out-of-band branch.
+    for tip in &tips {
+        let expected = repo.log_hashes(&["--author-date-order", "-n", "10", tip]);
+        let options = WalkOptions {
+            limit: 10,
+            ordering: CommitOrdering::AuthorDate,
+            ..Default::default()
+        };
+        assert_eq!(
+            engine_hashes(&repo, std::slice::from_ref(tip), &options),
+            expected
+        );
+    }
+}
+
+#[test]
+fn a_path_filtered_author_date_page_matches_git() {
+    require_git!();
+    let repo = TestRepo::new();
+    // The files are written commit by commit with distinct author and committer dates.
+    let write_commit = |path: &str, message: &str, author: i64, committer: i64| {
+        repo.write(path, message);
+        repo.git(&["add", "-A"]);
+        let author = format!("{author} +0000");
+        let committer = format!("{committer} +0000");
+        repo.git_in(
+            repo.path(),
+            &["commit", "--quiet", "-m", message],
+            &[
+                ("GIT_AUTHOR_DATE", author.as_str()),
+                ("GIT_COMMITTER_DATE", committer.as_str()),
+            ],
+        );
+    };
+    write_commit("src/base.txt", "base", BASE, BASE);
+    repo.git(&["checkout", "--quiet", "-b", "side"]);
+    write_commit("src/side1.txt", "side 1", BASE + 5_000, BASE + 100);
+    write_commit("docs/side.txt", "side docs", BASE + 5_100, BASE + 200);
+    repo.git(&["checkout", "--quiet", "main"]);
+    write_commit("src/main1.txt", "main 1", BASE + 300, BASE + 300);
+    repo.git(&["merge", "--quiet", "--no-ff", "-m", "merge", "side"]);
+    write_commit("src/main2.txt", "main 2", BASE + 400, BASE + 400);
+
+    let options = WalkOptions {
+        limit: 100,
+        ordering: CommitOrdering::AuthorDate,
+        filter_paths: vec!["src".to_string()],
+        ..Default::default()
+    };
+    assert_eq!(
+        hashes(&repo, &options),
+        repo.log_hashes(&[
+            "--author-date-order",
+            "--full-history",
+            "--simplify-merges",
+            "--all",
+            "--",
+            "src",
+        ])
+    );
+}
+
+#[test]
+fn author_date_pages_agree_across_a_page_boundary() {
+    require_git!();
+    let repo = TestRepo::new();
+    let specs = generate(7, 60, Clocks::Skewed);
+    let imported = import(&repo, &specs);
+    let tips = leaves(&specs, &imported);
+
+    // The view asks for one commit more than a page to learn whether "Load More" is needed: the
+    // page must be the prefix of the longer one, and both must be git's.
+    for ordering_flag in [
+        (CommitOrdering::AuthorDate, "--author-date-order"),
+        (CommitOrdering::Topo, "--topo-order"),
+        (CommitOrdering::Date, "--date-order"),
+    ] {
+        let (ordering, flag) = ordering_flag;
+        let page = |limit: usize| {
+            engine_hashes(
+                &repo,
+                &tips,
+                &WalkOptions {
+                    limit,
+                    ordering,
+                    ..Default::default()
+                },
+            )
+        };
+        let git_page = |limit: usize| {
+            let count = limit.to_string();
+            let mut args = vec![flag, "-n", count.as_str()];
+            args.extend(tips.iter().map(String::as_str));
+            repo.log_hashes(&args)
+        };
+        for limit in [10, 11, 25, 26] {
+            assert_eq!(page(limit), git_page(limit), "{flag} limit {limit}");
+        }
+        assert_eq!(
+            page(11)[..10],
+            page(10)[..],
+            "{flag}: the longer page extends the shorter"
+        );
+    }
+}
