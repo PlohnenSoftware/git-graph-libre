@@ -31,7 +31,7 @@ and changes use signed commits; never push. Report Sonar: integrator.
 
 ## Report
 
-- **Agent / date:** Claude Haiku 5.5, 2026-11-08 23:40
+- **Agent / date:** Claude Haiku 5.5, 2026-11-08 23:23
 - **Branch and commits:** `engine-review/R06`
   - `6d5e080 G docs(engine): claim R06 remote-ref classification (R06)`
   - `85738de G docs(engine): block R06 on the /tags/ remote-ref decision (R06)`
@@ -40,7 +40,7 @@ and changes use signed commits; never push. Report Sonar: integrator.
   - `63ffada G refactor(engine): build the ref-annotation lookup once (R06)`
   - `b9b97eb G test(engine): pin remote-ref classification against git (R06)`
   - `647cb62 G style(engine): rustfmt the remote-ref parity tests (R06)`
-- **Files changed (committed, against `6f8bf0f`):** `refs.rs` (+/− counted with `graph.rs` below, 33 lines in the diff), `graph.rs` (19), `tests/log_and_refs.rs` (29), `tests/remote_ref_parity.rs` (+234, new), the slice file (19). `git diff --stat 6f8bf0f..HEAD`: 5 files, 296 insertions, 38 deletions, the slice file included.
+- **Files changed (committed, against `6f8bf0f`, from `git diff --stat`):** `engine/native/core/src/refs.rs` (+20 −13 net 33 lines touched), `engine/native/core/src/graph.rs` (19), `engine/native/core/tests/log_and_refs.rs` (29), `engine/native/core/tests/remote_ref_parity.rs` (+234, new), and this slice file (19). Total: 5 files, 296 insertions, 38 deletions.
 - **Uncommitted, not part of the branch:** `tests/backend/engine/parity.test.ts` (+27, the new case). See Deviations.
 - **Tests added or changed:**
   - `remote_ref_parity.rs`: 0 to 4 (`changes_and_tags_segments_follow_the_cli_classification`, `an_annotated_remote_tag_mirror_peels_to_its_commit`, `a_symbolic_remote_head_resolves_as_git_resolves_it`, `a_hidden_remote_shows_no_branch_or_tag_but_its_name_prefix_does_not_match`).
