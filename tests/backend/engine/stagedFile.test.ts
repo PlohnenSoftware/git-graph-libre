@@ -84,6 +84,26 @@ describe("readStagedFile", () => {
     expect(lines).toContainEqual(expect.stringContaining("operation=loadIndexFile backend=engine"));
   });
 
+  it("answers tooLarge for the engine's TooLarge error, without retrying on the CLI", async () => {
+    const dir = repoWithStagedFile();
+    const addon = indexFileAddon(new Error("TooLarge: the blob is 70000000 bytes and is above it"));
+
+    const { result, lines } = await readWithLog(dir, engineDeps(addon.provider));
+
+    expect(result).toEqual({ tooLarge: true });
+    expect(lines).toContainEqual(expect.stringContaining("backend=engine result=tooLarge"));
+    expect(lines.some((line) => line.includes("operation=stagedFile.show"))).toBe(false);
+  });
+
+  it("still goes to the CLI for any other engine error", async () => {
+    const dir = repoWithStagedFile();
+    const addon = indexFileAddon(new Error("Git: could not read the blob"));
+
+    const { result } = await readWithLog(dir, engineDeps(addon.provider));
+
+    expect(result).toEqual({ text: "staged text\n" });
+  });
+
   it("goes to the CLI when the addon has no loadIndexFile", async () => {
     const dir = repoWithStagedFile();
 

@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { loadEngineAddon } from "@/backend/engine/addon";
 import type { LinesDiff } from "@/backend/engine/diffTexts";
+import { MAX_FILE_READ_BYTES } from "@/backend/engine/stagedFile";
 import { setOperationLog } from "@/backend/utils/operationLog";
 import type { DiffTabRequest, DiffTabSide } from "@/diffTabTypes";
 import {
@@ -20,6 +21,7 @@ import {
   type EngineDiffTabSourceDeps,
   isDiffTabAvailable,
   mapDiffTabChanges,
+  readBounded,
   setDiffTabAvailableContext
 } from "@/extension/diffTab/engineSource";
 
@@ -328,6 +330,50 @@ describe("createEngineDiffTabSource limits and failures", () => {
     setConfigurationValue("diffEditor", "maxFileSize", 0);
     expect((await source.load(req)).kind).toBe("diff");
     expect(fake.diffTextsFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers tooLarge for the engine's TooLarge error on a revision and a staged side, with no CLI retry", async () => {
+    const dir = newRepo();
+    const tooLarge = async (): Promise<string> => {
+      throw new Error("TooLarge: the blob is 70000000 bytes and is above the limit");
+    };
+    const fake = fakeAddon({ loadCommitFile: tooLarge, loadIndexFile: tooLarge });
+    const source = createEngineDiffTabSource(engineDeps(fake.addon));
+
+    expect(
+      await source.load(
+        request(dir, { kind: "revision", ref: "HEAD", path: "a.txt" }, { kind: "empty" })
+      )
+    ).toEqual({ kind: "tooLarge" });
+    expect(
+      await source.load(request(dir, { kind: "empty" }, { kind: "index", path: "a.txt" }))
+    ).toEqual({ kind: "tooLarge" });
+    expect(fake.diffTextsFn).not.toHaveBeenCalled();
+  });
+
+  it("bounds the working-tree read at 64 MiB, at the limit and one byte over", async () => {
+    const dir = newRepo();
+    const limit = MAX_FILE_READ_BYTES;
+    const atLimit = path.join(dir, "at.txt");
+    const overLimit = path.join(dir, "over.txt");
+    fs.writeFileSync(atLimit, "");
+    fs.truncateSync(atLimit, limit);
+    fs.writeFileSync(overLimit, "");
+    fs.truncateSync(overLimit, limit + 1);
+
+    expect((await readBounded(atLimit, limit))?.length).toBe(limit);
+    expect(await readBounded(overLimit, limit)).toBeNull();
+    // A tiny limit exercises the read loop itself, not only the size check.
+    fs.writeFileSync(path.join(dir, "small.txt"), "0123456789");
+    expect((await readBounded(path.join(dir, "small.txt"), 10))?.toString()).toBe("0123456789");
+    expect(await readBounded(path.join(dir, "small.txt"), 9)).toBeNull();
+
+    const fake = fakeAddon();
+    const source = createEngineDiffTabSource(engineDeps(fake.addon));
+    expect(
+      await source.load(request(dir, { kind: "empty" }, { kind: "workingTree", path: "over.txt" }))
+    ).toEqual({ kind: "tooLarge" });
+    expect(fake.diffTextsFn).not.toHaveBeenCalled();
   });
 
   it("passes the user's diff settings to the seam, with moves off", async () => {
