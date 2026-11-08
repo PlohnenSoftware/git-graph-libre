@@ -6,7 +6,7 @@ summary: >-
 
 # R06 — Remote-ref classification
 
-Status: claimed by Claude Haiku on 2026-11-08 23:25
+Status: blocked — the TypeScript parity case shows a label-order divergence that predates R06 and lies in src/backend/engine/commits.ts, outside the Touch list; see Report
 
 Needs: R01
 
@@ -31,19 +31,46 @@ and changes use signed commits; never push. Report Sonar: integrator.
 
 ## Report
 
-- **Agent / date:** Claude Haiku 5.5, 2026-11-08 23:18
-- **Branch and commits:** `engine-review/R06` — `6d5e080 G docs(engine): claim R06 remote-ref classification (R06)`
-- **Files changed:** `docs/kb/050-ongoing-work/070-engine-upstream-integration/150-r06-remote-refs.md` (this Status and Report only). No code, test or other file changed.
-- **Tests added or changed:** none. Count unchanged.
-- **Gates:** none run. The slice was stopped before any code change, so no cargo, engine, vitest, typecheck or Biome command was run. Sonar: integrator.
-- **Acceptance:** not met (no implementation). Evidence gathered for the stop:
-  - `engine/native/core/src/refs.rs` lines 178–183 skip `/changes/` refs. `src/backend/queries/loadCommits.ts` (`parseRefLines`, `toGitRef`, `remoteTagNames`, lines 111–200) and `src/backend/utils/remoteRefs.ts` do not filter `/changes/`. The CLI path therefore already shows those refs as remote branches, which matches the brief.
-  - `refs.rs` lines 196–209 and `remote_tag_name` (lines 248–253) reclassify `refs/remotes/<remote>/…/tags/<t>` as tags named `<remote>/<t>`. The CLI path does the same in `loadCommits.ts` (`remoteTagNames`, `toGitRef`, `parseRefLines`), including the mirror-dedupe rule. The CLI does not show these as remote branches.
-  - The CLI behavior is deliberate. KB `050-ongoing-work/050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md` (issue #46) and `…/367-w26j-no-duplicate-remote-tracking-tag-badges.md` (`2026-11-06`) record that a `refs/remotes/<remote>/tags/<tag>` ref shows as a `<remote>/<tag>` tag badge, and that both backends must agree. Phase 15 (`070-history/020-roadmap-completed-phases/110-phase-15-…`) also covers the remote tag surface. `tests/backend/engine/remoteTagParity.test.ts` asserts that parity.
-  - The candidate-9 text in `230-upstream-engine-review-first-pass.md` ("the CLI shows both as remote branches") is wrong for `/tags/`. It is older (`2026-10-16`) than W26J (`2026-11-06`).
-- **Deviations from the slice:** stopped before implementing. The brief says to remove both special cases so every `refs/remotes/*` entry is a remote branch "exactly as on the CLI". That contradicts the CLI code and the W26J decision for `/tags/`. The brief's own rule says the KB wins and conflicts are raised, not guessed. Per protocol section 8, the slice is blocked.
+- **Agent / date:** Claude Haiku 5.5, 2026-11-08 23:40
+- **Branch and commits:** `engine-review/R06`
+  - `6d5e080 G docs(engine): claim R06 remote-ref classification (R06)`
+  - `85738de G docs(engine): block R06 on the /tags/ remote-ref decision (R06)`
+  - `a832b4c G docs(engine): reclaim R06 with the narrowed scope (R06)`
+  - `b3fcb82 G fix(engine): list /changes/ remote refs as remote branches (R06)`
+  - `63ffada G refactor(engine): build the ref-annotation lookup once (R06)`
+  - `b9b97eb G test(engine): pin remote-ref classification against git (R06)`
+  - `647cb62 G style(engine): rustfmt the remote-ref parity tests (R06)`
+- **Files changed (committed, against `6f8bf0f`):** `refs.rs` (+/− counted with `graph.rs` below, 33 lines in the diff), `graph.rs` (19), `tests/log_and_refs.rs` (29), `tests/remote_ref_parity.rs` (+234, new), the slice file (19). `git diff --stat 6f8bf0f..HEAD`: 5 files, 296 insertions, 38 deletions, the slice file included.
+- **Uncommitted, not part of the branch:** `tests/backend/engine/parity.test.ts` (+27, the new case). See Deviations.
+- **Tests added or changed:**
+  - `remote_ref_parity.rs`: 0 to 4 (`changes_and_tags_segments_follow_the_cli_classification`, `an_annotated_remote_tag_mirror_peels_to_its_commit`, `a_symbolic_remote_head_resolves_as_git_resolves_it`, `a_hidden_remote_shows_no_branch_or_tag_but_its_name_prefix_does_not_match`).
+  - `log_and_refs.rs`: 22 before and 22 after. `never_shows_code_review_change_refs` is replaced by `lists_code_review_change_refs_as_remote_branches_like_git`. This is a deliberate behavior change ordered by the integrator, not a weakened check.
+  - `parity.test.ts`: 1 added (`agrees on refs with changes and tags segments, and on a hidden remote`), currently failing.
+  - Engine total: 242 before, 246 after, 0 failed.
+  - Nothing was deleted. `split_once`/`remote_tag_name`, the `/tags/` helper, and its tests are kept as the integrator ordered.
+- **Gates:**
+  - `CARGO_BUILD_JOBS=8 cargo test --manifest-path engine/Cargo.toml -p git-graph-core --test remote_ref_parity --test log_and_refs --test ref_errors`: 4, 22 and 4 passed, 0 failed.
+  - `CARGO_BUILD_JOBS=8 pnpm run engine:fmt`: first run failed on the new test file's formatting. Fixed by `cargo fmt -p git-graph-core` (commit `647cb62`). Second run passes.
+  - `CARGO_BUILD_JOBS=8 pnpm run engine:lint` (clippy, `-D warnings`): clean.
+  - `CARGO_BUILD_JOBS=8 pnpm run engine:test`: exit 0, 246 passed, 0 failed. One run failed on `vscode_fixtures.rs` (diff crate, not touched) with a `NotFound` from a stale cached test binary. `touch` and a rebuild of that test passed, and the full rerun passed.
+  - `CARGO_BUILD_JOBS=8 pnpm run engine:build`: exit 0. Addon rebuilt (`native/linux-x64/git-graph.node`).
+  - `npx vitest run --project backend tests/backend/engine/parity.test.ts tests/backend/engine/repoInfo.test.ts tests/backend/engine/remoteTagParity.test.ts`: 64 of 65 passed. `repoInfo` and `remoteTagParity` pass. The one failure is the new case in `parity.test.ts` (see Deviations).
+  - `pnpm run typecheck`: exit 0 (src, webview and tests).
+  - `npx biome check --config-path biome.strict.jsonc --error-on-warnings tests/backend/engine/parity.test.ts`: exit 0, no fixes. It prints an informational notice that the `$schema` version (2.5.13) differs from the installed Biome (2.6.5). That is a config note, not a finding.
+  - Sonar: integrator.
+- **Acceptance:**
+  - Remove `/changes/` filter, refs stay remote branches: **met**. `refs.rs` has no `changes` check. Evidence: `lists_code_review_change_refs_as_remote_branches_like_git` (`log_and_refs`) and the `origin/changes/foo` and `origin/feature/changes` cases in `remote_ref_parity`. The listed set equals `git for-each-ref refs/remotes` minus tag-segment refs.
+  - Keep `/tags/` classification, its W26J duplicate rule and its helper, and leave remoteTagParity alone: **met**. `remote_tag_name`, the mirror check and `remoteTagParity.test.ts` are unchanged. The `tags` segments (`origin/tags/v1`, `origin/release/tags/x`) are tested as tags, with their peeled commits.
+  - Module docs describe the new behavior and keep the `/tags/` part accurate: **met**. The `changes/` rationale is gone. The module doc now says every `refs/remotes/<remote>/…` is a remote branch, except the `…/tags/<tag>` refs, which are tags.
+  - Allocation cleanups, no behavior change: **met**. The hidden-remote check (`refs.rs`) and the owner check (`graph.rs`) compare with `strip_prefix` instead of formatting `<name>/` per ref. The hidden-remote case `devops` against `dev` is covered by a test. `annotate_refs` builds one lookup instead of two.
+  - `remote_ref_parity.rs` covers `changes`, `tags`, annotated tag mirror, symbolic `origin/HEAD`, hidden remote, and the guard that `tags/` stays a tag: **met**. Each case compares against `git for-each-ref` or `rev-parse`.
+  - TypeScript parity case for `changes` refs on both backends after the rebuild: **not met**. The case is written but fails, as explained below.
+- **Deviations from the slice:**
+  - **Blocked first (superseded).** The first pass stopped at `85738de` because the brief's `/tags/` removal contradicted the CLI and W26J. The integrator narrowed the slice to the `/changes/` removal, which this report completes.
+  - **TypeScript parity case fails.** The engine and the CLI disagree on label order when a remote tag and a remote branch share a commit. The CLI orders by the real `refs/remotes/…` name, so `dev/t` (a remote tag) comes before `origin/changes/foo`. The engine orders by label type, so the remote tag sorts with the tags, after the remote branch. The mapper in `src/backend/engine/commits.ts` (`mapEngineCommitData`, `refSortRank`) causes this. A probe confirms it predates R06: with the `changes`-named ref renamed to `origin/foo`, the case still fails the same way. This is outside the Touch list, so I stopped instead of editing it.
+  - Because of that, the TypeScript case is left **uncommitted** in `tests/backend/engine/parity.test.ts` in the worktree. I did not commit a red test, and I did not relax it.
 - **Open questions / follow-ups:**
-  1. Maintainer decision needed on `/tags/`. Option A: keep the tag reclassification in the engine, since it matches the CLI and W26J. Then R06 narrows to the `/changes/` removal, the allocation cleanups and the new tests, and the candidate-9 text is corrected. Option B: remove it from both backends. That reverses W26J and issue #46, and touches `loadCommits.ts`, `remoteRefs.ts`, `remoteTagParity.test.ts` and the tag UI, all outside this slice's Touch list. A decision is needed before any code change.
-  2. `/changes/` removal appears to match the CLI (the CLI never filters it). The maintainer should confirm this part is still wanted. Note that `engine/native/core/tests/log_and_refs.rs` (`never_shows_code_review_change_refs`, lines ~488–515) asserts the current `/changes/` filter. It is outside the Touch list, so it would need its own decision to update.
-  3. Candidate 9 in `230-upstream-engine-review-first-pass.md` and the 2026-11-08 follow-up bullet are wrong about the CLI for `/tags/`. The integrator should correct them. This slice did not edit the roadmap file.
-  4. Upstream code: nothing was read from upstream for this slice. The allocation idea was not adapted, so no provenance is due.
+  1. Decide how the mapper should order remote-tag labels. Either `commits.ts` sorts them by their real `refs/remotes/` name (the CLI's order), or the CLI is changed. Both are outside R06's Touch list. Once settled, the uncommitted case should pass as written.
+  2. The integrator should correct candidate 9 in `230-upstream-engine-review-first-pass.md` and the 2026-11-08 follow-up bullet. The CLI does not show `/tags/` refs as remote branches. This slice did not edit the roadmap.
+  3. The `/changes/` change needs the maintainer's confirmation as a behavior change. The test that pinned the old filter was replaced with a deliberate note in its comment.
+  4. Upstream code: nothing was read from upstream for this slice, and no allocation idea was adapted, so no provenance is due.
