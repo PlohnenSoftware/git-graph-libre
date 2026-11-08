@@ -25,6 +25,7 @@ use crate::error::{Result, ResultExt};
 use crate::log;
 use crate::refs::read_refs;
 use crate::repository::{Repo, Shallow};
+use crate::text::{self, CommitText};
 use crate::types::{GitSearchResult, RefReadOptions, SearchOptions};
 
 /// A query that could be an abbreviated object id. Mirrors the CLI's `/^[0-9a-f]{4,40}$/i`, which
@@ -72,7 +73,7 @@ fn search_tips(repo: &Repo, options: &SearchOptions) -> Result<Vec<gix::ObjectId
     log::resolve_tips(repo, &revisions)
 }
 
-/// Does this commit's author line contain the query?
+/// Does this commit's author line, as Git prints it, contain the query?
 ///
 /// ### Deviation
 ///
@@ -80,9 +81,18 @@ fn search_tips(repo: &Repo, options: &SearchOptions) -> Result<Vec<gix::ObjectId
 /// bare digits can match a commit's timestamp there and not here. Matching the rendered timestamp
 /// would mean reproducing git's date formatting exactly, which is a larger risk than the case it
 /// covers: this matches `Name <email>`, which is every realistic author query.
-fn author_contains(author: &gix::actor::SignatureRef<'_>, needle_lower: &str) -> bool {
-    let haystack = format!("{} <{}>", author.name, author.email).to_lowercase();
-    haystack.contains(needle_lower)
+fn author_contains(
+    text: CommitText,
+    author: &gix::actor::SignatureRef<'_>,
+    needle_lower: &str,
+) -> Result<bool> {
+    let haystack = format!(
+        "{} <{}>",
+        text.decode(author.name)?,
+        text.decode(author.email)?
+    )
+    .to_lowercase();
+    Ok(haystack.contains(needle_lower))
 }
 
 /// One commit rendered into the result shape, at the position the walk gave it.
@@ -95,6 +105,7 @@ fn to_result(
     let author = commit
         .author()
         .git_ctx("Could not decode the commit author")?;
+    let text = CommitText::of(commit)?;
     let date = if use_author_date {
         author.time().map(|time| time.seconds).unwrap_or(0)
     } else {
@@ -112,16 +123,12 @@ fn to_result(
             .iter()
             .map(ToString::to_string)
             .collect(),
-        author: author.name.to_string(),
-        email: author.email.to_string(),
+        author: text.decode(author.name)?.into_owned(),
+        email: text.decode(author.email)?.into_owned(),
         date,
         // The subject alone, which is what `%s` prints and what the dialogue lists. The match above
         // ran against the whole message, exactly as `--grep` does.
-        message: commit
-            .message()
-            .git_ctx("Could not decode the commit message")?
-            .summary()
-            .to_string(),
+        message: text.subject(commit)?,
         load_count,
     })
 }
@@ -140,6 +147,7 @@ pub fn search_commits(repo: &Repo, options: &SearchOptions) -> Result<Vec<GitSea
     }
 
     let git = repo.borrow();
+    text::ensure_utf8_output(&git)?;
     let shallow = Shallow::of(&git);
     let walk = git
         .rev_walk(tips.iter().copied())
@@ -184,13 +192,9 @@ pub fn search_commits(repo: &Repo, options: &SearchOptions) -> Result<Vec<GitSea
         positions.entry(hash).or_insert(position);
         let load_count = position;
 
-        let full_message_matches = message_hits.len() < limit
-            && commit
-                .message_raw()
-                .git_ctx("Could not decode the commit message")?
-                .to_string()
-                .to_lowercase()
-                .contains(&needle);
+        let text = CommitText::of(&commit)?;
+        let full_message_matches =
+            message_hits.len() < limit && text.message(&commit)?.to_lowercase().contains(&needle);
         if full_message_matches {
             message_hits.push(to_result(
                 &commit,
@@ -204,7 +208,7 @@ pub fn search_commits(repo: &Repo, options: &SearchOptions) -> Result<Vec<GitSea
             let author = commit
                 .author()
                 .git_ctx("Could not decode the commit author")?;
-            if author_contains(&author, &needle) {
+            if author_contains(text, &author, &needle)? {
                 author_hits.push(to_result(
                     &commit,
                     &shallow,
