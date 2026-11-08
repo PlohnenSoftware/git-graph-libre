@@ -441,6 +441,7 @@ fn to_js_error(error: Error) -> napi::Error {
         ErrorKind::Cancelled => "Cancelled",
         ErrorKind::Unsupported => "Unsupported",
         ErrorKind::Untrusted => "Untrusted",
+        ErrorKind::TooLarge => "TooLarge",
     };
     napi::Error::new(
         napi::Status::GenericFailure,

@@ -26,6 +26,9 @@ pub enum ErrorKind {
     Untrusted,
     /// The engine does not implement this yet; the caller should fall back to the `git` CLI.
     Unsupported,
+    /// The file or blob is above the engine's read ceiling (`file_read::MAX_READ_BYTES`). It is a
+    /// distinct outcome: not "missing", and not a reason to retry through an unbounded read.
+    TooLarge,
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -59,6 +62,9 @@ impl Error {
     }
     pub fn unsupported(message: impl Into<String>) -> Self {
         Error::new(ErrorKind::Unsupported, message)
+    }
+    pub fn too_large(message: impl Into<String>) -> Self {
+        Error::new(ErrorKind::TooLarge, message)
     }
     pub fn cancelled() -> Self {
         Error::new(ErrorKind::Cancelled, "The operation was cancelled")
