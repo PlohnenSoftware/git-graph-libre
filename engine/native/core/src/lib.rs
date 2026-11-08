@@ -25,6 +25,7 @@ pub mod search;
 pub mod stash;
 pub mod stats;
 pub mod status;
+pub mod text;
 pub mod types;
 pub mod worktrees;
 

@@ -18,6 +18,7 @@ gix = { version = "0.90", default-features = false, features = [
     "sha1",
 ] }
 bstr = "1"
+encoding_rs = "=0.8.44"
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
