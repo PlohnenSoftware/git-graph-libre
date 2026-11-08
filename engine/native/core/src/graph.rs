@@ -31,7 +31,9 @@ pub fn repo_info(
     ref_options: &RefReadOptions,
     show_stashes: bool,
 ) -> Result<GitRepoInfo> {
-    let snapshot = read_refs(repo, ref_options).unwrap_or_default();
+    // A failed ref scan is an error, not an empty repository. An unborn HEAD resolves to no
+    // commit inside `read_refs` and is not a failure, and a missing stash is handled below.
+    let snapshot = read_refs(repo, ref_options)?;
     let stashes = if show_stashes {
         read_stashes(repo).unwrap_or_default()
     } else {
@@ -79,7 +81,8 @@ pub fn load_commits(repo: &Repo, options: &LogOptions) -> Result<GitCommitData> 
         show_remote_heads: options.show_remote_heads,
         hide_remotes: options.hide_remotes.clone(),
     };
-    let snapshot = read_refs(repo, &ref_options).unwrap_or_default();
+    // A failed ref scan is an error, not an empty graph (see `repo_info`).
+    let snapshot = read_refs(repo, &ref_options)?;
     let stashes = read_stashes(repo).unwrap_or_default();
 
     let tips = resolve_tips(repo, options, &snapshot.ref_data, &stashes)?;
