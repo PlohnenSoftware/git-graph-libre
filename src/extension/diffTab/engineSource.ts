@@ -26,6 +26,7 @@ import {
   isEngineTooLargeError,
   isMaxBufferError,
   MAX_FILE_READ_BYTES,
+  readRevisionGitlink,
   readStagedFile
 } from "@/backend/engine/stagedFile";
 import { runGitCommand } from "@/backend/utils/gitRunner";
@@ -241,7 +242,16 @@ async function readRevisionSide(
       }
     );
   } catch (error) {
-    return isMaxBufferError(error) ? { tooLarge: true } : { text: "" };
+    if (isMaxBufferError(error)) return { tooLarge: true };
+    // A failed show may be a gitlink: show the diff-display line the engine
+    // returns for it (not what `git show` prints), else the path is missing.
+    const gitlink = await readRevisionGitlink(
+      repo,
+      ref,
+      filePath,
+      (deps.gitPath ?? (() => "git"))()
+    );
+    return { text: gitlink ?? "" };
   }
   return decodeBytes(bytes);
 }
