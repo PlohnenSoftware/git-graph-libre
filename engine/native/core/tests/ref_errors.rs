@@ -94,8 +94,8 @@ fn an_unborn_head_still_loads_as_an_empty_graph() {
     assert_eq!(info.branches, vec!["main"]);
     assert!(info.stashes.is_empty());
 
-    let data = graph::load_commits(&engine, &view_options())
-        .expect("an unborn HEAD is not a ref failure");
+    let data =
+        graph::load_commits(&engine, &view_options()).expect("an unborn HEAD is not a ref failure");
     assert!(data.commits.is_empty());
     assert_eq!(data.head, None);
 }
@@ -116,8 +116,8 @@ fn an_ordinary_repository_without_stashes_loads() {
     assert!(info.stashes.is_empty());
     assert_eq!(info.error, None);
 
-    let data = graph::load_commits(&engine, &view_options())
-        .expect("an ordinary repository must load");
+    let data =
+        graph::load_commits(&engine, &view_options()).expect("an ordinary repository must load");
     let hashes: Vec<&str> = data.commits.iter().map(|c| c.hash.as_str()).collect();
     assert_eq!(hashes, vec![first.as_str()]);
     assert_eq!(data.head.as_deref(), Some(first.as_str()));
