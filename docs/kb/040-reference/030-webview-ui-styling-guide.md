@@ -148,6 +148,15 @@ may not define the token):
   (maintainer, `2026-11-08`). The caption naming the worktree's folder, path
   and state is gone, reversing that part of W11. Where the branch is checked
   out is on its badge's worktree marker tooltip and in the Worktrees list.
+  Under that header the holding worktree's own actions form one group at the
+  top: Open Worktree…, then Lock or Unlock and Move, or Remove Stale Worktree
+  Entry and Repair for a missing folder, then Prune Stale Worktrees…. The
+  branch's actions follow after a divider (maintainer, `2026-11-08`;
+  `branchWorktreeItems`). Before, all but Open Worktree came after Delete,
+  Merge and Rebase.
+- A `null` in a menu's item list is a divider. A hidden item must be left
+  out, not pushed as `null`, or it draws a divider in its place. The hidden
+  Pull of a branch in another worktree did that between Push and Delete.
 - **No popup may grow wider than its cap, or scroll sideways, for a word it
   cannot break** (`2026-11-08`). A path, ref name or Git message has no break
   point of its own, so inside a width cap it scrolled the dialog sideways.

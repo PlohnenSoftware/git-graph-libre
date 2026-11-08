@@ -604,3 +604,59 @@ describe("stale and moved worktrees (W21)", () => {
     expect(items).not.toContain("Prune Stale Worktrees…");
   });
 });
+
+/** The menu below its header: each item's text, and "—" for a divider. */
+function contextMenuLayout() {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>("#contextMenu li:not(.contextMenuHeader)")
+  ).map((item) => (item.classList.contains("contextMenuDivider") ? "—" : (item.textContent ?? "")));
+}
+
+describe("the worktree group in a branch's menu", () => {
+  it("puts the holding worktree's actions together at the top, then the branch's", async () => {
+    await bootWebview(WORKTREES_WITH_FEATURE);
+    openRefContextMenu("head");
+
+    const layout = contextMenuLayout();
+    expect(layout.slice(0, 4)).toEqual(["Open Worktree…", "Lock Worktree…", "Move Worktree…", "—"]);
+    // Pull is left out without drawing a divider in its place.
+    expect(layout.slice(4, 8)).toEqual([
+      "Create Worktree…",
+      "Rename Branch…",
+      "Push Branch…",
+      "Delete Branch…"
+    ]);
+    expect(layout.filter((item) => item.includes("Worktree"))).toHaveLength(4);
+  });
+
+  it("groups a missing worktree's Remove, Repair and Prune with Open Worktree", async () => {
+    await bootWebview([
+      worktree({}),
+      worktree({
+        path: OTHER_WORKTREE,
+        branch: "feature/menu",
+        isMain: false,
+        isCurrent: false,
+        prunable: { reason: "gitdir file points to non-existent location" }
+      })
+    ]);
+    openRefContextMenu("head");
+
+    expect(contextMenuLayout().slice(0, 5)).toEqual([
+      "Open Worktree…",
+      "Remove Stale Worktree Entry",
+      "Repair Worktree…",
+      "Prune Stale Worktrees…",
+      "—"
+    ]);
+  });
+
+  it("leaves a branch no other worktree has with its usual menu", async () => {
+    await bootWebview([worktree({})]);
+    openRefContextMenu("head");
+
+    const layout = contextMenuLayout();
+    expect(layout.slice(0, 2)).toEqual(["Checkout Branch", "Create Worktree…"]);
+    expect(layout).not.toContain("Open Worktree…");
+  });
+});

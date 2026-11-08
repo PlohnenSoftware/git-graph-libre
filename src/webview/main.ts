@@ -4490,7 +4490,10 @@ class GitGraphView {
       return this.buildDetachedBranchContextMenu(sourceElem, refName);
     }
 
-    const menu: ContextMenuElement[] = [];
+    // A branch another worktree has checked out opens with that worktree's own
+    // actions, grouped under the header that says so; the branch's follow.
+    const worktreeItems = this.branchWorktreeItems(refName);
+    const menu: ContextMenuElement[] = worktreeItems.length > 0 ? [...worktreeItems, null] : [];
     this.appendBranchCheckoutItem(menu, sourceElem, refName);
     menu.push(
       this.visibleContextMenuItem("branch", "createWorktree", {
@@ -4514,8 +4517,10 @@ class GitGraphView {
     );
     this.appendBranchRemoteItems(menu, refName);
     this.appendBranchMutationItems(menu, sourceElem, refName);
-    this.appendWorktreeMaintenanceItems(menu, refName);
-    this.appendWorktreeLifecycleItems(menu, refName);
+    // Prune Stale Worktrees is repository-wide, so any branch offers it; the
+    // worktree group above already carries it when it is shown.
+    const maintenance = worktreeItems.length > 0 ? [] : this.worktreeMaintenanceItems(refName);
+    if (maintenance.length > 0) menu.push(null, ...maintenance);
     this.appendBranchArchiveItem(menu, refName);
     this.appendBranchPullRequestItem(menu, refName, sourceElem);
     return menu;
@@ -4538,17 +4543,31 @@ class GitGraphView {
   ) {
     if (this.gitBranchHead === refName) return;
     if (!this.isContextMenuActionVisible("branch", "checkout")) return;
+    // Git refuses to switch to a branch another worktree has checked out; the
+    // worktree group (`branchWorktreeItems`) offers Open Worktree instead.
+    if (this.otherWorktreePath(refName) !== null) return;
 
-    // Git refuses to switch to a branch another worktree has checked out, so
-    // the way to work on it is that worktree.
-    if (this.otherWorktreePath(refName) !== null) {
-      menu.push(this.buildOpenWorktreeMenuItem(refName));
-      return;
-    }
     menu.push({
       title: l10n.checkoutBranch,
       onClick: () => this.checkoutBranchAction(sourceElem, refName)
     });
+  }
+  /**
+   * The actions of the worktree that has this branch checked out, one group at
+   * the top of the menu: open it; lock, unlock or move it, or remove or repair
+   * it when its folder is gone; and prune stale entries. Empty when no other
+   * worktree has the branch.
+   */
+  private branchWorktreeItems(refName: string): ContextMenuItem[] {
+    if (this.otherWorktreePath(refName) === null) return [];
+    const open = this.isContextMenuActionVisible("branch", "checkout")
+      ? [this.buildOpenWorktreeMenuItem(refName)]
+      : [];
+    return [
+      ...open,
+      ...this.worktreeLifecycleItems(refName),
+      ...this.worktreeMaintenanceItems(refName)
+    ];
   }
   /** The branch's other worktree, or null when no other worktree has it checked out. */
   private otherWorktreePath(branchName: string): string | null {
@@ -4756,16 +4775,19 @@ class GitGraphView {
       this.visibleContextMenuItem("branch", "push", {
         title: l10n.pushBranch + ELLIPSIS,
         onClick: () => this.showPushBranchDialog(refName)
-      }),
-      // Updating from upstream fetches into the branch, which Git refuses while
-      // another worktree has it checked out.
-      this.otherWorktreePath(refName) === null
-        ? this.visibleContextMenuItem("branch", "pull", {
-            title: l10n.pullBranch + ELLIPSIS,
-            onClick: () => this.showUpdateBranchFromUpstreamDialog(refName)
-          })
-        : null
+      })
     );
+    // Updating from upstream fetches into the branch, which Git refuses while
+    // another worktree has it checked out. It is left out, not pushed as null,
+    // which would draw a divider in its place.
+    if (this.otherWorktreePath(refName) === null) {
+      menu.push(
+        this.visibleContextMenuItem("branch", "pull", {
+          title: l10n.pullBranch + ELLIPSIS,
+          onClick: () => this.showUpdateBranchFromUpstreamDialog(refName)
+        })
+      );
+    }
   }
   private appendBranchMutationItems(
     menu: ContextMenuElement[],
@@ -5595,16 +5617,16 @@ class GitGraphView {
     );
   }
   /** The branch's worktree gets the Lock, Unlock and Move items the popup's row offers (W23). */
-  private appendWorktreeLifecycleItems(menu: ContextMenuElement[], refName: string) {
+  /** Lock or Unlock, and Move, for the worktree that has the branch, when its folder exists. */
+  private worktreeLifecycleItems(refName: string): ContextMenuItem[] {
     const holder = this.worktreePathsFor(refName)
       .map((path) => this.worktreeAtPath(path))
       .find((worktree): worktree is GitWorktree => worktree !== null && worktree.prunable === null);
-    if (holder === undefined) return;
-    const items = lifecycleRowActions(holder).map((action) => ({
+    if (holder === undefined) return [];
+    return lifecycleRowActions(holder).map((action) => ({
       title: this.worktreeLifecycleTitle(action),
       onClick: () => this.handleWorktreeRowAction(action, holder)
     }));
-    menu.push(null, ...items);
   }
   private worktreeLifecycleTitle(action: WorktreeRowAction): string {
     if (action === "lock") return l10n.worktreeLock + ELLIPSIS;
@@ -5665,11 +5687,11 @@ class GitGraphView {
     );
   }
   /** Stale worktree actions for a branch, and Prune Stale Worktrees when any entry is stale. */
-  private appendWorktreeMaintenanceItems(menu: ContextMenuElement[], refName: string) {
+  private worktreeMaintenanceItems(refName: string): ContextMenuItem[] {
     const holder = this.worktreePathsFor(refName)
       .map((path) => this.worktreeAtPath(path))
       .find((worktree) => worktree?.prunable != null);
-    const items: ContextMenuElement[] = [];
+    const items: ContextMenuItem[] = [];
     if (holder !== undefined && holder !== null) {
       items.push(
         {
@@ -5695,7 +5717,7 @@ class GitGraphView {
         onClick: () => this.showPruneWorktreesDialog()
       });
     }
-    if (items.length > 0) menu.push(null, ...items);
+    return items;
   }
   private showPushBranchDialog(refName: string) {
     const remoteNames = this.getRemoteNames();

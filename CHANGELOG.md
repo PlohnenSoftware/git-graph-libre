@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer lists that worktree's path and state below it. The branch badge's
   worktree marker shows where the branch is checked out when you hover it,
   and the Worktrees list names every location.
+- **That menu groups the worktree's actions.** Open Worktree, Lock or Unlock,
+  Move, and for a missing folder Remove Stale Worktree Entry and Repair, plus
+  Prune Stale Worktrees, now sit together at the top under its header,
+  followed by the branch's own actions. A stray divider between Push Branch
+  and Delete Branch is gone too.
 
 ### Fixed
 
