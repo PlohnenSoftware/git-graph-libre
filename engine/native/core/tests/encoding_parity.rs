@@ -850,8 +850,9 @@ fn single_byte_labels_match_git_on_every_high_byte() {
         ("cp1250", Declined),
         ("cp1251", Declined),
         ("cp1252", Declined),
-        // Declined: KOI8-U, the `koi8` alias that iconv does not know, Mac Roman and Mac
-        // Cyrillic, which iconv maps differently or does not know.
+        // Declined: KOI8-U; the `koi8` alias, whose iconv table is not KOI8-R's (it rejects
+        // some bytes KOI8-R maps); Mac Roman, which iconv maps differently; and Mac Cyrillic,
+        // which iconv does not know.
         ("koi8-u", Declined),
         ("koi8", Declined),
         ("macintosh", Declined),
