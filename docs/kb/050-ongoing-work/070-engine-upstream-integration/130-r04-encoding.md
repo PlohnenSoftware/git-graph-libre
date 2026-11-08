@@ -6,7 +6,7 @@ summary: >-
 
 # R04 — Encoding and subjects
 
-Status: done — awaiting integration
+Status: integrated `a0170ee`
 
 Needs: R03
 

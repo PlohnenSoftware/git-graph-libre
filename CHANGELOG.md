@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Prune Stale Worktrees, now sit together at the top under its header,
   followed by the branch's own actions. A stray divider between Push Branch
   and Delete Branch is gone too.
+- **The Topological commit ordering runs on the Rust engine.** It always went
+  through Git before, because the engine ordered some histories differently;
+  it now matches `git log --topo-order` exactly.
 
 ### Fixed
 
@@ -28,6 +31,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Worktrees list and menu headers. The Delete Branch dialog for a branch held
   by another worktree is also shorter. It names the worktree by its folder,
   with the full path on hover and in the option that removes it.
+- **Commit text in other encodings.** With the Rust engine, a commit recorded
+  in another encoding (`i18n.commitEncoding`, for example ISO-8859-1) showed
+  garbled names and messages, and a subject after blank lines was lost. The
+  engine now decodes it as Git prints it, and hands encodings it cannot
+  match exactly to Git.
+- **Author Date ordering shows the right first page.** With the Author Date
+  commit ordering, a commit authored recently but committed long ago could
+  be missing from the first page. The engine now ranks the whole history, as
+  Git does, which takes longer on very large repositories.
+- **The GGL Diff tab and large files.** A file above 64 MiB is reported as
+  too large instead of being read whole, or shown empty when read through
+  Git.
+- **Submodules in the GGL Diff tab** show the `Subproject commit` line `git
+  diff` shows, instead of an empty side.
+- **A repository whose refs cannot be read** shows Git's error instead of an
+  empty graph.
+- **Remote branches under `changes/`** are shown with the Rust engine too, as
+  Git always showed them.
+
+The Rust engine is now `1.0.32`. Its fixes adapt parts of upstream commits
+`f007528`, `634ca6c` and `ff4aafe` of `neophack/vscode-git-graph-rs`; see
+`engine/NOTICE.md`.
 
 ## [1.10.0] - 2026-11-08
 

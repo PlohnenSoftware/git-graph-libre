@@ -61,10 +61,10 @@ now recorded with this plan before dispatch.
 | R01 | Ref failures | integrated `7ee2542` |
 | R02 | Bounded reads | integrated `14ffe23` |
 | R03 | Traversal correctness and allocations | integrated `ac2fec4` |
-| R04 | Encoding and subjects | ready |
+| R04 | Encoding and subjects | integrated `a0170ee` |
 | R05 | Gitlink file content | integrated `8ca2f01` |
 | R06 | Remote-ref classification and allocations | integrated `83cdd5d` |
-| R07 | Remote-tag label order (found by R06) | ready |
+| R07 | Remote-tag label order (found by R06) | blocked — maintainer decision (see Open questions) |
 
 ## Integration acceptance
 
@@ -138,6 +138,29 @@ passed. No push or release publication in this integration.
   passed, 0 failed; addon rebuilt, smoke `1.0.31`; typecheck clean; strict
   Biome on the four touched TypeScript files clean; `pnpm run test` backend
   1,442 and webview 1,015 passed; KB check clean. R04 and R07 are ready.
+- 2026-11-08: R04 dispatched on Claude Sonnet and R07 on Claude Haiku, both
+  from `51908ec`. A SonarQube scan of `51908ec` (task
+  `c12cb0a5-4a22-4b11-938d-8feb2b550b0a`) failed the gate on three
+  reliability issues in R05's `startsLikeCommitHeader`; the integrator fixed
+  them in `e4269db`. R07 blocked with evidence: the engine payload names a
+  mirrored remote tag only `<remote>/<tag>`, so its mapper cannot reproduce
+  the CLI's order. Its branch holds a red reproduction test (`5131007`) and
+  is not integrated. R04's agent once ran `git stash pop` in its worktree;
+  the stash list is shared, the pop of the maintainer's `stash@{0}` failed
+  on a conflict, and the entry is intact.
+- 2026-11-08: R04 (Claude Sonnet) integrated at `a0170ee`: commit text is
+  decoded as Git prints it (`ff4aafe` `text.rs`), declining to the CLI where
+  the decoding could differ. Then the engine moved to `1.0.32`
+  (`engine/Cargo.toml`, `engine/package.json`, `Cargo.lock`,
+  `EXPECTED_ENGINE_VERSION`) with CHANGELOG entries. Gates on the result:
+  engine fmt, clippy, check clean; engine tests 281 passed, 0 failed; addon
+  rebuilt, smoke `1.0.32`; typecheck clean; strict Biome on the touched
+  TypeScript clean; `pnpm run test` backend 1,445 and webview 1,015 passed;
+  `l10n:check` complete; `test:coverage` 187 files and 2,460 tests passed;
+  SonarQube task `a33d8327-bdf4-4c90-a9f2-2ac93a2eb61e` on the working tree
+  before the commit, gate `OK` (new coverage 94.2%, 0 new violations, 0
+  reliability issues). Integrated so far: R01–R06; R07 waits on the
+  maintainer. Nothing is pushed.
 
 ## Open questions for the maintainer
 
@@ -154,6 +177,15 @@ passed. No push or release publication in this integration.
   bound the walk with commit-graph generation numbers, as git does (a new
   engine slice). The `topoOrdering` decline id, its webview text and l10n
   strings are now unreachable; they stay until this is decided.
+- **R07, remote-tag label order.** Either an engine change that gives each
+  tag its real ref name or owning remote, as remote branches already carry
+  (`graph.rs`, `refs.rs` and the wire types; a new slice), or accepting the
+  divergence as a recorded known gap. The second relaxes the rule that a
+  divergence is a bug, so only the maintainer can choose it.
+- **Encodings Git converts with iconv (R04).** Only ISO-8859-1,
+  Windows-1252 and Shift_JIS were checked against Git. EUC-KR, GBK and Big5
+  decode through `encoding_rs` unverified; a check against Git, or a decline
+  for them, is open.
 - **`/changes/` remote refs (R06).** The engine now lists them as remote
   branches, as the CLI always has. The filter had been kept for remotes
   with tens of thousands of code-review refs, which are rare in

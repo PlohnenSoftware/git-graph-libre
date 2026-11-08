@@ -95,6 +95,12 @@ its own commit naming its source, with a `Co-authored-by: neophack` trailer:
   (`log/ranked.rs`), and its filtered-walk handling, are this project's own.
 - Author filters are prepared once per walk rather than per commit
   (`634ca6c`).
+- Commit names, messages and subjects are decoded as `git log` prints them:
+  the commit's `encoding` header is honored and the subject skips leading
+  blank lines (`ff4aafe`, `native/core/src/text.rs` and its call sites).
+  What this project adds: it declines, handing the read to the CLI, for
+  encodings whose decoding could differ from Git's converter and for a
+  non-UTF-8 log output encoding.
 
 ## License
 

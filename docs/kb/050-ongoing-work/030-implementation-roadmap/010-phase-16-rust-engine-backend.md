@@ -2,8 +2,9 @@
 summary: >-
   In progress as of `2026-10-20`: slices 16.1–16.9 shipped in `v1.8.0`, Author
   Date and the status indicator in `1.8.1`, type changes and numstat parity in
-  `1.9.0`; topo seeding, encoding, remote-ref cases and the upstream gix PR
-  open. Wires
+  `1.9.0`; topo seeding, encoding and the `/changes/` remote-ref case
+  integrated as engine `1.0.32` (`2026-11-08`, unreleased); the upstream gix
+  PR open. Wires
   the `engine/` Rust addon into the hot reads with CLI fallback; goal and
   speed numbers.
 ---
@@ -16,8 +17,11 @@ indicator popup; the upstream review's candidates 1–4 and 8 landed the same
 day, as did signatures leaving the graph load, the Hidden menu's one-off
 CLI reload and engine-failure telemetry. `1.9.0` shipped type changes,
 numstat parity, the gix `0a49d46` upgrade, staged-file export and diff-read
-route logging; topo seeding, encoding, the remote-ref special cases and the
-upstream gix PR posting (D30) remain open.** The engine's source and its
+route logging. On `2026-11-08` the Engine upstream integration (Ongoing
+work) brought topo seeding with the topo decline lifted, encoding-aware
+commit text, the `/changes/` remote-ref fix, bounded reads, gitlink content
+and ref-error reporting to `main` as engine `1.0.32`, unreleased. The
+upstream gix PR posting (D30) remains open.** The engine's source and its
 52-commit history live on `rusty` under `engine/`; see "Evaluating the Rust
 engine of `vscode-git-graph-rs`" for what it is, what was excluded, and why it
 was not adopted wholesale. The extension reads it for the hot reads and falls
