@@ -653,7 +653,6 @@
   "componentStatus.route.unverified": "Git 尚未确认此仓库",
   "componentStatus.route.unavailable": "Rust 引擎不可用",
   "componentStatus.route.handedBack": "由 Rust 引擎交回",
-  "componentStatus.route.topoOrdering": "选择了拓扑排序",
   "componentStatus.route.reflog": "包含 reflog 提交",
   "componentStatus.route.unreachableCommits": "包含不可达的提交",
   "componentStatus.route.globPattern": "选择了分支 glob 模式",

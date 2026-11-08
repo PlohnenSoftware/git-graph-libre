@@ -653,7 +653,6 @@
   "componentStatus.route.unverified": "Git jeszcze nie potwierdził tego repozytorium",
   "componentStatus.route.unavailable": "silnik Rust niedostępny",
   "componentStatus.route.handedBack": "przekazane z powrotem przez silnik Rust",
-  "componentStatus.route.topoOrdering": "wybrano kolejność topologiczną",
   "componentStatus.route.reflog": "uwzględniane są commity z refloga",
   "componentStatus.route.unreachableCommits": "uwzględniane są nieosiągalne commity",
   "componentStatus.route.globPattern": "wybrano wzorzec glob gałęzi",

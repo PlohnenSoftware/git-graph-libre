@@ -280,7 +280,7 @@ export type GitComponentStatus =
  * The pre-call declines: graph loads whose shape the engine cannot serve, so
  * they go straight to the Git command line by design.
  */
-export type GraphLoadDecline = "topoOrdering" | "reflog" | "unreachableCommits" | "globPattern";
+export type GraphLoadDecline = "reflog" | "unreachableCommits" | "globPattern";
 
 /**
  * Which backend answered the most recent graph load, and why the command line

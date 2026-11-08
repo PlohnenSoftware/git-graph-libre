@@ -766,7 +766,6 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     componentStatusRouteUnverified: translate("componentStatus.route.unverified"),
     componentStatusRouteUnavailable: translate("componentStatus.route.unavailable"),
     componentStatusRouteHandedBack: translate("componentStatus.route.handedBack"),
-    componentStatusRouteTopoOrdering: translate("componentStatus.route.topoOrdering"),
     componentStatusRouteReflog: translate("componentStatus.route.reflog"),
     componentStatusRouteUnreachableCommits: translate("componentStatus.route.unreachableCommits"),
     componentStatusRouteGlobPattern: translate("componentStatus.route.globPattern")

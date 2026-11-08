@@ -653,7 +653,6 @@
   "componentStatus.route.unverified": "Git heeft deze repository nog niet bevestigd",
   "componentStatus.route.unavailable": "Rust-engine niet beschikbaar",
   "componentStatus.route.handedBack": "teruggegeven door de Rust-engine",
-  "componentStatus.route.topoOrdering": "topologische sortering is gekozen",
   "componentStatus.route.reflog": "reflog-commits worden meegenomen",
   "componentStatus.route.unreachableCommits": "onbereikbare commits worden meegenomen",
   "componentStatus.route.globPattern": "er is een glob-patroon voor branches gekozen",
