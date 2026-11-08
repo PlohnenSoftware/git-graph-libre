@@ -7,7 +7,7 @@ summary: >-
 
 # R07 — Remote-tag label order
 
-Status: ready
+Status: claimed by Claude Haiku on 2026-11-08 23:33
 
 Needs: R03
 
