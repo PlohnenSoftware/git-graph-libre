@@ -63,7 +63,8 @@ now recorded with this plan before dispatch.
 | R03 | Traversal correctness and allocations | ready |
 | R04 | Encoding and subjects | waiting for R03 |
 | R05 | Gitlink file content | integrated `8ca2f01` |
-| R06 | Remote-ref classification and allocations | ready |
+| R06 | Remote-ref classification and allocations | integrated `83cdd5d` |
+| R07 | Remote-tag label order (found by R06) | waiting for R03 |
 
 ## Integration acceptance
 
@@ -112,3 +113,13 @@ passed. No push or release publication in this integration.
   worktree saw an ENOENT); addon rebuilt, smoke `1.0.31`; typecheck clean;
   strict Biome on the five touched TypeScript files clean; `pnpm run test`
   backend 1,441 and webview 1,015 passed; KB check clean.
+- 2026-11-08: R06 (Claude Haiku) integrated at `83cdd5d`. It removes only
+  the engine's `/changes/` filter and replaces the test that pinned it, and
+  its allocation cleanups change no behavior. Its TypeScript parity case
+  found a pre-existing divergence in label order between the backends when a
+  mirrored remote tag and a remote branch share a commit. That is recorded as
+  R07, which waits on R03 because both edit `src/backend/engine/commits.ts`.
+  Gates on `83cdd5d`: engine fmt, clippy, check clean; engine tests 251
+  passed, 0 failed; addon rebuilt, smoke `1.0.31`; typecheck clean; strict
+  Biome on `parity.test.ts` clean; `pnpm run test` backend 1,442 and webview
+  1,015 passed; KB check clean.

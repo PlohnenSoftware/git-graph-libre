@@ -166,6 +166,7 @@ it, so a query about code also finds the sections that discuss it.
   - [R04 — Encoding and subjects](050-ongoing-work/070-engine-upstream-integration/130-r04-encoding.md) — R04: Encoding and subjects. Engine review integration slice; focused checks precede integrator review and the combined gate.
   - [R05 — Gitlink content](050-ongoing-work/070-engine-upstream-integration/140-r05-gitlinks.md) — R05: Gitlink content. Engine review integration slice; focused checks precede integrator review and the combined gate.
   - [R06 — Remote-ref classification](050-ongoing-work/070-engine-upstream-integration/150-r06-remote-refs.md) — R06: Remote-ref classification. Engine review integration slice; focused checks precede integrator review and the combined gate.
+  - [R07 — Remote-tag label order](050-ongoing-work/070-engine-upstream-integration/160-r07-remote-tag-label-order.md) — R07: Remote-tag label order. A follow-up R06 found: when a mirrored remote tag and a remote branch share a commit, the engine path orders their labels differently from the CLI path. Waits on R03, which also edits `commits.ts`.
 
 **Future work**: open roadmap items and directions nobody has started.
 

@@ -6,7 +6,7 @@ summary: >-
 
 # R06 — Remote-ref classification
 
-Status: done — awaiting integration
+Status: integrated `83cdd5d`
 
 Needs: R01
 
