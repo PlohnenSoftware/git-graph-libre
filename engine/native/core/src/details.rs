@@ -6,6 +6,7 @@ use std::ops::Deref;
 use crate::diff;
 use crate::error::{Error, Result, ResultExt};
 use crate::repository::Repo;
+use crate::text::{self, CommitText};
 use crate::types::{
     GitCommitDetails, GitCommitStash, GitCommitSummary, GitFileStatus, GitSignature,
     GitSignatureStatus, GitTagDetails, UNCOMMITTED,
@@ -26,7 +27,9 @@ pub fn commit_details(repo: &Repo, hash: &str) -> Result<GitCommitDetails> {
 pub fn commit_details_base(repo: &Repo, hash: &str) -> Result<GitCommitDetails> {
     let id = repo.resolve_commit(hash)?;
     let git = repo.borrow();
+    text::ensure_utf8_output(&git)?;
     let commit = git.find_commit(id).git_ctx("Could not read the commit")?;
+    let text = CommitText::of(&commit)?;
 
     let author = commit
         .author()
@@ -34,9 +37,6 @@ pub fn commit_details_base(repo: &Repo, hash: &str) -> Result<GitCommitDetails> 
     let committer = commit
         .committer()
         .git_ctx("Could not decode the commit committer")?;
-    let body = commit
-        .message_raw()
-        .git_ctx("Could not decode the commit message")?;
 
     Ok(GitCommitDetails {
         hash: commit.id().detach().to_string(),
@@ -46,14 +46,14 @@ pub fn commit_details_base(repo: &Repo, hash: &str) -> Result<GitCommitDetails> 
             .iter()
             .map(ToString::to_string)
             .collect(),
-        author: author.name.to_string(),
-        author_email: author.email.to_string(),
+        author: text.decode(author.name)?.into_owned(),
+        author_email: text.decode(author.email)?.into_owned(),
         author_date: author.time().map(|time| time.seconds).unwrap_or(0),
-        committer: committer.name.to_string(),
-        committer_email: committer.email.to_string(),
+        committer: text.decode(committer.name)?.into_owned(),
+        committer_email: text.decode(committer.email)?.into_owned(),
         committer_date: committer.time().map(|time| time.seconds).unwrap_or(0),
         signature: read_signature(&commit),
-        body: body.to_string(),
+        body: text.message(&commit)?.into_owned(),
         file_changes: Vec::new(),
     })
 }
@@ -141,16 +141,14 @@ fn unverified_signature() -> GitSignature {
 /// A hash that does not resolve fails the whole call, matching `git log --no-walk <bad-hash>`.
 pub fn commit_bodies(repo: &Repo, hashes: &[String]) -> Result<BTreeMap<String, String>> {
     let git = repo.borrow();
+    text::ensure_utf8_output(&git)?;
     let mut bodies = BTreeMap::new();
     for hash in hashes {
         let id = crate::repository::resolve_commit_in(&git, hash)?;
         let commit = git.find_commit(id).git_ctx("Could not read the commit")?;
         // git's `%B` ends with the message's trailing newline, which the caller strips; strip it
         // here so the two spellings of "the body" agree byte for byte.
-        let body = commit
-            .message_raw()
-            .git_ctx("Could not decode the commit message")?
-            .to_string();
+        let body = CommitText::of(&commit)?.message(&commit)?.into_owned();
         bodies.insert(commit.id().detach().to_string(), strip_one_newline(body));
     }
     Ok(bodies)
@@ -162,6 +160,7 @@ pub fn commit_summaries(
     hashes: &[String],
 ) -> Result<BTreeMap<String, GitCommitSummary>> {
     let git = repo.borrow();
+    text::ensure_utf8_output(&git)?;
     let mut summaries = BTreeMap::new();
     for hash in hashes {
         let id = crate::repository::resolve_commit_in(&git, hash)?;
@@ -169,14 +168,12 @@ pub fn commit_summaries(
         let author = commit
             .author()
             .git_ctx("Could not decode the commit author")?;
-        let message = commit
-            .message_raw()
-            .git_ctx("Could not decode the commit message")?
-            .to_string();
+        let text = CommitText::of(&commit)?;
+        let message = text.message(&commit)?;
         let summary = GitCommitSummary {
             hash: commit.id().detach().to_string(),
-            author: author.name.to_string(),
-            email: author.email.to_string(),
+            author: text.decode(author.name)?.into_owned(),
+            email: text.decode(author.email)?.into_owned(),
             date: author.time().map(|time| time.seconds).unwrap_or(0),
             // `git show --format=%B` output is trimmed before use.
             message: message.trim().to_string(),
