@@ -64,6 +64,12 @@ pub fn index_file_limited(repo: &Repo, file_path: &str, limit: u64) -> Result<Co
         .entry_by_path(file_path.as_bytes().into())
         .ok_or_else(|| Error::not_found(format!("'{file_path}' is not in the index")))?;
 
+    // A staged submodule is a gitlink: the entry id is a commit of ANOTHER repository, never a
+    // blob here. Answer with the diff-display line and do not look the object up.
+    if entry.mode.is_submodule() {
+        return Ok(text_or_binary(gitlink_text(entry.id)));
+    }
+
     check_blob_size(&git, entry.id, limit)?;
     let data = git
         .find_blob(entry.id)
@@ -76,7 +82,7 @@ pub fn index_file_limited(repo: &Repo, file_path: &str, limit: u64) -> Result<Co
 /// Look a path up in a tree and return its blob data, or `None` when the tree has no such file.
 ///
 /// A path that resolves to a subtree (a directory) is not a file and reads as absent, which is
-/// also how `git show <rev>:<dir>` fails.
+/// also how `git show <rev>:<dir>` fails. A gitlink reads as its diff-display text.
 fn blob_at(
     git: &gix::Repository,
     tree: &gix::Tree<'_>,
@@ -96,8 +102,19 @@ fn blob_at(
                 .to_vec();
             Ok(Some(data))
         }
+        // A submodule (gitlink) has no blob here and its commit usually is not in this object
+        // database, so it is never looked up: the entry id alone yields the diff-display line.
+        Some(entry) if entry.mode().is_commit() => Ok(Some(gitlink_text(entry.id().detach()))),
         _ => Ok(None),
     }
+}
+
+/// The diff-display text of a gitlink: the one line `git diff` shows for a submodule entry.
+///
+/// This is a display representation shared with the CLI route of the diff tab, NOT what
+/// `git show <rev>:<path>` prints for a gitlink (that command fails).
+fn gitlink_text(id: gix::ObjectId) -> Vec<u8> {
+    format!("Subproject commit {id}\n").into_bytes()
 }
 
 /// Refuse a blob above `limit` bytes BEFORE its data is read: the object header carries the size,
