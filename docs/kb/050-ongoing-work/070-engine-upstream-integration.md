@@ -66,7 +66,7 @@ now recorded with this plan before dispatch.
 | R06 | Remote-ref classification and allocations | integrated `83cdd5d` |
 | R07 | Remote-tag label order (found by R06) | ready — engine change, per invariant 3 |
 | R08 | CJK encodings against Git (R04 follow-up) | ready |
-| R09 | Remove the topo decline surface (R03 follow-up) | ready |
+| R09 | Remove the topo decline surface (R03 follow-up) | integrated `66c29d6` |
 
 ## Integration acceptance
 
@@ -166,6 +166,12 @@ passed. No push or release publication in this integration.
   R09 added as follow-ups. All three are dispatched in parallel from
   `main`: R07 on Claude Sonnet in its existing worktree, rebased onto
   `main`; R08 and R09 on Claude Haiku in new worktrees.
+- 2026-11-08: R09 (Claude Haiku) integrated at `66c29d6` by fast-forward:
+  `topoOrdering` is gone outside `docs/` and `CHANGELOG.md`, and no
+  telemetry declaration named it. Gates on `66c29d6`: typecheck clean;
+  strict Biome on the four touched files clean; `l10n:check` complete;
+  `pnpm run test` backend 1,445 and webview 1,014 passed (one route row
+  removed).
 
 ## Follow-ups and notes for the maintainer
 
