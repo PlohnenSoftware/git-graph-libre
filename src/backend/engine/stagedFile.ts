@@ -135,6 +135,12 @@ async function readFromCli(repo: string, filePath: string, gitPath: string): Pro
     const gitlink = await readIndexGitlink(repo, filePath, gitPath);
     return gitlink === null ? { missing: true } : { text: gitlink };
   }
+  // `git show` of a gitlink whose commit IS in this repository prints that commit.
+  // Only output that looks like a commit header pays for the gitlink check.
+  if (startsLikeCommitHeader(bytes)) {
+    const gitlink = await readIndexGitlink(repo, filePath, gitPath);
+    if (gitlink !== null) return { text: gitlink };
+  }
   if (bytes.subarray(0, BINARY_SNIFF_LEN).includes(0)) return { binary: true };
   try {
     return { text: new TextDecoder("utf-8", { fatal: true }).decode(bytes) };
@@ -159,6 +165,9 @@ function showIndexFile(gitPath: string, repo: string, object: string): Promise<B
 }
 
 /* ---------- Gitlinks on the CLI route ---------- */
+
+/** The escape character that opens an ANSI color sequence. */
+const ESC_CODE = 27;
 
 /** The mode `git ls-tree` and `git ls-files --stage` print for a gitlink. */
 const GITLINK_MODE = "160000";
@@ -195,6 +204,30 @@ export function parseGitlinkEntry(output: string, filePath: string, format: "tre
   return null;
 }
 
+/**
+ * Whether `git show` output begins like a commit header: a first line of
+ * `commit <40 or 64 hex>`, optionally followed by a decoration such as
+ * ` (HEAD -> main)`, after an optional ANSI color sequence (`color.ui=always`).
+ * Only a hint to run the gitlink check: a regular file may match it too, and
+ * only a confirmed gitlink changes what is shown.
+ */
+export function startsLikeCommitHeader(bytes: Buffer): boolean {
+  let line = bytes.subarray(0, 300).toString("latin1").split("\n", 1)[0] ?? "";
+  // Drop one leading ANSI color sequence: ESC, "[", digits and semicolons, "m".
+  if (line.charCodeAt(0) === ESC_CODE) {
+    const end = line.indexOf("m");
+    if (end < 0 || !/^[0-9;]*$/.test(line.slice(2, end)) || line[1] !== "[") return false;
+    line = line.slice(end + 1);
+  }
+  const match = /^commit ([0-9a-f]+)(.*)$/.exec(line);
+  if (match === null) return false;
+  const hex = match[1] ?? "";
+  if (hex.length !== 40 && hex.length !== 64) return false;
+  // Nothing may follow the hash but a decoration (` (HEAD -> main)`) or a color reset.
+  const rest = match[2] ?? "";
+  return rest === "" || rest.startsWith(" ") || rest.charCodeAt(0) === ESC_CODE;
+}
+
 /** Run Git with `args` in `repo`, returning raw stdout; rejects on a non-zero exit. */
 export function execGitBytes(gitPath: string, repo: string, args: string[]): Promise<Buffer> {
   return new Promise<Buffer>((resolve, reject) => {
@@ -211,7 +244,7 @@ export function execGitBytes(gitPath: string, repo: string, args: string[]): Pro
 }
 
 /** `git show` failed on `object`: the gitlink text when `filePath` is one in `repo`'s index, else null. */
-async function readIndexGitlink(
+export async function readIndexGitlink(
   repo: string,
   filePath: string,
   gitPath: string
