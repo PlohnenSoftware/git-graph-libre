@@ -17,6 +17,8 @@ use std::collections::{BinaryHeap, HashMap, HashSet};
 
 use gix::ObjectId;
 
+mod ranked;
+
 use crate::error::{Error, Result, ResultExt};
 use crate::repository::{Repo, Shallow};
 use crate::types::{CommitOrdering, CommitRecord, GitAuthor};
@@ -58,7 +60,102 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
     // even though more matches exist deeper in history) instead of searching until the page is
     // full, the way `git log --author` does.
     let searching = filtering || options.authors.is_some();
+    let shallow = Shallow::of(&git);
 
+    // While filtering, the parents of every commit the walk *reads* are kept, not just of the
+    // ones it keeps: re-parenting a shown commit means tracing through the hidden commits
+    // between it and its nearest shown ancestor, which requires their parents too.
+    let mut visited_parents: Vec<(String, Vec<String>)> = Vec::new();
+
+    let records = if uses_ranked_walk(options.ordering, searching) {
+        walk_ranked(
+            &git,
+            tips,
+            options,
+            &shallow,
+            searching,
+            &mut visited_parents,
+        )?
+    } else if !searching && options.ordering == CommitOrdering::AuthorDate {
+        let window = window_size(options.limit, searching);
+        let records = collect_window(&git, tips, options, &shallow, window, &mut visited_parents)?;
+        order(records, options.ordering, options.limit)
+    } else {
+        collect_window(
+            &git,
+            tips,
+            options,
+            &shallow,
+            window_size(options.limit, searching),
+            &mut visited_parents,
+        )?
+    };
+
+    let mut records = records;
+    if filtering {
+        // History simplification: a commit whose parent was filtered out is re-parented onto its
+        // nearest shown ancestor, so the graph stays connected instead of breaking into fragments.
+        rewrite_parents(&mut records, &visited_parents);
+    }
+    Ok(records)
+}
+
+/// Does `ordering` go through the git-shaped traversal in [`ranked`]?
+///
+/// The date orderings of a filtered walk do not: they read commits in commit-time order only as
+/// far as the page needs, which is what keeps a sparse filter from paying for the whole history.
+fn uses_ranked_walk(ordering: CommitOrdering, searching: bool) -> bool {
+    match ordering {
+        CommitOrdering::Topo => true,
+        CommitOrdering::Date => !searching,
+        CommitOrdering::AuthorDate => false,
+    }
+}
+
+/// Visit a window of the history the way git does, rank it, and read the page's commits.
+fn walk_ranked(
+    git: &gix::Repository,
+    tips: &[ObjectId],
+    options: &WalkOptions,
+    shallow: &Shallow,
+    searching: bool,
+    visited_parents: &mut Vec<(String, Vec<String>)>,
+) -> Result<Vec<CommitRecord>> {
+    // Topological order has no safe window. git starts from every tip, newest first, and takes the
+    // most recently readied commit next, so a tip with an old date surfaces as soon as the line
+    // above it ends — and the commits that follow it are old too. A window cut by date would
+    // miss them, so the whole reachable history is visited, as `git log --topo-order` does.
+    let window = match options.ordering {
+        CommitOrdering::Topo => None,
+        _ => Some(window_size(options.limit, searching)),
+    };
+    let graph = ranked::discover(git, shallow, tips, options.first_parent_only, window);
+    let mut records: Vec<CommitRecord> = Vec::new();
+    for index in graph.ranked(options.ordering) {
+        let Ok(commit) = git.find_commit(graph.id(index)) else {
+            continue;
+        };
+        if !passes_filters(git, &commit, shallow, options, visited_parents)? {
+            continue;
+        }
+        records.push(read_commit(&commit, shallow)?);
+        if records.len() >= options.limit {
+            break;
+        }
+    }
+    Ok(records)
+}
+
+/// Read up to `window` commits in commit-time order, keeping the ones that pass the filters.
+fn collect_window(
+    git: &gix::Repository,
+    tips: &[ObjectId],
+    options: &WalkOptions,
+    shallow: &Shallow,
+    window: usize,
+    visited_parents: &mut Vec<(String, Vec<String>)>,
+) -> Result<Vec<CommitRecord>> {
+    let searching = !options.filter_paths.is_empty() || options.authors.is_some();
     let mut platform =
         git.rev_walk(tips.iter().copied())
             .sorting(gix::revision::walk::Sorting::ByCommitTime(
@@ -68,37 +165,24 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
         platform = platform.first_parent_only();
     }
     let walk = platform.all().git_ctx("Could not walk the commit graph")?;
-    let shallow = Shallow::of(&git);
 
     let mut records: Vec<CommitRecord> = Vec::new();
-    // While filtering, the parents of every commit the walk *reads* are kept, not just of the
-    // ones it keeps: re-parenting a shown commit means tracing through the hidden commits
-    // between it and its nearest shown ancestor, which requires their parents too.
-    let mut visited_parents: Vec<(String, Vec<String>)> = Vec::new();
-    for info in walk.take(window_size(options.limit, searching)) {
+    for info in walk.take(window) {
         // A missing object (a shallow clone's boundary, or a corrupt pack) truncates the walk
         // rather than failing the whole view.
         let Ok(info) = info else { break };
         let Ok(commit) = git.find_commit(info.id) else {
             continue;
         };
-        if !passes_filters(&git, &commit, &shallow, options, &mut visited_parents)? {
+        if !passes_filters(git, &commit, shallow, options, visited_parents)? {
             continue;
         }
-        records.push(read_commit(&commit, &shallow)?);
+        records.push(read_commit(&commit, shallow)?);
         if searching && records.len() >= options.limit {
             break;
         }
     }
-
-    if filtering {
-        // History simplification: a commit whose parent was filtered out is re-parented onto its
-        // nearest shown ancestor, so the graph stays connected instead of breaking into fragments.
-        rewrite_parents(&mut records, &visited_parents);
-        return Ok(records);
-    }
-
-    Ok(order(records, options.ordering, options.limit))
+    Ok(records)
 }
 
 /// How many commits a walk may read for a page of `limit`.
@@ -422,18 +506,27 @@ fn order(records: Vec<CommitRecord>, ordering: CommitOrdering, limit: usize) -> 
         CommitOrdering::Topo => 0,
     };
 
+    let mut initial: Vec<usize> = (0..records.len())
+        .filter(|&index| pending[index] == 0)
+        .collect();
+    // Topological order pops the highest sequence first, so seeding the ready set in walk order
+    // would start from the *oldest* tip. git reverses its initial queue (`prio_queue_reverse` in
+    // `sort_in_topological_order`) so the newest tip comes out first; seeding in reverse does the
+    // same. The date orderings rank by date and only use the sequence to break ties, lowest first.
+    if ordering == CommitOrdering::Topo {
+        initial.reverse();
+    }
+
     let mut sequence = 0usize;
     let mut ready: BinaryHeap<Ready> = BinaryHeap::new();
-    for (index, record) in records.iter().enumerate() {
-        if pending[index] == 0 {
-            ready.push(Ready {
-                date: key(record),
-                sequence,
-                index,
-                ordering,
-            });
-            sequence += 1;
-        }
+    for index in initial {
+        ready.push(Ready {
+            date: key(&records[index]),
+            sequence,
+            index,
+            ordering,
+        });
+        sequence += 1;
     }
 
     let mut ordered: Vec<CommitRecord> = Vec::with_capacity(limit.min(records.len()));
