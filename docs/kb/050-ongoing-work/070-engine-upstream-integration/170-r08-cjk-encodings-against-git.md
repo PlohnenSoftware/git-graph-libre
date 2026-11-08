@@ -9,7 +9,7 @@ summary: >-
 
 # R08 — CJK encodings against Git
 
-Status: ready
+Status: claimed by Claude Haiku on 2026-11-08 23:56
 
 Needs: R04
 
