@@ -955,8 +955,7 @@ describe("createRepoReader loadCommits", () => {
       "a --glob= pattern",
       { branches: ["--glob=feature/*"] } as Partial<LoadCommitsArgs>,
       "globPattern"
-    ],
-    ["topo ordering", { commitOrdering: "topo" } as Partial<LoadCommitsArgs>, "topoOrdering"]
+    ]
   ])("declines %s to the CLI without loading the addon", async (_name, overrides, route) => {
     const provider = vi.fn(engineProvider(emptyPage));
     const result = await commitsReader("auto", provider, overrides);
@@ -966,6 +965,16 @@ describe("createRepoReader loadCommits", () => {
     expect(commitReads.count).toBe(1);
     expect(didEngineServeRead()).toBe(false);
     expect(lastGraphLoadRoute()).toBe(route);
+  });
+
+  it("serves topo ordering through the engine", async () => {
+    const provider = vi.fn(engineProvider(headedPage));
+    const result = await commitsReader("auto", provider, { commitOrdering: "topo" });
+
+    expect(result.error).toBeNull();
+    expect(provider).toHaveBeenCalled();
+    expect(commitReads.count).toBe(0);
+    expect(didEngineServeRead()).toBe(true);
   });
 
   it("keeps reflog and unreachable flags on the engine with explicit refs", async () => {
