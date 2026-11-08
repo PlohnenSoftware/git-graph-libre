@@ -6,7 +6,7 @@ summary: >-
 
 # R03 — Traversal correctness
 
-Status: claimed by Codex (GPT-6.1 Sol) on 2026-11-08 22:10
+Status: claimed by Claude Sonnet on 2026-11-08 23:10
 
 Needs: none
 
