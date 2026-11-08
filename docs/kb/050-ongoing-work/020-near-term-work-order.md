@@ -11,6 +11,15 @@ always_read: true
 
 # Near-Term Work Order
 
+**Now (`2026-11-08`).** Two threads, both waiting for the maintainer:
+
+- The Engine upstream integration (Ongoing work) brought R01–R06 to `main`
+  as engine `1.0.32`, gated `OK` and unpushed. Its "Open questions for the
+  maintainer" hold R07 and the cost of exact author-date and topo orderings.
+- "Git Graph+ features: research and slice plan" (Future work) researched
+  the Reflog tab, interactive rebase and a timeline, for discussion before
+  any implementation.
+
 **Next (`2026-11-04`): release 1.10.0 "The Worktrees".** The maintainer made
 worktrees the next release: "full worktree support", not only what the
 issues ask. It is to analyze the engine's part, include the to-tackle
