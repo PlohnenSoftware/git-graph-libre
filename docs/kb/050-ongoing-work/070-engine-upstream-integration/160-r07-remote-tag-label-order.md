@@ -7,7 +7,7 @@ summary: >-
 
 # R07 — Remote-tag label order
 
-Status: waiting
+Status: ready
 
 Needs: R03
 

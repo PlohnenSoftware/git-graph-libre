@@ -86,6 +86,15 @@ its own commit naming its source, with a `Co-authored-by: neophack` trailer:
 - A gitlink (submodule entry) read at a revision or from the index returns
   `Subproject commit <hash>`, the line `git diff` shows for it, instead of
   failing on a commit this repository usually does not hold (`f007528`).
+- A first-parent walk filtered by path judges each commit against its first
+  parent only, as git does (`f007528`).
+- The topological order starts from the newest tip, as git seeds it
+  (`ff4aafe`), and an author-date page is chosen from the whole reachable
+  history ranked by author date, so a commit authored recently but committed
+  long ago is not cut from it (`634ca6c`). The traversal that ranks both
+  (`log/ranked.rs`), and its filtered-walk handling, are this project's own.
+- Author filters are prepared once per walk rather than per commit
+  (`634ca6c`).
 
 ## License
 

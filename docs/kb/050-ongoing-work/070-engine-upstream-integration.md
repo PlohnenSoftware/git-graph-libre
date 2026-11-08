@@ -60,11 +60,11 @@ now recorded with this plan before dispatch.
 | --- | --- | --- |
 | R01 | Ref failures | integrated `7ee2542` |
 | R02 | Bounded reads | integrated `14ffe23` |
-| R03 | Traversal correctness and allocations | ready |
-| R04 | Encoding and subjects | waiting for R03 |
+| R03 | Traversal correctness and allocations | integrated `ac2fec4` |
+| R04 | Encoding and subjects | ready |
 | R05 | Gitlink file content | integrated `8ca2f01` |
 | R06 | Remote-ref classification and allocations | integrated `83cdd5d` |
-| R07 | Remote-tag label order (found by R06) | waiting for R03 |
+| R07 | Remote-tag label order (found by R06) | ready |
 
 ## Integration acceptance
 
@@ -123,3 +123,43 @@ passed. No push or release publication in this integration.
   passed, 0 failed; addon rebuilt, smoke `1.0.31`; typecheck clean; strict
   Biome on `parity.test.ts` clean; `pnpm run test` backend 1,442 and webview
   1,015 passed; KB check clean.
+- 2026-11-08: the R05 worktree and the integrated `engine-review/R02` and
+  `engine-review/R05` branches were removed by something other than the
+  integrator after R05 was integrated. Both branches were fully merged, so
+  nothing was lost.
+- 2026-11-08: R03 (Claude Sonnet) integrated at `9b5962c`, plus the
+  integrator's `ac2fec4`: `reader.test.ts`, outside R03's Touch list, still
+  pinned the topo decline R03 lifted. R03 fixes first-parent path filtering
+  (`f007528`), seeds topo order newest tip first (`ff4aafe`), picks
+  author-date pages from the whole history (`634ca6c`), prepares author
+  patterns once, and serves `topo` from the engine after 1,224 of 1,224
+  parity comparisons with `git log --topo-order` (new `log/ranked.rs`).
+  Gates on `ac2fec4`: engine fmt, clippy, check clean; engine tests 265
+  passed, 0 failed; addon rebuilt, smoke `1.0.31`; typecheck clean; strict
+  Biome on the four touched TypeScript files clean; `pnpm run test` backend
+  1,442 and webview 1,015 passed; KB check clean. R04 and R07 are ready.
+
+## Open questions for the maintainer
+
+- **Cost of exact `author-date` and `topo` orderings (R03).** Both commit
+  orderings, which are per-repository choices whose default is `date`, now
+  read the whole reachable history (headers only) before the first page.
+  Release build, page of 100: this repository (1,458 commits) 4 ms to
+  18 ms; a generated 150,000-commit history 1 ms to 614 ms and 16 MB to
+  81 MB resident. `git log --author-date-order -n 100` takes 0.39 s there
+  without a commit-graph, and git walks incrementally with one. Before R03,
+  `author-date` was engine-served but could put the wrong commits on the
+  page, and `topo` went to the CLI. Options: keep it exact on the engine (as
+  integrated); route both orderings to the CLI above a history size; or
+  bound the walk with commit-graph generation numbers, as git does (a new
+  engine slice). The `topoOrdering` decline id, its webview text and l10n
+  strings are now unreachable; they stay until this is decided.
+- **`/changes/` remote refs (R06).** The engine now lists them as remote
+  branches, as the CLI always has. The filter had been kept for remotes
+  with tens of thousands of code-review refs, which are rare in
+  `refs/remotes`.
+- Pre-existing divergences R03 recorded, outside this integration: a
+  filtered `date` walk is not re-ranked, so with skewed or equal committer
+  clocks it can differ from `git log --date-order` with the same filter; and
+  on equal dates the engine passes tips as heads, remotes, stashes while the
+  CLI passes them in ref order.

@@ -6,7 +6,7 @@ summary: >-
 
 # R04 — Encoding and subjects
 
-Status: waiting
+Status: ready
 
 Needs: R03
 

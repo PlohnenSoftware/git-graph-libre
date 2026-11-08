@@ -6,7 +6,7 @@ summary: >-
 
 # R03 — Traversal correctness
 
-Status: done — awaiting integration
+Status: integrated `ac2fec4`
 
 Needs: none
 
