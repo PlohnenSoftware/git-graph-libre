@@ -144,6 +144,20 @@ may not define the token):
   `contain: inline-size`, so a long caption wraps, and a menu with a header
   is at least 280px wide so its title stays on one line. Before that, a
   worktree's path and state stretched the branch menu across the window.
+  That header now keeps only its title, "Checked out in another worktree"
+  (maintainer, `2026-11-08`). The caption naming the worktree's folder, path
+  and state is gone, reversing that part of W11. Where the branch is checked
+  out is on its badge's worktree marker tooltip and in the Worktrees list.
+- **No popup may grow wider than its cap, or scroll sideways, for a word it
+  cannot break** (`2026-11-08`). A path, ref name or Git message has no break
+  point of its own, so inside a width cap it scrolled the dialog sideways.
+  `#dialog.active`, `#worktreeList` and `.contextMenuHeaderCaption` carry
+  `overflow-wrap: anywhere`, which is inherited by everything in them and
+  breaks a word only where nothing else fits. Use `anywhere` rather than
+  `break-word`, because only `anywhere` also lets a table cell shrink. A new
+  popup takes the same rule on its container, and `dialogStyles.test.ts`
+  checks the three. Nowrap cells, such as the dialog label column, are
+  unaffected. They must hold only short text.
 - Paths in running text: a dialog sentence names a worktree by its folder
   (`worktreeFolderName`), with the full path in a `title` on hover. The full
   path stays where it is the subject, such as the option that removes that

@@ -442,6 +442,10 @@
   color: var(--vscode-editor-foreground);
   box-shadow: 0 8px 24px var(--vscode-widget-shadow);
   font-size: 13px;
+  /* A long folder or branch name in a row title has no break point; break it
+     where nothing else fits rather than widening the list (the path line
+     below it stays one line, ellipsized). */
+  overflow-wrap: anywhere;
 }
 #worktreeList:focus {
   outline: none;

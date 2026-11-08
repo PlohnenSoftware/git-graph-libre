@@ -283,7 +283,6 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     checkoutBranch: translate("action.checkoutBranch"),
     openWorktree: translate("action.openWorktree"),
     branchInWorktreeTitle: translate("ui.branchInWorktreeTitle"),
-    branchInWorktreeCaption: translate("ui.branchInWorktreeCaption"),
     worktreeHead: translate("ui.worktreeHead"),
     checkedOutInWorktree: translate("ui.checkedOutInWorktree"),
     worktreeLocked: translate("ui.worktreeLocked"),

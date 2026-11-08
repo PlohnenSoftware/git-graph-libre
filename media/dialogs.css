@@ -75,6 +75,12 @@
   z-index: 401;
   box-shadow: 0 4px 16px var(--vscode-widget-shadow);
   overflow-y: auto;
+  /* A path, a ref name or a Git message has no break point of its own, so
+     inside the width cap it scrolled the panel sideways instead (worktree
+     paths, 2026-11-08). Breaking such a word only where nothing else fits
+     keeps every popup's text, labels and notes within the panel; `anywhere`
+     rather than `break-word` because it also lets a table cell shrink. */
+  overflow-wrap: anywhere;
 }
 #dialog .dialogContent {
   line-height: 20px;
@@ -673,4 +679,5 @@ dl.tagDetailsFields dd {
   font-size: 11px;
   opacity: 0.75;
   color: var(--vscode-descriptionForeground);
+  overflow-wrap: anywhere;
 }

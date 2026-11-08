@@ -7,14 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **A shorter menu header for a branch checked out in another worktree.** Its
+  context menu still opens with "Checked out in another worktree", but no
+  longer lists that worktree's path and state below it. The branch badge's
+  worktree marker shows where the branch is checked out when you hover it,
+  and the Worktrees list names every location.
+
 ### Fixed
 
-- **Long worktree notes no longer stretch menus and dialogs.** The menu of a
-  branch checked out in another worktree stretched across the window to fit
-  that worktree's path and state; its header now wraps inside the menu. The
-  Delete Branch dialog for such a branch says it in two short sentences and
-  names the worktree by its folder, with the full path on hover and in the
-  option that removes it.
+- **Popups no longer overflow on long paths.** A worktree path, branch name or
+  Git message too long for a popup scrolled it sideways, for example after
+  creating a worktree. It now wraps inside the popup, in every dialog, the
+  Worktrees list and menu headers. The Delete Branch dialog for a branch held
+  by another worktree is also shorter. It names the worktree by its folder,
+  with the full path on hover and in the option that removes it.
 
 ## [1.10.0] - 2026-11-08
 

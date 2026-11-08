@@ -214,8 +214,8 @@ describe("a local branch checked out in another worktree", () => {
     expect(items).toEqual(
       expect.arrayContaining(["Rename Branch…", "Delete Branch…", "Merge into current branch…"])
     );
-    expect(contextMenuHeader()).toContain("Checked out in another worktree");
-    expect(contextMenuHeader()).toContain(OTHER_WORKTREE);
+    // The header's title says why; where it is checked out is on the badge's tooltip.
+    expect(contextMenuHeader()).toBe("Checked out in another worktree");
   });
 
   it("keeps Checkout and Pull, with no header, when no other worktree has the branch", async () => {
@@ -318,7 +318,7 @@ describe("a remote branch whose local branch is checked out in another worktree"
     expect(items).not.toContain("Fetch into local branch…");
     // Pulling the remote branch merges it into the current branch, which Git allows.
     expect(items).toContain("Pull Branch…");
-    expect(contextMenuHeader()).toContain(OTHER_WORKTREE);
+    expect(contextMenuHeader()).toBe("Checked out in another worktree");
   });
 
   it("keeps Checkout and Fetch into local branch when no worktree holds the local branch", async () => {

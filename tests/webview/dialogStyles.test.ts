@@ -11,6 +11,14 @@ function ruleFor(source: string, selector: string): string {
 }
 
 describe("dialog styles", () => {
+  it("breaks a path that does not fit instead of widening a popup", () => {
+    // A worktree path once scrolled the panel sideways, and stretched the
+    // worktree list and a menu header caption.
+    for (const selector of ["#dialog.active", "#worktreeList", ".contextMenuHeaderCaption"]) {
+      expect(ruleFor(css, selector), selector).toContain("overflow-wrap: anywhere;");
+    }
+  });
+
   it("renders the dialog panel with editor widget theme tokens", () => {
     const dialog = ruleFor(css, "#dialog.active");
 

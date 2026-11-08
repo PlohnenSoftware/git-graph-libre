@@ -442,7 +442,6 @@
   "type.tagMessage": "标签消息",
   "type.branchName": "分支名",
   "ui.branchInWorktreeTitle": "已在另一个工作树中检出",
-  "ui.branchInWorktreeCaption": "{0} · Git 不允许当前工作树切换到、更新或向该分支拉取。",
   "ui.worktreeHead": "工作树 {0} 的 HEAD",
   "ui.checkedOutInWorktree": "在工作树 {0} 中检出 ({1})",
   "ui.worktreeLocked": "已锁定：{0}",

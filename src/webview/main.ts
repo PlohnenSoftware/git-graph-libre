@@ -4716,22 +4716,19 @@ class GitGraphView {
   }
   /**
    * Locked menu items are not supported, so the actions Git refuses for a branch
-   * another worktree has checked out are left out, and this header says why.
+   * another worktree has checked out are left out, and this header's title says
+   * why. It names no worktree: where the branch is checked out is on its badge's
+   * tooltip and in the Worktrees list (maintainer, 2026-11-08).
    */
   private branchWorktreeMenuHeader(
     sourceElem: HTMLElement,
     refName: string
   ): ContextMenuHeader | undefined {
     const branchName = this.localBranchOfRef(sourceElem, refName);
-    const holders =
-      branchName === null ? [] : otherWorktreesHoldingBranch(this.gitWorktrees, branchName);
-    if (holders.length === 0) return undefined;
-
-    const where = holders.map((worktree) => describeWorktreeCheckout(worktree, l10n)).join("; ");
-    return {
-      title: l10n.branchInWorktreeTitle,
-      caption: l10n.branchInWorktreeCaption.replace("{0}", () => where)
-    };
+    if (branchName === null) return undefined;
+    return otherWorktreesHoldingBranch(this.gitWorktrees, branchName).length > 0
+      ? { title: l10n.branchInWorktreeTitle }
+      : undefined;
   }
   /** The local branch a branch or remote-branch label stands for; null for tags, stashes and detached labels. */
   private localBranchOfRef(sourceElem: HTMLElement, refName: string): string | null {

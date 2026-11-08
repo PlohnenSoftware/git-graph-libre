@@ -442,7 +442,6 @@
   "type.tagMessage": "Tagbericht",
   "type.branchName": "Branchnaam",
   "ui.branchInWorktreeTitle": "Uitgecheckt in een andere worktree",
-  "ui.branchInWorktreeCaption": "{0} · Git staat niet toe dat deze worktree naar de branch wisselt, hem bijwerkt of er iets in ophaalt.",
   "ui.worktreeHead": "HEAD van worktree {0}",
   "ui.checkedOutInWorktree": "Uitgecheckt in worktree {0} ({1})",
   "ui.worktreeLocked": "vergrendeld: {0}",

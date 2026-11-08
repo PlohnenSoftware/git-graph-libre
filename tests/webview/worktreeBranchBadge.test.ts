@@ -192,13 +192,11 @@ describe("worktree segment on a branch badge (W11)", () => {
       expect(ref?.title).toBe(name);
     }
 
-    // The context-menu header says the same as the tooltip.
+    // Only the tooltip above says where: the menu header keeps just its title,
+    // with no path or state (maintainer, 2026-11-08).
     featRef?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
-    const header = document.querySelector("#contextMenu .contextMenuHeader")?.textContent ?? "";
-    expect(header).toContain("Checked out in another worktree");
-    expect(header).toContain(`Checked out in worktree wt feat é (${LOCKED_PATH})`);
-    expect(header).toContain("locked: on a USB stick");
-    expect(header).toContain(`Checked out in worktree wt-gone (${GONE_PATH})`);
-    expect(header).toContain("missing (moved or deleted)");
+    const header = document.querySelector("#contextMenu .contextMenuHeader");
+    expect(header?.textContent).toBe("Checked out in another worktree");
+    expect(header?.querySelector(".contextMenuHeaderCaption")).toBeNull();
   });
 });
