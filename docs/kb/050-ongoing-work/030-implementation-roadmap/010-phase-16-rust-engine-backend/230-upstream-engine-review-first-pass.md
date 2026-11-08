@@ -42,7 +42,7 @@ table for implementation planning:
 | 6 | `ff4aafe` `diff.rs` | Numstat misses a last line gaining its newline, submodule line counts, and empty-file renames | medium |
 | 7 | `ff4aafe` `text.rs` | Non-UTF-8 commits ignore the `encoding` header; a subject after leading blank lines is lost | medium/low |
 | 8 | `ff4aafe` | `refs/replace/*` is honored backwards by gix 0.88 — decline when any exist | medium/low |
-| 9 | ours | The engine drops remote branches containing `/changes/` (a Gerrit leftover) and classifies `<remote>/…/tags/…` as tags; the CLI shows both as remote branches. Remove both special cases rather than port upstream's narrowing. | medium |
+| 9 | ours | The engine drops remote branches containing `/changes/` (a Gerrit leftover) and classifies `<remote>/…/tags/…` as tags; the CLI shows both as remote branches. Remove both special cases rather than port upstream's narrowing. Corrected `2026-11-08`: only the `/changes/` half holds. Since W26J (`2026-11-06`) the CLI also shows `<remote>/…/tags/<t>` as a `<remote>/<t>` tag, by the maintainer's decision, so that classification stays on both backends. | medium |
 
 Not worth taking: the JSON `dispatch` layer and the `fileBytes` hex-viewer
 exports (an unstrippable export and a `base64` dependency for a surface
@@ -98,9 +98,12 @@ Do not take blindly:
 - JSON dispatch and raw-byte exports: remain unused here. Old numstat,
   shallow-boundary, non-commit-tag and status candidates have been addressed
   here; the replace-ref workaround was superseded by our newer gix.
-- Remote names containing `/changes/` or `/tags/` remain a separate local
-  cleanup candidate from the previous review. Our engine still special-cases
-  them; upstream's Gerrit-oriented policy is not the desired replacement.
+- Remote names containing `/changes/` remain a separate local cleanup
+  candidate from the previous review. Our engine still hides them, the CLI
+  does not, and upstream's Gerrit-oriented policy is not the desired
+  replacement. The `/tags/` classification is not a candidate: W26J
+  (`2026-11-06`) made both backends show those refs as `<remote>/<tag>`
+  tags (corrected `2026-11-08`, when R06 found it).
 
 Verification: refreshed both repositories' remote refs, inspected native-only
 changes and current GGL call sites, and ran isolated Git fixtures through the

@@ -91,3 +91,14 @@ passed. No push or release publication in this integration.
   passed; KB check clean. Provenance for `f007528` and `634ca6c` added to
   `engine/NOTICE.md`, `NOTICE.md` and `LICENSE.mit`. Coverage and SonarQube
   run at the end of the wave. R05 and R06 are ready.
+- 2026-11-08: R05 dispatched on Claude Sonnet and R06 on Claude Haiku, both
+  from `6f8bf0f` in the recycled worktrees `/tmp/ggl-review-r05` and
+  `/tmp/ggl-review-r06`. R06 blocked before any code (`85738de`): its task
+  also removed the `/tags/` classification, but W26J (maintainer,
+  `2026-11-06`) keeps it on both backends, which the review's candidate 9
+  predates. The integrator applied that recorded decision: R06 now removes
+  only the `/changes/` filter and does the allocation cleanups, the `/tags/`
+  classification stays, its Touch list adds
+  `engine/native/core/tests/log_and_refs.rs` (whose
+  `never_shows_code_review_change_refs` pins the old filter), and the review
+  text is corrected. The same agent resumes R06.
