@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -653,5 +654,27 @@ describe("createEngineDiffTabSource gitlinks", () => {
       request(dir, { kind: "revision", ref: "HEAD", path: "no-such" }, { kind: "empty" })
     );
     expect(payload).toMatchObject({ kind: "diff", originalLines: [""], modifiedLines: [""] });
+  });
+
+  it("shows the Subproject line on the CLI route when the pointed-at commit exists here", async () => {
+    const dir = newRepo();
+    const target = execFileSync("git", ["rev-parse", "HEAD"], { cwd: dir }).toString().trim();
+    git(["update-index", "--add", "--cacheinfo", `160000,${target},sub`], dir);
+    git(["commit", "-m", "gitlink to an existing commit"], dir);
+    const cli: EngineDiffTabSourceDeps = {
+      gitPath: () => "git",
+      backend: () => "auto",
+      addonProvider: () => throwingReaders().addon,
+      isVerified: () => true
+    };
+
+    const payload = await createEngineDiffTabSource(cli).load(
+      request(dir, { kind: "revision", ref: "HEAD", path: "sub" }, { kind: "empty" })
+    );
+
+    expect(payload).toMatchObject({
+      kind: "diff",
+      originalLines: [`Subproject commit ${target}`, ""]
+    });
   });
 });

@@ -9,7 +9,8 @@ import {
   gitlinkText,
   parseGitlinkEntry,
   readRevisionGitlink,
-  readStagedFile
+  readStagedFile,
+  startsLikeCommitHeader
 } from "@/backend/engine/stagedFile";
 
 /**
@@ -140,5 +141,81 @@ describe("parseGitlinkEntry", () => {
     expect(parseGitlinkEntry(stage, "sub", "stage")).toBe(SUBMODULE_COMMIT);
     expect(parseGitlinkEntry(`160000 ${SUBMODULE_COMMIT} 2\tsub\0`, "sub", "stage")).toBeNull();
     expect(parseGitlinkEntry("", "sub", "stage")).toBeNull();
+  });
+});
+
+describe("gitlink to a commit that exists in the superproject", () => {
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  /** A gitlink `sub` pointing at the repository's own first commit, so `git show` succeeds on it. */
+  function repoWithPresentCommit(): { dir: string; target: string } {
+    const dir = makeRepo();
+    dirs.push(dir);
+    const target = cp.execFileSync("git", ["rev-parse", "HEAD"], { cwd: dir }).toString().trim();
+    git(["update-index", "--add", "--cacheinfo", `160000,${target},sub`], dir);
+    git(["commit", "-m", "gitlink to an existing commit"], dir);
+    return { dir, target };
+  }
+
+  it("shows the Subproject line on both routes for a revision and the index", async (context) => {
+    const { dir, target } = repoWithPresentCommit();
+    const expected = `Subproject commit ${target}\n`;
+    // The premise: plain git show prints the commit itself here.
+    const shown = cp.execFileSync("git", ["show", "HEAD:sub"], { cwd: dir }).toString();
+    expect(shown.startsWith(`commit ${target}`)).toBe(true);
+
+    expect(await readRevisionGitlink(dir, "HEAD", "sub", "git")).toBe(expected);
+    const cli = { gitPath: "git", backend: () => "git-cli" as const };
+    expect(await readStagedFile(dir, "sub", cli)).toEqual({ text: expected });
+
+    const addon = requireAddon(context);
+    const parsed = parseEngineCommitFile(await addon?.loadCommitFile(dir, "HEAD", "sub"));
+    expect(parsed).toEqual({ contents: expected, binary: false });
+    const viaEngine = await readStagedFile(dir, "sub", {
+      gitPath: "git",
+      backend: () => "auto",
+      isVerified: () => true
+    });
+    expect(viaEngine).toEqual({ text: expected });
+  });
+
+  it("keeps a regular file whose text starts like a commit header as its own content", async () => {
+    const dir = makeRepo();
+    dirs.push(dir);
+    const body = `commit ${"a".repeat(40)}\nnot a header\n`;
+    fs.writeFileSync(path.join(dir, "lookalike.txt"), body);
+    git(["add", "lookalike.txt"], dir);
+    git(["commit", "-m", "lookalike"], dir);
+
+    expect(await readRevisionGitlink(dir, "HEAD", "lookalike.txt", "git")).toBeNull();
+    const cli = { gitPath: "git", backend: () => "git-cli" as const };
+    expect(await readStagedFile(dir, "lookalike.txt", cli)).toEqual({ text: body });
+  });
+});
+
+describe("startsLikeCommitHeader", () => {
+  const sha1 = "a".repeat(40);
+  const sha256 = "b".repeat(64);
+  const bytes = (text: string) => Buffer.from(text, "latin1");
+
+  it("accepts a commit line, with a decoration or an ANSI color sequence", () => {
+    expect(startsLikeCommitHeader(bytes(`commit ${sha1}\nAuthor: x\n`))).toBe(true);
+    expect(startsLikeCommitHeader(bytes(`commit ${sha256}\n`))).toBe(true);
+    expect(startsLikeCommitHeader(bytes(`commit ${sha1} (HEAD -> main)\n`))).toBe(true);
+    expect(startsLikeCommitHeader(bytes(`\u001b[33mcommit ${sha1}\u001b[m\n`))).toBe(true);
+    expect(startsLikeCommitHeader(bytes(`commit ${sha1}`))).toBe(true);
+  });
+
+  it("rejects ordinary content and malformed headers", () => {
+    expect(startsLikeCommitHeader(bytes("hello\n"))).toBe(false);
+    expect(startsLikeCommitHeader(bytes(""))).toBe(false);
+    expect(startsLikeCommitHeader(bytes(`commit ${"a".repeat(39)}\n`))).toBe(false);
+    expect(startsLikeCommitHeader(bytes(`commit ${"a".repeat(41)}\n`))).toBe(false);
+    expect(startsLikeCommitHeader(bytes(`commit ${sha1}x\n`))).toBe(false);
+    expect(startsLikeCommitHeader(bytes(`\nommit ${sha1}\n`))).toBe(false);
+    expect(startsLikeCommitHeader(bytes(`\u001bcommit ${sha1}\n`))).toBe(false);
+    expect(startsLikeCommitHeader(bytes(`xcommit ${sha1}\n`))).toBe(false);
   });
 });
