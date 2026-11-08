@@ -232,3 +232,63 @@ fn a_hidden_remote_shows_no_branch_or_tag_but_its_name_prefix_does_not_match() {
     assert_eq!(tags_named(&snapshot, "devops/u").len(), 1);
     assert!(remotes.iter().any(|(name, _)| name == "origin/main"));
 }
+
+#[test]
+fn every_tag_carries_the_full_ref_name_git_lists_it_under() {
+    require_git!();
+    let mut repo = TestRepo::new();
+    let first = repo.commit_file("a.txt", "1", "first");
+    let second = repo.commit_file("b.txt", "2", "second");
+    repo.add_fake_remote("origin", "main", &second);
+    // A local tag that is literally named like a mirrored remote tag, and the mirror itself:
+    // both display as `dev/t`, and only the ref name tells them apart.
+    repo.git(&["tag", "dev/t", &first]);
+    repo.update_ref("refs/remotes/dev/tags/t", &second);
+    // A remote name with a `/` and a `tags` segment inside the branch path.
+    repo.update_ref("refs/remotes/team/fork/tags/x", &first);
+    repo.git(&["tag", "-a", "ann", "-m", "annotated", &second]);
+
+    let engine = open(&repo);
+    let snapshot = read_refs(&engine, &scan(false, &[])).unwrap();
+
+    let mut listed: Vec<(String, String)> = snapshot
+        .ref_data
+        .tags
+        .iter()
+        .map(|tag| (tag.name.clone(), tag.ref_name.clone()))
+        .collect();
+    listed.sort();
+    listed.dedup();
+    let expected = vec![
+        ("ann".to_string(), "refs/tags/ann".to_string()),
+        ("dev/t".to_string(), "refs/remotes/dev/tags/t".to_string()),
+        ("dev/t".to_string(), "refs/tags/dev/t".to_string()),
+        (
+            "team/fork/x".to_string(),
+            "refs/remotes/team/fork/tags/x".to_string(),
+        ),
+    ];
+    assert_eq!(listed, expected);
+
+    // Every ref name is one git itself lists, and an annotated tag's two records agree.
+    let git_names: Vec<String> = repo
+        .git(&[
+            "for-each-ref",
+            "--format=%(refname)",
+            "refs/tags",
+            "refs/remotes",
+        ])
+        .lines()
+        .map(str::to_string)
+        .collect();
+    for tag in &snapshot.ref_data.tags {
+        assert!(
+            git_names.contains(&tag.ref_name),
+            "{} is not a ref git lists",
+            tag.ref_name
+        );
+    }
+    let ann = tags_named(&snapshot, "ann");
+    assert_eq!(ann.len(), 2);
+    assert!(ann.iter().all(|tag| tag.ref_name == "refs/tags/ann"));
+}

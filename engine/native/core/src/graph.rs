@@ -334,6 +334,7 @@ fn annotate_refs(ref_data: &GitRefData, options: &LogOptions, commits: &mut [Git
             if let Some(&index) = lookup.get(&tag.hash) {
                 commits[index].tags.push(GitCommitTag {
                     name: tag.name.clone(),
+                    ref_name: tag.ref_name.clone(),
                     annotated: tag.annotated,
                     signed: tag.signed,
                 });

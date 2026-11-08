@@ -99,6 +99,7 @@ pub fn read_refs(repo: &Repo, options: &RefReadOptions) -> Result<RefSnapshot> {
         ref_data.tags.push(GitTagRef {
             hash: hash.clone(),
             name: name.clone(),
+            ref_name: format!("refs/tags/{name}"),
             annotated: false,
             signed,
         });
@@ -110,6 +111,7 @@ pub fn read_refs(repo: &Repo, options: &RefReadOptions) -> Result<RefSnapshot> {
             if peeled != hash {
                 ref_data.tags.push(GitTagRef {
                     hash: peeled,
+                    ref_name: format!("refs/tags/{name}"),
                     name,
                     annotated: true,
                     signed,
@@ -205,6 +207,7 @@ fn read_remote_refs(
             ref_data.tags.push(GitTagRef {
                 hash,
                 name,
+                ref_name: full_name.clone(),
                 annotated: false,
                 signed: false,
             });
@@ -231,12 +234,14 @@ fn read_remote_refs(
         let peeled = peeled.detach().to_string();
         if peeled != ref_data.tags[index].hash {
             let name = ref_data.tags[index].name.clone();
+            let ref_name = ref_data.tags[index].ref_name.clone();
             // Recorded on the unpeeled record too, so both records of one tag agree.
             let signed = tag_object.is_some_and(|id| tag_signature_present(git, id));
             ref_data.tags[index].signed = signed;
             ref_data.tags.push(GitTagRef {
                 hash: peeled,
                 name,
+                ref_name,
                 annotated: true,
                 signed,
             });
