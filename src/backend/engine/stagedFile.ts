@@ -169,6 +169,12 @@ function showIndexFile(gitPath: string, repo: string, object: string): Promise<B
 /** The escape character that opens an ANSI color sequence. */
 const ESC_CODE = 27;
 
+/** How `git show` starts its header for a commit object. */
+const COMMIT_HEADER_PREFIX = "commit ";
+
+/** The digits of an object id as Git prints it. */
+const LOWER_HEX_DIGITS = "0123456789abcdef";
+
 /** The mode `git ls-tree` and `git ls-files --stage` print for a gitlink. */
 const GITLINK_MODE = "160000";
 
@@ -214,18 +220,21 @@ export function parseGitlinkEntry(output: string, filePath: string, format: "tre
 export function startsLikeCommitHeader(bytes: Buffer): boolean {
   let line = bytes.subarray(0, 300).toString("latin1").split("\n", 1)[0] ?? "";
   // Drop one leading ANSI color sequence: ESC, "[", digits and semicolons, "m".
-  if (line.charCodeAt(0) === ESC_CODE) {
+  if (line.codePointAt(0) === ESC_CODE) {
     const end = line.indexOf("m");
     if (end < 0 || !/^[0-9;]*$/.test(line.slice(2, end)) || line[1] !== "[") return false;
     line = line.slice(end + 1);
   }
-  const match = /^commit ([0-9a-f]+)(.*)$/.exec(line);
-  if (match === null) return false;
-  const hex = match[1] ?? "";
-  if (hex.length !== 40 && hex.length !== 64) return false;
+  if (!line.startsWith(COMMIT_HEADER_PREFIX)) return false;
+  // Scanned rather than matched with a regular expression, so the cost stays
+  // linear in the line's length.
+  let hashEnd = COMMIT_HEADER_PREFIX.length;
+  while (hashEnd < line.length && LOWER_HEX_DIGITS.includes(line.charAt(hashEnd))) hashEnd++;
+  const hashLength = hashEnd - COMMIT_HEADER_PREFIX.length;
+  if (hashLength !== 40 && hashLength !== 64) return false;
   // Nothing may follow the hash but a decoration (` (HEAD -> main)`) or a color reset.
-  const rest = match[2] ?? "";
-  return rest === "" || rest.startsWith(" ") || rest.charCodeAt(0) === ESC_CODE;
+  const rest = line.slice(hashEnd);
+  return rest === "" || rest.startsWith(" ") || rest.codePointAt(0) === ESC_CODE;
 }
 
 /** Run Git with `args` in `repo`, returning raw stdout; rejects on a non-zero exit. */
