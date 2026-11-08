@@ -95,6 +95,11 @@ export function loadCommitsDecline(input: EngineLoadCommitsInput): GraphLoadDecl
 /** One tag label as the engine encodes it. `annotated` marks the peeled record. */
 export type EngineCommitTag = {
   name: string;
+  /**
+   * The full ref name: `refs/tags/<tag>`, or `refs/remotes/<remote>/…/tags/<tag>` for a
+   * mirrored remote tag. Only `for-each-ref`'s order needs it; it never reaches `GitRef`.
+   */
+  refName: string;
   annotated: boolean;
   /** Whether the tag object carries a signature. Lightweight tags are never signed. */
   signed: boolean;
@@ -150,6 +155,7 @@ function isEngineCommitTag(value: unknown): value is EngineCommitTag {
     typeof value === "object" &&
     value !== null &&
     typeof (value as { name?: unknown }).name === "string" &&
+    typeof (value as { refName?: unknown }).refName === "string" &&
     typeof (value as { annotated?: unknown }).annotated === "boolean" &&
     typeof (value as { signed?: unknown }).signed === "boolean"
   );
@@ -248,10 +254,6 @@ function isStashRow(commit: EngineCommit, stash: EngineCommitStash): boolean {
   return commit.parents.length === 1 && commit.parents[0] === stash.baseHash;
 }
 
-const headRefName = (name: string): string => `refs/heads/${name}`;
-const remoteRefName = (name: string): string => `refs/remotes/${name}`;
-const tagRefName = (name: string): string => `refs/tags/${name}`;
-
 const refNameEncoder = new TextEncoder();
 
 /**
@@ -269,24 +271,39 @@ function compareRefNames(a: string, b: string): number {
   return left.length - right.length;
 }
 
-/** `for-each-ref` sorts the whole ref set by refname, so every head sorts before every remote before every tag. */
-function refSortRank(ref: GitRef): number {
-  if (ref.type === "head") return 0;
-  if (ref.type === "remote") return 1;
-  return 2;
-}
+/** A label with the real ref name `for-each-ref` sorted it by. */
+type NamedRef = { ref: GitRef; refName: string };
 
-function fullRefName(ref: GitRef): string {
-  if (ref.type === "head") return headRefName(ref.name);
-  if (ref.type === "remote") return remoteRefName(ref.name);
-  return tagRefName(ref.name);
+/**
+ * The labels of one commit in the CLI's order: `for-each-ref` sorts the whole
+ * ref set by full refname, so heads come before remotes before local tags,
+ * and a mirrored remote tag (`refs/remotes/<remote>/…/tags/<tag>`) sits among
+ * the remote branches, exactly where its real name puts it.
+ */
+function orderedRefs(commit: EngineCommit): GitRef[] {
+  const named: NamedRef[] = [
+    ...commit.heads.map((name) => ({
+      ref: { hash: commit.hash, name, type: "head" } satisfies GitRef,
+      refName: `refs/heads/${name}`
+    })),
+    ...commit.tags.map((tag) => ({
+      ref: { hash: commit.hash, name: tag.name, type: "tag", signed: tag.signed } satisfies GitRef,
+      refName: tag.refName
+    })),
+    ...commit.remotes.map((remote) => ({
+      ref: { hash: commit.hash, name: remote.name, type: "remote" } satisfies GitRef,
+      refName: `refs/remotes/${remote.name}`
+    }))
+  ];
+  named.sort((a, b) => compareRefNames(a.refName, b.refName));
+  return named.map(({ ref }) => ref);
 }
 
 /**
  * Map one engine page onto the project node shape. Ref labels are re-sorted
- * into the CLI's `for-each-ref` order (the engine annotates heads, tags,
- * remotes; the CLI lists heads, remotes, tags, each byte-sorted), so label
- * order agrees by construction rather than by scan luck; the CLI's
+ * into the CLI's `for-each-ref` order, by the real ref names (the engine
+ * annotates heads, tags, remotes in its own order), so label order agrees by
+ * construction rather than by scan luck; the CLI's
  * `signature` key stays absent everywhere except stash rows, which the CLI
  * pins to null; in-place stash marks are always stripped because the CLI
  * never marks — it only injects rows.
@@ -314,18 +331,6 @@ export function mapEngineCommitData(data: EngineCommitData, showStashes: boolean
       });
       continue;
     }
-    const refs: GitRef[] = [
-      ...commit.heads.map((name): GitRef => ({ hash: commit.hash, name, type: "head" })),
-      ...commit.tags.map(
-        (tag): GitRef => ({ hash: commit.hash, name: tag.name, type: "tag", signed: tag.signed })
-      ),
-      ...commit.remotes.map(
-        (remote): GitRef => ({ hash: commit.hash, name: remote.name, type: "remote" })
-      )
-    ];
-    refs.sort(
-      (a, b) => refSortRank(a) - refSortRank(b) || compareRefNames(fullRefName(a), fullRefName(b))
-    );
     nodes.push({
       hash: commit.hash,
       parentHashes: commit.parents.length === 0 ? [""] : [...commit.parents],
@@ -333,7 +338,7 @@ export function mapEngineCommitData(data: EngineCommitData, showStashes: boolean
       email: commit.email,
       date: commit.date,
       message: commit.message,
-      refs
+      refs: orderedRefs(commit)
     });
   }
   return nodes;
