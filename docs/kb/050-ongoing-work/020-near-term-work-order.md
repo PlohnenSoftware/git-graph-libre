@@ -13,9 +13,12 @@ always_read: true
 
 **Now (`2026-11-08`).** Two threads, both waiting for the maintainer:
 
-- The Engine upstream integration (Ongoing work) brought R01–R06 to `main`
-  as engine `1.0.32`, gated `OK` and unpushed. Its "Open questions for the
-  maintainer" hold R07 and the cost of exact author-date and topo orderings.
+- The Engine upstream integration (Ongoing work) brought R01–R09 to `main`
+  as engine `1.0.32`, gated `OK` and unpushed; every planned slice and its
+  follow-ups are integrated. Its "Follow-ups and notes for the maintainer"
+  hold what is left for later slices: a faster bounded walk for exact
+  author-date and topo orderings, per-byte encoding declines, and two
+  pre-existing divergences.
 - "Git Graph+ features: research and slice plan" (Future work) researched
   the Reflog tab, interactive rebase and a timeline, for discussion before
   any implementation.

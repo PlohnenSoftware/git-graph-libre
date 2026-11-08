@@ -65,7 +65,7 @@ now recorded with this plan before dispatch.
 | R05 | Gitlink file content | integrated `8ca2f01` |
 | R06 | Remote-ref classification and allocations | integrated `83cdd5d` |
 | R07 | Remote-tag label order (found by R06) | integrated `288d48d` |
-| R08 | CJK encodings against Git (R04 follow-up) | ready |
+| R08 | CJK encodings against Git (R04 follow-up) | integrated `fea80cf` |
 | R09 | Remove the topo decline surface (R03 follow-up) | integrated `66c29d6` |
 
 ## Integration acceptance
@@ -182,6 +182,32 @@ passed. No push or release publication in this integration.
   failed; addon rebuilt, smoke `1.0.32`; typecheck clean; strict Biome on
   the three touched files clean; `pnpm run test` backend 1,448 and webview
   1,014 passed; KB check clean.
+- 2026-11-09: R08 (Claude Haiku) integrated at `fea80cf`. Byte-for-byte
+  sweeps against Git 2.56.0 with glibc 2.44 iconv covered every high byte of
+  each single-byte label and samples plus known disagreement bytes for the
+  multi-byte ones. They found that R04's sampled verdict for Shift_JIS and
+  Windows-1252 was wrong: both differ from Git, as do GBK, GB18030, Big5,
+  EUC-KR, EUC-JP, the other Windows code pages, KOI8-U and Mac Roman.
+  `text.rs` now decodes only an allowlist of labels that matched Git on
+  every probe (Latin-1, the ISO-8859 family except 9 and 11, IBM866, KOI8-R,
+  Windows-1256), and every other label hands the read to the CLI. Commit
+  `1d268cc`'s body carries a stray `Refs … (none)` line and a wrong remark
+  that iconv does not know `koi8`; the test comment was corrected in
+  `d6a89df`, and the signed commit was left as it is. A hung exploration
+  test process from R08's worktree, idle at 0% CPU and holding no lock, was
+  left for the maintainer. Gates on `fea80cf`: engine fmt, clippy, check
+  clean; engine tests 287 passed, 0 failed; addon rebuilt, smoke `1.0.32`;
+  typecheck clean; `pnpm run test` backend 1,448 and webview 1,014 passed;
+  `l10n:check` complete; KB check clean.
+- 2026-11-09: final gate on `fea80cf` with R01–R09 integrated:
+  `test:coverage` 187 files and 2,462 tests passed. The first SonarQube scan
+  (task `6f39c756-d6ec-408a-ae4c-ba9f32ebe956`) failed inside the server's
+  compute engine ("Unable to load component class …
+  NewCoverageMeasuresStep"), not in the quality gate. A rescan, task
+  `7829b310-82c5-43bb-a871-487f6c03ba5b`, gave a gate of `OK`: new coverage
+  94.2%, 0 new violations, 0 reliability and 0 security issues. Its "file
+  encoding" scanner warning was already present on earlier successful scans.
+  Every planned slice and follow-up is integrated. Nothing is pushed.
 
 ## Follow-ups and notes for the maintainer
 
@@ -190,10 +216,13 @@ passed. No push or release publication in this integration.
   name or owning remote, or accepting the divergence. Phase 16 invariant 3
   ("a divergence is an engine bug, not a test to relax") already chose the
   first, which is what was integrated.
-- **R08** verifies the CJK and other unverified encodings R04 accepts
-  against Git's iconv, and declines any that differ.
-- **R09** removes the `topoOrdering` decline id and its route text, l10n
-  strings and test row, which R03 made unreachable.
+- **R08's encodings are verified against glibc's iconv.** CI runs the
+  engine tests on `ubuntu-latest` (glibc), and the accepted labels are
+  standard single-byte tables. A Git built with another iconv (musl, macOS
+  libiconv) could still differ on a byte the sweep did not see. Shift_JIS,
+  the Chinese and Korean encodings and Windows-1252 now always use the CLI;
+  a later per-byte decline could bring some back to the engine (Windows-1252
+  differs on 5 bytes, Windows-1251 on 1, GB18030 on 4 probes).
 - **Cost of exact `author-date` and `topo` orderings (R03), integrated as
   the plan decided.** The plan required exact pages with no bounded
   heuristic, and the cost measured, so both orderings read the whole

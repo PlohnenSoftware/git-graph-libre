@@ -9,7 +9,7 @@ summary: >-
 
 # R08 — CJK encodings against Git
 
-Status: done — awaiting integration
+Status: integrated `fea80cf`
 
 Needs: R04
 
