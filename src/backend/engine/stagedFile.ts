@@ -22,9 +22,30 @@ export type StagedFileAddon = Pick<EngineAddon, "loadIndexFile">;
 
 /**
  * A file's staged copy: its text, a binary marker when the blob is not text,
- * or `missing` when the path is not in the index at all.
+ * `missing` when the path is not in the index at all, or `tooLarge` when the
+ * blob is above `MAX_FILE_READ_BYTES`.
  */
-export type StagedFile = { text: string } | { binary: true } | { missing: true };
+export type StagedFile =
+  | { text: string }
+  | { binary: true }
+  | { missing: true }
+  | { tooLarge: true };
+
+/**
+ * The one ceiling for a single file read: 64 MiB, the CLI route's `maxBuffer`
+ * and the engine's `MAX_READ_BYTES` (`file_read.rs`).
+ */
+export const MAX_FILE_READ_BYTES = 1024 * 1024 * 64;
+
+/** The engine's too-large outcome: its error kind prefixes the message (`to_js_error`). */
+export function isEngineTooLargeError(error: unknown): boolean {
+  return error instanceof Error && error.message.startsWith("TooLarge:");
+}
+
+/** The CLI route's too-large outcome: `execFile` overran `maxBuffer`. */
+export function isMaxBufferError(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER";
+}
 
 export type StagedFileDeps = {
   /** The resolved git binary, for the CLI read (`config.gitPath()`). */
@@ -82,7 +103,12 @@ async function readFromEngine(
       return { binary: true };
     }
     return viaCli("malformedPayload");
-  } catch {
+  } catch (error) {
+    // Too large is the engine's answer, not a failure to retry on the CLI.
+    if (isEngineTooLargeError(error)) {
+      logBackendRoute("loadIndexFile", "backend=engine result=tooLarge");
+      return { tooLarge: true };
+    }
     return viaCli("engineThrew");
   }
 }
@@ -101,8 +127,8 @@ async function readFromCli(repo: string, filePath: string, gitPath: string): Pro
       repo,
       args: ["show", object]
     });
-  } catch {
-    return { missing: true };
+  } catch (error) {
+    return isMaxBufferError(error) ? { tooLarge: true } : { missing: true };
   }
   if (bytes.subarray(0, BINARY_SNIFF_LEN).includes(0)) return { binary: true };
   try {
@@ -118,7 +144,7 @@ function showIndexFile(gitPath: string, repo: string, object: string): Promise<B
     execFile(
       gitPath,
       ["show", object],
-      { cwd: repo, encoding: "buffer", maxBuffer: 1024 * 1024 * 64 },
+      { cwd: repo, encoding: "buffer", maxBuffer: MAX_FILE_READ_BYTES },
       (error, stdout) => {
         if (error instanceof Error) reject(error);
         else resolve(stdout);
