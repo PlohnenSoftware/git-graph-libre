@@ -418,6 +418,12 @@ export type WorktreeCheckoutStrings = {
   worktreeMissing: string;
 };
 
+/** A worktree named in a dialog's text by its folder; the full path shows on hover. */
+function worktreeNameHtml(worktreePath: string): string {
+  const name = escapeHtml(worktreeFolderName(worktreePath));
+  return `<span title="${escapeHtml(worktreePath)}">${name}</span>`;
+}
+
 /**
  * "Checked out in worktree <folder> (<path>)", plus the locked or missing
  * state when Git reports one (W11). Shared by the badge tooltip and the
@@ -5306,8 +5312,8 @@ class GitGraphView {
       // switches to another one.
       showErrorDialog(
         l10n.dialogDeleteBranchInWorktree
-          .replace("{0}", escapeHtml(refName))
-          .replace("{1}", escapeHtml(worktreePath)),
+          .replace("{0}", () => escapeHtml(refName))
+          .replace("{1}", () => worktreeNameHtml(worktreePath)),
         null,
         null
       );
@@ -5376,14 +5382,13 @@ class GitGraphView {
   private worktreeHoldsBranchMessage(refName: string, holder: GitWorktree): string {
     const notes = [
       l10n.dialogDeleteBranchRemovable
-        .replace("{0}", escapeHtml(refName))
-        .replace("{1}", escapeHtml(holder.path))
+        .replace("{0}", () => escapeHtml(refName))
+        .replace("{1}", () => worktreeNameHtml(holder.path))
     ];
     if (holder.prunable !== null) notes.push(l10n.dialogDeleteBranchStaleNote);
     if (holder.locked !== null) {
-      notes.push(
-        l10n.dialogDeleteBranchLockedNote.replace("{0}", escapeHtml(holder.locked.reason))
-      );
+      const reason = escapeHtml(holder.locked.reason);
+      notes.push(l10n.dialogDeleteBranchLockedNote.replace("{0}", () => reason));
     }
     return notes.join(" ");
   }

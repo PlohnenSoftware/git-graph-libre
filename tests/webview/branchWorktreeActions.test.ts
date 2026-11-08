@@ -271,7 +271,11 @@ describe("a local branch checked out in another worktree", () => {
     openRefContextMenu("head");
     clickContextMenuItem("Delete Branch…");
 
-    expect(dialogText()).toContain(REPO);
+    // The worktree is named by its folder, with its full path on hover.
+    expect(dialogText()).toContain(
+      "checked out in worktree branch-worktree-actions. Switch that worktree to another branch first."
+    );
+    expect(document.querySelector<HTMLElement>("#dialog span[title]")?.title).toBe(REPO);
     expect(document.getElementById("dialogAction")).toBeNull();
     expect(vscodeMock.sentMessages).toHaveLength(before);
   });
@@ -367,6 +371,20 @@ describe("removing the worktree that holds a branch (W21)", () => {
     submitDialog();
 
     expect(vscodeMock.sentMessages).toHaveLength(before);
+  });
+
+  it("names the worktree by its folder in a short message, with its path on hover", async () => {
+    await bootWebview(WORKTREES_WITH_FEATURE);
+    openRefContextMenu("head");
+    clickContextMenuItem("Delete Branch…");
+
+    expect(dialogText()).toContain(
+      "Branch feature/menu is checked out in worktree feature menu é. To delete it, remove that worktree too."
+    );
+    const name = Array.from(document.querySelectorAll<HTMLElement>("#dialog span[title]")).find(
+      (span) => span.title === OTHER_WORKTREE
+    );
+    expect(name?.textContent).toBe("feature menu é");
   });
 
   it("removes a clean worktree with plain remove, then the branch", async () => {
@@ -467,7 +485,7 @@ describe("removing the worktree that holds a branch (W21)", () => {
     openRefContextMenu("head");
     clickContextMenuItem("Delete Branch…");
 
-    expect(dialogText()).toContain("nothing on disk is deleted");
+    expect(dialogText()).toContain("Its folder is already gone, so only Git's record is removed.");
     tickDialogCheckbox(0);
     submitDialog();
 

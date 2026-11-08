@@ -5,6 +5,17 @@ All notable changes to this extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Long worktree notes no longer stretch menus and dialogs.** The menu of a
+  branch checked out in another worktree stretched across the window to fit
+  that worktree's path and state; its header now wraps inside the menu. The
+  Delete Branch dialog for such a branch says it in two short sentences and
+  names the worktree by its folder, with the full path on hover and in the
+  option that removes it.
+
 ## [1.10.0] - 2026-11-08
 
 "The Worktrees": every Git worktree of a repository, seen and managed from
@@ -1251,7 +1262,9 @@ system. Includes everything prepared for 1.5.1, which was never released.
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.9.0...v1.10.0
+[1.9.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.2...v1.8.0
 [1.6.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.1...v1.6.2

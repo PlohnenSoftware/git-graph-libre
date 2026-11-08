@@ -266,4 +266,12 @@ describe("hidden menu styles", () => {
     expect(css).toContain(".contextMenuHeaderTitle");
     expect(css).toContain(".contextMenuHeaderCaption");
   });
+
+  it("wraps a long header caption instead of widening the menu", () => {
+    const header = css.match(/^\.contextMenuHeader \{[^}]+\}/m)?.[0] ?? "";
+    // A worktree's path and state once stretched the menu across the window.
+    expect(header).toContain("contain: inline-size;");
+    const withHeader = css.match(/^#contextMenu:has\(> \.contextMenuHeader\) \{[^}]+\}/m)?.[0];
+    expect(withHeader).toContain("min-width: 280px;");
+  });
 });

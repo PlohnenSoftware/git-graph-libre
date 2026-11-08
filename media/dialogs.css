@@ -645,7 +645,11 @@ dl.tagDetailsFields dd {
   user-select: none;
 }
 
-/* Context menu header: presentational, never hoverable or clickable. */
+/* Context menu header: presentational, never hoverable or clickable.
+   Its inline-size containment keeps its caption out of the menu's width:
+   the menu, sized to its content, is as wide as its items, and a long
+   caption (a worktree's path and state) wraps inside that width rather
+   than stretching the menu across the window. */
 .contextMenuHeader {
   display: flex;
   flex-direction: column;
@@ -654,6 +658,12 @@ dl.tagDetailsFields dd {
   margin-bottom: 3px;
   border-bottom: 1px solid var(--vscode-menu-separatorBackground, var(--ngg-neutral-border-subtle));
   cursor: default;
+  contain: inline-size;
+}
+/* Since the header wraps rather than widening its menu, a menu with one gets
+   enough width for the title to stay on one line. */
+#contextMenu:has(> .contextMenuHeader) {
+  min-width: 280px;
 }
 .contextMenuHeaderTitle {
   font-weight: 600;

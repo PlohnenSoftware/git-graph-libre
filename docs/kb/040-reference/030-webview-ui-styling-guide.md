@@ -139,7 +139,15 @@ may not define the token):
   VS Code buttons.
 - Context menus: `--vscode-menu-*` (`-background`, `-foreground`, `-border`,
   `-selectionBackground/-selectionForeground`, `-separatorBackground`), 5px
-  menu radius, 3px item radius, 4px menu padding.
+  menu radius, 3px item radius, 4px menu padding. The items set a menu's
+  width, never its header (`2026-11-08`): `.contextMenuHeader` has
+  `contain: inline-size`, so a long caption wraps, and a menu with a header
+  is at least 280px wide so its title stays on one line. Before that, a
+  worktree's path and state stretched the branch menu across the window.
+- Paths in running text: a dialog sentence names a worktree by its folder
+  (`worktreeFolderName`), with the full path in a `title` on hover. The full
+  path stays where it is the subject, such as the option that removes that
+  worktree (`2026-11-08`, the Delete Branch dialog).
 - Dropdown widget: control on `--vscode-dropdown-*`, option list on
   `--vscode-dropdown-listBackground` plus `--vscode-list-*` hover/selection
   tokens, filter input on the input tokens above. The open menu is a flex
