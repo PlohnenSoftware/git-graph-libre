@@ -83,6 +83,9 @@ its own commit naming its source, with a `Co-authored-by: neophack` trailer:
   tree under the same strict text-or-binary rule as a blob (`634ca6c`).
   Upstream's 100 MiB ceiling was not taken: this project's is the GGL Diff
   tab's existing 64 MiB CLI read limit.
+- A gitlink (submodule entry) read at a revision or from the index returns
+  `Subproject commit <hash>`, the line `git diff` shows for it, instead of
+  failing on a commit this repository usually does not hold (`f007528`).
 
 ## License
 

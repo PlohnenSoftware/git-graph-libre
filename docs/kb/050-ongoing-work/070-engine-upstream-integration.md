@@ -62,7 +62,7 @@ now recorded with this plan before dispatch.
 | R02 | Bounded reads | integrated `14ffe23` |
 | R03 | Traversal correctness and allocations | ready |
 | R04 | Encoding and subjects | waiting for R03 |
-| R05 | Gitlink file content | ready |
+| R05 | Gitlink file content | integrated `8ca2f01` |
 | R06 | Remote-ref classification and allocations | ready |
 
 ## Integration acceptance
@@ -102,3 +102,13 @@ passed. No push or release publication in this integration.
   `engine/native/core/tests/log_and_refs.rs` (whose
   `never_shows_code_review_change_refs` pins the old filter), and the review
   text is corrected. The same agent resumes R06.
+- 2026-11-08: R05 (Claude Sonnet) integrated at `8ca2f01`. Its first report
+  left one gap: when a submodule's commit exists in the superproject,
+  `git show <rev>:<sub>` prints that commit on the CLI route. The
+  integrator asked for parity, and the same agent closed the gap
+  (`startsLikeCommitHeader`, so only commit-like output pays a second Git
+  call). Gates on `8ca2f01`: engine fmt, clippy, check clean; engine tests
+  247 passed, 0 failed (`vscode_fixtures` passes here, while R05's
+  worktree saw an ENOENT); addon rebuilt, smoke `1.0.31`; typecheck clean;
+  strict Biome on the five touched TypeScript files clean; `pnpm run test`
+  backend 1,441 and webview 1,015 passed; KB check clean.

@@ -6,7 +6,7 @@ summary: >-
 
 # R05 — Gitlink content
 
-Status: done — awaiting integration
+Status: integrated `8ca2f01`
 
 Needs: R02
 
