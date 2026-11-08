@@ -127,9 +127,9 @@ MIT-licensed: that repository's workspace declares `license = "MIT"` and its
 contributions, Copyright (c) 2026 penghongxia. The engine's history is
 preserved here, with its original authors and dates, from the commits spanning
 `611a8fa` (2026-08-22) to `f93e8b2` (2026-09-21). Selected fixes from the
-later upstream commit `ff4aafe` (2026-09-23) were adapted by hand afterwards,
-each in a commit that names it and credits its author; `engine/NOTICE.md`
-lists them.
+later upstream commits `ff4aafe` (2026-09-23), `f007528` (2026-10-20) and
+`634ca6c` (2026-10-30) were adapted by hand afterwards, each in a commit
+that names its source and credits its author; `engine/NOTICE.md` lists them.
 
 [engine/NOTICE.md](engine/NOTICE.md) carries the rest: the verbatim copyright
 line and permission notice the MIT license requires be included in all copies,

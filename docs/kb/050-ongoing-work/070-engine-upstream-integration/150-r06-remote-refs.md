@@ -6,7 +6,7 @@ summary: >-
 
 # R06 — Remote-ref classification
 
-Status: waiting
+Status: ready
 
 Needs: R01
 

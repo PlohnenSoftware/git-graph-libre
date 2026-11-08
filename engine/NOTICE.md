@@ -67,6 +67,23 @@ commit. Everything else in `ff4aafe` was left out: single-file diff headers,
 tag details for non-commit tags, mailmap in the statistics, and the
 comparison-with-working-tree layering, none of which this project wires.
 
+A second review (`2026-11-08`) read the `native/` changes of upstream's later
+commits `f007528` (neophack, 2026-10-20) and `634ca6c` (neophack,
+2026-10-30). Both also change Gerrit support and the restricted
+extension-host and webview layers, which were not read, so neither was
+merged. The corrections taken were adapted by hand in the same way, each in
+its own commit naming its source, with a `Co-authored-by: neophack` trailer:
+
+- `graph::repo_info` and `graph::load_commits` return a failed ref scan as
+  an error, as git fails, instead of serving an empty repository
+  (`f007528`).
+- Blob, index and working-tree reads refuse content above a 64 MiB ceiling
+  before reading it, checked from the object header for a blob and bounded
+  by the read itself for a file on disk, and `Engine::file` reads the working
+  tree under the same strict text-or-binary rule as a blob (`634ca6c`).
+  Upstream's 100 MiB ceiling was not taken: this project's is the GGL Diff
+  tab's existing 64 MiB CLI read limit.
+
 ## License
 
 The upstream engine is MIT licensed; this project's changes to it are

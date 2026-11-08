@@ -6,7 +6,7 @@ summary: >-
 
 # R02 — Bounded reads
 
-Status: done — awaiting integration
+Status: integrated `14ffe23`
 
 Needs: none
 

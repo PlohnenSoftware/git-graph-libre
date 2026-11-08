@@ -6,7 +6,7 @@ summary: >-
 
 # R05 — Gitlink content
 
-Status: waiting
+Status: ready
 
 Needs: R02
 

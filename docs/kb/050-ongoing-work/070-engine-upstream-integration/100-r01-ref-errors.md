@@ -6,7 +6,7 @@ summary: >-
 
 # R01 — Ref failures
 
-Status: done — awaiting integration
+Status: integrated `7ee2542`
 
 Needs: none
 

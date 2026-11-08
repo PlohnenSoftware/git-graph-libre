@@ -58,12 +58,12 @@ now recorded with this plan before dispatch.
 
 | ID | Work | Status |
 | --- | --- | --- |
-| R01 | Ref failures | ready |
-| R02 | Bounded reads | ready |
+| R01 | Ref failures | integrated `7ee2542` |
+| R02 | Bounded reads | integrated `14ffe23` |
 | R03 | Traversal correctness and allocations | ready |
 | R04 | Encoding and subjects | waiting for R03 |
-| R05 | Gitlink file content | waiting for R02 |
-| R06 | Remote-ref classification and allocations | waiting for R01 |
+| R05 | Gitlink file content | ready |
+| R06 | Remote-ref classification and allocations | ready |
 
 ## Integration acceptance
 
@@ -82,3 +82,12 @@ passed. No push or release publication in this integration.
   commits (`3681c5e`, `2a5af5b`, `73da4f4`), with no implementation.
   Claude Code (Opus) took over as integrator: R01 on Haiku, R02 and R03 on
   Sonnet, each in its existing worktree from its claim commit.
+- 2026-11-08: R02 (Claude Sonnet) integrated at `14ffe23` and R01 (Claude
+  Haiku) at `7ee2542`, both rebased onto `main` and fast-forwarded. Gates on
+  `7ee2542`: `engine:fmt`, `engine:lint`, `engine:check` clean;
+  `engine:test` 242 passed, 0 failed; `engine:build` and `engine:smoke`
+  (`1.0.31`); `typecheck` clean; strict Biome on R02's four touched
+  TypeScript files clean; `pnpm run test` backend 1,428 and webview 1,011
+  passed; KB check clean. Provenance for `f007528` and `634ca6c` added to
+  `engine/NOTICE.md`, `NOTICE.md` and `LICENSE.mit`. Coverage and SonarQube
+  run at the end of the wave. R05 and R06 are ready.
