@@ -104,7 +104,7 @@ afterAll(() => {
   for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true });
 });
 
-function args(hiddenRemotes: string[]): LoadCommitsArgs {
+function args(hiddenRemotes: string[], dir: string = repo): LoadCommitsArgs {
   return {
     branchName: "",
     branches: null,
@@ -121,25 +121,45 @@ function args(hiddenRemotes: string[]): LoadCommitsArgs {
     showStashes: false,
     dateType: "Commit Date",
     showUncommittedChanges: false,
-    repoPath: repo,
-    git: simpleGit(repo),
+    repoPath: dir,
+    git: simpleGit(dir),
     hard: false
   };
 }
 
-async function bothBackends(hiddenRemotes: string[], engineAvailable: boolean) {
-  const input = args(hiddenRemotes);
+async function bothBackends(hiddenRemotes: string[], engineAvailable: boolean, dir: string = repo) {
+  const input = args(hiddenRemotes, dir);
   const { repoPath, git: _git, ...rest } = input;
   resetEngineServedRead();
   const [viaAuto, direct] = await Promise.all([
     createRepoReader({ preference: "auto", gitPath: "git" }).loadCommits({
       ...input,
-      git: simpleGit(repo)
+      git: simpleGit(dir)
     }),
-    loadCommits(simpleGit(repo), { ...rest, repo: repoPath })
+    loadCommits(simpleGit(dir), { ...rest, repo: repoPath })
   ]);
   if (engineAvailable) expect(didEngineServeRead()).toBe(true);
-  return { engine: tagLabels(viaAuto.commits), cli: tagLabels(direct.commits) };
+  return {
+    engine: tagLabels(viaAuto.commits),
+    cli: tagLabels(direct.commits),
+    viaAuto: viaAuto.commits,
+    direct: direct.commits
+  };
+}
+
+/**
+ * One line per commit that carries labels, with the labels in the order the backend lists
+ * them. The order is the thing under test, so labels are kept in sequence within a commit;
+ * the lines are sorted only because commits that share a date may come in either order.
+ */
+function orderedRefLabels(nodes: GitCommitNode[], names: Record<string, string>): string[] {
+  return nodes
+    .filter((node) => node.refs.length > 0)
+    .map((node) => {
+      const labels = node.refs.map((ref) => `${ref.type}:${ref.name}`).join(" ");
+      return `${names[node.hash] ?? node.hash}: ${labels}`;
+    })
+    .sort((left, right) => left.localeCompare(right));
 }
 
 describe("remote-tracking tag badges", () => {
@@ -166,5 +186,57 @@ describe("remote-tracking tag badges", () => {
     expect(cli.some((label) => label.startsWith("dev/"))).toBe(false);
     expect(cli).toContain(badge("origin/ronly", "ronly"));
     if (loadEngineAddon() !== null) expect(engine).toEqual(cli);
+  }, 60000);
+});
+
+describe("remote-tag label order", () => {
+  // `shared` carries a mirrored remote tag of each of two remotes (`dev/t`, `origin/v`), a
+  // remote branch of origin (`origin/changes/foo`) and a local tag `u` that mirrors origin's
+  // `u` on the same object, so W26J drops that mirror. The CLI lists labels in `for-each-ref`
+  // order of the real refnames: `refs/remotes/dev/tags/t` sorts before
+  // `refs/remotes/origin/changes/foo`, and both remote tags sort among the remote branches,
+  // ahead of the local `refs/tags/u`.
+  let orderRepo = "";
+  const orderCommits: Record<string, string> = {};
+
+  beforeAll(() => {
+    orderRepo = makeRepo();
+    dirs.push(orderRepo);
+    git(["config", "tag.gpgsign", "false"], orderRepo);
+    for (const remote of ["origin", "dev"]) {
+      git(["remote", "add", remote, makeBareRemote()], orderRepo);
+      // Add the tag mirror next to the default branch refspec, which `remote add` created.
+      git(
+        ["config", "--add", `remote.${remote}.fetch`, `+refs/tags/*:refs/remotes/${remote}/tags/*`],
+        orderRepo
+      );
+    }
+    orderCommits.shared = commitFile(orderRepo, "shared");
+    git(["tag", "t", orderCommits.shared], orderRepo);
+    git(["tag", "v", orderCommits.shared], orderRepo);
+    git(["tag", "u", orderCommits.shared], orderRepo);
+    git(["push", "dev", "refs/tags/t"], orderRepo);
+    git(["push", "origin", "refs/tags/v", "refs/tags/u"], orderRepo);
+    git(["push", "origin", `${orderCommits.shared}:refs/heads/changes/foo`], orderRepo);
+    git(["fetch", "origin"], orderRepo);
+    git(["fetch", "dev"], orderRepo);
+    // `t` and `v` now exist only on the remotes.
+    git(["tag", "-d", "t", "v"], orderRepo);
+    orderCommits.tip = commitFile(orderRepo, "tip");
+  });
+
+  it("lists a commit's labels in the CLI's refname order on both backends", async () => {
+    const { viaAuto, direct } = await bothBackends([], loadEngineAddon() !== null, orderRepo);
+    const names = Object.fromEntries(
+      Object.entries(orderCommits).map(([name, hash]) => [hash, name])
+    );
+    const expected = [
+      "shared: tag:dev/t remote:origin/changes/foo tag:origin/v tag:u",
+      "tip: head:main"
+    ].sort((left, right) => left.localeCompare(right));
+    expect(orderedRefLabels(direct, names)).toEqual(expected);
+    if (loadEngineAddon() !== null) {
+      expect(orderedRefLabels(viaAuto, names)).toEqual(expected);
+    }
   }, 60000);
 });
