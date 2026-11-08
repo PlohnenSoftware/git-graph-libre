@@ -64,7 +64,9 @@ now recorded with this plan before dispatch.
 | R04 | Encoding and subjects | integrated `a0170ee` |
 | R05 | Gitlink file content | integrated `8ca2f01` |
 | R06 | Remote-ref classification and allocations | integrated `83cdd5d` |
-| R07 | Remote-tag label order (found by R06) | blocked — maintainer decision (see Open questions) |
+| R07 | Remote-tag label order (found by R06) | ready — engine change, per invariant 3 |
+| R08 | CJK encodings against Git (R04 follow-up) | ready |
+| R09 | Remove the topo decline surface (R03 follow-up) | ready |
 
 ## Integration acceptance
 
@@ -159,39 +161,44 @@ passed. No push or release publication in this integration.
   `l10n:check` complete; `test:coverage` 187 files and 2,460 tests passed;
   SonarQube task `a33d8327-bdf4-4c90-a9f2-2ac93a2eb61e` on the working tree
   before the commit, gate `OK` (new coverage 94.2%, 0 new violations, 0
-  reliability issues). Integrated so far: R01–R06; R07 waits on the
-  maintainer. Nothing is pushed.
+  reliability issues). Integrated so far: R01–R06. Nothing is pushed.
+- 2026-11-08: R07 resumed as an engine change (invariant 3), with R08 and
+  R09 added as follow-ups. All three are dispatched in parallel from
+  `main`: R07 on Claude Sonnet in its existing worktree, rebased onto
+  `main`; R08 and R09 on Claude Haiku in new worktrees.
 
-## Open questions for the maintainer
+## Follow-ups and notes for the maintainer
 
-- **Cost of exact `author-date` and `topo` orderings (R03).** Both commit
-  orderings, which are per-repository choices whose default is `date`, now
-  read the whole reachable history (headers only) before the first page.
-  Release build, page of 100: this repository (1,458 commits) 4 ms to
-  18 ms; a generated 150,000-commit history 1 ms to 614 ms and 16 MB to
-  81 MB resident. `git log --author-date-order -n 100` takes 0.39 s there
-  without a commit-graph, and git walks incrementally with one. Before R03,
-  `author-date` was engine-served but could put the wrong commits on the
-  page, and `topo` went to the CLI. Options: keep it exact on the engine (as
-  integrated); route both orderings to the CLI above a history size; or
-  bound the walk with commit-graph generation numbers, as git does (a new
-  engine slice). The `topoOrdering` decline id, its webview text and l10n
-  strings are now unreachable; they stay until this is decided.
-- **R07, remote-tag label order.** Either an engine change that gives each
-  tag its real ref name or owning remote, as remote branches already carry
-  (`graph.rs`, `refs.rs` and the wire types; a new slice), or accepting the
-  divergence as a recorded known gap. The second relaxes the rule that a
-  divergence is a bug, so only the maintainer can choose it.
-- **Encodings Git converts with iconv (R04).** Only ISO-8859-1,
-  Windows-1252 and Shift_JIS were checked against Git. EUC-KR, GBK and Big5
-  decode through `encoding_rs` unverified; a check against Git, or a decline
-  for them, is open.
-- **`/changes/` remote refs (R06).** The engine now lists them as remote
-  branches, as the CLI always has. The filter had been kept for remotes
-  with tens of thousands of code-review refs, which are rare in
-  `refs/remotes`.
-- Pre-existing divergences R03 recorded, outside this integration: a
+- **R07 is unblocked by a standing rule, not a new decision.** Its agent
+  offered two options: an engine change that gives each tag its real ref
+  name or owning remote, or accepting the divergence. Phase 16 invariant 3
+  ("a divergence is an engine bug, not a test to relax") already chooses the
+  first, so R07 continues as an engine and mapper change in its worktree.
+- **R08** verifies the CJK and other unverified encodings R04 accepts
+  against Git's iconv, and declines any that differ.
+- **R09** removes the `topoOrdering` decline id and its route text, l10n
+  strings and test row, which R03 made unreachable.
+- **Cost of exact `author-date` and `topo` orderings (R03), integrated as
+  the plan decided.** The plan required exact pages with no bounded
+  heuristic, and the cost measured, so both orderings read the whole
+  reachable history (headers only) before the first page. Release build,
+  page of 100:
+  - this repository (1,458 commits): 4 ms to 18 ms;
+  - a generated 150,000-commit history: 1 ms to 614 ms, and 16 MB to 81 MB
+    resident.
+  `git log --author-date-order -n 100` takes 0.39 s there without a
+  commit-graph, and git walks incrementally with one. The default ordering,
+  `date`, is unaffected. A possible later enhancement, beyond the upstream
+  finding: bound the walk with commit-graph generation numbers, as git
+  does. If very large repositories need it before then, the maintainer can
+  route these orderings to the CLI above a history size.
+- **`/changes/` remote refs (R06), integrated as both reviews recommended.**
+  The engine now lists them as remote branches, as the CLI always has. The
+  filter had been kept for remotes with tens of thousands of code-review
+  refs, which are rare in `refs/remotes`.
+- **Pre-existing divergences R03 found, outside the upstream findings.** A
   filtered `date` walk is not re-ranked, so with skewed or equal committer
-  clocks it can differ from `git log --date-order` with the same filter; and
-  on equal dates the engine passes tips as heads, remotes, stashes while the
-  CLI passes them in ref order.
+  clocks it can differ from `git log --date-order` with the same filter. On
+  equal dates the engine passes tips as heads, remotes, stashes, while the
+  CLI passes them in ref order. Both are engine bugs under invariant 3, for
+  a later slice.
