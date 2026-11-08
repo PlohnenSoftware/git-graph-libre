@@ -194,8 +194,8 @@ passed. No push or release publication in this integration.
   `1d268cc`'s body carries a stray `Refs … (none)` line and a wrong remark
   that iconv does not know `koi8`; the test comment was corrected in
   `d6a89df`, and the signed commit was left as it is. A hung exploration
-  test process from R08's worktree, idle at 0% CPU and holding no lock, was
-  left for the maintainer. Gates on `fea80cf`: engine fmt, clippy, check
+  test process from R08's worktree, idle at 0% CPU and holding no lock,
+  ended when the integrator stopped R08's finished agent. Gates on `fea80cf`: engine fmt, clippy, check
   clean; engine tests 287 passed, 0 failed; addon rebuilt, smoke `1.0.32`;
   typecheck clean; `pnpm run test` backend 1,448 and webview 1,014 passed;
   `l10n:check` complete; KB check clean.
@@ -207,7 +207,9 @@ passed. No push or release publication in this integration.
   `7829b310-82c5-43bb-a871-487f6c03ba5b`, gave a gate of `OK`: new coverage
   94.2%, 0 new violations, 0 reliability and 0 security issues. Its "file
   encoding" scanner warning was already present on earlier successful scans.
-  Every planned slice and follow-up is integrated. Nothing is pushed.
+  Every planned slice and follow-up is integrated. Nothing is pushed. All
+  `/tmp/ggl-review-*` worktrees and their build caches under
+  `.ggl-review-targets` are removed; the `engine-review/R*` branches stay.
 
 ## Follow-ups and notes for the maintainer
 
