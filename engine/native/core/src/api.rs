@@ -211,20 +211,11 @@ impl Engine {
     /* ---------- Files ---------- */
 
     /// A file's contents at a revision: a commit-ish, [`INDEX`] for the staged copy, or
-    /// [`WORKING_TREE`] for the file on disk. Binary files come back with `contents: None`.
+    /// [`WORKING_TREE`] for the file on disk. Binary files, and files that are not valid UTF-8,
+    /// come back with `contents: None`. A file above 64 MiB fails with `ErrorKind::TooLarge`.
     pub fn file(&self, revision: &str, path: &str) -> Result<CommitFile> {
         if revision == WORKING_TREE {
-            let bytes = std::fs::read(self.repo.root().join(path))
-                .map_err(|e| crate::Error::git(format!("{path}: {e}")))?;
-            let binary = bytes[..bytes.len().min(8000)].contains(&0);
-            return Ok(CommitFile {
-                contents: if binary {
-                    None
-                } else {
-                    Some(String::from_utf8_lossy(&bytes).into_owned())
-                },
-                binary,
-            });
+            return crate::file_read::working_tree_file(&self.repo, path);
         }
         if revision == INDEX {
             return crate::blob::index_file(&self.repo, path);

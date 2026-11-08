@@ -16,6 +16,7 @@ pub mod config;
 pub mod details;
 pub mod diff;
 pub mod error;
+pub mod file_read;
 pub mod graph;
 pub mod log;
 pub mod refs;
