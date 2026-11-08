@@ -6,7 +6,7 @@ summary: >-
 
 # R06 — Remote-ref classification
 
-Status: blocked — the brief's `/tags/` removal conflicts with the CLI path and the W26J decision; see Report
+Status: claimed by Claude Haiku on 2026-11-08 23:25
 
 Needs: R01
 
