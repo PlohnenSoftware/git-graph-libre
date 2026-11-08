@@ -21,9 +21,20 @@ now recorded with this plan before dispatch.
 - Adapt only permitted native code from the reviewed commits; never read or
   copy restricted upstream host/webview or Gerrit code. Integrator updates
   `engine/NOTICE.md` and `LICENSE.mit` for adopted code and tests.
-- Start R01 on GPT-6 Luna (small fix); R02 and R03 on GPT-6.1 Sol (implementation
-  and traversal judgment). Escalate only for demonstrated difficulty. The
-  maintainer's explicit model-selection request authorizes these choices.
+- Models: the maintainer asked for agents and models suited to each task,
+  cost-effective rather than always the strongest, and that request
+  authorizes these choices. Codex first dispatched R01 on GPT-6 Luna and R02
+  and R03 on GPT-6.1 Sol. Those agents stopped after their claim commits when
+  Codex hit its usage limit. Claude Code then took over as integrator the same
+  evening and dispatched again in the same worktrees, cheapest first: R01 on
+  Haiku, R02 and R03 on Sonnet. A slice moves up (Haiku, then Sonnet, then
+  Opus) only when it fails or blocks on difficulty.
+- Build output: `/tmp` is a 16 GB tmpfs, so each worktree's `engine/target`
+  is a symlink to `/home/zam/Desktop/prog/_GGL/.ggl-review-targets/<id>`, a
+  btrfs reflink copy of the main checkout's `debug` and
+  `x86_64-unknown-linux-gnu` output. `.git/info/exclude` ignores those
+  symlinks and the `node_modules` symlink. Delete a slice's target directory
+  once its worktree is removed.
 - R01 ref errors, R02 bounded reads and R03 traversal can start together.
   R04 encoding follows R03; R05 gitlink content follows R02; R06 remote-ref
   classification follows R01. Shared notices, manifest/version bumps and
@@ -67,3 +78,7 @@ passed. No push or release publication in this integration.
 ## Integration log
 
 - 2026-11-08: plan recorded; no implementation integrated yet.
+- 2026-11-08: Codex stopped at its usage limit after the R01–R03 claim
+  commits (`3681c5e`, `2a5af5b`, `73da4f4`), with no implementation.
+  Claude Code (Opus) took over as integrator: R01 on Haiku, R02 and R03 on
+  Sonnet, each in its existing worktree from its claim commit.
