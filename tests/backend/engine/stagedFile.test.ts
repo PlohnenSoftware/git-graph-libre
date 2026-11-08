@@ -203,4 +203,18 @@ describe("readStagedFile", () => {
     expect(await readStagedFile(dir, "blob.bin", cli)).toEqual({ binary: true });
     expect(await readStagedFile(dir, "no-such.txt", cli)).toEqual({ missing: true });
   });
+
+  it("reads a staged gitlink as the Subproject commit display line through the CLI", async () => {
+    const dir = repoWithStagedFile();
+    const commit = "1234567890abcdef1234567890abcdef12345678";
+    git(["update-index", "--add", "--cacheinfo", `160000,${commit},sub`], dir);
+    const cli: StagedFileDeps = { gitPath: "git", backend: () => "git-cli" };
+
+    // Display text, not `git show :sub` output (that fails: the commit is not here).
+    expect(await readStagedFile(dir, "sub", cli)).toEqual({
+      text: `Subproject commit ${commit}\n`
+    });
+    // Only the failure path asks Git about gitlinks: ordinary files take one call.
+    expect(await readStagedFile(dir, "f", cli)).toEqual({ text: "staged text\n" });
+  });
 });
