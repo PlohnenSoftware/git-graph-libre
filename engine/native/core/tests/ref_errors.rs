@@ -60,9 +60,9 @@ fn corrupt_packed_refs_fail_repo_info_as_git_does() {
     );
     let engine = open(&repo);
 
-    let error = graph::repo_info(&engine, &RefReadOptions::default(), true)
-        .err()
-        .expect("repo_info must report the ref failure, not an empty repository");
+    let Err(error) = graph::repo_info(&engine, &RefReadOptions::default(), true) else {
+        panic!("repo_info must report the ref failure, not an empty repository");
+    };
     assert_eq!(error.kind, ErrorKind::Git);
 }
 
@@ -76,9 +76,9 @@ fn corrupt_packed_refs_fail_load_commits_as_git_does() {
     );
     let engine = open(&repo);
 
-    let error = graph::load_commits(&engine, &view_options())
-        .err()
-        .expect("load_commits must report the ref failure, not an empty graph");
+    let Err(error) = graph::load_commits(&engine, &view_options()) else {
+        panic!("load_commits must report the ref failure, not an empty graph");
+    };
     assert_eq!(error.kind, ErrorKind::Git);
 }
 
