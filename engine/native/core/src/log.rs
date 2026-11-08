@@ -18,7 +18,10 @@ use std::collections::{HashMap, HashSet};
 
 use gix::ObjectId;
 
+mod authors;
 mod ranked;
+
+use authors::AuthorPatterns;
 
 use crate::error::{Error, Result, ResultExt};
 use crate::repository::{Repo, Shallow};
@@ -67,6 +70,8 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
     // ones it keeps: re-parenting a shown commit means tracing through the hidden commits
     // between it and its nearest shown ancestor, which requires their parents too.
     let mut visited_parents: Vec<(String, Vec<String>)> = Vec::new();
+    // The author patterns are prepared once for the whole walk, not per commit judged.
+    let patterns = options.authors.as_deref().map(AuthorPatterns::new);
 
     let records = if uses_ranked_walk(options.ordering, searching) {
         walk_ranked(
@@ -74,12 +79,20 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
             tips,
             options,
             &shallow,
-            searching,
+            patterns.as_ref(),
             &mut visited_parents,
         )?
     } else {
         let window = window_size(options.limit, searching);
-        collect_window(&git, tips, options, &shallow, window, &mut visited_parents)?
+        collect_window(
+            &git,
+            tips,
+            options,
+            &shallow,
+            patterns.as_ref(),
+            window,
+            &mut visited_parents,
+        )?
     };
 
     let mut records = records;
@@ -110,9 +123,10 @@ fn walk_ranked(
     tips: &[ObjectId],
     options: &WalkOptions,
     shallow: &Shallow,
-    searching: bool,
+    patterns: Option<&AuthorPatterns>,
     visited_parents: &mut Vec<(String, Vec<String>)>,
 ) -> Result<Vec<CommitRecord>> {
+    let searching = !options.filter_paths.is_empty() || patterns.is_some();
     // Topological and author-date order have no safe window.
     //
     // Topological order starts from every tip, newest first, and takes the most recently readied
@@ -142,7 +156,7 @@ fn walk_ranked(
         let Ok(commit) = git.find_commit(graph.id(index)) else {
             continue;
         };
-        if !passes_filters(git, &commit, shallow, options, visited_parents)? {
+        if !passes_filters(git, &commit, shallow, options, patterns, visited_parents)? {
             continue;
         }
         records.push(read_commit(&commit, shallow)?);
@@ -159,10 +173,11 @@ fn collect_window(
     tips: &[ObjectId],
     options: &WalkOptions,
     shallow: &Shallow,
+    patterns: Option<&AuthorPatterns>,
     window: usize,
     visited_parents: &mut Vec<(String, Vec<String>)>,
 ) -> Result<Vec<CommitRecord>> {
-    let searching = !options.filter_paths.is_empty() || options.authors.is_some();
+    let searching = !options.filter_paths.is_empty() || patterns.is_some();
     let mut platform =
         git.rev_walk(tips.iter().copied())
             .sorting(gix::revision::walk::Sorting::ByCommitTime(
@@ -181,7 +196,7 @@ fn collect_window(
         let Ok(commit) = git.find_commit(info.id) else {
             continue;
         };
-        if !passes_filters(git, &commit, shallow, options, visited_parents)? {
+        if !passes_filters(git, &commit, shallow, options, patterns, visited_parents)? {
             continue;
         }
         records.push(read_commit(&commit, shallow)?);
@@ -216,11 +231,12 @@ fn passes_filters(
     commit: &gix::Commit<'_>,
     shallow: &Shallow,
     options: &WalkOptions,
+    patterns: Option<&AuthorPatterns>,
     visited_parents: &mut Vec<(String, Vec<String>)>,
 ) -> Result<bool> {
     let filtering = !options.filter_paths.is_empty();
-    let author_ok = match &options.authors {
-        Some(authors) => commit_matches_author(commit, authors)?,
+    let author_ok = match patterns {
+        Some(patterns) => patterns.matches(commit)?,
         None => true,
     };
     if filtering {
@@ -280,19 +296,12 @@ pub fn read_commit(commit: &gix::Commit<'_>, shallow: &Shallow) -> Result<Commit
     })
 }
 
-/// `git log --author=<name>` runs as `--author=<name> <`, so the CLI backend matches a literal
-/// "Name <" prefix of "Name <email>" rather than "Name" as a free-floating substring — without the
-/// trailing "<", a name that is a textual prefix of another author's name (e.g. "Bob" inside
-/// "Bobby <bobby@x.com>") would match commits it should not. This mirrors that exactly, case-
-/// insensitively (case sensitivity is the one place this still deviates from a bare `git log`).
+/// Does `commit` match one of `authors`, as `git log --author` matches? See [`AuthorPatterns`].
+///
+/// This prepares the patterns on every call; a walk that matches many commits builds them once
+/// with [`AuthorPatterns::new`] instead.
 pub(crate) fn commit_matches_author(commit: &gix::Commit<'_>, authors: &[String]) -> Result<bool> {
-    let author = commit
-        .author()
-        .git_ctx("Could not decode the commit author")?;
-    let haystack = format!("{} <{}>", author.name, author.email).to_lowercase();
-    Ok(authors
-        .iter()
-        .any(|author| haystack.contains(&format!("{} <", author.to_lowercase()))))
+    AuthorPatterns::new(authors).matches(commit)
 }
 
 /// Did this commit change anything below one of `paths`?
