@@ -146,7 +146,13 @@ fn passes_filters(
         return Ok(false);
     }
     if filtering {
-        return touches_paths(git, commit, shallow, &options.filter_paths);
+        return touches_paths(
+            git,
+            commit,
+            shallow,
+            &options.filter_paths,
+            options.first_parent_only,
+        );
     }
     Ok(true)
 }
@@ -203,7 +209,10 @@ pub(crate) fn commit_matches_author(commit: &gix::Commit<'_>, authors: &[String]
 /// `git log -- <paths>` default history simplification judges a commit by the *filtered* tree: it
 /// is shown only when it is not treesame to **any** parent. A merge that merely carries a branch's
 /// changes in is treesame against that branch's side and stays out of the log, which is why the
-/// comparison here runs against every parent rather than just the first.
+/// comparison here runs against every parent rather than just the first — except under
+/// `first_parent_only`, where the walk never follows the other parents and git judges the commit
+/// against the first one alone (a merge that kept the second parent's version of a filtered path
+/// still shows when its first parent changed it).
 ///
 /// A root commit is compared against the empty tree, which is what makes the commit that first
 /// added a file show up in its filtered history.
@@ -212,11 +221,15 @@ fn touches_paths(
     commit: &gix::Commit<'_>,
     shallow: &Shallow,
     paths: &[String],
+    first_parent_only: bool,
 ) -> Result<bool> {
     let tree = commit.tree().git_ctx("Could not read the commit tree")?;
-    let parents = shallow.parents(commit);
+    let mut parents = shallow.parents(commit);
     if parents.is_empty() {
         return changes_paths(git, None, &tree, paths);
+    }
+    if first_parent_only {
+        parents.truncate(1);
     }
     for parent in parents {
         let parent_tree = git.find_commit(parent).ok().and_then(|c| c.tree().ok());
