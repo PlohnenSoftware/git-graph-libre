@@ -578,3 +578,80 @@ describe("fixture acceptance through the real engine", () => {
     });
   }
 });
+
+describe("createEngineDiffTabSource gitlinks", () => {
+  const SUBMODULE_COMMIT = "1234567890abcdef1234567890abcdef12345678";
+
+  /** A repo whose HEAD tree and index hold a gitlink whose commit is not in the repo. */
+  function repoWithGitlink(): string {
+    const dir = newRepo();
+    git(["update-index", "--add", "--cacheinfo", `160000,${SUBMODULE_COMMIT},sub`], dir);
+    git(["commit", "-m", "add a gitlink"], dir);
+    return dir;
+  }
+
+  function throwingReaders() {
+    const fail = async (): Promise<string> => {
+      throw new Error("Git: unavailable");
+    };
+    return fakeAddon({ loadCommitFile: fail, loadIndexFile: fail });
+  }
+
+  it("shows the Subproject commit line for a revision and the index on the CLI route", async () => {
+    const dir = repoWithGitlink();
+    const cli: EngineDiffTabSourceDeps = {
+      gitPath: () => "git",
+      backend: () => "auto",
+      // The diff itself always runs in the addon. This one's file readers throw,
+      // so both reads land on the CLI route under test.
+      addonProvider: () => throwingReaders().addon,
+      isVerified: () => true
+    };
+
+    const payload = await createEngineDiffTabSource(cli).load(
+      request(dir, { kind: "revision", ref: "HEAD", path: "sub" }, { kind: "index", path: "sub" })
+    );
+
+    // The diff-display text, not `git show` output: both sides read the same line.
+    expect(payload).toMatchObject({
+      kind: "diff",
+      originalLines: [`Subproject commit ${SUBMODULE_COMMIT}`, ""],
+      modifiedLines: [`Subproject commit ${SUBMODULE_COMMIT}`, ""]
+    });
+  });
+
+  it("shows the same lines through the engine when an addon is built", async (context) => {
+    const addon = loadEngineAddon();
+    if (typeof addon?.diffTexts !== "function") {
+      context.skip("Engine addon with diffTexts not built — run pnpm run engine:build.");
+      return;
+    }
+    const dir = repoWithGitlink();
+
+    const payload = await createEngineDiffTabSource(engineDeps(addon)).load(
+      request(dir, { kind: "revision", ref: "HEAD", path: "sub" }, { kind: "index", path: "sub" })
+    );
+
+    expect(payload).toMatchObject({
+      kind: "diff",
+      originalLines: [`Subproject commit ${SUBMODULE_COMMIT}`, ""],
+      modifiedLines: [`Subproject commit ${SUBMODULE_COMMIT}`, ""]
+    });
+  });
+
+  it("still reads a missing revision path as empty on the CLI route", async () => {
+    const dir = repoWithGitlink();
+    const cli: EngineDiffTabSourceDeps = {
+      gitPath: () => "git",
+      backend: () => "auto",
+      // The diff itself always runs in the addon. This one's file readers throw,
+      // so both reads land on the CLI route under test.
+      addonProvider: () => throwingReaders().addon,
+      isVerified: () => true
+    };
+    const payload = await createEngineDiffTabSource(cli).load(
+      request(dir, { kind: "revision", ref: "HEAD", path: "no-such" }, { kind: "empty" })
+    );
+    expect(payload).toMatchObject({ kind: "diff", originalLines: [""], modifiedLines: [""] });
+  });
+});
