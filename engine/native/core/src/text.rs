@@ -18,9 +18,10 @@
 //! `git` CLI instead:
 //!
 //! - a repository whose effective log output encoding is not UTF-8 ([`ensure_utf8_output`]);
-//! - an `encoding` header naming a label this decoder does not know, or one whose decoding
-//!   differs between Git's converter and `encoding_rs` (the ISO-8859 family that the web
-//!   standard folds into Windows code pages, and the encodings that are not ASCII supersets);
+//! - an `encoding` header naming a label outside [`VERIFIED_LABELS`]: a label this decoder does
+//!   not know, or one whose decoding Git's converter (iconv) may not reproduce, because iconv does
+//!   not know the label or decodes some bytes differently. `encoding_parity.rs` checks each
+//!   verified label against Git byte for byte;
 //! - bytes that are not valid in the declared encoding, because Git then prints the bytes
 //!   unconverted and a decoder would have to guess.
 
@@ -134,6 +135,53 @@ fn encoding_header(data: &[u8]) -> Option<&[u8]> {
     None
 }
 
+/// The labels, in lowercase, whose decoding `encoding_parity.rs` has checked against Git's
+/// converter: every byte from 0x80 to 0xFF in an author name, a subject and a body, one commit
+/// per byte, with no difference from what Git prints (bytes the decoder rejects decline on their
+/// own). Any other label declines, even one `encoding_rs` knows: a label Git's iconv does not
+/// know prints raw bytes, and the web standard's Windows-code-page and Mac-Roman tables disagree
+/// with iconv on bytes that iconv maps elsewhere or leaves unassigned. The byte-level results
+/// are recorded in `encoding_parity.rs`.
+const VERIFIED_LABELS: &[&str] = &[
+    "ibm866",
+    "cp866",
+    "csibm866",
+    "iso-8859-2",
+    "iso8859-2",
+    "iso_8859-2",
+    "csisolatin2",
+    "latin2",
+    "iso-ir-101",
+    "iso-8859-3",
+    "latin3",
+    "iso-ir-109",
+    "iso-8859-4",
+    "latin4",
+    "iso-ir-110",
+    "iso-8859-5",
+    "cyrillic",
+    "iso-ir-144",
+    "iso-8859-6",
+    "arabic",
+    "iso-ir-127",
+    "iso-8859-7",
+    "greek",
+    "iso-ir-126",
+    "iso-8859-8",
+    "hebrew",
+    "iso-ir-138",
+    "iso-8859-10",
+    "latin6",
+    "iso-8859-13",
+    "iso-8859-14",
+    "iso-8859-15",
+    "iso-8859-16",
+    "koi8-r",
+    "cskoi8r",
+    "windows-1256",
+    "cp1256",
+];
+
 /// Resolve a header's label, or decline.
 fn stored_as(label: &[u8]) -> Result<Stored> {
     let label = label.trim();
@@ -156,19 +204,12 @@ fn stored_as(label: &[u8]) -> Result<Stored> {
     ) {
         return Ok(Stored::Latin1);
     }
+    if !VERIFIED_LABELS.contains(&lower.as_str()) {
+        return Err(unsupported("is not one the engine has checked against Git"));
+    }
     let Some(encoding) = Encoding::for_label(label) else {
         return Err(unsupported("is not one the engine can decode"));
     };
-    if !encoding.is_ascii_compatible() {
-        return Err(unsupported("is not an ASCII superset"));
-    }
-    // The web standard decodes some ISO-8859 labels, `us-ascii` and `tis-620` as Windows code
-    // pages. Their high half differs from what Git's converter produces, so only the Windows
-    // names themselves are trusted.
-    let windows_name = lower.starts_with("windows-") || lower.starts_with("cp");
-    if encoding.name().starts_with("windows-") && !windows_name {
-        return Err(unsupported("decodes differently in Git and in the engine"));
-    }
     Ok(Stored::Other(encoding))
 }
 
@@ -237,14 +278,31 @@ mod tests {
     }
 
     #[test]
-    fn other_encodings_decode_or_decline() {
-        assert_eq!(decode("Shift_JIS", b"\x93\xfa\x96\x7b").unwrap(), "日本");
-        assert_eq!(decode("windows-1252", b"\x80").unwrap(), "€");
+    fn verified_labels_decode_or_decline() {
+        assert_eq!(
+            decode("KOI8-R", b"\xf0\xd2\xc9\xd7\xc5\xd4").unwrap(),
+            "Привет"
+        );
+        assert_eq!(decode("iso-8859-2", b"\xb1").unwrap(), "ą");
+        // `encoding_rs` decodes these, but Git's converter does not match it, so they decline
+        // whatever the bytes.
+        assert!(decode("Shift_JIS", b"\x93\xfa\x96\x7b").is_err());
+        assert!(decode("windows-1252", b"\x80").is_err());
         assert!(decode("EUC-JP", b"\xff\xff").is_err());
         assert!(decode("klingon", b"x").is_err());
         assert!(decode("UTF-16LE", b"x").is_err());
         assert!(decode("iso-8859-9", b"x").is_err());
         assert!(decode("us-ascii", b"x").is_err());
+    }
+
+    #[test]
+    fn every_verified_label_is_one_encoding_rs_knows() {
+        for label in VERIFIED_LABELS {
+            assert!(
+                Encoding::for_label(label.as_bytes()).is_some(),
+                "{label} is not a label encoding_rs knows"
+            );
+        }
     }
 
     #[test]

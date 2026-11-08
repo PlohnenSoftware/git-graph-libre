@@ -271,21 +271,21 @@ fn search_matches_the_decoded_text() {
 fn other_encodings_that_git_and_the_engine_read_alike() {
     require_git!();
     let mut raw = Raw::new();
-    // Shift_JIS: 日本語 / 作者, and Windows-1252, where 0x80 is the euro sign.
-    let sjis = raw.commit(&Spec::new(
-        Some("Shift_JIS"),
-        b"\x8d\xec\x8e\xd2",
-        b"\x93\xfa\x96\x7b\x8c\xea\n",
+    // KOI8-R: Привет, and ISO-8859-2: Zoë / Łódź, both written as iconv encodes them.
+    let koi8 = raw.commit(&Spec::new(
+        Some("KOI8-R"),
+        b"\xf0\xd2\xc9\xd7\xc5\xd4",
+        b"\xcb\xcf\xcd\xcd\xc9\xd4\n",
     ));
-    let cp1252 = raw.commit(&Spec::new(
-        Some("windows-1252"),
+    let latin2 = raw.commit(&Spec::new(
+        Some("ISO-8859-2"),
         b"Zo\xeb",
-        b"price \x80 5\n",
+        b"\xa3\xf3d\xbc\n",
     ));
 
-    for hash in [&sjis, &cp1252] {
+    let records = raw.walk().expect("the walk failed");
+    for hash in [&koi8, &latin2] {
         let expected = raw.git_fields(hash);
-        let records = raw.walk().expect("the walk failed");
         let record = records
             .iter()
             .find(|record| &record.hash == hash)
@@ -293,8 +293,31 @@ fn other_encodings_that_git_and_the_engine_read_alike() {
         assert_eq!(record.author, expected[0]);
         assert_eq!(record.message, expected[3]);
     }
-    assert_eq!(raw.git_fields(&sjis)[3], "日本語");
-    assert_eq!(raw.git_fields(&cp1252)[3], "price € 5");
+    assert_eq!(raw.git_fields(&koi8)[0], "Привет");
+    assert_eq!(raw.git_fields(&latin2)[3], "Łódź");
+}
+
+#[test]
+fn shift_jis_and_windows_1252_decline_although_encoding_rs_decodes_them() {
+    require_git!();
+    // Shift_JIS reads 0x8160 as U+FF5E where Git's converter prints U+301C, and
+    // windows-1252 reads 0x81 where Git's converter prints the raw byte. The verdicts and the
+    // evidence are pinned with the byte sweeps.
+    for (label, author, message) in [
+        (
+            "Shift_JIS",
+            &b"\x8d\xec\x8e\xd2"[..],
+            &b"\x93\xfa\x96\x7b\x8c\xea\n"[..],
+        ),
+        ("windows-1252", &b"Zo\xeb"[..], &b"price \x80 5\n"[..]),
+    ] {
+        let mut raw = Raw::new();
+        let hash = raw.commit(&Spec::new(Some(label), author, message));
+        let repo = raw.open();
+        expect_unsupported(raw.walk());
+        expect_unsupported(commit_details_base(&repo, &hash));
+        expect_unsupported(commit_bodies(&repo, std::slice::from_ref(&hash)));
+    }
 }
 
 #[test]
@@ -402,8 +425,9 @@ fn an_unsupported_encoding_declines_every_read() {
 fn bytes_invalid_in_the_declared_encoding_decline_the_reads_that_show_them() {
     require_git!();
     let mut raw = Raw::new();
-    // Git prints text it cannot convert unconverted, so there is nothing to compare with.
-    let hash = raw.commit(&Spec::new(Some("EUC-JP"), b"Ann", b"\xff\xff text\n"));
+    // Git prints text it cannot convert unconverted, so there is nothing to compare with. 0xA5 is
+    // unassigned in ISO-8859-3, which the engine verifies.
+    let hash = raw.commit(&Spec::new(Some("ISO-8859-3"), b"Ann", b"\xa5 text\n"));
     let repo = raw.open();
 
     expect_unsupported(raw.walk());
