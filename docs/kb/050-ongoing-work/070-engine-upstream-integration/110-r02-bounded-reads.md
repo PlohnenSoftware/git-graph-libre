@@ -6,7 +6,7 @@ summary: >-
 
 # R02 — Bounded reads
 
-Status: ready
+Status: claimed by Codex (GPT-6.1 Sol) on 2026-11-08
 
 Needs: none
 
@@ -15,7 +15,7 @@ November 8 follow-up in Upstream engine review, Phase 16 invariants/non-goals.
 
 ## Touch
 
-engine/native/core/src/blob.rs; engine/native/core/src/api.rs; engine/native/core/src/lib.rs; new engine/native/core/src/file_read.rs; engine/native/core/tests/bounded_reads.rs; src/extension/diffTab/engineSource.ts; tests/webview/diffTab/engineSource.test.ts
+engine/native/core/src/blob.rs; engine/native/core/src/api.rs; engine/native/core/src/lib.rs; new engine/native/core/src/file_read.rs; engine/native/core/tests/bounded_reads.rs; src/extension/diffTab/engineSource.ts; tests/webview/diffTab/engineSource.test.ts; src/backend/engine/stagedFile.ts; tests/backend/engine/stagedFile.test.ts
 
 Own slice report/status and new focused test fixtures are allowed. The
 integrator owns shared provenance, changelog and version bumps.
