@@ -6,7 +6,7 @@ summary: >-
 
 # R01 — Ref failures
 
-Status: claimed by Codex on 2026-11-08 23:02
+Status: claimed by Claude Haiku on 2026-11-08 23:10
 
 Needs: none
 
