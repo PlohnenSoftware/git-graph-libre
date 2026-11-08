@@ -27,7 +27,8 @@ import {
   isMaxBufferError,
   MAX_FILE_READ_BYTES,
   readRevisionGitlink,
-  readStagedFile
+  readStagedFile,
+  startsLikeCommitHeader
 } from "@/backend/engine/stagedFile";
 import { runGitCommand } from "@/backend/utils/gitRunner";
 import { logBackendRoute } from "@/backend/utils/operationLog";
@@ -252,6 +253,17 @@ async function readRevisionSide(
       (deps.gitPath ?? (() => "git"))()
     );
     return { text: gitlink ?? "" };
+  }
+  // A gitlink whose commit exists here makes `git show` succeed with that commit;
+  // only commit-header-like output pays for the gitlink check.
+  if (startsLikeCommitHeader(bytes)) {
+    const gitlink = await readRevisionGitlink(
+      repo,
+      ref,
+      filePath,
+      (deps.gitPath ?? (() => "git"))()
+    );
+    if (gitlink !== null) return { text: gitlink };
   }
   return decodeBytes(bytes);
 }
