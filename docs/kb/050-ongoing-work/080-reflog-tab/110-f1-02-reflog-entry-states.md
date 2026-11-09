@@ -7,7 +7,7 @@ summary: >-
 
 # F1-02 — Reflog entry states
 
-Status: claimed by Muse Code (muse-wonder-full-1.0) on 2026-11-09 02:37
+Status: done — awaiting integration
 
 Needs: F1-01
 
@@ -59,4 +59,43 @@ commits; never push.
 
 ## Report
 
-Not started.
+- **Agent / date:** Muse Code (muse-wonder-full-1.0), 2026-11-09 02:44. The slice names Claude Haiku; its agent died on the Claude usage limit before its first tool call (session `39eef1e9`), leaving the worktree clean at `d6e1644`. The maintainer continued that session here, and Muse Code worked the slice as agent in the same worktree, with itself as integrator.
+- **Branch and commits:** `reflog/F1-02`
+  - `beceaf5 G docs(kb): claim slice F1-02 (F1-02)`
+  - `78a8d12 G feat(reflog): reflog entry states from cat-file and rev-list (F1-02)`
+  - `6096770 G test(reflog): entry-state fixtures for reachable, reflog-only and missing (F1-02)`
+  - the report commit that follows this text
+- **Files changed:** `src/backend/queries/reflog.ts` (+166/−1), `src/backend/types/queries.types.ts` (+18), `tests/backend/queries/reflog.test.ts` (+129), this slice file.
+- **Tests added or changed:** 5 new tests in `tests/backend/queries/reflog.test.ts` (56 before, 61 after), real-Git fixtures only: hard reset and deleted branch give `reflogOnly`; a tag-only and a remote-tracking-only commit stay `reachable`; `reflog expire` plus `gc --prune=now` gives `missing`; duplicates, non-hashes and a blob hash are ignored and the reachability call carries the expected arguments; an empty page runs no Git, and a failed read (no binary path, no repository) leaves the states unknown instead of erroring the entries.
+- **Gates:**
+  - New tests first, red: `npx vitest run --project backend tests/backend/queries/reflog.test.ts -t loadReflogEntryStates`: 5 failed (`loadReflogEntryStates is not a function`).
+  - `npx vitest run --project backend tests/backend/queries/reflog.test.ts`: 61 passed (61).
+  - `pnpm run typecheck`: clean (all three `tsc` projects).
+  - `npx biome check --config-path biome.strict.jsonc --error-on-warnings` on the three touched `.ts` files: clean after one import-format fix. The 2.5.13 schema note against CLI 2.6.5 is informational, as in F1-01.
+  - `node docs/kb/housekeeping.mjs --check`: exit 0.
+  - Sonar: integrator.
+- **Acceptance:**
+  - Three states for one page, `reachable` / `reflogOnly` / `missing`: met (`GitReflogEntryState`, `loadReflogEntryStates`).
+  - `git cat-file --batch-check` on stdin for existence and one bounded Git call for reachability, semantics verified and recorded: met. The stdin feed uses the existing `runGitWithInput` with the caller-resolved Git binary (the `commitSignatures` pattern); reachability is one `git rev-list --no-walk=unsorted <hashes> --not --branches --tags --remotes` per chunk of at most 200 hashes. See the verified facts below.
+  - Cost bounded to one page and measured on this repository's history: met. A 200-entry page of this repository's own `HEAD` reflog (174 unique hashes; 1,517 commits under `--all`) costs 8.0 ms of Git time (best of 3, `cat-file` plus `rev-list`, read-only), 11 of them `reflogOnly`.
+  - Real-Git fixtures for reset, deleted branch, pruned object and ordinary commits: met, plus the brief's tag-only and remote-tracking-only cases.
+  - A failed state read never errors the entries: met by design — the states are a separate read, and any failure returns `states: {}` with `error` set.
+- **Deviations from the slice:**
+  - The state lives in a separate function over the page's hashes, not a field on `GitReflogEntry` (the dispatch brief allowed either). This matches `commitSignatures`: the page can render first, `loadReflog`'s contract and tests stay untouched, and F1-03 merges `states[entry.hash]`.
+  - Without a resolved Git binary path the read reports unknown (`states: {}` with an error): the shared runner feeds stdin only through `runGitWithInput`, which needs the binary the extension resolves once from `config.gitPath()`. F1-03's handler passes it, as the `commitSignatures` handler does.
+  - An existing object that is not a commit gets no state. A reflog entry's `%H` is always a commit's hash, so this only affects a caller passing other hashes; a fixture pins it with a blob.
+- **Open questions / follow-ups:** none for this slice. F1-01's minimum-Git-version question still waits for the maintainer (recorded in the overview's integration log); nothing here changes it (`--batch-check` and `--no-walk` are long-standing, but no older Git was run).
+
+### Verified Git facts (Git 2.56.0, Linux, scratch repositories)
+
+- `git cat-file --batch-check` reads hashes from stdin and prints one line per input, in input order: `<oid> commit <size>` for an existing commit, `<input> missing` for a missing object. It exits 0 even when an input is missing, so `missing` is read from the output, never from the exit status.
+- `git rev-list --no-walk=unsorted <hashes> --not --branches --tags --remotes` prints exactly the given commits that no branch, tag or remote-tracking ref reaches, and nothing else. The walking form (no `--no-walk`) agrees on which page hashes it prints, but also prints their unreachable ancestors, so its output is not bounded by the page; the `--no-walk` form's is.
+- `rev-list` exits 128 when a positive hash names a missing object. Existence is therefore read first, and only hashes `cat-file` calls a commit go to the reachability read.
+- With no branches, tags or remote-tracking refs at all, the same `rev-list` exits 0 and prints the hash (unreachable), so an empty ref universe needs no special case.
+- A commit only a detached `HEAD` points at is printed: `HEAD` is not among `--branches --tags --remotes`. By the slice's definition it is `reflogOnly`.
+- After `git reflog expire --expire=now --expire-unreachable=now --all` and `git gc --prune=now`, commits only a reflog reached report `missing`, while reachable commits are kept. A state can therefore be asked for a hash whose reflog entry is already gone; the entries of a page never are (the entry itself keeps its object until the entry expires).
+
+### Public API
+
+- `src/backend/queries/reflog.ts`: `loadReflogEntryStates(git, repo, hashes, gitPath?, record?)` returning `GitReflogEntryStatesResult`.
+- `src/backend/types/queries.types.ts`: `GitReflogEntryState`, `GitReflogEntryStatesResult`.
