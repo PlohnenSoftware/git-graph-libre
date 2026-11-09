@@ -7,7 +7,7 @@ summary: >-
 
 # F1-09 — Reflog read through the engine
 
-Status: waiting
+Status: ready
 
 Needs: F1-03
 

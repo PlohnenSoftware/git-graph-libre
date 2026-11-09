@@ -7,7 +7,7 @@ summary: >-
 
 # F1-03 — Reflog tab (read-only)
 
-Status: done — awaiting integration
+Status: integrated `6a66083e`
 
 Needs: F1-02
 
@@ -41,7 +41,11 @@ request ids); new `src/webview/reflogTab/*` (bundle); new `media/reflog-tab/*`
 and the matching webview code); `src/extension/webviewL10n.ts` or a
 reflog-specific strings module; `l10n/bundle.l10n*.json`; tests under
 `tests/extension/`, `tests/webview/reflogTab/` and a CSS regression test; the
-slice file's Status and Report.
+slice file's Status and Report. Integrator-approved expansion at integration
+(`2026-11-09`, after the agent disclosed it in its Report): `src/types.ts` and
+`src/extension/messageHandler.ts` — every graph-webview message funnels
+through them, so the toolbar button cannot work without them (the D47
+precedent).
 
 ## Task and acceptance
 

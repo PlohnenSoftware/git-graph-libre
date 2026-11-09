@@ -70,9 +70,9 @@ that note, the slice file wins.
 | --- | --- | --- | --- | --- |
 | F1-01 | Reflog read query | — | Sonnet | integrated `967e778` |
 | F1-02 | Reflog entry states | F1-01 | Haiku | integrated `2deb880` |
-| F1-03 | Reflog tab (read-only) | F1-02 | Sonnet | ready |
-| F1-04 | Colored actions and sub-actions | F1-03 | Haiku | waiting |
-| F1-09 | Reflog read through the engine | F1-03 | Sonnet | waiting |
+| F1-03 | Reflog tab (read-only) | F1-02 | Sonnet | integrated `6a66083e` |
+| F1-04 | Colored actions and sub-actions | F1-03 | Haiku | ready |
+| F1-09 | Reflog read through the engine | F1-03 | Sonnet | ready |
 | F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | waiting |
 | F1-08 | Worktrees and bare repositories | F1-05 | Sonnet | waiting |
 | F1-06 | Recovery actions that cannot lose data | F1-08 | Sonnet | waiting |
@@ -116,3 +116,20 @@ headless render of the tab in both themes. Nothing is pushed.
   per slice, as for F1-01. A 200-entry page of this repository's `HEAD`
   reflog costs 8.0 ms of Git time. F1-03 is ready; the maintainer asked
   for it to be worked by a subagent.
+- 2026-11-09: F1-03 (Muse Code subagent) integrated at `6a66083e` by
+  fast-forward: the read-only Reflog tab — command
+  `git-graph-libre.showReflog`, a graph toolbar button, the singleton panel
+  (`src/extension/reflogTab/`), the `reflogTab.min` bundle
+  (`src/webview/reflogTab/`), request-id replies, paging by offset, a
+  watcher refresh, and the F1-02 state badges. 46 new tests. The agent's
+  two out-of-Touch glue files (`src/types.ts`,
+  `src/extension/messageHandler.ts`) are recorded as an integrator-approved
+  Touch expansion in the slice file. Gates on `6a66083e`: typecheck clean;
+  strict Biome on the 35 touched files clean; `pnpm run test` backend 1,509
+  and webview 1,060 passed; `l10n:check` complete in all five languages
+  (the agent's own translations; a native review would help); KB check
+  clean; `pnpm run package` builds. The integrator eyeballed the agent's
+  headless renders (dark and light entries): the seven columns, both state
+  badges and Load More read correctly in both themes; the maintainer's
+  look at the real tab in VS Code is still the deciding visual check.
+  F1-04 and F1-09 are ready and run beside each other.

@@ -7,7 +7,7 @@ summary: >-
 
 # F1-04 — Colored actions and sub-actions
 
-Status: waiting
+Status: ready
 
 Needs: F1-03
 
