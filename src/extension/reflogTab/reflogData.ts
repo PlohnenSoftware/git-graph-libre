@@ -1,13 +1,14 @@
 import type { SimpleGit } from "simple-git";
 
+import { readReflog } from "@/backend/engine/reflog";
 import {
   classifyReflogMessage,
   DEFAULT_REFLOG_PAGE_SIZE,
-  loadReflog,
   loadReflogEntryStates
 } from "@/backend/queries/reflog";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import type { ReflogPage, ReflogRow, ReflogSource } from "@/reflogTabTypes";
+import type { EngineBackend } from "@/types";
 
 export type ReflogSourceDeps = {
   /** A Git instance rooted at the repository being read. */
@@ -20,13 +21,27 @@ export type ReflogSourceDeps = {
    */
   gitPath: () => string;
   record?: GitCommandRecorder;
+  /**
+   * The live `backend` preference for the engine-first reflog read (F1-09),
+   * read per page like every engine read. Absent means the CLI serves every
+   * page, exactly as before F1-09.
+   */
+  backend?: () => EngineBackend;
+  /**
+   * Whether Git confirmed it accepts the repository (`RepoSearch.isVerified`):
+   * the engine is offered only a verified repository. Absent means never
+   * verified, so the CLI serves every page.
+   */
+  isVerified?: (repo: string) => boolean;
 };
 
 /**
  * The Reflog tab's data source: one page of the `HEAD` reflog per call
- * (F1-05 adds the ref picker), classified for its action columns and joined
- * with the F1-02 entry states for its badges. A failed state read never
- * errors the page — its rows simply carry no state, as F1-02 designed.
+ * (F1-05 adds the ref picker) through the engine-first reader (F1-09; the
+ * CLI query whenever the engine may not or cannot serve it), classified
+ * for its action columns and joined with the F1-02 entry states for its
+ * badges. A failed state read never errors the page — its rows simply
+ * carry no state, as F1-02 designed.
  */
 export function createReflogSource(deps: ReflogSourceDeps): ReflogSource {
   return {
@@ -36,7 +51,13 @@ export function createReflogSource(deps: ReflogSourceDeps): ReflogSource {
       limit: number = DEFAULT_REFLOG_PAGE_SIZE
     ): Promise<ReflogPage> {
       const git = deps.createGit(repo);
-      const result = await loadReflog(git, repo, { ref: "HEAD", limit, offset }, deps.record);
+      const result = await readReflog(
+        git,
+        repo,
+        { ref: "HEAD", limit, offset },
+        { backend: deps.backend, isVerified: deps.isVerified },
+        deps.record
+      );
       if (result.error !== null) {
         return {
           rows: [],
