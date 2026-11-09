@@ -145,6 +145,12 @@ async function resolveFullRef(read: Reader, ref: string): Promise<string | null>
   return full === "" ? null : full;
 }
 
+/** True when `HEAD` points at a commit, false on a repository with no commit yet. */
+async function headExists(read: Reader): Promise<boolean> {
+  const stdout = await read(["rev-parse", "--verify", "--quiet", "HEAD"], "reflog.head");
+  return stdout.trim() !== "";
+}
+
 function pageArgs(
   fullRef: string,
   limit: number,
@@ -227,6 +233,11 @@ export async function loadReflog(
     const fullRef = await resolveFullRef(read, ref);
     if (fullRef === null) {
       return failure(queryError(`"${ref}" is not an existing reference.`));
+    }
+
+    if (fullRef === "HEAD" && !(await headExists(read))) {
+      // A repository with no commit yet has no `HEAD` to read, and keeps no reflog for it.
+      return { entries: [], state: "none", hasMore: false, ref: fullRef, error: null };
     }
 
     const [entryOutput, timeOutput] = await Promise.all([
