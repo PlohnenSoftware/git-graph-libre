@@ -58,7 +58,9 @@ that note, the slice file wins.
 - Order: every slice from F1-03 on edits the l10n bundles and the reflog
   webview, so they run one after another: F1-01, F1-02, F1-03, then F1-04
   beside F1-09 (the engine read edits no shared file), then F1-05, F1-08,
-  F1-06 and F1-07.
+  F1-06 and F1-07. F1-04F (added `2026-11-09`, the maintainer's unify
+  remark) edits the reflog webview, its panel and the bundles, so it runs
+  after F1-04 and F1-09 are integrated and before F1-05.
 - Workspaces: each worktree gets the `node_modules` symlink and a copy of
   the built addon (`engine/native/linux-x64/git-graph.node`), so TypeScript
   tests load the engine without a Rust build. F1-09 also gets a reflink
@@ -73,6 +75,7 @@ that note, the slice file wins.
 | F1-03 | Reflog tab (read-only) | F1-02 | Sonnet | integrated `6a66083e` |
 | F1-04 | Colored actions and sub-actions | F1-03 | Haiku | ready |
 | F1-09 | Reflog read through the engine | F1-03 | Sonnet | ready |
+| F1-04F | Unify the Reflog tab with the graph | F1-04, F1-09 | Haiku | waiting |
 | F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | waiting |
 | F1-08 | Worktrees and bare repositories | F1-05 | Sonnet | waiting |
 | F1-06 | Recovery actions that cannot lose data | F1-08 | Sonnet | waiting |
@@ -133,3 +136,12 @@ headless render of the tab in both themes. Nothing is pushed.
   badges and Load More read correctly in both themes; the maintainer's
   look at the real tab in VS Code is still the deciding visual check.
   F1-04 and F1-09 are ready and run beside each other.
+- 2026-11-09: maintainer remark on the integrated tab — the hash is
+  called and sized differently there than in the graph (its own fixed
+  seven characters against the graph's `shortHashLength` setting), and
+  similar inconsistencies are to be tackled: what the project already
+  has in-house is the source of truth, outside inspiration only for
+  what is novel. Recorded as the standing rule One name and one shape
+  for a shared concept (Reference) and opened as slice F1-04F, to run
+  after F1-04 and F1-09 and before F1-05 (all three edit the reflog
+  webview and bundles).
