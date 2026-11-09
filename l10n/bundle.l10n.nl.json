@@ -811,5 +811,22 @@
   "ui.repoDetached": "losgekoppeld",
   "ui.repoOutsideWorkspace": "buiten werkruimte",
   "ui.repoBareRepository": "kale repository",
-  "startup.trustConfirmMany": "Git toestaan deze {0} worktrees van één repository te gebruiken? Hiermee worden alleen deze exacte mappen toegevoegd aan uw globale safe.directory-lijst:\n{1}"
+  "startup.trustConfirmMany": "Git toestaan deze {0} worktrees van één repository te gebruiken? Hiermee worden alleen deze exacte mappen toegevoegd aan uw globale safe.directory-lijst:\n{1}",
+  "reflog.show": "Reflog weergeven",
+  "reflog.title": "Reflog: {0}",
+  "reflog.loading": "Reflog laden…",
+  "reflog.loadMore": "Meer laden",
+  "reflog.empty": "Geen reflog-items. Git houdt geen reflog bij wanneer core.logAllRefUpdates uit staat, en oude items verlopen en worden verwijderd.",
+  "reflog.loadError": "Kan de reflog niet laden: {0}",
+  "reflog.onlyInReflog": "Alleen in de reflog",
+  "reflog.objectMissing": "Object bestaat niet meer",
+  "reflog.column.index": "Index",
+  "reflog.column.action": "Actie",
+  "reflog.column.subAction": "Subactie",
+  "reflog.column.message": "Bericht",
+  "reflog.column.hash": "Hash",
+  "reflog.column.time": "Tijd",
+  "reflog.column.state": "Status",
+  "command.showReflog.noRepo": "Er zijn geen Git-repository's om een reflog voor weer te geven.",
+  "command.showReflog.placeholder": "Selecteer een repository om de reflog weer te geven"
 }

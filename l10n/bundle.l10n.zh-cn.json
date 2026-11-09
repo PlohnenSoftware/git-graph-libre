@@ -811,5 +811,22 @@
   "ui.repoDetached": "已分离",
   "ui.repoOutsideWorkspace": "工作区外",
   "ui.repoBareRepository": "裸仓库",
-  "startup.trustConfirmMany": "允许 Git 使用同一仓库的这 {0} 个工作树吗？这只会将以下确切目录添加到你的全局 safe.directory 列表：\n{1}"
+  "startup.trustConfirmMany": "允许 Git 使用同一仓库的这 {0} 个工作树吗？这只会将以下确切目录添加到你的全局 safe.directory 列表：\n{1}",
+  "reflog.show": "显示 reflog",
+  "reflog.title": "Reflog: {0}",
+  "reflog.loading": "正在加载 reflog…",
+  "reflog.loadMore": "加载更多",
+  "reflog.empty": "没有 reflog 条目。当 core.logAllRefUpdates 关闭时，Git 不保留 reflog，旧条目会过期并被删除。",
+  "reflog.loadError": "无法加载 reflog：{0}",
+  "reflog.onlyInReflog": "仅在 reflog 中",
+  "reflog.objectMissing": "对象已不存在",
+  "reflog.column.index": "索引",
+  "reflog.column.action": "操作",
+  "reflog.column.subAction": "子操作",
+  "reflog.column.message": "消息",
+  "reflog.column.hash": "哈希",
+  "reflog.column.time": "时间",
+  "reflog.column.state": "状态",
+  "command.showReflog.noRepo": "没有可显示 reflog 的 Git 仓库。",
+  "command.showReflog.placeholder": "选择要显示其 reflog 的仓库"
 }

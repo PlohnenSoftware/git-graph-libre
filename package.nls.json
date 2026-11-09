@@ -130,5 +130,6 @@
   "config.uncommittedChanges.fileViewMode": "Specifies how uncommitted changes are displayed in the staging panel.",
   "config.uncommittedChanges.fileViewMode.title": "Uncommitted Changes File View Mode",
   "config.uncommittedChanges.fileViewMode.tree": "Show uncommitted changes grouped by folder",
-  "config.uncommittedChanges.fileViewMode.list": "Show uncommitted changes as a flat path list"
+  "config.uncommittedChanges.fileViewMode.list": "Show uncommitted changes as a flat path list",
+  "command.showReflog": "Show Reflog"
 }

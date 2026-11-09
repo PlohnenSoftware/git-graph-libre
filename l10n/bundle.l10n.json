@@ -811,5 +811,22 @@
   "ui.repoDetached": "detached",
   "ui.repoOutsideWorkspace": "outside workspace",
   "ui.repoBareRepository": "bare repository",
-  "startup.trustConfirmMany": "Allow Git to use these {0} worktrees of one repository? This adds only these exact directories to your global safe.directory list:\n{1}"
+  "startup.trustConfirmMany": "Allow Git to use these {0} worktrees of one repository? This adds only these exact directories to your global safe.directory list:\n{1}",
+  "reflog.show": "Show Reflog",
+  "reflog.title": "Reflog: {0}",
+  "reflog.loading": "Loading reflog…",
+  "reflog.loadMore": "Load More",
+  "reflog.empty": "No reflog entries. Git keeps no reflog when core.logAllRefUpdates is off, and old entries expire and are removed.",
+  "reflog.loadError": "Unable to load the reflog: {0}",
+  "reflog.onlyInReflog": "Only in the reflog",
+  "reflog.objectMissing": "Object no longer exists",
+  "reflog.column.index": "Index",
+  "reflog.column.action": "Action",
+  "reflog.column.subAction": "Sub-action",
+  "reflog.column.message": "Message",
+  "reflog.column.hash": "Hash",
+  "reflog.column.time": "Time",
+  "reflog.column.state": "State",
+  "command.showReflog.noRepo": "There are no Git repositories to show a reflog for.",
+  "command.showReflog.placeholder": "Select a repository to show its reflog"
 }

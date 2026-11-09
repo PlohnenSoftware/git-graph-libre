@@ -811,5 +811,22 @@
   "ui.repoDetached": "已分離",
   "ui.repoOutsideWorkspace": "工作區外",
   "ui.repoBareRepository": "裸倉庫",
-  "startup.trustConfirmMany": "允許 Git 使用同一儲存庫的這 {0} 個工作樹嗎？這只會將以下確切的目錄加入你的全域 safe.directory 清單：\n{1}"
+  "startup.trustConfirmMany": "允許 Git 使用同一儲存庫的這 {0} 個工作樹嗎？這只會將以下確切的目錄加入你的全域 safe.directory 清單：\n{1}",
+  "reflog.show": "顯示 reflog",
+  "reflog.title": "Reflog: {0}",
+  "reflog.loading": "正在載入 reflog…",
+  "reflog.loadMore": "載入更多",
+  "reflog.empty": "沒有 reflog 項目。當 core.logAllRefUpdates 關閉時，Git 不保留 reflog，舊項目會過期並被刪除。",
+  "reflog.loadError": "無法載入 reflog：{0}",
+  "reflog.onlyInReflog": "僅在 reflog 中",
+  "reflog.objectMissing": "物件已不存在",
+  "reflog.column.index": "索引",
+  "reflog.column.action": "操作",
+  "reflog.column.subAction": "子操作",
+  "reflog.column.message": "訊息",
+  "reflog.column.hash": "雜湊",
+  "reflog.column.time": "時間",
+  "reflog.column.state": "狀態",
+  "command.showReflog.noRepo": "沒有可顯示 reflog 的 Git 存放庫。",
+  "command.showReflog.placeholder": "選擇要顯示其 reflog 的存放庫"
 }
