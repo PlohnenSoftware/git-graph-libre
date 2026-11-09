@@ -71,7 +71,11 @@ function rowElement(row: ReflogRow, state: ReflogViewState, labels: ReflogLabels
   if (row.sub === null) {
     sub.append(element("span", "reflog-sub", "—"));
   } else {
-    const tag = element("span", `reflog-sub reflog-sub-tag ${subIntentClass(row.sub)}`, subLabel(row.sub, labels));
+    const tag = element(
+      "span",
+      `reflog-sub reflog-sub-tag ${subIntentClass(row.sub)}`,
+      subLabel(row.sub, labels)
+    );
     tag.title = row.sub;
     sub.append(tag);
   }
