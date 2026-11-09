@@ -7,7 +7,7 @@ summary: >-
 
 # F1-03 — Reflog tab (read-only)
 
-Status: waiting
+Status: ready
 
 Needs: F1-02
 
