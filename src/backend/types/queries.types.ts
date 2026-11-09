@@ -256,6 +256,24 @@ export type GitReflogResult = {
   error: GitQueryError | null;
 };
 
+/**
+ * Whether the commit a reflog entry points at can still be reached without
+ * the reflog: `reachable` from a branch, tag or remote-tracking ref,
+ * `reflogOnly` when the object exists but only reflogs reach it, or
+ * `missing` when the object no longer exists.
+ */
+export type GitReflogEntryState = "reachable" | "reflogOnly" | "missing";
+
+export type GitReflogEntryStatesResult = {
+  /**
+   * The known state of each requested commit, by hash. A hash with no entry
+   * is unknown: the read failed, or the name was not a commit's full hash.
+   * Empty whenever `error` is set.
+   */
+  states: Record<string, GitReflogEntryState>;
+  error: GitQueryError | null;
+};
+
 /** The kinds `classifyReflogMessage` knows. The set is open: treat any other value as `other`. */
 export type GitReflogMessageKind =
   | "commit"

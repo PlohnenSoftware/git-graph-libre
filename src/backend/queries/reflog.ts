@@ -3,12 +3,14 @@ import type { SimpleGit } from "simple-git";
 import type {
   GitQueryError,
   GitReflogEntry,
+  GitReflogEntryState,
+  GitReflogEntryStatesResult,
   GitReflogMessageClass,
   GitReflogMessageKind,
   GitReflogResult,
   GitReflogState
 } from "@/backend/types";
-import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
+import { type GitCommandRecorder, runGitRaw, runGitWithInput } from "@/backend/utils/gitRunner";
 import { toGitQueryError } from "@/backend/utils/queryError";
 
 const NUL = "\0";
@@ -253,6 +255,169 @@ export async function loadReflog(
   } catch (error: unknown) {
     if (error instanceof ReflogFormatError) return failure(queryError(error.message));
     return failure(toGitQueryError(error, "Unable to read the reflog"));
+  }
+}
+
+/**
+ * Hashes per Git call while reading entry states. The hashes ride on the
+ * `rev-list` command line, and Windows caps a command line at 32,767
+ * characters; 200 full hashes stay far below that.
+ */
+const HASHES_PER_RUN = 200;
+
+function entryStatesFailure(error: GitQueryError): GitReflogEntryStatesResult {
+  return { states: {}, error };
+}
+
+function hashChunks(hashes: string[]): string[][] {
+  const chunks: string[][] = [];
+  for (let start = 0; start < hashes.length; start += HASHES_PER_RUN) {
+    chunks.push(hashes.slice(start, start + HASHES_PER_RUN));
+  }
+  return chunks;
+}
+
+function outputLines(stdout: string): string[] {
+  const lines = stdout.split(/\r\n|\r|\n/);
+  if (lines.at(-1) === "") lines.pop();
+  return lines;
+}
+
+/**
+ * The object kind Git reports for each hash (`commit`, `tree`, …), or
+ * `missing`. `cat-file --batch-check` answers in input order, one line per
+ * hash, and still exits 0 when an object is missing.
+ */
+function parseBatchCheck(stdout: string, hashes: readonly string[]): Map<string, string> {
+  const lines = outputLines(stdout);
+  if (lines.length !== hashes.length) {
+    throw new ReflogFormatError("Reflog object check has an unexpected shape.");
+  }
+  const kinds = new Map<string, string>();
+  for (const [position, hash] of hashes.entries()) {
+    const fields = (lines[position] ?? "").split(" ");
+    if (fields[0] !== hash || fields[1] === undefined || fields[1] === "") {
+      throw new ReflogFormatError("Reflog object check has an unexpected shape.");
+    }
+    kinds.set(hash, fields[1]);
+  }
+  return kinds;
+}
+
+/** The chunk's hashes Git printed as unreachable, each still a full hash from the chunk. */
+function parseUnreachable(stdout: string, hashes: readonly string[]): Set<string> {
+  const asked = new Set(hashes);
+  const unreachable = new Set<string>();
+  for (const line of outputLines(stdout)) {
+    if (!asked.has(line)) {
+      throw new ReflogFormatError("Reflog reachability check has an unexpected shape.");
+    }
+    unreachable.add(line);
+  }
+  return unreachable;
+}
+
+async function readObjectKinds(
+  git: SimpleGit,
+  repo: string,
+  hashes: string[],
+  gitPath: string,
+  record?: GitCommandRecorder
+): Promise<Map<string, string>> {
+  const stdout = await runGitWithInput(git, {
+    label: "reflog.states.existence",
+    kind: "query",
+    args: ["cat-file", "--batch-check"],
+    input: `${hashes.join("\n")}\n`,
+    binary: gitPath,
+    repo,
+    record
+  });
+  return parseBatchCheck(stdout, hashes);
+}
+
+async function readUnreachable(
+  git: SimpleGit,
+  repo: string,
+  hashes: string[],
+  record?: GitCommandRecorder
+): Promise<Set<string>> {
+  const stdout = await runGitRaw(git, {
+    label: "reflog.states.reachability",
+    kind: "query",
+    args: [
+      "rev-list",
+      "--no-walk=unsorted",
+      ...hashes,
+      "--not",
+      "--branches",
+      "--tags",
+      "--remotes",
+      "--"
+    ],
+    repo,
+    record
+  });
+  return parseUnreachable(stdout, hashes);
+}
+
+/**
+ * The state of each commit on one reflog page: `reachable` from a branch,
+ * tag or remote-tracking ref, `reflogOnly`, or `missing`. Read-only, and
+ * separate from {@link loadReflog} the way `commitSignatures` is separate
+ * from the graph load, so a page can show before its states arrive.
+ *
+ * Existence comes first, from one `git cat-file --batch-check` over the
+ * page's hashes on stdin (the resolved Git binary `gitPath` feeds them,
+ * as in `commitSignatures`): `rev-list` refuses a missing positive hash
+ * outright, so only hashes Git calls a commit go on to the reachability
+ * read. That read is one `git rev-list --no-walk=unsorted` per chunk with
+ * the hashes as positive revs and `--not --branches --tags --remotes`: Git
+ * prints exactly the given commits no such ref reaches. `HEAD` is not in
+ * that set, so a commit only a detached `HEAD` points at is `reflogOnly`.
+ *
+ * Names that are not full object hashes never reach Git, and an existing
+ * object that is not a commit gets no state (a reflog entry's hash is a
+ * commit's). Any failure leaves every state unknown — `states` empty and
+ * `error` set — rather than guessing, and the entries themselves are the
+ * caller's, untouched either way.
+ */
+export async function loadReflogEntryStates(
+  git: SimpleGit,
+  repo: string,
+  hashes: readonly string[],
+  gitPath?: string,
+  record?: GitCommandRecorder
+): Promise<GitReflogEntryStatesResult> {
+  const unique = [...new Set(hashes)].filter((hash) => objectName.test(hash));
+  if (unique.length === 0) return { states: {}, error: null };
+  if (gitPath === undefined || gitPath === "") {
+    return entryStatesFailure(
+      queryError("A Git binary path is required to read reflog entry states.")
+    );
+  }
+
+  try {
+    const kindChunks = await Promise.all(
+      hashChunks(unique).map((chunk) => readObjectKinds(git, repo, chunk, gitPath, record))
+    );
+    const kinds = new Map(kindChunks.flatMap((chunk) => [...chunk]));
+    const commits = unique.filter((hash) => kinds.get(hash) === "commit");
+    const unreachableChunks = await Promise.all(
+      hashChunks(commits).map((chunk) => readUnreachable(git, repo, chunk, record))
+    );
+    const unreachable = new Set(unreachableChunks.flatMap((chunk) => [...chunk]));
+
+    const states: Record<string, GitReflogEntryState> = {};
+    for (const hash of unique) {
+      const kind = kinds.get(hash);
+      if (kind === "missing") states[hash] = "missing";
+      else if (kind === "commit") states[hash] = unreachable.has(hash) ? "reflogOnly" : "reachable";
+    }
+    return { states, error: null };
+  } catch (error: unknown) {
+    if (error instanceof ReflogFormatError) return entryStatesFailure(queryError(error.message));
+    return entryStatesFailure(toGitQueryError(error, "Unable to read reflog entry states"));
   }
 }
 
