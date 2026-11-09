@@ -1,14 +1,8 @@
+import { abbrevCommit } from "@/backend/utils/string";
 import type { ReflogLabels, ReflogRow } from "@/reflogTabTypes";
 
 import { kindClass, kindLabel, subIntentClass, subLabel } from "./actionStyle";
-import {
-  badgeFor,
-  fullDate,
-  type ReflogViewState,
-  relativeTime,
-  selectorFor,
-  shortHash
-} from "./rowModel";
+import { badgeFor, entryDate, type ReflogViewState, selectorFor } from "./rowModel";
 
 export type ReflogViewCallbacks = {
   onLoadMore: () => void;
@@ -82,11 +76,16 @@ function rowElement(row: ReflogRow, state: ReflogViewState, labels: ReflogLabels
   const message = element("td", "reflog-cell reflog-message", row.message);
   message.title = row.message;
   const hash = element("td", "reflog-cell");
-  const code = element("code", "reflog-hash", shortHash(row.hash));
+  const code = element(
+    "code",
+    "reflog-hash",
+    abbrevCommit(row.hash, state.display.shortHashLength)
+  );
   code.title = row.hash;
   hash.append(code);
-  const time = element("td", "reflog-cell reflog-time", relativeTime(row, now, state.locale));
-  time.title = fullDate(row, state.locale);
+  const dateCell = entryDate(row, state.display, now, state.locale);
+  const time = element("td", "reflog-cell reflog-time", dateCell.value);
+  time.title = dateCell.title;
   tr.append(index, action, sub, message, hash, time, badgeCell(row, labels));
   return tr;
 }
@@ -101,8 +100,8 @@ function table(state: ReflogViewState, labels: ReflogLabels, now: Date): HTMLEle
     labels.columnAction,
     labels.columnSubAction,
     labels.columnMessage,
-    labels.columnHash,
-    labels.columnTime,
+    labels.columnCommit,
+    labels.columnDate,
     labels.columnState
   ]) {
     headRow.append(element("th", "reflog-head-cell", text));

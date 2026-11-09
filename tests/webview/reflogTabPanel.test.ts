@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { openReflogTab, type ReflogWatcher } from "@/extension/reflogTab/reflogTabPanel";
 import type { ReflogHostMessage, ReflogPage, ReflogSource } from "@/reflogTabTypes";
-import { resetVscodeMock } from "./__mocks__/vscode";
+import { resetVscodeMock, setConfigurationValue } from "./__mocks__/vscode";
 import { page, row } from "./reflogTab/fixtures";
 
 type FakePanel = ReturnType<typeof createFakePanel>;
 
 const mocks = vi.hoisted(() => ({
   panels: [] as Array<{ dispose(): void }>,
-  create: (..._args: unknown[]): unknown => undefined
+  create: (..._args: unknown[]): unknown => undefined,
+  onConfig: undefined as ((event: { affectsConfiguration: (key: string) => boolean }) => void) | undefined
 }));
 
 vi.mock("vscode", async (importOriginal) => {
@@ -17,6 +18,15 @@ vi.mock("vscode", async (importOriginal) => {
     ...actual,
     ViewColumn: { Active: -1 },
     env: { ...actual.env, language: "en" },
+    workspace: {
+      ...actual.workspace,
+      onDidChangeConfiguration: (
+        handler: (event: { affectsConfiguration: (key: string) => boolean }) => void
+      ) => {
+        mocks.onConfig = handler;
+        return { dispose: () => {} };
+      }
+    },
     window: { ...actual.window, createWebviewPanel: (...args: unknown[]) => mocks.create(...args) }
   };
 });
@@ -116,6 +126,7 @@ function open(repo = "/repos/one", source: ReflogSource = resolved(), watcher = 
 afterEach(() => {
   for (const panel of mocks.panels) panel.dispose();
   mocks.panels.length = 0;
+  mocks.onConfig = undefined;
   log.appendLine.mockClear();
   resetVscodeMock();
 });
@@ -157,7 +168,16 @@ describe("openReflogTab", () => {
     expect(panel.posted.map((m) => m.command)).toEqual(["reflogLoading", "reflogData"]);
     const data = panel.posted[1] as Extract<ReflogHostMessage, { command: "reflogData" }>;
     expect(data.requestId).toBeGreaterThan(0);
-    expect(data.labels.loadMore).toBe("Load More");
+    expect(data.labels.loadMore).toBe("Load More Entries");
+    // The graph's own words for the two shared columns (F1-04F).
+    expect(data.labels.columnCommit).toBe("Commit");
+    expect(data.labels.columnDate).toBe("Date");
+    // The graph's display settings ride along, read live (F1-04F).
+    expect(data.display.shortHashLength).toBe(8);
+    expect(data.display.dateFormat).toBe("Date & Time");
+    expect(data.display.datePattern).toBe("DD MM YYYY");
+    expect(data.display.needMonthName).toBe(true);
+    expect(data.display.months).toHaveLength(12);
     expect(data.labels.empty).toContain("core.logAllRefUpdates");
     expect(data.labels.onlyInReflog).toBe("Only in the reflog");
     // The panel reads one label per known kind and sub-action (F1-04).
@@ -172,6 +192,28 @@ describe("openReflogTab", () => {
     panel.send({ command: "ready" });
     expect(panel.posted).toHaveLength(3);
     expect(panel.posted[2]).toEqual(panel.posted[1]);
+  });
+
+  it("reloads live when a graph display setting changes, with the value read fresh (F1-04F)", async () => {
+    open();
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    setConfigurationValue("git-graph-libre", "shortHashLength", 12);
+    mocks.onConfig?.({
+      affectsConfiguration: (key: string) => key === "git-graph-libre.shortHashLength"
+    });
+    await flush();
+    const datas = panel.posted.filter(
+      (m): m is Extract<ReflogHostMessage, { command: "reflogData" }> => m.command === "reflogData"
+    );
+    expect(datas).toHaveLength(2);
+    expect(datas[1].display.shortHashLength).toBe(12);
+    expect(datas[1].append).toBe(false);
+    // An unrelated setting does not reload the tab.
+    mocks.onConfig?.({ affectsConfiguration: () => false });
+    await flush();
+    expect(panel.posted.filter((m) => m.command === "reflogData")).toHaveLength(2);
   });
 
   it("reuses the panel for another repository: retitle, rewatch, same document", async () => {

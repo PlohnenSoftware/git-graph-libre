@@ -4,14 +4,13 @@ import {
   applyData,
   applyLoading,
   badgeFor,
-  fullDate,
+  entryDate,
   initialReflogState,
   markLoadingMore,
   relativeTime,
-  selectorFor,
-  shortHash
+  selectorFor
 } from "@/webview/reflogTab/rowModel";
-import { dataMessage, LABELS, page, row } from "./fixtures";
+import { dataMessage, DISPLAY, LABELS, page, row } from "./fixtures";
 
 function loadingMessage(overrides: Partial<ReflogLoadingMessage> = {}): ReflogLoadingMessage {
   return {
@@ -20,6 +19,7 @@ function loadingMessage(overrides: Partial<ReflogLoadingMessage> = {}): ReflogLo
     repo: "/repos/one",
     locale: "en",
     labels: LABELS,
+    display: DISPLAY,
     ...overrides
   };
 }
@@ -119,13 +119,42 @@ describe("reflog row model", () => {
     expect(badgeFor(row({ state: null }), LABELS)).toBeNull();
   });
 
-  it("formats the short hash, the selector, and both times", () => {
+  it("formats the selector and keeps the relative-time helper", () => {
     const entry = row({ hash: "0123456789abcdef", index: 4 });
-    expect(shortHash(entry.hash)).toBe("0123456");
     expect(selectorFor(entry, "HEAD")).toBe("HEAD@{4}");
     expect(selectorFor(entry, null)).toBe("HEAD@{4}");
     const now = new Date(1_700_000_000_000 + 5 * 60_000);
     expect(relativeTime(entry, now, "en")).toBe("5 minutes ago");
-    expect(fullDate(entry, "en")).toContain("2023");
+  });
+
+  it("shapes the date cell by the graph's dateFormat setting, hover included", () => {
+    const entry = row();
+    const now = new Date(1_700_000_000_000 + 5 * 60_000);
+    // The graph's shape: bundle pattern, bundle month name, HH:MM clock.
+    const full = entryDate(entry, DISPLAY, now, "en");
+    expect(full.value).toMatch(/^\d{1,2} Nov 2023 \d{2}:\d{2}$/);
+    expect(full.title).toBe(full.value);
+    const only = entryDate(entry, { ...DISPLAY, dateFormat: "Date Only" }, now, "en");
+    expect(only.value).toMatch(/^\d{1,2} Nov 2023$/);
+    expect(only.title).toBe(full.title);
+    const relative = entryDate(entry, { ...DISPLAY, dateFormat: "Relative" }, now, "en");
+    expect(relative.value).toBe("5 minutes ago");
+    expect(relative.title).toBe(full.title);
+    // A pattern that needs no month name prints the month's number.
+    const numeric = entryDate(
+      entry,
+      { ...DISPLAY, needMonthName: false, datePattern: "YYYY-MM-DD" },
+      now,
+      "en"
+    );
+    expect(numeric.value).toMatch(/^2023-11-\d{1,2} \d{2}:\d{2}$/);
+  });
+
+  it("takes the display settings from each message, so a change restyles the tab", () => {
+    const changed = { ...DISPLAY, shortHashLength: 12, dateFormat: "Relative" as const };
+    const state = applyData(initialReflogState(), dataMessage({ display: changed }));
+    expect(state.display).toEqual(changed);
+    const loading = applyLoading(state, loadingMessage({ display: DISPLAY }));
+    expect(loading.display).toEqual(DISPLAY);
   });
 });

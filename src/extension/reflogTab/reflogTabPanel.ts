@@ -2,11 +2,13 @@ import * as vscode from "vscode";
 
 import { DEFAULT_REFLOG_PAGE_SIZE, MAX_REFLOG_PAGE_SIZE } from "@/backend/queries/reflog";
 import { buildExtensionUri } from "@/backend/utils/path";
+import { config } from "@/config";
 import * as l10n from "@/l10n";
 import {
   REFLOG_ACTION_KINDS,
   REFLOG_SUB_ACTIONS,
   type ReflogDataMessage,
+  type ReflogDisplay,
   type ReflogLabels,
   type ReflogLoadingMessage,
   type ReflogPage,
@@ -96,7 +98,8 @@ function createReflogTab(deps: ReflogTabDeps) {
         requestId,
         repo,
         locale: deps.locale ?? vscode.env.language,
-        labels: readLabels()
+        labels: readLabels(),
+        display: readDisplay()
       };
       if (ready) void panel.webview.postMessage(pending);
     }
@@ -117,6 +120,7 @@ function createReflogTab(deps: ReflogTabDeps) {
       repo,
       locale: deps.locale ?? vscode.env.language,
       labels: readLabels(),
+      display: readDisplay(),
       page
     };
     if (ready) void panel.webview.postMessage(last);
@@ -151,13 +155,53 @@ function createReflogTab(deps: ReflogTabDeps) {
       void load(false, refreshLimit());
     }
   });
+  // The tab follows the graph's two display settings live: a change
+  // reloads the rows on screen (the loaded pages are kept, as a watcher
+  // refresh keeps them) with the settings read fresh.
+  const settings = vscode.workspace.onDidChangeConfiguration((event) => {
+    if (
+      event.affectsConfiguration("git-graph-libre.shortHashLength") ||
+      event.affectsConfiguration("git-graph-libre.dateFormat")
+    ) {
+      void load(false, refreshLimit());
+    }
+  });
   panel.onDidDispose(() => {
     disposed = true;
     received.dispose();
+    settings.dispose();
     watcher.stop();
     if (current === show) current = undefined;
   });
   return show;
+}
+
+/**
+ * The graph's display settings for one load, through the same validated
+ * `config` accessors and bundle keys the graph's boot config reads
+ * (`webviewHtml.ts`, `webviewL10n.ts`).
+ */
+function readDisplay(): ReflogDisplay {
+  return {
+    shortHashLength: config.shortHashLength(),
+    dateFormat: config.dateFormat(),
+    datePattern: l10n.t("time.dateformat"),
+    needMonthName: l10n.t("time.needFormatMonth") === "true",
+    months: [
+      l10n.t("month.jan"),
+      l10n.t("month.feb"),
+      l10n.t("month.mar"),
+      l10n.t("month.apr"),
+      l10n.t("month.may"),
+      l10n.t("month.jun"),
+      l10n.t("month.jul"),
+      l10n.t("month.aug"),
+      l10n.t("month.sep"),
+      l10n.t("month.oct"),
+      l10n.t("month.nov"),
+      l10n.t("month.dec")
+    ]
+  };
 }
 
 function readLabels(): ReflogLabels {
@@ -173,8 +217,8 @@ function readLabels(): ReflogLabels {
     columnAction: l10n.t("reflog.column.action"),
     columnSubAction: l10n.t("reflog.column.subAction"),
     columnMessage: l10n.t("reflog.column.message"),
-    columnHash: l10n.t("reflog.column.hash"),
-    columnTime: l10n.t("reflog.column.time"),
+    columnCommit: l10n.t("ui.commit"),
+    columnDate: l10n.t("ui.date"),
     columnState: l10n.t("reflog.column.state"),
     actions: Object.fromEntries(
       REFLOG_ACTION_KINDS.map((kind) => [kind, l10n.t(`reflog.action.${kind}`)])

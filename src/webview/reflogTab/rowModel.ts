@@ -1,10 +1,11 @@
 import type {
   ReflogDataMessage,
+  ReflogDisplay,
   ReflogLabels,
   ReflogLoadingMessage,
   ReflogRow
 } from "@/reflogTabTypes";
-import { formatRelativeDate } from "@/webview/utils/date";
+import { formatRelativeDate, pad2 } from "@/webview/utils/date";
 
 /**
  * Everything the Reflog tab draws, as one value the messages update. The
@@ -22,12 +23,29 @@ export type ReflogViewState = {
   ref: string | null;
   locale: string;
   labels: ReflogLabels | null;
+  /** The graph's display settings from the newest applied message. */
+  display: ReflogDisplay;
   rows: ReflogRow[];
   /** F1-01's split for the loaded reflog; null before data and on an error. */
   reflogState: "entries" | "empty" | "none" | null;
   error: string | null;
   hasMore: boolean;
 };
+
+/**
+ * The display settings before the first message lands: the manifest
+ * defaults. Nothing renders until the labels arrive, so these never
+ * reach the screen on their own.
+ */
+export function defaultReflogDisplay(): ReflogDisplay {
+  return {
+    shortHashLength: 8,
+    dateFormat: "Date & Time",
+    datePattern: "DD MM YYYY",
+    needMonthName: false,
+    months: []
+  };
+}
 
 export function initialReflogState(): ReflogViewState {
   return {
@@ -38,6 +56,7 @@ export function initialReflogState(): ReflogViewState {
     ref: null,
     locale: "en",
     labels: null,
+    display: defaultReflogDisplay(),
     rows: [],
     reflogState: null,
     error: null,
@@ -60,6 +79,7 @@ export function applyLoading(
     rows: sameRepo ? state.rows : [],
     locale: message.locale,
     labels: message.labels,
+    display: message.display,
     error: sameRepo ? state.error : null
   };
 }
@@ -77,6 +97,7 @@ export function applyData(state: ReflogViewState, message: ReflogDataMessage): R
     ref: page.ref ?? state.ref,
     locale: message.locale,
     labels: message.labels,
+    display: message.display,
     // A failed "Load more" keeps the rows on screen; only its error is new.
     rows:
       message.append && page.error !== null
@@ -93,11 +114,6 @@ export function applyData(state: ReflogViewState, message: ReflogDataMessage): R
 /** The "Load more" click, until its page (or a newer load's) lands. */
 export function markLoadingMore(state: ReflogViewState): ReflogViewState {
   return state.hasMore && !state.loadingMore ? { ...state, loadingMore: true } : state;
-}
-
-/** The hash as the tab shows it; the full hash stays on the row for its tooltip. */
-export function shortHash(hash: string): string {
-  return hash.slice(0, 7);
 }
 
 /** The entry's selector, such as `HEAD@{3}`. */
@@ -121,21 +137,36 @@ export function relativeTime(row: ReflogRow, now: Date, locale: string): string 
   return formatRelativeDate(new Date(row.time * 1000), now, locale);
 }
 
-const fullDateFormatters = new Map<string, Intl.DateTimeFormat>();
-
-/** The entry's full local date and time, for the time cell's tooltip. */
-export function fullDate(row: ReflogRow, locale: string): string {
-  let formatter = fullDateFormatters.get(locale);
-  if (formatter === undefined) {
-    try {
-      formatter = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "medium" });
-    } catch {
-      formatter = new Intl.DateTimeFormat(undefined, {
-        dateStyle: "medium",
-        timeStyle: "medium"
-      });
-    }
-    fullDateFormatters.set(locale, formatter);
+/**
+ * The entry's date in the graph's own shape (`getCommitDate` in the graph
+ * webview): the bundle's date pattern with the bundle's month names, the
+ * `dateFormat` setting choosing date-and-time, date only, or relative,
+ * and the date-and-time shape always on hover. Formatted through the
+ * shared date utilities, never a private `Intl` shape of this tab's.
+ */
+export function entryDate(
+  row: ReflogRow,
+  display: ReflogDisplay,
+  now: Date,
+  locale: string
+): { value: string; title: string } {
+  const date = new Date(row.time * 1000);
+  const monthName = display.months[date.getMonth()];
+  const dateStr = display.datePattern
+    .replace("DD", String(date.getDate()))
+    .replace(
+      "MM",
+      display.needMonthName && monthName !== undefined ? monthName : String(date.getMonth() + 1)
+    )
+    .replace("YYYY", String(date.getFullYear()));
+  const timeStr = `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+  const title = `${dateStr} ${timeStr}`;
+  switch (display.dateFormat) {
+    case "Date Only":
+      return { value: dateStr, title };
+    case "Relative":
+      return { value: formatRelativeDate(date, now, locale), title };
+    default:
+      return { value: title, title };
   }
-  return formatter.format(new Date(row.time * 1000));
 }

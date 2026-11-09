@@ -1,10 +1,16 @@
-import type { ReflogDataMessage, ReflogLabels, ReflogPage, ReflogRow } from "@/reflogTabTypes";
+import type {
+  ReflogDataMessage,
+  ReflogDisplay,
+  ReflogLabels,
+  ReflogPage,
+  ReflogRow
+} from "@/reflogTabTypes";
 
 /** Shared reflog fixtures for the tab's test files. */
 export const LABELS: ReflogLabels = {
   title: "Reflog: {0}",
   loading: "Loading reflog…",
-  loadMore: "Load More",
+  loadMore: "Load More Entries",
   empty: "No reflog entries (empty wording).",
   loadError: "Unable to load the reflog: {0}",
   onlyInReflog: "Only in the reflog",
@@ -13,8 +19,8 @@ export const LABELS: ReflogLabels = {
   columnAction: "Action",
   columnSubAction: "Sub-action",
   columnMessage: "Message",
-  columnHash: "Hash",
-  columnTime: "Time",
+  columnCommit: "Commit",
+  columnDate: "Date",
   columnState: "State",
   actions: {
     commit: "Commit",
@@ -53,6 +59,15 @@ export const LABELS: ReflogLabels = {
   }
 };
 
+/** The graph display settings at their English defaults. */
+export const DISPLAY: ReflogDisplay = {
+  shortHashLength: 8,
+  dateFormat: "Date & Time",
+  datePattern: "DD MM YYYY",
+  needMonthName: true,
+  months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+};
+
 export function row(overrides: Partial<ReflogRow> = {}): ReflogRow {
   return {
     hash: "a".repeat(40),
@@ -85,6 +100,7 @@ export function dataMessage(overrides: Partial<ReflogDataMessage> = {}): ReflogD
     repo: "/repos/one",
     locale: "en",
     labels: LABELS,
+    display: DISPLAY,
     page: page(),
     ...overrides
   };

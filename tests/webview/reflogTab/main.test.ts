@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ReflogHostMessage, ReflogWebviewMessage } from "@/reflogTabTypes";
 
-import { dataMessage, LABELS, page, row } from "./fixtures";
+import { dataMessage, DISPLAY, LABELS, page, row } from "./fixtures";
 
 // Each test loads a fresh copy of the script, which posts to its own list.
 async function start() {
@@ -42,7 +42,8 @@ describe("reflog tab webview", () => {
       requestId: 1,
       repo: "/repos/one",
       locale: "en",
-      labels: LABELS
+      labels: LABELS,
+      display: DISPLAY
     });
     expect(root.querySelector(".reflog-loading")).not.toBeNull();
     send(dataMessage({ page: page({ hasMore: true }) }));

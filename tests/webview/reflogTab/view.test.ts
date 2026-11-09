@@ -8,7 +8,7 @@ import {
 } from "@/webview/reflogTab/rowModel";
 import { createReflogView } from "@/webview/reflogTab/view";
 
-import { dataMessage, LABELS, page, row } from "./fixtures";
+import { dataMessage, DISPLAY, LABELS, page, row } from "./fixtures";
 
 const NOW = new Date(1_700_000_000_000 + 5 * 60_000);
 
@@ -38,7 +38,8 @@ describe("reflog tab view", () => {
       requestId: 1,
       repo: "/repos/one",
       locale: "en",
-      labels: LABELS
+      labels: LABELS,
+      display: DISPLAY
     });
     view.render(state, NOW);
     expect(root.querySelector(".reflog-loading")?.textContent).toBe("Loading reflog…");
@@ -60,7 +61,7 @@ describe("reflog tab view", () => {
       NOW
     );
     const headers = [...root.querySelectorAll("th")].map((cell) => cell.textContent);
-    expect(headers).toEqual(["Index", "Action", "Sub-action", "Message", "Hash", "Time", "State"]);
+    expect(headers).toEqual(["Index", "Action", "Sub-action", "Message", "Commit", "Date", "State"]);
     const cells = [...root.querySelectorAll<HTMLTableCellElement>("tbody td")];
     expect(cells[0].textContent).toBe("3");
     expect(cells[0].title).toBe("HEAD@{3}");
@@ -76,12 +77,44 @@ describe("reflog tab view", () => {
     expect(subTag?.className).toBe("reflog-sub reflog-sub-tag reflog-sub-intent-advance");
     expect(subTag?.title).toBe("pick");
     expect(cells[3].textContent).toBe("rebase (pick): fix typo");
-    expect(cells[4].textContent).toBe("0123456");
+    expect(cells[4].textContent).toBe("01234567");
     expect(cells[4].querySelector("code")?.title).toBe(entry.hash);
-    expect(cells[5].textContent).toBe("5 minutes ago");
-    expect(cells[5].title).toContain("2023");
+    expect(cells[5].textContent).toMatch(/^\d{1,2} Nov 2023 \d{2}:\d{2}$/);
+    expect(cells[5].title).toBe(cells[5].textContent);
     expect(cells[6].querySelector(".reflog-badge")?.textContent).toBe("Only in the reflog");
     expect(root.querySelector(".reflog-ref")?.textContent).toBe("HEAD");
+  });
+
+  it("shortens hashes to the configured length and follows dateFormat (F1-04F)", () => {
+    const { root, view } = start();
+    const entry = row({ hash: "0123456789abcdef0123456789abcdef01234567" });
+    view.render(
+      applyData(
+        initialReflogState(),
+        dataMessage({
+          display: { ...DISPLAY, shortHashLength: 12, dateFormat: "Relative" },
+          page: page({ rows: [entry] })
+        })
+      ),
+      NOW
+    );
+    const cells = [...root.querySelectorAll<HTMLTableCellElement>("tbody td")];
+    expect(cells[4].textContent).toBe("0123456789ab");
+    expect(cells[4].querySelector("code")?.title).toBe(entry.hash);
+    expect(cells[5].textContent).toBe("5 minutes ago");
+    expect(cells[5].title).toMatch(/^\d{1,2} Nov 2023 \d{2}:\d{2}$/);
+    // An out-of-range length clamps the way the graph's does.
+    view.render(
+      applyData(
+        initialReflogState(),
+        dataMessage({
+          display: { ...DISPLAY, shortHashLength: 1 },
+          page: page({ rows: [entry] })
+        })
+      ),
+      NOW
+    );
+    expect(root.querySelector("code.reflog-hash")?.textContent).toBe("0123");
   });
 
   it("badges a missing object and leaves reachable and unknown rows unmarked", () => {
@@ -165,7 +198,7 @@ describe("reflog tab view", () => {
     const state = applyData(initialReflogState(), dataMessage({ page: page({ hasMore: true }) }));
     view.render(state, NOW);
     const button = root.querySelector<HTMLButtonElement>(".reflog-load-more");
-    expect(button?.textContent).toBe("Load More");
+    expect(button?.textContent).toBe("Load More Entries");
     expect(button?.disabled).toBe(false);
     button?.click();
     expect(onLoadMore).toHaveBeenCalledOnce();

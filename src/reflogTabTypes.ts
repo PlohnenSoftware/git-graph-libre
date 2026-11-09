@@ -5,6 +5,8 @@
  * types only carry one page of it across the webview boundary.
  */
 
+import type { DateFormat } from "./types";
+
 /** One reflog entry as the tab draws it: the F1-01 entry, classified, with its F1-02 state. */
 export type ReflogRow = {
   /** The full commit hash the ref pointed at after the move. */
@@ -76,6 +78,25 @@ export const REFLOG_SUB_ACTIONS = [
   "named"
 ] as const;
 
+/**
+ * The graph's display settings, carried to this tab the way the graph's
+ * boot config carries them (`webviewHtml.ts`): read live through the
+ * `config` accessors on every load, so a settings change restyles both
+ * surfaces alike (F1-04F).
+ */
+export type ReflogDisplay = {
+  /** The `shortHashLength` setting, already clamped by its accessor. */
+  shortHashLength: number;
+  /** The `dateFormat` setting: which shape the date column takes. */
+  dateFormat: DateFormat;
+  /** The bundle's `time.dateformat` pattern (`DD MM YYYY` in English). */
+  datePattern: string;
+  /** The bundle's `time.needFormatMonth`: true when `MM` is a month name. */
+  needMonthName: boolean;
+  /** The bundle's twelve `month.*` names, January first. */
+  months: string[];
+};
+
 /** The tab's localized text; `loadError` and `title` keep their `{0}`. */
 export type ReflogLabels = {
   title: string;
@@ -89,8 +110,10 @@ export type ReflogLabels = {
   columnAction: string;
   columnSubAction: string;
   columnMessage: string;
-  columnHash: string;
-  columnTime: string;
+  /** The graph's own `ui.commit` word, shared with its Commit column. */
+  columnCommit: string;
+  /** The graph's own `ui.date` word, shared with its Date column. */
+  columnDate: string;
   columnState: string;
   /** Localized label per known action kind, keyed by {@link REFLOG_ACTION_KINDS}. */
   actions: Readonly<Record<string, string>>;
@@ -130,6 +153,8 @@ export type ReflogDataMessage = {
   /** The VS Code display language, for the webview's relative times. */
   locale: string;
   labels: ReflogLabels;
+  /** The graph's display settings, read live for this load. */
+  display: ReflogDisplay;
   page: ReflogPage;
 };
 
@@ -144,6 +169,8 @@ export type ReflogLoadingMessage = {
   repo: string;
   locale: string;
   labels: ReflogLabels;
+  /** The graph's display settings, read live for this load. */
+  display: ReflogDisplay;
 };
 
 /** Every message the extension host posts to the Reflog tab. */
