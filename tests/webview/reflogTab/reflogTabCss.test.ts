@@ -73,6 +73,17 @@ describe("reflog tab styles", () => {
     expect(body).toContain(".ggl-reflog .reflog-kind-dot { border: 1px solid currentColor; }");
   });
 
+  it("carries the graph table's resize handles and fixed layout (F1-04F)", () => {
+    expect(body).toContain(".ggl-reflog .reflog-table.fixedLayout { table-layout: fixed; }");
+    expect(body).toContain(".ggl-reflog .resizeCol {");
+    expect(body).toContain("width: 6px;");
+    expect(body).toContain("cursor: col-resize;");
+    expect(body).toContain(".ggl-reflog .resizeCol.left {");
+    expect(body).toContain("border-left: 1px solid var(--ngg-neutral-border-medium);");
+    expect(body).toContain(".ggl-reflog .resizeCol.right { right: 0px; }");
+    expect(body).toContain(".ggl-reflog .reflog-head-row.resizing .reflog-head-cell {");
+  });
+
   it("defines every reflog color token for both themes, OKLCH only (F1-04)", () => {
     expect(tokens).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(tokens).not.toMatch(/\b(?:rgba?|hsla?)\(/);

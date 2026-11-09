@@ -30,6 +30,12 @@ export type ReflogViewState = {
   reflogState: "entries" | "empty" | "none" | null;
   error: string | null;
   hasMore: boolean;
+  /**
+   * The user's column widths for this repository, or null while the
+   * table still sizes itself. Kept per repository by the tab's saved
+   * webview state, the way the graph keeps its `columnWidths`.
+   */
+  columnWidths: number[] | null;
 };
 
 /**
@@ -60,7 +66,8 @@ export function initialReflogState(): ReflogViewState {
     rows: [],
     reflogState: null,
     error: null,
-    hasMore: false
+    hasMore: false,
+    columnWidths: null
   };
 }
 
@@ -77,6 +84,8 @@ export function applyLoading(
     loading: !(sameRepo && state.rows.length > 0),
     repo: message.repo,
     rows: sameRepo ? state.rows : [],
+    // Widths are per repository: a new one starts from its own saved set.
+    columnWidths: sameRepo ? state.columnWidths : null,
     locale: message.locale,
     labels: message.labels,
     display: message.display,
@@ -107,7 +116,10 @@ export function applyData(state: ReflogViewState, message: ReflogDataMessage): R
           : page.rows,
     reflogState: page.state ?? state.reflogState,
     error: page.error,
-    hasMore: page.error === null ? page.hasMore : state.hasMore
+    hasMore: page.error === null ? page.hasMore : state.hasMore,
+    // Same per-repository rule as a load start, for a page that lands
+    // without one (a replayed page after a document rebuild).
+    columnWidths: message.repo === state.repo ? state.columnWidths : null
   };
 }
 

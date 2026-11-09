@@ -31,16 +31,35 @@
 .ggl-reflog .reflog-repo { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
 .ggl-reflog .reflog-scroll { flex: 1; min-height: 0; overflow: auto; }
 .ggl-reflog .reflog-table { width: 100%; border-collapse: collapse; }
+/* Once the user drags a column, the colgroup widths rule, as the
+   graph's `.fixedLayout` table does. */
+.ggl-reflog .reflog-table.fixedLayout { table-layout: fixed; }
 .ggl-reflog .reflog-head-cell {
   position: sticky;
   top: 0;
   padding: 6px 8px;
   text-align: left;
+  line-height: 18px;
   font-weight: 600;
-  color: var(--vscode-foreground, oklch(88% 0 0));
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
   background: var(--vscode-editor-background, oklch(20% 0 0));
   border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
 }
+/* The graph table's resize handles (`media/table.css`), rooted here. */
+.ggl-reflog .reflog-head-row.resizing .reflog-head-cell { cursor: col-resize; }
+.ggl-reflog .resizeCol {
+  position: absolute;
+  top: 0px;
+  height: 100%;
+  display: block;
+  width: 6px;
+  cursor: col-resize;
+}
+.ggl-reflog .resizeCol.left {
+  left: 0px;
+  border-left: 1px solid var(--ngg-neutral-border-medium);
+}
+.ggl-reflog .resizeCol.right { right: 0px; }
 .ggl-reflog .reflog-cell {
   padding: 4px 8px;
   vertical-align: top;

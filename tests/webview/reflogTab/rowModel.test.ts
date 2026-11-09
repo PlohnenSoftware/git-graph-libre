@@ -10,7 +10,7 @@ import {
   relativeTime,
   selectorFor
 } from "@/webview/reflogTab/rowModel";
-import { dataMessage, DISPLAY, LABELS, page, row } from "./fixtures";
+import { DISPLAY, dataMessage, LABELS, page, row } from "./fixtures";
 
 function loadingMessage(overrides: Partial<ReflogLoadingMessage> = {}): ReflogLoadingMessage {
   return {

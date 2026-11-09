@@ -2,21 +2,26 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ReflogHostMessage, ReflogWebviewMessage } from "@/reflogTabTypes";
 
-import { dataMessage, DISPLAY, LABELS, page, row } from "./fixtures";
+import { DISPLAY, dataMessage, LABELS, page, row } from "./fixtures";
 
 // Each test loads a fresh copy of the script, which posts to its own list.
-async function start() {
+// The saved webview state is one object the script reads once and replaces
+// wholesale, exactly as a document reload would hand it back.
+async function start(saved: unknown = null) {
   const posted: ReflogWebviewMessage[] = [];
+  const box = { value: saved };
   vi.stubGlobal("acquireVsCodeApi", () => ({
     postMessage: (message: unknown) => posted.push(message as ReflogWebviewMessage),
-    getState: () => null,
-    setState: () => {}
+    getState: () => box.value,
+    setState: (value: unknown) => {
+      box.value = value;
+    }
   }));
   document.body.innerHTML = '<div id="reflogTab"></div>';
   const root = document.getElementById("reflogTab") as HTMLElement;
   vi.resetModules();
   await import("@/webview/reflogTab/main");
-  return { posted, root };
+  return { posted, root, savedState: () => box.value };
 }
 
 function send(message: ReflogHostMessage, origin = window.location.origin) {
@@ -67,6 +72,40 @@ describe("reflog tab webview", () => {
     send(dataMessage({ requestId: 5, page: page({ rows: [row({ message: "commit: newer" })] }) }));
     send(dataMessage({ requestId: 2, page: page({ rows: [row({ message: "commit: stale" })] }) }));
     expect(root.querySelector(".reflog-message")?.textContent).toBe("commit: newer");
+  });
+
+  it("keeps dragged column widths per repository across a reload (F1-04F)", async () => {
+    // A reload hands the saved widths back through getState: the first
+    // pass drags, the second pass starts from what the first one saved.
+    const first = await start();
+    send(dataMessage({ page: page({ hasMore: true }) }));
+    for (const [index, cell] of [...first.root.querySelectorAll("th")].entries()) {
+      Object.defineProperty(cell, "clientWidth", { value: 116 + index * 10, configurable: true });
+    }
+    const handle = first.root.querySelector<HTMLElement>('.resizeCol[data-col="3"]');
+    handle?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: 100 }));
+    const headRow = first.root.querySelector(".reflog-head-row") as HTMLElement;
+    headRow.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 120 }));
+    headRow.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    // Natural 100..160, then +20 traded across the message/commit edge.
+    const savedWidths = [100, 110, 120, 150, 120, 150, 160];
+    expect(first.savedState()).toEqual({ columnWidthsByRepo: { "/repos/one": savedWidths } });
+    // The loaded page is untouched by the drag.
+    expect(first.root.querySelectorAll("tbody tr")).toHaveLength(1);
+    expect(first.root.querySelector(".reflog-load-more")).not.toBeNull();
+
+    const second = await start(first.savedState());
+    send(dataMessage({ page: page({ rows: [row(), row({ index: 1 })] }) }));
+    const cols = [...second.root.querySelectorAll<HTMLElement>("colgroup col")].map(
+      (col) => col.style.width
+    );
+    expect(cols).toEqual(savedWidths.map((width) => `${width}px`));
+    expect(second.root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
+    expect(second.root.querySelectorAll("tbody tr")).toHaveLength(2);
+
+    // Another repository has no saved widths of its own.
+    send(dataMessage({ repo: "/repos/two" }));
+    expect(second.root.querySelector("table")?.classList.contains("fixedLayout")).toBe(false);
   });
 
   it("ignores messages from another origin", async () => {

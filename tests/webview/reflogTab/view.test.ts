@@ -8,7 +8,7 @@ import {
 } from "@/webview/reflogTab/rowModel";
 import { createReflogView } from "@/webview/reflogTab/view";
 
-import { dataMessage, DISPLAY, LABELS, page, row } from "./fixtures";
+import { DISPLAY, dataMessage, LABELS, page, row } from "./fixtures";
 
 const NOW = new Date(1_700_000_000_000 + 5 * 60_000);
 
@@ -16,8 +16,9 @@ function start() {
   document.body.innerHTML = '<div id="reflogTab"></div>';
   const root = document.getElementById("reflogTab") as HTMLElement;
   const onLoadMore = vi.fn();
-  const view = createReflogView(root, { onLoadMore });
-  return { root, view, onLoadMore };
+  const onColumnWidthsChange = vi.fn();
+  const view = createReflogView(root, { onLoadMore, onColumnWidthsChange });
+  return { root, view, onLoadMore, onColumnWidthsChange };
 }
 
 afterEach(() => {
@@ -61,7 +62,15 @@ describe("reflog tab view", () => {
       NOW
     );
     const headers = [...root.querySelectorAll("th")].map((cell) => cell.textContent);
-    expect(headers).toEqual(["Index", "Action", "Sub-action", "Message", "Commit", "Date", "State"]);
+    expect(headers).toEqual([
+      "Index",
+      "Action",
+      "Sub-action",
+      "Message",
+      "Commit",
+      "Date",
+      "State"
+    ]);
     const cells = [...root.querySelectorAll<HTMLTableCellElement>("tbody td")];
     expect(cells[0].textContent).toBe("3");
     expect(cells[0].title).toBe("HEAD@{3}");
@@ -206,5 +215,98 @@ describe("reflog tab view", () => {
     expect(root.querySelector<HTMLButtonElement>(".reflog-load-more")?.disabled).toBe(true);
     view.render(applyData(initialReflogState(), dataMessage()), NOW);
     expect(root.querySelector(".reflog-load-more")).toBeNull();
+  });
+});
+
+describe("reflog table column resizing (F1-04F)", () => {
+  const WIDTHS = [50, 110, 90, 300, 90, 130, 120];
+
+  function renderWith(widths: number[] | null) {
+    const started = start();
+    const state = {
+      ...applyData(
+        initialReflogState(),
+        dataMessage({ page: page({ rows: [row(), row({ index: 1, hash: "b".repeat(40) })] }) })
+      ),
+      columnWidths: widths
+    };
+    started.view.render(state, NOW);
+    return { ...started, state };
+  }
+
+  function colWidths(root: HTMLElement): string[] {
+    return [...root.querySelectorAll<HTMLElement>("colgroup col")].map((col) => col.style.width);
+  }
+
+  function drag(root: HTMLElement, col: number, from: number, to: number) {
+    const handle = root.querySelector<HTMLElement>(`.resizeCol[data-col="${col}"]`);
+    handle?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: from }));
+    const headRow = root.querySelector(".reflog-head-row") as HTMLElement;
+    headRow.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: to }));
+    headRow.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+  }
+
+  it("puts the graph's resizeCol handle on every column edge", () => {
+    const { root } = renderWith(null);
+    const handles = [...root.querySelectorAll<HTMLElement>(".resizeCol")].map(
+      (handle) => `${handle.className}:${handle.dataset.col}`
+    );
+    expect(handles).toEqual([
+      "resizeCol right:0",
+      "resizeCol left:0",
+      "resizeCol right:1",
+      "resizeCol left:1",
+      "resizeCol right:2",
+      "resizeCol left:2",
+      "resizeCol right:3",
+      "resizeCol left:3",
+      "resizeCol right:4",
+      "resizeCol left:4",
+      "resizeCol right:5",
+      "resizeCol left:5"
+    ]);
+    // No saved widths yet: the table still sizes itself.
+    expect(root.querySelector("table")?.classList.contains("fixedLayout")).toBe(false);
+  });
+
+  it("widens and narrows by dragging, stops at 40px, and keeps every row", () => {
+    const { root, view, state, onColumnWidthsChange } = renderWith([...WIDTHS]);
+    expect(root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
+    expect(colWidths(root)).toEqual(["50px", "110px", "90px", "300px", "90px", "130px", "120px"]);
+
+    drag(root, 3, 100, 140);
+    expect(colWidths(root)).toEqual(["50px", "110px", "90px", "340px", "50px", "130px", "120px"]);
+    expect(onColumnWidthsChange).toHaveBeenCalledWith([50, 110, 90, 340, 50, 130, 120]);
+    expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
+
+    drag(root, 3, 100, -400);
+    expect(colWidths(root)).toEqual(["50px", "110px", "90px", "40px", "350px", "130px", "120px"]);
+    expect(onColumnWidthsChange).toHaveBeenLastCalledWith([50, 110, 90, 40, 350, 130, 120]);
+    expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
+
+    // A reload re-renders from the kept widths: same table, same rows.
+    view.render({ ...state, columnWidths: [50, 110, 90, 40, 350, 130, 120] }, NOW);
+    expect(colWidths(root)).toEqual(["50px", "110px", "90px", "40px", "350px", "130px", "120px"]);
+    expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
+  });
+
+  it("freezes the natural layout into fixed widths on the first drag", () => {
+    const { root, onColumnWidthsChange } = renderWith(null);
+    for (const [index, cell] of [...root.querySelectorAll("th")].entries()) {
+      Object.defineProperty(cell, "clientWidth", { value: 66 + index * 20, configurable: true });
+    }
+    drag(root, 0, 100, 110);
+    // Rendered widths minus the 16px of side padding, then the drag's trade.
+    expect(onColumnWidthsChange).toHaveBeenCalledWith([60, 60, 90, 110, 130, 150, 170]);
+    expect(root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
+  });
+
+  it("ignores a mouse move that is not part of a drag", () => {
+    const { root, onColumnWidthsChange } = renderWith([...WIDTHS]);
+    const headRow = root.querySelector(".reflog-head-row") as HTMLElement;
+    headRow.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 400 }));
+    headRow.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    expect(colWidths(root)).toEqual(["50px", "110px", "90px", "300px", "90px", "130px", "120px"]);
+    expect(onColumnWidthsChange).not.toHaveBeenCalled();
   });
 });

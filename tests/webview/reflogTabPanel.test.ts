@@ -9,7 +9,9 @@ type FakePanel = ReturnType<typeof createFakePanel>;
 const mocks = vi.hoisted(() => ({
   panels: [] as Array<{ dispose(): void }>,
   create: (..._args: unknown[]): unknown => undefined,
-  onConfig: undefined as ((event: { affectsConfiguration: (key: string) => boolean }) => void) | undefined
+  onConfig: undefined as
+    | ((event: { affectsConfiguration: (key: string) => boolean }) => void)
+    | undefined
 }));
 
 vi.mock("vscode", async (importOriginal) => {

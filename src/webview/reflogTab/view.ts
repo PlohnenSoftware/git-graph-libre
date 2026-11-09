@@ -2,10 +2,13 @@ import { abbrevCommit } from "@/backend/utils/string";
 import type { ReflogLabels, ReflogRow } from "@/reflogTabTypes";
 
 import { kindClass, kindLabel, subIntentClass, subLabel } from "./actionStyle";
+import { MIN_COLUMN_WIDTH, resizeColumnWidths } from "./columnResize";
 import { badgeFor, entryDate, type ReflogViewState, selectorFor } from "./rowModel";
 
 export type ReflogViewCallbacks = {
   onLoadMore: () => void;
+  /** A column drag ended with these widths; the caller keeps them per repo. */
+  onColumnWidthsChange?: (widths: number[]) => void;
 };
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -90,12 +93,16 @@ function rowElement(row: ReflogRow, state: ReflogViewState, labels: ReflogLabels
   return tr;
 }
 
-function table(state: ReflogViewState, labels: ReflogLabels, now: Date): HTMLElement {
+function table(
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  now: Date,
+  callbacks: ReflogViewCallbacks
+): HTMLElement {
   const scroll = element("div", "reflog-scroll");
   const tableNode = element("table", "reflog-table");
-  const head = document.createElement("thead");
-  const headRow = document.createElement("tr");
-  for (const text of [
+  const colgroup = document.createElement("colgroup");
+  const columns = [
     labels.columnIndex,
     labels.columnAction,
     labels.columnSubAction,
@@ -103,14 +110,77 @@ function table(state: ReflogViewState, labels: ReflogLabels, now: Date): HTMLEle
     labels.columnCommit,
     labels.columnDate,
     labels.columnState
-  ]) {
-    headRow.append(element("th", "reflog-head-cell", text));
-  }
+  ];
+  const cols: HTMLElement[] = columns.map(() => document.createElement("col"));
+  colgroup.append(...cols);
+  const head = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  headRow.className = "reflog-head-row";
+  const headers: HTMLTableCellElement[] = [];
+  columns.forEach((text, index) => {
+    const cell = element("th", "reflog-head-cell", text);
+    // The graph's `resizeCol` handles: one per column edge, named for the
+    // column on its left, so every boundary can be dragged either way.
+    if (index > 0) {
+      const left = element("span", "resizeCol left");
+      left.dataset.col = String(index - 1);
+      cell.append(left);
+    }
+    if (index < columns.length - 1) {
+      const right = element("span", "resizeCol right");
+      right.dataset.col = String(index);
+      cell.append(right);
+    }
+    headers.push(cell);
+    headRow.append(cell);
+  });
   head.append(headRow);
   const body = document.createElement("tbody");
   for (const row of state.rows) body.append(rowElement(row, state, labels, now));
-  tableNode.append(head, body);
+  tableNode.append(colgroup, head, body);
   scroll.append(tableNode);
+
+  let widths = state.columnWidths;
+  const applyWidths = () => {
+    if (widths === null) return;
+    tableNode.classList.add("fixedLayout");
+    cols.forEach((col, index) => {
+      col.style.width = `${widths?.[index] ?? MIN_COLUMN_WIDTH}px`;
+    });
+  };
+  applyWidths();
+
+  // Dragging only restyles this table (as the graph's handler restyles its
+  // headers): rows and loaded pages are never rebuilt by a resize.
+  let dragCol = -1;
+  let mouseX = 0;
+  const stopResizing = () => {
+    if (dragCol < 0 || widths === null) return;
+    dragCol = -1;
+    headRow.classList.remove("resizing");
+    callbacks.onColumnWidthsChange?.([...widths]);
+  };
+  headRow.addEventListener("mousedown", (event) => {
+    const handle = event.target instanceof HTMLElement ? event.target.closest(".resizeCol") : null;
+    if (!(handle instanceof HTMLElement) || handle.dataset.col === undefined) return;
+    dragCol = Number.parseInt(handle.dataset.col, 10);
+    mouseX = event.clientX;
+    if (widths === null) {
+      // First drag, as in the graph: freeze the natural layout into fixed
+      // widths (rendered width minus the header cells' 8px side padding).
+      widths = headers.map((cell) => Math.max(cell.clientWidth - 16, MIN_COLUMN_WIDTH));
+      applyWidths();
+    }
+    headRow.classList.add("resizing");
+  });
+  headRow.addEventListener("mousemove", (event) => {
+    if (dragCol < 0 || widths === null) return;
+    widths = resizeColumnWidths(widths, dragCol, event.clientX - mouseX);
+    mouseX = event.clientX;
+    applyWidths();
+  });
+  headRow.addEventListener("mouseup", stopResizing);
+  headRow.addEventListener("mouseleave", stopResizing);
   return scroll;
 }
 
@@ -143,7 +213,7 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
       } else if (state.rows.length === 0) {
         children.push(messageBlock("reflog-message reflog-empty", labels.empty));
       } else {
-        children.push(table(state, labels, now));
+        children.push(table(state, labels, now, callbacks));
         if (state.error !== null) {
           children.push(
             messageBlock(
