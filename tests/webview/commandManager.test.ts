@@ -119,6 +119,7 @@ function makeHarness(
   };
   const openGraphView = vi.fn();
   const openScmDiffTab = vi.fn();
+  const openReflogTab = vi.fn();
   const currentPanel = {
     startHistorySearch: vi.fn(),
     showPruneWorktrees: vi.fn()
@@ -144,6 +145,7 @@ function makeHarness(
     avatarManager: { clearCache },
     openGraphView,
     openScmDiffTab,
+    openReflogTab,
     getCurrentPanel: () =>
       (logOptions.noPanel ? undefined : currentPanel) as unknown as WebviewPanel,
     telemetry: {
@@ -174,6 +176,7 @@ function makeHarness(
     manager,
     openExternal,
     openGraphView,
+    openReflogTab,
     openScmDiffTab,
     outputChannel,
     outputLines,
@@ -206,6 +209,7 @@ describe("command manager", () => {
       "git-graph-libre.revealWorktree",
       "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
+      "git-graph-libre.showReflog",
       "git-graph-libre.switchGraphToWorktree",
       "git-graph-libre.trustRepository",
       "git-graph-libre.view",
@@ -232,6 +236,7 @@ describe("command manager", () => {
       "git-graph-libre.revealWorktree",
       "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
+      "git-graph-libre.showReflog",
       "git-graph-libre.switchGraphToWorktree",
       "git-graph-libre.trustRepository",
       "git-graph-libre.view",
@@ -889,6 +894,59 @@ describe("command manager", () => {
       expect(noGraph.windowApi.showInformationMessage).toHaveBeenCalledWith(
         expect.stringContaining("Open a Git graph first")
       );
+    });
+
+    describe("show reflog (F1-03)", () => {
+      const one = { "/repos/one": { columnWidths: null } };
+      const two = {
+        "/repos/one": { columnWidths: null },
+        "/repos/two": { columnWidths: null }
+      };
+
+      it("opens the tab for the last active repository and counts it once", async () => {
+        const harness = makeHarness(two, "/repos/two");
+        await harness.run("git-graph-libre.showReflog");
+        expect(harness.openReflogTab).toHaveBeenCalledWith("/repos/two");
+        expect(harness.telemetryEvents).toEqual([
+          { feature: "git-graph-libre.showReflog", ok: true }
+        ]);
+      });
+
+      it("prefers a named known repository over the last active one", async () => {
+        const harness = makeHarness(two, "/repos/two");
+        await harness.run("git-graph-libre.showReflog", "/repos/one");
+        expect(harness.openReflogTab).toHaveBeenCalledWith("/repos/one");
+      });
+
+      it("falls back to the only known repository", async () => {
+        const harness = makeHarness(one, null);
+        await harness.run("git-graph-libre.showReflog");
+        expect(harness.openReflogTab).toHaveBeenCalledWith("/repos/one");
+      });
+
+      it("asks when several repositories are known and none is selected", async () => {
+        const harness = makeHarness(two, null);
+        harness.windowApi.showQuickPick.mockResolvedValueOnce({
+          label: "two",
+          description: "/repos/two",
+          repo: "/repos/two"
+        });
+        await harness.run("git-graph-libre.showReflog");
+        expect(harness.windowApi.showQuickPick).toHaveBeenCalledOnce();
+        expect(harness.openReflogTab).toHaveBeenCalledWith("/repos/two");
+        const dismissed = makeHarness(two, null);
+        await dismissed.run("git-graph-libre.showReflog");
+        expect(dismissed.openReflogTab).not.toHaveBeenCalled();
+      });
+
+      it("says so when no repository is known, and opens nothing", async () => {
+        const harness = makeHarness();
+        await harness.run("git-graph-libre.showReflog");
+        expect(harness.openReflogTab).not.toHaveBeenCalled();
+        expect(harness.windowApi.showInformationMessage).toHaveBeenCalledWith(
+          expect.stringContaining("no Git repositories")
+        );
+      });
     });
   });
 });
