@@ -139,7 +139,7 @@ function toEngineEntry(value: unknown): GitReflogEntry | null {
 
 /**
  * Strictly the engine's page shape, mapped into `GitReflogResult`: at most
- * `limit` entries with strictly falling selector indexes, a state the CLI
+ * `limit` entries with strictly rising selector indexes, a state the CLI
  * query could give for them, and the full ref name. Anything else is null,
  * so the CLI answers.
  */
@@ -161,10 +161,13 @@ export function parseEngineReflogPage(payload: string, limit: number): GitReflog
     if (entry === null) return null;
     mapped.push(entry);
   }
+  // Newest first means selector indexes strictly rise down the page
+  // (`@{0}` is the newest entry), with gaps where Git counted an entry it
+  // does not show.
   for (let i = 1; i < mapped.length; i++) {
     const previous = mapped[i - 1];
     const current = mapped[i];
-    if (previous === undefined || current === undefined || current.index >= previous.index) {
+    if (previous === undefined || current === undefined || current.index <= previous.index) {
       return null;
     }
   }
