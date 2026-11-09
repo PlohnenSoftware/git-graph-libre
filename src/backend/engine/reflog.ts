@@ -111,7 +111,8 @@ function normalizeRequest(request: ReflogRequest): NormalizedRequest | null {
   const limit = request.limit ?? DEFAULT_REFLOG_PAGE_SIZE;
   const offset = request.offset ?? 0;
   if (!Number.isInteger(limit) || limit < 1) return null;
-  if (!Number.isInteger(offset) || offset < 0) return null;
+  // The export takes `u32` counts; an offset past that range is the CLI's.
+  if (!Number.isInteger(offset) || offset < 0 || offset > 4294967295) return null;
   return { ref, limit: Math.min(limit, MAX_REFLOG_PAGE_SIZE), offset };
 }
 

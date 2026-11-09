@@ -277,6 +277,12 @@ describe("readReflog routing", () => {
       engineDeps(() => addonReturning("{}").provider()),
       "invalidRequest"
     ],
+    [
+      "an offset past the export's range",
+      { offset: 4294967296 },
+      engineDeps(() => addonReturning("{}").provider()),
+      "invalidRequest"
+    ],
     ["no addon", {}, engineDeps(() => null), "engineUnavailable"],
     ["an older addon without the export", {}, engineDeps(() => ({})), "noLoadReflog"],
     [
