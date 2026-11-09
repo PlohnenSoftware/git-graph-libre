@@ -354,6 +354,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     dialogWorktreeCreatedNothing: translate("dialog.worktreeCreated.nothing"),
     dialogWorktreeCreatedSubmit: translate("dialog.worktreeCreated.submit"),
     worktrees: translate("ui.worktrees"),
+    showReflog: translate("reflog.show"),
     worktreesClose: translate("ui.worktreesClose"),
     worktreeBadgeMain: translate("ui.worktreeBadgeMain"),
     worktreeBadgeCurrent: translate("ui.worktreeBadgeCurrent"),

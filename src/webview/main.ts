@@ -794,6 +794,11 @@ class GitGraphView {
     this.settingsWidgetBackingElem.addEventListener("click", () => {
       this.closeSettingsWidget();
     });
+    document.getElementById("reflogBtn")?.addEventListener("click", () => {
+      if (this.currentRepo !== "") {
+        sendMessage({ command: "showReflog", repo: this.currentRepo });
+      }
+    });
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
       this.forgetSignatures();
       this.refresh(true);

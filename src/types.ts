@@ -444,6 +444,11 @@ export type ResponseOpenDiffTab = {
   success: boolean;
 };
 
+export type RequestShowReflog = {
+  command: "showReflog";
+  repo: string;
+};
+
 export type RequestViewFileAtRevision = {
   command: "viewFileAtRevision";
   repo: string;
@@ -654,6 +659,7 @@ export type RequestMessage =
   | RequestCopyToClipboard
   | RequestViewDiff
   | RequestOpenDiffTab
+  | RequestShowReflog
   | RequestViewFileAtRevision
   | RequestCompareFileWithWorkingTree
   | RequestOpenFile

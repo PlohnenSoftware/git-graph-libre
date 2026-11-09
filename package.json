@@ -171,6 +171,11 @@
       },
       {
         "category": "Git Graph Libre",
+        "command": "git-graph-libre.showReflog",
+        "title": "%command.showReflog%"
+      },
+      {
+        "category": "Git Graph Libre",
         "command": "git-graph-libre.viewActiveEditorRepo",
         "title": "%command.viewActiveEditorRepo%"
       },

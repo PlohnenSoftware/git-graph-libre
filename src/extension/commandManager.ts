@@ -26,6 +26,8 @@ import {
   readRepoRemotes
 } from "./diagnosticsReport";
 import { createScmDiffTabHandlers } from "./diffTab/scmCommands";
+import { createReflogSource } from "./reflogTab/reflogData";
+import { openReflogTab as openReflogPanel } from "./reflogTab/reflogTabPanel";
 import type { RepoManager } from "./repoManager";
 import { copyToClipboard } from "./utils/clipboard";
 import type { Logger } from "./utils/logger";
@@ -111,6 +113,14 @@ export type CommandManagerDeps = {
   getCurrentPanel(): WebviewPanel | undefined;
   /** Trust a repository Git rejects for ownership; see `createGitTrustCommand`. */
   trustRepository?: () => Promise<void>;
+  /** The extension's install path, for panels this manager opens itself. */
+  extensionPath?: string;
+  /**
+   * Opens the Reflog tab for a repository (F1-03). Defaults to the reflog
+   * panel fed by the CLI source, assembled here like the graph handler's
+   * route; tests replace it.
+   */
+  openReflogTab?: (repo: string) => void;
   /** Open the GGL Diff tab from Source Control (D46); wired in `extension.ts`. */
   openScmDiffTab?: (request: DiffTabRequest) => void;
   telemetry?: Pick<TelemetryReporter, "logFeature">;
@@ -553,6 +563,64 @@ export function createCommandManager(deps: CommandManagerDeps) {
     panel.showPruneWorktrees();
   }
 
+  function openReflog(repo: string) {
+    if (deps.openReflogTab !== undefined) {
+      deps.openReflogTab(repo);
+      return;
+    }
+    openReflogPanel(
+      repo,
+      createReflogSource({
+        createGit: (root) =>
+          simpleGit({
+            baseDir: root,
+            binary: deps.config.gitPath(),
+            maxConcurrentProcesses: 6,
+            trimmed: false
+          }),
+        gitPath: () => deps.config.gitPath(),
+        record: recordGitCommand
+      }),
+      {
+        extensionPath:
+          deps.extensionPath ??
+          vscode.extensions?.getExtension("PlohnenSoftware.git-graph-libre")?.extensionPath ??
+          process.cwd(),
+        outputChannel: deps.outputChannel
+      }
+    );
+  }
+
+  /**
+   * "Show Reflog" for the selected repository: the one named by the caller,
+   * else the graph's last active one, else the only known one; with several
+   * and no selection the user picks, and with none there is only the word.
+   */
+  async function showReflog(requested?: unknown) {
+    const repos = deps.repoManager.getRepos();
+    const repoPaths = Object.keys(repos);
+    if (repoPaths.length === 0) {
+      await windowApi.showInformationMessage(l10n.t("command.showReflog.noRepo"));
+      return;
+    }
+    let repo: string | undefined;
+    if (typeof requested === "string" && Object.hasOwn(repos, requested)) repo = requested;
+    if (repo === undefined) {
+      const lastActive = deps.extensionState.getLastActiveRepo();
+      if (lastActive !== null && Object.hasOwn(repos, lastActive)) repo = lastActive;
+    }
+    if (repo === undefined && repoPaths.length === 1) repo = repoPaths[0];
+    if (repo === undefined) {
+      const selected = await windowApi.showQuickPick(formatRepoQuickPickItems(repos), {
+        canPickMany: false,
+        placeHolder: l10n.t("command.showReflog.placeholder")
+      });
+      if (!selected) return;
+      repo = selected.repo;
+    }
+    openReflog(repo);
+  }
+
   function registerAll() {
     register("git-graph-libre.view", (sourceControl) => openSourceControlRepo(sourceControl));
     register("git-graph-libre.searchCommits", () => startHistorySearch());
@@ -575,6 +643,7 @@ export function createCommandManager(deps: CommandManagerDeps) {
     register("git-graph-libre.revealWorktree", (request) => revealWorktree(request));
     register("git-graph-libre.switchGraphToWorktree", (request) => switchGraphToWorktree(request));
     register("git-graph-libre.pruneStaleWorktrees", () => pruneStaleWorktrees());
+    register("git-graph-libre.showReflog", (repo) => showReflog(repo));
     for (const { id, handler } of createScmDiffTabHandlers({
       getRepos: () => deps.repoManager.getRepos(),
       openDiff: (request) => deps.openScmDiffTab?.(request),
