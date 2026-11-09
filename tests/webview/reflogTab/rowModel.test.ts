@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type {
-  ReflogDataMessage,
-  ReflogLabels,
-  ReflogLoadingMessage,
-  ReflogPage,
-  ReflogRow
-} from "@/reflogTabTypes";
+import type { ReflogLoadingMessage } from "@/reflogTabTypes";
 import {
   applyData,
   applyLoading,
