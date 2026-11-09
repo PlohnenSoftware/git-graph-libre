@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   classifyReflogMessage,
   loadReflog,
+  loadReflogEntryStates,
   MAX_REFLOG_PAGE_SIZE,
   parseReflogRecords
 } from "@/backend/queries/reflog";
@@ -619,5 +620,133 @@ describe("loadReflog under a non-English locale", () => {
         else process.env[key] = value;
       }
     }
+  });
+});
+
+describe("loadReflogEntryStates", () => {
+  function head(dir: string): string {
+    return run(["rev-parse", "HEAD"], dir).trim();
+  }
+
+  it("marks ordinary commits reachable and abandoned commits as only in the reflog", async () => {
+    const dir = initRepo();
+    commitFile(dir, "a");
+    const root = head(dir);
+    commitFile(dir, "b");
+    const branchTip = head(dir);
+    commitFile(dir, "c");
+    const resetAway = head(dir);
+    run(["reset", "-q", "--hard", "HEAD~1"], dir);
+
+    run(["checkout", "-q", "-b", "temp"], dir);
+    commitFile(dir, "d");
+    const deletedBranchTip = head(dir);
+    run(["checkout", "-q", "main"], dir);
+    run(["branch", "-q", "-D", "temp"], dir);
+
+    const page = await loadReflog(reader(dir), dir, { ref: "HEAD", limit: 100 });
+    expect(page.error).toBeNull();
+    expect(page.entries.map((entry) => entry.hash)).toContain(resetAway);
+
+    const result = await loadReflogEntryStates(
+      reader(dir),
+      dir,
+      page.entries.map((entry) => entry.hash),
+      "git"
+    );
+    expect(result.error).toBeNull();
+    expect(result.states[root]).toBe("reachable");
+    expect(result.states[branchTip]).toBe("reachable");
+    expect(result.states[resetAway]).toBe("reflogOnly");
+    expect(result.states[deletedBranchTip]).toBe("reflogOnly");
+  });
+
+  it("counts a tag or a remote-tracking ref as reachable", async () => {
+    const dir = initRepo();
+    commitFile(dir, "a");
+
+    run(["checkout", "-q", "-b", "tagged"], dir);
+    commitFile(dir, "tagged-only");
+    const taggedOnly = head(dir);
+    run(["tag", "only-tag", taggedOnly], dir);
+    run(["checkout", "-q", "main"], dir);
+    run(["branch", "-q", "-D", "tagged"], dir);
+
+    run(["checkout", "-q", "-b", "remote-tracked"], dir);
+    commitFile(dir, "remote-only");
+    const remoteOnly = head(dir);
+    run(["update-ref", "refs/remotes/origin/topic", remoteOnly], dir);
+    run(["checkout", "-q", "main"], dir);
+    run(["branch", "-q", "-D", "remote-tracked"], dir);
+
+    const result = await loadReflogEntryStates(reader(dir), dir, [taggedOnly, remoteOnly], "git");
+    expect(result).toEqual({
+      states: { [taggedOnly]: "reachable", [remoteOnly]: "reachable" },
+      error: null
+    });
+  });
+
+  it("reports a pruned object as missing", async () => {
+    const dir = initRepo();
+    commitFile(dir, "a");
+    const kept = head(dir);
+    run(["checkout", "-q", "-b", "temp"], dir);
+    commitFile(dir, "gone");
+    const gone = head(dir);
+    run(["checkout", "-q", "main"], dir);
+    run(["branch", "-q", "-D", "temp"], dir);
+    run(["reflog", "expire", "--expire=now", "--expire-unreachable=now", "--all"], dir);
+    run(["gc", "-q", "--prune=now"], dir);
+
+    const result = await loadReflogEntryStates(reader(dir), dir, [gone, kept], "git");
+    expect(result).toEqual({
+      states: { [gone]: "missing", [kept]: "reachable" },
+      error: null
+    });
+  });
+
+  it("ignores duplicates and names that are not full commit hashes", async () => {
+    const dir = initRepo();
+    commitFile(dir, "a");
+    const tip = head(dir);
+    const blob = run(["rev-parse", "HEAD:a"], dir).trim();
+    const records: GitCommandRecord[] = [];
+
+    const result = await loadReflogEntryStates(
+      reader(dir),
+      dir,
+      [tip, tip, "--all", "abc", blob],
+      "git",
+      (record) => records.push(record)
+    );
+    expect(result).toEqual({ states: { [tip]: "reachable" }, error: null });
+
+    const reachability = records.find((record) => record.label === "reflog.states.reachability");
+    expect(reachability?.args).toContain("--no-walk=unsorted");
+    expect(reachability?.args).toContain("--not");
+    expect(reachability?.args).toContain("--branches");
+    expect(reachability?.args).toContain("--tags");
+    expect(reachability?.args).toContain("--remotes");
+    expect(reachability?.args.filter((arg) => arg === tip)).toHaveLength(1);
+  });
+
+  it("does no Git work for an empty page and leaves a failed read unknown", async () => {
+    const dir = initRepo();
+    commitFile(dir, "a");
+    const tip = head(dir);
+    const records: GitCommandRecord[] = [];
+    await expect(
+      loadReflogEntryStates(reader(dir), dir, [], "git", (record) => records.push(record))
+    ).resolves.toEqual({ states: {}, error: null });
+    expect(records).toEqual([]);
+
+    const withoutBinary = await loadReflogEntryStates(reader(dir), dir, [tip]);
+    expect(withoutBinary.states).toEqual({});
+    expect(withoutBinary.error?.message).toMatch(/git binary/i);
+
+    const missingRepo = path.join(tempDir("ggl-reflog-states-missing-"), "no-such-repo");
+    const failed = await loadReflogEntryStates(simpleGit(os.tmpdir()), missingRepo, [tip], "git");
+    expect(failed.states).toEqual({});
+    expect(failed.error).not.toBeNull();
   });
 });
