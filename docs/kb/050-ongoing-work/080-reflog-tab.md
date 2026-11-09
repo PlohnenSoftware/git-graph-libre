@@ -60,7 +60,9 @@ that note, the slice file wins.
   beside F1-09 (the engine read edits no shared file), then F1-05, F1-08,
   F1-06 and F1-07. F1-04F (added `2026-11-09`, the maintainer's unify
   remark) edits the reflog webview, its panel and the bundles, so it runs
-  after F1-04 and F1-09 are integrated and before F1-05.
+  after F1-04 and F1-09 are integrated and before F1-05; F1-09F (the
+  engine wiring F1-09 left at its Touch boundary) runs beside it on the
+  assembly files.
 - Workspaces: each worktree gets the `node_modules` symlink and a copy of
   the built addon (`engine/native/linux-x64/git-graph.node`), so TypeScript
   tests load the engine without a Rust build. F1-09 also gets a reflink
@@ -74,8 +76,9 @@ that note, the slice file wins.
 | F1-02 | Reflog entry states | F1-01 | Haiku | integrated `2deb880` |
 | F1-03 | Reflog tab (read-only) | F1-02 | Sonnet | integrated `6a66083e` |
 | F1-04 | Colored actions and sub-actions | F1-03 | Haiku | integrated `36253078` |
-| F1-09 | Reflog read through the engine | F1-03 | Sonnet | ready |
-| F1-04F | Unify the Reflog tab with the graph | F1-04, F1-09 | Haiku | waiting |
+| F1-09 | Reflog read through the engine | F1-03 | Sonnet | integrated `b5a3ae7e` |
+| F1-09F | Wire the Reflog tab to the engine reader | F1-09 | Haiku | ready |
+| F1-04F | Unify the Reflog tab with the graph | F1-04, F1-09 | Haiku | ready |
 | F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | waiting |
 | F1-08 | Worktrees and bare repositories | F1-05 | Sonnet | waiting |
 | F1-06 | Recovery actions that cannot lose data | F1-08 | Sonnet | waiting |
@@ -159,3 +162,20 @@ headless render of the tab in both themes. Nothing is pushed.
   light renders: the 13 kind dots, six intent tints and both state
   badges read correctly in both themes. F1-09 still running; F1-04F
   waits for it.
+- 2026-11-09: F1-09 (Muse Code subagent) integrated at `b5a3ae7e`:
+  rebased onto `7869d25f`, then fast-forwarded (its Report lists the
+  pre-rebase hashes). The optional `load_reflog` engine export and the
+  engine-first `readReflog` with CLI fallback; 14 Rust tests and 41
+  cross-backend parity tests; release-build page of 200 measured at
+  3.00 ms against the CLI's 7.11 ms on this repository. Gates on
+  `b5a3ae7e`: the Rust arm clean (`engine:fmt/lint/check/test`, addon
+  rebuilt); strict Biome on the 4 touched `.ts` files clean; typecheck
+  clean; `pnpm run test` backend 1,550 passed and the webview project
+  green (the first combined run flaked two backend files short against
+  the freshly rebuilt addon; the immediate rerun was 113/113 files,
+  1,550/1,550); KB check clean. The live-deps wiring F1-09 left at its
+  Touch boundary is opened as F1-09F — until it lands the tab still
+  reads on the CLI. Second maintainer remark the same day, on seeing
+  the colored tab ("it looks good"): the reflog table's columns should
+  widen and narrow freely, behaving like the graph table; folded into
+  F1-04F. F1-09F and F1-04F are ready and run beside each other.

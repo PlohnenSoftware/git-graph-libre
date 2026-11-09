@@ -7,7 +7,7 @@ summary: >-
 
 # F1-09 — Reflog read through the engine
 
-Status: done — awaiting integration
+Status: integrated `b5a3ae7e`
 
 Needs: F1-03
 

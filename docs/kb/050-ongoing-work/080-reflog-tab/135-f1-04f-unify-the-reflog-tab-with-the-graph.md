@@ -3,13 +3,15 @@ summary: >-
   F1-04F: Unifies the Reflog tab with the graph wherever the two show the
   same concept — commit hashes through `abbrevCommit` at the
   `shortHashLength` setting instead of a fixed seven characters, the
-  graph's own words and date shapes — per the maintainer's remark of
-  `2026-11-09` (One name and one shape for a shared concept, Reference).
+  graph's own words and date shapes, and table columns the user can
+  widen and narrow by dragging, as in the graph — per the maintainer's
+  remarks of `2026-11-09` (One name and one shape for a shared concept,
+  Reference).
 ---
 
 # F1-04F — Unify the Reflog tab with the graph
 
-Status: waiting
+Status: ready
 
 Needs: F1-04, F1-09
 
@@ -40,15 +42,24 @@ be inspired by an external source, but anything the project already has
 in-house is the source of truth. The standing form is One name and one
 shape for a shared concept (Reference, Webview UI Styling Guide).
 
+Second maintainer remark, `2026-11-09`, after seeing the colored tab
+("it looks good"): the reflog table should behave like the graph table,
+its columns free to widen or narrow. That is the same remark in
+behavior form — the graph's resize interaction is the in-house truth —
+so it is part of this slice, not a new one.
+
 ## Touch
 
 `src/webview/reflogTab/*`; `src/extension/reflogTab/*` (plumbing the
 settings in); `src/reflogTabTypes.ts` (the message/config shape);
 `src/extension/webviewL10n.ts` or the reflog strings module;
-`l10n/bundle.l10n*.json`; `media/reflog-tab/*` only if a shared shape
-genuinely needs it; tests; the slice file's Status and Report. The graph's
+`l10n/bundle.l10n*.json`; `media/reflog-tab/*` (the column
+resize rules); tests; the slice file's Status and Report. The graph's
 own files are the reference, not a touch target: if the graph's side looks
-wrong, stop and report instead of editing it.
+wrong, stop and report instead of editing it. Another agent works F1-09F
+beside you on the assembly sites: do not touch
+`src/extension/messageHandler.ts`, `src/extension/commandManager.ts` or
+`src/extension.ts`.
 
 ## Task and acceptance
 
@@ -74,6 +85,19 @@ and stays its own:
 - **Load more** — graph: `ui.loadMore` ("Load More Commits"). Tab today:
   its own `reflog.loadMore` ("Load More"). One wording pattern for
   paging, in all five languages.
+- **Resizable columns** — graph: dragging a header edge widens or
+  narrows a column (`resizeCol` handles, `resizeTableColumn` with its
+  clamp, minimum 40px, in `src/webview/main.ts`; CSS in
+  `media/table.css`; behavior pinned by
+  `tests/webview/tableColumnResize.test.ts`), and the widths persist
+  per repository (`columnWidths` in the repo view state). Tab today:
+  fixed layout, no resizing. Mirror the graph's interaction — same
+  drag affordance, same clamp and minimum, widths kept across reloads
+  the way this tab's own state is kept (the retained panel's pattern;
+  per-repository like the graph's if the tab's state allows it without
+  new plumbing, else say why). Every column resizes, including the
+  message column's neighbours, and resizing never loses rows or the
+  loaded pages.
 - **Anything else duplicated** the audit finds: mono/hash cell styling,
   badge geometry beside the graph's ref badges, empty/error wording
   shapes. Align to the in-house form or record why it is novel.
@@ -81,8 +105,11 @@ and stays its own:
 Tests: the row model shortens hashes to the configured length (a changed
 `shortHashLength` changes the tab and the graph alike); the column and
 button labels resolve to the shared keys; the date cell follows
-`dateFormat`. Headless renders in both themes beside a graph render of
-the same repository, so the two surfaces can be compared at a glance.
+`dateFormat`; a drag widens and narrows a column and stops at the
+graph's minimum, and the widths survive a reload. Headless renders in
+both themes beside a graph render of the same repository, so the two
+surfaces can be compared at a glance — one of them with a column
+dragged wider than its default.
 
 Run focused checks fitting the change (strict Biome on touched files,
 `pnpm run typecheck`, the vitest files you touch, `l10n:check` when strings
