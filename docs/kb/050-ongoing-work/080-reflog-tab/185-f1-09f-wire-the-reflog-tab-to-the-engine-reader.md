@@ -8,7 +8,7 @@ summary: >-
 
 # F1-09F — Wire the Reflog tab to the engine reader
 
-Status: claimed by Muse Code subagent on 2026-11-09 04:03
+Status: done — awaiting integration
 
 Needs: F1-09
 
@@ -80,4 +80,20 @@ commits; never push.
 
 ## Report
 
-Not started.
+- **Agent / date:** Muse Code (muse-wonder-full-1.0), 2026-11-09 04:06
+- **Branch and commits:** `reflog/F1-09F` — `fe6543e0 G docs(kb): claim slice F1-09F (F1-09F)`; `540dd64c G feat(reflog): wire the tab to the engine reader (F1-09F)`; `60d8b6cc G test(reflog): pin the assembly-level engine routing (F1-09F)`; the report commit that follows this text.
+- **Files changed:** `src/extension/messageHandler.ts` (+7/−5: the default `openReflog` passes `backend: config.backend` and `isVerified: (repo) => deps.repoSearch?.isVerified(repo) ?? false` into `createReflogSource`, exactly the diff route's shape beside it); `src/extension/commandManager.ts` (+11/−3: a new optional `CommandManagerDeps.isVerified`, and its default `openReflog` passes `backend: deps.config.backend` and `isVerified: deps.isVerified`); `src/extension.ts` (+1: threads `isVerified: (repo) => repoSearch.isVerified(repo)` into `createCommandManager`, beside `openScmDiffTab`'s dep); new `tests/webview/reflogAssembly.test.ts` (+229); this slice file. `src/extension/reflogTab/reflogData.ts` needed no change — F1-09's deps shape already carries both. Nothing outside the Touch list; none of F1-04F's files touched.
+- **Tests added or changed:** 3 new tests in `tests/webview/reflogAssembly.test.ts` (0 before), no existing test changed. They mock the panel, capture the `ReflogSource` each default assembly builds, and drive one real page (temporary fixture, empty global/system Git config) through it while flipping the live deps: `backend=engine` when the setting allows and the repository is verified, `backend=cli reason=setting` under `git-cli`, `backend=cli reason=unverified` when not verified — once per assembly site, on the one captured source, so the live-per-page read is pinned too; plus the command manager built without a verification dep stays on the CLI. The engine-served cases need the built addon, as the trust-gate suite's do. F1-09's reader declines are not re-proven.
+- **Gates:**
+  - `npx vitest run --project webview tests/webview/reflogAssembly.test.ts tests/webview/commandManager.test.ts tests/webview/messageHandler.test.ts tests/webview/messageHandlerTrustGate.test.ts tests/webview/reflogTab/reflogData.test.ts`: 5 files, 126 passed (123 existing + 3 new). The new file alone first: 3 passed.
+  - `pnpm run typecheck`: clean (all three `tsc` projects; run after the wiring and again after the tests).
+  - `npx biome check --config-path biome.strict.jsonc --error-on-warnings` on the four touched `.ts` files: clean. Biome prints the known schema-version note (config 2.5.13, CLI 2.6.5).
+  - `node docs/kb/housekeeping.mjs --check`: exit 0.
+  - No backend, `engine/**` or l10n file touched, so no backend suite, Rust arm or `l10n:check`. Sonar: integrator.
+- **Acceptance:**
+  - Both assembly sites pass the live values (`config.backend` read per page through `readReflog`, `repoSearch.isVerified(repo)`; names verified in `src/config.ts` and `src/extension/workspaceSearch.ts`): met, and pinned live by the new tests (one captured source changes route as the setting and verification flip).
+  - Invisible behavior (`git-cli`, unverified, or no optional export ⇒ every page the CLI's; verified and allowed ⇒ F1-09's parity): met — the two CLI routes are pinned in the new tests; the no-export route is F1-09's reader behavior, unchanged; no strings, no visible change.
+  - Routing pinned at the assembly level without re-proving F1-09's declines: met.
+  - No new telemetry: met. The wiring touches no flag or declaration, following F1-09's worktree-listing precedent; `view.engineBackend` still comes only from the graph reader's session flag.
+- **Deviations from the slice:** none in behavior. Two notes: (1) the dep is threaded from `extension.ts` as an optional `isVerified` on `CommandManagerDeps` (absent means never verified, the sibling `ReflogSourceDeps`/`DiffDocProvider` convention), rather than an `openReflogTab` assembly replacing the command manager's default — both assembly sites themselves now pass the live deps, as the acceptance words it. (2) I did not run `pnpm install --frozen-lockfile` from the generic protocol: the Reflog overview's Workspaces decision gives each worktree the `node_modules` symlink and a built addon, and the dispatch forbade the install; the symlink and `engine/native/linux-x64/git-graph.node` were present as described.
+- **Open questions / follow-ups:** none from this slice. F1-09's minimum-Git question (engine says `none` where a pre-2.46 CLI says `empty`) is unchanged and still the maintainer's.
