@@ -7,7 +7,7 @@ summary: >-
 
 # F1-01 — Reflog read query
 
-Status: done — awaiting integration
+Status: integrated `967e778`
 
 Needs: none
 

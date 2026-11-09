@@ -7,7 +7,7 @@ summary: >-
 
 # F1-02 — Reflog entry states
 
-Status: waiting
+Status: ready
 
 Needs: F1-01
 

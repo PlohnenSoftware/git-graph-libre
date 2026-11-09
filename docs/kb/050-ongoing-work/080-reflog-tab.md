@@ -68,8 +68,8 @@ that note, the slice file wins.
 
 | ID | Work | Needs | Model | Status |
 | --- | --- | --- | --- | --- |
-| F1-01 | Reflog read query | — | Sonnet | ready |
-| F1-02 | Reflog entry states | F1-01 | Haiku | waiting |
+| F1-01 | Reflog read query | — | Sonnet | integrated `967e778` |
+| F1-02 | Reflog entry states | F1-01 | Haiku | ready |
 | F1-03 | Reflog tab (read-only) | F1-02 | Sonnet | waiting |
 | F1-04 | Colored actions and sub-actions | F1-03 | Haiku | waiting |
 | F1-09 | Reflog read through the engine | F1-03 | Sonnet | waiting |
@@ -91,3 +91,14 @@ headless render of the tab in both themes. Nothing is pushed.
 ## Integration log
 
 - 2026-11-09: release planned from the research; slice files written.
+- 2026-11-09: F1-01 (Claude Sonnet) integrated at `967e778` by fast-forward:
+  `loadReflog` and `classifyReflogMessage` in `src/backend/queries/reflog.ts`,
+  56 real-Git tests. Its report records the Git facts verified on 2.56.0 (no
+  `%gt`; the entry time comes from `%gd` under `--date=unix`; Git's selector
+  numbering has gaps, so a page is read twice and the two reads are checked
+  against each other). Gates on `967e778`: typecheck clean; strict Biome on
+  the three touched files clean; `pnpm run test` backend 1,504 and webview
+  1,014 passed; KB check clean. Open for the maintainer: no minimum Git
+  version is recorded anywhere; the query needs `--end-of-options` (2.24)
+  and uses `git reflog list` (2.46) only to tell "no reflog" from "empty",
+  reading "empty" on older Git.
