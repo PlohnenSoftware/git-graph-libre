@@ -12,8 +12,13 @@ summary: >-
 
 # Git Graph+ features: research and slice plan (`2026-11-08`)
 
-Status: research done; the plan is waiting for the maintainer's discussion.
-No implementation is ordered.
+Status: research done. On `2026-11-09` the maintainer ordered the reflog
+slices F1-01 to F1-09, now in implementation as "Reflog tab" (Ongoing work);
+interactive rebase and the timeline wait for later releases. The maintainer
+also asked whether Git Graph+ code may be used under this project's AGPL:
+Apache-2.0 code may come in one way, with its license text, its copyright
+line ("Copyright 2026 the0807, bkk21"; there is no `NOTICE` file) and a
+notice of changes, but the reflog slices copy none. G0 stays open.
 
 The maintainer asked, while the engine integration ran: research how Git
 Graph+, at its newest `main` commit, implements three features "we want to

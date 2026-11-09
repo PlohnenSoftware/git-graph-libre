@@ -20,8 +20,9 @@ always_read: true
   author-date and topo orderings, per-byte encoding declines, and two
   pre-existing divergences.
 - "Git Graph+ features: research and slice plan" (Future work) researched
-  the Reflog tab, interactive rebase and a timeline, for discussion before
-  any implementation.
+  the Reflog tab, interactive rebase and a timeline. On `2026-11-09` the
+  maintainer ordered the reflog slices; they are in progress as "Reflog tab"
+  (Ongoing work). Rebase and the timeline wait for later releases.
 
 **Next (`2026-11-04`): release 1.10.0 "The Worktrees".** The maintainer made
 worktrees the next release: "full worktree support", not only what the
