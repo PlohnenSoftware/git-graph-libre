@@ -77,7 +77,7 @@ that note, the slice file wins.
 | F1-03 | Reflog tab (read-only) | F1-02 | Sonnet | integrated `6a66083e` |
 | F1-04 | Colored actions and sub-actions | F1-03 | Haiku | integrated `36253078` |
 | F1-09 | Reflog read through the engine | F1-03 | Sonnet | integrated `b5a3ae7e` |
-| F1-09F | Wire the Reflog tab to the engine reader | F1-09 | Haiku | ready |
+| F1-09F | Wire the Reflog tab to the engine reader | F1-09 | Haiku | integrated `10a2c006` |
 | F1-04F | Unify the Reflog tab with the graph | F1-04, F1-09 | Haiku | ready |
 | F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | waiting |
 | F1-08 | Worktrees and bare repositories | F1-05 | Sonnet | waiting |
@@ -179,3 +179,12 @@ headless render of the tab in both themes. Nothing is pushed.
   the colored tab ("it looks good"): the reflog table's columns should
   widen and narrow freely, behaving like the graph table; folded into
   F1-04F. F1-09F and F1-04F are ready and run beside each other.
+- 2026-11-09: F1-09F (Muse Code subagent) integrated at `10a2c006` by
+  fast-forward: both assembly sites now pass the live `backend` setting
+  and `isVerified` into `createReflogSource` (`messageHandler`'s default
+  assembly, `commandManager` via a dep threaded in `extension.ts`), so
+  the tab serves engine reads where allowed; absent verification keeps
+  every page on the CLI. 3 assembly-routing tests. Gates on `10a2c006`:
+  typecheck clean; strict Biome on the 4 touched files clean;
+  `pnpm run test` backend 1,550 and webview 1,072 passed; KB check
+  clean. F1-04F still running beside it.

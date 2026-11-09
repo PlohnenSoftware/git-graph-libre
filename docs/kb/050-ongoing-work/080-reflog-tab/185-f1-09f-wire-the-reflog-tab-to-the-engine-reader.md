@@ -8,7 +8,7 @@ summary: >-
 
 # F1-09F — Wire the Reflog tab to the engine reader
 
-Status: done — awaiting integration
+Status: integrated `10a2c006`
 
 Needs: F1-09
 
