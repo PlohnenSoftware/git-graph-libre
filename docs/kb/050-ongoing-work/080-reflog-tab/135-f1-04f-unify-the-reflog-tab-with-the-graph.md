@@ -11,7 +11,7 @@ summary: >-
 
 # F1-04F — Unify the Reflog tab with the graph
 
-Status: claimed by Muse Code subagent on 2026-11-09 04:00
+Status: done — awaiting integration
 
 Needs: F1-04, F1-09
 
@@ -119,4 +119,95 @@ commits; never push.
 
 ## Report
 
-Not started.
+- **Agent / date:** Muse Code subagent (muse-wonder-full-1.0), 2026-11-09 04:14
+- **Branch and commits:** `reflog/F1-04F` —
+  `f0543165 G docs(kb): claim slice F1-04F (F1-04F)`;
+  `41611b2a G feat(reflog): graph hash length, date shape and words in the tab (F1-04F)`;
+  `9adbaee9 G feat(reflog): resizable table columns, kept per repository (F1-04F)`;
+  `e02f31fb G fix(reflog): header-cell widths and clipped cells, as the graph (F1-04F)`;
+  plus this report commit.
+- **Files changed:** 20 files, +722/−102 at `e02f31fb` (`git diff --stat de98ef51..HEAD`):
+  `src/reflogTabTypes.ts` (+31), `src/extension/reflogTab/reflogTabPanel.ts` (+50),
+  `src/webview/reflogTab/columnResize.ts` (new, +53), `main.ts` (+50), `rowModel.ts` (+91),
+  `view.ts` (+110), `media/reflog-tab/reflog-tab.css` (+25), the five `l10n/bundle.l10n*.json`
+  (4 lines each), seven test files, and this slice file. Nothing outside Touch; the assembly
+  sites (`messageHandler.ts`, `commandManager.ts`, `extension.ts`) untouched.
+- **Tests added or changed:** new `tests/webview/reflogTab/columnResize.test.ts` (6 tests);
+  rowModel +2 (dateFormat shapes incl. hover, display carried per message), view +5
+  (configured hash length with clamp, handles on every edge, drag widen/narrow/clamp/rows
+  kept, first-drag freeze, stray move ignored), main +1 (per-repo widths across a reload),
+  panel +1 (live reload on `shortHashLength` change, value read fresh) plus label/display
+  assertions, CSS +1 (resize handles and fixed layout). The reflog webview files went from
+  48 tests (7 files) to 64 (8 files, panel file included).
+- **Gates:** `npx vitest run --project webview tests/webview/reflogTab/ tests/webview/reflogTabPanel.test.ts`
+  — 8 files, 64 passed; `pnpm run typecheck` — clean; `npx biome check --config-path
+  biome.strict.jsonc --error-on-warnings` on all 18 touched .ts/.json/.css files — clean
+  (after one `--write` formatting pass, folded into `9adbaee9`); `pnpm run l10n:check` —
+  100% all five languages; `node docs/kb/housekeeping.mjs --check` — exit 0. Sonar: integrator.
+- **Acceptance:**
+  - Commit hash — met. `abbrevCommit(row.hash, state.display.shortHashLength)` in the view;
+    the tab's fixed-7 `shortHash()` is deleted. `ReflogDisplay` rides on both host messages,
+    read per load through `config.shortHashLength()`/`config.dateFormat()` and the same bundle
+    keys (`time.dateformat`, `time.needFormatMonth`, `month.*`) the graph's boot config reads.
+    The panel also listens for the two settings and reloads live (loaded pages kept, as a
+    watcher refresh keeps them) — at least as live as the graph, which follows them only via
+    the settings-hub echo or the next open. Full hash stays on hover (`code.title`).
+  - Date and time — met. The column is `ui.date`; `entryDate()` mirrors the graph's
+    `getCommitDate` exactly (bundle pattern, bundle month names, `pad2` clock,
+    `formatRelativeDate` for Relative, date-and-time always on hover), all through
+    `src/webview/utils/date.ts`. The tab's private `Intl.DateTimeFormat` hover is deleted.
+  - Load more — met as one wording *pattern*: `reflog.loadMore` is now "Load More Entries"
+    beside `ui.loadMore`'s "Load More Commits" (the tab loads entries, not commits), in all
+    five bundles (own translations: nl "Meer vermeldingen laden", pl "Załaduj więcej wpisów",
+    zh-cn "加载更多条目", zh-tw "載入更多項目"). The graph's own words `ui.commit`/`ui.date`
+    replace the tab's column keys; `reflog.column.hash`/`reflog.column.time` are deleted from
+    all five bundles.
+  - Resizable columns — met. `resizeCol` left/right handles on every header edge, the graph's
+    pair-trade drag with its 40px minimum (`columnResize.ts`), fixed layout once dragged,
+    first drag freezing the natural layout (rendered width minus the 16px side padding, the
+    graph's own move). Widths are content widths on the header cells, exactly as the graph
+    sets them — the first render pass tried colgroup widths, which squeezed the Commit
+    column until hashes bled into Date; `e02f31fb` fixes that and clips cell overflow like
+    the graph's cells. Every column resizes from either of its edges (the graph's boundary
+    model). Dragging only restyles the table, so rows and loaded pages are never rebuilt
+    (pinned by test). Widths persist per repository in the webview's saved state
+    (`getState`/`setState`, validated by `normalizeColumnWidths`) — the tab has no
+    host-side per-repo view state of its own, and reaching the graph's `saveRepoState`
+    store would need the assembly sites this slice may not touch; saved webview state is
+    the retained panel's own pattern and survives document reloads/restores of the panel.
+    The graph's two special resize cases (lanes column, flexible description column with
+    its 64px rendered floor) have no reflog counterpart, so the generic pair rule is the
+    whole rule here.
+  - Headless renders — met. PyQt6 QtWebEngine under `xvfb-run`, real CSS, the real
+    `reflogTab.min.js` bundle fed this worktree's real HEAD reflog, beside the real graph
+    webview's DOM (booted in jsdom on this branch's real commits via a scratch test,
+    deleted after) with the graph's real stylesheets. Read by eye in both themes: identical
+    8-character hashes (`9adbaee9`), identical date shapes (`9 Nov 2026 04:09`), Commit/Date
+    words on both surfaces; the wide render is a real dispatched drag widening the Commit
+    column. Images and harness scripts: `/tmp/ggl-f104f-renders/` (`reflog-dark.png`,
+    `reflog-light.png`, `reflog-dark-wide.png`, `graph-dark.png`, `graph-light.png`,
+    `side-by-side-dark.png`, `side-by-side-light.png`, `make-pages.py`, `shot.py`).
+    Note the renders' state badges were assigned by position in the harness, not read from
+    Git; the graph render's rows are this branch's commits at `9adbaee9`.
+- **Audit, concept by concept** (aligned vs kept novel):
+  - Aligned: hash length/helper/word, date word/shape/hover, paging wording pattern,
+    column-resize interaction/clamp/minimum, header-cell tone (`descriptionForeground`,
+    18px line height), cell overflow clipping, Load-more button already on the button tokens.
+  - Kept novel, with reasons: the loading/empty/error wording (reflog-specific facts — the
+    empty text explains `core.logAllRefUpdates` and expiry; the graph's generic words would
+    say less); the state badges' pill geometry (they are VS Code-badge status pills, not ref
+    badges — F1-04's approved look; the sub-action tags share the family); the mono `<code>`
+    hash cell (the graph's commit cell is plain text, but a hash-only column reads as code;
+    font already the editor's mono token); wrapping message cells instead of the graph's
+    nowrap ellipsis (reflog messages are the row's substance and have no details view to
+    open); the tab's own scrollbar rules (its bundle loads no graph CSS); Index/Action/
+    Sub-action/Message/State columns and the kind dots (no graph counterpart).
+- **Deviations from the slice:** the settings plumbing rides on the existing per-load
+  messages (the labels pattern) rather than being rendered into the HTML like the graph's
+  boot config — same accessors, same freshness contract, and it is what makes the live
+  reload possible without touching `extension.ts`'s whitelist. Width persistence uses
+  saved webview state instead of the graph's host-side repo state, for the reason above.
+- **Open questions / follow-ups:** none blocking. The four `reflog.loadMore` translations
+  are the agent's own, as F1-03's were; a native review would help. If the integrator later
+  wires a host-side per-repo store for this tab, the saved-webview-state widths could move
+  there, but nothing needs it today.
