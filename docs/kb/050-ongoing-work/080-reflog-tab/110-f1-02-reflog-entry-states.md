@@ -7,7 +7,7 @@ summary: >-
 
 # F1-02 — Reflog entry states
 
-Status: done — awaiting integration
+Status: integrated `2deb880`
 
 Needs: F1-01
 

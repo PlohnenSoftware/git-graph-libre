@@ -69,8 +69,8 @@ that note, the slice file wins.
 | ID | Work | Needs | Model | Status |
 | --- | --- | --- | --- | --- |
 | F1-01 | Reflog read query | — | Sonnet | integrated `967e778` |
-| F1-02 | Reflog entry states | F1-01 | Haiku | ready |
-| F1-03 | Reflog tab (read-only) | F1-02 | Sonnet | waiting |
+| F1-02 | Reflog entry states | F1-01 | Haiku | integrated `2deb880` |
+| F1-03 | Reflog tab (read-only) | F1-02 | Sonnet | ready |
 | F1-04 | Colored actions and sub-actions | F1-03 | Haiku | waiting |
 | F1-09 | Reflog read through the engine | F1-03 | Sonnet | waiting |
 | F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | waiting |
@@ -102,3 +102,17 @@ headless render of the tab in both themes. Nothing is pushed.
   version is recorded anywhere; the query needs `--end-of-options` (2.24)
   and uses `git reflog list` (2.46) only to tell "no reflog" from "empty",
   reading "empty" on older Git.
+- 2026-11-09: the Claude session (`39eef1e9`) hit its usage limit as the
+  F1-02 agent launched; the maintainer continued it in Muse Code, which
+  worked F1-02 itself and integrated it at `2deb880` by fast-forward:
+  `loadReflogEntryStates` in `src/backend/queries/reflog.ts` (existence by
+  `git cat-file --batch-check` on stdin, reachability by one
+  `git rev-list --no-walk=unsorted` with `--not --branches --tags --remotes`;
+  a failed state read leaves the states unknown, never the entries in
+  error), 5 new real-Git tests (61 in the file). Gates on `2deb880`:
+  typecheck clean; strict Biome on the three touched files clean;
+  `pnpm run test` backend 1,509 and webview 1,014 passed; KB check clean.
+  SonarQube runs at the release end per Integration acceptance above, not
+  per slice, as for F1-01. A 200-entry page of this repository's `HEAD`
+  reflog costs 8.0 ms of Git time. F1-03 is ready; the maintainer asked
+  for it to be worked by a subagent.
