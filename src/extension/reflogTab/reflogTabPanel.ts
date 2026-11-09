@@ -6,6 +6,7 @@ import * as l10n from "@/l10n";
 import type {
   ReflogDataMessage,
   ReflogLabels,
+  ReflogLoadingMessage,
   ReflogPage,
   ReflogSource,
   ReflogWebviewMessage
@@ -74,6 +75,7 @@ function createReflogTab(deps: ReflogTabDeps) {
   let ready = false;
   let disposed = false;
   let last: ReflogDataMessage | undefined;
+  let pending: ReflogLoadingMessage | undefined;
   let latestRequest = 0;
   let repo = "";
   let source: ReflogSource | undefined;
@@ -86,12 +88,23 @@ function createReflogTab(deps: ReflogTabDeps) {
   const load = async (append: boolean, limit = DEFAULT_REFLOG_PAGE_SIZE): Promise<void> => {
     if (source === undefined || repo === "") return;
     const requestId = ++latestRequest;
+    if (!append) {
+      pending = {
+        command: "reflogLoading",
+        requestId,
+        repo,
+        locale: deps.locale ?? vscode.env.language,
+        labels: readLabels()
+      };
+      if (ready) void panel.webview.postMessage(pending);
+    }
     const offset = append ? loadedCount : 0;
     const page = await source.loadPage(repo, offset, limit).catch(failedPage);
     // A newer load (a watcher refresh, a retargeted tab) supersedes this
     // one: its reply is dropped here, and the webview drops by request id
     // anything that still slips through.
     if (disposed || requestId !== latestRequest) return;
+    pending = undefined;
     if (page.error === null) {
       loadedCount = append ? loadedCount + page.rows.length : page.rows.length;
     }
@@ -129,6 +142,7 @@ function createReflogTab(deps: ReflogTabDeps) {
       // Also after a reload or a restore: the new document needs the data.
       ready = true;
       if (last !== undefined) void panel.webview.postMessage(last);
+      else if (pending !== undefined) void panel.webview.postMessage(pending);
     } else if (message.command === "loadMore") {
       void load(true);
     } else if (message.command === "refresh") {

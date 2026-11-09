@@ -79,6 +79,22 @@ export type ReflogDataMessage = {
   page: ReflogPage;
 };
 
+/**
+ * Extension host to webview: a load has started. Carries the labels and
+ * locale on their own so the tab can say it is loading (in the user's
+ * language) before the first page lands.
+ */
+export type ReflogLoadingMessage = {
+  command: "reflogLoading";
+  requestId: number;
+  repo: string;
+  locale: string;
+  labels: ReflogLabels;
+};
+
+/** Every message the extension host posts to the Reflog tab. */
+export type ReflogHostMessage = ReflogDataMessage | ReflogLoadingMessage;
+
 /** Webview to extension host. */
 export type ReflogWebviewMessage =
   | { command: "ready" }
