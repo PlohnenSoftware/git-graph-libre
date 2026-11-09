@@ -19,6 +19,7 @@ pub mod error;
 pub mod file_read;
 pub mod graph;
 pub mod log;
+pub mod reflog;
 pub mod refs;
 pub mod repository;
 pub mod search;

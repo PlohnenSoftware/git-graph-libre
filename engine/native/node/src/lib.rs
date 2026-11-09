@@ -16,8 +16,8 @@ mod diff_wire;
 
 use git_graph_core::types::{LogOptions, RefReadOptions, SearchOptions};
 use git_graph_core::{
-    blob, config, details, diff, graph, log, refs, search, stash, stats, status, worktrees, Error,
-    ErrorKind, RepoManager,
+    blob, config, details, diff, graph, log, reflog, refs, search, stash, stats, status, worktrees,
+    Error, ErrorKind, RepoManager,
 };
 
 /// Open a repository and keep it open.
@@ -228,6 +228,30 @@ pub async fn list_worktrees(path: String) -> Result<String> {
     run(move || {
         let repo = RepoManager::global().get(&path)?;
         encode(&worktrees::list_worktrees(&repo)?)
+    })
+    .await
+}
+
+/// One page of a ref's reflog, as `git log -g` reports it: `limit` shown entries after skipping
+/// `offset` shown ones, newest first, each with its selector index over the whole file. Answers
+/// `Unsupported` wherever Git's own answer could differ (a malformed reflog line, a missing or
+/// non-commit target, a symbolic ref, a missing or empty `HEAD` log with its branch fallback,
+/// ...), and the caller reads with the CLI.
+#[napi]
+pub async fn load_reflog(
+    path: String,
+    ref_name: String,
+    limit: u32,
+    offset: u32,
+) -> Result<String> {
+    run(move || {
+        let repo = RepoManager::global().get(&path)?;
+        encode(&reflog::read_reflog(
+            &repo,
+            &ref_name,
+            limit as usize,
+            offset as usize,
+        )?)
     })
     .await
 }
