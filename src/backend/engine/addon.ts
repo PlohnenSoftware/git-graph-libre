@@ -129,6 +129,17 @@ export type EngineAddon = {
    */
   listWorktrees?(repoPath: string): Promise<string>;
   /**
+   * `load_reflog` encoded as JSON: one page of a ref's reflog as
+   * `git log -g` reports it, `limit` shown entries after `offset` shown
+   * ones. Optional and deliberately absent from the shape check below, like
+   * `listWorktrees`: binaries built before it still load and the reader
+   * falls back to the CLI query — no engine version bump. It rejects with
+   * an `Unsupported` error wherever Git's answer could differ (a malformed
+   * reflog line, a missing or non-commit target, a symbolic ref, a missing
+   * or empty `HEAD` log with its branch fallback).
+   */
+  loadReflog?(repoPath: string, ref: string, limit: number, offset: number): Promise<string>;
+  /**
    * `diff_texts` encoded as JSON: VS Code's `LinesDiff` for two texts,
    * computed by the Phase 17 port, with UTF-16 columns. Options are the
    * JSON built by `diffTexts.ts`. Optional and deliberately absent from the
