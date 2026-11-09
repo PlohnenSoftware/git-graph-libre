@@ -117,12 +117,18 @@ export type CommandManagerDeps = {
   extensionPath?: string;
   /**
    * Opens the Reflog tab for a repository (F1-03). Defaults to the reflog
-   * panel fed by the CLI source, assembled here like the graph handler's
-   * route; tests replace it.
+   * panel fed by the engine-first source, assembled here like the graph
+   * handler's route; tests replace it.
    */
   openReflogTab?: (repo: string) => void;
   /** Open the GGL Diff tab from Source Control (D46); wired in `extension.ts`. */
   openScmDiffTab?: (request: DiffTabRequest) => void;
+  /**
+   * Whether Git confirmed it accepts the repository (`RepoSearch.isVerified`):
+   * the engine is offered only a verified repository. Absent means never
+   * verified, so the CLI serves every reflog page.
+   */
+  isVerified?: (repo: string) => boolean;
   telemetry?: Pick<TelemetryReporter, "logFeature">;
 };
 
@@ -579,7 +585,9 @@ export function createCommandManager(deps: CommandManagerDeps) {
             trimmed: false
           }),
         gitPath: () => deps.config.gitPath(),
-        record: recordGitCommand
+        record: recordGitCommand,
+        backend: deps.config.backend,
+        isVerified: deps.isVerified
       }),
       {
         extensionPath:

@@ -534,10 +534,10 @@ export function registerMessageHandlers(
     openDiffTab?: (request: DiffTabRequest) => void;
     /**
      * Opens the Reflog tab for a repository (F1-03). Defaults to the reflog
-     * panel fed by the CLI source, assembled from this handler's live deps
-     * like the diff route above; each page reads through a Git instance
-     * rooted at the tab's own repository, so a later graph repo switch
-     * cannot redirect the retained tab's reads.
+     * panel fed by the engine-first source, assembled from this handler's
+     * live deps like the diff route above; each page reads through a Git
+     * instance rooted at the tab's own repository, so a later graph repo
+     * switch cannot redirect the retained tab's reads.
      */
     openReflogTab?: (repo: string) => void;
     /** Whether the tab can be fed (D45); defaults to the engine check. */
@@ -597,7 +597,9 @@ export function registerMessageHandlers(
               trimmed: false
             }),
           gitPath: config.gitPath,
-          record: recordGitCommand
+          record: recordGitCommand,
+          backend: config.backend,
+          isVerified: (repo) => deps.repoSearch?.isVerified(repo) ?? false
         }),
         { extensionPath, outputChannel: outputChannel ?? { appendLine: () => undefined } }
       );
