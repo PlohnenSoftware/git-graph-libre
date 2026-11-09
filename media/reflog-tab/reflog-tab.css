@@ -1,0 +1,94 @@
+/* The Reflog tab (F1-03): theme tokens first, `--ngg-*` OKLCH fallbacks
+   second, per the Webview UI Styling Guide. Action colors are F1-04. */
+
+.ggl-reflog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  background: var(--vscode-editor-background, oklch(20% 0 0));
+  color: var(--vscode-editor-foreground, oklch(88% 0 0));
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+.ggl-reflog .reflog-header {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+  background: var(--vscode-editor-background, oklch(20% 0 0));
+}
+.ggl-reflog .reflog-ref {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-weight: 600;
+}
+.ggl-reflog .reflog-repo { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.ggl-reflog .reflog-scroll { flex: 1; min-height: 0; overflow: auto; }
+.ggl-reflog .reflog-table { width: 100%; border-collapse: collapse; }
+.ggl-reflog .reflog-head-cell {
+  position: sticky;
+  top: 0;
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--vscode-foreground, oklch(88% 0 0));
+  background: var(--vscode-editor-background, oklch(20% 0 0));
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.ggl-reflog .reflog-cell {
+  padding: 4px 8px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.ggl-reflog .reflog-row:hover { background: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-subtle)); }
+.ggl-reflog .reflog-index,
+.ggl-reflog .reflog-time { white-space: nowrap; color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.ggl-reflog .reflog-action { white-space: nowrap; }
+.ggl-reflog .reflog-sub { white-space: nowrap; color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.ggl-reflog .reflog-message { min-width: 200px; }
+.ggl-reflog .reflog-hash { font-family: var(--vscode-editor-font-family, monospace); white-space: nowrap; }
+.ggl-reflog .reflog-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  background: var(--vscode-badge-background, var(--ngg-accent));
+  color: var(--vscode-badge-foreground, var(--ngg-accent-foreground));
+}
+.ggl-reflog .reflog-badge-missing {
+  background: var(--ngg-transparent);
+  color: var(--vscode-errorForeground, var(--ngg-error));
+  box-shadow: inset 0 0 0 1px var(--vscode-errorForeground, var(--ngg-error));
+}
+.ggl-reflog p.reflog-message { margin: 0; padding: 16px 12px; }
+.ggl-reflog p.reflog-message.reflog-error { color: var(--vscode-errorForeground, var(--ngg-error)); }
+.ggl-reflog .reflog-loading,
+.ggl-reflog .reflog-empty { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.ggl-reflog .reflog-load-more {
+  flex: none;
+  align-self: flex-start;
+  margin: 12px;
+  border: 0;
+  border-radius: 2px;
+  padding: 4px 14px;
+  background: var(--vscode-button-background, var(--ngg-accent));
+  color: var(--vscode-button-foreground, var(--ngg-accent-foreground));
+  font: inherit;
+  cursor: pointer;
+}
+.ggl-reflog .reflog-load-more:hover:not(:disabled) { background: var(--vscode-button-hoverBackground, var(--ngg-accent)); }
+.ggl-reflog .reflog-load-more:disabled { opacity: 0.6; cursor: default; }
+.ggl-reflog .reflog-load-more:focus-visible { outline: 1px solid var(--vscode-focusBorder, oklch(70% 0.15 240)); outline-offset: 2px; }
+.ggl-reflog ::-webkit-scrollbar { width: 14px; height: 14px; background: var(--vscode-editor-background, oklch(20% 0 0)); }
+.ggl-reflog ::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background, oklch(60% 0 0 / 0.4)); }
+.ggl-reflog ::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground, oklch(60% 0 0 / 0.6)); }
+.ggl-reflog ::-webkit-scrollbar-thumb:active { background: var(--vscode-scrollbarSlider-activeBackground, oklch(60% 0 0 / 0.8)); }
+@media (forced-colors: active) {
+  .ggl-reflog .reflog-badge { border: 1px solid currentColor; }
+  .ggl-reflog .reflog-load-more { border: 1px solid currentColor; }
+}
