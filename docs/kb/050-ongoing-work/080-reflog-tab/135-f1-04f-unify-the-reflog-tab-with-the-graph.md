@@ -11,7 +11,7 @@ summary: >-
 
 # F1-04F — Unify the Reflog tab with the graph
 
-Status: done — awaiting integration
+Status: integrated `29594fde`
 
 Needs: F1-04, F1-09
 

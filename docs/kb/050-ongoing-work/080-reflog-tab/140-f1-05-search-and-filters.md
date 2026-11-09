@@ -7,7 +7,7 @@ summary: >-
 
 # F1-05 — Search, filters and ref picker
 
-Status: waiting
+Status: ready
 
 Needs: F1-04, F1-09
 

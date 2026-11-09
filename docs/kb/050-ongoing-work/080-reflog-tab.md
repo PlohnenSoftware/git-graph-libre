@@ -78,8 +78,8 @@ that note, the slice file wins.
 | F1-04 | Colored actions and sub-actions | F1-03 | Haiku | integrated `36253078` |
 | F1-09 | Reflog read through the engine | F1-03 | Sonnet | integrated `b5a3ae7e` |
 | F1-09F | Wire the Reflog tab to the engine reader | F1-09 | Haiku | integrated `10a2c006` |
-| F1-04F | Unify the Reflog tab with the graph | F1-04, F1-09 | Haiku | ready |
-| F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | waiting |
+| F1-04F | Unify the Reflog tab with the graph | F1-04, F1-09 | Haiku | integrated `29594fde` |
+| F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | ready |
 | F1-08 | Worktrees and bare repositories | F1-05 | Sonnet | waiting |
 | F1-06 | Recovery actions that cannot lose data | F1-08 | Sonnet | waiting |
 | F1-07 | Lost-commit scan (opt-in) | F1-06 | Sonnet | waiting |
@@ -188,3 +188,21 @@ headless render of the tab in both themes. Nothing is pushed.
   typecheck clean; strict Biome on the 4 touched files clean;
   `pnpm run test` backend 1,550 and webview 1,072 passed; KB check
   clean. F1-04F still running beside it.
+- 2026-11-09: F1-04F (Muse Code subagent) integrated at `29594fde`:
+  rebased onto `517bc046`, then fast-forwarded (its Report lists the
+  pre-rebase hashes). The tab now shortens hashes with `abbrevCommit`
+  at the live `shortHashLength` setting under the graph's `ui.commit`
+  word (its fixed-seven `shortHash` and the `reflog.column.hash/time`
+  keys are deleted), dates take `ui.date` and the `dateFormat` shape
+  through the shared date utilities, paging reads "Load More Entries"
+  on the `ui.loadMore` pattern in all five languages, and every column
+  widens and narrows by dragging its header edge with the graph's clamp
+  and 40px minimum, widths kept per repository in saved webview state.
+  16 new webview tests. Gates on `29594fde`: typecheck clean; strict
+  Biome on the 18 covered touched files clean; `pnpm run test` backend
+  1,550 and webview 1,088 passed; `l10n:check` complete; KB check
+  clean; `pnpm run package` builds. The integrator eyeballed the
+  side-by-side renders (reflog tab over the graph of the same commits,
+  both themes): identical 8-character hashes, `Commit` and `Date`
+  headers and date shapes; a third render shows the Commit column
+  dragged wide. F1-05 is ready.
