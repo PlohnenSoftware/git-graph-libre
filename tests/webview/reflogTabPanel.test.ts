@@ -160,6 +160,13 @@ describe("openReflogTab", () => {
     expect(data.labels.loadMore).toBe("Load More");
     expect(data.labels.empty).toContain("core.logAllRefUpdates");
     expect(data.labels.onlyInReflog).toBe("Only in the reflog");
+    // The panel reads one label per known kind and sub-action (F1-04).
+    expect(Object.keys(data.labels.actions)).toHaveLength(13);
+    expect(data.labels.actions["cherry-pick"]).toBe("Cherry-pick");
+    expect(data.labels.actions.other).toBe("Other");
+    expect(Object.keys(data.labels.subActions)).toHaveLength(18);
+    expect(data.labels.subActions["fast-forward"]).toBe("Fast-forward");
+    expect(data.labels.subActions.amend).toBe("Amend");
     expect(data.page.rows).toHaveLength(1);
     // A second ready (the document was rebuilt) replays the same page.
     panel.send({ command: "ready" });

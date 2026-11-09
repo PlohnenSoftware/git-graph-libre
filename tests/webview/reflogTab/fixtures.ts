@@ -15,7 +15,42 @@ export const LABELS: ReflogLabels = {
   columnMessage: "Message",
   columnHash: "Hash",
   columnTime: "Time",
-  columnState: "State"
+  columnState: "State",
+  actions: {
+    commit: "Commit",
+    checkout: "Checkout",
+    reset: "Reset",
+    rebase: "Rebase",
+    merge: "Merge",
+    pull: "Pull",
+    fetch: "Fetch",
+    "cherry-pick": "Cherry-pick",
+    revert: "Revert",
+    branch: "Branch",
+    stash: "Stash",
+    clone: "Clone",
+    other: "Other"
+  },
+  subActions: {
+    initial: "Initial",
+    amend: "Amend",
+    merge: "Merge",
+    start: "Start",
+    pick: "Pick",
+    squash: "Squash",
+    fixup: "Fixup",
+    reword: "Reword",
+    edit: "Edit",
+    continue: "Continue",
+    abort: "Abort",
+    finish: "Finish",
+    "fast-forward": "Fast-forward",
+    created: "Created",
+    renamed: "Renamed",
+    copied: "Copied",
+    wip: "Work in progress",
+    named: "Named"
+  }
 };
 
 export function row(overrides: Partial<ReflogRow> = {}): ReflogRow {

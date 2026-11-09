@@ -64,9 +64,17 @@ describe("reflog tab view", () => {
     const cells = [...root.querySelectorAll<HTMLTableCellElement>("tbody td")];
     expect(cells[0].textContent).toBe("3");
     expect(cells[0].title).toBe("HEAD@{3}");
-    expect(cells[1].textContent).toBe("rebase");
-    expect(cells[1].querySelector(".reflog-action")?.getAttribute("data-kind")).toBe("rebase");
-    expect(cells[2].textContent).toBe("pick");
+    expect(cells[1].textContent).toBe("Rebase");
+    const actionSpan = cells[1].querySelector<HTMLElement>(".reflog-action");
+    expect(actionSpan?.getAttribute("data-kind")).toBe("rebase");
+    expect(actionSpan?.title).toBe("rebase");
+    expect(actionSpan?.querySelector(".reflog-kind-dot")?.className).toBe(
+      "reflog-kind-dot reflog-kind-rebase"
+    );
+    expect(cells[2].textContent).toBe("Pick");
+    const subTag = cells[2].querySelector<HTMLElement>(".reflog-sub");
+    expect(subTag?.className).toBe("reflog-sub reflog-sub-tag reflog-sub-intent-advance");
+    expect(subTag?.title).toBe("pick");
     expect(cells[3].textContent).toBe("rebase (pick): fix typo");
     expect(cells[4].textContent).toBe("0123456");
     expect(cells[4].querySelector("code")?.title).toBe(entry.hash);
@@ -99,6 +107,29 @@ describe("reflog tab view", () => {
     const { root, view } = start();
     view.render(applyData(initialReflogState(), dataMessage()), NOW);
     expect(root.querySelector(".reflog-sub")?.textContent).toBe("—");
+    expect(root.querySelector(".reflog-sub")?.className).toBe("reflog-sub");
+  });
+
+  it("shows an unknown kind and sub-action as Git wrote them, neutral (F1-04)", () => {
+    const { root, view } = start();
+    const entry = row({
+      kind: "frobnicate",
+      sub: "detached-from-abc",
+      message: "frobnicate (detached-from-abc): custom tool text"
+    });
+    view.render(
+      applyData(initialReflogState(), dataMessage({ page: page({ rows: [entry] }) })),
+      NOW
+    );
+    const actionSpan = root.querySelector<HTMLElement>(".reflog-action");
+    expect(actionSpan?.textContent).toBe("frobnicate");
+    expect(actionSpan?.querySelector(".reflog-kind-dot")?.className).toBe(
+      "reflog-kind-dot reflog-kind-other"
+    );
+    const subTag = root.querySelector<HTMLElement>(".reflog-sub");
+    expect(subTag?.textContent).toBe("detached-from-abc");
+    expect(subTag?.className).toBe("reflog-sub reflog-sub-tag reflog-sub-intent-neutral");
+    expect(subTag?.title).toBe("detached-from-abc");
   });
 
   it("words the empty reflog with the expiry explanation", () => {
