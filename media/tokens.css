@@ -31,4 +31,48 @@
   --ngg-accent-foreground: oklch(98% 0 0);
   --ngg-backdrop: oklch(0% 0 0 / 0.25);
   --ngg-error: oklch(62% 0.19 25);
+  /* Reflog tab (F1-04): one marker color per action kind and one per
+     sub-action intent. VS Code's charts palette comes first where it
+     has a fitting color (it adapts to the theme on its own); the rest
+     are OKLCH hues spread around the wheel at one lightness, like the
+     graph palette. The light block below darkens the OKLCH fallbacks
+     so the markers stay visible on a white editor background. */
+  --ngg-reflog-kind-commit: var(--vscode-charts-green, oklch(68% 0.15 150));
+  --ngg-reflog-kind-checkout: var(--vscode-charts-blue, oklch(68% 0.14 250));
+  --ngg-reflog-kind-reset: var(--vscode-charts-red, oklch(66% 0.17 25));
+  --ngg-reflog-kind-rebase: var(--vscode-charts-purple, oklch(68% 0.14 310));
+  --ngg-reflog-kind-merge: oklch(68% 0.12 185);
+  --ngg-reflog-kind-pull: oklch(68% 0.13 220);
+  --ngg-reflog-kind-fetch: oklch(68% 0.13 275);
+  --ngg-reflog-kind-cherry-pick: oklch(68% 0.16 340);
+  --ngg-reflog-kind-revert: var(--vscode-charts-orange, oklch(70% 0.15 55));
+  --ngg-reflog-kind-branch: oklch(70% 0.14 120);
+  --ngg-reflog-kind-stash: var(--vscode-charts-yellow, oklch(78% 0.14 85));
+  --ngg-reflog-kind-clone: oklch(68% 0.11 200);
+  --ngg-reflog-kind-other: var(--ngg-neutral-icon);
+  --ngg-reflog-intent-rewrite: oklch(72% 0.13 300);
+  --ngg-reflog-intent-combine: oklch(72% 0.11 190);
+  --ngg-reflog-intent-advance: oklch(72% 0.12 245);
+  --ngg-reflog-intent-abort: var(--vscode-errorForeground, var(--ngg-error));
+  --ngg-reflog-intent-ref: oklch(72% 0.13 140);
+  --ngg-reflog-intent-neutral: var(--ngg-neutral-icon);
+}
+
+body.vscode-light {
+  --ngg-reflog-kind-commit: var(--vscode-charts-green, oklch(50% 0.14 150));
+  --ngg-reflog-kind-checkout: var(--vscode-charts-blue, oklch(50% 0.14 250));
+  --ngg-reflog-kind-reset: var(--vscode-charts-red, oklch(52% 0.18 25));
+  --ngg-reflog-kind-rebase: var(--vscode-charts-purple, oklch(50% 0.15 310));
+  --ngg-reflog-kind-merge: oklch(50% 0.11 185);
+  --ngg-reflog-kind-pull: oklch(50% 0.13 220);
+  --ngg-reflog-kind-fetch: oklch(50% 0.14 275);
+  --ngg-reflog-kind-cherry-pick: oklch(52% 0.17 340);
+  --ngg-reflog-kind-revert: var(--vscode-charts-orange, oklch(54% 0.15 55));
+  --ngg-reflog-kind-branch: oklch(52% 0.13 120);
+  --ngg-reflog-kind-stash: var(--vscode-charts-yellow, oklch(56% 0.13 85));
+  --ngg-reflog-kind-clone: oklch(50% 0.1 200);
+  --ngg-reflog-intent-rewrite: oklch(48% 0.14 300);
+  --ngg-reflog-intent-combine: oklch(48% 0.1 190);
+  --ngg-reflog-intent-advance: oklch(48% 0.13 245);
+  --ngg-reflog-intent-ref: oklch(48% 0.13 140);
 }

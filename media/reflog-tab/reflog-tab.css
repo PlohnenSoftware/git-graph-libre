@@ -1,5 +1,7 @@
 /* The Reflog tab (F1-03): theme tokens first, `--ngg-*` OKLCH fallbacks
-   second, per the Webview UI Styling Guide. Action colors are F1-04. */
+   second, per the Webview UI Styling Guide. The action markers and
+   sub-action tags (F1-04) read their colors from the `--ngg-reflog-*`
+   tokens in media/tokens.css through one custom property each. */
 
 .ggl-reflog {
   display: flex;
@@ -47,8 +49,45 @@
 .ggl-reflog .reflog-row:hover { background: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-subtle)); }
 .ggl-reflog .reflog-index,
 .ggl-reflog .reflog-time { white-space: nowrap; color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
-.ggl-reflog .reflog-action { white-space: nowrap; }
+.ggl-reflog .reflog-action { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+.ggl-reflog .reflog-kind-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--reflog-kind-color, var(--ngg-reflog-kind-other));
+}
+.ggl-reflog .reflog-kind-commit { --reflog-kind-color: var(--ngg-reflog-kind-commit); }
+.ggl-reflog .reflog-kind-checkout { --reflog-kind-color: var(--ngg-reflog-kind-checkout); }
+.ggl-reflog .reflog-kind-reset { --reflog-kind-color: var(--ngg-reflog-kind-reset); }
+.ggl-reflog .reflog-kind-rebase { --reflog-kind-color: var(--ngg-reflog-kind-rebase); }
+.ggl-reflog .reflog-kind-merge { --reflog-kind-color: var(--ngg-reflog-kind-merge); }
+.ggl-reflog .reflog-kind-pull { --reflog-kind-color: var(--ngg-reflog-kind-pull); }
+.ggl-reflog .reflog-kind-fetch { --reflog-kind-color: var(--ngg-reflog-kind-fetch); }
+.ggl-reflog .reflog-kind-cherry-pick { --reflog-kind-color: var(--ngg-reflog-kind-cherry-pick); }
+.ggl-reflog .reflog-kind-revert { --reflog-kind-color: var(--ngg-reflog-kind-revert); }
+.ggl-reflog .reflog-kind-branch { --reflog-kind-color: var(--ngg-reflog-kind-branch); }
+.ggl-reflog .reflog-kind-stash { --reflog-kind-color: var(--ngg-reflog-kind-stash); }
+.ggl-reflog .reflog-kind-clone { --reflog-kind-color: var(--ngg-reflog-kind-clone); }
+.ggl-reflog .reflog-kind-other { --reflog-kind-color: var(--ngg-reflog-kind-other); }
 .ggl-reflog .reflog-sub { white-space: nowrap; color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+/* The tag's text stays in the theme foreground so it reads in every
+   theme; the intent color carries in the tint and the ring. */
+.ggl-reflog .reflog-sub-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--vscode-foreground, oklch(88% 0 0));
+  background: color-mix(in oklab, var(--reflog-intent-color, var(--ngg-reflog-intent-neutral)) 24%, var(--ngg-transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--reflog-intent-color, var(--ngg-reflog-intent-neutral)) 45%, var(--ngg-transparent));
+}
+.ggl-reflog .reflog-sub-intent-rewrite { --reflog-intent-color: var(--ngg-reflog-intent-rewrite); }
+.ggl-reflog .reflog-sub-intent-combine { --reflog-intent-color: var(--ngg-reflog-intent-combine); }
+.ggl-reflog .reflog-sub-intent-advance { --reflog-intent-color: var(--ngg-reflog-intent-advance); }
+.ggl-reflog .reflog-sub-intent-abort { --reflog-intent-color: var(--ngg-reflog-intent-abort); }
+.ggl-reflog .reflog-sub-intent-ref { --reflog-intent-color: var(--ngg-reflog-intent-ref); }
+.ggl-reflog .reflog-sub-intent-neutral { --reflog-intent-color: var(--ngg-reflog-intent-neutral); }
 .ggl-reflog .reflog-message { min-width: 200px; }
 .ggl-reflog .reflog-hash { font-family: var(--vscode-editor-font-family, monospace); white-space: nowrap; }
 .ggl-reflog .reflog-badge {
@@ -90,5 +129,7 @@
 .ggl-reflog ::-webkit-scrollbar-thumb:active { background: var(--vscode-scrollbarSlider-activeBackground, oklch(60% 0 0 / 0.8)); }
 @media (forced-colors: active) {
   .ggl-reflog .reflog-badge { border: 1px solid currentColor; }
+  .ggl-reflog .reflog-sub-tag { border: 1px solid currentColor; }
+  .ggl-reflog .reflog-kind-dot { border: 1px solid currentColor; }
   .ggl-reflog .reflog-load-more { border: 1px solid currentColor; }
 }

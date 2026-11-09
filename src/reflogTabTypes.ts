@@ -26,6 +26,56 @@ export type ReflogRow = {
   state: "reachable" | "reflogOnly" | "missing" | null;
 };
 
+/**
+ * The action kinds `classifyReflogMessage` (F1-01) can return today. The
+ * set is open: a newer classifier may add kinds, and the tab shows any kind
+ * it does not know with Git's raw word and a neutral marker (F1-04).
+ */
+export const REFLOG_ACTION_KINDS = [
+  "commit",
+  "checkout",
+  "reset",
+  "rebase",
+  "merge",
+  "pull",
+  "fetch",
+  "cherry-pick",
+  "revert",
+  "branch",
+  "stash",
+  "clone",
+  "other"
+] as const;
+
+/**
+ * The sub-actions Git writes in reflog subjects, as `classifyReflogMessage`
+ * returns them (F1-01's verified subjects): `commit (initial|amend|merge)`,
+ * `rebase (start|pick|squash|fixup|reword|edit|continue|abort|finish)` and
+ * the same sequencer steps under `pull`, `merge` "fast-forward", `branch`
+ * created/renamed/copied, and the stash's wip/named. Any other sub-action
+ * shows Git's raw word on a neutral tag (F1-04).
+ */
+export const REFLOG_SUB_ACTIONS = [
+  "initial",
+  "amend",
+  "merge",
+  "start",
+  "pick",
+  "squash",
+  "fixup",
+  "reword",
+  "edit",
+  "continue",
+  "abort",
+  "finish",
+  "fast-forward",
+  "created",
+  "renamed",
+  "copied",
+  "wip",
+  "named"
+] as const;
+
 /** The tab's localized text; `loadError` and `title` keep their `{0}`. */
 export type ReflogLabels = {
   title: string;
@@ -42,6 +92,10 @@ export type ReflogLabels = {
   columnHash: string;
   columnTime: string;
   columnState: string;
+  /** Localized label per known action kind, keyed by {@link REFLOG_ACTION_KINDS}. */
+  actions: Readonly<Record<string, string>>;
+  /** Localized label per known sub-action, keyed by {@link REFLOG_SUB_ACTIONS}. */
+  subActions: Readonly<Record<string, string>>;
 };
 
 /** One page of the reflog, newest first, as `loadReflog` returned it. */

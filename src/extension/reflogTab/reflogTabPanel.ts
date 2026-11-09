@@ -3,13 +3,15 @@ import * as vscode from "vscode";
 import { DEFAULT_REFLOG_PAGE_SIZE, MAX_REFLOG_PAGE_SIZE } from "@/backend/queries/reflog";
 import { buildExtensionUri } from "@/backend/utils/path";
 import * as l10n from "@/l10n";
-import type {
-  ReflogDataMessage,
-  ReflogLabels,
-  ReflogLoadingMessage,
-  ReflogPage,
-  ReflogSource,
-  ReflogWebviewMessage
+import {
+  REFLOG_ACTION_KINDS,
+  REFLOG_SUB_ACTIONS,
+  type ReflogDataMessage,
+  type ReflogLabels,
+  type ReflogLoadingMessage,
+  type ReflogPage,
+  type ReflogSource,
+  type ReflogWebviewMessage
 } from "@/reflogTabTypes";
 import { RepoFileWatcher } from "@/repoFileWatcher";
 
@@ -173,6 +175,12 @@ function readLabels(): ReflogLabels {
     columnMessage: l10n.t("reflog.column.message"),
     columnHash: l10n.t("reflog.column.hash"),
     columnTime: l10n.t("reflog.column.time"),
-    columnState: l10n.t("reflog.column.state")
+    columnState: l10n.t("reflog.column.state"),
+    actions: Object.fromEntries(
+      REFLOG_ACTION_KINDS.map((kind) => [kind, l10n.t(`reflog.action.${kind}`)])
+    ),
+    subActions: Object.fromEntries(
+      REFLOG_SUB_ACTIONS.map((sub) => [sub, l10n.t(`reflog.sub.${sub}`)])
+    )
   };
 }

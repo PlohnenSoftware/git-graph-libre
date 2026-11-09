@@ -1,5 +1,6 @@
 import type { ReflogLabels, ReflogRow } from "@/reflogTabTypes";
 
+import { kindClass, kindLabel, subIntentClass, subLabel } from "./actionStyle";
 import {
   badgeFor,
   fullDate,
@@ -57,11 +58,23 @@ function rowElement(row: ReflogRow, state: ReflogViewState, labels: ReflogLabels
   const index = element("td", "reflog-cell reflog-index", String(row.index));
   index.title = selectorFor(row, state.ref);
   const action = element("td", "reflog-cell");
-  const kind = element("span", "reflog-action", row.kind);
+  // The marker's color never carries the meaning alone: the localized
+  // label sits beside it, and Git's raw kind word stays in the tooltip.
+  const kind = element("span", "reflog-action");
   kind.dataset.kind = row.kind;
+  kind.title = row.kind;
+  const dot = element("span", `reflog-kind-dot ${kindClass(row.kind)}`);
+  dot.setAttribute("aria-hidden", "true");
+  kind.append(dot, kindLabel(row.kind, labels));
   action.append(kind);
   const sub = element("td", "reflog-cell");
-  sub.append(element("span", "reflog-sub", row.sub ?? "—"));
+  if (row.sub === null) {
+    sub.append(element("span", "reflog-sub", "—"));
+  } else {
+    const tag = element("span", `reflog-sub reflog-sub-tag ${subIntentClass(row.sub)}`, subLabel(row.sub, labels));
+    tag.title = row.sub;
+    sub.append(tag);
+  }
   const message = element("td", "reflog-cell reflog-message", row.message);
   message.title = row.message;
   const hash = element("td", "reflog-cell");
