@@ -77,7 +77,13 @@ export function applyData(state: ReflogViewState, message: ReflogDataMessage): R
     ref: page.ref ?? state.ref,
     locale: message.locale,
     labels: message.labels,
-    rows: message.append && page.error === null ? [...state.rows, ...page.rows] : page.rows,
+    // A failed "Load more" keeps the rows on screen; only its error is new.
+    rows:
+      message.append && page.error !== null
+        ? state.rows
+        : message.append
+          ? [...state.rows, ...page.rows]
+          : page.rows,
     reflogState: page.state ?? state.reflogState,
     error: page.error,
     hasMore: page.error === null ? page.hasMore : state.hasMore
