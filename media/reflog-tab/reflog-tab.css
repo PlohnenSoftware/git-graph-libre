@@ -31,7 +31,7 @@
 .ggl-reflog .reflog-repo { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
 .ggl-reflog .reflog-scroll { flex: 1; min-height: 0; overflow: auto; }
 .ggl-reflog .reflog-table { width: 100%; border-collapse: collapse; }
-/* Once the user drags a column, the colgroup widths rule, as the
+/* Once the user drags a column, the header widths rule, as the
    graph's `.fixedLayout` table does. */
 .ggl-reflog .reflog-table.fixedLayout { table-layout: fixed; }
 .ggl-reflog .reflog-head-cell {
@@ -40,6 +40,7 @@
   padding: 6px 8px;
   text-align: left;
   line-height: 18px;
+  overflow: hidden;
   font-weight: 600;
   color: var(--vscode-descriptionForeground, oklch(70% 0 0));
   background: var(--vscode-editor-background, oklch(20% 0 0));
@@ -63,6 +64,9 @@
 .ggl-reflog .reflog-cell {
   padding: 4px 8px;
   vertical-align: top;
+  /* As the graph's cells: a column dragged narrow clips, never bleeds
+     into its neighbour. */
+  overflow: hidden;
   border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
 }
 .ggl-reflog .reflog-row:hover { background: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-subtle)); }

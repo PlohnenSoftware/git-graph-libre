@@ -235,7 +235,7 @@ describe("reflog table column resizing (F1-04F)", () => {
   }
 
   function colWidths(root: HTMLElement): string[] {
-    return [...root.querySelectorAll<HTMLElement>("colgroup col")].map((col) => col.style.width);
+    return [...root.querySelectorAll<HTMLElement>("thead th")].map((cell) => cell.style.width);
   }
 
   function drag(root: HTMLElement, col: number, from: number, to: number) {

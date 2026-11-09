@@ -96,8 +96,8 @@ describe("reflog tab webview", () => {
 
     const second = await start(first.savedState());
     send(dataMessage({ page: page({ rows: [row(), row({ index: 1 })] }) }));
-    const cols = [...second.root.querySelectorAll<HTMLElement>("colgroup col")].map(
-      (col) => col.style.width
+    const cols = [...second.root.querySelectorAll<HTMLElement>("thead th")].map(
+      (cell) => cell.style.width
     );
     expect(cols).toEqual(savedWidths.map((width) => `${width}px`));
     expect(second.root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);

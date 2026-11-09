@@ -101,7 +101,6 @@ function table(
 ): HTMLElement {
   const scroll = element("div", "reflog-scroll");
   const tableNode = element("table", "reflog-table");
-  const colgroup = document.createElement("colgroup");
   const columns = [
     labels.columnIndex,
     labels.columnAction,
@@ -111,8 +110,6 @@ function table(
     labels.columnDate,
     labels.columnState
   ];
-  const cols: HTMLElement[] = columns.map(() => document.createElement("col"));
-  colgroup.append(...cols);
   const head = document.createElement("thead");
   const headRow = document.createElement("tr");
   headRow.className = "reflog-head-row";
@@ -137,15 +134,17 @@ function table(
   head.append(headRow);
   const body = document.createElement("tbody");
   for (const row of state.rows) body.append(rowElement(row, state, labels, now));
-  tableNode.append(colgroup, head, body);
+  tableNode.append(head, body);
   scroll.append(tableNode);
 
   let widths = state.columnWidths;
   const applyWidths = () => {
     if (widths === null) return;
     tableNode.classList.add("fixedLayout");
-    cols.forEach((col, index) => {
-      col.style.width = `${widths?.[index] ?? MIN_COLUMN_WIDTH}px`;
+    // Widths are content widths on the header cells, as the graph sets
+    // them; under fixed layout the first row sizes every column.
+    headers.forEach((cell, index) => {
+      cell.style.width = `${widths?.[index] ?? MIN_COLUMN_WIDTH}px`;
     });
   };
   applyWidths();
