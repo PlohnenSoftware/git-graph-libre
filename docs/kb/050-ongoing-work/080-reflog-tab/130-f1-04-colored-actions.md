@@ -7,7 +7,7 @@ summary: >-
 
 # F1-04 — Colored actions and sub-actions
 
-Status: done — awaiting integration
+Status: integrated `36253078`
 
 Needs: F1-03
 

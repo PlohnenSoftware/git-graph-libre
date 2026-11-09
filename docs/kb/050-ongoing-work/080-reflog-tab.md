@@ -73,7 +73,7 @@ that note, the slice file wins.
 | F1-01 | Reflog read query | — | Sonnet | integrated `967e778` |
 | F1-02 | Reflog entry states | F1-01 | Haiku | integrated `2deb880` |
 | F1-03 | Reflog tab (read-only) | F1-02 | Sonnet | integrated `6a66083e` |
-| F1-04 | Colored actions and sub-actions | F1-03 | Haiku | ready |
+| F1-04 | Colored actions and sub-actions | F1-03 | Haiku | integrated `36253078` |
 | F1-09 | Reflog read through the engine | F1-03 | Sonnet | ready |
 | F1-04F | Unify the Reflog tab with the graph | F1-04, F1-09 | Haiku | waiting |
 | F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | waiting |
@@ -145,3 +145,17 @@ headless render of the tab in both themes. Nothing is pushed.
   for a shared concept (Reference) and opened as slice F1-04F, to run
   after F1-04 and F1-09 and before F1-05 (all three edit the reflog
   webview and bundles).
+- 2026-11-09: F1-04 (Muse Code subagent) integrated at `36253078`:
+  rebased onto `346481c8`, then fast-forwarded (its Report lists the
+  pre-rebase hashes). Colored kind markers and intent-grouped sub-action
+  tags (`actionStyle.ts`, 19 `--ngg-reflog-*` tokens, charts tokens
+  first), 31 new strings in all five languages, 9 new tests. The agent's
+  reading of "the reflog strings module" (`ReflogLabels` in
+  `src/reflogTabTypes.ts`, `readLabels()` in the panel) is accepted as
+  written in Touch. Gates on `36253078`: typecheck clean; strict Biome
+  on the 14 covered touched files clean; `pnpm run test` backend 1,509
+  and webview 1,069 passed; `l10n:check` complete; KB check clean;
+  `pnpm run package` builds. The integrator eyeballed the dark and
+  light renders: the 13 kind dots, six intent tints and both state
+  badges read correctly in both themes. F1-09 still running; F1-04F
+  waits for it.
