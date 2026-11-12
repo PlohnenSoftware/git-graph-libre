@@ -11,6 +11,13 @@ always_read: true
 
 # Near-Term Work Order
 
+**Also open (`2026-11-12`): popup defects to fix.** The maintainer asked for
+a visual review of every popup and context menu, the worktree ones first.
+The context menus are fixed. "Popup and context-menu visual review"
+(Ongoing work) lists what is left, V1–V11, with the cause and the proposed
+fix of each, a suggested order, and one question for the maintainer (VQ1,
+icon buttons in the Worktrees popup).
+
 **Now (`2026-11-08`).** Two threads, both waiting for the maintainer:
 
 - The Engine upstream integration (Ongoing work) brought R01–R09 to `main`
