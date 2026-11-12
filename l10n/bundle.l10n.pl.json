@@ -792,6 +792,7 @@
   "dialog.moveWorktree.message": "Przenieść drzewo robocze {0} do nowego folderu? Git przenosi folder i aktualizuje swój wpis. Nowy folder nie może jeszcze istnieć:",
   "dialog.moveWorktree.folder": "Nowy folder",
   "dialog.moveWorktree.submit": "Przenieś",
+  "dialog.moveWorktree.pickFolder": "Wybierz folder, do którego przenieść drzewo robocze",
   "dialog.moveWorktree.locked": "Drzewo robocze {0} jest zablokowane ({1}), więc Git go nie przeniesie. Najpierw je odblokować?",
   "dialog.moveWorktree.lockedNoReason": "Drzewo robocze {0} jest zablokowane, więc Git go nie przeniesie. Najpierw je odblokować?",
   "error.unableToLockWorktree": "Nie można zablokować drzewa roboczego",

@@ -1240,15 +1240,18 @@ export function registerMessageHandlers(
     });
   });
 
-  // The Create Worktree dialog's Browse button: the folder the user picks fills its field.
+  // A folder field's Browse button: the folder the user picks fills its
+  // field. The title names the asking dialog; the button stays "Choose
+  // Folder" for both, because picking alone creates and moves nothing.
   bridge.onMessage("pickFolder", async (msg) => {
+    const title =
+      msg.purpose === "moveWorktree"
+        ? l10n.t("dialog.moveWorktree.pickFolder")
+        : l10n.t("dialog.createWorktree.pickFolder");
     bridge.post({
       command: "pickFolder",
       requestId: msg.requestId,
-      path: await pickFolder(
-        l10n.t("dialog.createWorktree.pickFolder"),
-        l10n.t("dialog.createWorktree.pickFolderLabel")
-      )
+      path: await pickFolder(title, l10n.t("dialog.createWorktree.pickFolderLabel"))
     });
   });
 

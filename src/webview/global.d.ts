@@ -84,6 +84,16 @@ declare global {
     type: "folder";
     name: string;
     default: string;
+    /** The dialog the host picker is titled for; the Create Worktree picker when omitted. */
+    pickPurpose?: "createWorktree" | "moveWorktree";
+    /**
+     * The folder name a Browse pick keeps: the picker then chooses the
+     * parent folder and the field becomes `<picked>/<this name>`. Move
+     * Worktree needs it, because its target must not exist yet, so the
+     * picked folder itself can never be the answer. When omitted, the
+     * picked folder fills the field as picked.
+     */
+    keepFolderName?: string;
   }
   interface DialogTextareaInput {
     type: "textarea";

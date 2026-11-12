@@ -624,10 +624,15 @@ export type ResponseResolveRef = {
   error: GitQueryError | null;
 };
 
-/** Asks the extension for a folder with VS Code's folder picker (the Create Worktree dialog's Browse, W22F). */
+/**
+ * Asks the extension for a folder with VS Code's folder picker: the Browse
+ * button of the Create Worktree dialog (W22F) and of the Move Worktree
+ * dialog. The purpose titles the picker for the dialog that asked.
+ */
 export type RequestPickFolder = {
   command: "pickFolder";
   requestId: number;
+  purpose: "createWorktree" | "moveWorktree";
 };
 export type ResponsePickFolder = {
   command: "pickFolder";

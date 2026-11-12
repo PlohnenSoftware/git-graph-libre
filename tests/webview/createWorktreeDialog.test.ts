@@ -490,6 +490,7 @@ describe("the Browse button (W22F)", () => {
     clickBrowse();
 
     const pick = latestRequest(vscodeMock.sentMessages, "pickFolder");
+    expect(pick).toMatchObject({ purpose: "createWorktree" });
     receive({ command: "pickFolder", requestId: pick.requestId, path: "/picked/elsewhere" });
     expect(dialogInput<HTMLInputElement>(0).value).toBe("/picked/elsewhere");
     submitDialog();

@@ -92,3 +92,18 @@ path, and leaves no handle open on the old one.
   - The nl, pl, zh-cn and zh-tw strings are my own translations; a native read would help.
   - Git quotes non-ASCII in non-`-z` porcelain output (`locked "keep \303\251"`). The app reads `-z`, so this does not affect it.
   - The change is not run in a VS Code window; the gates above are the evidence.
+
+## Follow-up: a folder selector for Move (`2026-11-12`)
+
+The deviation above — the new path as a text field with no picker — is
+resolved. The dialog's field is now the shared folder field (W22F), with two
+additions it needed: `pickFolder` carries a `purpose`, so the host titles the
+picker for the asking dialog (`dialog.moveWorktree.pickFolder`, all five
+languages), and the field's `keepFolderName` makes a pick mean the
+destination folder: the field becomes `<picked>/<current folder name>`, on
+the picked path's own separator. Choosing the parent is the only shape that
+can work here, because the move target must not exist yet while a folder
+picker only returns folders that do. The field stays editable, so a move can
+still rename; a cancelled picker changes nothing, and nothing moves until
+the dialog is confirmed. The nl, pl, zh-cn and zh-tw title strings are the
+agent's own translations, as before.

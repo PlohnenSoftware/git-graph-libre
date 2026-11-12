@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The Topological commit ordering runs on the Rust engine.** It always went
   through Git before, because the engine ordered some histories differently;
   it now matches `git log --topo-order` exactly.
+- **Moving a worktree can pick its new home with the folder selector.** The
+  Move Worktree dialog had only a text field. Its Browse button now opens
+  the same folder selector as Create Worktree: choose the folder to move
+  into and the worktree keeps its folder name there, because the new folder
+  must not exist yet. The path stays editable, so a move can still rename
+  the folder, and nothing moves until you confirm.
 
 ### Fixed
 

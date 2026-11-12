@@ -381,6 +381,44 @@ describe("the Worktrees popup's lock, unlock and move (W23)", () => {
     });
   });
 
+  it("asks for the destination with the folder picker, keeping the folder name", async () => {
+    const mock = await boot(LISTED);
+    click("#worktreesBtn");
+    rowAction(1, "move");
+
+    const browse = document.getElementById("dialogBrowse0");
+    expect(browse).not.toBeNull();
+    browse?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const pick = latest(mock.sentMessages, "pickFolder");
+    expect(pick).toMatchObject({ purpose: "moveWorktree" });
+
+    // The picked folder exists, so it can never be the move target itself:
+    // the field keeps the worktree's own folder name inside it, and picking
+    // alone moves nothing. A trailing separator on the pick adds no second one.
+    receive({ command: "pickFolder", requestId: pick.requestId, path: "/picked parent/" });
+    expect(dialogField(0).value).toBe("/picked parent/side é");
+    expect(mock.sentMessages.some((msg) => msg.command === "moveWorktree")).toBe(false);
+
+    submitDialog();
+    expect(latest(mock.sentMessages, "moveWorktree")).toMatchObject({
+      repo: REPO,
+      path: SIDE,
+      newPath: "/picked parent/side é"
+    });
+  });
+
+  it("leaves the typed folder as it was when the move picker is cancelled", async () => {
+    const mock = await boot(LISTED);
+    click("#worktreesBtn");
+    rowAction(1, "move");
+    dialogField(0).value = "/typed/target";
+    document.getElementById("dialogBrowse0")?.dispatchEvent(new MouseEvent("click"));
+
+    const pick = latest(mock.sentMessages, "pickFolder");
+    receive({ command: "pickFolder", requestId: pick.requestId, path: null });
+    expect(dialogField(0).value).toBe("/typed/target");
+  });
+
   it("explains a locked worktree's move and offers Unlock first, never a move", async () => {
     const mock = await boot(LOCKED_SIDE);
     click("#worktreesBtn");

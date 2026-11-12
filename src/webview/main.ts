@@ -5592,11 +5592,15 @@ class GitGraphView {
       ),
       [
         {
-          type: "text",
+          // Browse picks the folder to move into and keeps this folder's
+          // name, because the move target must not exist yet; the field
+          // stays editable, so a move can still rename.
+          type: "folder",
           name: l10n.dialogMoveWorktreeFolder,
           default: "",
-          placeholder: null,
-          required: true
+          required: true,
+          pickPurpose: "moveWorktree",
+          keepFolderName: worktreeFolderName(worktree.path)
         }
       ],
       l10n.dialogMoveWorktreeSubmit,
@@ -8820,7 +8824,11 @@ function showFormDialog(
   bindFolderDialogInputs(inputs);
 }
 /** The folder field a Browse click is filling, until the picker answers (W22F). */
-let pendingFolderPick: { requestId: number; field: HTMLInputElement } | null = null;
+let pendingFolderPick: {
+  requestId: number;
+  field: HTMLInputElement;
+  keepFolderName: string | null;
+} | null = null;
 let folderPickRequests = 0;
 /** Wires each folder field's Browse button to the folder picker (W22F). */
 function bindFolderDialogInputs(inputs: DialogInput[]) {
@@ -8828,15 +8836,37 @@ function bindFolderDialogInputs(inputs: DialogInput[]) {
     if (input.type !== "folder") continue;
     document
       .getElementById(`dialogBrowse${index}`)
-      ?.addEventListener("click", () => requestFolderPick(index));
+      ?.addEventListener("click", () => requestFolderPick(index, input));
   }
 }
-function requestFolderPick(index: number) {
+function requestFolderPick(index: number, input: Extract<DialogInput, { type: "folder" }>) {
   const field = document.getElementById(`dialogInput${index}`) as HTMLInputElement | null;
   if (field === null) return;
   folderPickRequests += 1;
-  pendingFolderPick = { requestId: folderPickRequests, field };
-  sendMessage({ command: "pickFolder", requestId: folderPickRequests });
+  pendingFolderPick = {
+    requestId: folderPickRequests,
+    field,
+    keepFolderName: input.keepFolderName ?? null
+  };
+  sendMessage({
+    command: "pickFolder",
+    requestId: folderPickRequests,
+    purpose: input.pickPurpose ?? "createWorktree"
+  });
+}
+/**
+ * The value a picked folder gives its field: the folder itself, or, for a
+ * field that keeps a folder name, that name inside the picked folder. The
+ * separator follows the picked path's own, as `defaultWorktreePath` does.
+ */
+function folderPickValue(picked: string, keepFolderName: string | null): string {
+  if (keepFolderName === null) return picked;
+  const separator = picked.includes("\\") ? "\\" : "/";
+  // No trailing-separator regex: a quantifier before the anchor is the
+  // super-linear shape S8786 bans, so trim as worktreeFolderName does.
+  let end = picked.length;
+  while (end > 0 && (picked[end - 1] === "/" || picked[end - 1] === "\\")) end -= 1;
+  return `${picked.slice(0, end)}${separator}${keepFolderName}`;
 }
 /** The picker's answer: a picked folder fills the field, and a cancelled picker changes nothing. */
 function finishFolderPick(msg: Extract<GGL.ResponseMessage, { command: "pickFolder" }>) {
@@ -8844,7 +8874,7 @@ function finishFolderPick(msg: Extract<GGL.ResponseMessage, { command: "pickFold
   if (pending?.requestId !== msg.requestId) return;
   pendingFolderPick = null;
   if (msg.path === null || !pending.field.isConnected) return;
-  pending.field.value = msg.path;
+  pending.field.value = folderPickValue(msg.path, pending.keepFolderName);
   // An input event re-runs the dialog's own check, which unblocks the action.
   pending.field.dispatchEvent(new Event("input"));
 }

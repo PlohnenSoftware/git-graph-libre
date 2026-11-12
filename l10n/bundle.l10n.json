@@ -792,6 +792,7 @@
   "dialog.moveWorktree.message": "Move the worktree {0} to a new folder. Git moves its folder and updates its record. The new folder must not exist yet:",
   "dialog.moveWorktree.folder": "New folder",
   "dialog.moveWorktree.submit": "Move Worktree",
+  "dialog.moveWorktree.pickFolder": "Choose the folder to move the worktree into",
   "dialog.moveWorktree.locked": "The worktree {0} is locked ({1}), so Git will not move it. Unlock it first?",
   "dialog.moveWorktree.lockedNoReason": "The worktree {0} is locked, so Git will not move it. Unlock it first?",
   "error.unableToLockWorktree": "Unable to Lock Worktree",

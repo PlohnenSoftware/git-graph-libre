@@ -792,6 +792,7 @@
   "dialog.moveWorktree.message": "Het worktree {0} naar een nieuwe map verplaatsen. Git verplaatst de map en werkt de registratie bij. De nieuwe map mag nog niet bestaan:",
   "dialog.moveWorktree.folder": "Nieuwe map",
   "dialog.moveWorktree.submit": "Verplaatsen",
+  "dialog.moveWorktree.pickFolder": "Kies de map waarnaar de worktree wordt verplaatst",
   "dialog.moveWorktree.locked": "Het worktree {0} is vergrendeld ({1}), dus Git verplaatst het niet. Eerst ontgrendelen?",
   "dialog.moveWorktree.lockedNoReason": "Het worktree {0} is vergrendeld, dus Git verplaatst het niet. Eerst ontgrendelen?",
   "error.unableToLockWorktree": "Worktree kan niet worden vergrendeld",

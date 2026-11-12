@@ -792,6 +792,7 @@
   "dialog.moveWorktree.message": "將工作樹 {0} 移動到新資料夾。Git 會移動其資料夾並更新紀錄。新資料夾必須尚不存在：",
   "dialog.moveWorktree.folder": "新資料夾",
   "dialog.moveWorktree.submit": "移動",
+  "dialog.moveWorktree.pickFolder": "選擇將工作樹移入的資料夾",
   "dialog.moveWorktree.locked": "工作樹 {0} 已鎖定（{1}），因此 Git 不會移動它。要先解除鎖定嗎？",
   "dialog.moveWorktree.lockedNoReason": "工作樹 {0} 已鎖定，因此 Git 不會移動它。要先解除鎖定嗎？",
   "error.unableToLockWorktree": "無法鎖定工作樹",

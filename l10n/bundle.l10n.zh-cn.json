@@ -792,6 +792,7 @@
   "dialog.moveWorktree.message": "将工作树 {0} 移动到新文件夹。Git 会移动其文件夹并更新记录。新文件夹必须尚不存在：",
   "dialog.moveWorktree.folder": "新文件夹",
   "dialog.moveWorktree.submit": "移动",
+  "dialog.moveWorktree.pickFolder": "选择将工作树移入的文件夹",
   "dialog.moveWorktree.locked": "工作树 {0} 已锁定（{1}），因此 Git 不会移动它。要先解锁吗？",
   "dialog.moveWorktree.lockedNoReason": "工作树 {0} 已锁定，因此 Git 不会移动它。要先解锁吗？",
   "error.unableToLockWorktree": "无法锁定工作树",
