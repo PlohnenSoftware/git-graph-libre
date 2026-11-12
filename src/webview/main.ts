@@ -3438,7 +3438,9 @@ class GitGraphView {
     action: string,
     item: ContextMenuItem
   ): ContextMenuElement {
-    return this.isContextMenuActionVisible(group, action) ? item : null;
+    // Hidden is `undefined`, which the menu leaves out; `null` is a divider,
+    // and a hidden item written as one drew a divider in its place.
+    return this.isContextMenuActionVisible(group, action) ? item : undefined;
   }
   private buildUncommittedChangesContextMenu(sourceElem: HTMLElement): ContextMenuElement[] {
     return [
@@ -4438,31 +4440,31 @@ class GitGraphView {
             title: l10n.viewTagDetails + ELLIPSIS,
             onClick: () => this.loadTagDetails(refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("tag", "delete")
         ? {
             title: l10n.deleteTag + ELLIPSIS,
             onClick: () => this.showDeleteTagDialog(refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("tag", "push")
         ? {
             title: l10n.pushTag + ELLIPSIS,
             onClick: () => this.showPushTagDialog(refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("tag", "fetchTags")
         ? {
             title: l10n.fetchTags + ELLIPSIS,
             onClick: () => this.showFetchTagsDialog()
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("tag", "createArchive")
         ? {
             title: l10n.createArchive,
             onClick: () => this.createArchiveAction(refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("tag", "createWorktree")
         ? {
             title: l10n.createWorktree + ELLIPSIS,
@@ -4479,7 +4481,7 @@ class GitGraphView {
                 null
               )
           }
-        : null
+        : undefined
     ];
   }
   private loadTagDetails(refName: string) {
@@ -4523,9 +4525,11 @@ class GitGraphView {
     this.appendBranchRemoteItems(menu, refName);
     this.appendBranchMutationItems(menu, sourceElem, refName);
     // Prune Stale Worktrees is repository-wide, so any branch offers it; the
-    // worktree group above already carries it when it is shown.
+    // worktree group above already carries it when it is shown. It is a group
+    // of its own: without the closing divider it headed the archive and
+    // compare items, which have nothing to do with worktrees.
     const maintenance = worktreeItems.length > 0 ? [] : this.worktreeMaintenanceItems(refName);
-    if (maintenance.length > 0) menu.push(null, ...maintenance);
+    if (maintenance.length > 0) menu.push(null, ...maintenance, null);
     this.appendBranchArchiveItem(menu, refName);
     this.appendBranchPullRequestItem(menu, refName, sourceElem);
     return menu;
@@ -4843,6 +4847,9 @@ class GitGraphView {
     if (remoteBranch === null) return menu;
 
     const { remote, branchName } = remoteBranch;
+    // Under the worktree header, the holding worktree's action is a group of
+    // its own, as in the local branch's menu; the remote branch's follow.
+    if (this.otherWorktreePath(branchName) !== null) menu.push(null);
     const remoteActions: ContextMenuElement[] = [
       ...this.buildIssueContextMenuItems(refName, sourceElem),
       this.isContextMenuActionVisible("remoteBranch", "delete")
@@ -4850,13 +4857,13 @@ class GitGraphView {
             title: l10n.deleteRemoteBranch + ELLIPSIS,
             onClick: () => this.showDeleteRemoteBranchDialog(remote, branchName, refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("remoteBranch", "merge")
         ? {
             title: l10n.merge + ELLIPSIS,
             onClick: () => this.showMergeBranchDialog(refName)
           }
-        : null,
+        : undefined,
       ...(this.hasLocalBranch(branchName) &&
       this.gitBranchHead !== branchName &&
       this.otherWorktreePath(branchName) === null &&
@@ -4873,13 +4880,13 @@ class GitGraphView {
             title: l10n.pullBranch + ELLIPSIS,
             onClick: () => this.showPullBranchDialog(remote, branchName, refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("remoteBranch", "createArchive")
         ? {
             title: l10n.createArchive,
             onClick: () => this.createArchiveAction(refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("remoteBranch", "createWorktree")
         ? {
             title: l10n.createWorktree + ELLIPSIS,
@@ -4902,7 +4909,7 @@ class GitGraphView {
                 sourceElem
               )
           }
-        : null
+        : undefined
     ];
     menu.push(...remoteActions);
     const pullRequestItem = this.buildCreatePullRequestMenuItem(branchName, remote, sourceElem);
@@ -4917,7 +4924,7 @@ class GitGraphView {
     refName: string,
     localName: string | null
   ): ContextMenuElement {
-    if (!this.isContextMenuActionVisible("remoteBranch", "checkout")) return null;
+    if (!this.isContextMenuActionVisible("remoteBranch", "checkout")) return undefined;
     if (localName !== null && this.otherWorktreePath(localName) !== null) {
       return this.buildOpenWorktreeMenuItem(localName);
     }
@@ -6384,25 +6391,25 @@ class GitGraphView {
             title: l10n.applyStash + ELLIPSIS,
             onClick: () => this.showApplyStashDialog(selector, sourceElem)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("stash", "createBranch")
         ? {
             title: l10n.branchFromStash + ELLIPSIS,
             onClick: () => this.showBranchFromStashDialog(selector, sourceElem)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("stash", "pop")
         ? {
             title: l10n.popStash + ELLIPSIS,
             onClick: () => this.showPopStashDialog(selector, sourceElem)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("stash", "drop")
         ? {
             title: l10n.dropStash + ELLIPSIS,
             onClick: () => this.showDropStashDialog(selector, sourceElem)
           }
-        : null,
+        : undefined,
       null,
       this.isContextMenuActionVisible("stash", "copyName")
         ? {
@@ -6411,7 +6418,7 @@ class GitGraphView {
               sendMessage({ command: "copyToClipboard", type: "Stash Name", data: selector });
             }
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("stash", "copyHash")
         ? {
             title: l10n.copyStashHash,
@@ -6419,7 +6426,7 @@ class GitGraphView {
               sendMessage({ command: "copyToClipboard", type: "Stash Hash", data: hash });
             }
           }
-        : null
+        : undefined
     ];
   }
   private showApplyStashDialog(selector: string, sourceElem: HTMLElement) {
@@ -6870,12 +6877,17 @@ class GitGraphView {
       "author-date": l10n.orderAuthorDate,
       topo: l10n.orderTopological
     };
+    // Checked items, not a "✓ " typed into the title: the menu's check slot
+    // keeps a shown column, a hidden one and the toggle below in one text
+    // column, where a typed mark indented only the checked titles.
     const columnItems: ContextMenuElement[] = HIDEABLE_COLUMNS.map((column) => ({
-      title: `${this.hiddenColumns.has(column) ? "" : "✓ "}${labels[column]}`,
+      title: labels[column],
+      checked: !this.hiddenColumns.has(column),
       onClick: () => this.toggleColumnVisibility(column)
     }));
     const orderingItems: ContextMenuElement[] = COMMIT_ORDERINGS.map((ordering) => ({
-      title: `${commitOrdering === ordering ? "✓ " : ""}${orderingLabels[ordering]}`,
+      title: orderingLabels[ordering],
+      checked: commitOrdering === ordering,
       onClick: () => this.setCommitOrdering(ordering)
     }));
     return [
@@ -7719,13 +7731,13 @@ class GitGraphView {
               title: l10n.viewFileAtRevision,
               onClick: () => this.viewGitFileAtRevision(fileChange)
             }
-          : null,
+          : undefined,
         this.isContextMenuActionVisible("commitDetailsViewFile", "compareWithWorkingTree")
           ? {
               title: l10n.compareFileWithWorkingTree,
               onClick: () => this.compareGitFileWithWorkingTree(fileChange)
             }
-          : null
+          : undefined
       );
     }
 
@@ -7757,13 +7769,13 @@ class GitGraphView {
             onClick: () =>
               this.copyFilePathToClipboard(this.absoluteFilePathForRepo(fileChange.newFilePath))
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("commitDetailsViewFile", "copyRelativeFilePath")
         ? {
             title: l10n.copyRelativeFilePath,
             onClick: () => this.copyFilePathToClipboard(fileChange.newFilePath)
           }
-        : null
+        : undefined
     );
 
     return menu;
@@ -8542,7 +8554,7 @@ function renderContextMenuItem(item: ContextMenuItem, index: number): string {
   return `<li class="contextMenuItem${checkboxClass}" data-index="${index}"${checkboxAttributes}>${checkbox}${item.title}</li>`;
 }
 
-function renderContextMenuItems(visibleItems: ContextMenuElement[]): string {
+function renderContextMenuItems(visibleItems: ContextMenuRow[]): string {
   return visibleItems
     .map((item, index) =>
       item === null
@@ -8599,11 +8611,17 @@ function showContextMenu(
   contextMenuSource = sourceElem;
   contextMenuSource.classList.add("contextMenuActive");
 }
-function normalizeContextMenuItems(items: ContextMenuElement[]) {
-  const visibleItems: ContextMenuElement[] = [];
+/**
+ * The rows a menu draws from the entries its builder wrote: hidden entries
+ * (`undefined`) are left out, and dividers (`null`) are kept only between
+ * two items, so a group that ends up empty leaves no stray line.
+ */
+function normalizeContextMenuItems(items: ContextMenuElement[]): ContextMenuRow[] {
+  const visibleItems: ContextMenuRow[] = [];
   let dividerPending = false;
 
   for (const item of items) {
+    if (item === undefined) continue;
     if (item === null) {
       dividerPending = visibleItems.length > 0;
       continue;

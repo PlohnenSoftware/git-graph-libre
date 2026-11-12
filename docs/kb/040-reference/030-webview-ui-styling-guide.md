@@ -154,9 +154,18 @@ may not define the token):
   branch's actions follow after a divider (maintainer, `2026-11-08`;
   `branchWorktreeItems`). Before, all but Open Worktree came after Delete,
   Merge and Rebase.
-- A `null` in a menu's item list is a divider. A hidden item must be left
-  out, not pushed as `null`, or it draws a divider in its place. The hidden
-  Pull of a branch in another worktree did that between Push and Delete.
+- A `null` in a menu's item list is a divider. A hidden item is
+  `undefined` (`ContextMenuElement`), which `normalizeContextMenuItems`
+  leaves out; a hidden item written as `null` draws a divider in its place.
+  The hidden Pull of a branch in another worktree did that between Push and
+  Delete.
+- **One text column per menu.** A checkable item carries `checked`, which
+  draws its mark in the menu's check slot (`role="menuitemcheckbox"`,
+  `aria-checked`); never type `✓ ` into a title, which indents only the
+  checked titles. Where any item can be checked, plain items and the
+  header reserve the same slot, so every title starts at the same place.
+  The header lines up with what it heads: its rule is inset as far as a
+  divider, and its title starts where the items' text starts.
 - **No popup may grow wider than its cap, or scroll sideways, for a word it
   cannot break** (`2026-11-08`). A path, ref name or Git message has no break
   point of its own, so inside a width cap it scrolled the dialog sideways.

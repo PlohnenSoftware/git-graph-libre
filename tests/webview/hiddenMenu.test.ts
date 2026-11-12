@@ -267,6 +267,24 @@ describe("hidden menu styles", () => {
     expect(css).toContain(".contextMenuHeaderCaption");
   });
 
+  it("lines the header up with the items it heads", () => {
+    const header = css.match(/^\.contextMenuHeader \{[^}]+\}/m)?.[0] ?? "";
+    const item = css.match(/^#contextMenu li\.contextMenuItem \{[^}]+\}/m)?.[0] ?? "";
+    const divider = css.match(/^#contextMenu li\.contextMenuDivider \{[^}]+\}/m)?.[0] ?? "";
+
+    // The rule is inset as far as a divider, and the title starts where the
+    // items' text starts: 6px of margin plus 10px of padding is their 16px.
+    expect(divider).toContain("margin: 4px 6px;");
+    expect(header).toContain("margin: 0 6px 4px;");
+    expect(header).toContain("padding: 5px 10px 6px;");
+    expect(item).toContain("padding: 4px 16px;");
+    // In a menu with a check slot the text starts at 26px, and so does the title.
+    const checkHeader = css.match(
+      /^#contextMenu:has\(> \.contextMenuItemCheckbox\) > \.contextMenuHeader \{[^}]+\}/m
+    )?.[0];
+    expect(checkHeader).toContain("padding-left: 20px;");
+  });
+
   it("wraps a long header caption instead of widening the menu", () => {
     const header = css.match(/^\.contextMenuHeader \{[^}]+\}/m)?.[0] ?? "";
     // A worktree's path and state once stretched the menu across the window.

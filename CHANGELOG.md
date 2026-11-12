@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Context menus line up.** A menu's header now starts where its items'
+  text starts, its rule matches the dividers below it, and check marks sit
+  in their own slot, so checked, unchecked and plain items share one text
+  column. An action hidden by the context-menu settings no longer leaves a
+  stray divider behind, and the worktree actions of a remote branch whose
+  local branch is checked out in another worktree form their own group, as
+  they already did for a local branch.
 - **Popups no longer overflow on long paths.** A worktree path, branch name or
   Git message too long for a popup scrolled it sideways, for example after
   creating a worktree. It now wraps inside the popup, in every dialog, the

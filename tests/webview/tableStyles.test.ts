@@ -208,6 +208,21 @@ describe("commit table styles", () => {
     expect(css).toContain("justify-content: center;");
   });
 
+  it("keeps one text column in a menu that mixes checkable and plain items", () => {
+    // A plain item reserves the check slot (6px + 16px + 4px) wherever a
+    // sibling can be checked, so both kinds start their text at 26px.
+    const plainInCheckMenu = css.match(
+      /^#contextMenu:has\(> \.contextMenuItemCheckbox\) > li\.contextMenuItem:not\(\.contextMenuItemCheckbox\) \{[^}]+\}/m
+    )?.[0];
+    expect(plainInCheckMenu).toContain("padding-left: 26px;");
+    expect(css.match(/^#contextMenu li\.contextMenuItemCheckbox \{[^}]+\}/m)?.[0]).toContain(
+      "padding-left: 6px;"
+    );
+    const check = css.match(/^\.contextMenuCheck \{[^}]+\}/m)?.[0] ?? "";
+    expect(check).toContain("width: 16px;");
+    expect(check).toContain("margin-right: 4px;");
+  });
+
   it("covers settings and toolbar checkboxes in the shared rule set", () => {
     // Both sites join the same shared selectors; only their metrics differ.
     for (const site of [

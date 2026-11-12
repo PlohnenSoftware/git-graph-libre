@@ -59,7 +59,14 @@ declare global {
     onClick: () => void;
   }
 
-  type ContextMenuElement = ContextMenuItem | null;
+  /** A context menu as it is drawn: its items, with `null` for a divider. */
+  type ContextMenuRow = ContextMenuItem | null;
+  /**
+   * An entry of a menu's item list as its builder writes it: an item, `null`
+   * for a divider, or `undefined` for an item that is hidden and so left
+   * out. A hidden item written as `null` drew a divider in its place.
+   */
+  type ContextMenuElement = ContextMenuRow | undefined;
 
   interface DialogTextInput {
     type: "text";

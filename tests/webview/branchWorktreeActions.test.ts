@@ -629,6 +629,43 @@ describe("the worktree group in a branch's menu", () => {
     expect(layout.filter((item) => item.includes("Worktree"))).toHaveLength(4);
   });
 
+  it("separates Open Worktree from the actions of a remote branch whose local branch is held", async () => {
+    await bootWebview(WORKTREES_WITH_FEATURE);
+    openRefContextMenu("remote");
+
+    // The worktree's action is a group of its own under the header, as in the
+    // local branch's menu; the remote branch's actions follow the divider.
+    expect(contextMenuLayout().slice(0, 3)).toEqual([
+      "Open Worktree…",
+      "—",
+      "Delete Remote Branch…"
+    ]);
+  });
+
+  it("gives Prune Stale Worktrees a group of its own in the menu of a branch no worktree holds", async () => {
+    await bootWebview([
+      worktree({}),
+      worktree({
+        path: OTHER_WORKTREE,
+        branch: "gone",
+        isMain: false,
+        isCurrent: false,
+        prunable: { reason: "gitdir file points to non-existent location" }
+      })
+    ]);
+    openRefContextMenu("head");
+
+    const layout = contextMenuLayout();
+    const prune = layout.indexOf("Prune Stale Worktrees…");
+    // Without the closing divider it headed the archive and compare items.
+    expect(layout.slice(prune - 1, prune + 3)).toEqual([
+      "—",
+      "Prune Stale Worktrees…",
+      "—",
+      "Create Archive"
+    ]);
+  });
+
   it("groups a missing worktree's Remove, Repair and Prune with Open Worktree", async () => {
     await bootWebview([
       worktree({}),
