@@ -128,7 +128,7 @@
     "simple-git": "^3.36.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.5",
+    "@biomejs/biome": "^2.6.6",
     "@napi-rs/cli": "^3.10.12",
     "@primer/octicons": "^19.42.0",
     "@types/mocha": "^10.0.10",
@@ -142,7 +142,7 @@
     "@vscode/vsce": "^4.1.0",
     "esbuild": "^0.28.2",
     "jsdom": "^30.1.3",
-    "ovsx": "^1.2.0",
+    "ovsx": "^1.4.0",
     "tsc-alias": "^1.9.10",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
