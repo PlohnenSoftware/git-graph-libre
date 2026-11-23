@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyData,
   applyLoading,
+  applyRepoChanged,
   commitDate,
   heatAttribute,
   initialBlameState
@@ -124,5 +125,34 @@ describe("blame row model", () => {
       "en"
     );
     expect(numeric.value).toMatch(/^2023-11-\d{1,2} \d{2}:\d{2}$/);
+  });
+
+  it("carries unsavedBuffer, repoMeta, repoChanged and preserveScroll flags from messages", () => {
+    const state = applyData(
+      initialBlameState(),
+      dataMessage({
+        unsavedBuffer: true,
+        repoMeta: { linkedWorktree: true, bare: false },
+        repoChanged: false,
+        preserveScroll: true
+      })
+    );
+    expect(state.unsavedBuffer).toBe(true);
+    expect(state.repoMeta).toEqual({ linkedWorktree: true, bare: false });
+    expect(state.repoChanged).toBe(false);
+    expect(state.preserveScroll).toBe(true);
+  });
+
+  it("marks repoChanged only when the notification matches the active repository", () => {
+    const loaded = applyData(
+      initialBlameState(),
+      dataMessage({ repo: "/repos/one", rev: NEW_HASH })
+    );
+    const unrelated = applyRepoChanged(loaded, { command: "blameRepoChanged", repo: "/repos/two" });
+    expect(unrelated).toBe(loaded);
+    const marked = applyRepoChanged(loaded, { command: "blameRepoChanged", repo: "/repos/one" });
+    expect(marked.repoChanged).toBe(true);
+    expect(marked.preserveScroll).toBe(true);
+    expect(marked.hunks).toEqual(loaded.hunks);
   });
 });

@@ -21,8 +21,16 @@ function start() {
   document.body.innerHTML = '<div id="blameTab"></div>';
   const root = document.getElementById("blameTab") as HTMLElement;
   const onGutterWidthChange = vi.fn();
-  const view = createBlameView(root, { onGutterWidthChange });
-  return { root, view, onGutterWidthChange };
+  const onBlameHead = vi.fn();
+  const onBlameLatest = vi.fn();
+  const onOpenFile = vi.fn();
+  const view = createBlameView(root, {
+    onGutterWidthChange,
+    onBlameHead,
+    onBlameLatest,
+    onOpenFile
+  });
+  return { root, view, onGutterWidthChange, onBlameHead, onBlameLatest, onOpenFile };
 }
 
 afterEach(() => {
@@ -296,5 +304,164 @@ describe("blame tab view", () => {
     body?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
     expect(body?.style.getPropertyValue("--blame-gutter-width")).toBe("280px");
     expect(onGutterWidthChange).not.toHaveBeenCalled();
+  });
+
+  it("displays the worktree folder name with a Worktree badge and full path on hover", () => {
+    const { root, view } = start();
+    view.render(
+      applyData(
+        initialBlameState(),
+        dataMessage({
+          repo: "/workspace/project.worktrees/feat-auth",
+          repoMeta: { linkedWorktree: true, bare: false }
+        })
+      ),
+      NOW
+    );
+    const repo = root.querySelector<HTMLElement>(".blame-repo");
+    const badge = root.querySelector<HTMLElement>(".blame-worktree-badge");
+    expect(repo?.textContent).toBe("feat-auth");
+    expect(repo?.title).toBe("/workspace/project.worktrees/feat-auth");
+    expect(badge?.textContent).toBe("Worktree");
+    expect(badge?.title).toBe("/workspace/project.worktrees/feat-auth");
+  });
+
+  it("shows the Unsaved buffer pill and one-click Blame HEAD switch", () => {
+    const { root, view, onBlameHead } = start();
+    view.render(
+      applyData(
+        initialBlameState(),
+        dataMessage({ unsavedBuffer: true, payload: payload({ resolvedRev: OLD_HASH }) })
+      ),
+      NOW
+    );
+    const pill = root.querySelector<HTMLElement>(".blame-unsaved-pill");
+    expect(pill?.textContent).toBe("Unsaved buffer");
+    expect(pill?.title).toContain(OLD_HASH);
+    const btn = root.querySelector<HTMLButtonElement>(".blame-head-btn");
+    expect(btn?.textContent).toBe("Blame HEAD");
+    btn?.click();
+    expect(onBlameHead).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the localized bareWorkingTree notice and bare badge without an error or Open File", () => {
+    const { root, view } = start();
+    view.render(
+      applyData(
+        initialBlameState(),
+        dataMessage({
+          repo: "/repos/mirror.git",
+          repoMeta: { linkedWorktree: false, bare: true },
+          payload: payload({ state: "bareWorkingTree", commits: {}, hunks: [], totalLines: 0 })
+        })
+      ),
+      NOW
+    );
+    expect(root.querySelector(".blame-bare-badge")?.textContent).toBe("bare");
+    expect(root.querySelector(".blame-bare-working-tree")?.textContent).toBe(
+      LABELS.bareWorkingTree
+    );
+    expect(root.querySelector(".blame-error")).toBeNull();
+    expect(root.querySelector(".blame-open-file-btn")).toBeNull();
+    expect(root.querySelector(".blame-heat")).toBeNull();
+  });
+
+  it("offers an Open File action on untracked and unborn states (and hides heat controls)", () => {
+    const { root, view, onOpenFile } = start();
+    for (const state of ["untracked", "unborn"] as const) {
+      view.render(
+        applyData(
+          initialBlameState(),
+          dataMessage({ payload: payload({ state, commits: {}, hunks: [], totalLines: 0 }) })
+        ),
+        NOW
+      );
+      const button = root.querySelector<HTMLButtonElement>(".blame-open-file-btn");
+      expect(button?.textContent, state).toBe("Open File");
+      expect(root.querySelector(".blame-heat"), state).toBeNull();
+      button?.click();
+    }
+    expect(onOpenFile).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows a subtle Repository changed notice with View latest on a pinned revision", () => {
+    const { root, view, onBlameLatest } = start();
+    view.render(
+      applyData(
+        initialBlameState(),
+        dataMessage({
+          rev: OLD_HASH,
+          repoChanged: true,
+          payload: payload({ resolvedRev: OLD_HASH })
+        })
+      ),
+      NOW
+    );
+    expect(root.querySelector(".blame-repo-changed-text")?.textContent).toBe("Repository changed");
+    const button = root.querySelector<HTMLButtonElement>(".blame-latest-btn");
+    expect(button?.textContent).toBe("View latest");
+    button?.click();
+    expect(onBlameLatest).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves scroll position across live refreshes and avoids resetting unchanged body DOM", () => {
+    const { root, view } = start();
+    const scrolled: unknown[] = [];
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      value: function (this: HTMLElement) {
+        scrolled.push(this.dataset.line);
+      },
+      configurable: true
+    });
+    try {
+      const initial = applyData(initialBlameState(), dataMessage({ requestId: 1, targetLine: 3 }));
+      view.render(initial, NOW);
+      expect(scrolled).toEqual(["3"]);
+
+      const scrollBefore = root.querySelector<HTMLElement>(".blame-scroll");
+      expect(scrollBefore).not.toBeNull();
+      if (scrollBefore !== null) {
+        scrollBefore.scrollTop = 180;
+        scrollBefore.scrollLeft = 24;
+      }
+
+      // Same-content live refresh reuses the existing scroll container without rebuilding DOM.
+      const unchanged = applyData(
+        initial,
+        dataMessage({ requestId: 2, targetLine: 3, preserveScroll: true })
+      );
+      view.render(unchanged, NOW);
+      expect(root.querySelector(".blame-scroll")).toBe(scrollBefore);
+      expect(scrollBefore?.scrollTop).toBe(180);
+      expect(scrolled).toEqual(["3"]);
+
+      // Changed-content live refresh restores scrollTop/scrollLeft instead of jumping to targetLine.
+      const changed = applyData(
+        unchanged,
+        dataMessage({
+          requestId: 3,
+          targetLine: 3,
+          preserveScroll: true,
+          payload: payload({
+            hunks: [
+              hunk({
+                lines: [
+                  { finalLine: 1, origLine: 1, content: "edited one" },
+                  { finalLine: 2, origLine: 2, content: "edited two" }
+                ]
+              })
+            ],
+            totalLines: 2
+          })
+        })
+      );
+      view.render(changed, NOW);
+      const scrollAfter = root.querySelector<HTMLElement>(".blame-scroll");
+      expect(scrollAfter?.scrollTop).toBe(180);
+      expect(scrollAfter?.scrollLeft).toBe(24);
+      expect(scrolled).toEqual(["3"]);
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+    }
   });
 });

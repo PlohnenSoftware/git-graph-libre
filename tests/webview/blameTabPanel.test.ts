@@ -1,10 +1,20 @@
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { git, makeRepo } from "@tests/backend/helpers";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { BlameHostMessage, BlamePayload, BlameSource } from "@/blameTabTypes";
-import { openBlameTab } from "@/extension/blameTab/blameTabPanel";
+import type {
+  BlameHostMessage,
+  BlameLoadOptions,
+  BlameOpenTarget,
+  BlamePayload,
+  BlameSource
+} from "@/blameTabTypes";
+import { type BlameWatcher, openBlameTab } from "@/extension/blameTab/blameTabPanel";
 
 import { resetVscodeMock, setConfigurationValue } from "./__mocks__/vscode";
-import { payload } from "./blameTab/fixtures";
+import { OLD_HASH, payload } from "./blameTab/fixtures";
 
 type FakePanel = ReturnType<typeof createFakePanel>;
 
@@ -13,7 +23,13 @@ const mocks = vi.hoisted(() => ({
   create: (..._args: unknown[]): unknown => undefined,
   onConfig: undefined as
     | ((event: { affectsConfiguration: (key: string) => boolean }) => void)
-    | undefined
+    | undefined,
+  onConfigDispose: vi.fn(),
+  onSave: undefined as
+    | ((document: { uri: { scheme: string; fsPath: string } }) => void)
+    | undefined,
+  onSaveDispose: vi.fn(),
+  onMessageDispose: vi.fn()
 }));
 
 vi.mock("vscode", async (importOriginal) => {
@@ -28,7 +44,13 @@ vi.mock("vscode", async (importOriginal) => {
         handler: (event: { affectsConfiguration: (key: string) => boolean }) => void
       ) => {
         mocks.onConfig = handler;
-        return { dispose: () => {} };
+        return { dispose: mocks.onConfigDispose };
+      },
+      onDidSaveTextDocument: (
+        handler: (document: { uri: { scheme: string; fsPath: string } }) => void
+      ) => {
+        mocks.onSave = handler;
+        return { dispose: mocks.onSaveDispose };
       }
     },
     window: { ...actual.window, createWebviewPanel: (...args: unknown[]) => mocks.create(...args) }
@@ -63,7 +85,7 @@ function createFakePanel(viewType: string, title: string, column: number, option
       },
       onDidReceiveMessage: (handler: (message: unknown) => void) => {
         receive = handler;
-        return { dispose: () => {} };
+        return { dispose: mocks.onMessageDispose };
       }
     },
     onDidDispose: (handler: () => void) => {
@@ -112,27 +134,64 @@ function telemetrySpy() {
   };
 }
 
+function fakeWatcher() {
+  const watcher = {
+    started: [] as string[],
+    stops: 0,
+    fire: () => {},
+    create(onRefresh: () => void): BlameWatcher {
+      watcher.fire = onRefresh;
+      return {
+        start: (repo: string) => {
+          watcher.started.push(repo);
+        },
+        stop: () => {
+          watcher.stops++;
+        }
+      };
+    }
+  };
+  return watcher;
+}
+
+const tempDirs: string[] = [];
+
 function open(
-  target: { repo: string; filePath: string; targetLine?: number | null } = {
+  target: BlameOpenTarget = {
     repo: "/repos/one",
     filePath: "src/file.ts"
   },
   source: BlameSource = resolved(),
-  telemetry?: { logFeature: (feature: string, ok: boolean) => void }
+  telemetry?: { logFeature: (feature: string, ok: boolean) => void },
+  extra: {
+    watcher?: ReturnType<typeof fakeWatcher>;
+    openFile?: (filePath: string) => Thenable<unknown>;
+    readOpenDocument?: (fsPath: string) => { dirty: boolean; text: string } | null;
+  } = {}
 ) {
+  const watcher = extra.watcher ?? fakeWatcher();
   openBlameTab(target, source, {
     extensionPath: EXTENSION,
     outputChannel: log,
     locale: "en",
-    telemetry
+    telemetry,
+    createWatcher: (onRefresh) => watcher.create(onRefresh),
+    openFile: extra.openFile,
+    readOpenDocument: extra.readOpenDocument
   });
+  return watcher;
 }
 
 afterEach(() => {
   for (const panel of mocks.panels) panel.dispose();
   mocks.panels.length = 0;
   mocks.onConfig = undefined;
+  mocks.onSave = undefined;
+  mocks.onConfigDispose.mockClear();
+  mocks.onSaveDispose.mockClear();
+  mocks.onMessageDispose.mockClear();
   log.appendLine.mockClear();
+  while (tempDirs.length) fs.rmSync(tempDirs.pop() as string, { recursive: true, force: true });
   resetVscodeMock();
 });
 
@@ -396,5 +455,206 @@ describe("openBlameTab", () => {
     const second = onlyPanel();
     expect(second).not.toBe(firstPanel);
     expect(second.title).toBe("Blame: a.md");
+  });
+
+  it("refreshes working-tree and HEAD blames via RepoFileWatcher with preserveScroll and no extra telemetry", async () => {
+    const spy = telemetrySpy();
+    const loads: Array<{ rev: string | null; options?: BlameLoadOptions }> = [];
+    const source: BlameSource = {
+      load: async (_repo, _filePath, rev, options) => {
+        loads.push({ rev, options });
+        return payload();
+      }
+    };
+    const watcher = open({ repo: "/repos/one", filePath: "src/file.ts" }, source, spy.telemetry);
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    expect(watcher.started).toEqual(["/repos/one"]);
+    expect(loads).toHaveLength(1);
+
+    watcher.fire();
+    await flush();
+    expect(loads).toHaveLength(2);
+    const datas = panel.posted.filter(
+      (m): m is Extract<BlameHostMessage, { command: "blameData" }> => m.command === "blameData"
+    );
+    expect(datas.at(-1)?.preserveScroll).toBe(true);
+    // Watcher refresh is NOT a new tab open (T1b).
+    expect(spy.sent).toEqual([{ feature: "tab.blame", ok: true }]);
+
+    // HEAD mode also auto-refreshes via watcher.
+    panel.send({ command: "blameHead" });
+    await flush();
+    expect(loads.at(-1)?.rev).toBe("HEAD");
+    watcher.fire();
+    await flush();
+    expect(loads).toHaveLength(4);
+    expect(loads.at(-1)?.rev).toBe("HEAD");
+    expect(spy.sent).toEqual([{ feature: "tab.blame", ok: true }]);
+  });
+
+  it("does not clobber a pinned historical commit on watcher events, and returns to latest on request", async () => {
+    const loads: Array<{ rev: string | null }> = [];
+    const source: BlameSource = {
+      load: async (_repo, _filePath, rev) => {
+        loads.push({ rev });
+        return payload({ resolvedRev: rev });
+      }
+    };
+    const watcher = open({ repo: "/repos/one", filePath: "src/file.ts", rev: OLD_HASH }, source);
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    expect(loads).toEqual([{ rev: OLD_HASH }]);
+
+    watcher.fire();
+    await flush();
+    // Still only the initial load — pinned commit was not wiped out.
+    expect(loads).toHaveLength(1);
+    expect(panel.posted.at(-1)).toEqual({ command: "blameRepoChanged", repo: "/repos/one" });
+
+    // Saving a file on disk does not clobber a pinned commit either.
+    mocks.onSave?.({ uri: { scheme: "file", fsPath: "/repos/one/src/file.ts" } });
+    await flush();
+    expect(loads).toHaveLength(1);
+
+    // Clicking View latest returns to working tree and clears repoChanged.
+    panel.send({ command: "blameLatest" });
+    await flush();
+    expect(loads).toEqual([{ rev: OLD_HASH }, { rev: null }]);
+    const latest = panel.posted.at(-1) as Extract<BlameHostMessage, { command: "blameData" }>;
+    expect(latest.command).toBe("blameData");
+    expect(latest.rev).toBeNull();
+    expect(latest.repoChanged).toBe(false);
+    expect(latest.preserveScroll).toBe(true);
+  });
+
+  it("passes dirty buffer contents, switches to HEAD on blameHead, and clears unsaved pill on save", async () => {
+    const loads: Array<{ rev: string | null; contents?: string }> = [];
+    const source: BlameSource = {
+      load: async (_repo, _filePath, rev, options) => {
+        loads.push({ rev, contents: options?.contents });
+        return payload({ resolvedRev: OLD_HASH });
+      }
+    };
+    open(
+      { repo: "/repos/one", filePath: "src/file.ts", contents: "dirty\nbuffer\n" },
+      source,
+      undefined
+    );
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    expect(loads).toEqual([{ rev: null, contents: "dirty\nbuffer\n" }]);
+    const first = panel.posted.find(
+      (m): m is Extract<BlameHostMessage, { command: "blameData" }> => m.command === "blameData"
+    );
+    expect(first?.unsavedBuffer).toBe(true);
+
+    // Saving another file does nothing.
+    mocks.onSave?.({ uri: { scheme: "file", fsPath: "/repos/one/src/other.ts" } });
+    await flush();
+    expect(loads).toHaveLength(1);
+
+    // Saving the blamed file clears the unsaved buffer pill and reloads the saved working tree.
+    mocks.onSave?.({ uri: { scheme: "file", fsPath: "/repos/one/src/file.ts" } });
+    await flush();
+    expect(loads).toEqual([
+      { rev: null, contents: "dirty\nbuffer\n" },
+      { rev: null, contents: undefined }
+    ]);
+    const saved = panel.posted.at(-1) as Extract<BlameHostMessage, { command: "blameData" }>;
+    expect(saved.unsavedBuffer).toBe(false);
+    expect(saved.preserveScroll).toBe(true);
+
+    // Re-open dirty and click Blame HEAD.
+    openBlameTab(
+      { repo: "/repos/one", filePath: "src/file.ts", contents: "dirty again\n" },
+      source,
+      { extensionPath: EXTENSION, outputChannel: log, locale: "en" }
+    );
+    await flush();
+    panel.send({ command: "blameHead" });
+    await flush();
+    expect(loads.at(-1)).toEqual({ rev: "HEAD", contents: undefined });
+    const atHead = panel.posted.at(-1) as Extract<BlameHostMessage, { command: "blameData" }>;
+    expect(atHead.unsavedBuffer).toBe(false);
+    expect(atHead.rev).toBe("HEAD");
+  });
+
+  it("opens the target working-tree file on openFile, detects worktree/bare metadata, and stops watchers on dispose", async () => {
+    const mainRepo = makeRepo();
+    tempDirs.push(mainRepo);
+    fs.writeFileSync(path.join(mainRepo, "a.txt"), "one\n");
+    git(["add", "a.txt"], mainRepo);
+    git(["commit", "-m", "init"], mainRepo);
+    const linked = fs.mkdtempSync(path.join(os.tmpdir(), "ggl-panel-wt-"));
+    fs.rmSync(linked, { recursive: true, force: true });
+    tempDirs.push(linked);
+    git(["worktree", "add", "-q", linked], mainRepo);
+
+    const openFile = vi.fn(async (_fsPath: string) => undefined);
+    const watcher = open({ repo: linked, filePath: "a.txt" }, resolved(), undefined, { openFile });
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+
+    const data = panel.posted.find(
+      (m): m is Extract<BlameHostMessage, { command: "blameData" }> => m.command === "blameData"
+    );
+    expect(data?.repoMeta).toEqual({ linkedWorktree: true, bare: false });
+
+    panel.send({ command: "openFile" });
+    await flush();
+    expect(openFile).toHaveBeenCalledWith(path.resolve(linked, "a.txt"));
+
+    // Dispose stops the watcher and every VS Code listener cleanly.
+    panel.dispose();
+    expect(watcher.stops).toBe(1);
+    expect(mocks.onMessageDispose).toHaveBeenCalledTimes(1);
+    expect(mocks.onConfigDispose).toHaveBeenCalledTimes(1);
+    expect(mocks.onSaveDispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports bare metadata, ignores openFile on bare repos, and jumps blameLatest to HEAD", async () => {
+    const seed = makeRepo();
+    tempDirs.push(seed);
+    fs.writeFileSync(path.join(seed, "a.txt"), "one\n");
+    git(["add", "a.txt"], seed);
+    git(["commit", "-m", "init"], seed);
+    const bare = fs.mkdtempSync(path.join(os.tmpdir(), "ggl-panel-bare-"));
+    fs.rmSync(bare, { recursive: true, force: true });
+    tempDirs.push(bare);
+    git(["clone", "-q", "--bare", seed, bare], os.tmpdir());
+
+    const loads: Array<string | null> = [];
+    const openFile = vi.fn(async (_fsPath: string) => undefined);
+    open(
+      { repo: bare, filePath: "a.txt", rev: OLD_HASH },
+      {
+        load: async (_repo, _filePath, rev) => {
+          loads.push(rev);
+          return payload({ resolvedRev: rev });
+        }
+      },
+      undefined,
+      { openFile }
+    );
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    const first = panel.posted.find(
+      (m): m is Extract<BlameHostMessage, { command: "blameData" }> => m.command === "blameData"
+    );
+    expect(first?.repoMeta).toEqual({ linkedWorktree: false, bare: true });
+
+    panel.send({ command: "openFile" });
+    await flush();
+    expect(openFile).not.toHaveBeenCalled();
+
+    panel.send({ command: "blameLatest" });
+    await flush();
+    expect(loads).toEqual([OLD_HASH, "HEAD"]);
   });
 });

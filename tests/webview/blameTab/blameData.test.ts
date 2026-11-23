@@ -1,4 +1,6 @@
+import * as cp from "node:child_process";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { git, makeRepo } from "@tests/backend/helpers";
 import { simpleGit } from "simple-git";
@@ -8,6 +10,10 @@ import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { createBlameSource } from "@/extension/blameTab/blameData";
 
 const dirs: string[] = [];
+
+function headOid(dir: string): string {
+  return cp.execFileSync("git", ["rev-parse", "HEAD"], { cwd: dir, encoding: "utf8" }).trim();
+}
 
 function repo(): string {
   const dir = makeRepo();
@@ -118,6 +124,91 @@ describe("createBlameSource (real Git)", () => {
     const result = await source().load(dir, "a.txt", "no-such-revision");
     expect(result.state).toBeNull();
     expect(result.error).not.toBeNull();
+    expect(result.hunks).toEqual([]);
+  });
+
+  it("blames a linked worktree with divergent uncommitted edits without affecting the main worktree", async () => {
+    const mainDir = repo();
+    commitFile(mainDir, "src/app.ts", "line one\nline two\n", "initial", "2022-01-01T00:00:00Z");
+    const linkedDir = fs.mkdtempSync(path.join(os.tmpdir(), "ggl-blame-wt-"));
+    fs.rmSync(linkedDir, { recursive: true, force: true });
+    dirs.push(linkedDir);
+    git(["worktree", "add", "-q", linkedDir], mainDir);
+
+    fs.writeFileSync(path.join(linkedDir, "src/app.ts"), "line one\nworktree edit\n");
+
+    const linkedResult = await source().load(linkedDir, "src/app.ts", null);
+    expect(linkedResult.error).toBeNull();
+    expect(linkedResult.state).toBe("lines");
+    const edited = linkedResult.hunks.find((h) =>
+      h.lines.some((l) => l.content === "worktree edit")
+    );
+    expect(edited?.heat.uncommitted).toBe(true);
+    expect(linkedResult.commits[edited?.commitHash ?? ""]?.uncommitted).toBe(true);
+
+    // The main worktree still sees only its committed lines.
+    const mainResult = await source().load(mainDir, "src/app.ts", null);
+    expect(mainResult.error).toBeNull();
+    expect(mainResult.state).toBe("lines");
+    expect(mainResult.hunks.every((h) => !h.heat.uncommitted)).toBe(true);
+    expect(mainResult.hunks.flatMap((h) => h.lines.map((l) => l.content))).toEqual([
+      "line one",
+      "line two"
+    ]);
+  });
+
+  it("blames a bare repository at an explicit commit and returns bareWorkingTree for working tree", async () => {
+    const seed = repo();
+    commitFile(seed, "file.txt", "alpha\nbeta\n", "seed", "2022-01-01T00:00:00Z");
+    const head = headOid(seed);
+    const bareDir = fs.mkdtempSync(path.join(os.tmpdir(), "ggl-blame-bare-"));
+    fs.rmSync(bareDir, { recursive: true, force: true });
+    dirs.push(bareDir);
+    git(["clone", "-q", "--bare", seed, bareDir], os.tmpdir());
+
+    const atCommit = await source().load(bareDir, "file.txt", head);
+    expect(atCommit.error).toBeNull();
+    expect(atCommit.state).toBe("lines");
+    expect(atCommit.resolvedRev).toBe(head);
+    expect(atCommit.totalLines).toBe(2);
+
+    const workingTree = await source().load(bareDir, "file.txt", null);
+    expect(workingTree.error).toBeNull();
+    expect(workingTree.state).toBe("bareWorkingTree");
+    expect(workingTree.hunks).toEqual([]);
+  });
+
+  it("blames unsaved dirty editor contents via --contents - with matching line numbers", async () => {
+    const dir = repo();
+    commitFile(dir, "doc.txt", "first\nsecond\nthird\n", "base", "2023-01-01T00:00:00Z");
+    const head = headOid(dir);
+
+    const result = await source().load(dir, "doc.txt", null, {
+      contents: "first\nunsaved middle\nthird\nextra unsaved\n"
+    });
+    expect(result.error).toBeNull();
+    expect(result.state).toBe("lines");
+    expect(result.resolvedRev).toBe(head);
+    expect(result.totalLines).toBe(4);
+    const byLine = new Map(
+      result.hunks.flatMap((h) =>
+        h.lines.map((l) => [l.finalLine, { content: l.content, uncommitted: h.heat.uncommitted }])
+      )
+    );
+    expect(byLine.get(1)).toEqual({ content: "first", uncommitted: false });
+    expect(byLine.get(2)).toEqual({ content: "unsaved middle", uncommitted: true });
+    expect(byLine.get(3)).toEqual({ content: "third", uncommitted: false });
+    expect(byLine.get(4)).toEqual({ content: "extra unsaved", uncommitted: true });
+  });
+
+  it("returns unborn for a repository with no commits yet", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ggl-blame-unborn-"));
+    dirs.push(dir);
+    git(["init"], dir);
+    fs.writeFileSync(path.join(dir, "draft.txt"), "unborn line\n");
+    const result = await source().load(dir, "draft.txt", null);
+    expect(result.error).toBeNull();
+    expect(result.state).toBe("unborn");
     expect(result.hunks).toEqual([]);
   });
 });

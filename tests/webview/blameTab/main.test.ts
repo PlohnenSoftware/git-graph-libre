@@ -95,4 +95,26 @@ describe("blame tab webview", () => {
     send(dataMessage(), "https://example.invalid");
     expect(root.childElementCount).toBe(0);
   });
+
+  it("posts blameHead, blameLatest and openFile commands from header and notice actions", async () => {
+    const { root, posted } = await start();
+    send(dataMessage({ requestId: 1, unsavedBuffer: true }));
+    root.querySelector<HTMLButtonElement>(".blame-head-btn")?.click();
+    expect(posted.at(-1)).toEqual({ command: "blameHead" });
+
+    send(dataMessage({ requestId: 2, rev: "a".repeat(40) }));
+    send({ command: "blameRepoChanged", repo: "/repos/one" });
+    expect(root.querySelector(".blame-repo-changed-text")?.textContent).toBe("Repository changed");
+    root.querySelector<HTMLButtonElement>(".blame-latest-btn")?.click();
+    expect(posted.at(-1)).toEqual({ command: "blameLatest" });
+
+    send(
+      dataMessage({
+        requestId: 3,
+        payload: payload({ state: "untracked", commits: {}, hunks: [], totalLines: 0 })
+      })
+    );
+    root.querySelector<HTMLButtonElement>(".blame-open-file-btn")?.click();
+    expect(posted.at(-1)).toEqual({ command: "openFile" });
+  });
 });

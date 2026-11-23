@@ -49,6 +49,7 @@ function makeHarness(
   let lastActiveRepo = initialLastRepo;
   let activeTextEditorUri: { fsPath: string } | undefined;
   let activeTextEditorLine: number | undefined;
+  const dirtyDocuments = new Map<string, string>();
   let sendReposCount = 0;
   const outputLines: string[] = [];
 
@@ -64,6 +65,7 @@ function makeHarness(
   const windowApi = {
     getActiveTextEditorUri: vi.fn(() => activeTextEditorUri),
     getActiveTextEditorLine: vi.fn(() => activeTextEditorLine),
+    getDirtyDocumentText: vi.fn((fsPath: string) => dirtyDocuments.get(fsPath)),
     showErrorMessage: vi.fn(async (_message: string) => undefined),
     showInformationMessage: vi.fn(async (_message: string) => undefined),
     showOpenDialog: vi.fn(async () => undefined as Array<{ fsPath: string }> | undefined),
@@ -190,6 +192,10 @@ function makeHarness(
     setActiveTextEditorPath: (filePath: string, line?: number) => {
       activeTextEditorUri = makeUri(filePath);
       activeTextEditorLine = line;
+    },
+    setDirtyDocumentText: (filePath: string, text: string | undefined) => {
+      if (text === undefined) dirtyDocuments.delete(filePath);
+      else dirtyDocuments.set(filePath, text);
     },
     windowApi
   };
@@ -1143,6 +1149,48 @@ describe("command manager", () => {
           ]);
         } finally {
           fs.rmSync(dir, { recursive: true, force: true });
+        }
+      });
+
+      it("passes dirty unsaved editor contents through to openBlameTab (F4-08)", async () => {
+        const harness = makeHarness({ "/workspace/project": { columnWidths: null } });
+        harness.setActiveTextEditorPath("/workspace/project/src/dirty.ts", 5);
+        harness.setDirtyDocumentText("/workspace/project/src/dirty.ts", "unsaved\ncontent\n");
+
+        await harness.run("git-graph-libre.showBlame");
+
+        expect(harness.openBlameTab).toHaveBeenCalledExactlyOnceWith({
+          repo: "/workspace/project",
+          filePath: "src/dirty.ts",
+          targetLine: 5,
+          contents: "unsaved\ncontent\n"
+        });
+      });
+
+      it("resolves a nested linked worktree to the linked worktree root, never the main worktree (F4-08)", async () => {
+        const mainRepo = makeRepo();
+        const nestedWt = path.join(mainRepo, ".worktrees", "feature");
+        try {
+          fs.writeFileSync(path.join(mainRepo, "app.txt"), "base\n");
+          git(["add", "app.txt"], mainRepo);
+          git(["commit", "-m", "init"], mainRepo);
+          git(["worktree", "add", "-q", nestedWt], mainRepo);
+          const wtFile = path.join(nestedWt, "app.txt");
+
+          // Only the main worktree is known beforehand; nested linked worktree must still win.
+          const harness = makeHarness({ [mainRepo]: { columnWidths: null } });
+          harness.setActiveTextEditorPath(wtFile, 1);
+
+          await harness.run("git-graph-libre.showBlame");
+
+          expect(harness.openBlameTab).toHaveBeenCalledExactlyOnceWith({
+            repo: nestedWt,
+            filePath: "app.txt",
+            targetLine: 1
+          });
+          expect(harness.getRepos()[nestedWt]).toEqual({ columnWidths: null });
+        } finally {
+          fs.rmSync(mainRepo, { recursive: true, force: true });
         }
       });
     });

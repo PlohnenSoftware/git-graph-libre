@@ -51,11 +51,16 @@ describe("blame tab styles", () => {
       ".blame-binary",
       ".blame-too-large",
       ".blame-untracked",
-      ".blame-unborn"
+      ".blame-unborn",
+      ".blame-bare-working-tree"
     ]) {
       expect(body, state).toContain(`.ggl-blame ${state}`);
     }
     expect(body).toContain(".ggl-blame p.blame-message.blame-error");
     expect(body).toContain("var(--vscode-errorForeground");
+    expect(body).toContain(".ggl-blame .blame-unsaved-pill");
+    expect(body).toContain(".ggl-blame .blame-worktree-badge");
+    expect(body).toContain(".ggl-blame .blame-action-btn");
+    expect(body).toContain(".ggl-blame .blame-repo-changed");
   });
 });
