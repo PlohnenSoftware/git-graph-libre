@@ -77,7 +77,7 @@ releases (Rules) applies, with the answers below.
 | P1b | Popup fix V11 (Create Worktree on a branch another worktree holds), answer (b) | — | Muse Code | ready |
 | L2 | zh-tw: one researched term for "repository" | — | Claude Haiku | ready |
 | T1b | Blame tab open-and-outcome telemetry (`tab.blame`) | T1, F4-03 | Claude Haiku | integrated `7ed42e61` |
-| Q1 | GGL icon on the Diff, Reflog and Blame tabs (maintainer test) | — | Claude Haiku | ready |
+| Q1 | GGL icon on the Diff, Reflog and Blame tabs (maintainer test) | — | Claude Haiku | integrated `98bbf66a` |
 | Q2 | Reflog table column widths, no horizontal scroll (maintainer test) | — | Muse Code | ready |
 | R90 | Release 1.11.0 | every `main` track | orchestrator | waiting |
 
@@ -233,3 +233,13 @@ anything unsolvable within reason be marked here while the rest continues.
   S2b (`blameTab/view.ts` complexity 21) waits for F4-05 and F4-06. Gates on
   `5773e36c`: strict Biome, typecheck, KB check, backend 1,592 passed (60
   skipped in the worktree) and webview 1,297 passed.
+- `2026-11-23`: Q1 (Claude Haiku) integrated at `98bbf66a`: one helper
+  `tabIconPaths` in `src/extension/tabIcon.ts` gives the Diff, Reflog and
+  Blame tabs the graph tab's light/dark GGL icon from `tabIconColorTheme`, set
+  at creation as the graph tab does. The agent's stray `Refs …#0` trailer on
+  the helper commit was removed while rebasing, on the maintainer's word.
+  Its report said strict Biome "aborts" on the schema-version notice; the
+  integrator checked, and it lints normally (a probe with `var` and `==`
+  fails with 3 errors). Gates on `98bbf66a`: strict Biome on 9 files,
+  typecheck, KB check, backend 1,594 passed (60 skipped in the worktree) and
+  webview 1,317 passed. P1b and L2 dispatched.
