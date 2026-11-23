@@ -831,6 +831,7 @@
   "reflog.filter.allActions": "All actions",
   "reflog.noMatches": "No matching entries.",
   "reflog.searchCapped": "The search limit of {0} entries was reached; older entries may not be shown.",
+  "reflog.bareHeadNote": "This is a bare repository, where Git keeps no HEAD reflog by default. Pick a branch above to see its reflog.",
   "reflog.action.commit": "Commit",
   "reflog.action.checkout": "Checkout",
   "reflog.action.reset": "Reset",

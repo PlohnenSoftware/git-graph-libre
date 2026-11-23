@@ -600,7 +600,8 @@ export function createCommandManager(deps: CommandManagerDeps) {
           vscode.extensions?.getExtension("PlohnenSoftware.git-graph-libre")?.extensionPath ??
           process.cwd(),
         outputChannel: deps.outputChannel,
-        telemetry: deps.telemetry
+        telemetry: deps.telemetry,
+        repoManager: deps.repoManager
       }
     );
   }

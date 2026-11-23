@@ -831,6 +831,7 @@
   "reflog.filter.allActions": "Wszystkie akcje",
   "reflog.noMatches": "Brak pasujących wpisów.",
   "reflog.searchCapped": "Osiągnięto limit wyszukiwania {0} wpisów; starsze wpisy mogą nie być pokazane.",
+  "reflog.bareHeadNote": "To jest puste repozytorium, w którym Git domyślnie nie prowadzi reflogu HEAD. Wybierz powyżej gałąź, aby zobaczyć jej reflog.",
   "reflog.action.commit": "Commit",
   "reflog.action.checkout": "Przełączenie",
   "reflog.action.reset": "Reset",

@@ -5,7 +5,10 @@ import {
   REFLOG_SEARCH_CAP,
   type ReflogLabels,
   type ReflogQuery,
-  type ReflogRow
+  type ReflogRefOption,
+  type ReflogRow,
+  refOptionMatchesQuery,
+  repoRefOption
 } from "@/reflogTabTypes";
 
 import { kindClass, kindLabel, subIntentClass, subLabel } from "./actionStyle";
@@ -38,20 +41,67 @@ function folderName(repo: string): string {
   return repo.split("/").at(-1) || repo;
 }
 
-function header(state: ReflogViewState): HTMLElement {
+/** The picked option, or null when a fresh listing no longer holds it. */
+function selectedOption(state: ReflogViewState): ReflogRefOption | null {
+  return state.refOptions.find((option) => refOptionMatchesQuery(option, state.query)) ?? null;
+}
+
+/**
+ * Whose `HEAD` the header names (F1-08): another worktree's `HEAD` always
+ * names its worktree, and this worktree's does too once the repository
+ * has linked worktrees to tell apart. Both take the graph's own
+ * "HEAD of worktree {0}" words. A single-worktree repository's `HEAD`
+ * and every branch or stash ref read as before.
+ */
+function headerRefText(state: ReflogViewState, labels: ReflogLabels): string {
+  const { query } = state;
+  if (query.ref !== "HEAD") return state.ref ?? query.ref;
+  if (query.worktreePath !== null) {
+    const name = selectedOption(state)?.worktreeName ?? folderName(query.worktreePath);
+    return labels.worktreeHead.replace("{0}", () => name);
+  }
+  const hasOtherWorktrees = state.refOptions.some((option) => option.worktreePath !== null);
+  return hasOtherWorktrees
+    ? labels.worktreeHead.replace("{0}", () => folderName(state.repo))
+    : "HEAD";
+}
+
+function header(state: ReflogViewState, labels: ReflogLabels): HTMLElement {
   const bar = element("header", "reflog-header");
-  bar.append(element("span", "reflog-ref", state.ref ?? state.query.ref));
+  const ref = element("span", "reflog-ref", headerRefText(state, labels));
+  // The full path settles which folder a worktree name means.
+  ref.title = state.query.worktreePath ?? state.ref ?? state.query.ref;
+  bar.append(ref);
   const repo = element("span", "reflog-repo", folderName(state.repo));
   repo.title = state.repo;
   bar.append(repo);
   return bar;
 }
 
-/** How a picker ref reads: the branch's short name, the stash worded as the action. */
-function refLabel(ref: string, labels: ReflogLabels): string {
-  if (ref === "refs/stash") return `${labels.actions.stash ?? "Stash"} (refs/stash)`;
-  if (ref.startsWith("refs/heads/")) return ref.slice("refs/heads/".length);
-  return ref;
+/**
+ * How a picker option reads. A branch is its short name and the stash is
+ * worded as the action; another worktree's `HEAD` takes the graph's
+ * words, with a locked or missing worktree marked in them too, joined
+ * the way the graph joins a worktree checkout's parts.
+ */
+function refLabel(option: ReflogRefOption, labels: ReflogLabels): string {
+  if (option.worktreePath !== null) {
+    const name = option.worktreeName ?? folderName(option.worktreePath);
+    const parts = [labels.worktreeHead.replace("{0}", () => name)];
+    if (option.locked !== null) {
+      const { reason } = option.locked;
+      parts.push(
+        reason === ""
+          ? labels.worktreeLockedNoReason
+          : labels.worktreeLocked.replace("{0}", () => reason)
+      );
+    }
+    if (option.prunable !== null) parts.push(labels.worktreeMissing);
+    return parts.join(", ");
+  }
+  if (option.ref === "refs/stash") return `${labels.actions.stash ?? "Stash"} (refs/stash)`;
+  if (option.ref.startsWith("refs/heads/")) return option.ref.slice("refs/heads/".length);
+  return option.ref;
 }
 
 function option(value: string, text: string, title?: string): HTMLOptionElement {
@@ -78,11 +128,36 @@ function controls(
   refSelect.id = "reflogRefPicker";
   refSelect.setAttribute("aria-label", labels.filterRef);
   refSelect.title = labels.filterRef;
-  // The picked ref stays pickable even when a fresh listing lost it
-  // (its branch was deleted): its read then says so, honestly.
-  const refs = state.refs.includes(state.query.ref) ? state.refs : [...state.refs, state.query.ref];
-  for (const ref of refs) refSelect.append(option(ref, refLabel(ref, labels), ref));
-  refSelect.value = state.query.ref;
+  // The picked option stays pickable even when a fresh listing lost it
+  // (its branch was deleted, its worktree removed): its read then says
+  // so, honestly. Values are indexes into this list, so two `HEAD`
+  // options — this worktree's and another's — stay apart.
+  const picked: ReflogRefOption =
+    state.query.worktreePath === null
+      ? repoRefOption(state.query.ref)
+      : {
+          ref: "HEAD",
+          worktreePath: state.query.worktreePath,
+          worktreeName: folderName(state.query.worktreePath),
+          locked: null,
+          prunable: null
+        };
+  const options = state.refOptions.some((candidate) =>
+    refOptionMatchesQuery(candidate, state.query)
+  )
+    ? state.refOptions
+    : [...state.refOptions, picked];
+  options.forEach((candidate, index) => {
+    refSelect.append(
+      option(String(index), refLabel(candidate, labels), candidate.worktreePath ?? candidate.ref)
+    );
+  });
+  refSelect.value = String(
+    Math.max(
+      0,
+      options.findIndex((candidate) => refOptionMatchesQuery(candidate, state.query))
+    )
+  );
 
   const search = element("input", "reflog-control reflog-search");
   search.id = "reflogSearch";
@@ -109,7 +184,8 @@ function controls(
   onlyLabel.append(only, labels.onlyInReflog);
 
   const current = (): ReflogQuery => ({
-    ref: refSelect.value,
+    ref: options[Number(refSelect.value)]?.ref ?? "HEAD",
+    worktreePath: options[Number(refSelect.value)]?.worktreePath ?? null,
     search: search.value.trim(),
     actions: actionSelect.value === "" ? [] : [actionSelect.value],
     onlyInReflog: only.checked
@@ -308,7 +384,7 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
           : null;
       const sameRepo = state.repo === lastRepo;
 
-      const children: HTMLElement[] = [header(state), controls(state, labels, callbacks)];
+      const children: HTMLElement[] = [header(state, labels), controls(state, labels, callbacks)];
       if (state.searchCapped && !state.loading) {
         children.push(
           messageBlock(
@@ -329,15 +405,27 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
           )
         );
       } else if (state.rows.length === 0) {
+        // A bare repository's missing `HEAD` reflog has its own story
+        // (F1-08): Git keeps none there by default, and the branches
+        // above are where its reflogs live. It is told only for that
+        // exact case — a bare `HEAD` that does keep entries, and every
+        // branch, read as anywhere else.
+        const bareHead =
+          state.bare &&
+          state.query.ref === "HEAD" &&
+          state.query.worktreePath === null &&
+          state.reflogState === "none";
         // A filter that matched nothing in a reflog that has entries is
         // not the empty-reflog story; one for a ref with no reflog is.
         const filtered = isReflogFiltered(state.query) && state.reflogState !== "none";
         children.push(
           messageBlock(
-            filtered
-              ? "reflog-message reflog-empty reflog-no-matches"
-              : "reflog-message reflog-empty",
-            filtered ? labels.noMatches : labels.empty
+            bareHead
+              ? "reflog-message reflog-empty reflog-bare-note"
+              : filtered
+                ? "reflog-message reflog-empty reflog-no-matches"
+                : "reflog-message reflog-empty",
+            bareHead ? labels.bareHeadNote : filtered ? labels.noMatches : labels.empty
           )
         );
       } else {

@@ -5,7 +5,9 @@ import {
   type ReflogLabels,
   type ReflogLoadingMessage,
   type ReflogPage,
-  type ReflogRow
+  type ReflogRefOption,
+  type ReflogRow,
+  repoRefOption
 } from "@/reflogTabTypes";
 
 /** Shared reflog fixtures for the tab's test files. */
@@ -22,6 +24,12 @@ export const LABELS: ReflogLabels = {
   searchCapped: "The search limit of {0} entries was reached; older entries may not be shown.",
   onlyInReflog: "Only in the reflog",
   objectMissing: "Object no longer exists",
+  bareHeadNote:
+    "This is a bare repository, where Git keeps no HEAD reflog by default. Pick a branch above to see its reflog.",
+  worktreeHead: "HEAD of worktree {0}",
+  worktreeLocked: "locked: {0}",
+  worktreeLockedNoReason: "locked",
+  worktreeMissing: "missing (moved or deleted)",
   columnIndex: "Index",
   columnAction: "Action",
   columnSubAction: "Sub-action",
@@ -100,6 +108,25 @@ export function page(overrides: Partial<ReflogPage> = {}): ReflogPage {
   };
 }
 
+/** The picker's options for a plain one-worktree repository. */
+export const REF_OPTIONS: ReflogRefOption[] = [
+  repoRefOption("HEAD"),
+  repoRefOption("refs/heads/main"),
+  repoRefOption("refs/stash")
+];
+
+/** Another worktree's `HEAD` as a picker option (F1-08). */
+export function worktreeOption(overrides: Partial<ReflogRefOption> = {}): ReflogRefOption {
+  return {
+    ref: "HEAD",
+    worktreePath: "/repos/linked",
+    worktreeName: "linked",
+    locked: null,
+    prunable: null,
+    ...overrides
+  };
+}
+
 export function dataMessage(overrides: Partial<ReflogDataMessage> = {}): ReflogDataMessage {
   return {
     command: "reflogData",
@@ -107,7 +134,8 @@ export function dataMessage(overrides: Partial<ReflogDataMessage> = {}): ReflogD
     append: false,
     repo: "/repos/one",
     query: defaultReflogQuery(),
-    refs: ["HEAD", "refs/heads/main", "refs/stash"],
+    refOptions: REF_OPTIONS,
+    bare: false,
     locale: "en",
     labels: LABELS,
     display: DISPLAY,
@@ -124,7 +152,8 @@ export function loadingMessage(
     requestId: 1,
     repo: "/repos/one",
     query: defaultReflogQuery(),
-    refs: ["HEAD", "refs/heads/main", "refs/stash"],
+    refOptions: REF_OPTIONS,
+    bare: false,
     locale: "en",
     labels: LABELS,
     display: DISPLAY,

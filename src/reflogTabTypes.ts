@@ -90,6 +90,15 @@ export const REFLOG_SEARCH_CAP = 5000;
 export type ReflogQuery = {
   /** A picker ref: `HEAD`, a local branch's full ref, or `refs/stash`. */
   ref: string;
+  /**
+   * The other worktree whose `HEAD` reflog is shown (F1-08), as Git lists
+   * its path; null reads in the tab's own repository. Only ever set with
+   * `ref: "HEAD"`: branch and stash reflogs are shared by every worktree,
+   * so reading them elsewhere would show the same entries. The data
+   * source re-checks the path against `git worktree list` before reading
+   * there, so this field alone can never aim a read at a random folder.
+   */
+  worktreePath: string | null;
   /** Fixed, case-insensitive message search text; empty searches nothing out. */
   search: string;
   /** The action kinds to keep, from {@link REFLOG_ACTION_KINDS}; empty keeps every kind. */
@@ -100,7 +109,42 @@ export type ReflogQuery = {
 
 /** The unfiltered `HEAD` query the tab opens with. */
 export function defaultReflogQuery(): ReflogQuery {
-  return { ref: "HEAD", search: "", actions: [], onlyInReflog: false };
+  return { ref: "HEAD", worktreePath: null, search: "", actions: [], onlyInReflog: false };
+}
+
+/**
+ * One entry of the ref picker (F1-08): a ref of the tab's repository, or
+ * another worktree's `HEAD`. The worktree state rides along in Git's own
+ * shapes (`GitWorktree`'s locked and prunable), so the picker can mark a
+ * locked or missing worktree with the graph's words. A branch or stash
+ * option always has a null worktree path, name, locked and prunable.
+ */
+export type ReflogRefOption = {
+  /** The ref to read: `HEAD`, a local branch's full ref, or `refs/stash`. */
+  ref: string;
+  /** The worktree to read it in; null is the tab's own repository. */
+  worktreePath: string | null;
+  /** That worktree's folder name, for its picker and header wording. */
+  worktreeName: string | null;
+  /** Reason is "" when the worktree is locked without one. */
+  locked: { reason: string } | null;
+  /** Set when Git calls the worktree prunable: its folder moved or is gone. */
+  prunable: { reason: string } | null;
+};
+
+/** A picker option for a ref of the tab's own repository. */
+export function repoRefOption(ref: string): ReflogRefOption {
+  return { ref, worktreePath: null, worktreeName: null, locked: null, prunable: null };
+}
+
+/** The picker's options before the first listing lands: just `HEAD`. */
+export function defaultRefOptions(): ReflogRefOption[] {
+  return [repoRefOption("HEAD")];
+}
+
+/** True when an option is the one a query asks for. */
+export function refOptionMatchesQuery(option: ReflogRefOption, query: ReflogQuery): boolean {
+  return option.ref === query.ref && option.worktreePath === query.worktreePath;
 }
 
 /** True when a query filters anything out, so its read goes up to the search cap. */
@@ -112,6 +156,7 @@ export function isReflogFiltered(query: ReflogQuery): boolean {
 export function reflogQueriesEqual(left: ReflogQuery, right: ReflogQuery): boolean {
   return (
     left.ref === right.ref &&
+    left.worktreePath === right.worktreePath &&
     left.search === right.search &&
     left.onlyInReflog === right.onlyInReflog &&
     left.actions.length === right.actions.length &&
@@ -138,6 +183,17 @@ function pickerRef(value: unknown): string {
 }
 
 /**
+ * The worktree a query may read `HEAD` in: a plain path, and only beside
+ * `HEAD`. Membership in `git worktree list` is the data source's check;
+ * this boundary keeps the shape, never the destination.
+ */
+function pickerWorktreePath(value: unknown, ref: string): string | null {
+  if (ref !== "HEAD") return null;
+  if (typeof value !== "string" || value === "" || hasControlCharacter(value)) return null;
+  return value;
+}
+
+/**
  * A query the tab may act on, whatever arrived over the webview boundary:
  * the ref is one the picker can name, the kinds are the known ones, and
  * every field has its own type. Anything else falls back field by field,
@@ -145,9 +201,11 @@ function pickerRef(value: unknown): string {
  */
 export function normalizeReflogQuery(value: unknown): ReflogQuery {
   if (typeof value !== "object" || value === null) return defaultReflogQuery();
-  const { ref, search, actions, onlyInReflog } = value as Record<string, unknown>;
+  const { ref, worktreePath, search, actions, onlyInReflog } = value as Record<string, unknown>;
+  const pickedRef = pickerRef(ref);
   return {
-    ref: pickerRef(ref),
+    ref: pickedRef,
+    worktreePath: pickerWorktreePath(worktreePath, pickedRef),
     search: typeof search === "string" ? search.trim() : "",
     actions: Array.isArray(actions)
       ? REFLOG_ACTION_KINDS.filter((kind) => actions.includes(kind))
@@ -189,6 +247,16 @@ export type ReflogLabels = {
   searchCapped: string;
   onlyInReflog: string;
   objectMissing: string;
+  /** Why a bare repository has no `HEAD` reflog to show (F1-08). */
+  bareHeadNote: string;
+  /** The graph's own `ui.worktreeHead` words, "HEAD of worktree {0}" (F1-08). */
+  worktreeHead: string;
+  /** The graph's own `ui.worktreeLocked` words, "locked: {0}". */
+  worktreeLocked: string;
+  /** The graph's own `ui.worktreeLockedNoReason` word, "locked". */
+  worktreeLockedNoReason: string;
+  /** The graph's own `ui.worktreeMissing` words for a prunable worktree. */
+  worktreeMissing: string;
   columnIndex: string;
   columnAction: string;
   columnSubAction: string;
@@ -222,11 +290,24 @@ export type ReflogPage = {
   searchCapped: boolean;
 };
 
+/** The picker's options for one repository, and whether that repository is bare (F1-08). */
+export type ReflogRefs = {
+  options: ReflogRefOption[];
+  /** True when the tab's repository itself is bare, so its `HEAD` keeps no reflog by default. */
+  bare: boolean;
+};
+
 /** Where the tab's pages come from; the extension host implements it. */
 export type ReflogSource = {
   loadPage(repo: string, offset: number, limit: number, query?: ReflogQuery): Promise<ReflogPage>;
-  /** The picker's refs for a repository; without one the tab offers only `HEAD`. */
-  loadRefs?(repo: string): Promise<string[]>;
+  /** The picker's options for a repository; without one the tab offers only `HEAD`. */
+  loadRefs?(repo: string): Promise<ReflogRefs>;
+  /**
+   * Closes any engine handle a read in another worktree opened (F1-08,
+   * Phase 16 rule 5). The panel calls it when it retargets or closes; the
+   * tab's own repository stays the repository manager's to close.
+   */
+  releaseWorktrees?(): void;
 };
 
 /**
@@ -240,9 +321,11 @@ export type ReflogDataMessage = {
   /** True for a "Load more" page, which extends the rows already shown. */
   append: boolean;
   repo: string;
-  /** The query this page answers, and the picker's refs for the repository. */
+  /** The query this page answers, and the picker's options for the repository. */
   query: ReflogQuery;
-  refs: string[];
+  refOptions: ReflogRefOption[];
+  /** Whether the tab's repository itself is bare (F1-08). */
+  bare: boolean;
   /** The VS Code display language, for the webview's relative times. */
   locale: string;
   labels: ReflogLabels;
@@ -260,9 +343,11 @@ export type ReflogLoadingMessage = {
   command: "reflogLoading";
   requestId: number;
   repo: string;
-  /** The query the started load answers, and the picker's refs known so far. */
+  /** The query the started load answers, and the picker's options known so far. */
   query: ReflogQuery;
-  refs: string[];
+  refOptions: ReflogRefOption[];
+  /** Whether the tab's repository itself is bare (F1-08). */
+  bare: boolean;
   locale: string;
   labels: ReflogLabels;
   /** The graph's display settings, read live for this load. */

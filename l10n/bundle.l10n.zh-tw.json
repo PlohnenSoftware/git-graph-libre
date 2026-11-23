@@ -831,6 +831,7 @@
   "reflog.filter.allActions": "所有操作",
   "reflog.noMatches": "沒有符合的項目。",
   "reflog.searchCapped": "已達到 {0} 項目的搜尋上限；較舊的項目可能未顯示。",
+  "reflog.bareHeadNote": "這是一個裸倉庫，Git 預設不保留 HEAD 的 reflog。請選擇上方的分支檢視其 reflog。",
   "reflog.action.commit": "提交",
   "reflog.action.checkout": "檢出",
   "reflog.action.reset": "重設",

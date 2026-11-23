@@ -831,6 +831,7 @@
   "reflog.filter.allActions": "Alle acties",
   "reflog.noMatches": "Geen overeenkomende items.",
   "reflog.searchCapped": "De zoeklimiet van {0} items is bereikt; oudere items worden mogelijk niet weergegeven.",
+  "reflog.bareHeadNote": "Dit is een kale repository, waar Git standaard geen HEAD-reflog bijhoudt. Kies hierboven een branch om de reflog daarvan te zien.",
   "reflog.action.commit": "Commit",
   "reflog.action.checkout": "Checkout",
   "reflog.action.reset": "Reset",

@@ -224,8 +224,17 @@ describe("openReflogTab", () => {
     expect(data.labels.filterAllActions).toBe("All actions");
     expect(data.labels.noMatches).toBe("No matching entries.");
     expect(data.labels.searchCapped).toContain("{0}");
-    expect(data.query).toEqual({ ref: "HEAD", search: "", actions: [], onlyInReflog: false });
-    expect(data.refs).toEqual(["HEAD"]);
+    expect(data.query).toEqual({
+      ref: "HEAD",
+      worktreePath: null,
+      search: "",
+      actions: [],
+      onlyInReflog: false
+    });
+    expect(data.refOptions).toEqual([
+      { ref: "HEAD", worktreePath: null, worktreeName: null, locked: null, prunable: null }
+    ]);
+    expect(data.bare).toBe(false);
     expect(data.page.rows).toHaveLength(1);
     // A second ready (the document was rebuilt) replays the same page.
     panel.send({ command: "ready" });
@@ -362,7 +371,16 @@ describe("openReflogTab", () => {
         calls.push({ repo, offset, limit, query });
         return page({ rows: [row({ index: offset })], hasMore: true });
       },
-      loadRefs: async () => ["HEAD", "refs/heads/topic", "refs/stash"]
+      loadRefs: async () => ({
+        options: ["HEAD", "refs/heads/topic", "refs/stash"].map((ref) => ({
+          ref,
+          worktreePath: null,
+          worktreeName: null,
+          locked: null,
+          prunable: null
+        })),
+        bare: false
+      })
     };
     open("/repos/one", source);
     const panel = onlyPanel();
@@ -371,7 +389,11 @@ describe("openReflogTab", () => {
     const firstData = panel.posted.find(
       (m): m is Extract<ReflogHostMessage, { command: "reflogData" }> => m.command === "reflogData"
     );
-    expect(firstData?.refs).toEqual(["HEAD", "refs/heads/topic", "refs/stash"]);
+    expect(firstData?.refOptions.map((option) => option.ref)).toEqual([
+      "HEAD",
+      "refs/heads/topic",
+      "refs/stash"
+    ]);
 
     panel.send({
       command: "query",
@@ -385,6 +407,7 @@ describe("openReflogTab", () => {
     await flush();
     const normalized = {
       ref: "refs/heads/topic",
+      worktreePath: null,
       search: "needle",
       actions: ["commit"],
       onlyInReflog: true
@@ -457,7 +480,13 @@ describe("openReflogTab", () => {
       }
     );
     await flush();
-    expect(seen.at(-1)).toEqual({ ref: "HEAD", search: "", actions: [], onlyInReflog: false });
+    expect(seen.at(-1)).toEqual({
+      ref: "HEAD",
+      worktreePath: null,
+      search: "",
+      actions: [],
+      onlyInReflog: false
+    });
   });
 
   // T1: whether the tab was opened and whether that went without errors.

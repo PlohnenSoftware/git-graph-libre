@@ -1,6 +1,8 @@
 import type { SimpleGit } from "simple-git";
 
+import { closeEngineRepository } from "@/backend/engine/index";
 import { readReflog } from "@/backend/engine/reflog";
+import { readWorktrees } from "@/backend/engine/worktrees";
 import {
   classifyReflogMessage,
   DEFAULT_REFLOG_PAGE_SIZE,
@@ -8,7 +10,8 @@ import {
   loadReflogRefs,
   MAX_REFLOG_PAGE_SIZE
 } from "@/backend/queries/reflog";
-import type { GitReflogEntry, GitReflogEntryState } from "@/backend/types";
+import type { GitReflogEntry, GitReflogEntryState, GitWorktree } from "@/backend/types";
+import { canonicalizePath } from "@/backend/utils/git";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import {
   defaultReflogQuery,
@@ -16,8 +19,10 @@ import {
   REFLOG_SEARCH_CAP,
   type ReflogPage,
   type ReflogQuery,
+  type ReflogRefs,
   type ReflogRow,
-  type ReflogSource
+  type ReflogSource,
+  repoRefOption
 } from "@/reflogTabTypes";
 import type { EngineBackend } from "@/types";
 
@@ -50,7 +55,44 @@ export type ReflogSourceDeps = {
    * user setting (RQ7).
    */
   searchCap?: number;
+  /**
+   * Closes one repository's engine handle; defaults to
+   * `closeEngineRepository`. Tests record it instead of loading the addon.
+   */
+  closeRepo?: (repo: string) => void;
 };
+
+/** A worktree's folder name, as `worktreeFolderName` in the graph webview trims it. */
+function folderName(worktreePath: string): string {
+  let end = worktreePath.length;
+  while (end > 0 && (worktreePath[end - 1] === "/" || worktreePath[end - 1] === "\\")) {
+    end -= 1;
+  }
+  const segments = worktreePath.slice(0, end).split(/[/\\]/);
+  return segments.at(-1) || worktreePath;
+}
+
+/**
+ * The picker's options out of the repository's refs and worktrees (F1-08):
+ * the refs in F1-05's order (`HEAD`, branches, the stash), then every
+ * other worktree's `HEAD` in Git's order (RQ8). A bare worktree has no
+ * `HEAD` reflog to pick, and the current worktree's `HEAD` is the first
+ * option already. `bare` says the tab's repository itself is bare.
+ */
+export function buildReflogRefs(refs: string[], worktrees: GitWorktree[]): ReflogRefs {
+  const options = refs.map(repoRefOption);
+  for (const worktree of worktrees) {
+    if (worktree.isCurrent || worktree.bare) continue;
+    options.push({
+      ref: "HEAD",
+      worktreePath: worktree.path,
+      worktreeName: folderName(worktree.path),
+      locked: worktree.locked,
+      prunable: worktree.prunable
+    });
+  }
+  return { options, bare: worktrees.some((worktree) => worktree.isCurrent && worktree.bare) };
+}
 
 type States = Record<string, GitReflogEntryState>;
 
@@ -90,12 +132,51 @@ function toRow({ entry, kind, sub }: Classified, states: States): ReflogRow {
  * and cuts the asked page out of the matches, so no filter ever sees
  * only the loaded page. `searchCapped` says the fetch stopped at the
  * cap with more fetched entries behind it.
+ *
+ * Another worktree's `HEAD` (F1-08) is read in that worktree, the way
+ * `git -C <path> log -g HEAD` reads it, because each worktree keeps its
+ * own `HEAD` reflog. The asked path is re-checked against the tab
+ * repository's worktree list on every such page: a path Git does not
+ * list is an error page, never a read, and a prunable (missing) one
+ * says so instead of failing inside Git. Branch and stash reflogs are
+ * shared, so they always read in the tab's repository.
  */
 export function createReflogSource(deps: ReflogSourceDeps): ReflogSource {
   const cap =
     deps.searchCap !== undefined && Number.isInteger(deps.searchCap) && deps.searchCap >= 1
       ? deps.searchCap
       : REFLOG_SEARCH_CAP;
+  /** Other worktrees read so far, by the exact path Git was rooted at. */
+  const openedWorktrees = new Set<string>();
+
+  async function worktreesOf(repo: string): Promise<GitWorktree[] | string> {
+    const result = await readWorktrees(
+      deps.createGit(repo),
+      repo,
+      { backend: deps.backend, isVerified: deps.isVerified },
+      deps.record
+    );
+    return result.error === null ? result.value : result.error.message;
+  }
+
+  /** The folder a page reads in, or the error that stops it (F1-08). */
+  async function effectiveRepo(repo: string, query: ReflogQuery): Promise<string | ReflogPage> {
+    const asked = query.worktreePath;
+    if (asked === null) return repo;
+    const listed = await worktreesOf(repo);
+    if (typeof listed === "string") return errorPage(listed);
+    const askedPath = await canonicalizePath(asked);
+    const canonical = await Promise.all(listed.map((worktree) => canonicalizePath(worktree.path)));
+    const found = listed[canonical.indexOf(askedPath)];
+    if (found === undefined) {
+      return errorPage(`"${asked}" is not a worktree of this repository.`);
+    }
+    if (found.prunable !== null) {
+      return errorPage(`The worktree at "${asked}" is missing, so its HEAD reflog cannot be read.`);
+    }
+    openedWorktrees.add(asked);
+    return asked;
+  }
 
   async function statesFor(git: SimpleGit, repo: string, items: Classified[]): Promise<States> {
     const result = await loadReflogEntryStates(
@@ -212,15 +293,29 @@ export function createReflogSource(deps: ReflogSourceDeps): ReflogSource {
       limit: number = DEFAULT_REFLOG_PAGE_SIZE,
       query: ReflogQuery = defaultReflogQuery()
     ): Promise<ReflogPage> {
-      const git = deps.createGit(repo);
+      const effective = await effectiveRepo(repo, query);
+      if (typeof effective !== "string") return effective;
+      const git = deps.createGit(effective);
       return isReflogFiltered(query)
-        ? filteredPage(git, repo, offset, limit, query)
-        : unfilteredPage(git, repo, offset, limit, query);
+        ? filteredPage(git, effective, offset, limit, query)
+        : unfilteredPage(git, effective, offset, limit, query);
     },
 
-    async loadRefs(repo: string): Promise<string[]> {
-      const result = await loadReflogRefs(deps.createGit(repo), repo, deps.record);
-      return result.refs;
+    async loadRefs(repo: string): Promise<ReflogRefs> {
+      const git = deps.createGit(repo);
+      const [refsResult, worktrees] = await Promise.all([
+        loadReflogRefs(git, repo, deps.record),
+        worktreesOf(repo)
+      ]);
+      // A failed worktree listing costs only the other HEADs and the
+      // bare note; the repository's own refs still pick and read.
+      return buildReflogRefs(refsResult.refs, typeof worktrees === "string" ? [] : worktrees);
+    },
+
+    releaseWorktrees(): void {
+      const close = deps.closeRepo ?? closeEngineRepository;
+      for (const worktree of openedWorktrees) close(worktree);
+      openedWorktrees.clear();
     }
   };
 }

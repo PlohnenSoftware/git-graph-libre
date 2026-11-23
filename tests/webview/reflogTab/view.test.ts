@@ -215,6 +215,7 @@ describe("reflog tab view", () => {
 describe("reflog search, filters and ref picker (F1-05)", () => {
   const QUERY = {
     ref: "refs/heads/main",
+    worktreePath: null,
     search: "needle",
     actions: ["reset"],
     onlyInReflog: true
@@ -232,11 +233,11 @@ describe("reflog search, filters and ref picker (F1-05)", () => {
     const refPicker = root.querySelector<HTMLSelectElement>("#reflogRefPicker");
     expect(refPicker?.getAttribute("aria-label")).toBe("Ref");
     expect([...(refPicker?.options ?? [])].map((o) => [o.value, o.textContent, o.title])).toEqual([
-      ["HEAD", "HEAD", "HEAD"],
-      ["refs/heads/main", "main", "refs/heads/main"],
-      ["refs/stash", "Stash (refs/stash)", "refs/stash"]
+      ["0", "HEAD", "HEAD"],
+      ["1", "main", "refs/heads/main"],
+      ["2", "Stash (refs/stash)", "refs/stash"]
     ]);
-    expect(refPicker?.value).toBe("refs/heads/main");
+    expect(refPicker?.value).toBe("1");
     const search = root.querySelector<HTMLInputElement>("#reflogSearch");
     expect(search?.value).toBe("needle");
     expect(search?.placeholder).toBe("Search reflog messages…");
@@ -256,10 +257,10 @@ describe("reflog search, filters and ref picker (F1-05)", () => {
     const refPicker = root.querySelector<HTMLSelectElement>(
       "#reflogRefPicker"
     ) as HTMLSelectElement;
-    refPicker.value = "refs/stash";
+    refPicker.value = "2";
     refPicker.dispatchEvent(new Event("change", { bubbles: true }));
     expect(onQueryChange).toHaveBeenLastCalledWith(
-      { ref: "refs/stash", search: "", actions: [], onlyInReflog: false },
+      { ref: "refs/stash", worktreePath: null, search: "", actions: [], onlyInReflog: false },
       "instant"
     );
 
@@ -267,7 +268,7 @@ describe("reflog search, filters and ref picker (F1-05)", () => {
     search.value = "  abc  ";
     search.dispatchEvent(new Event("input", { bubbles: true }));
     expect(onQueryChange).toHaveBeenLastCalledWith(
-      { ref: "refs/stash", search: "abc", actions: [], onlyInReflog: false },
+      { ref: "refs/stash", worktreePath: null, search: "abc", actions: [], onlyInReflog: false },
       "search"
     );
 
@@ -277,7 +278,13 @@ describe("reflog search, filters and ref picker (F1-05)", () => {
     actions.value = "rebase";
     actions.dispatchEvent(new Event("change", { bubbles: true }));
     expect(onQueryChange).toHaveBeenLastCalledWith(
-      { ref: "refs/stash", search: "abc", actions: ["rebase"], onlyInReflog: false },
+      {
+        ref: "refs/stash",
+        worktreePath: null,
+        search: "abc",
+        actions: ["rebase"],
+        onlyInReflog: false
+      },
       "instant"
     );
 
@@ -285,14 +292,26 @@ describe("reflog search, filters and ref picker (F1-05)", () => {
     only.checked = true;
     only.dispatchEvent(new Event("change", { bubbles: true }));
     expect(onQueryChange).toHaveBeenLastCalledWith(
-      { ref: "refs/stash", search: "abc", actions: ["rebase"], onlyInReflog: true },
+      {
+        ref: "refs/stash",
+        worktreePath: null,
+        search: "abc",
+        actions: ["rebase"],
+        onlyInReflog: true
+      },
       "instant"
     );
 
     search.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(search.value).toBe("");
     expect(onQueryChange).toHaveBeenLastCalledWith(
-      { ref: "refs/stash", search: "", actions: ["rebase"], onlyInReflog: true },
+      {
+        ref: "refs/stash",
+        worktreePath: null,
+        search: "",
+        actions: ["rebase"],
+        onlyInReflog: true
+      },
       "instant"
     );
   });
@@ -300,7 +319,7 @@ describe("reflog search, filters and ref picker (F1-05)", () => {
   it("words a filter that matched nothing apart from an empty reflog", () => {
     const { root, view } = start();
     const filtered = dataMessage({
-      query: { ref: "HEAD", search: "nope", actions: [], onlyInReflog: false },
+      query: { ref: "HEAD", worktreePath: null, search: "nope", actions: [], onlyInReflog: false },
       page: page({ rows: [], state: "entries" })
     });
     view.render(applyData(initialReflogState(), filtered), NOW);
@@ -309,7 +328,13 @@ describe("reflog search, filters and ref picker (F1-05)", () => {
     expect(root.querySelector("#reflogSearch")).not.toBeNull();
 
     const noReflog = dataMessage({
-      query: { ref: "refs/heads/main", search: "nope", actions: [], onlyInReflog: false },
+      query: {
+        ref: "refs/heads/main",
+        worktreePath: null,
+        search: "nope",
+        actions: [],
+        onlyInReflog: false
+      },
       page: page({ rows: [], state: "none", ref: "refs/heads/main" })
     });
     view.render(applyData(initialReflogState(), noReflog), NOW);

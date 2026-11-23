@@ -53,6 +53,11 @@ export function createRepoManager(
   const unavailable = new Set<string>();
   type ViewCallback = (repos: GitRepoSet, numRepos: number, layout: RepoLayout) => void;
   let viewCallback: ViewCallback | null = null;
+  // The Reflog tab's hook (F1-08): a panel bound to one repository closes
+  // when that repository leaves the list, the way the graph drops it from
+  // its dropdown. One slot, like the view callback: one tab at a time.
+  type RepoRemovedCallback = (repo: string) => void;
+  let repoRemovedCallback: RepoRemovedCallback | null = null;
   // What `git worktree list` said at the last scan, for branch labels and the
   // worktrees outside the workspace. The grouping itself needs neither.
   let worktreeDetails: ReadonlyMap<string, WorktreeDetails> = new Map();
@@ -91,6 +96,9 @@ export function createRepoManager(
     // dropped in exactly one place. Best effort: removal must succeed
     // whether or not the engine cooperates.
     closeEngineRepository(repo);
+    // A tab bound to the removed repository closes with it (F1-08). The
+    // handle is already dropped above, so nothing the tab opened leaks.
+    if (repoRemovedCallback !== null) repoRemovedCallback(repo);
   }
 
   function registerViewCallback(cb: ViewCallback) {
@@ -99,6 +107,14 @@ export function createRepoManager(
 
   function deregisterViewCallback() {
     viewCallback = null;
+  }
+
+  function registerRepoRemovedCallback(cb: RepoRemovedCallback) {
+    repoRemovedCallback = cb;
+  }
+
+  function deregisterRepoRemovedCallback() {
+    repoRemovedCallback = null;
   }
 
   function isDirectoryWithinRepos(path: string) {
@@ -218,6 +234,8 @@ export function createRepoManager(
   return {
     registerViewCallback,
     deregisterViewCallback,
+    registerRepoRemovedCallback,
+    deregisterRepoRemovedCallback,
     getRepos,
     getLayout,
     setWorktreeDetails,

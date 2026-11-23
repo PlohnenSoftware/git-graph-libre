@@ -116,7 +116,13 @@ describe("reflog tab webview", () => {
     expect(posted.filter((message) => message.command === "query")).toEqual([
       {
         command: "query",
-        query: { ref: "HEAD", search: "needle", actions: [], onlyInReflog: false }
+        query: {
+          ref: "HEAD",
+          worktreePath: null,
+          search: "needle",
+          actions: [],
+          onlyInReflog: false
+        }
       }
     ]);
     // An instant change after typing asks for the newest whole query now.
@@ -128,7 +134,7 @@ describe("reflog tab webview", () => {
     expect(posted.filter((message) => message.command === "query")).toHaveLength(2);
     expect(posted.at(-1)).toEqual({
       command: "query",
-      query: { ref: "HEAD", search: "other", actions: [], onlyInReflog: true }
+      query: { ref: "HEAD", worktreePath: null, search: "other", actions: [], onlyInReflog: true }
     });
     vi.advanceTimersByTime(500);
     expect(posted.filter((message) => message.command === "query")).toHaveLength(2);

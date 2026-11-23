@@ -1,11 +1,13 @@
 import {
   defaultReflogQuery,
+  defaultRefOptions,
   normalizeReflogQuery,
   type ReflogDataMessage,
   type ReflogDisplay,
   type ReflogLabels,
   type ReflogLoadingMessage,
   type ReflogQuery,
+  type ReflogRefOption,
   type ReflogRow,
   reflogQueriesEqual
 } from "@/reflogTabTypes";
@@ -26,8 +28,10 @@ export type ReflogViewState = {
   repo: string;
   /** The search, filters and picked ref the rows answer (F1-05). */
   query: ReflogQuery;
-  /** The picker's refs for this repository. */
-  refs: string[];
+  /** The picker's options for this repository (F1-08). */
+  refOptions: ReflogRefOption[];
+  /** Whether this repository itself is bare (F1-08). */
+  bare: boolean;
   /** A filtered read stopped at the search cap; older matches may be missing. */
   searchCapped: boolean;
   ref: string | null;
@@ -70,7 +74,8 @@ export function initialReflogState(): ReflogViewState {
     requestId: 0,
     repo: "",
     query: defaultReflogQuery(),
-    refs: ["HEAD"],
+    refOptions: defaultRefOptions(),
+    bare: false,
     searchCapped: false,
     ref: null,
     locale: "en",
@@ -100,7 +105,8 @@ export function applyLoading(
     loading: !(keepRows && state.rows.length > 0),
     repo: message.repo,
     query,
-    refs: message.refs.length > 0 ? message.refs : state.refs,
+    refOptions: message.refOptions.length > 0 ? message.refOptions : state.refOptions,
+    bare: message.bare,
     searchCapped: keepRows ? state.searchCapped : false,
     rows: keepRows ? state.rows : [],
     hasMore: keepRows ? state.hasMore : false,
@@ -124,7 +130,8 @@ export function applyData(state: ReflogViewState, message: ReflogDataMessage): R
     requestId: message.requestId,
     repo: message.repo,
     query: normalizeReflogQuery(message.query),
-    refs: message.refs.length > 0 ? message.refs : state.refs,
+    refOptions: message.refOptions.length > 0 ? message.refOptions : state.refOptions,
+    bare: message.bare,
     // A failed "Load more" keeps the cap note of the rows on screen.
     searchCapped: message.append && page.error !== null ? state.searchCapped : page.searchCapped,
     ref: page.ref ?? state.ref,

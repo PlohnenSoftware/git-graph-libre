@@ -617,7 +617,8 @@ export function registerMessageHandlers(
         {
           extensionPath,
           outputChannel: outputChannel ?? { appendLine: () => undefined },
-          telemetry
+          telemetry,
+          repoManager
         }
       );
     });

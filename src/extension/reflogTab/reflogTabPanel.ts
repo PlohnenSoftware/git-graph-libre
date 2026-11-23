@@ -3,9 +3,11 @@ import * as vscode from "vscode";
 import { DEFAULT_REFLOG_PAGE_SIZE, MAX_REFLOG_PAGE_SIZE } from "@/backend/queries/reflog";
 import { buildExtensionUri } from "@/backend/utils/path";
 import { config } from "@/config";
+import type { RepoManager } from "@/extension/repoManager";
 import * as l10n from "@/l10n";
 import {
   defaultReflogQuery,
+  defaultRefOptions,
   normalizeReflogQuery,
   REFLOG_ACTION_KINDS,
   REFLOG_SUB_ACTIONS,
@@ -15,6 +17,7 @@ import {
   type ReflogLoadingMessage,
   type ReflogPage,
   type ReflogQuery,
+  type ReflogRefOption,
   type ReflogSource,
   type ReflogWebviewMessage,
   reflogQueriesEqual
@@ -37,6 +40,12 @@ export type ReflogTabDeps = {
   createWatcher?: (onRefresh: () => void) => ReflogWatcher;
   /** Display language for the webview's relative times; defaults to the editor's. */
   locale?: string;
+  /**
+   * The repository manager's removal hook (F1-08): the tab closes when
+   * its repository leaves the list. Absent in tests that do not remove
+   * repositories; the tab then simply outlives the removal.
+   */
+  repoManager?: Pick<RepoManager, "registerRepoRemovedCallback" | "deregisterRepoRemovedCallback">;
 };
 
 // One tab at a time, reused like the GGL Diff tab.
@@ -99,7 +108,8 @@ function createReflogTab(deps: ReflogTabDeps) {
   // the picker's options for the repository. A watcher or settings
   // refresh re-answers the same query; only the webview changes it.
   let query: ReflogQuery = defaultReflogQuery();
-  let refsList: string[] = ["HEAD"];
+  let refOptions: ReflogRefOption[] = defaultRefOptions();
+  let bareRepo = false;
 
   /** A refresh keeps the rows already loaded, up to one bounded read. */
   const refreshLimit = (): number =>
@@ -117,7 +127,8 @@ function createReflogTab(deps: ReflogTabDeps) {
         requestId,
         repo: activeRepo,
         query: activeQuery,
-        refs: refsList,
+        refOptions,
+        bare: bareRepo,
         locale: deps.locale ?? vscode.env.language,
         labels: readLabels(),
         display: readDisplay()
@@ -125,8 +136,9 @@ function createReflogTab(deps: ReflogTabDeps) {
       if (ready) void panel.webview.postMessage(pending);
     }
     const offset = append ? loadedCount : 0;
-    // A fresh page also refreshes the picker's refs (a branch or the
-    // stash may have appeared); a "Load more" page keeps the known list.
+    // A fresh page also refreshes the picker's refs (a branch, the stash
+    // or a worktree may have appeared); a "Load more" page keeps the
+    // known list.
     const [page, freshRefs] = await Promise.all([
       activeSource.loadPage(activeRepo, offset, limit, activeQuery).catch(failedPage),
       append || activeSource.loadRefs === undefined
@@ -146,7 +158,10 @@ function createReflogTab(deps: ReflogTabDeps) {
       reportOpen(page.error === null);
     }
     pending = undefined;
-    if (freshRefs !== null && freshRefs.length > 0) refsList = freshRefs;
+    if (freshRefs !== null && freshRefs.options.length > 0) {
+      refOptions = freshRefs.options;
+      bareRepo = freshRefs.bare;
+    }
     if (page.error === null) {
       loadedCount = append ? loadedCount + page.rows.length : page.rows.length;
     }
@@ -156,7 +171,8 @@ function createReflogTab(deps: ReflogTabDeps) {
       append,
       repo: activeRepo,
       query: activeQuery,
-      refs: refsList,
+      refOptions,
+      bare: bareRepo,
       locale: deps.locale ?? vscode.env.language,
       labels: readLabels(),
       display: readDisplay(),
@@ -175,8 +191,12 @@ function createReflogTab(deps: ReflogTabDeps) {
   const show = (nextRepo: string, nextSource: ReflogSource): void => {
     // A kept query could name a branch the new repository does not have.
     if (nextRepo !== repo) {
+      // The tab follows the switch: the old source lets go of any other
+      // worktree it read (F1-08), and the query starts over.
+      source?.releaseWorktrees?.();
       query = defaultReflogQuery();
-      refsList = ["HEAD"];
+      refOptions = defaultRefOptions();
+      bareRepo = false;
     }
     repo = nextRepo;
     source = nextSource;
@@ -219,11 +239,19 @@ function createReflogTab(deps: ReflogTabDeps) {
       void load(false, refreshLimit());
     }
   });
+  // The tab closes with its repository (F1-08): a removal drops the
+  // repository from every surface, this one included. Disposing runs
+  // the cleanup below, so no handle the reads opened outlives it.
+  deps.repoManager?.registerRepoRemovedCallback((removed) => {
+    if (removed === repo && !disposed) panel.dispose();
+  });
   panel.onDidDispose(() => {
     disposed = true;
     received.dispose();
     settings.dispose();
     watcher.stop();
+    deps.repoManager?.deregisterRepoRemovedCallback();
+    source?.releaseWorktrees?.();
     if (current === show) current = undefined;
   });
   return show;
@@ -271,6 +299,11 @@ function readLabels(): ReflogLabels {
     searchCapped: l10n.t("reflog.searchCapped"),
     onlyInReflog: l10n.t("reflog.onlyInReflog"),
     objectMissing: l10n.t("reflog.objectMissing"),
+    bareHeadNote: l10n.t("reflog.bareHeadNote"),
+    worktreeHead: l10n.t("ui.worktreeHead"),
+    worktreeLocked: l10n.t("ui.worktreeLocked"),
+    worktreeLockedNoReason: l10n.t("ui.worktreeLockedNoReason"),
+    worktreeMissing: l10n.t("ui.worktreeMissing"),
     columnIndex: l10n.t("reflog.column.index"),
     columnAction: l10n.t("reflog.column.action"),
     columnSubAction: l10n.t("reflog.column.subAction"),

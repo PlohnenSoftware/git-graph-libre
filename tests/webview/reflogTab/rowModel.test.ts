@@ -148,13 +148,32 @@ describe("reflog row model", () => {
   });
 
   it("carries the query, the picker refs and the cap flag from each message (F1-05)", () => {
-    const query = { ref: "refs/stash", search: "needle", actions: ["stash"], onlyInReflog: true };
+    const query = {
+      ref: "refs/stash",
+      worktreePath: null,
+      search: "needle",
+      actions: ["stash"],
+      onlyInReflog: true
+    };
     const state = applyData(
       initialReflogState(),
-      dataMessage({ query, refs: ["HEAD", "refs/stash"], page: page({ searchCapped: true }) })
+      dataMessage({
+        query,
+        refOptions: [
+          { ref: "HEAD", worktreePath: null, worktreeName: null, locked: null, prunable: null },
+          {
+            ref: "refs/stash",
+            worktreePath: null,
+            worktreeName: null,
+            locked: null,
+            prunable: null
+          }
+        ],
+        page: page({ searchCapped: true })
+      })
     );
     expect(state.query).toEqual(query);
-    expect(state.refs).toEqual(["HEAD", "refs/stash"]);
+    expect(state.refOptions.map((option) => option.ref)).toEqual(["HEAD", "refs/stash"]);
     expect(state.searchCapped).toBe(true);
     expect(REFLOG_SEARCH_CAP).toBe(5000);
 
@@ -186,6 +205,7 @@ describe("reflog row model", () => {
       })
     ).toEqual({
       ref: "refs/heads/feat/x",
+      worktreePath: null,
       search: "needle",
       actions: ["commit", "stash"],
       onlyInReflog: true
@@ -203,7 +223,13 @@ describe("reflog row model", () => {
     }
     expect(
       normalizeReflogQuery({ ref: "refs/stash", search: 5, actions: "commit", onlyInReflog: "yes" })
-    ).toEqual({ ref: "refs/stash", search: "", actions: [], onlyInReflog: false });
+    ).toEqual({
+      ref: "refs/stash",
+      worktreePath: null,
+      search: "",
+      actions: [],
+      onlyInReflog: false
+    });
   });
 
   it("takes the display settings from each message, so a change restyles the tab", () => {

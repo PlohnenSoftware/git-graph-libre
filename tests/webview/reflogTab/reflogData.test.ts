@@ -146,11 +146,10 @@ describe("createReflogSource search, filters and ref picker (F1-05, real Git)", 
     commit(dir, "topic-only");
     git(["checkout", "main"], dir);
     const src = source();
-    await expect(src.loadRefs?.(dir)).resolves.toEqual([
-      "HEAD",
-      "refs/heads/main",
-      "refs/heads/topic"
-    ]);
+    await expect(src.loadRefs?.(dir)).resolves.toMatchObject({
+      bare: false,
+      options: [{ ref: "HEAD" }, { ref: "refs/heads/main" }, { ref: "refs/heads/topic" }]
+    });
     const branch = await src.loadPage(dir, 0, 200, query({ ref: "refs/heads/topic" }));
     expect(branch.error).toBeNull();
     expect(branch.ref).toBe("refs/heads/topic");
@@ -158,7 +157,8 @@ describe("createReflogSource search, filters and ref picker (F1-05, real Git)", 
 
     fs.writeFileSync(path.join(dir, "f"), "changed");
     git(["stash", "push", "-m", "picked stash"], dir);
-    await expect(src.loadRefs?.(dir)).resolves.toContain("refs/stash");
+    const withStash = await src.loadRefs?.(dir);
+    expect(withStash?.options.map((option) => option.ref)).toContain("refs/stash");
     const stash = await src.loadPage(dir, 0, 200, query({ ref: "refs/stash" }));
     expect(stash.rows).toHaveLength(1);
     expect(stash.rows[0]?.kind).toBe("stash");
