@@ -8,7 +8,7 @@ summary: >-
 
 # F2-04 — Editor dialog: open, list, pick/drop/reorder, start
 
-Status: ready
+Status: claimed by Gemini 4 Argon (agy) on 2026-11-23 12:45
 
 Needs: F2-01b, F2-02, F2-03; decisions IQ1, IQ2, IQ3, IQ12 confirmed by the maintainer
 
