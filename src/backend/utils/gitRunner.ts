@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import type { SimpleGit } from "simple-git";
 import { traceBackend } from "./operationLog";
 
@@ -241,4 +241,85 @@ export function runGitWithInput(_git: SimpleGit, options: GitInputOptions): Prom
     }
     return Promise.resolve(result.stdout);
   }, options);
+}
+
+export type GitEnvOptions = GitCommandOptions & {
+  /**
+   * Extra environment variables for this one process, layered over
+   * `process.env`. Nothing here is written back to the process environment.
+   */
+  env: Readonly<Record<string, string>>;
+  /** Resolved git binary path, threaded in like {@link GitInputOptions.binary}. */
+  binary: string;
+};
+
+const MAX_SPAWN_OUTPUT_BYTES = 1024 * 1024 * 64;
+
+function spawnGitWithEnv(options: GitEnvOptions): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(options.binary, options.args, {
+      cwd: options.repo ?? undefined,
+      env: { ...process.env, ...options.env },
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true
+    });
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
+    let outputBytes = 0;
+    let failure: Error | null = null;
+    const collect = (chunks: Buffer[]) => (chunk: Buffer) => {
+      outputBytes += chunk.length;
+      if (outputBytes <= MAX_SPAWN_OUTPUT_BYTES) {
+        chunks.push(chunk);
+        return;
+      }
+      failure ??= new Error(
+        `git ${options.args.join(" ")} exceeded the ${MAX_SPAWN_OUTPUT_BYTES} byte output limit`
+      );
+      child.kill("SIGKILL");
+    };
+    child.stdout.on("data", collect(stdout));
+    child.stderr.on("data", collect(stderr));
+    child.on("error", (error) => reject(failure ?? error));
+    child.on("close", (code) => {
+      if (failure !== null) {
+        reject(failure);
+        return;
+      }
+      const outText = Buffer.concat(stdout).toString("utf8");
+      const errText = Buffer.concat(stderr).toString("utf8");
+      if (code === 0) {
+        resolve(outText);
+        return;
+      }
+      // Carry the exit code and stderr as properties so `normalizeGitError`
+      // records them, the way a simple-git failure is recorded.
+      reject(
+        Object.assign(new Error(`git ${options.args.join(" ")} exited with ${code}: ${errText}`), {
+          exitCode: code,
+          stderr: errText,
+          stdout: outText
+        })
+      );
+    });
+  });
+}
+
+/**
+ * Runs a git command with extra environment variables on that one process.
+ *
+ * simple-git's `raw()` cannot carry editor variables: its argument parser
+ * refuses `GIT_EDITOR` and `GIT_SEQUENCE_EDITOR` in `env` (and
+ * `-c sequence.editor` in args) with a `GitPluginError` unless the instance
+ * opts in to `allowUnsafeEditor`, which this project does not do (F2-01b
+ * spike, simple-git 3.36.0). An interactive rebase needs exactly those
+ * variables, so it spawns Git directly, like {@link runGitWithInput}, and
+ * still goes through {@link runGitCommand} so the call is timed, recorded
+ * and normalized. A non-zero exit rejects with a {@link GitCommandError}
+ * whose record carries the exit code and stderr. The child is async (a
+ * rebase can run hooks and signing for every commit) and cannot prompt:
+ * stdin is closed and the console is hidden on Windows.
+ */
+export function runGitWithEnv(_git: SimpleGit, options: GitEnvOptions): Promise<string> {
+  return runGitCommand(() => spawnGitWithEnv(options), options);
 }
