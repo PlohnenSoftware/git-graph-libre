@@ -552,16 +552,31 @@ export type GitRebaseState = {
 };
 
 /**
+ * Present when a rebase completed (its state directory is gone) but reapplying
+ * its autostash conflicted: unmerged paths remain and Git kept the autostash
+ * entry in `refs/stash` (F2-07). Detected from the stash ref and unmerged
+ * paths, never by parsing Git's message text.
+ */
+export type GitAutostashConflict = {
+  /** The stash selector Git kept, typically `stash@{0}`. */
+  stashSelector: string;
+  /** Full hash of the kept autostash commit. */
+  stashHash: string;
+};
+
+/**
  * The operation in progress in one worktree, read from the state files in its
  * own git directory (F2-03). `rebase` is non-null exactly when `kind` is
  * `"rebase"`. `conflictFiles` are the unmerged paths while a rebase is in
- * progress, empty otherwise. `REBASE_HEAD` is never evidence: it lingers
- * after a successful rebase, so only the state directories say one is under
- * way.
+ * progress or an autostash pop conflicted, empty otherwise. `REBASE_HEAD` is
+ * never evidence: it lingers after a successful rebase, so only the state
+ * directories say one is under way.
  */
 export type GitOperationStateResult = {
   kind: GitRebaseOperation | null;
   rebase: GitRebaseState | null;
   conflictFiles: string[];
+  /** Present when an autostash pop conflicted after a completed rebase (F2-07). */
+  autostashConflict?: GitAutostashConflict;
   error: GitQueryError | null;
 };

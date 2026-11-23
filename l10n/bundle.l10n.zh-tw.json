@@ -895,6 +895,8 @@
   "rebase.starting": "正在啟動互動式重定基底",
   "rebase.unableToLoadRange": "無法載入重定基底提交",
   "rebase.unableToStart": "無法啟動互動式重定基底",
+  "rebase.autostashConflictTitle": "重定基底後自動儲藏衝突",
+  "rebase.autostashConflictHint": "重新套用已儲藏的變更時發生衝突。你的變更仍保留在 {0} 中；請在原始檔控制檢視中解決衝突，完成後刪除該儲藏。",
   "reflog.show": "顯示 reflog",
   "reflog.title": "Reflog: {0}",
   "reflog.loading": "正在載入 reflog…",

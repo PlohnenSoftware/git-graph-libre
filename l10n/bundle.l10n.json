@@ -895,6 +895,8 @@
   "rebase.starting": "Starting Interactive Rebase",
   "rebase.unableToLoadRange": "Unable to Load Rebase Commits",
   "rebase.unableToStart": "Unable to Start Interactive Rebase",
+  "rebase.autostashConflictTitle": "Autostash conflict after rebase",
+  "rebase.autostashConflictHint": "Applying your stashed changes resulted in conflicts. Your changes are kept in {0}; resolve the conflicts in the Source Control view and drop the stash when done.",
   "reflog.show": "Show Reflog",
   "reflog.title": "Reflog: {0}",
   "reflog.loading": "Loading reflog…",

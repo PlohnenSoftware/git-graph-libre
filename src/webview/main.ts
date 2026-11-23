@@ -1324,6 +1324,7 @@ class GitGraphView {
       kind: msg.kind,
       rebase: msg.rebase,
       conflictFiles: msg.conflictFiles,
+      ...(msg.autostashConflict === undefined ? {} : { autostashConflict: msg.autostashConflict }),
       error: msg.error
     };
     this.updateRebaseBanner();

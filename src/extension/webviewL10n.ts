@@ -519,6 +519,8 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     statusStartingInteractiveRebase: translate("rebase.starting"),
     unableToLoadRebaseRange: translate("rebase.unableToLoadRange"),
     unableToStartInteractiveRebase: translate("rebase.unableToStart"),
+    rebaseAutostashConflictTitle: translate("rebase.autostashConflictTitle"),
+    rebaseAutostashConflictHint: translate("rebase.autostashConflictHint"),
     dialogDropCommitConfirm: translate("dialog.dropCommit.confirm"),
     dialogDropSelectionConfirm: translate("dialog.dropSelection.confirm"),
     dialogBypassGitHooks: translate("dialog.bypassGitHooks"),

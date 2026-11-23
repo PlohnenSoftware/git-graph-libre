@@ -895,6 +895,8 @@
   "rebase.starting": "Rozpoczynanie interaktywnego rebase",
   "rebase.unableToLoadRange": "Nie można wczytać commitów do rebase",
   "rebase.unableToStart": "Nie można rozpocząć interaktywnego rebase",
+  "rebase.autostashConflictTitle": "Konflikt autostash po rebase",
+  "rebase.autostashConflictHint": "Ponowne zastosowanie zmian z autostash spowodowało konflikty. Zmiany zostały zachowane w {0}; rozwiąż konflikty w widoku Kontroli źródła i usuń schowek po zakończeniu.",
   "reflog.show": "Pokaż reflog",
   "reflog.title": "Reflog: {0}",
   "reflog.loading": "Ładowanie reflogu…",

@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { SimpleGit } from "simple-git";
 import type {
+  GitAutostashConflict,
   GitOperationStateResult,
   GitRebaseOperation,
   GitRebaseState,
@@ -13,6 +14,7 @@ import { toGitQueryError } from "@/backend/utils/queryError";
 
 const objectName = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
 const BRANCH_REF_PREFIX = "refs/heads/";
+const UNIT_SEPARATOR = "\u001f";
 
 export type OperationStateInput = {
   repo: string;
@@ -165,6 +167,59 @@ function otherOperationOf(gitDir: string): GitRebaseOperation | null {
   return null;
 }
 
+/** Whether `commonDir` holds a stash ref, checked on disk so clean repos spawn no Git process. */
+function hasStashRef(commonDir: string): boolean {
+  if (isFile(path.join(commonDir, "refs", "stash"))) return true;
+  try {
+    const packed = fs.readFileSync(path.join(commonDir, "packed-refs"), "utf8");
+    return packed.split("\n").some((line) => line.trimEnd().endsWith(" refs/stash"));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reads the newest stash entry and returns it when Git recorded it as a kept
+ * rebase autostash (`%gs` is `"autostash"`, written by Git's sequencer across
+ * locales). Returns null for user-created stashes or an empty stash list.
+ */
+async function readKeptAutostash(read: Reader): Promise<GitAutostashConflict | null> {
+  const stdout = await read(
+    ["stash", "list", "-n", "1", "--format=%gd%x1f%H%x1f%gs"],
+    "operationState.autostash"
+  );
+  const firstLine = stdout.split(/\r?\n/, 1)[0] ?? "";
+  if (firstLine === "") return null;
+  const [stashSelector, stashHash, reflogSubject] = firstLine.split(UNIT_SEPARATOR);
+  if (
+    stashSelector === undefined ||
+    stashSelector === "" ||
+    stashHash === undefined ||
+    !objectName.test(stashHash) ||
+    reflogSubject !== "autostash"
+  ) {
+    return null;
+  }
+  return { stashSelector, stashHash };
+}
+
+/**
+ * Detects a post-rebase autostash conflict without parsing Git's message text:
+ * the rebase state directory is already gone, `refs/stash` holds a kept
+ * `autostash` entry, and the index still has unmerged paths (F2-07).
+ */
+async function detectAutostashConflict(
+  read: Reader,
+  commonDir: string
+): Promise<{ conflictFiles: string[]; autostashConflict: GitAutostashConflict } | null> {
+  if (!hasStashRef(commonDir)) return null;
+  const conflictFiles = await readConflictFiles(read);
+  if (conflictFiles.length === 0) return null;
+  const autostashConflict = await readKeptAutostash(read);
+  if (autostashConflict === null) return null;
+  return { conflictFiles, autostashConflict };
+}
+
 function failure(error: GitOperationStateResult["error"]): GitOperationStateResult {
   return { kind: null, rebase: null, conflictFiles: [], error };
 }
@@ -192,10 +247,23 @@ export async function loadOperationState(
       record: input.recordGitCommand
     });
   try {
-    const { gitDir } = resolveGitDirs(input.repo);
+    const { gitDir, commonDir } = resolveGitDirs(input.repo);
     const state = rebaseStateDirOf(gitDir);
     if (state === null) {
-      return { kind: otherOperationOf(gitDir), rebase: null, conflictFiles: [], error: null };
+      const otherKind = otherOperationOf(gitDir);
+      if (otherKind === null) {
+        const autostash = await detectAutostashConflict(read, commonDir);
+        if (autostash !== null) {
+          return {
+            kind: null,
+            rebase: null,
+            conflictFiles: autostash.conflictFiles,
+            autostashConflict: autostash.autostashConflict,
+            error: null
+          };
+        }
+      }
+      return { kind: otherKind, rebase: null, conflictFiles: [], error: null };
     }
     const { rebase, conflictFiles } = await readRebaseState(read, state);
     return { kind: "rebase", rebase, conflictFiles, error: null };

@@ -351,4 +351,46 @@ describe("loadOperationState (real Git)", () => {
     expect(state).toEqual({ kind: "merge", rebase: null, conflictFiles: [], error: null });
     git(["merge", "--abort"], fixture.dir);
   });
+
+  it("detects an autostash conflict from the kept stash entry and unmerged paths without parsing text", async () => {
+    const fixture = makeDependentRepo();
+    const [base, a, b] = fixture.hashes as [string, string, string];
+    fs.writeFileSync(path.join(fixture.dir, "f"), "one\nA2\nB3-dirty\n");
+
+    const result = await runInteractiveRebase(simpleGit(fixture.dir), {
+      repo: fixture.dir,
+      binary: "git",
+      base,
+      rangeHashes: [a, b],
+      entries: [entry("pick", a), entry("drop", b)],
+      autostash: true
+    });
+    expect(result.outcome).toBe("completed");
+    expect(result.autostashConflict).toBe(true);
+
+    const stashHash = git(["rev-parse", "refs/stash"], fixture.dir).trim();
+    const conflictState = await load(fixture.dir);
+    expect(conflictState).toEqual({
+      kind: null,
+      rebase: null,
+      conflictFiles: ["f"],
+      autostashConflict: { stashSelector: "stash@{0}", stashHash },
+      error: null
+    });
+
+    // Once resolved and staged, unmerged paths are gone and the conflict clears.
+    fs.writeFileSync(path.join(fixture.dir, "f"), "one\nA2\nresolved\n");
+    git(["add", "f"], fixture.dir);
+    const resolvedState = await load(fixture.dir);
+    expect(resolvedState).toEqual({ kind: null, rebase: null, conflictFiles: [], error: null });
+  });
+
+  it("ignores a normal stash entry when there are no unmerged paths", async () => {
+    const fixture = makeRepo();
+    fs.writeFileSync(path.join(fixture.dir, "fA"), "stashed edit\n");
+    git(["stash", "push", "-q", "-m", "regular stash"], fixture.dir);
+
+    const state = await load(fixture.dir);
+    expect(state).toEqual({ kind: null, rebase: null, conflictFiles: [], error: null });
+  });
 });

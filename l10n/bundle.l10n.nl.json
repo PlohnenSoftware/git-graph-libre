@@ -895,6 +895,8 @@
   "rebase.starting": "Interactieve rebase starten",
   "rebase.unableToLoadRange": "Kan rebase-commits niet laden",
   "rebase.unableToStart": "Kan interactieve rebase niet starten",
+  "rebase.autostashConflictTitle": "Autostash-conflict na rebase",
+  "rebase.autostashConflictHint": "Het opnieuw toepassen van je gestashte wijzigingen gaf conflicten. Je wijzigingen blijven bewaard in {0}; los de conflicten op in de Bronbeheer-weergave en verwijder de stash zodra je klaar bent.",
   "reflog.show": "Reflog weergeven",
   "reflog.title": "Reflog: {0}",
   "reflog.loading": "Reflog laden…",

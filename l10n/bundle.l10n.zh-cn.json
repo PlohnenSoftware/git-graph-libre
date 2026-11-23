@@ -895,6 +895,8 @@
   "rebase.starting": "正在启动交互式变基",
   "rebase.unableToLoadRange": "无法加载变基提交",
   "rebase.unableToStart": "无法启动交互式变基",
+  "rebase.autostashConflictTitle": "变基后自动贮藏冲突",
+  "rebase.autostashConflictHint": "重新应用已贮藏的更改时发生冲突。你的更改仍保留在 {0} 中；请在源代码管理视图中解决冲突，完成后删除该贮藏。",
   "reflog.show": "显示 reflog",
   "reflog.title": "Reflog: {0}",
   "reflog.loading": "正在加载 reflog…",

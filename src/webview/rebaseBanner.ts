@@ -12,7 +12,11 @@
  * view, and nothing here stages files silently.
  */
 
-import type { GitOperationStateResult, GitRebaseState } from "@/backend/types";
+import type {
+  GitAutostashConflict,
+  GitOperationStateResult,
+  GitRebaseState
+} from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
 import { octicon } from "@/octicons";
 
@@ -43,7 +47,24 @@ export function renderRebaseBanner(
   options: RebaseBannerOptions,
   callbacks: RebaseBannerCallbacks
 ): void {
-  if (state === null || state.error !== null || state.kind !== "rebase" || state.rebase === null) {
+  if (state === null || state.error !== null) {
+    container.replaceChildren();
+    return;
+  }
+  if (
+    state.kind === null &&
+    state.autostashConflict !== undefined &&
+    state.conflictFiles.length > 0
+  ) {
+    renderAutostashConflictBanner(
+      container,
+      state.autostashConflict,
+      state.conflictFiles,
+      callbacks.onOpenFile
+    );
+    return;
+  }
+  if (state.kind !== "rebase" || state.rebase === null) {
     container.replaceChildren();
     return;
   }
@@ -72,6 +93,34 @@ export function renderRebaseBanner(
     banner.appendChild(renderConflictFiles(state.conflictFiles, callbacks.onOpenFile));
   }
   banner.appendChild(renderActions(state, busy, callbacks));
+  container.replaceChildren(banner);
+}
+
+function renderAutostashConflictBanner(
+  container: HTMLElement,
+  autostash: GitAutostashConflict,
+  conflictFiles: string[],
+  onOpenFile: (filePath: string) => void
+): void {
+  const banner = document.createElement("section");
+  banner.className = "rebaseBanner";
+  banner.dataset.reason = "autostash-conflict";
+  banner.setAttribute("aria-label", l10n.rebaseAutostashConflictTitle);
+
+  const main = document.createElement("div");
+  main.className = "rebaseBannerMain";
+  const icon = document.createElement("span");
+  icon.className = "rebaseBannerIcon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.innerHTML = octicon("alert");
+  const text = document.createElement("span");
+  text.className = "rebaseBannerText";
+  text.textContent = l10n.rebaseAutostashConflictTitle;
+  const hint = document.createElement("span");
+  hint.className = "rebaseBannerHint";
+  hint.textContent = l10n.rebaseAutostashConflictHint.replace("{0}", () => autostash.stashSelector);
+  main.append(icon, text, hint);
+  banner.append(main, renderConflictFiles(conflictFiles, onOpenFile));
   container.replaceChildren(banner);
 }
 
