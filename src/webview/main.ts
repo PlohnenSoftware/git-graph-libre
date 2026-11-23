@@ -8337,18 +8337,6 @@ const actionErrorLabels = {
 } satisfies Partial<Record<GGL.ResponseMessage["command"], string>>;
 
 function handleActionResponse(msg: GGL.ResponseMessage) {
-  if (msg.command === "continueRebase") {
-    gitGraph.finishRebaseControl(msg.status, l10n.unableToContinueRebase);
-    return true;
-  }
-  if (msg.command === "skipRebase") {
-    gitGraph.finishRebaseControl(msg.status, l10n.unableToSkipRebase);
-    return true;
-  }
-  if (msg.command === "abortRebase") {
-    gitGraph.finishRebaseControl(msg.status, l10n.unableToAbortRebase);
-    return true;
-  }
   if (msg.command === "addWorktree") {
     gitGraph.finishCreateWorktree(msg.status);
     return true;
@@ -8396,6 +8384,9 @@ type ResponseHandlerMap = {
 
 const responseHandlers: ResponseHandlerMap = {
   operationState: (msg) => gitGraph.loadOperationState(msg),
+  continueRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToContinueRebase),
+  skipRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToSkipRebase),
+  abortRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToAbortRebase),
   remoteTags: (msg) => gitGraph.loadRemoteTags(msg),
   worktreeChanges: (msg) => gitGraph.loadWorktreeChanges(msg),
   worktreeStatus: (msg) => gitGraph.loadWorktreeStatus(msg),

@@ -8,6 +8,13 @@ import type {
   QueryResponse
 } from "@/backend/types";
 
+export type {
+  GitOperationStateResult,
+  GitRebaseOperation,
+  GitRebaseState,
+  GitRebaseStopReason
+} from "@/backend/types";
+
 export type GitRepoSet = { [repo: string]: GitRepoState };
 /** How one listed repository sits among the worktrees of its Git repository. */
 export type RepoWorktreeInfo = {
