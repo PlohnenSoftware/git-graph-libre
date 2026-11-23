@@ -189,6 +189,13 @@ describe("openReflogTab", () => {
     expect(Object.keys(data.labels.subActions)).toHaveLength(18);
     expect(data.labels.subActions["fast-forward"]).toBe("Fast-forward");
     expect(data.labels.subActions.amend).toBe("Amend");
+    // The filter controls' words (F1-05), and the query/refs echo.
+    expect(data.labels.searchPlaceholder).toBe("Search reflog messages…");
+    expect(data.labels.filterAllActions).toBe("All actions");
+    expect(data.labels.noMatches).toBe("No matching entries.");
+    expect(data.labels.searchCapped).toContain("{0}");
+    expect(data.query).toEqual({ ref: "HEAD", search: "", actions: [], onlyInReflog: false });
+    expect(data.refs).toEqual(["HEAD"]);
     expect(data.page.rows).toHaveLength(1);
     // A second ready (the document was rebuilt) replays the same page.
     panel.send({ command: "ready" });
@@ -316,6 +323,111 @@ describe("openReflogTab", () => {
     expect(data?.page.error).toBe("git went away");
     expect(data?.page.state).toBeNull();
     expect(data?.page.rows).toEqual([]);
+  });
+
+  it("answers a query message with a fresh page for that query, picker refs included (F1-05)", async () => {
+    const calls: unknown[] = [];
+    const source: ReflogSource = {
+      loadPage: async (repo, offset, limit, query) => {
+        calls.push({ repo, offset, limit, query });
+        return page({ rows: [row({ index: offset })], hasMore: true });
+      },
+      loadRefs: async () => ["HEAD", "refs/heads/topic", "refs/stash"]
+    };
+    open("/repos/one", source);
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    const firstData = panel.posted.find(
+      (m): m is Extract<ReflogHostMessage, { command: "reflogData" }> => m.command === "reflogData"
+    );
+    expect(firstData?.refs).toEqual(["HEAD", "refs/heads/topic", "refs/stash"]);
+
+    panel.send({
+      command: "query",
+      query: {
+        ref: "refs/heads/topic",
+        search: "  needle  ",
+        actions: ["commit", "bogus", "commit"],
+        onlyInReflog: true
+      }
+    });
+    await flush();
+    const normalized = {
+      ref: "refs/heads/topic",
+      search: "needle",
+      actions: ["commit"],
+      onlyInReflog: true
+    };
+    expect(calls.at(-1)).toEqual({ repo: "/repos/one", offset: 0, limit: 200, query: normalized });
+    const datas = panel.posted.filter(
+      (m): m is Extract<ReflogHostMessage, { command: "reflogData" }> => m.command === "reflogData"
+    );
+    expect(datas.at(-1)?.query).toEqual(normalized);
+    expect(datas.at(-1)?.append).toBe(false);
+
+    // Load more continues the same query, by the shown rows' offset.
+    panel.send({ command: "loadMore" });
+    await flush();
+    expect(calls.at(-1)).toEqual({ repo: "/repos/one", offset: 1, limit: 200, query: normalized });
+
+    // Asking for what is already shown reloads nothing.
+    const before = calls.length;
+    panel.send({ command: "query", query: normalized });
+    await flush();
+    expect(calls).toHaveLength(before);
+  });
+
+  it("never aims a query at a ref the picker cannot name (F1-05)", async () => {
+    const seen: unknown[] = [];
+    const source: ReflogSource = {
+      loadPage: async (_repo, _offset, _limit, query) => {
+        seen.push(query);
+        return page();
+      }
+    };
+    open("/repos/one", source);
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    for (const ref of ["--output=/tmp/x", "-n1", "refs/remotes/origin/main", "refs/tags/v1"]) {
+      panel.send({
+        command: "query",
+        query: { ref, search: ref, actions: [], onlyInReflog: false }
+      });
+      await flush();
+      expect(seen.at(-1)).toMatchObject({ ref: "HEAD" });
+    }
+  });
+
+  it("resets the query when the panel is retargeted to another repository (F1-05)", async () => {
+    open();
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    panel.send({
+      command: "query",
+      query: { ref: "refs/heads/topic", search: "x", actions: ["reset"], onlyInReflog: true }
+    });
+    await flush();
+    const seen: unknown[] = [];
+    openReflogTab(
+      "/repos/two",
+      {
+        loadPage: async (_repo, _offset, _limit, query) => {
+          seen.push(query);
+          return page();
+        }
+      },
+      {
+        extensionPath: EXTENSION,
+        outputChannel: log,
+        createWatcher: fakeWatcher().create,
+        locale: "en"
+      }
+    );
+    await flush();
+    expect(seen.at(-1)).toEqual({ ref: "HEAD", search: "", actions: [], onlyInReflog: false });
   });
 
   it("stops watching on dispose and opens a fresh panel next time", async () => {
