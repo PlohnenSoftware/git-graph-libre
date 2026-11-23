@@ -73,6 +73,11 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+/** The text of the ref picker's selected option. */
+function selectedRef(root: HTMLElement): string | undefined {
+  return root.querySelector<HTMLSelectElement>("#reflogRefPicker")?.selectedOptions[0]?.textContent;
+}
+
 describe("reflog tab view", () => {
   it("draws nothing before the localized labels arrive", () => {
     const { root, view } = start();
@@ -85,7 +90,9 @@ describe("reflog tab view", () => {
     const state = applyLoading(initialReflogState(), loadingMessage());
     view.render(state, NOW);
     expect(root.querySelector(".reflog-loading")?.textContent).toBe("Loading reflog…");
-    expect(root.querySelector(".reflog-repo")?.textContent).toBe("one");
+    // The top bar is the filter row alone; the tab title names the repository.
+    expect(root.querySelector(".reflog-header")).toBeNull();
+    expect(root.querySelector(".reflog-controls")).not.toBeNull();
   });
 
   it("renders every column, with the full hash and date on hover", () => {
@@ -132,7 +139,8 @@ describe("reflog tab view", () => {
     expect(cells[5].textContent).toMatch(/^\d{1,2} Nov 2023 \d{2}:\d{2}$/);
     expect(cells[5].title).toBe(cells[5].textContent);
     expect(cells[6].querySelector(".reflog-badge")?.textContent).toBe("Only in the reflog");
-    expect(root.querySelector(".reflog-ref")?.textContent).toBe("HEAD");
+    expect(root.querySelector(".reflog-header")).toBeNull();
+    expect(selectedRef(root)).toBe("HEAD");
   });
 
   it("shortens hashes to the configured length and follows dateFormat (F1-04F)", () => {
@@ -295,7 +303,7 @@ describe("reflog search, filters and ref picker (F1-05)", () => {
     const only = root.querySelector<HTMLInputElement>("#reflogOnlyFilter");
     expect(only?.checked).toBe(true);
     expect(only?.closest("label")?.textContent).toContain("Only in the reflog");
-    expect(root.querySelector(".reflog-ref")?.textContent).toBe("refs/heads/main");
+    expect(selectedRef(root)).toBe("main");
   });
 
   it("rebuilds the query from the controls' live values on every change", () => {
@@ -635,8 +643,10 @@ describe("reflog worktrees and bare repositories (F1-08)", () => {
       ),
       NOW
     );
-    // With linked worktrees to tell apart, even this worktree's HEAD is named.
-    expect(root.querySelector(".reflog-ref")?.textContent).toBe("HEAD of worktree one");
+    // The header named this worktree's HEAD; the top bar's ref picker
+    // shows the plain HEAD option, and the other worktrees keep their names.
+    expect(root.querySelector(".reflog-header")).toBeNull();
+    expect(selectedRef(root)).toBe("HEAD");
     const refPicker = root.querySelector<HTMLSelectElement>(
       "#reflogRefPicker"
     ) as HTMLSelectElement;
@@ -664,7 +674,7 @@ describe("reflog worktrees and bare repositories (F1-08)", () => {
     );
   });
 
-  it("headers another worktree's HEAD with its folder and full path", () => {
+  it("titles the ref picker with the full path of the worktree HEAD it picks", () => {
     const { root, view } = start();
     view.render(
       applyData(
@@ -682,11 +692,10 @@ describe("reflog worktrees and bare repositories (F1-08)", () => {
       ),
       NOW
     );
-    const ref = root.querySelector(".reflog-ref");
-    expect(ref?.textContent).toBe("HEAD of worktree linked");
-    expect(ref?.getAttribute("title")).toBe("/repos/linked");
     const refPicker = root.querySelector<HTMLSelectElement>("#reflogRefPicker");
     expect(refPicker?.value).toBe("3");
+    expect(selectedRef(root)).toBe("HEAD of worktree linked");
+    expect(refPicker?.title).toBe("/repos/linked");
   });
 
   it("tells the bare story only for a bare HEAD with no reflog", () => {
@@ -729,6 +738,31 @@ describe("reflog worktrees and bare repositories (F1-08)", () => {
 });
 
 describe("reflog lost-commit scan view (F1-07)", () => {
+  it("puts the scan button last in the top bar, busy while a scan runs (Q4)", () => {
+    const { root, view, onScanLostCommits } = start();
+    const base = applyData(initialReflogState(), dataMessage());
+    view.render(base, NOW);
+    const bar = root.querySelector(".reflog-controls");
+    const scanBtn = root.querySelector<HTMLButtonElement>("#reflogLostScanBtn");
+    expect(scanBtn?.parentElement).toBe(bar);
+    expect(bar?.lastElementChild).toBe(scanBtn);
+    expect(scanBtn?.type).toBe("button");
+    expect(scanBtn?.disabled).toBe(false);
+    expect(scanBtn?.getAttribute("aria-busy")).toBe("false");
+    scanBtn?.click();
+    expect(onScanLostCommits).toHaveBeenCalledOnce();
+
+    view.render(
+      applyLostCommits(base, lostCommitsMessage({ status: "scanning", commits: [] })),
+      NOW
+    );
+    const busy = root.querySelector<HTMLButtonElement>("#reflogLostScanBtn");
+    expect(busy?.parentElement).toBe(root.querySelector(".reflog-controls"));
+    expect(busy?.disabled).toBe(true);
+    expect(busy?.getAttribute("aria-busy")).toBe("true");
+    expect(root.querySelector(".reflog-controls")?.lastElementChild).toBe(busy);
+  });
+
   it("shows only the opt-in scan button while idle, then progress and cancel while scanning", () => {
     const { root, view, onScanLostCommits, onCancelLostCommitsScan } = start();
     const base = applyData(initialReflogState(), dataMessage());
