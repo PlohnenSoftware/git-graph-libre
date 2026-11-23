@@ -69,7 +69,7 @@ ran first.
 | F3-01 | Engine bridge: typed wrappers for `authorStats` and `activityHeatmap` | — | Claude Haiku | integrated `4ebc50c5` |
 | F3-02 | Statistics tab, webview (contributors and 7 x 24 heatmap) | F3-01 (TQ1, TQ2 answered) | Muse Code, Haiku fallback | integrated `8991c7eb` |
 | F3-03 | Engine-only availability (tab hidden without the engine) | F3-01, F3-02 | Haiku | ready |
-| F3-04 | l10n for the Statistics tab in all five bundles | F3-02 | Claude Haiku | ready |
+| F3-04 | l10n for the Statistics tab in all five bundles | F3-02 | Claude Haiku | integrated `3265b84f` |
 | F3-05 | Mailmap parity in `author_stats` (decision TQ5) | F3-01 (TQ5 answered) | Muse Code | integrated `d094045d` |
 | F3-06 | Date-range filter (only if TQ1 picks the scrubber reading) | F3-02, TQ1 | Muse Code | not selected |
 | F3-07 | File History: engine path-scoped log (TQ1 answered: taken) | F3-02 (TQ1 answered) | Muse Code | ready |
@@ -139,3 +139,10 @@ both themes. Nothing is pushed.
   Gates: Rust arm (fmt, clippy, check, test) clean; addon rebuilt
   (`engineVersion` 1.0.33); strict Biome, typecheck, KB check; backend 1,679
   passed (60 skipped) and webview 1,152 passed.
+- `2026-11-23`: F3-04 (Claude Haiku) integrated into `gg-plus/next` at `3265b84f`:
+  a review of all 136 Statistics translations (nl, pl, zh-cn, zh-tw); two
+  zh values used the English word "backend" where the bundles say 后端设置 /
+  後端設定, now fixed. Noted for the maintainer: zh-tw uses both 儲存庫 and
+  存放庫 for "repository" (outside this slice); a native review of Polish
+  plurals and the Dutch "commits" would still help. Gates: strict Biome on
+  the two bundles, `l10n:check` complete, KB check.
