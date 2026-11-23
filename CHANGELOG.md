@@ -18,9 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   easy to spot. The tab uses the graph's hash length, date format and words, its
   columns can be resized and keep their widths per repository, it refreshes
   when the repository changes, and with the Rust engine it reads the reflog
-  without starting Git.
+  without starting Git. A search finds the entries whose message contains
+  the text you type, across up to 5,000 entries. Filters narrow the list by
+  action, choose which reflog to show (`HEAD`, a local branch or the stash),
+  and show only the entries whose commit is only in the reflog.
 
 ### Changed
+
+- **Usage telemetry counts tab opens and Copy Path.** The anonymous usage
+  data now also records whether the Reflog tab and the GGL Diff tab opened
+  without errors, and whether Copy Path in the Worktrees list worked. Nothing
+  about their content is sent, and it follows the same telemetry setting as
+  the rest of the extension's data.
 
 - **A shorter menu header for a branch checked out in another worktree.** Its
   context menu still opens with "Checked out in another worktree", but no
@@ -44,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Include unreachable commits no longer breaks the graph.** On a repository
+  with a stale commit-graph file, checking **Include unreachable commits**
+  replaced the graph with "Unable to load Git Graph" and a long dump of
+  `unreachable ...` lines. The graph now loads and shows the unreachable
+  commits the scan finds, and a failed scan never replaces the graph. A large
+  set of unreachable commits also works on Windows.
 - **Context menus line up.** A menu's header now starts where its items'
   text starts, its rule matches the dividers below it, and check marks sit
   in their own slot, so checked, unchecked and plain items share one text
