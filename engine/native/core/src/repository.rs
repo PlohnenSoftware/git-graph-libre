@@ -59,11 +59,12 @@ impl Repo {
     }
 
     fn discover_with(path: &Path, options: gix::discover::upwards::Options<'_>) -> Result<Repo> {
-        let mut trust_map = gix::sec::trust::Mapping::<gix::open::Options>::default();
-        trust_map.full = trust_map.full.bail_if_untrusted(true);
-        trust_map.reduced = trust_map.reduced.bail_if_untrusted(true);
-        let repo = gix::ThreadSafeRepository::discover_opts(path, options, trust_map)
-            .map_err(|e| open_error(path, &e))?;
+        // gix hands the callback the default options for the trust level discovery found (what
+        // `trust::Mapping::default()` held per level before gix 0.91); both levels bail when untrusted.
+        let repo = gix::ThreadSafeRepository::discover_opts(path, options, |open, _trust| {
+            open.bail_if_untrusted(true)
+        })
+        .map_err(|e| open_error(path, &e))?;
         Repo::from_gix(repo.into())
     }
 
