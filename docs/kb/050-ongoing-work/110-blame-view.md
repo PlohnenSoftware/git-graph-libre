@@ -141,7 +141,7 @@ worktrees under `/home/zam/Desktop/prog/_GGL/.ggl-wt/`.
 | F4-05 | Parent-blame rewind stack, options, ignore-revs and find | F4-04 | Sonnet | ready |
 | F4-06 | Commit popover, Show in Graph, GGL Diff and Open File at Line | F4-05 | Sonnet | waiting |
 | F4-07 | Editor, Explorer, SCM and Commit Details entry points | F4-06 | Sonnet | integrated `f3a28214` |
-| F4-08 | Worktrees, bare repositories, unsaved buffers and watcher refresh | F4-07 | Sonnet | ready |
+| F4-08 | Worktrees, bare repositories, unsaved buffers and watcher refresh | F4-07 | Sonnet | integrated `56cf6fc9` |
 | F4-09 | Optional: Rust engine blame read with parity tests | F4-01 | Muse Code | deferred (BQ8 profiling: `gix` slower) |
 
 ## Integration acceptance
@@ -234,3 +234,14 @@ revision). Nothing is pushed without explicit instruction.
   Gates on `f3a28214`: typecheck, `l10n:check`, KB check, strict Biome,
   backend 1,581 passed (60 skipped in the worktree) and webview 1,243
   passed. F4-08 is ready.
+- `2026-11-23`: F4-08 (Gemini 4 Neon, `agy`; run beside F4-05) integrated at
+  `56cf6fc9`: linked worktrees (folder in the header), bare and unborn
+  repositories and untracked files handled, a dirty editor blamed through
+  `--contents -` with an "Unsaved buffer" pill and a one-click "Blame HEAD"
+  (BQ6), and live refresh through `RepoFileWatcher` and saves for
+  working-tree and `HEAD` blames only, keeping the scroll position; a pinned
+  historical revision never refreshes. No engine hook (F4-09 deferred).
+  Gates on `56cf6fc9`: typecheck, `l10n:check`, KB check, strict Biome,
+  backend 1,592 passed (60 skipped in the worktree) and webview 1,276
+  passed. F4-05 integrates after it, merging the additive fields both slices
+  added to the Blame types, data source, panel and webview.
