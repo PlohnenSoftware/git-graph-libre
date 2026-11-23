@@ -610,7 +610,13 @@
   max-height: min(240px, 40vh);
   overflow-y: auto;
   padding: 8px 10px;
-  background-color: var(--vscode-editorHoverWidget-background, var(--vscode-menu-background));
+  background-color: var(
+    --vscode-editorHoverWidget-background,
+    var(
+      --vscode-menu-background,
+      var(--vscode-editorWidget-background, var(--vscode-editor-background))
+    )
+  );
   color: var(--vscode-editorHoverWidget-foreground, var(--vscode-menu-foreground));
   border: 1px solid var(--vscode-editorHoverWidget-border, var(--ngg-neutral-border-strong));
   border-radius: 4px;
