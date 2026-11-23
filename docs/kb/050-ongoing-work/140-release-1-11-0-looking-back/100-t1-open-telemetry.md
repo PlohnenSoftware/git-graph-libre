@@ -10,7 +10,7 @@ summary: >-
 
 # T1 — Open-and-outcome telemetry for tabs and worktree buttons
 
-Status: ready
+Status: claimed by Muse Code on 2026-11-23 12:01
 
 Needs: —
 
