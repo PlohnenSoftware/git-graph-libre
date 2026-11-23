@@ -1,3 +1,6 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -42,6 +45,15 @@ describe("tab-open reporting", () => {
     ]);
     for (const event of spy.sent) {
       expect(Object.keys(event)).toEqual(["feature", "ok"]);
+    }
+  });
+
+  // telemetry.json is what `code --telemetry` shows for this extension; a
+  // feature id sent but not declared there is an undisclosed collection.
+  it("declares every new feature id in telemetry.json", () => {
+    const declared = fs.readFileSync(path.resolve(__dirname, "../../../telemetry.json"), "utf8");
+    for (const feature of [...TAB_FEATURE_IDS, "copyWorktreePath"]) {
+      expect(declared).toContain(`'${feature}'`);
     }
   });
 
