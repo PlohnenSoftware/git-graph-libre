@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { createReflogSource } from "@/extension/reflogTab/reflogData";
+import { defaultReflogQuery, type ReflogQuery } from "@/reflogTabTypes";
 
 const dirs: string[] = [];
 
@@ -22,12 +23,28 @@ function commit(dir: string, name: string) {
   git(["commit", "-m", name], dir);
 }
 
-function source(record?: GitCommandRecorder, gitPath: () => string = () => "git") {
+/** A commit whose message differs from its file's name (search text with specials). */
+function commitMessage(dir: string, file: string, message: string) {
+  fs.writeFileSync(path.join(dir, file), file);
+  git(["add", "."], dir);
+  git(["commit", "-m", message], dir);
+}
+
+function query(overrides: Partial<ReflogQuery> = {}): ReflogQuery {
+  return { ...defaultReflogQuery(), ...overrides };
+}
+
+function source(
+  record?: GitCommandRecorder,
+  gitPath: () => string = () => "git",
+  searchCap?: number
+) {
   return createReflogSource({
     createGit: (root) =>
       simpleGit({ baseDir: root, binary: "git", maxConcurrentProcesses: 6, trimmed: false }),
     gitPath,
-    record
+    record,
+    searchCap
   });
 }
 
@@ -119,5 +136,139 @@ describe("createReflogSource (real Git)", () => {
     expect(page.error).toBeNull();
     expect(page.rows.length).toBeGreaterThan(0);
     expect(page.rows.every((entry) => entry.state === null)).toBe(true);
+  });
+});
+
+describe("createReflogSource search, filters and ref picker (F1-05, real Git)", () => {
+  it("lists the picker refs and reads a picked branch and the stash", async () => {
+    const dir = repo();
+    git(["checkout", "-b", "topic"], dir);
+    commit(dir, "topic-only");
+    git(["checkout", "main"], dir);
+    const src = source();
+    await expect(src.loadRefs?.(dir)).resolves.toEqual([
+      "HEAD",
+      "refs/heads/main",
+      "refs/heads/topic"
+    ]);
+    const branch = await src.loadPage(dir, 0, 200, query({ ref: "refs/heads/topic" }));
+    expect(branch.error).toBeNull();
+    expect(branch.ref).toBe("refs/heads/topic");
+    expect(branch.rows[0]?.message).toContain("topic-only");
+
+    fs.writeFileSync(path.join(dir, "f"), "changed");
+    git(["stash", "push", "-m", "picked stash"], dir);
+    await expect(src.loadRefs?.(dir)).resolves.toContain("refs/stash");
+    const stash = await src.loadPage(dir, 0, 200, query({ ref: "refs/stash" }));
+    expect(stash.rows).toHaveLength(1);
+    expect(stash.rows[0]?.kind).toBe("stash");
+    expect(stash.rows[0]?.message).toContain("picked stash");
+  });
+
+  it("searches beyond the loaded page and pages over the matches", async () => {
+    const dir = repo();
+    commitMessage(dir, "m1", "match one");
+    commitMessage(dir, "m2", "match two");
+    commitMessage(dir, "m3", "match three");
+    commitMessage(dir, "m4", "plain four");
+    commitMessage(dir, "m5", "plain five");
+    const src = source();
+    // "match one" lies well past an unfiltered first page of two rows.
+    const first = await src.loadPage(dir, 0, 2, query({ search: "MATCH" }));
+    expect(first.rows.map((entry) => entry.message)).toEqual([
+      "commit: match three",
+      "commit: match two"
+    ]);
+    expect(first.hasMore).toBe(true);
+    expect(first.searchCapped).toBe(false);
+    const second = await src.loadPage(dir, 2, 2, query({ search: "MATCH" }));
+    expect(second.rows.map((entry) => entry.message)).toEqual(["commit: match one"]);
+    expect(second.hasMore).toBe(false);
+  });
+
+  it("searches special characters and dash-led text literally", async () => {
+    const dir = repo();
+    commitMessage(dir, "s1", "Needle [regex].* (Case)");
+    commitMessage(dir, "s2", "--max-count=1 in a message");
+    const src = source();
+    const literal = await src.loadPage(dir, 0, 200, query({ search: "[regex].*" }));
+    expect(literal.rows.map((entry) => entry.message)).toEqual(["commit: Needle [regex].* (Case)"]);
+    const dash = await src.loadPage(dir, 0, 200, query({ search: "--max-count=1" }));
+    expect(dash.rows.map((entry) => entry.message)).toEqual(["commit: --max-count=1 in a message"]);
+  });
+
+  it("filters by action kind over the whole searched reflog", async () => {
+    const dir = repo();
+    git(["checkout", "-b", "side"], dir);
+    commit(dir, "side-one");
+    git(["checkout", "main"], dir);
+    const page = await source().loadPage(dir, 0, 200, query({ actions: ["checkout"] }));
+    expect(page.error).toBeNull();
+    expect(page.rows.length).toBeGreaterThanOrEqual(2);
+    expect(page.rows.every((entry) => entry.kind === "checkout")).toBe(true);
+  });
+
+  it("keeps only reflog-only rows when the toggle is on", async () => {
+    const dir = repo();
+    commit(dir, "kept");
+    commit(dir, "abandoned");
+    git(["reset", "--hard", "HEAD~1"], dir);
+    const page = await source().loadPage(dir, 0, 200, query({ onlyInReflog: true }));
+    expect(page.error).toBeNull();
+    expect(page.rows.length).toBeGreaterThan(0);
+    expect(page.rows.every((entry) => entry.state === "reflogOnly")).toBe(true);
+    expect(page.rows.some((entry) => entry.message.includes("abandoned"))).toBe(true);
+    expect(page.rows.some((entry) => entry.message.includes("kept"))).toBe(false);
+  });
+
+  it("searches the stash reflog by text", async () => {
+    const dir = repo();
+    fs.writeFileSync(path.join(dir, "f"), "one");
+    git(["stash", "push", "-m", "first stash"], dir);
+    fs.writeFileSync(path.join(dir, "f"), "two");
+    git(["stash", "push", "-m", "Needle stash"], dir);
+    const page = await source().loadPage(
+      dir,
+      0,
+      200,
+      query({ ref: "refs/stash", search: "needle" })
+    );
+    expect(page.rows).toHaveLength(1);
+    expect(page.rows[0]?.message).toContain("Needle stash");
+  });
+
+  it("stops a filtered read at the cap and says so", async () => {
+    const dir = repo();
+    git(["checkout", "-b", "capped"], dir);
+    for (const name of ["c1", "c2", "c3", "c4"]) commit(dir, name);
+    // The checkout is older than the newest three entries, so a scan
+    // capped at three plain entries cannot reach it.
+    const actionPage = await source(undefined, undefined, 3).loadPage(
+      dir,
+      0,
+      200,
+      query({ actions: ["checkout"] })
+    );
+    expect(actionPage.rows).toEqual([]);
+    expect(actionPage.searchCapped).toBe(true);
+    // For a text search the cap bounds the matches Git hands back.
+    const searchPage = await source(undefined, undefined, 3).loadPage(
+      dir,
+      0,
+      200,
+      query({ search: "commit" })
+    );
+    expect(searchPage.rows).toHaveLength(3);
+    expect(searchPage.searchCapped).toBe(true);
+  });
+
+  it("refuses a ref that looks like an option, as an error page", async () => {
+    const dir = repo();
+    for (const ref of ["-n1", "--output=/tmp/x"]) {
+      const page = await source().loadPage(dir, 0, 200, query({ ref }));
+      expect(page.error).not.toBeNull();
+      expect(page.state).toBeNull();
+      expect(page.rows).toEqual([]);
+    }
   });
 });
