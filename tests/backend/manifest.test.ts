@@ -7,7 +7,8 @@ type PackageManifest = {
   activationEvents: string[];
   capabilities?: { untrustedWorkspaces?: { supported: boolean | "limited" } };
   contributes: {
-    commands: Array<{ command: string }>;
+    commands: Array<{ command: string; title?: string }>;
+    menus?: Record<string, Array<{ command: string; group?: string; when?: string }>>;
     configuration: {
       properties: Record<
         string,
@@ -301,5 +302,39 @@ describe("extension manifest", () => {
     expect("#0085d9").toMatch(pattern);
     expect("rgb(0, 133, 217)").toMatch(pattern);
     expect("blue").not.toMatch(pattern);
+  });
+
+  it("contributes Show File History in explorer and editor context menus without an editor title icon", () => {
+    const manifest = readManifest();
+    const command = manifest.contributes.commands.find(
+      (entry) => entry.command === "git-graph-libre.showFileHistory"
+    );
+    expect(command).toMatchObject({
+      command: "git-graph-libre.showFileHistory",
+      title: "%command.showFileHistory%"
+    });
+
+    expect(manifest.contributes.menus?.["explorer/context"]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          command: "git-graph-libre.showFileHistory",
+          when: "!explorerResourceIsFolder && resourceScheme == file"
+        })
+      ])
+    );
+    expect(manifest.contributes.menus?.["editor/context"]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          command: "git-graph-libre.showFileHistory",
+          when: "resourceScheme == file"
+        })
+      ])
+    );
+    expect(manifest.contributes.menus?.["editor/title"]).toBeUndefined();
+    expect(
+      manifest.contributes.menus?.commandPalette?.some(
+        (entry) => entry.command === "git-graph-libre.showFileHistory"
+      )
+    ).toBe(false);
   });
 });

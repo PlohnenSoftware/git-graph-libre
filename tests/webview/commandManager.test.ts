@@ -123,6 +123,7 @@ function makeHarness(
   const openStatsTab = vi.fn();
   const currentPanel = {
     startHistorySearch: vi.fn(),
+    showFileHistory: vi.fn(),
     showPruneWorktrees: vi.fn()
   };
   const clearCache = vi.fn();
@@ -212,6 +213,7 @@ describe("command manager", () => {
       "git-graph-libre.revealWorktree",
       "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
+      "git-graph-libre.showFileHistory",
       "git-graph-libre.showReflog",
       "git-graph-libre.showStatistics",
       "git-graph-libre.switchGraphToWorktree",
@@ -240,6 +242,7 @@ describe("command manager", () => {
       "git-graph-libre.revealWorktree",
       "git-graph-libre.searchCommits",
       "git-graph-libre.showDiagnostics",
+      "git-graph-libre.showFileHistory",
       "git-graph-libre.showReflog",
       "git-graph-libre.showStatistics",
       "git-graph-libre.switchGraphToWorktree",
@@ -980,6 +983,109 @@ describe("command manager", () => {
         expect(none.windowApi.showInformationMessage).toHaveBeenCalledWith(
           expect.stringContaining("no Git repositories")
         );
+      });
+    });
+
+    describe("show file history (F3-07)", () => {
+      it("opens file history from an Explorer or Editor URI in a known repository", async () => {
+        const harness = makeHarness(
+          {
+            "/repos/app": { columnWidths: null },
+            "/repos/app/sub": { columnWidths: null }
+          },
+          "/repos/app"
+        );
+
+        await harness.run("git-graph-libre.showFileHistory", {
+          fsPath: "/repos/app/sub/src/index.ts",
+          scheme: "file"
+        });
+
+        // Longest matching repo root wins (nested submodule or worktree).
+        expect(harness.getLastActiveRepo()).toBe("/repos/app/sub");
+        expect(harness.openGraphView).toHaveBeenCalledWith("/repos/app/sub");
+        expect(harness.currentPanel.showFileHistory).toHaveBeenCalledWith(
+          "/repos/app/sub",
+          "src/index.ts"
+        );
+        expect(harness.telemetryEvents).toEqual([
+          { feature: "git-graph-libre.showFileHistory", ok: true }
+        ]);
+      });
+
+      it("falls back to the active editor file when invoked from the Command Palette", async () => {
+        const harness = makeHarness({ "/repos/app": { columnWidths: null } });
+        harness.setActiveTextEditorPath("/repos/app/README.md");
+
+        await harness.run("git-graph-libre.showFileHistory");
+
+        expect(harness.openGraphView).toHaveBeenCalledWith("/repos/app");
+        expect(harness.currentPanel.showFileHistory).toHaveBeenCalledWith(
+          "/repos/app",
+          "README.md"
+        );
+      });
+
+      it("discovers an unlisted repository from a file URI via git rev-parse", async () => {
+        const repoDir = makeRepo();
+        const filePath = path.join(repoDir, "src", "file.ts");
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, "export const v = 1;\n");
+        try {
+          const harness = makeHarness();
+          await harness.run("git-graph-libre.showFileHistory", {
+            fsPath: filePath,
+            scheme: "file"
+          });
+
+          const normalizedRepo = repoDir.replaceAll("\\", "/");
+          expect(Object.hasOwn(harness.getRepos(), normalizedRepo)).toBe(true);
+          expect(harness.currentPanel.showFileHistory).toHaveBeenCalledWith(
+            normalizedRepo,
+            "src/file.ts"
+          );
+        } finally {
+          fs.rmSync(repoDir, { recursive: true, force: true });
+        }
+      });
+
+      it("warns and opens nothing when no editor is open, the scheme is not file, or no repo matches", async () => {
+        const noEditor = makeHarness({ "/repos/app": { columnWidths: null } });
+        await noEditor.run("git-graph-libre.showFileHistory");
+        expect(noEditor.currentPanel.showFileHistory).not.toHaveBeenCalled();
+        expect(noEditor.windowApi.showWarningMessage).toHaveBeenCalledOnce();
+
+        const untitled = makeHarness({ "/repos/app": { columnWidths: null } });
+        await untitled.run("git-graph-libre.showFileHistory", {
+          fsPath: "/repos/app/draft.ts",
+          scheme: "untitled"
+        });
+        expect(untitled.currentPanel.showFileHistory).not.toHaveBeenCalled();
+        expect(untitled.windowApi.showWarningMessage).toHaveBeenCalledOnce();
+
+        const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "ggl-no-git-"));
+        const outsideFile = path.join(outsideDir, "plain.txt");
+        fs.writeFileSync(outsideFile, "plain\n");
+        try {
+          const outside = makeHarness();
+          await outside.run("git-graph-libre.showFileHistory", {
+            fsPath: outsideFile,
+            scheme: "file"
+          });
+          expect(outside.currentPanel.showFileHistory).not.toHaveBeenCalled();
+          expect(outside.windowApi.showWarningMessage).toHaveBeenCalledOnce();
+        } finally {
+          fs.rmSync(outsideDir, { recursive: true, force: true });
+        }
+
+        // Passing the repository root itself (not a file inside it) warns cleanly.
+        const rootOnly = makeHarness({ "/repos/app": { columnWidths: null } });
+        await rootOnly.run("git-graph-libre.showFileHistory", {
+          fsPath: "/repos/app",
+          scheme: "file"
+        });
+        expect(rootOnly.currentPanel.showFileHistory).not.toHaveBeenCalled();
+        expect(rootOnly.windowApi.showWarningMessage).toHaveBeenCalledOnce();
       });
     });
   });

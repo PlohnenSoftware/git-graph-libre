@@ -30,6 +30,7 @@ type LoadRepoInfoRequest = Extract<GGL.RequestMessage, { command: "loadRepoInfo"
 type SaveRepoStateRequest = Extract<GGL.RequestMessage, { command: "saveRepoState" }>;
 type BranchPushDefaultsRequest = Extract<GGL.RequestMessage, { command: "branchPushDefaults" }>;
 type SearchCommitsRequest = Extract<GGL.RequestMessage, { command: "searchCommits" }>;
+type FileHistoryRequest = Extract<GGL.RequestMessage, { command: "fileHistory" }>;
 type UpdateExtensionSettingRequest = Extract<
   GGL.RequestMessage,
   { command: "updateExtensionSetting" }
@@ -375,6 +376,14 @@ describe("webview rendering", () => {
       if (msg.command === "searchCommits") return msg;
     }
     throw new Error("Missing searchCommits request");
+  }
+
+  function latestFileHistoryRequest(): FileHistoryRequest {
+    for (let i = vscodeMock.sentMessages.length - 1; i >= 0; i--) {
+      const msg = vscodeMock.sentMessages[i];
+      if (msg.command === "fileHistory") return msg;
+    }
+    throw new Error("Missing fileHistory request");
   }
 
   function latestUpdateExtensionSettingRequest(): UpdateExtensionSettingRequest {
@@ -2213,6 +2222,118 @@ describe("webview rendering", () => {
     expect(findRow("ghi789")?.classList.contains("blinking")).toBe(false);
 
     clearFind();
+  });
+
+  it("opens file history results in the existing search dialog and reveals the selected commit", () => {
+    const historyCommit = {
+      hash: "fh999888",
+      parentHashes: ["abc123"],
+      author: "Cara",
+      email: "cara@example.com",
+      date: 1698000000,
+      message: "Refactor target file",
+      loadCount: 310
+    };
+    const historyNode: GitCommitNode = {
+      hash: historyCommit.hash,
+      parentHashes: historyCommit.parentHashes,
+      author: historyCommit.author,
+      email: historyCommit.email,
+      date: historyCommit.date,
+      message: historyCommit.message,
+      refs: []
+    };
+
+    receive({ command: "showFileHistory", repo: REPO, filePath: "src/target.ts" });
+
+    const request = latestFileHistoryRequest();
+    expect(request).toMatchObject({
+      command: "fileHistory",
+      repo: REPO,
+      filePath: "src/target.ts",
+      maxResults: 50
+    });
+    expect(document.getElementById("statusText")?.textContent).toBe("Loading file history…");
+
+    // Stale responses for an earlier request id are ignored.
+    receive({
+      command: "fileHistory",
+      requestId: request.requestId - 1,
+      repo: REPO,
+      filePath: "src/target.ts",
+      commits: [],
+      hasMore: false,
+      error: null
+    });
+    expect(document.getElementById("statusText")?.textContent).toBe("Loading file history…");
+
+    receive({
+      command: "fileHistory",
+      requestId: request.requestId,
+      repo: REPO,
+      filePath: "src/target.ts",
+      commits: [historyCommit],
+      hasMore: true,
+      error: null
+    });
+
+    expect(document.getElementById("dialog")?.textContent).toContain(
+      "File history for src/target.ts (latest 1 commits)"
+    );
+    expect(document.getElementById("dialog")?.textContent).toContain(
+      "fh99 - Refactor target file (Cara)"
+    );
+
+    submitDialog();
+
+    const loadCommitsRequest = latestLoadCommitsRequest();
+    expect(loadCommitsRequest.maxCommits).toBeGreaterThanOrEqual(310);
+
+    receive({
+      command: "loadCommits",
+      requestId: loadCommitsRequest.requestId,
+      commits: [twoCommits[0], historyNode, twoCommits[1]],
+      head: "abc123",
+      moreCommitsAvailable: false,
+      hard: true,
+      error: null
+    });
+
+    expect(findRow("fh999888")).not.toBeNull();
+    expect(findRow("fh999888")?.classList.contains("blinking")).toBe(true);
+  });
+
+  it("reports empty file history and file history errors cleanly in the dialog", () => {
+    receive({ command: "showFileHistory", repo: REPO, filePath: "src/untracked.ts" });
+    const emptyRequest = latestFileHistoryRequest();
+    receive({
+      command: "fileHistory",
+      requestId: emptyRequest.requestId,
+      repo: REPO,
+      filePath: "src/untracked.ts",
+      commits: [],
+      hasMore: false,
+      error: null
+    });
+    expect(document.getElementById("dialog")?.textContent).toContain(
+      "No commits found for src/untracked.ts."
+    );
+    document.getElementById("dialogDismiss")?.dispatchEvent(new MouseEvent("click"));
+
+    receive({ command: "showFileHistory", repo: REPO, filePath: "src/broken.ts" });
+    const errorRequest = latestFileHistoryRequest();
+    receive({
+      command: "fileHistory",
+      requestId: errorRequest.requestId,
+      repo: REPO,
+      filePath: "src/broken.ts",
+      commits: [],
+      hasMore: false,
+      error: { message: "fatal: bad repo", stderr: null, exitCode: 128, task: null }
+    });
+    expect(document.getElementById("dialog")?.textContent).toContain("Unable to load file history");
+    expect(document.getElementById("dialog")?.textContent).toContain("fatal: bad repo");
+    document.getElementById("dialogDismiss")?.dispatchEvent(new MouseEvent("click"));
   });
 
   it("opens find from keyboard without stealing text input or dialog shortcuts", () => {

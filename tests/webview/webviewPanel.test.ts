@@ -541,4 +541,31 @@ describe("createWebviewPanel", () => {
     expect(mocks.buildComponentStatus).not.toHaveBeenCalled();
     expect(bridge.post).not.toHaveBeenCalled();
   });
+
+  it("posts showFileHistory and flushes a cold-start request once graphReady arrives", () => {
+    const harness = createHarness();
+
+    harness.webviewPanel.showFileHistory("/repo", "src/app.ts");
+    expect(harness.bridge.post).toHaveBeenCalledTimes(1);
+    expect(harness.bridge.post).toHaveBeenLastCalledWith({
+      command: "showFileHistory",
+      repo: "/repo",
+      filePath: "src/app.ts"
+    });
+
+    // When the freshly booted webview signals graphReady, the pending target is flushed once.
+    harness.send("graphReady", { command: "graphReady" });
+    expect(harness.bridge.post).toHaveBeenCalledTimes(2);
+    expect(harness.bridge.post).toHaveBeenLastCalledWith({
+      command: "showFileHistory",
+      repo: "/repo",
+      filePath: "src/app.ts"
+    });
+
+    // Once ready, subsequent calls post directly without re-queueing.
+    harness.webviewPanel.showFileHistory("/repo", "src/other.ts");
+    expect(harness.bridge.post).toHaveBeenCalledTimes(3);
+    harness.send("graphReady", { command: "graphReady" });
+    expect(harness.bridge.post).toHaveBeenCalledTimes(3);
+  });
 });

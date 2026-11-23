@@ -626,6 +626,46 @@ describe("registerMessageHandlers", () => {
     });
   });
 
+  it("routes fileHistory queries and echoes request ids and repo", async () => {
+    const { handlers, posts } = registerHandlersForTest();
+
+    const handler = handlers.get("fileHistory");
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "fileHistory",
+      requestId: 11,
+      repo,
+      filePath: "a",
+      maxResults: 10
+    });
+
+    expect(posts).toHaveLength(1);
+    expect(posts[0]).toMatchObject({
+      command: "fileHistory",
+      requestId: 11,
+      repo,
+      filePath: "a",
+      hasMore: false,
+      commits: [expect.objectContaining({ message: "init", loadCount: 1 })],
+      error: null
+    });
+
+    await handler?.({
+      command: "fileHistory",
+      requestId: 12,
+      repo,
+      filePath: "../escape.txt"
+    });
+    expect(posts[1]).toMatchObject({
+      command: "fileHistory",
+      requestId: 12,
+      repo,
+      commits: [],
+      filePath: null,
+      error: expect.objectContaining({ message: expect.stringMatching(/inside the repository/) })
+    });
+  });
+
   it("routes tag detail queries", async () => {
     git(["tag", "-a", "v-details", "-m", "Release details", "-m", "Body"], repo);
     const { handlers, posts, outputLines } = registerHandlersForTest();
