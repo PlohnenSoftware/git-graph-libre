@@ -82,7 +82,7 @@ that note, the slice file wins.
 | F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | integrated `f0a51986` |
 | F1-08 | Worktrees and bare repositories | F1-05 | Sonnet | integrated `d8f56cb7` |
 | F1-06 | Recovery actions that cannot lose data | F1-08 | Sonnet | ready |
-| F1-07 | Lost-commit scan (opt-in) | F1-06 | Sonnet | in progress (pulled forward) |
+| F1-07 | Lost-commit scan (opt-in) | F1-06 | Sonnet | integrated `ebf4855e` |
 
 ## Integration acceptance
 
@@ -228,3 +228,14 @@ headless render of the tab in both themes. Nothing is pushed.
   Biome on 20 files, typecheck, `l10n:check`, KB check, backend 1,578 passed
   (60 skipped in the worktree) and webview 1,142 passed. F1-06 is ready.
 - `2026-11-23`: F1-07 pulled forward to run beside F1-06 (integrator, under the maintainer's overlap answer): it reuses U1's `discoverUnreachableCommitHashes` and adds its own module and tab UI. Dispatched to Gemini 4 Neon (`agy`).
+- `2026-11-23`: F1-07 (Gemini 4 Neon, `agy`; pulled forward) integrated at
+  `ebf4855e`: "Scan for Lost Commits…" in the Reflog tab runs U1's hardened
+  scan (`discoverUnreachableCommitHashes`, label `reflog.lostCommits.fsck`),
+  lists the commits no ref and no reflog reaches with progress, Cancel and a
+  30 s timeout (process tree killed), says they disappear at garbage
+  collection, and offers "Create Branch Here…" (the existing `createBranch`
+  with `checkout: false`). Integrator conflict resolution: `applyData` in
+  `rowModel.ts` keeps S1a's `nextRows` and F1-07's `sameRepo`. 14 strings,
+  agent-translated. Gates on `ebf4855e`: typecheck, `l10n:check`, KB check,
+  strict Biome, backend 1,592 passed (60 skipped in the worktree) and webview
+  1,256 passed.
