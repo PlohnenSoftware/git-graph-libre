@@ -215,3 +215,12 @@ anything unsolvable within reason be marked here while the rest continues.
   Muse Code at its reset (`16:01:30Z`), then F2-04. Until then only Claude
   Haiku runs, on easy work. Reflog: complete (F1-06 squash `953d4f55`); its
   release notes are in `CHANGELOG.md` and `README.md` (`0c4b4b41`).
+- `2026-11-23`: S1c integrated at `887c9fd1` (Gemini 4 Neon claimed it and was
+  cut off by its quota; Claude Haiku redid it): `reflogTab/view.ts`'s
+  `render` (35 → about 4) and `table` (20 → about 1) split into small
+  helpers, behavior unchanged (133 Reflog tab tests unedited), and
+  `blame.ts` now uses the shared `hasControlCharacter`. Gates on `887c9fd1`:
+  strict Biome, typecheck, KB check, backend 1,592 passed (60 skipped in the
+  worktree) and webview 1,297 passed. F3-07 (Gemini 4 Neon) stalled for
+  50 minutes waiting on a quota-blocked background task; it was stopped and
+  queued for Muse Code after F2-04.

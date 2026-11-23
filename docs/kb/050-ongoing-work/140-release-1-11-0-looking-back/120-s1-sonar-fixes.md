@@ -10,7 +10,7 @@ summary: >-
 
 # S1 — SonarQube new-code fixes (early scan)
 
-Status: S1a integrated `e342ce2c` · S1b integrated `0cfaa6c5` · S1c done — awaiting integration
+Status: S1a integrated `e342ce2c` · S1b integrated `0cfaa6c5` · S1c integrated `887c9fd1`
 
 ## Report (S1c)
 
