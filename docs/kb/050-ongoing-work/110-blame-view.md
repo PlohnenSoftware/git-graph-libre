@@ -245,3 +245,13 @@ revision). Nothing is pushed without explicit instruction.
   backend 1,592 passed (60 skipped in the worktree) and webview 1,276
   passed. F4-05 integrates after it, merging the additive fields both slices
   added to the Blame types, data source, panel and webview.
+- `2026-11-23`: F4-05 integrated at `52c3f174` as one squashed commit: the
+  original `blame/F4-05` (Gemini 4 Neon, `ceb729e8`…`90a36efa`) conflicted
+  with F4-08 in 18 files, so Muse Code merged its tree onto `main` in
+  `blame/F4-05-sq`, keeping both sides (F4-08's worktree, bare, unsaved and
+  repo-changed header state beside F4-05's Back/Forward/Latest stack, option
+  chips with the ignore-revs file and session list, and find; one `tab.blame`
+  event per open, none for rewinds or option changes). Gates on `52c3f174`:
+  strict Biome, typecheck, `l10n:check`, KB check, backend 1,592 passed (60
+  skipped in the worktree) and webview 1,314 passed. `blame/F4-05` is kept for
+  the maintainer (squashed, so `git branch -d` refuses it). F4-06 is ready.
