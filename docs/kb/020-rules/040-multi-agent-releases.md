@@ -6,8 +6,9 @@ summary: >-
   hard safety rules, coding rules, slice checks against integration gates,
   small signed commits with `Refs` for issues, the report template, when to
   stop. The integrator procedure: choosing agent and model cheapest first,
-  preparing and recycling worktrees, integrating in dependency order, wave
-  gates, the integration log, and the never-list. A release names its own
+  preparing and recycling worktrees (under `.ggl-wt/`, never `/tmp`),
+  integrating in dependency order, deleting integrated branches, wave gates,
+  the integration log, and the never-list. A release names its own
   branches, ID prefix, decisions and integration branch in its own files.
 ---
 
@@ -253,6 +254,18 @@ they work. Prepare each starting point immediately before dispatch:
 4. Dispatch with the worktree path and the base commit
    (`git rev-parse --short <integration-branch>`), so the agent can confirm it.
 
+**Worktrees live under `/home/zam/Desktop/prog/_GGL/.ggl-wt/` (maintainer,
+`2026-11-23`).** That is the `../ggl-<ID>` above, made explicit: one
+directory per slice, `.ggl-wt/ggl-<prefix>-<id>`, beside the repository and
+outside it. Never under `/tmp`, which a reboot empties. On `2026-11-23` a
+reboot wiped every `/tmp/ggl-*` worktree of the Blame, Reflog and Git
+Graph+ slices mid-run; the committed work survived on the slice branches,
+but the worktrees had to be recreated and `git worktree prune`d. A release
+file that still names `/tmp/ggl-*` paths reads as this directory. Each
+worktree gets a `node_modules` symlink to the main checkout's and a copy of
+the built addon (`engine/native/linux-x64/git-graph.node`); agents never
+run `pnpm install` in it.
+
 Slices dispatched in parallel share one base. Integrate them in dependency
 order; the later one is rebased onto the earlier one. Slices that change shared
 manifest or translation files conflict textually, so the release names them and
@@ -274,6 +287,33 @@ For each slice marked `done — awaiting integration`, in dependency order:
 4. **Record it.** Set the overview's row to `integrated <hash>`, and the slice's
    own status line too. Flip any slice whose `Needs:` are now all integrated to
    `ready`.
+5. **Delete the slice branch** once nothing needs it (below).
+
+### Deleting integrated branches
+
+**Standing rule (maintainer, `2026-11-23`): the integrator deletes every local
+branch that is already integrated and no longer used.** Old slice branches
+show as labels in the graph, this extension's own included, and clutter it:
+before this rule, more than sixty `wt-1.10.0/*`, `engine-review/*` and
+`reflog/*` branches stayed behind after their releases.
+
+- **When:** right after a slice is integrated and its worktree is recycled
+  for the next slice or removed, and at every wave gate for anything left
+  over. A branch still checked out in a worktree is freed first by
+  recycling or removing that worktree (only when its `git status` is empty).
+- **What:** a branch whose tip is an ancestor of the integration branch
+  (`git branch --merged <integration-branch>`), or of `main` for branches
+  that reached a release. That includes old release branches, merged
+  pull-request branches and finished experiments, not only slice branches.
+- **How:** `git branch -d <branch>` only. It refuses a branch that is not
+  merged, which is the safety check; never `-D`, never `--force`. A branch
+  `-d` refuses is reported to the maintainer, not forced.
+- **Keep:** `main`, `AI-dev`, every active integration branch (for example
+  `gg-plus/next`), and any branch the maintainer names.
+- **Remote branches are not the integrator's to delete.** Deleting one on
+  `origin` is a push; list merged remote branches in the handoff for the
+  maintainer instead. Dependabot removes its own when its pull request
+  closes.
 
 ### Wave gates
 
