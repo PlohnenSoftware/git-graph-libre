@@ -10,7 +10,7 @@ summary: >-
 
 # S1 — SonarQube new-code fixes (early scan)
 
-Status: S1a done — awaiting integration · S1b done — awaiting integration · S1c waiting (F1-06, F1-07)
+Status: S1a integrated `e342ce2c` · S1b integrated `0cfaa6c5` · S1c waiting (F1-06, F1-07; also: make `blame.ts` import `hasControlCharacter` from `src/backend/utils/string.ts`)
 
 Needs: —
 

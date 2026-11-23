@@ -188,3 +188,9 @@ anything unsolvable within reason be marked here while the rest continues.
   Gates on `e342ce2c`: strict Biome on 11 files, typecheck, KB check,
   backend 1,580 passed (60 skipped in the worktree) and webview 1,232
   passed.
+- `2026-11-23`: S1b (Gemini 4 Argon, `agy`) integrated at `0cfaa6c5`:
+  `parseBlamePorcelain` and `loadBlame` split into cohesive helpers to bring
+  their cognitive complexity under the profile's limit, behavior unchanged
+  (the 41 blame tests pass unedited). Gates on `0cfaa6c5`: strict Biome,
+  typecheck, KB check, backend 1,580 passed (60 skipped in the worktree) and
+  webview 1,232 passed. The next Sonar scan confirms the counts.
