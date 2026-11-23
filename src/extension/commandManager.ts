@@ -16,7 +16,12 @@ import type { DiffTabRequest } from "@/diffTabTypes";
 import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
 import type { TelemetryReporter } from "@/telemetry";
-import { createTabOpenReporter, TAB_FEATURE_DIFF, TAB_FEATURE_REFLOG } from "@/telemetry/tabOpen";
+import {
+  createTabOpenReporter,
+  TAB_FEATURE_BLAME,
+  TAB_FEATURE_DIFF,
+  TAB_FEATURE_REFLOG
+} from "@/telemetry/tabOpen";
 
 import { createBlameSource } from "./blameTab/blameData";
 import { openBlameTab as openBlamePanel } from "./blameTab/blameTabPanel";
@@ -278,6 +283,7 @@ export function createCommandManager(deps: CommandManagerDeps) {
   // every open that reaches one is reported by the panel itself.
   const reportReflogOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_REFLOG);
   const reportDiffOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_DIFF);
+  const reportBlameOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_BLAME);
 
   // Every palette command funnels through here, so this wrapper instruments
   // all of them at once. Only the command id and the outcome are sent — never
@@ -680,9 +686,8 @@ export function createCommandManager(deps: CommandManagerDeps) {
           deps.extensionPath ??
           vscode.extensions?.getExtension("PlohnenSoftware.git-graph-libre")?.extensionPath ??
           process.cwd(),
-        outputChannel: deps.outputChannel
-        // `reportBlameOpened` stays unset: slice T1 wires the approved
-        // tab telemetry through it at integration.
+        outputChannel: deps.outputChannel,
+        telemetry: deps.telemetry
       }
     );
   }
@@ -696,6 +701,8 @@ export function createCommandManager(deps: CommandManagerDeps) {
   async function showBlame() {
     const activeUri = windowApi.getActiveTextEditorUri();
     if (!activeUri || activeUri.fsPath === "") {
+      // A failed open: no file to blame, so the tab never reaches its panel (T1b).
+      reportBlameOpen(false);
       await windowApi.showWarningMessage(l10n.t("command.showBlame.noEditor"));
       return;
     }
@@ -709,6 +716,7 @@ export function createCommandManager(deps: CommandManagerDeps) {
         recordGitCommand
       );
       if (resolvedRepo === null) {
+        reportBlameOpen(false);
         await windowApi.showWarningMessage(l10n.t("command.showBlame.noRepo"));
         return;
       }
@@ -718,6 +726,7 @@ export function createCommandManager(deps: CommandManagerDeps) {
 
     const filePath = activePath.startsWith(`${repo}/`) ? activePath.slice(repo.length + 1) : "";
     if (filePath === "") {
+      reportBlameOpen(false);
       await windowApi.showWarningMessage(l10n.t("command.showBlame.noRepo"));
       return;
     }

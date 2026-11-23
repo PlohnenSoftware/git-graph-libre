@@ -14,6 +14,8 @@ import type {
 } from "@/blameTabTypes";
 import { config } from "@/config";
 import * as l10n from "@/l10n";
+import type { TelemetryReporter } from "@/telemetry";
+import { createTabOpenReporter, TAB_FEATURE_BLAME } from "@/telemetry/tabOpen";
 
 import { buildBlameTabHtml } from "./blameTabHtml";
 
@@ -22,14 +24,8 @@ export type BlameTabDeps = {
   outputChannel: Pick<vscode.OutputChannel, "appendLine">;
   /** Display language for the webview's relative times; defaults to the editor's. */
   locale?: string;
-  /**
-   * Reports that the tab was opened and whether that first blame loaded
-   * without an error (`ok`). Release 1.11.0's approved tab telemetry
-   * (slice T1) is wired through this one call site by the integrator;
-   * F4-03 ships it unset, so opening the tab sends nothing new — the
-   * palette command itself is already counted by the command wrapper.
-   */
-  reportBlameOpened?: (outcome: { ok: boolean }) => void;
+  /** Reports each open's outcome, once (T1b); see `src/telemetry/tabOpen.ts`. */
+  telemetry?: Pick<TelemetryReporter, "logFeature">;
 };
 
 // One tab at a time, reused like the GGL Diff tab and the Reflog tab.
@@ -86,13 +82,16 @@ function createBlameTab(deps: BlameTabDeps) {
     }
   );
   panel.webview.html = buildBlameTabHtml(panel.webview, deps.extensionPath);
+  const reportOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_BLAME);
 
   let ready = false;
   let disposed = false;
   let last: BlameDataMessage | undefined;
   let pending: BlameLoadingMessage | undefined;
   let latestRequest = 0;
-  let openRequest = 0;
+  // Set by each open (`show`) and cleared once the open's outcome is sent,
+  // so one open reports exactly once, whichever load settles it.
+  let opening = false;
   let target: Required<Pick<BlameOpenTarget, "repo" | "filePath">> & {
     rev: string | null;
     targetLine: number | null;
@@ -127,10 +126,11 @@ function createBlameTab(deps: BlameTabDeps) {
     pending = undefined;
     last = { command: "blameData", requestId, ...echo(), payload };
     if (ready) void panel.webview.postMessage(last);
-    // The one T1 telemetry call site: only the open's first blame counts,
-    // never a later refresh of the same open.
-    if (requestId === openRequest) {
-      deps.reportBlameOpened?.({ ok: payload.error === null });
+    // The open's outcome is the first settled load after it (T1b). A refresh
+    // or a settings reload after that reports nothing.
+    if (opening) {
+      opening = false;
+      reportOpen(payload.error === null);
     }
   };
 
@@ -142,8 +142,8 @@ function createBlameTab(deps: BlameTabDeps) {
       targetLine: normalizeTargetLine(next.targetLine)
     };
     source = nextSource;
-    // The next load is this open's first blame.
-    openRequest = latestRequest + 1;
+    // The next settled load is this open's outcome.
+    opening = true;
     panel.title = l10n.t("blame.title", fileName(target.filePath));
     panel.reveal(vscode.ViewColumn.Active);
     void load();

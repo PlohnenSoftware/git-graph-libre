@@ -46,9 +46,15 @@ import type { TelemetryReporter } from "./index";
 export const TAB_FEATURE_REFLOG = "tab.reflog";
 /** The GGL Diff tab was opened; `ok` is its first load's outcome. */
 export const TAB_FEATURE_DIFF = "tab.diff";
+/** The Blame tab was opened; `ok` is its first load's outcome (T1b). */
+export const TAB_FEATURE_BLAME = "tab.blame";
 
 /** Every tab-open feature id, for the pattern and declaration tests. */
-export const TAB_FEATURE_IDS: readonly string[] = [TAB_FEATURE_REFLOG, TAB_FEATURE_DIFF];
+export const TAB_FEATURE_IDS: readonly string[] = [
+  TAB_FEATURE_REFLOG,
+  TAB_FEATURE_DIFF,
+  TAB_FEATURE_BLAME
+];
 
 /** Reports one tab open's outcome: `true` opened, `false` failed to open. */
 export type TabOpenReporter = (ok: boolean) => void;
