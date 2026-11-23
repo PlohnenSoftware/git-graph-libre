@@ -237,7 +237,6 @@ export function toInteractiveRebasePayload(
     entries: state.rows.map((row) => ({
       action: row.action,
       hash: row.hash,
-      subject: row.subject,
       ...(row.message === undefined ? {} : { message: row.message })
     })),
     rangeHashes: [...state.initialHashes]

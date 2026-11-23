@@ -5043,7 +5043,9 @@ class GitGraphView {
       menu.push(
         this.visibleContextMenuItem("branch", "interactiveRebase", {
           title: l10n.interactiveRebase + ELLIPSIS,
-          onClick: () => this.requestInteractiveRebaseRange(refName, refName, sourceElem)
+          // The base is the branch tip's hash, not its name, so the range
+          // stays the one that was read even if the branch later moves.
+          onClick: () => this.requestInteractiveRebaseRange(branchHash, refName, sourceElem)
         })
       );
     }

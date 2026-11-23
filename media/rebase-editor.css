@@ -104,18 +104,18 @@
 .rebaseEditorNotice-warning {
   border-color: color-mix(
     in oklab,
-    var(--vscode-editorWarning-foreground, var(--ngg-status-warning)) 45%,
+    var(--vscode-editorWarning-foreground, var(--ngg-warning)) 45%,
     var(--vscode-panel-border, var(--ngg-neutral-border))
   );
   background-color: color-mix(
     in oklab,
-    var(--vscode-editorWarning-foreground, var(--ngg-status-warning)) 12%,
+    var(--vscode-editorWarning-foreground, var(--ngg-warning)) 12%,
     var(--vscode-editorWidget-background, var(--vscode-editor-background))
   );
 }
 
 .rebaseEditorNotice-warning .rebaseEditorNoticeIcon {
-  color: var(--vscode-editorWarning-foreground, var(--ngg-status-warning));
+  color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
 }
 
 .rebaseEditorNotice-error {
@@ -283,10 +283,10 @@
 .rebaseEditorBadge-published {
   border-color: color-mix(
     in oklab,
-    var(--vscode-editorWarning-foreground, var(--ngg-status-warning)) 50%,
+    var(--vscode-editorWarning-foreground, var(--ngg-warning)) 50%,
     var(--vscode-panel-border, var(--ngg-neutral-border))
   );
-  color: var(--vscode-editorWarning-foreground, var(--ngg-status-warning));
+  color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
 }
 
 .rebaseEditorAuthorCell {
