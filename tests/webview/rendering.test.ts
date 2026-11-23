@@ -2227,7 +2227,7 @@ describe("webview rendering", () => {
   it("opens file history results in the existing search dialog and reveals the selected commit", () => {
     const historyCommit = {
       hash: "fh999888",
-      parentHashes: ["abc123"],
+      parentHashes: ["def456"],
       author: "Cara",
       email: "cara@example.com",
       date: 1698000000,
