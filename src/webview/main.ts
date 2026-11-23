@@ -1790,6 +1790,58 @@ class GitGraphView {
     this.renderShowLoading();
     this.requestLoadCommits(true, () => {});
   }
+  /**
+   * "Show in Graph" from the Reflog tab (F1-06): reveals the commit when the
+   * graph already has it, turns on `includeReflog` and reloads when the user
+   * confirmed that in the Reflog tab, or clears active filters and reloads to
+   * reveal a reachable commit without ever enabling `includeReflog` silently.
+   */
+  public showCommit(repo: string, commitHash: string, enableIncludeReflog: boolean) {
+    const repoChanged =
+      repo !== "" && repo !== this.currentRepo && Object.hasOwn(this.gitRepos, repo);
+    if (repoChanged) {
+      this.currentRepo = repo;
+      this.renderRepoDropdown();
+      this.syncRepoSettingsControls();
+    }
+    if (enableIncludeReflog) {
+      this.pendingFocusCommitHash = commitHash;
+      // `--reflog` only applies to unfiltered loads (`refs === null`), so
+      // clear any active branch/author/tag filter before reloading.
+      this.clearFiltersForCommitReveal();
+      if (!this.getIncludeReflog()) {
+        this.setRepoBooleanSetting("includeReflog", "enabled");
+        return;
+      }
+      if (!repoChanged && this.revealCommit(commitHash)) {
+        this.pendingFocusCommitHash = null;
+        return;
+      }
+      this.reloadToRevealCommit(commitHash, repoChanged);
+      return;
+    }
+    if (!repoChanged && this.revealCommit(commitHash)) return;
+    this.reloadToRevealCommit(commitHash, repoChanged);
+  }
+  private clearFiltersForCommitReveal() {
+    this.currentBranch = FILTER_SHOW_ALL_VALUE;
+    this.currentBranches = null;
+    this.currentAuthors = null;
+    this.currentTags = null;
+    this.updateFilterDropdowns();
+    this.hideCommitDetails();
+  }
+  private reloadToRevealCommit(commitHash: string, reloadBranches = false) {
+    this.pendingFocusCommitHash = commitHash;
+    this.clearFiltersForCommitReveal();
+    this.saveState();
+    this.renderShowLoading();
+    if (reloadBranches) {
+      this.requestLoadBranchesAndCommits(true);
+    } else {
+      this.requestLoadCommits(true, () => {});
+    }
+  }
   private revealPendingFocusCommit() {
     if (this.pendingFocusCommitHash === null) return;
     const hash = this.pendingFocusCommitHash;
@@ -8465,6 +8517,7 @@ const responseHandlers: ResponseHandlerMap = {
     gitGraph.loadSearchCommitResults(msg.requestId, msg.results, formatQueryError(msg.error)),
   startHistorySearch: () => gitGraph.startHistorySearch(),
   showPruneWorktrees: () => gitGraph.showPruneWorktrees(),
+  showCommit: (msg) => gitGraph.showCommit(msg.repo, msg.commitHash, msg.enableIncludeReflog),
   tagDetails: handleTagDetailsResponse,
   uncommittedDetails: handleUncommittedDetailsResponse,
   openDiffTab: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewDiff),

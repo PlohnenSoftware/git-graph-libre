@@ -81,6 +81,15 @@ const view = createReflogView(root, {
   },
   onCreateLostCommitBranch: (hash) => {
     host.postMessage({ command: "createLostCommitBranch", hash });
+  },
+  onAction: (action) => {
+    host.postMessage({ command: "action", action });
+  },
+  onCopyHash: (hash) => {
+    host.postMessage({ command: "copyHash", hash });
+  },
+  onShowInGraph: (hash, enableIncludeReflog) => {
+    host.postMessage({ command: "showInGraph", hash, enableIncludeReflog });
   }
 });
 
@@ -103,6 +112,8 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
       message as Extract<ReflogHostMessage, { command: "reflogLostCommits" }>
     );
     view.render(state);
+  } else if (message?.command === "reflogActionResult") {
+    view.showActionResult(message as Extract<ReflogHostMessage, { command: "reflogActionResult" }>);
   }
 });
 view.render(state);

@@ -586,6 +586,18 @@ export type ResponseShowPruneWorktrees = {
 };
 
 /**
+ * Sent to the graph when the Reflog tab runs "Show in Graph" (F1-06): reveals
+ * `commitHash` in `repo`, or turns on `includeReflog` for `repo` and reloads
+ * when the user confirmed it.
+ */
+export type ResponseShowCommit = {
+  command: "showCommit";
+  repo: string;
+  commitHash: string;
+  enableIncludeReflog: boolean;
+};
+
+/**
  * Posted by the consent screen's **Set now** button. The screen replaces the
  * graph while the telemetry question is open, and this is what re-opens the
  * notification after it has been dismissed — without it, dismissing would
@@ -720,4 +732,5 @@ export type ResponseMessage =
   | ResponseResolveRef
   | ResponseStartHistorySearch
   | ResponseShowPruneWorktrees
+  | ResponseShowCommit
   | ResponsePickFolder;

@@ -17,6 +17,26 @@ import { buildWebviewHtml } from "./webviewHtml";
 import { listWebviewLanguages } from "./webviewLanguages";
 import type { RepoSearch } from "./workspaceSearch";
 
+let currentWebviewPanel:
+  | {
+      showCommit(repo: string, commitHash: string, enableIncludeReflog?: boolean): void;
+    }
+  | undefined;
+
+/**
+ * Reveals `commitHash` in the open graph panel (F1-06 "Show in Graph").
+ * Returns `false` when no graph panel is open yet.
+ */
+export function showCommitInGraph(
+  repo: string,
+  commitHash: string,
+  enableIncludeReflog = false
+): boolean {
+  if (currentWebviewPanel === undefined) return false;
+  currentWebviewPanel.showCommit(repo, commitHash, enableIncludeReflog);
+  return true;
+}
+
 export function createWebviewPanel(opts: {
   panel: vscode.WebviewPanel;
   bridge: WebviewBridge;
@@ -144,6 +164,7 @@ export function createWebviewPanel(opts: {
   function dispose() {
     if (disposed) return;
     disposed = true;
+    if (currentWebviewPanel === instance) currentWebviewPanel = undefined;
     onDispose();
     recovery?.dispose();
     panel.dispose();
@@ -201,7 +222,7 @@ export function createWebviewPanel(opts: {
     });
   });
 
-  return {
+  const instance = {
     /** The temporary language override, if the switcher has set one. */
     getLanguage() {
       return temporaryLanguage;
@@ -216,6 +237,22 @@ export function createWebviewPanel(opts: {
     /** Opens the Prune Stale Worktrees preview for the repository the graph shows. */
     showPruneWorktrees() {
       bridge.post({ command: "showPruneWorktrees" });
+    },
+    /**
+     * Reveals a commit in the graph tab (F1-06 "Show in Graph"): brings the
+     * panel to the front, turns on `includeReflog` for the repository when
+     * confirmed, and tells the graph to focus the commit.
+     */
+    showCommit(repo: string, commitHash: string, enableIncludeReflog = false) {
+      if (enableIncludeReflog) {
+        const existing = repoManager.getRepos()[repo];
+        if (existing !== undefined) {
+          repoManager.setRepoState?.(repo, { ...existing, includeReflog: "enabled" });
+        }
+      }
+      panel.reveal();
+      if (!isGraphViewLoaded) return;
+      bridge.post({ command: "showCommit", repo, commitHash, enableIncludeReflog });
     },
     /**
      * Pushes fresh component status to the graph unasked. Called when the
@@ -250,6 +287,8 @@ export function createWebviewPanel(opts: {
     },
     dispose
   };
+  currentWebviewPanel = instance;
+  return instance;
 }
 
 export type WebviewPanel = ReturnType<typeof createWebviewPanel>;

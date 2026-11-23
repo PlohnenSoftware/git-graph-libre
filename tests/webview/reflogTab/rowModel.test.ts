@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { defaultReflogQuery, normalizeReflogQuery, REFLOG_SEARCH_CAP } from "@/reflogTabTypes";
+import {
+  defaultReflogQuery,
+  normalizeReflogQuery,
+  normalizeReflogRecoveryAction,
+  REFLOG_SEARCH_CAP
+} from "@/reflogTabTypes";
 import {
   applyData,
   applyLoading,
@@ -288,5 +293,93 @@ describe("reflog row model", () => {
     const switchedRepo = applyData(scanned, dataMessage({ requestId: 3, repo: "/repos/two" }));
     expect(switchedRepo.lostCommits.status).toBe("idle");
     expect(switchedRepo.lostCommits.commits).toEqual([]);
+  });
+
+  it("validates recovery actions across the boundary and refuses option-like tokens (F1-06)", () => {
+    const hash = "a".repeat(40);
+    expect(
+      normalizeReflogRecoveryAction({
+        kind: "createBranch",
+        commitHash: `  ${hash}  `,
+        branchName: "  recovered/main  ",
+        worktreePath: null
+      })
+    ).toEqual({
+      kind: "createBranch",
+      commitHash: hash,
+      branchName: "recovered/main",
+      worktreePath: null
+    });
+    expect(
+      normalizeReflogRecoveryAction({
+        kind: "addTag",
+        commitHash: hash,
+        tagName: "v1.0.0",
+        lightweight: true,
+        worktreePath: "/repos/linked"
+      })
+    ).toEqual({
+      kind: "addTag",
+      commitHash: hash,
+      tagName: "v1.0.0",
+      lightweight: true,
+      worktreePath: "/repos/linked"
+    });
+    expect(
+      normalizeReflogRecoveryAction({
+        kind: "addTag",
+        commitHash: hash,
+        tagName: "v1.0.1",
+        lightweight: false,
+        message: "release note"
+      })
+    ).toEqual({
+      kind: "addTag",
+      commitHash: hash,
+      tagName: "v1.0.1",
+      lightweight: false,
+      message: "release note",
+      worktreePath: null
+    });
+    expect(
+      normalizeReflogRecoveryAction({
+        kind: "checkoutCommit",
+        commitHash: hash,
+        worktreePath: "/repos/linked"
+      })
+    ).toEqual({
+      kind: "checkoutCommit",
+      commitHash: hash,
+      worktreePath: "/repos/linked"
+    });
+    expect(
+      normalizeReflogRecoveryAction({
+        kind: "resetToCommit",
+        commitHash: hash,
+        resetMode: "mixed",
+        worktreePath: null
+      })
+    ).toEqual({
+      kind: "resetToCommit",
+      commitHash: hash,
+      resetMode: "mixed",
+      worktreePath: null
+    });
+
+    for (const bad of [
+      null,
+      "createBranch",
+      { kind: "unknown", commitHash: hash },
+      { kind: "createBranch", commitHash: "-f", branchName: "ok" },
+      { kind: "createBranch", commitHash: hash, branchName: "--force" },
+      { kind: "createBranch", commitHash: hash, branchName: "a\nb" },
+      { kind: "createBranch", commitHash: hash, branchName: "ok", worktreePath: "" },
+      { kind: "createBranch", commitHash: hash, branchName: "ok", worktreePath: "/a\0b" },
+      { kind: "addTag", commitHash: hash, tagName: "-d", lightweight: true },
+      { kind: "addTag", commitHash: hash, tagName: "v1", lightweight: "yes" },
+      { kind: "resetToCommit", commitHash: hash, resetMode: "keep" }
+    ]) {
+      expect(normalizeReflogRecoveryAction(bad), JSON.stringify(bad)).toBeNull();
+    }
   });
 });

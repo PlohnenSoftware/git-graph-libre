@@ -4,13 +4,17 @@ import { DEFAULT_REFLOG_PAGE_SIZE, MAX_REFLOG_PAGE_SIZE } from "@/backend/querie
 import { buildExtensionUri } from "@/backend/utils/path";
 import { config } from "@/config";
 import type { RepoManager } from "@/extension/repoManager";
+import { copyToClipboard } from "@/extension/utils/clipboard";
+import { showCommitInGraph } from "@/extension/webviewPanel";
 import * as l10n from "@/l10n";
 import {
   defaultReflogQuery,
   defaultRefOptions,
   normalizeReflogQuery,
+  normalizeReflogRecoveryAction,
   REFLOG_ACTION_KINDS,
   REFLOG_SUB_ACTIONS,
+  type ReflogActionResultMessage,
   type ReflogDataMessage,
   type ReflogDisplay,
   type ReflogLabels,
@@ -42,13 +46,21 @@ export type ReflogTabDeps = {
   /** Display language for the webview's relative times; defaults to the editor's. */
   locale?: string;
   /**
-   * The repository manager's removal hook (F1-08): the tab closes when
-   * its repository leaves the list. Absent in tests that do not remove
-   * repositories; the tab then simply outlives the removal.
+   * The repository manager's removal hook (F1-08) and per-repository
+   * settings (F1-06 "Show in Graph"). Absent in tests that do not remove
+   * repositories or inspect settings.
    */
-  repoManager?: Pick<RepoManager, "registerRepoRemovedCallback" | "deregisterRepoRemovedCallback">;
+  repoManager?: Pick<RepoManager, "registerRepoRemovedCallback" | "deregisterRepoRemovedCallback"> &
+    Partial<Pick<RepoManager, "getRepos" | "setRepoState">>;
   /** Prompts for a branch name when recovering a lost commit (F1-07); defaults to `vscode.window.showInputBox`. */
   promptBranchName?: (options: vscode.InputBoxOptions) => Thenable<string | undefined>;
+  /** Writes text to the clipboard (F1-06 "Copy Hash"); defaults to VS Code's. */
+  copyText?: (text: string) => Promise<boolean>;
+  /**
+   * Reveals a commit in the graph tab (F1-06 "Show in Graph"); defaults
+   * to the open graph panel.
+   */
+  showInGraph?: (repo: string, commitHash: string, enableIncludeReflog: boolean) => void;
 };
 
 // One tab at a time, reused like the GGL Diff tab.
@@ -118,6 +130,12 @@ function createReflogTab(deps: ReflogTabDeps) {
   const refreshLimit = (): number =>
     Math.min(Math.max(loadedCount, DEFAULT_REFLOG_PAGE_SIZE), MAX_REFLOG_PAGE_SIZE);
 
+  const displayRepoFor = (activeRepo: string, activeQuery: ReflogQuery): string =>
+    activeQuery.worktreePath !== null &&
+    deps.repoManager?.getRepos?.()[activeQuery.worktreePath] !== undefined
+      ? activeQuery.worktreePath
+      : activeRepo;
+
   const load = async (append: boolean, limit = DEFAULT_REFLOG_PAGE_SIZE): Promise<void> => {
     if (source === undefined || repo === "") return;
     const activeSource = source;
@@ -134,7 +152,7 @@ function createReflogTab(deps: ReflogTabDeps) {
         bare: bareRepo,
         locale: deps.locale ?? vscode.env.language,
         labels: readLabels(),
-        display: readDisplay()
+        display: readDisplay(displayRepoFor(activeRepo, activeQuery), deps)
       };
       if (ready) void panel.webview.postMessage(pending);
     }
@@ -178,10 +196,70 @@ function createReflogTab(deps: ReflogTabDeps) {
       bare: bareRepo,
       locale: deps.locale ?? vscode.env.language,
       labels: readLabels(),
-      display: readDisplay(),
+      display: readDisplay(displayRepoFor(activeRepo, activeQuery), deps),
       page
     };
     if (ready) void panel.webview.postMessage(last);
+  };
+
+  const runRecoveryAction = async (raw: unknown): Promise<void> => {
+    const action = normalizeReflogRecoveryAction(raw);
+    if (action === null || source?.runAction === undefined || repo === "") return;
+    const activeRepo = repo;
+    const result = await source.runAction(activeRepo, action);
+    if (disposed) return;
+    if (ready) {
+      const reply: ReflogActionResultMessage = {
+        command: "reflogActionResult",
+        action: action.kind,
+        error: result.error
+      };
+      void panel.webview.postMessage(reply);
+    }
+    if (result.error === null && repo === activeRepo) {
+      void load(false, refreshLimit());
+    }
+  };
+
+  const copyCommitHash = async (rawHash: unknown): Promise<void> => {
+    if (typeof rawHash !== "string" || !/^[0-9a-f]{4,64}$/i.test(rawHash)) return;
+    const ok = await (deps.copyText ?? copyToClipboard)(rawHash);
+    if (disposed || ok || !ready) return;
+    const reply: ReflogActionResultMessage = {
+      command: "reflogActionResult",
+      action: "copyHash",
+      error: l10n.t("error.unableToCopyToClipboard", l10n.t("type.commitHash"))
+    };
+    void panel.webview.postMessage(reply);
+  };
+
+  const revealInGraph = (rawHash: unknown, rawEnable: unknown): void => {
+    if (repo === "" || typeof rawHash !== "string" || !/^[0-9a-f]{4,64}$/i.test(rawHash)) return;
+    const enableIncludeReflog = rawEnable === true;
+    const targetRepo = displayRepoFor(repo, query);
+    if (enableIncludeReflog) {
+      const existing = deps.repoManager?.getRepos?.()[targetRepo];
+      if (existing !== undefined) {
+        deps.repoManager?.setRepoState?.(targetRepo, { ...existing, includeReflog: "enabled" });
+      }
+      if (last !== undefined) {
+        last = { ...last, display: readDisplay(targetRepo, deps) };
+        if (ready) void panel.webview.postMessage(last);
+      }
+    }
+    if (deps.showInGraph !== undefined) {
+      deps.showInGraph(targetRepo, rawHash, enableIncludeReflog);
+      return;
+    }
+    if (!showCommitInGraph(targetRepo, rawHash, enableIncludeReflog)) {
+      void Promise.resolve(
+        vscode.commands.executeCommand("git-graph-libre.view", {
+          rootUri: { fsPath: targetRepo }
+        })
+      ).then(() => {
+        showCommitInGraph(targetRepo, rawHash, enableIncludeReflog);
+      });
+    }
   };
 
   // The panel follows the repository the way the graph does: the same
@@ -250,15 +328,22 @@ function createReflogTab(deps: ReflogTabDeps) {
       lostCommits.close(repo);
     } else if (message.command === "createLostCommitBranch") {
       void lostCommits.createBranchHere(repo, source, message.hash);
+    } else if (message.command === "action") {
+      void runRecoveryAction(message.action);
+    } else if (message.command === "copyHash") {
+      void copyCommitHash(message.hash);
+    } else if (message.command === "showInGraph") {
+      revealInGraph(message.hash, message.enableIncludeReflog);
     }
   });
-  // The tab follows the graph's two display settings live: a change
-  // reloads the rows on screen (the loaded pages are kept, as a watcher
+  // The tab follows the graph's display settings and `includeReflog` live: a
+  // change reloads the rows on screen (the loaded pages are kept, as a watcher
   // refresh keeps them) with the settings read fresh.
   const settings = vscode.workspace.onDidChangeConfiguration((event) => {
     if (
       event.affectsConfiguration("git-graph-libre.shortHashLength") ||
-      event.affectsConfiguration("git-graph-libre.dateFormat")
+      event.affectsConfiguration("git-graph-libre.dateFormat") ||
+      event.affectsConfiguration("git-graph-libre.repository.includeReflog")
     ) {
       void load(false, refreshLimit());
     }
@@ -287,7 +372,10 @@ function createReflogTab(deps: ReflogTabDeps) {
  * `config` accessors and bundle keys the graph's boot config reads
  * (`webviewHtml.ts`, `webviewL10n.ts`).
  */
-function readDisplay(): ReflogDisplay {
+function readDisplay(activeRepo: string, deps: ReflogTabDeps): ReflogDisplay {
+  const override = deps.repoManager?.getRepos?.()[activeRepo]?.includeReflog;
+  const includeReflog =
+    override === "enabled" ? true : override === "disabled" ? false : config.includeReflog();
   return {
     shortHashLength: config.shortHashLength(),
     dateFormat: config.dateFormat(),
@@ -306,7 +394,8 @@ function readDisplay(): ReflogDisplay {
       l10n.t("month.oct"),
       l10n.t("month.nov"),
       l10n.t("month.dec")
-    ]
+    ],
+    includeReflog
   };
 }
 
@@ -355,6 +444,45 @@ function readLabels(): ReflogLabels {
       timedOut: l10n.t("reflog.lostCommits.timedOut"),
       error: l10n.t("reflog.lostCommits.error"),
       createBranch: l10n.t("reflog.lostCommits.createBranch")
-    }
+    },
+    menuCreateBranch: l10n.t("reflog.menu.createBranch"),
+    menuCreateTag: l10n.t("reflog.menu.createTag"),
+    menuCheckoutDetached: l10n.t("reflog.menu.checkoutDetached"),
+    menuCopyHash: l10n.t("reflog.menu.copyHash"),
+    menuShowInGraph: l10n.t("reflog.menu.showInGraph"),
+    menuResetBranch: l10n.t("reflog.menu.resetBranch"),
+    menuMissingNote: l10n.t("reflog.menu.missingNote"),
+    dialogCreateBranchTitle: l10n.t("dialog.createBranch.title"),
+    dialogCreateBranchSubmit: l10n.t("dialog.createBranch.submit"),
+    dialogAddTagTitle: l10n.t("dialog.addTag.title"),
+    dialogAddTagName: l10n.t("dialog.addTag.name"),
+    dialogAddTagType: l10n.t("dialog.addTag.type"),
+    dialogAddTagMessage: l10n.t("dialog.addTag.message"),
+    dialogAddTagTypeAnnotated: l10n.t("dialog.addTag.typeAnnotated"),
+    dialogAddTagTypeLightweight: l10n.t("dialog.addTag.typeLightweight"),
+    dialogAddTagLightweightNote: l10n.t("dialog.addTag.lightweightNote"),
+    dialogAddTagOptional: l10n.t("dialog.addTag.optional"),
+    dialogAddTagSubmit: l10n.t("dialog.addTag.submit"),
+    dialogCheckoutConfirm: l10n.t("dialog.checkout.confirm"),
+    dialogResetConfirm: l10n.t("dialog.reset.confirm"),
+    labelCurrentBranch: l10n.t("label.currentBranch"),
+    dialogResetSoft: l10n.t("dialog.reset.soft"),
+    dialogResetMixed: l10n.t("dialog.reset.mixed"),
+    dialogResetHard: l10n.t("dialog.reset.hard"),
+    dialogYesReset: l10n.t("dialog.yesReset"),
+    dialogResetHardConfirm: l10n.t("reflog.resetHard.confirm"),
+    dialogShowInGraphConfirm: l10n.t("reflog.showInGraph.confirm"),
+    dialogShowInGraphNote: l10n.t("reflog.showInGraph.note"),
+    dialogShowInGraphSubmit: l10n.t("reflog.showInGraph.submit"),
+    dialogYes: l10n.t("dialog.yes"),
+    dialogCancel: l10n.t("dialog.cancel"),
+    dialogDismiss: l10n.t("dialog.dismiss"),
+    errorInvalidCharacters: l10n.t("error.invalidCharacters"),
+    errorUnableToCreateBranch: l10n.t("error.unableToCreateBranch"),
+    errorUnableToAddTag: l10n.t("error.unableToAddTag"),
+    errorUnableToCheckoutCommit: l10n.t("error.unableToCheckoutCommit"),
+    errorUnableToReset: l10n.t("error.unableToReset"),
+    errorUnableToCopyToClipboard: l10n.t("error.unableToCopyToClipboard"),
+    typeCommitHash: l10n.t("type.commitHash")
   };
 }

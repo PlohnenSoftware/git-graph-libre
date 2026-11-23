@@ -34,6 +34,9 @@ function start() {
   const onCancelLostCommitsScan = vi.fn();
   const onCloseLostCommits = vi.fn();
   const onCreateLostCommitBranch = vi.fn();
+  const onAction = vi.fn();
+  const onCopyHash = vi.fn();
+  const onShowInGraph = vi.fn();
   const view = createReflogView(root, {
     onLoadMore,
     onColumnWidthsChange,
@@ -41,7 +44,10 @@ function start() {
     onScanLostCommits,
     onCancelLostCommitsScan,
     onCloseLostCommits,
-    onCreateLostCommitBranch
+    onCreateLostCommitBranch,
+    onAction,
+    onCopyHash,
+    onShowInGraph
   });
   return {
     root,
@@ -52,7 +58,10 @@ function start() {
     onScanLostCommits,
     onCancelLostCommitsScan,
     onCloseLostCommits,
-    onCreateLostCommitBranch
+    onCreateLostCommitBranch,
+    onAction,
+    onCopyHash,
+    onShowInGraph
   };
 }
 
@@ -720,6 +729,310 @@ describe("reflog lost-commit scan view (F1-07)", () => {
     );
     expect(root.querySelector(".reflog-lost-error")?.textContent).toBe(
       "Unable to scan for lost commits: fsck failed"
+    );
+  });
+});
+
+describe("reflog safe recovery actions (F1-06)", () => {
+  const HASH = "0123456789abcdef0123456789abcdef01234567";
+
+  function openContextMenu(root: HTMLElement, rowIndex = 0) {
+    const tr = root.querySelectorAll<HTMLTableRowElement>("tbody tr.reflog-row")[rowIndex];
+    tr.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 40, clientY: 60 }));
+    return tr;
+  }
+
+  function clickMenuItem(root: HTMLElement, actionId: string) {
+    const item = root.querySelector<HTMLElement>(
+      `#contextMenu .contextMenuItem[data-action="${actionId}"]`
+    );
+    item?.click();
+  }
+
+  it("lists the six recovery actions in order, with Create Branch Here first", () => {
+    const { root, view } = start();
+    view.render(
+      applyData(
+        initialReflogState(),
+        dataMessage({ page: page({ rows: [row({ hash: HASH, state: "reachable" })] }) })
+      ),
+      NOW
+    );
+    openContextMenu(root);
+    const items = [...root.querySelectorAll<HTMLElement>("#contextMenu .contextMenuItem")];
+    expect(items.map((item) => [item.dataset.action, item.textContent])).toEqual([
+      ["createBranch", "Create Branch Here…"],
+      ["createTag", "Create Tag Here…"],
+      ["checkoutDetached", "Check Out (Detached)"],
+      ["copyHash", "Copy Hash"],
+      ["showInGraph", "Show in Graph"],
+      ["resetBranch", "Reset Current Branch to Here…"]
+    ]);
+    for (const item of items) {
+      expect(item.getAttribute("aria-disabled")).toBe("false");
+    }
+  });
+
+  it("disables every action on a missing entry and explains why", () => {
+    const { root, view, onAction, onCopyHash, onShowInGraph } = start();
+    view.render(
+      applyData(
+        initialReflogState(),
+        dataMessage({ page: page({ rows: [row({ hash: HASH, state: "missing" })] }) })
+      ),
+      NOW
+    );
+    openContextMenu(root);
+    const headerTitle = root.querySelector("#contextMenu .contextMenuHeaderTitle");
+    const headerCaption = root.querySelector("#contextMenu .contextMenuHeaderCaption");
+    expect(headerTitle?.textContent).toBe("Object no longer exists");
+    expect(headerCaption?.textContent).toBe(LABELS.menuMissingNote);
+
+    const items = [...root.querySelectorAll<HTMLElement>("#contextMenu .contextMenuItem")];
+    expect(items).toHaveLength(6);
+    for (const item of items) {
+      expect(item.getAttribute("aria-disabled")).toBe("true");
+      expect(item.classList.contains("disabled")).toBe(true);
+      expect(item.title).toBe(LABELS.menuMissingNote);
+      item.click();
+    }
+    expect(onAction).not.toHaveBeenCalled();
+    expect(onCopyHash).not.toHaveBeenCalled();
+    expect(onShowInGraph).not.toHaveBeenCalled();
+    expect(root.querySelector("#dialog")?.className).toBe("");
+  });
+
+  it("validates and submits Create Branch Here, Create Tag Here, Check Out, and Copy Hash", () => {
+    const { root, view, onAction, onCopyHash } = start();
+    view.render(
+      applyData(
+        initialReflogState(),
+        dataMessage({
+          query: {
+            ref: "HEAD",
+            worktreePath: "/repos/linked",
+            search: "",
+            actions: [],
+            onlyInReflog: false
+          },
+          page: page({ rows: [row({ hash: HASH, state: "reflogOnly" })] })
+        })
+      ),
+      NOW
+    );
+
+    // 1. Create Branch Here…
+    openContextMenu(root);
+    clickMenuItem(root, "createBranch");
+    const dialog = root.querySelector<HTMLElement>("#dialog") as HTMLElement;
+    expect(dialog.className).toBe("active noInput");
+    const branchInput = dialog.querySelector<HTMLInputElement>("#dialogInput0") as HTMLInputElement;
+    branchInput.value = "bad..branch";
+    branchInput.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(dialog.className).toBe("active inputInvalid");
+    dialog.querySelector<HTMLElement>("#dialogAction")?.click();
+    expect(onAction).not.toHaveBeenCalled();
+
+    branchInput.value = "recovered-branch";
+    branchInput.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(dialog.className).toBe("active");
+    dialog.querySelector<HTMLElement>("#dialogAction")?.click();
+    expect(onAction).toHaveBeenLastCalledWith({
+      kind: "createBranch",
+      commitHash: HASH,
+      branchName: "recovered-branch",
+      worktreePath: "/repos/linked"
+    });
+
+    // 2. Create Tag Here… (annotated and lightweight)
+    openContextMenu(root);
+    clickMenuItem(root, "createTag");
+    const tagInput = dialog.querySelector<HTMLInputElement>("#dialogInput0") as HTMLInputElement;
+    const msgInput = dialog.querySelector<HTMLInputElement>("#dialogInput2") as HTMLInputElement;
+    const msgRow = dialog.querySelector<HTMLElement>("#dialogInputRow2") as HTMLElement;
+    const noteRow = dialog.querySelector<HTMLElement>("#dialogInputRow3") as HTMLElement;
+    expect(msgRow.hidden).toBe(false);
+    expect(noteRow.hidden).toBe(true);
+    tagInput.value = "v1.0-recovered";
+    tagInput.dispatchEvent(new Event("input", { bubbles: true }));
+    msgInput.value = "Saved from reflog";
+    dialog.querySelector<HTMLElement>("#dialogAction")?.click();
+    expect(onAction).toHaveBeenLastCalledWith({
+      kind: "addTag",
+      commitHash: HASH,
+      tagName: "v1.0-recovered",
+      lightweight: false,
+      message: "Saved from reflog",
+      worktreePath: "/repos/linked"
+    });
+
+    openContextMenu(root);
+    clickMenuItem(root, "createTag");
+    const tagInput2 = dialog.querySelector<HTMLInputElement>("#dialogInput0") as HTMLInputElement;
+    const typeSelect2 = dialog.querySelector<HTMLSelectElement>(
+      "#dialogInput1"
+    ) as HTMLSelectElement;
+    typeSelect2.value = "lightweight";
+    typeSelect2.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(dialog.querySelector<HTMLElement>("#dialogInputRow2")?.hidden).toBe(true);
+    expect(dialog.querySelector<HTMLElement>("#dialogInputRow3")?.hidden).toBe(false);
+    tagInput2.value = "v1.0-light";
+    tagInput2.dispatchEvent(new Event("input", { bubbles: true }));
+    dialog.querySelector<HTMLElement>("#dialogAction")?.click();
+    expect(onAction).toHaveBeenLastCalledWith({
+      kind: "addTag",
+      commitHash: HASH,
+      tagName: "v1.0-light",
+      lightweight: true,
+      worktreePath: "/repos/linked"
+    });
+
+    // 3. Check Out (Detached)
+    openContextMenu(root);
+    clickMenuItem(root, "checkoutDetached");
+    expect(dialog.querySelector(".dialogTitle")?.textContent).toContain("01234567");
+    dialog.querySelector<HTMLElement>("#dialogAction")?.click();
+    expect(onAction).toHaveBeenLastCalledWith({
+      kind: "checkoutCommit",
+      commitHash: HASH,
+      worktreePath: "/repos/linked"
+    });
+
+    // 4. Copy Hash
+    openContextMenu(root);
+    clickMenuItem(root, "copyHash");
+    expect(onCopyHash).toHaveBeenCalledWith(HASH);
+  });
+
+  it("reveals reachable commits in the graph directly, and offers to turn on includeReflog with a visible note for reflog-only commits", () => {
+    const { root, view, onShowInGraph } = start();
+    view.render(
+      applyData(
+        initialReflogState(),
+        dataMessage({
+          display: { ...DISPLAY, includeReflog: false },
+          page: page({
+            rows: [
+              row({ index: 0, hash: "a".repeat(40), state: "reachable" }),
+              row({ index: 1, hash: HASH, state: "reflogOnly" })
+            ]
+          })
+        })
+      ),
+      NOW
+    );
+
+    // Reachable commit -> revealed at once without prompting.
+    openContextMenu(root, 0);
+    clickMenuItem(root, "showInGraph");
+    expect(onShowInGraph).toHaveBeenCalledWith("a".repeat(40), false);
+    expect(root.querySelector("#dialog")?.className).toBe("");
+
+    // Reflog-only commit while includeReflog is off -> visible note dialog first, never silent.
+    openContextMenu(root, 1);
+    clickMenuItem(root, "showInGraph");
+    expect(onShowInGraph).toHaveBeenCalledTimes(1);
+    const dialog = root.querySelector<HTMLElement>("#dialog") as HTMLElement;
+    expect(dialog.className).toBe("active");
+    expect(dialog.querySelector(".dialogTitle")?.textContent).toContain("01234567");
+    expect(dialog.querySelector(".dialogFormNote")?.textContent).toBe(LABELS.dialogShowInGraphNote);
+    expect(dialog.querySelector("#dialogAction")?.textContent).toBe(LABELS.dialogShowInGraphSubmit);
+
+    // Cancelling does not enable includeReflog.
+    dialog.querySelector<HTMLElement>("#dialogDismiss")?.click();
+    expect(onShowInGraph).toHaveBeenCalledTimes(1);
+
+    // Confirming enables includeReflog and shows the commit in the graph.
+    openContextMenu(root, 1);
+    clickMenuItem(root, "showInGraph");
+    dialog.querySelector<HTMLElement>("#dialogAction")?.click();
+    expect(onShowInGraph).toHaveBeenLastCalledWith(HASH, true);
+  });
+
+  it("defaults Reset Current Branch to mixed and requires the second confirmation for hard reset", () => {
+    const { root, view, onAction } = start();
+    view.render(
+      applyData(
+        initialReflogState(),
+        dataMessage({
+          query: {
+            ref: "refs/heads/topic",
+            worktreePath: null,
+            search: "",
+            actions: [],
+            onlyInReflog: false
+          },
+          page: page({ rows: [row({ hash: HASH, state: "reflogOnly" })] })
+        })
+      ),
+      NOW
+    );
+
+    // Default is "mixed", which submits directly without a second confirmation.
+    // Even when viewing another branch's reflog, `git reset` moves the current
+    // branch, so the dialog names "the current branch" (matching the graph).
+    openContextMenu(root);
+    clickMenuItem(root, "resetBranch");
+    const dialog = root.querySelector<HTMLElement>("#dialog") as HTMLElement;
+    expect(dialog.querySelector(".dialogTitle")?.textContent).toContain("the current branch");
+    expect(dialog.querySelector(".dialogTitle")?.textContent).not.toContain("topic");
+    const select = dialog.querySelector<HTMLSelectElement>("#dialogInput0") as HTMLSelectElement;
+    expect(select.value).toBe("mixed");
+    dialog.querySelector<HTMLElement>("#dialogAction")?.click();
+    expect(onAction).toHaveBeenLastCalledWith({
+      kind: "resetToCommit",
+      commitHash: HASH,
+      resetMode: "mixed",
+      worktreePath: null
+    });
+
+    // Choosing "hard" opens the second confirmation naming what is lost.
+    openContextMenu(root);
+    clickMenuItem(root, "resetBranch");
+    const selectHard = dialog.querySelector<HTMLSelectElement>(
+      "#dialogInput0"
+    ) as HTMLSelectElement;
+    selectHard.value = "hard";
+    dialog.querySelector<HTMLElement>("#dialogAction")?.click();
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(dialog.className).toBe("active");
+    expect(dialog.querySelector(".dialogTitle")?.textContent).toContain(
+      "discard all uncommitted staged and working-tree changes"
+    );
+
+    // Cancelling the second confirmation runs no reset.
+    dialog.querySelector<HTMLElement>("#dialogDismiss")?.click();
+    expect(onAction).toHaveBeenCalledTimes(1);
+
+    // Confirming the second confirmation runs the hard reset.
+    openContextMenu(root);
+    clickMenuItem(root, "resetBranch");
+    (dialog.querySelector<HTMLSelectElement>("#dialogInput0") as HTMLSelectElement).value = "hard";
+    dialog.querySelector<HTMLElement>("#dialogAction")?.click();
+    dialog.querySelector<HTMLElement>("#dialogAction")?.click();
+    expect(onAction).toHaveBeenLastCalledWith({
+      kind: "resetToCommit",
+      commitHash: HASH,
+      resetMode: "hard",
+      worktreePath: null
+    });
+  });
+
+  it("displays an error dialog when a recovery action fails", () => {
+    const { root, view } = start();
+    view.render(applyData(initialReflogState(), dataMessage()), NOW);
+    view.showActionResult({
+      command: "reflogActionResult",
+      action: "checkoutCommit",
+      error: "error: Your local changes would be overwritten by checkout."
+    });
+    const dialog = root.querySelector<HTMLElement>("#dialog") as HTMLElement;
+    expect(dialog.className).toBe("active");
+    expect(dialog.querySelector(".dialogTitle")?.textContent).toContain(
+      "Unable to Checkout Commit"
+    );
+    expect(dialog.querySelector(".errorReason")?.textContent).toContain(
+      "Your local changes would be overwritten"
     );
   });
 });

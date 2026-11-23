@@ -231,7 +231,109 @@ export type ReflogDisplay = {
   needMonthName: boolean;
   /** The bundle's twelve `month.*` names, January first. */
   months: string[];
+  /**
+   * Whether `includeReflog` is on for this repository (F1-06): true when
+   * the graph already loads reflog-only commits, false when "Show in
+   * Graph" on a `reflogOnly` row must offer to turn it on first.
+   */
+  includeReflog?: boolean;
 };
+
+/** The reset modes the existing reset dialog offers (F1-06, RQ4). */
+export type ReflogResetMode = "soft" | "mixed" | "hard";
+
+/**
+ * A recovery write the Reflog tab runs through the existing backend
+ * actions in `src/backend/actions/*` (F1-06). `worktreePath` is set only
+ * when the entry came from another worktree's `HEAD` reflog (F1-08), so
+ * the action runs in that worktree instead of the tab's repository.
+ */
+export type ReflogRecoveryAction =
+  | {
+      kind: "createBranch";
+      commitHash: string;
+      branchName: string;
+      worktreePath: string | null;
+    }
+  | {
+      kind: "addTag";
+      commitHash: string;
+      tagName: string;
+      lightweight: boolean;
+      message?: string;
+      worktreePath: string | null;
+    }
+  | {
+      kind: "checkoutCommit";
+      commitHash: string;
+      worktreePath: string | null;
+    }
+  | {
+      kind: "resetToCommit";
+      commitHash: string;
+      resetMode: ReflogResetMode;
+      worktreePath: string | null;
+    };
+
+export type ReflogRecoveryActionKind = ReflogRecoveryAction["kind"];
+
+/** The outcome of a recovery action: null when it succeeded, the failure reason otherwise. */
+export type ReflogRecoveryResult = {
+  error: string | null;
+};
+
+function safeActionToken(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (trimmed === "" || trimmed.startsWith("-") || hasControlCharacter(trimmed)) return null;
+  return trimmed;
+}
+
+function safeActionWorktreePath(value: unknown): string | null | undefined {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string" || value === "" || hasControlCharacter(value)) return undefined;
+  return value;
+}
+
+/**
+ * Validates a recovery action arriving over the webview boundary (F1-06):
+ * every commit hash and ref name is non-empty, free of control characters,
+ * and never starts with `-` (so it cannot be read by Git as an option).
+ * Anything malformed returns null and runs no Git command.
+ */
+export function normalizeReflogRecoveryAction(value: unknown): ReflogRecoveryAction | null {
+  if (typeof value !== "object" || value === null) return null;
+  const raw = value as Record<string, unknown>;
+  const commitHash = safeActionToken(raw.commitHash);
+  const worktreePath = safeActionWorktreePath(raw.worktreePath);
+  if (commitHash === null || worktreePath === undefined) return null;
+
+  if (raw.kind === "createBranch") {
+    const branchName = safeActionToken(raw.branchName);
+    return branchName === null
+      ? null
+      : { kind: "createBranch", commitHash, branchName, worktreePath };
+  }
+  if (raw.kind === "addTag") {
+    const tagName = safeActionToken(raw.tagName);
+    if (tagName === null || typeof raw.lightweight !== "boolean") return null;
+    if (raw.lightweight) {
+      return { kind: "addTag", commitHash, tagName, lightweight: true, worktreePath };
+    }
+    const message = typeof raw.message === "string" ? raw.message : "";
+    return { kind: "addTag", commitHash, tagName, lightweight: false, message, worktreePath };
+  }
+  if (raw.kind === "checkoutCommit") {
+    return { kind: "checkoutCommit", commitHash, worktreePath };
+  }
+  if (
+    raw.kind === "resetToCommit" &&
+    (raw.resetMode === "soft" || raw.resetMode === "mixed" || raw.resetMode === "hard")
+  ) {
+    return { kind: "resetToCommit", commitHash, resetMode: raw.resetMode, worktreePath };
+  }
+  return null;
+}
 
 /** The tab's localized text; `loadError`, `searchCapped` and `title` keep their `{0}`. */
 export type ReflogLabels = {
@@ -285,6 +387,46 @@ export type ReflogLabels = {
     error: string;
     createBranch: string;
   };
+  /** Context-menu and dialog labels for the entry recovery actions (F1-06). */
+  menuCreateBranch?: string;
+  menuCreateTag?: string;
+  menuCheckoutDetached?: string;
+  menuCopyHash?: string;
+  menuShowInGraph?: string;
+  menuResetBranch?: string;
+  menuMissingNote?: string;
+  dialogCreateBranchTitle?: string;
+  dialogCreateBranchSubmit?: string;
+  dialogAddTagTitle?: string;
+  dialogAddTagName?: string;
+  dialogAddTagType?: string;
+  dialogAddTagMessage?: string;
+  dialogAddTagTypeAnnotated?: string;
+  dialogAddTagTypeLightweight?: string;
+  dialogAddTagLightweightNote?: string;
+  dialogAddTagOptional?: string;
+  dialogAddTagSubmit?: string;
+  dialogCheckoutConfirm?: string;
+  dialogResetConfirm?: string;
+  labelCurrentBranch?: string;
+  dialogResetSoft?: string;
+  dialogResetMixed?: string;
+  dialogResetHard?: string;
+  dialogYesReset?: string;
+  dialogResetHardConfirm?: string;
+  dialogShowInGraphConfirm?: string;
+  dialogShowInGraphNote?: string;
+  dialogShowInGraphSubmit?: string;
+  dialogYes?: string;
+  dialogCancel?: string;
+  dialogDismiss?: string;
+  errorInvalidCharacters?: string;
+  errorUnableToCreateBranch?: string;
+  errorUnableToAddTag?: string;
+  errorUnableToCheckoutCommit?: string;
+  errorUnableToReset?: string;
+  errorUnableToCopyToClipboard?: string;
+  typeCommitHash?: string;
 };
 
 /** One unreachable commit discovered by the opt-in lost-commit scan (F1-07). */
@@ -350,6 +492,12 @@ export type ReflogSource = {
   loadPage(repo: string, offset: number, limit: number, query?: ReflogQuery): Promise<ReflogPage>;
   /** The picker's options for a repository; without one the tab offers only `HEAD`. */
   loadRefs?(repo: string): Promise<ReflogRefs>;
+  /**
+   * Runs one of the entry recovery actions through the existing backend
+   * action functions (F1-06), in the entry's worktree when it came from
+   * another worktree's `HEAD` reflog (F1-08).
+   */
+  runAction?(repo: string, action: ReflogRecoveryAction): Promise<ReflogRecoveryResult>;
   /**
    * Closes any engine handle a read in another worktree opened (F1-08,
    * Phase 16 rule 5). The panel calls it when it retargets or closes; the
@@ -423,8 +571,19 @@ export type ReflogLostCommitsMessage = {
   feedback: ReflogLostCommitsFeedback | null;
 };
 
+/** Extension host to webview: the outcome of a recovery action or clipboard copy (F1-06). */
+export type ReflogActionResultMessage = {
+  command: "reflogActionResult";
+  action: ReflogRecoveryActionKind | "copyHash";
+  error: string | null;
+};
+
 /** Every message the extension host posts to the Reflog tab. */
-export type ReflogHostMessage = ReflogDataMessage | ReflogLoadingMessage | ReflogLostCommitsMessage;
+export type ReflogHostMessage =
+  | ReflogDataMessage
+  | ReflogLoadingMessage
+  | ReflogLostCommitsMessage
+  | ReflogActionResultMessage;
 
 /** Webview to extension host. */
 export type ReflogWebviewMessage =
@@ -435,4 +594,7 @@ export type ReflogWebviewMessage =
   | { command: "scanLostCommits" }
   | { command: "cancelLostCommitsScan" }
   | { command: "closeLostCommits" }
-  | { command: "createLostCommitBranch"; hash: string };
+  | { command: "createLostCommitBranch"; hash: string }
+  | { command: "action"; action: ReflogRecoveryAction }
+  | { command: "copyHash"; hash: string }
+  | { command: "showInGraph"; hash: string; enableIncludeReflog: boolean };

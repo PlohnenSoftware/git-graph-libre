@@ -90,7 +90,8 @@ export function defaultReflogDisplay(): ReflogDisplay {
     dateFormat: "Date & Time",
     datePattern: "DD MM YYYY",
     needMonthName: false,
-    months: []
+    months: [],
+    includeReflog: false
   };
 }
 

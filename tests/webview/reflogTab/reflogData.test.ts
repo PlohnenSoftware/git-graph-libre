@@ -1,3 +1,4 @@
+import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -465,5 +466,266 @@ describe("createReflogSource lost-commit scan and recovery (F1-07, real Git)", (
     expect(await src.createBranch?.(dir, "a".repeat(40), "has space")).toContain(
       "Invalid branch name"
     );
+  });
+});
+
+describe("createReflogSource safe recovery actions (F1-06, real Git)", () => {
+  function gitOut(args: string[], cwd: string): string {
+    return cp.execFileSync("git", args, { cwd, encoding: "utf8", stdio: "pipe" }).trim();
+  }
+
+  function symbolicHead(dir: string): string {
+    try {
+      return gitOut(["symbolic-ref", "-q", "HEAD"], dir);
+    } catch {
+      return "";
+    }
+  }
+
+  /** Snapshot every ref (`HEAD` and `refs/*`) in `dir` as `name -> hash`. */
+  function snapshotRefs(dir: string): Record<string, string> {
+    const out = gitOut(["for-each-ref", "--format=%(refname) %(objectname)"], dir);
+    const refs: Record<string, string> = {
+      HEAD: gitOut(["rev-parse", "HEAD"], dir),
+      "HEAD:sym": symbolicHead(dir)
+    };
+    if (out !== "") {
+      for (const line of out.split("\n")) {
+        const [name, hash] = line.trim().split(" ");
+        if (name && hash) refs[name] = hash;
+      }
+    }
+    return refs;
+  }
+
+  /** Build a repo with a commit made unreachable by `git reset --hard HEAD~1`. */
+  function repoWithUnreachableCommit() {
+    const dir = repo();
+    commit(dir, "kept");
+    commit(dir, "lost-work");
+    const lostHash = gitOut(["rev-parse", "HEAD"], dir);
+    git(["reset", "--hard", "HEAD~1"], dir);
+    const keptHash = gitOut(["rev-parse", "HEAD"], dir);
+    return { dir, keptHash, lostHash };
+  }
+
+  it("recovers an unreachable commit via Create Branch Here without moving HEAD or other refs", async () => {
+    const { dir, keptHash, lostHash } = repoWithUnreachableCommit();
+    const src = source();
+    const beforePage = await src.loadPage(dir, 0, 200);
+    const lostRow = beforePage.rows.find((entry) => entry.hash === lostHash);
+    expect(lostRow?.state).toBe("reflogOnly");
+
+    const beforeRefs = snapshotRefs(dir);
+    const res = await src.runAction?.(dir, {
+      kind: "createBranch",
+      commitHash: lostHash,
+      branchName: "recovered-branch",
+      worktreePath: null
+    });
+    expect(res).toEqual({ error: null });
+
+    const afterRefs = snapshotRefs(dir);
+    expect(afterRefs).toEqual({
+      ...beforeRefs,
+      "refs/heads/recovered-branch": lostHash
+    });
+    expect(afterRefs.HEAD).toBe(keptHash);
+    expect(afterRefs["HEAD:sym"]).toBe("refs/heads/main");
+
+    // Now the commit is reachable from a branch, so its state flips to reachable.
+    const afterPage = await src.loadPage(dir, 0, 200);
+    expect(afterPage.rows.find((entry) => entry.hash === lostHash)?.state).toBe("reachable");
+  });
+
+  it("recovers an unreachable commit via Create Tag Here (lightweight and annotated) without moving other refs", async () => {
+    const { dir, lostHash } = repoWithUnreachableCommit();
+    const src = source();
+    const beforeRefs = snapshotRefs(dir);
+
+    const light = await src.runAction?.(dir, {
+      kind: "addTag",
+      commitHash: lostHash,
+      tagName: "recovered-light",
+      lightweight: true,
+      worktreePath: null
+    });
+    expect(light).toEqual({ error: null });
+    expect(gitOut(["rev-parse", "refs/tags/recovered-light^{commit}"], dir)).toBe(lostHash);
+
+    const annotated = await src.runAction?.(dir, {
+      kind: "addTag",
+      commitHash: lostHash,
+      tagName: "recovered-ann",
+      lightweight: false,
+      message: "saved from reflog",
+      worktreePath: null
+    });
+    expect(annotated).toEqual({ error: null });
+    expect(gitOut(["rev-parse", "refs/tags/recovered-ann^{commit}"], dir)).toBe(lostHash);
+
+    const afterRefs = snapshotRefs(dir);
+    expect(afterRefs.HEAD).toBe(beforeRefs.HEAD);
+    expect(afterRefs["HEAD:sym"]).toBe(beforeRefs["HEAD:sym"]);
+    expect(afterRefs["refs/heads/main"]).toBe(beforeRefs["refs/heads/main"]);
+  });
+
+  it("recovers an unreachable commit via Check Out (Detached) and preserves today's dirty-tree handling", async () => {
+    const { dir, keptHash, lostHash } = repoWithUnreachableCommit();
+    const src = source();
+
+    // Non-conflicting dirty working tree change is carried across detached checkout.
+    fs.writeFileSync(path.join(dir, "untracked-note.txt"), "carry me");
+    const beforeRefs = snapshotRefs(dir);
+    const ok = await src.runAction?.(dir, {
+      kind: "checkoutCommit",
+      commitHash: lostHash,
+      worktreePath: null
+    });
+    expect(ok).toEqual({ error: null });
+    const afterRefs = snapshotRefs(dir);
+    expect(afterRefs.HEAD).toBe(lostHash);
+    expect(afterRefs["HEAD:sym"]).toBe("");
+    // No branch or tag ref moved.
+    expect(afterRefs["refs/heads/main"]).toBe(keptHash);
+    expect(afterRefs["refs/heads/main"]).toBe(beforeRefs["refs/heads/main"]);
+    expect(fs.readFileSync(path.join(dir, "untracked-note.txt"), "utf8")).toBe("carry me");
+
+    // Return to main and make a conflicting tracked dirty change to `lost-work`.
+    git(["checkout", "main"], dir);
+    fs.writeFileSync(path.join(dir, "lost-work"), "conflicting local edit");
+    git(["add", "lost-work"], dir);
+    const conflict = await src.runAction?.(dir, {
+      kind: "checkoutCommit",
+      commitHash: lostHash,
+      worktreePath: null
+    });
+    expect(conflict?.error).not.toBeNull();
+    // HEAD and main stay untouched, and the local file content is preserved.
+    expect(gitOut(["rev-parse", "HEAD"], dir)).toBe(keptHash);
+    expect(fs.readFileSync(path.join(dir, "lost-work"), "utf8")).toBe("conflicting local edit");
+  });
+
+  it("recovers an unreachable commit via Reset Current Branch (soft, mixed, hard) without moving other branches", async () => {
+    const { dir, keptHash, lostHash } = repoWithUnreachableCommit();
+    git(["branch", "untouched-branch", keptHash], dir);
+    const src = source();
+
+    // Mixed reset (the default): moves main to lostHash, keeps working tree changes unstaged.
+    fs.writeFileSync(path.join(dir, "kept"), "modified in working tree");
+    const mixed = await src.runAction?.(dir, {
+      kind: "resetToCommit",
+      commitHash: lostHash,
+      resetMode: "mixed",
+      worktreePath: null
+    });
+    expect(mixed).toEqual({ error: null });
+    expect(gitOut(["rev-parse", "HEAD"], dir)).toBe(lostHash);
+    expect(gitOut(["rev-parse", "refs/heads/main"], dir)).toBe(lostHash);
+    expect(gitOut(["rev-parse", "refs/heads/untouched-branch"], dir)).toBe(keptHash);
+    expect(fs.readFileSync(path.join(dir, "kept"), "utf8")).toBe("modified in working tree");
+
+    // Soft reset back to keptHash: moves main, keeps changes staged/intact.
+    const soft = await src.runAction?.(dir, {
+      kind: "resetToCommit",
+      commitHash: keptHash,
+      resetMode: "soft",
+      worktreePath: null
+    });
+    expect(soft).toEqual({ error: null });
+    expect(gitOut(["rev-parse", "refs/heads/main"], dir)).toBe(keptHash);
+    expect(gitOut(["rev-parse", "refs/heads/untouched-branch"], dir)).toBe(keptHash);
+
+    // Hard reset to lostHash: moves main and restores the working tree to lostHash.
+    const hard = await src.runAction?.(dir, {
+      kind: "resetToCommit",
+      commitHash: lostHash,
+      resetMode: "hard",
+      worktreePath: null
+    });
+    expect(hard).toEqual({ error: null });
+    expect(gitOut(["rev-parse", "refs/heads/main"], dir)).toBe(lostHash);
+    expect(gitOut(["rev-parse", "refs/heads/untouched-branch"], dir)).toBe(keptHash);
+    expect(fs.readFileSync(path.join(dir, "kept"), "utf8")).toBe("kept");
+  });
+
+  it("refuses every recovery action on a missing commit object and moves no ref", async () => {
+    const { dir } = repoWithUnreachableCommit();
+    const missingHash = "deadbeef".repeat(5);
+    const src = source();
+    const beforeRefs = snapshotRefs(dir);
+
+    for (const action of [
+      {
+        kind: "createBranch" as const,
+        commitHash: missingHash,
+        branchName: "nope",
+        worktreePath: null
+      },
+      {
+        kind: "addTag" as const,
+        commitHash: missingHash,
+        tagName: "nope",
+        lightweight: true,
+        worktreePath: null
+      },
+      { kind: "checkoutCommit" as const, commitHash: missingHash, worktreePath: null },
+      {
+        kind: "resetToCommit" as const,
+        commitHash: missingHash,
+        resetMode: "mixed" as const,
+        worktreePath: null
+      }
+    ]) {
+      const result = await src.runAction?.(dir, action);
+      expect(result?.error, action.kind).toContain("no longer exists");
+    }
+    expect(snapshotRefs(dir)).toEqual(beforeRefs);
+  });
+
+  it("runs actions on another worktree's HEAD in that worktree, and refuses unlisted or stale worktrees (F1-08)", async () => {
+    const dir = repo();
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-reflog-act-wt-"));
+    dirs.push(parent);
+    const linked = path.join(parent, "linked");
+    git(["worktree", "add", "-q", "-b", "linked-branch", linked], dir);
+    commit(dir, "main-stay");
+    const mainHead = gitOut(["rev-parse", "HEAD"], dir);
+    commit(linked, "linked-one");
+    commit(linked, "linked-lost");
+    const linkedLost = gitOut(["rev-parse", "HEAD"], linked);
+    git(["reset", "--hard", "HEAD~1"], linked);
+
+    const src = source();
+    // Resetting in `linked` moves `linked-branch` in `linked` and never touches `dir`'s HEAD.
+    const resetLinked = await src.runAction?.(dir, {
+      kind: "resetToCommit",
+      commitHash: linkedLost,
+      resetMode: "mixed",
+      worktreePath: linked
+    });
+    expect(resetLinked).toEqual({ error: null });
+    expect(gitOut(["rev-parse", "HEAD"], linked)).toBe(linkedLost);
+    expect(gitOut(["rev-parse", "HEAD"], dir)).toBe(mainHead);
+
+    // Unlisted worktree path is refused without running in the current worktree.
+    const stranger = repo();
+    const refusedUnlisted = await src.runAction?.(dir, {
+      kind: "checkoutCommit",
+      commitHash: linkedLost,
+      worktreePath: stranger
+    });
+    expect(refusedUnlisted?.error).toContain("is not a worktree of this repository");
+    expect(gitOut(["rev-parse", "HEAD"], dir)).toBe(mainHead);
+
+    // A missing (prunable) worktree is refused without running in the current worktree.
+    fs.renameSync(linked, `${linked}-gone`);
+    const refusedStale = await src.runAction?.(dir, {
+      kind: "checkoutCommit",
+      commitHash: linkedLost,
+      worktreePath: linked
+    });
+    expect(refusedStale?.error).toContain("is missing");
+    expect(gitOut(["rev-parse", "HEAD"], dir)).toBe(mainHead);
   });
 });

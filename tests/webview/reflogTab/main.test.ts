@@ -164,4 +164,55 @@ describe("reflog tab webview", () => {
     root.querySelector<HTMLButtonElement>("#reflogLostCloseBtn")?.click();
     expect(posted.at(-1)).toEqual({ command: "closeLostCommits" });
   });
+
+  it("posts recovery action, copyHash and showInGraph messages and shows action errors (F1-06)", async () => {
+    const { posted, root } = await start();
+    send(
+      dataMessage({
+        page: page({
+          rows: [
+            row({
+              hash: "0123456789abcdef0123456789abcdef01234567",
+              state: "reflogOnly"
+            })
+          ]
+        })
+      })
+    );
+    const tr = root.querySelector<HTMLElement>("tbody tr.reflog-row") as HTMLElement;
+    tr.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 20, clientY: 20 }));
+    root.querySelector<HTMLElement>('#contextMenu [data-action="copyHash"]')?.click();
+    expect(posted.at(-1)).toEqual({
+      command: "copyHash",
+      hash: "0123456789abcdef0123456789abcdef01234567"
+    });
+
+    tr.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 20, clientY: 20 }));
+    root.querySelector<HTMLElement>('#contextMenu [data-action="showInGraph"]')?.click();
+    root.querySelector<HTMLElement>("#dialogAction")?.click();
+    expect(posted.at(-1)).toEqual({
+      command: "showInGraph",
+      hash: "0123456789abcdef0123456789abcdef01234567",
+      enableIncludeReflog: true
+    });
+
+    tr.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 20, clientY: 20 }));
+    root.querySelector<HTMLElement>('#contextMenu [data-action="checkoutDetached"]')?.click();
+    root.querySelector<HTMLElement>("#dialogAction")?.click();
+    expect(posted.at(-1)).toEqual({
+      command: "action",
+      action: {
+        kind: "checkoutCommit",
+        commitHash: "0123456789abcdef0123456789abcdef01234567",
+        worktreePath: null
+      }
+    });
+
+    send({
+      command: "reflogActionResult",
+      action: "checkoutCommit",
+      error: "dirty working tree"
+    });
+    expect(root.querySelector("#dialog .errorReason")?.textContent).toBe("dirty working tree");
+  });
 });

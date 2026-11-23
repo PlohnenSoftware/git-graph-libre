@@ -89,7 +89,50 @@ export const LABELS: ReflogLabels = {
       "Lost-commit scan timed out. For very large repositories, run git fsck in a terminal.",
     error: "Unable to scan for lost commits: {0}",
     createBranch: "Create Branch Here…"
-  }
+  },
+  menuCreateBranch: "Create Branch Here…",
+  menuCreateTag: "Create Tag Here…",
+  menuCheckoutDetached: "Check Out (Detached)",
+  menuCopyHash: "Copy Hash",
+  menuShowInGraph: "Show in Graph",
+  menuResetBranch: "Reset Current Branch to Here…",
+  menuMissingNote: "This commit object no longer exists in Git, so it cannot be recovered.",
+  dialogCreateBranchTitle: "Enter the name of the branch {0}",
+  dialogCreateBranchSubmit: "Create Branch",
+  dialogAddTagTitle: "Add tag to commit {0}",
+  dialogAddTagName: "Name",
+  dialogAddTagType: "Type",
+  dialogAddTagMessage: "Message",
+  dialogAddTagTypeAnnotated: "Annotated",
+  dialogAddTagTypeLightweight: "Lightweight (unsigned)",
+  dialogAddTagLightweightNote:
+    "Lightweight tags are a plain ref with no tag object, so they carry no message and cannot be signed.",
+  dialogAddTagOptional: "Optional",
+  dialogAddTagSubmit: "Add Tag",
+  dialogCheckoutConfirm:
+    "Are you sure you want to checkout commit {0}? This will result in a 'detached HEAD' state.",
+  dialogResetConfirm: "Are you sure you want to reset {0} to commit {1}?",
+  labelCurrentBranch: "the current branch",
+  dialogResetSoft: "Soft - Keep all changes, but reset head",
+  dialogResetMixed: "Mixed - Keep working tree, but reset index",
+  dialogResetHard: "Hard - Discard all changes",
+  dialogYesReset: "Yes, reset",
+  dialogResetHardConfirm:
+    "Hard reset to commit {0} will permanently discard all uncommitted staged and working-tree changes. Reset anyway?",
+  dialogShowInGraphConfirm: "Commit {0} is only in the reflog, so it is not shown in the graph.",
+  dialogShowInGraphNote:
+    'Turn on "Include reflog" for this repository to include reflog-only commits in the graph and reveal this commit.',
+  dialogShowInGraphSubmit: "Turn On Include Reflog",
+  dialogYes: "Yes",
+  dialogCancel: "Cancel",
+  dialogDismiss: "Dismiss",
+  errorInvalidCharacters: "Unable to {0}, one or more invalid characters entered.",
+  errorUnableToCreateBranch: "Unable to Create Branch",
+  errorUnableToAddTag: "Unable to Add Tag",
+  errorUnableToCheckoutCommit: "Unable to Checkout Commit",
+  errorUnableToReset: "Unable to Reset to Commit",
+  errorUnableToCopyToClipboard: "Unable to Copy {0} to Clipboard",
+  typeCommitHash: "Commit Hash"
 };
 
 /** The graph display settings at their English defaults. */

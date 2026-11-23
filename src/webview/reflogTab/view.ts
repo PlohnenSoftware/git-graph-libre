@@ -3,8 +3,10 @@ import {
   isReflogFiltered,
   REFLOG_ACTION_KINDS,
   REFLOG_SEARCH_CAP,
+  type ReflogActionResultMessage,
   type ReflogLabels,
   type ReflogQuery,
+  type ReflogRecoveryAction,
   type ReflogRefOption,
   type ReflogRow,
   refOptionMatchesQuery,
@@ -13,6 +15,7 @@ import {
 
 import { kindClass, kindLabel, subIntentClass, subLabel } from "./actionStyle";
 import { MIN_COLUMN_WIDTH, resizeColumnWidths } from "./columnResize";
+import { createReflogDialogs } from "./dialogs";
 import { type LostCommitsViewCallbacks, renderLostCommitsSection } from "./lostCommitsView";
 import { badgeFor, entryDate, type ReflogViewState, selectorFor } from "./rowModel";
 
@@ -25,6 +28,12 @@ export type ReflogViewCallbacks = LostCommitsViewCallbacks & {
    * search box (the caller debounces it); `instant` acts at once.
    */
   onQueryChange?: (query: ReflogQuery, mode: "search" | "instant") => void;
+  /** Runs one of the recovery actions on an entry (F1-06). */
+  onAction?: (action: ReflogRecoveryAction) => void;
+  /** Copies an entry's full commit hash to the clipboard (F1-06). */
+  onCopyHash?: (hash: string) => void;
+  /** Reveals an entry's commit in the graph tab (F1-06). */
+  onShowInGraph?: (hash: string, enableIncludeReflog: boolean) => void;
 };
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -256,8 +265,17 @@ function badgeCell(row: ReflogRow, labels: ReflogLabels): HTMLTableCellElement {
   return cell;
 }
 
-function rowElement(row: ReflogRow, state: ReflogViewState, labels: ReflogLabels, now: Date) {
+function rowElement(
+  row: ReflogRow,
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  now: Date,
+  onContextMenu: (event: MouseEvent, tr: HTMLTableRowElement) => void
+) {
   const tr = element("tr", "reflog-row");
+  tr.dataset.hash = row.hash;
+  tr.dataset.index = String(row.index);
+  if (row.state !== null) tr.dataset.state = row.state;
   const index = element("td", "reflog-cell reflog-index", String(row.index));
   index.title = selectorFor(row, state.ref);
   const action = element("td", "reflog-cell");
@@ -296,6 +314,7 @@ function rowElement(row: ReflogRow, state: ReflogViewState, labels: ReflogLabels
   const time = element("td", "reflog-cell reflog-time", dateCell.value);
   time.title = dateCell.title;
   tr.append(index, action, sub, message, hash, time, badgeCell(row, labels));
+  tr.addEventListener("contextmenu", (event) => onContextMenu(event, tr));
   return tr;
 }
 
@@ -303,7 +322,14 @@ function table(
   state: ReflogViewState,
   labels: ReflogLabels,
   now: Date,
-  callbacks: ReflogViewCallbacks
+  callbacks: ReflogViewCallbacks,
+  openRowMenu: (
+    event: MouseEvent,
+    row: ReflogRow,
+    state: ReflogViewState,
+    labels: ReflogLabels,
+    sourceElem: HTMLElement
+  ) => void
 ): HTMLElement {
   const scroll = element("div", "reflog-scroll");
   const tableNode = element("table", "reflog-table");
@@ -339,7 +365,11 @@ function table(
   });
   head.append(headRow);
   const body = document.createElement("tbody");
-  for (const row of state.rows) body.append(rowElement(row, state, labels, now));
+  for (const row of state.rows) {
+    body.append(
+      rowElement(row, state, labels, now, (event, tr) => openRowMenu(event, row, state, labels, tr))
+    );
+  }
   tableNode.append(head, body);
   scroll.append(tableNode);
 
@@ -397,21 +427,32 @@ function table(
  */
 export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbacks) {
   root.classList.add("ggl-reflog");
+  const dialogs = createReflogDialogs(root, callbacks);
   // Rendering replaces the whole document, controls included, so the
   // focused control (and a not-yet-sent search text) is carried across
   // a render by its id, or typing would lose its place on every reply.
   let lastRepo = "";
+  let lastLabels: ReflogLabels | null = null;
   return {
+    showActionResult(result: ReflogActionResultMessage): void {
+      dialogs.showActionResult(result, lastLabels);
+    },
     render(state: ReflogViewState, now: Date = new Date()): void {
       const { labels } = state;
+      lastLabels = labels;
       if (labels === null) {
         lastRepo = state.repo;
+        dialogs.hideContextMenu();
+        dialogs.hideDialog();
         root.replaceChildren();
         return;
       }
       const active = root.ownerDocument.activeElement;
       const focused =
-        active instanceof HTMLElement && root.contains(active) && active.id !== ""
+        active instanceof HTMLElement &&
+        root.contains(active) &&
+        !dialogs.overlays.some((overlay) => overlay.contains(active)) &&
+        active.id !== ""
           ? {
               id: active.id,
               value: active instanceof HTMLInputElement ? active.value : undefined,
@@ -420,6 +461,10 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
             }
           : null;
       const sameRepo = state.repo === lastRepo;
+      if (!sameRepo) {
+        dialogs.hideContextMenu();
+        dialogs.hideDialog();
+      }
 
       const children: HTMLElement[] = [
         header(state, labels, callbacks),
@@ -451,7 +496,7 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
       } else if (state.rows.length === 0) {
         children.push(emptyBlock(state, labels));
       } else {
-        children.push(table(state, labels, now, callbacks));
+        children.push(table(state, labels, now, callbacks, dialogs.openRowMenu));
         if (state.error !== null) {
           children.push(
             messageBlock(
@@ -470,7 +515,7 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
           children.push(more);
         }
       }
-      root.replaceChildren(...children);
+      root.replaceChildren(...children, ...dialogs.overlays);
       lastRepo = state.repo;
       if (focused !== null) {
         const next = root.querySelector<HTMLElement>(`#${focused.id}`);

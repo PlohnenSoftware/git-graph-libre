@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { openReflogTab, type ReflogWatcher } from "@/extension/reflogTab/reflogTabPanel";
 import type { ReflogHostMessage, ReflogPage, ReflogSource } from "@/reflogTabTypes";
@@ -189,6 +191,8 @@ describe("openReflogTab", () => {
       `<script nonce="${nonce}" src="webview:${EXTENSION}/out/reflogTab.min.js"></script>`
     );
     expect(html).toContain(`href="webview:${EXTENSION}/media/tokens.css"`);
+    expect(html).toContain(`href="webview:${EXTENSION}/media/checkbox.css"`);
+    expect(html).toContain(`href="webview:${EXTENSION}/media/dialogs.css"`);
     expect(html).toContain(`href="webview:${EXTENSION}/media/reflog-tab/reflog-tab.css"`);
   });
 
@@ -836,6 +840,246 @@ describe("openReflogTab", () => {
         kind: "error",
         message: 'Unable to create branch "existing": branch already exists'
       });
+    });
+  });
+
+  describe("recovery actions, copyHash and showInGraph (F1-06)", () => {
+    it("runs a recovery action, posts its outcome, and refreshes the page on success", async () => {
+      const seen: unknown[] = [];
+      let loads = 0;
+      const source: ReflogSource = {
+        loadPage: async () => {
+          loads += 1;
+          return page({ rows: [row({ index: loads - 1 })] });
+        },
+        runAction: async (repo, action) => {
+          seen.push({ repo, action });
+          return { error: null };
+        }
+      };
+      open("/repos/one", source);
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+      expect(loads).toBe(1);
+
+      panel.send({
+        command: "action",
+        action: {
+          kind: "createBranch",
+          commitHash: "a".repeat(40),
+          worktreePath: null,
+          branchName: "recovered"
+        }
+      });
+      await flush();
+      expect(seen).toEqual([
+        {
+          repo: "/repos/one",
+          action: {
+            kind: "createBranch",
+            commitHash: "a".repeat(40),
+            worktreePath: null,
+            branchName: "recovered"
+          }
+        }
+      ]);
+      expect(panel.posted).toContainEqual({
+        command: "reflogActionResult",
+        action: "createBranch",
+        error: null
+      });
+      expect(loads).toBe(2);
+    });
+
+    it("posts an error result without reloading when a recovery action fails", async () => {
+      let loads = 0;
+      const source: ReflogSource = {
+        loadPage: async () => {
+          loads += 1;
+          return page();
+        },
+        runAction: async () => ({
+          error: "local changes would be overwritten"
+        })
+      };
+      open("/repos/one", source);
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+      expect(loads).toBe(1);
+
+      panel.send({
+        command: "action",
+        action: {
+          kind: "checkoutCommit",
+          commitHash: "a".repeat(40),
+          worktreePath: null
+        }
+      });
+      await flush();
+      expect(panel.posted).toContainEqual({
+        command: "reflogActionResult",
+        action: "checkoutCommit",
+        error: "local changes would be overwritten"
+      });
+      expect(loads).toBe(1);
+    });
+
+    it("copies a commit hash and reports clipboard failures", async () => {
+      const copied: string[] = [];
+      let copyOk = true;
+      openReflogTab("/repos/one", resolved(), {
+        extensionPath: EXTENSION,
+        outputChannel: log,
+        createWatcher: fakeWatcher().create,
+        locale: "en",
+        copyText: async (text) => {
+          copied.push(text);
+          return copyOk;
+        }
+      });
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+
+      panel.send({ command: "copyHash", hash: "a".repeat(40) });
+      await flush();
+      expect(copied).toEqual(["a".repeat(40)]);
+      expect(panel.posted.filter((m) => m.command === "reflogActionResult")).toEqual([]);
+
+      // Non-hash text is ignored.
+      panel.send({ command: "copyHash", hash: "not-a-hash!" });
+      await flush();
+      expect(copied).toHaveLength(1);
+
+      copyOk = false;
+      panel.send({ command: "copyHash", hash: "b".repeat(40) });
+      await flush();
+      expect(panel.posted).toContainEqual({
+        command: "reflogActionResult",
+        action: "copyHash",
+        error: "Unable to Copy Commit Hash to Clipboard"
+      });
+    });
+
+    it("reveals a commit in the graph and enables includeReflog on confirmation", async () => {
+      const shown: Array<{ repo: string; commitHash: string; enableIncludeReflog: boolean }> = [];
+      const setRepoState = vi.fn();
+      const repoState: Record<string, { columnWidths: null; includeReflog?: "enabled" }> = {
+        "/repos/one": { columnWidths: null }
+      };
+      openReflogTab("/repos/one", resolved(), {
+        extensionPath: EXTENSION,
+        outputChannel: log,
+        createWatcher: fakeWatcher().create,
+        locale: "en",
+        repoManager: {
+          registerRepoRemovedCallback: () => {},
+          deregisterRepoRemovedCallback: () => {},
+          getRepos: () => repoState as never,
+          setRepoState: (repo, state) => {
+            repoState[repo] = state as { columnWidths: null; includeReflog?: "enabled" };
+            setRepoState(repo, state);
+          }
+        },
+        showInGraph: (repo, commitHash, enableIncludeReflog) => {
+          shown.push({ repo, commitHash, enableIncludeReflog });
+        }
+      });
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+
+      panel.send({ command: "showInGraph", hash: "a".repeat(40), enableIncludeReflog: false });
+      expect(shown).toEqual([
+        { repo: "/repos/one", commitHash: "a".repeat(40), enableIncludeReflog: false }
+      ]);
+      expect(setRepoState).not.toHaveBeenCalled();
+
+      panel.send({ command: "showInGraph", hash: "b".repeat(40), enableIncludeReflog: true });
+      expect(shown).toHaveLength(2);
+      expect(shown[1]).toEqual({
+        repo: "/repos/one",
+        commitHash: "b".repeat(40),
+        enableIncludeReflog: true
+      });
+      expect(setRepoState).toHaveBeenCalledWith("/repos/one", {
+        columnWidths: null,
+        includeReflog: "enabled"
+      });
+      const latestData = panel.posted
+        .filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogData" }> =>
+            m.command === "reflogData"
+        )
+        .at(-1);
+      expect(latestData?.display.includeReflog).toBe(true);
+    });
+
+    it("targets the picked worktree for Show in Graph when that worktree is registered (F1-08)", async () => {
+      const shown: Array<{ repo: string; commitHash: string; enableIncludeReflog: boolean }> = [];
+      const setRepoState = vi.fn();
+      const repoState: Record<string, { columnWidths: null; includeReflog?: "enabled" }> = {
+        "/repos/one": { columnWidths: null },
+        "/repos/linked": { columnWidths: null }
+      };
+      openReflogTab("/repos/one", resolved(), {
+        extensionPath: EXTENSION,
+        outputChannel: log,
+        createWatcher: fakeWatcher().create,
+        locale: "en",
+        repoManager: {
+          registerRepoRemovedCallback: () => {},
+          deregisterRepoRemovedCallback: () => {},
+          getRepos: () => repoState as never,
+          setRepoState: (repo, state) => {
+            repoState[repo] = state as { columnWidths: null; includeReflog?: "enabled" };
+            setRepoState(repo, state);
+          }
+        },
+        showInGraph: (repo, commitHash, enableIncludeReflog) => {
+          shown.push({ repo, commitHash, enableIncludeReflog });
+        }
+      });
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+
+      panel.send({
+        command: "query",
+        query: {
+          ref: "HEAD",
+          worktreePath: "/repos/linked",
+          search: "",
+          actions: [],
+          onlyInReflog: false
+        }
+      });
+      await flush();
+
+      panel.send({ command: "showInGraph", hash: "c".repeat(40), enableIncludeReflog: true });
+      expect(setRepoState).toHaveBeenCalledWith("/repos/linked", {
+        columnWidths: null,
+        includeReflog: "enabled"
+      });
+      expect(shown).toEqual([
+        { repo: "/repos/linked", commitHash: "c".repeat(40), enableIncludeReflog: true }
+      ]);
+    });
+
+    it("uses only l10n keys that exist in the base bundle", () => {
+      const bundle = JSON.parse(
+        readFileSync(join(process.cwd(), "l10n/bundle.l10n.json"), "utf8")
+      ) as Record<string, string>;
+      const sourceText = readFileSync(
+        join(process.cwd(), "src/extension/reflogTab/reflogTabPanel.ts"),
+        "utf8"
+      );
+      const keys = [...sourceText.matchAll(/l10n\.t\("([^"]+)"/g)].map((match) => match[1]);
+      expect(keys.length).toBeGreaterThan(20);
+      const missing = keys.filter((key) => !Object.hasOwn(bundle, key));
+      expect(missing).toEqual([]);
     });
   });
 });

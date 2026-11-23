@@ -1,6 +1,8 @@
 import type { SimpleGit } from "simple-git";
 
 import { createBranch as createGitBranch } from "@/backend/actions/branch";
+import { checkoutCommit, resetToCommit } from "@/backend/actions/commit";
+import { addTag } from "@/backend/actions/tag";
 import { closeEngineRepository } from "@/backend/engine/index";
 import { readReflog } from "@/backend/engine/reflog";
 import { readWorktrees } from "@/backend/engine/worktrees";
@@ -18,10 +20,13 @@ import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import {
   defaultReflogQuery,
   isReflogFiltered,
+  normalizeReflogRecoveryAction,
   REFLOG_SEARCH_CAP,
   type ReflogLostCommitsResult,
   type ReflogPage,
   type ReflogQuery,
+  type ReflogRecoveryAction,
+  type ReflogRecoveryResult,
   type ReflogRefs,
   type ReflogRow,
   type ReflogSource,
@@ -186,23 +191,91 @@ export function createReflogSource(deps: ReflogSourceDeps): ReflogSource {
     return result.error === null ? result.value : result.error.message;
   }
 
-  /** The folder a page reads in, or the error that stops it (F1-08). */
-  async function effectiveRepo(repo: string, query: ReflogQuery): Promise<string | ReflogPage> {
-    const asked = query.worktreePath;
-    if (asked === null) return repo;
+  /** The folder a page or action targets, or the error that stops it (F1-08, F1-06). */
+  async function resolveWorktreeRepo(
+    repo: string,
+    worktreePath: string | null,
+    trackEngineHandle: boolean
+  ): Promise<{ path: string; error: null } | { path: null; error: string }> {
+    if (worktreePath === null) return { path: repo, error: null };
     const listed = await worktreesOf(repo);
-    if (typeof listed === "string") return errorPage(listed);
-    const askedPath = await canonicalizePath(asked);
+    if (typeof listed === "string") return { path: null, error: listed };
+    const askedPath = await canonicalizePath(worktreePath);
     const canonical = await Promise.all(listed.map((worktree) => canonicalizePath(worktree.path)));
     const found = listed[canonical.indexOf(askedPath)];
     if (found === undefined) {
-      return errorPage(`"${asked}" is not a worktree of this repository.`);
+      return { path: null, error: `"${worktreePath}" is not a worktree of this repository.` };
     }
     if (found.prunable !== null) {
-      return errorPage(`The worktree at "${asked}" is missing, so its HEAD reflog cannot be read.`);
+      return {
+        path: null,
+        error: `The worktree at "${worktreePath}" is missing, so its HEAD reflog cannot be read.`
+      };
     }
-    openedWorktrees.add(asked);
-    return asked;
+    if (trackEngineHandle) openedWorktrees.add(worktreePath);
+    return { path: worktreePath, error: null };
+  }
+
+  /** The folder a page reads in, or the error that stops it (F1-08). */
+  async function effectiveRepo(repo: string, query: ReflogQuery): Promise<string | ReflogPage> {
+    const resolved = await resolveWorktreeRepo(repo, query.worktreePath, true);
+    return resolved.error === null ? resolved.path : errorPage(resolved.error);
+  }
+
+  async function executeRecoveryWrite(
+    git: SimpleGit,
+    targetRepo: string,
+    action: ReflogRecoveryAction
+  ): Promise<void> {
+    if (action.kind === "createBranch") {
+      await createGitBranch(
+        git,
+        {
+          repo: targetRepo,
+          branchName: action.branchName,
+          commitHash: action.commitHash,
+          checkout: false
+        },
+        deps.record
+      );
+      return;
+    }
+    if (action.kind === "addTag") {
+      if (action.lightweight) {
+        await addTag(
+          git,
+          {
+            repo: targetRepo,
+            tagName: action.tagName,
+            commitHash: action.commitHash,
+            lightweight: true
+          },
+          deps.record
+        );
+      } else {
+        await addTag(
+          git,
+          {
+            repo: targetRepo,
+            tagName: action.tagName,
+            commitHash: action.commitHash,
+            lightweight: false,
+            message: action.message ?? ""
+          },
+          deps.record
+        );
+      }
+      return;
+    }
+    if (action.kind === "checkoutCommit") {
+      await checkoutCommit(git, { repo: targetRepo, commitHash: action.commitHash }, deps.record);
+      return;
+    }
+    await resetToCommit(
+      git,
+      { repo: targetRepo, commitHash: action.commitHash, resetMode: action.resetMode },
+      deps.record
+    );
   }
 
   async function statesFor(git: SimpleGit, repo: string, items: Classified[]): Promise<States> {
@@ -337,6 +410,36 @@ export function createReflogSource(deps: ReflogSourceDeps): ReflogSource {
       // A failed worktree listing costs only the other HEADs and the
       // bare note; the repository's own refs still pick and read.
       return buildReflogRefs(refsResult.refs, typeof worktrees === "string" ? [] : worktrees);
+    },
+
+    async runAction(repo: string, rawAction: ReflogRecoveryAction): Promise<ReflogRecoveryResult> {
+      const action = normalizeReflogRecoveryAction(rawAction);
+      if (action === null) return { error: "Invalid recovery action." };
+      const resolved = await resolveWorktreeRepo(repo, action.worktreePath, false);
+      if (resolved.error !== null) return { error: resolved.error };
+      const targetRepo = resolved.path;
+      const git = deps.createGit(targetRepo);
+      const gitBinary = deps.gitPath();
+      if (gitBinary !== "") {
+        const stateResult = await loadReflogEntryStates(
+          git,
+          targetRepo,
+          [action.commitHash],
+          gitBinary,
+          deps.record
+        );
+        if (stateResult.states[action.commitHash] === "missing") {
+          return {
+            error: "This commit object no longer exists in Git, so it cannot be recovered."
+          };
+        }
+      }
+      try {
+        await executeRecoveryWrite(git, targetRepo, action);
+        return { error: null };
+      } catch (error: unknown) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
     },
 
     releaseWorktrees(): void {
