@@ -155,6 +155,65 @@ describe("RepoFileWatcher", () => {
 
     expect(callback).not.toHaveBeenCalled();
   });
+
+  it("refreshes for rebase state and operation markers in the git dir (F2-03)", async () => {
+    const { watcher, watcherHandles, callback } = createHarness();
+    watcher.start("/repo");
+
+    watcherHandles[1].fireChange(makeUri("/repo/.git/rebase-merge/done"));
+    await tick();
+    watcherHandles[1].fireCreate(makeUri("/repo/.git/rebase-apply"));
+    await tick();
+    watcherHandles[1].fireCreate(makeUri("/repo/.git/MERGE_HEAD"));
+    await tick();
+    watcherHandles[1].fireChange(makeUri("/repo/.git/REBASE_HEAD"));
+    await tick();
+
+    expect(callback).toHaveBeenCalledTimes(4);
+    watcher.stop();
+  });
+
+  it("watches a linked worktree's own rebase state, not the main worktree's (F2-03)", async () => {
+    const { watcher, watcherHandles, callback } = createHarness((repo) => ({
+      gitDir: `${repo}/.git/worktrees/linked`,
+      commonDir: `${repo}/.git`
+    }));
+    watcher.start("/repo");
+    const [, ownDir, sharedDir] = watcherHandles;
+
+    ownDir.fireCreate(makeUri("/repo/.git/worktrees/linked/rebase-merge/stopped-sha"));
+    await tick();
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    // The same paths in the common dir are the main worktree's rebase; its
+    // own graph watches them, this worktree's banner does not.
+    sharedDir.fireChange(makeUri("/repo/.git/rebase-merge/done"));
+    sharedDir.fireChange(makeUri("/repo/.git/REBASE_HEAD"));
+    await tick();
+    expect(callback).toHaveBeenCalledTimes(1);
+    watcher.stop();
+  });
+
+  it("folds a burst of rebase state writes into one debounced refresh (F2-03)", () => {
+    vi.useFakeTimers();
+    const { watcher, watcherHandles, callback } = createHarness(
+      (repo) => ({ gitDir: `${repo}/.git`, commonDir: `${repo}/.git` }),
+      750
+    );
+    watcher.start("/repo");
+
+    for (const name of ["done", "msgnum", "stopped-sha", "git-rebase-todo", "done"]) {
+      watcherHandles[1].fireChange(makeUri(`/repo/.git/rebase-merge/${name}`));
+    }
+    vi.advanceTimersByTime(749);
+    expect(callback).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(callback).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(5000);
+    expect(callback).toHaveBeenCalledTimes(1);
+    watcher.stop();
+    vi.useRealTimers();
+  });
 });
 
 // --- worktree fixtures: real repositories, real git dirs, stubbed watchers ---
