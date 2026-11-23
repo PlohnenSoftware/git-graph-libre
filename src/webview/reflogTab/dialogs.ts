@@ -222,8 +222,8 @@ export function createReflogDialogs(root: HTMLElement, callbacks: ReflogDialogCa
       labels.dialogCancel ?? "Cancel",
       () => {
         if (isDialogInputBlocked()) return;
-        const input = dialog.querySelector<HTMLInputElement>("#dialogInput0");
-        const branchName = input?.value.trim() ?? "";
+        const branchNameInput = dialog.querySelector<HTMLInputElement>("#dialogInput0");
+        const branchName = branchNameInput?.value.trim() ?? "";
         if (branchName === "") return;
         hideDialog();
         callbacks.onAction?.({
@@ -268,12 +268,12 @@ export function createReflogDialogs(root: HTMLElement, callbacks: ReflogDialogCa
       labels.dialogCancel ?? "Cancel",
       () => {
         if (isDialogInputBlocked()) return;
-        const nameInput = dialog.querySelector<HTMLInputElement>("#dialogInput0");
-        const typeSelect = dialog.querySelector<HTMLSelectElement>("#dialogInput1");
+        const tagNameInput = dialog.querySelector<HTMLInputElement>("#dialogInput0");
+        const tagTypeSelect = dialog.querySelector<HTMLSelectElement>("#dialogInput1");
         const msgInput = dialog.querySelector<HTMLInputElement>("#dialogInput2");
-        const tagName = nameInput?.value.trim() ?? "";
+        const tagName = tagNameInput?.value.trim() ?? "";
         if (tagName === "") return;
-        const lightweight = typeSelect?.value === "lightweight";
+        const lightweight = tagTypeSelect?.value === "lightweight";
         const message = msgInput?.value ?? "";
         hideDialog();
         callbacks.onAction?.({
