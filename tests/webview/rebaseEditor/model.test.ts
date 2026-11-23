@@ -6,19 +6,25 @@ import {
   applyRebaseKeyCommand,
   canActionBeFirstEntry,
   canStartInteractiveRebase,
+  combinedGroupMessage,
   countDroppedCommits,
   createRebaseEditorState,
   getMergeCommits,
   getPublishedCommits,
   guardFirstEntryRows,
+  hasEmptyRebaseMessage,
   interpretRebaseEditorKey,
   isRebaseStateModified,
+  messageEditorsFor,
   moveRebaseRow,
   moveRebaseRowBy,
+  originalMessageOf,
+  REBASE_EDITOR_ACTIONS,
   resetRebaseEditorState,
   selectRebaseRow,
   setPublishedAcked,
   setRebaseRowAction,
+  setRebaseRowMessage,
   toInteractiveRebasePayload
 } from "@/webview/rebaseEditor";
 
@@ -365,5 +371,205 @@ describe("rebaseEditor model", () => {
         altKey: false
       })
     ).toEqual({ type: "trap-focus", reverse: true });
+  });
+
+  it("offers all six actions by default, with squash and fixup barred on the first row", () => {
+    expect(REBASE_EDITOR_ACTIONS).toEqual(["pick", "reword", "edit", "squash", "fixup", "drop"]);
+    expect(allowedActionsForRow(0)).toEqual(["pick", "reword", "edit", "drop"]);
+    expect(allowedActionsForRow(1)).toEqual(["pick", "reword", "edit", "squash", "fixup", "drop"]);
+  });
+
+  it("pre-fills a reword with subject and body, and sends only an edited message", () => {
+    const range = makeRange({
+      commits: [
+        makeCommit(HASH_1, "First subject", { body: "First body line." }),
+        makeCommit(HASH_2, "Second commit"),
+        makeCommit(HASH_3, "Third commit")
+      ]
+    });
+    const initial = createRebaseEditorState(range, { base: BASE_HASH, baseLabel: "00000000" });
+    expect(originalMessageOf(initial.rows[0])).toBe("First subject\n\nFirst body line.");
+
+    const reworded = setRebaseRowAction(initial, 0, "reword");
+    expect(messageEditorsFor(reworded.rows)).toEqual([
+      {
+        afterIndex: 0,
+        targetHash: HASH_1,
+        kind: "reword",
+        text: "First subject\n\nFirst body line.",
+        isEdited: false
+      }
+    ]);
+    // An unchanged reword carries no message, so it runs as plain pick.
+    expect(toInteractiveRebasePayload(reworded).entries[0]).toEqual({
+      action: "reword",
+      hash: HASH_1
+    });
+
+    const edited = setRebaseRowMessage(reworded, HASH_1, "New subject\n\nNew body.");
+    expect(toInteractiveRebasePayload(edited).entries[0]).toEqual({
+      action: "reword",
+      hash: HASH_1,
+      message: "New subject\n\nNew body."
+    });
+    expect(canStartInteractiveRebase(edited)).toBe(true);
+  });
+
+  it("refuses to start with an empty or whitespace-only message", () => {
+    const initial = createRebaseEditorState(makeRange(), {
+      base: BASE_HASH,
+      baseLabel: "00000000"
+    });
+    const reworded = setRebaseRowAction(initial, 1, "reword");
+    const emptied = setRebaseRowMessage(reworded, HASH_2, "");
+    expect(hasEmptyRebaseMessage(emptied.rows)).toBe(true);
+    expect(canStartInteractiveRebase(emptied)).toBe(false);
+    const blanked = setRebaseRowMessage(reworded, HASH_2, "  \n ");
+    expect(hasEmptyRebaseMessage(blanked.rows)).toBe(true);
+    expect(canStartInteractiveRebase(blanked)).toBe(false);
+  });
+
+  it("shows one combined group message without its fixup members, keyed by target hash", () => {
+    const initial = createRebaseEditorState(makeRange(), {
+      base: BASE_HASH,
+      baseLabel: "00000000"
+    });
+    const grouped = setRebaseRowAction(setRebaseRowAction(initial, 1, "squash"), 2, "fixup");
+    expect(combinedGroupMessage(grouped.rows, 0, [1, 2])).toBe("First commit\n\nSecond commit");
+    expect(messageEditorsFor(grouped.rows)).toEqual([
+      {
+        afterIndex: 2,
+        targetHash: HASH_1,
+        kind: "group",
+        text: "First commit\n\nSecond commit",
+        isEdited: false
+      }
+    ]);
+    // Unedited, Git combines the messages itself; nothing is sent.
+    expect(toInteractiveRebasePayload(grouped).entries).toEqual([
+      { action: "pick", hash: HASH_1 },
+      { action: "squash", hash: HASH_2 },
+      { action: "fixup", hash: HASH_3 }
+    ]);
+
+    const edited = setRebaseRowMessage(grouped, HASH_1, "All three, combined");
+    expect(toInteractiveRebasePayload(edited).entries[0]).toEqual({
+      action: "pick",
+      hash: HASH_1,
+      message: "All three, combined"
+    });
+  });
+
+  it("keeps a group's edited message on its target when rows are reordered around it", () => {
+    const initial = createRebaseEditorState(makeRange(), {
+      base: BASE_HASH,
+      baseLabel: "00000000"
+    });
+    const grouped = setRebaseRowAction(initial, 1, "squash");
+    const edited = setRebaseRowMessage(grouped, HASH_1, "First and second, combined");
+
+    // Move the free commit ahead of the whole group.
+    const moved = moveRebaseRow(edited, 2, 0);
+    expect(moved.rows.map((r) => r.hash)).toEqual([HASH_3, HASH_1, HASH_2]);
+    expect(messageEditorsFor(moved.rows)).toEqual([
+      {
+        afterIndex: 2,
+        targetHash: HASH_1,
+        kind: "group",
+        text: "First and second, combined",
+        isEdited: true
+      }
+    ]);
+    expect(toInteractiveRebasePayload(moved).entries).toEqual([
+      { action: "pick", hash: HASH_3 },
+      { action: "pick", hash: HASH_1, message: "First and second, combined" },
+      { action: "squash", hash: HASH_2 }
+    ]);
+  });
+
+  it("carries an edited message for a fixup-only group on its target", () => {
+    const initial = createRebaseEditorState(makeRange(), {
+      base: BASE_HASH,
+      baseLabel: "00000000"
+    });
+    const grouped = setRebaseRowAction(initial, 1, "fixup");
+    expect(messageEditorsFor(grouped.rows)[0]?.text).toBe("First commit");
+    const edited = setRebaseRowMessage(grouped, HASH_1, "First, with the fix folded in");
+    expect(toInteractiveRebasePayload(edited).entries[0]).toEqual({
+      action: "pick",
+      hash: HASH_1,
+      message: "First, with the fix folded in"
+    });
+  });
+
+  it("drops a message when its row stops being able to carry one", () => {
+    const initial = createRebaseEditorState(makeRange(), {
+      base: BASE_HASH,
+      baseLabel: "00000000"
+    });
+    const reworded = setRebaseRowMessage(setRebaseRowAction(initial, 1, "reword"), HASH_2, "New");
+    const backToPick = setRebaseRowAction(reworded, 1, "pick");
+    expect(backToPick.rows[1].message).toBeUndefined();
+    expect(messageEditorsFor(backToPick.rows)).toEqual([]);
+
+    // An edit target amends by hand at the stop: no group textarea.
+    const grouped = setRebaseRowAction(initial, 1, "squash");
+    const editedGroup = setRebaseRowMessage(grouped, HASH_1, "Combined");
+    const editTarget = setRebaseRowAction(editedGroup, 0, "edit");
+    expect(editTarget.rows[0].message).toBeUndefined();
+    expect(messageEditorsFor(editTarget.rows)).toEqual([]);
+    expect(toInteractiveRebasePayload(editTarget).entries[0]).toEqual({
+      action: "edit",
+      hash: HASH_1
+    });
+  });
+
+  it("normalizes a squash left without a target by a drop back to pick", () => {
+    const initial = createRebaseEditorState(makeRange(), {
+      base: BASE_HASH,
+      baseLabel: "00000000"
+    });
+    const droppedFirst = setRebaseRowAction(initial, 0, "drop");
+    const attempted = setRebaseRowAction(droppedFirst, 1, "squash");
+    expect(attempted.rows[1].action).toBe("pick");
+    expect(canStartInteractiveRebase(attempted)).toBe(true);
+  });
+
+  it("maps the r, e, s and f keys to reword, edit, squash and fixup", () => {
+    const initial = createRebaseEditorState(makeRange(), {
+      base: BASE_HASH,
+      baseLabel: "00000000"
+    });
+    const keyInput = (key: string) => ({
+      key,
+      shiftKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+      targetTagName: "TR"
+    });
+    expect(interpretRebaseEditorKey(keyInput("r"))).toEqual({
+      type: "set-action",
+      action: "reword"
+    });
+    expect(interpretRebaseEditorKey(keyInput("e"))).toEqual({
+      type: "set-action",
+      action: "edit"
+    });
+    expect(interpretRebaseEditorKey(keyInput("s"))).toEqual({
+      type: "set-action",
+      action: "squash"
+    });
+    expect(interpretRebaseEditorKey(keyInput("f"))).toEqual({
+      type: "set-action",
+      action: "fixup"
+    });
+
+    // "s" on the first row is refused like the select refuses it.
+    const squashCmd = interpretRebaseEditorKey(keyInput("s"));
+    if (squashCmd === null) throw new Error("Expected set-action squash");
+    expect(applyRebaseKeyCommand(initial, squashCmd).state.rows[0].action).toBe("pick");
+    const secondSelected = selectRebaseRow(initial, 1);
+    expect(applyRebaseKeyCommand(secondSelected, squashCmd).state.rows[1].action).toBe("squash");
   });
 });

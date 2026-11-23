@@ -110,12 +110,12 @@ the graph layout, outside this work; no slice reads it.
 | F2-02 | Range read and preflight | — | Muse Code | integrated `16b65eb2` |
 | F2-03 | In-progress state and controls | — | Muse Code | integrated `40fbf8f4` |
 | F2-04 | Editor dialog: open, list, pick/drop/reorder, start | F2-01b, F2-02, F2-03 | Muse Code | integrated `48be134c` |
-| F2-05 | Reword, squash, fixup and edit with messages | F2-04 | Muse Code | ready |
-| F2-06 | Autosquash and fixup creation | F2-04, F2-05 | Muse Code | waiting |
+| F2-05 | Reword, squash, fixup and edit with messages | F2-04 | Muse Code | integrated `4c62b924` |
+| F2-06 | Autosquash and fixup creation | F2-04, F2-05 | Muse Code | ready |
 | F2-07 | Dirty tree, published history and worktree protections | F2-04 | Muse Code | ready |
-| F2-08 | Conflict prediction for the planned todo | F2-04, F2-05 | Muse Code | waiting |
+| F2-08 | Conflict prediction for the planned todo | F2-04, F2-05 | Muse Code | ready |
 | F2-09 | Plain-rebase prediction and drag-to-rebase | F2-07, F2-08 | Muse Code | waiting |
-| F2-10 | Route drop and squash through the todo | F2-05 | Muse Code | waiting |
+| F2-10 | Route drop and squash through the todo | F2-05 | Muse Code | ready |
 
 F2-01 is split for the agent choice: F2-01a is pure, with no Git and no UI, so
 Haiku can take it. F2-01b holds the Git handoff and the IQ3/IQ4 spike.
@@ -197,3 +197,14 @@ pushed, and nothing is tagged without the maintainer.
   `48be134c`: strict Biome on 17 files, typecheck, `l10n:check`, KB check,
   backend 1,709 passed (60 skipped) and webview 1,190 passed. F2-05 and F2-07
   are ready and run in parallel (overlap allowed; the integrator resolves).
+- `2026-11-23`: F2-05 (Muse Code) integrated into `gg-plus/next` at
+  `4c62b924`: reword, squash, fixup and edit in the editor with message
+  editing, squash groups (`findSquashGroups`, which F2-06 builds on), and the
+  `exec` amend that applies edited messages (hooks and signing run again per
+  reworded commit or edited group, measured in F2-01b as Git's own reword
+  cost). Agent-translated strings in the `rebase.` block. Gates on
+  `4c62b924`: strict Biome on 17 files, typecheck, `l10n:check`, KB check,
+  backend 1,725 passed (60 skipped) and webview 1,203 passed. F2-06, F2-08
+  and F2-10 are ready; F2-06 and F2-10 start now beside F2-07, and F2-08
+  follows one of them so the editor model does not get a fourth parallel
+  writer.

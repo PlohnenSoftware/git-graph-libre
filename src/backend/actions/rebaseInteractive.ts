@@ -25,8 +25,8 @@ import * as path from "node:path";
 import type { SimpleGit } from "simple-git";
 
 import {
+  findSquashGroups,
   serializeTodo,
-  type TodoAction,
   type TodoEntry,
   type TodoRejection,
   type TodoRunOutcome,
@@ -115,12 +115,25 @@ function rejectionError(rejection: TodoRejection): Error {
   return new Error(`Invalid interactive rebase todo: ${rejection.reason}.`);
 }
 
-function isGroupTarget(action: TodoAction): boolean {
-  return action === "pick" || action === "reword" || action === "edit";
-}
-
 function carriesMessage(entry: TodoEntry): boolean {
   return (entry.action === "pick" || entry.action === "reword") && entry.message !== undefined;
+}
+
+/**
+ * For each entry index after which an `exec` amend runs, the target entry
+ * whose message it applies. The amend follows the group's last member, so
+ * Git has melded every member before the combined message is replaced;
+ * a `drop` inside the group does not move it earlier.
+ */
+function amendAfterIndex(entries: readonly TodoEntry[]): ReadonlyMap<number, TodoEntry> {
+  const amends = new Map<number, TodoEntry>();
+  for (const group of findSquashGroups(entries)) {
+    const target = entries[group.targetIndex] as TodoEntry;
+    if (!carriesMessage(target)) continue;
+    const lastMember = group.memberIndices[group.memberIndices.length - 1];
+    amends.set(lastMember ?? group.targetIndex, target);
+  }
+  return amends;
 }
 
 type PlannedTodo = {
@@ -131,35 +144,26 @@ type PlannedTodo = {
 
 /**
  * Builds the todo text Git runs: {@link serializeTodo} line by line, with
- * one `exec git commit --amend -F '<file>'` after each entry group whose
- * target carries a message. The group is the target plus its immediately
- * following `squash`/`fixup` lines, so the amend runs after Git has melded
- * the members and replaces the combined message whole. A message on any
- * other entry (a member, an `edit`, a `drop`) is not applied: a member's
- * text is Git's to combine, and an `edit` stops for a manual amend.
+ * one `exec git commit --amend -F '<file>'` after each squash group whose
+ * target carries a message (see {@link amendAfterIndex}). A message on
+ * any other entry (a member, an `edit`, a `drop`) is not applied: a
+ * member's text is Git's to combine, and an `edit` stops for a manual
+ * amend. A `reword` without a message is an unchanged reword and
+ * serializes as plain `pick`, so no editor ever opens.
  */
 function planTodo(entries: readonly TodoEntry[], messageDir: string, runId: string): PlannedTodo {
   const messageFiles: { filePath: string; content: string }[] = [];
+  const amends = amendAfterIndex(entries);
   let text = "";
-  let index = 0;
-  while (index < entries.length) {
-    const entry = entries[index] as TodoEntry;
+  for (const [index, entry] of entries.entries()) {
     if (!TODO_ACTIONS.has(entry.action)) {
       throw new Error(`Unknown interactive rebase action: ${String(entry.action)}.`);
     }
     text += serializeTodo([entry]);
-    index += 1;
-    if (isGroupTarget(entry.action)) {
-      while (index < entries.length) {
-        const member = entries[index] as TodoEntry;
-        if (member.action !== "squash" && member.action !== "fixup") break;
-        text += serializeTodo([member]);
-        index += 1;
-      }
-    }
-    if (carriesMessage(entry)) {
+    const amendTarget = amends.get(index);
+    if (amendTarget !== undefined) {
       const filePath = path.join(messageDir, `msg-${runId}-${messageFiles.length}`);
-      messageFiles.push({ filePath, content: entry.message as string });
+      messageFiles.push({ filePath, content: amendTarget.message as string });
       text += `exec git commit --amend -F ${shellQuote(filePath)}\n`;
     }
   }

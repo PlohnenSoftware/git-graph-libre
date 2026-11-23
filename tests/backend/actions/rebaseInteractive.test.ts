@@ -363,6 +363,87 @@ describe("runInteractiveRebase (real Git)", () => {
     expect(fullMessage(plain.dir, "HEAD~1").trim()).toBe("commit A");
   });
 
+  it("runs an unchanged reword as a plain pick, with no amend and no message files", async () => {
+    const fixture = makeRepo();
+    const [, a, b, c] = fixture.hashes as [string, string, string, string];
+    const result = await rebase(fixture, [entry("reword", a), entry("pick", b), entry("pick", c)]);
+    expect(result.outcome).toBe("completed");
+    expect(subjects(fixture.dir)).toEqual(["commit base", "commit A", "commit B", "commit C"]);
+    expect(fs.existsSync(path.join(gitDirOf(fixture.dir), "ggl-rebase"))).toBe(false);
+    expectNoTodoFile(fixture.dir);
+  });
+
+  it("keeps a squash group's edited message when the group is reordered", async () => {
+    const fixture = makeRepo();
+    const [, a, b, c] = fixture.hashes as [string, string, string, string];
+    const result = await rebase(fixture, [
+      entry("pick", c),
+      entry("pick", a, "A and B, moved as one"),
+      entry("squash", b)
+    ]);
+    expect(result.outcome).toBe("completed");
+    expect(subjects(fixture.dir)).toEqual(["commit base", "commit C", "A and B, moved as one"]);
+    expect(fullMessage(fixture.dir, "HEAD").trim()).toBe("A and B, moved as one");
+    expect(fs.existsSync(path.join(fixture.dir, "fA"))).toBe(true);
+    expect(fs.existsSync(path.join(fixture.dir, "fB"))).toBe(true);
+  });
+
+  it("combines a squash and a fixup member under one edited message", async () => {
+    const fixture = makeRepo();
+    const [, a, b, c] = fixture.hashes as [string, string, string, string];
+    const result = await rebase(fixture, [
+      entry("pick", a, "A, B and C as one"),
+      entry("squash", b),
+      entry("fixup", c)
+    ]);
+    expect(result.outcome).toBe("completed");
+    expect(subjects(fixture.dir)).toEqual(["commit base", "A, B and C as one"]);
+    expect(fullMessage(fixture.dir, "HEAD").trim()).toBe("A, B and C as one");
+    expect(fs.existsSync(path.join(fixture.dir, "fB"))).toBe(true);
+    expect(fs.existsSync(path.join(fixture.dir, "fC"))).toBe(true);
+  });
+
+  it("applies the group message after a drop inside the group, not before its last member", async () => {
+    const fixture = makeRepo();
+    const [, a, b, c] = fixture.hashes as [string, string, string, string];
+    const result = await rebase(fixture, [
+      entry("pick", a, "A with C folded in"),
+      entry("drop", b),
+      entry("squash", c)
+    ]);
+    expect(result.outcome).toBe("completed");
+    expect(subjects(fixture.dir)).toEqual(["commit base", "A with C folded in"]);
+    // Exactly the edited text: an amend placed before the squash would
+    // leave Git's own combining to append C's message after it.
+    expect(fullMessage(fixture.dir, "HEAD").trim()).toBe("A with C folded in");
+    expect(fs.existsSync(path.join(fixture.dir, "fB"))).toBe(false);
+    expect(fs.existsSync(path.join(fixture.dir, "fC"))).toBe(true);
+  });
+
+  it("rejects an empty reword message before any Git process starts", async () => {
+    const fixture = makeRepo();
+    const [, a, b, c] = fixture.hashes as [string, string, string, string];
+    const records: GitCommandRecord[] = [];
+    await expect(
+      rebase(fixture, [entry("reword", a, "  "), entry("pick", b), entry("pick", c)], { records })
+    ).rejects.toThrow("empty-message");
+    expect(records).toEqual([]);
+    expect(stateDir(fixture.dir)).toBeNull();
+    expect(subjects(fixture.dir)).toEqual(["commit base", "commit A", "commit B", "commit C"]);
+  });
+
+  it("rejects a squash with no target after a drop, before any Git process starts", async () => {
+    const fixture = makeRepo();
+    const [, a, b, c] = fixture.hashes as [string, string, string, string];
+    const records: GitCommandRecord[] = [];
+    await expect(
+      rebase(fixture, [entry("drop", a), entry("squash", b), entry("pick", c)], { records })
+    ).rejects.toThrow("squash-without-target");
+    expect(records).toEqual([]);
+    expect(stateDir(fixture.dir)).toBeNull();
+    expect(subjects(fixture.dir)).toEqual(["commit base", "commit A", "commit B", "commit C"]);
+  });
+
   it("rejects a first-entry fixup before any Git process starts", async () => {
     const fixture = makeRepo();
     const [, a, b] = fixture.hashes as [string, string, string, string];

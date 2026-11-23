@@ -3,6 +3,12 @@ import { abbrevCommit } from "@/backend/utils/string";
 import { octicon } from "@/octicons";
 import { escapeHtml } from "@/webview/utils/html";
 
+import {
+  groupMemberIndices,
+  hasEmptyRebaseMessage,
+  messageEditorsFor,
+  type RebaseMessageEditor
+} from "./groups";
 import { applyRebaseKeyCommand, interpretRebaseEditorKey, trapFocusInContainer } from "./keyboard";
 import {
   allowedActionsForRow,
@@ -18,6 +24,7 @@ import {
   setLongRangeConfirmPending,
   setPublishedAcked,
   setRebaseRowAction,
+  setRebaseRowMessage,
   toInteractiveRebasePayload
 } from "./model";
 import { renderLongRangeConfirmHtml, renderProtectionNoticesHtml } from "./protections";
@@ -40,8 +47,42 @@ export type RebaseEditorController = {
 };
 
 function actionLabel(action: TodoAction): string {
-  if (action === "drop") return l10n.rebaseActionDrop;
-  return l10n.rebaseActionPick;
+  switch (action) {
+    case "pick":
+      return l10n.rebaseActionPick;
+    case "reword":
+      return l10n.rebaseActionReword;
+    case "edit":
+      return l10n.rebaseActionEdit;
+    case "squash":
+      return l10n.rebaseActionSquash;
+    case "fixup":
+      return l10n.rebaseActionFixup;
+    case "drop":
+      return l10n.rebaseActionDrop;
+  }
+}
+
+function editorNoticeHtml(
+  modifier: string,
+  icon: "alert" | "info",
+  text: string,
+  role: "alert" | "status"
+): string {
+  return (
+    `<div class="rebaseEditorNotice ${modifier}" role="${role}">` +
+    `<span class="rebaseEditorNoticeIcon">${octicon(icon)}</span>` +
+    `<span class="rebaseEditorNoticeText">${escapeHtml(text)}</span>` +
+    "</div>"
+  );
+}
+
+function countRowsWithActions(state: RebaseEditorState, actions: readonly TodoAction[]): number {
+  let count = 0;
+  for (const row of state.rows) {
+    if (actions.includes(row.action)) count++;
+  }
+  return count;
 }
 
 function renderSubheaderHtml(state: RebaseEditorState): string {
@@ -75,7 +116,36 @@ function renderNoticesHtml(
   shortHashLength: number,
   canOpenWorktree: boolean
 ): string {
-  return renderProtectionNoticesHtml(state, shortHashLength, { canOpenWorktree });
+  const notices: string[] = [];
+
+  const protectionHtml = renderProtectionNoticesHtml(state, shortHashLength, { canOpenWorktree });
+  if (protectionHtml !== "") notices.push(protectionHtml);
+
+  if (hasEmptyRebaseMessage(state.rows)) {
+    notices.push(
+      editorNoticeHtml("rebaseEditorNotice-error", "alert", l10n.rebaseMessageEmptyNotice, "alert")
+    );
+  }
+
+  const melded = countRowsWithActions(state, ["squash", "fixup"]);
+  if (melded > 0) {
+    const text =
+      melded === 1
+        ? l10n.rebaseSquashNoticeOne
+        : l10n.rebaseSquashNoticeMany.replace("{0}", String(melded));
+    notices.push(editorNoticeHtml("rebaseEditorNotice-squash", "info", text, "status"));
+  }
+
+  const edits = countRowsWithActions(state, ["edit"]);
+  if (edits > 0) {
+    const text =
+      edits === 1
+        ? l10n.rebaseEditStopNoticeOne
+        : l10n.rebaseEditStopNoticeMany.replace("{0}", String(edits));
+    notices.push(editorNoticeHtml("rebaseEditorNotice-edit", "info", text, "status"));
+  }
+
+  return notices.join("");
 }
 
 function renderRowHtml(
@@ -83,12 +153,18 @@ function renderRowHtml(
   index: number,
   total: number,
   selectedIndex: number,
-  shortHashLength: number
+  shortHashLength: number,
+  isGroupMember: boolean
 ): string {
   const shortHash = abbrevCommit(row.hash, shortHashLength);
   const selected = index === selectedIndex;
   const dropped = row.action === "drop";
-  const classes = ["rebaseEditorRow", selected ? "selected" : "", dropped ? "isDropped" : ""]
+  const classes = [
+    "rebaseEditorRow",
+    selected ? "selected" : "",
+    dropped ? "isDropped" : "",
+    isGroupMember ? "isGroupMember" : ""
+  ]
     .filter((cls) => cls !== "")
     .join(" ");
 
@@ -134,12 +210,51 @@ function renderRowHtml(
   );
 }
 
+function renderMessageRowHtml(editor: RebaseMessageEditor, shortHashLength: number): string {
+  const shortHash = abbrevCommit(editor.targetHash, shortHashLength);
+  const labelTemplate =
+    editor.kind === "group" ? l10n.rebaseMessageGroupLabel : l10n.rebaseMessageRewordLabel;
+  const label = labelTemplate.replace("{0}", () => shortHash);
+  const inputId = `rebaseMessage-${editor.targetHash}`;
+  const isEmpty = editor.text.trim() === "";
+  const lineCount = Math.min(8, Math.max(3, editor.text.split("\n").length + 1));
+  const hint =
+    editor.kind === "group"
+      ? `<div class="rebaseEditorMessageHint">${escapeHtml(l10n.rebaseMessageGroupHint)}</div>`
+      : "";
+  return (
+    `<tr class="rebaseEditorMessageRow" data-target-hash="${escapeHtml(editor.targetHash)}">` +
+    '<td colspan="5" class="rebaseEditorMessageCell">' +
+    `<label class="rebaseEditorMessageLabel" for="${escapeHtml(inputId)}">${escapeHtml(label)}</label>` +
+    `<textarea class="rebaseEditorMessageInput${isEmpty ? " isEmpty" : ""}" id="${escapeHtml(inputId)}" data-target-hash="${escapeHtml(editor.targetHash)}" rows="${lineCount}" spellcheck="false"${isEmpty ? ' aria-invalid="true"' : ""}>${escapeHtml(editor.text)}</textarea>` +
+    hint +
+    "</td>" +
+    "</tr>"
+  );
+}
+
 function renderTableRowsHtml(state: RebaseEditorState, shortHashLength: number): string {
-  return state.rows
-    .map((row, index) =>
-      renderRowHtml(row, index, state.rows.length, state.selectedIndex, shortHashLength)
-    )
-    .join("");
+  const editorsAfter = new Map<number, RebaseMessageEditor>();
+  for (const editor of messageEditorsFor(state.rows)) {
+    editorsAfter.set(editor.afterIndex, editor);
+  }
+  const members = groupMemberIndices(state.rows);
+  let html = "";
+  for (const [index, row] of state.rows.entries()) {
+    html += renderRowHtml(
+      row,
+      index,
+      state.rows.length,
+      state.selectedIndex,
+      shortHashLength,
+      members.has(index)
+    );
+    const editor = editorsAfter.get(index);
+    if (editor !== undefined) {
+      html += renderMessageRowHtml(editor, shortHashLength);
+    }
+  }
+  return html;
 }
 
 function renderDialogShellHtml(
@@ -181,7 +296,13 @@ function renderDialogShellHtml(
   );
 }
 
-function syncDialogInteractiveState(
+/**
+ * The dialog frame around the table: its class, the notices and the
+ * action buttons. Kept separate from the table render so typing in a
+ * message textarea can refresh it without rebuilding the rows under
+ * the caret.
+ */
+function syncDialogChrome(
   dialog: HTMLElement,
   state: RebaseEditorState,
   shortHashLength: number,
@@ -201,16 +322,6 @@ function syncDialogInteractiveState(
     longRangeSlot.innerHTML = renderLongRangeConfirmHtml(state);
   }
 
-  const tbody = dialog.querySelector<HTMLElement>("#rebaseEditorTbody");
-  const body = dialog.querySelector<HTMLElement>("#rebaseEditorBody");
-  const savedScrollTop = body?.scrollTop ?? 0;
-  if (tbody !== null) {
-    tbody.innerHTML = renderTableRowsHtml(state, shortHashLength);
-  }
-  if (body !== null) {
-    body.scrollTop = savedScrollTop;
-  }
-
   const startBtn = dialog.querySelector<HTMLButtonElement>("#dialogAction");
   if (startBtn !== null) {
     startBtn.disabled = !canStart;
@@ -221,6 +332,25 @@ function syncDialogInteractiveState(
   const resetBtn = dialog.querySelector<HTMLButtonElement>("#rebaseEditorReset");
   if (resetBtn !== null) {
     resetBtn.disabled = !modified;
+  }
+}
+
+function syncDialogInteractiveState(
+  dialog: HTMLElement,
+  state: RebaseEditorState,
+  shortHashLength: number,
+  canOpenWorktree: boolean
+) {
+  syncDialogChrome(dialog, state, shortHashLength, canOpenWorktree);
+
+  const tbody = dialog.querySelector<HTMLElement>("#rebaseEditorTbody");
+  const body = dialog.querySelector<HTMLElement>("#rebaseEditorBody");
+  const savedScrollTop = body?.scrollTop ?? 0;
+  if (tbody !== null) {
+    tbody.innerHTML = renderTableRowsHtml(state, shortHashLength);
+  }
+  if (body !== null) {
+    body.scrollTop = savedScrollTop;
   }
 }
 
@@ -324,6 +454,23 @@ export function openRebaseEditorDialog(
     return false;
   };
 
+  const onInput = (event: Event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLTextAreaElement)) return;
+    if (!target.classList.contains("rebaseEditorMessageInput")) return;
+    const nextState = setRebaseRowMessage(state, target.dataset.targetHash ?? "", target.value);
+    if (nextState === state) return;
+    state = nextState;
+    // The rows are not rebuilt: the textarea holds the caret. Only the
+    // frame (notices, buttons) follows the keystroke.
+    syncDialogChrome(dialog, state, options.shortHashLength, canOpenWorktree);
+    const isEmpty = target.value.trim() === "";
+    target.classList.toggle("isEmpty", isEmpty);
+    if (isEmpty) target.setAttribute("aria-invalid", "true");
+    else target.removeAttribute("aria-invalid");
+    callbacks.onStateChange?.(state);
+  };
+
   const onClick = (event: Event) => {
     const target = event.target instanceof Element ? event.target : null;
     if (target === null) return;
@@ -398,11 +545,13 @@ export function openRebaseEditorDialog(
 
   const destroy = () => {
     dialog.removeEventListener("change", onChange);
+    dialog.removeEventListener("input", onInput);
     dialog.removeEventListener("click", onClick);
     dialog.removeEventListener("keydown", onKeyDown);
   };
 
   dialog.addEventListener("change", onChange);
+  dialog.addEventListener("input", onInput);
   dialog.addEventListener("click", onClick);
   dialog.addEventListener("keydown", onKeyDown);
 

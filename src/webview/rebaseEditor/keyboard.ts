@@ -31,6 +31,10 @@ export type RebaseKeyTransition = {
 
 const ACTION_SHORTCUTS: Readonly<Record<string, TodoAction>> = {
   p: "pick",
+  r: "reword",
+  e: "edit",
+  s: "squash",
+  f: "fixup",
   d: "drop"
 };
 
@@ -43,6 +47,8 @@ function isEditableControlTag(tagName: string | undefined): boolean {
 function interpretArrowKey(event: RebaseKeyInput): RebaseKeyCommand | null {
   if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return null;
   if (event.ctrlKey || event.metaKey || event.altKey) return null;
+  // Typing in a message textarea is left alone, selection included.
+  if (event.targetTagName?.toUpperCase() === "TEXTAREA") return null;
   const delta: -1 | 1 = event.key === "ArrowUp" ? -1 : 1;
   if (event.shiftKey) {
     return { type: "move-row", delta };
