@@ -7,7 +7,7 @@ summary: >-
 
 # F3-01 — Engine bridge
 
-Status: claimed by Claude Haiku on 2026-11-23 02:05
+Status: done — awaiting integration
 
 Needs: none
 
@@ -89,4 +89,38 @@ Report.
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Haiku 5.5 (`claude-haiku-5-5`), 2026-11-23 02:06
+- **Branch and commits:** `stats/F3-01`
+  - `5a825e6c G docs(stats): claim engine bridge slice (F3-01)`
+  - `146a3f53 G feat(stats): optional engine exports and project types for statistics (F3-01)`
+  - `05e9525e G feat(stats): typed engine reads for author stats and activity (F3-01)`
+  - `094053c0 G test(stats): cover the Statistics engine reads (F3-01)`
+  - this report and the status line: the final commit on the branch
+- **Export names (confirmed against the built addon):** `node -e "const a=require('./engine/native/linux-x64/git-graph.node'); console.log(typeof a.authorStats, typeof a.activityHeatmap)"` prints `function function`. The same run confirms `loadReflog`, `authors` as functions. The Rust names `author_stats` and `activity_heatmap` map to `authorStats` and `activityHeatmap`, as the facts section predicted.
+- **Files changed (vs `a60d6358`):**
+  - `src/backend/engine/addon.ts`: +15 (two optional members, not in the shape check)
+  - `src/backend/engine/stats.ts`: +144 (new)
+  - `src/backend/types/stats.types.ts`: +39 (new)
+  - `src/backend/types/index.ts`: +1 (re-export)
+  - `tests/backend/engine/stats.test.ts`: +281 (new)
+  - `docs/kb/.../100-f3-01-engine-bridge.md`: status line and this report
+  - Total: 481 insertions, 1 deletion (the status line)
+- **Tests added or changed:** 26 new tests in `tests/backend/engine/stats.test.ts`, 0 before and 26 after. 0 skipped; the two real-addon cases ran against a `makeRepo` repository. Result: 26 passed.
+- **Gates:**
+  - `npx biome check --config-path biome.strict.jsonc --error-on-warnings` on the five touched `.ts` files: exit 0 after one import-order fix. Biome also prints an informational note that the config `$schema` (2.5.13) does not match the CLI (2.6.8). It is not a diagnostic and is not caused by this slice.
+  - `pnpm run typecheck`: exit 0 (`tsc` over `src`, `src/webview` and `tests`).
+  - `node ./docs/kb/housekeeping.mjs --check`: exit 0.
+  - `npx vitest run --project backend tests/backend/engine/stats.test.ts`: 26 passed.
+  - Sonar: integrator
+- **Acceptance:**
+  - `addon.ts`: optional `authorStats?` and `activityHeatmap?`, with doc comments, absent from `isEngineAddon`. Met.
+  - `stats.ts`: `readAuthorStats` and `readActivityHeatmap` return `ok` or `unavailable` with the four reasons (`noAddon`, `backendCli`, `notVerified`, `failed`), using the injected `backend`, `addonProvider` and `isVerified` deps. Met, and covered by tests.
+  - Never throws: a rejection becomes `failed` and is logged with `logBackendRoute`. Met.
+  - Validation: strict. Array shape, `name` and `email` strings, non-negative safe-integer `commits`, weekday 0 to 6, hour 0 to 23, positive integer `count`; no partial value. Met, with tests for each case.
+  - Tests listed in the slice (ok mapping of both reads, the four reasons, rejecting addon, malformed JSON, out-of-range weekday, empty array as ok, and the no-call check on `git-cli`): all present. Met.
+  - No UI, message handler or l10n; no telemetry, version bump, CHANGELOG, README or notices edits. Met.
+- **Deviations from the slice:**
+  - Any engine rejection is `failed`. `isEngineFallbackError` is not used, because these reads have no CLI route to decline into.
+  - The slice's test list says "fakes only" and also names the real repository read. The real-addon cases from the task brief are included; they use a temporary `makeRepo` repository, not a fake, and skip cleanly when the addon is absent.
+  - `stats.ts` names its unavailable branch `unavailable(...)` in code and logs it with `reason=` (for example `backend=unavailable reason=noAddon`). This is an implementation choice and does not change any type.
+- **Open questions / follow-ups:** None for F3-01. Sonar is the integrator's. The engine payload field names come from the register's facts; the real-addon test confirms the mapping for one author and a single heatmap cell only, and the integrator should run the broader parity check when F3-02 wires the tab.
