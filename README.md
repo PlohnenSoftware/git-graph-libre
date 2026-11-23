@@ -14,7 +14,10 @@
   commits, by age, calendar, churn or off. **Show Blame** is also in the
   editor, Explorer and Source Control menus, and **Show Blame at Commit** and
   **Show Blame Before Deletion** are in a commit's file menu. Hovering a
-  commit highlights its lines, and the tab follows the working tree and HEAD.
+  commit highlights its lines. Rewind to the blame before a change, set the
+  `-w`, `-M` and `-C` options or the `.git-blame-ignore-revs` file, find within
+  the tab, and open a commit's details in a popover. The tab follows the working
+  tree and HEAD.
 - **Reflog tab**: **Show Reflog** lists the reflog page by page, with each
   entry's commit, date, action and message, and the actions colored by kind.
   Each entry says whether its commit is still on a branch or tag, is only in the
