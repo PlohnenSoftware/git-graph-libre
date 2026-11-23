@@ -74,14 +74,12 @@ function resultsTable(
   const table = el("table", "reflog-table reflog-lost-table");
   const head = document.createElement("thead");
   const headRow = el("tr", "reflog-lost-head-row");
-  for (const heading of [
-    labels.columnCommit,
-    labels.columnDate,
-    labels.columnMessage,
-    labels.columnAction
-  ]) {
-    headRow.append(el("th", "reflog-head-cell", heading));
-  }
+  headRow.append(
+    el("th", "reflog-head-cell", labels.columnCommit),
+    el("th", "reflog-head-cell", labels.columnDate),
+    el("th", "reflog-head-cell", labels.columnMessage),
+    el("th", "reflog-head-cell reflog-lost-head-actions", labels.columnAction)
+  );
   head.append(headRow);
   const body = document.createElement("tbody");
   for (const commit of state.lostCommits.commits) {

@@ -106,6 +106,10 @@ describe("reflog tab styles", () => {
     expect(body).toContain(".ggl-reflog .reflog-scan-button {");
     expect(body).toContain(".ggl-reflog .reflog-lost-panel {");
     expect(body).toContain(".ggl-reflog .reflog-lost-gc-note {");
+    expect(body).toContain(
+      ".ggl-reflog .reflog-lost-table .reflog-lost-head-actions { text-align: right; }"
+    );
+    expect(body).toContain(".ggl-reflog .reflog-lost-row .reflog-cell { vertical-align: middle; }");
     expect(body).toContain("var(--vscode-editorWidget-background");
     expect(body).toContain("var(--vscode-button-secondaryBackground");
     expect(body).toContain("var(--vscode-editorWarning-foreground");
