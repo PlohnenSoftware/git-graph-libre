@@ -273,7 +273,7 @@
   "dialog.addTag.lightweightNote": "Lightweight tags are a plain ref with no tag object, so they carry no message and cannot be signed.",
   "dialog.addTag.optional": "Optional",
   "dialog.addTag.submit": "Add Tag",
-  "dialog.createBranch.title": "Enter the name of the branch {0}",
+  "dialog.createBranch.title": "Enter a name for the new branch from {0}",
   "dialog.createBranch.submit": "Create Branch",
   "dialog.createBranch.checkout": "Check out the branch after creating it",
   "dialog.compareWith.title": "Compare {0} with",

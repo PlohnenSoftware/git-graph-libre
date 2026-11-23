@@ -387,6 +387,11 @@ describe("checking out a remote branch whose local branch exists (W24)", () => {
     const dialog = document.getElementById("dialog");
     expect(dialog?.className).toContain("inputInvalid");
     expect(document.getElementById("dialogAction")?.title).toContain("already exists");
+    // The reason also stands under the field, where it can be read.
+    expect(document.getElementById("dialogInputError0")?.textContent).toContain(
+      "already exists"
+    );
+    expect(document.getElementById("dialogInput0")?.getAttribute("aria-invalid")).toBe("true");
     const before = vscodeMock.sentMessages.length;
     submitDialog();
 
@@ -405,7 +410,13 @@ describe("checking out a remote branch whose local branch exists (W24)", () => {
     });
     openCheckoutDialog(REMOTE_REF);
 
-    expect(dialogText()).toContain(OTHER_WORKTREE);
+    // The sentence names the worktree by its folder; the path is on hover.
+    expect(dialogText()).toContain("admin é");
+    expect(dialogText()).not.toContain(OTHER_WORKTREE);
+    const chip = [...document.querySelectorAll<HTMLElement>("#dialog code[title]")].find(
+      (code) => code.title === OTHER_WORKTREE
+    );
+    expect(chip?.textContent).toBe("admin é");
     expect(dialogChoiceLabels()).toEqual(["Open in New Window", "Create another branch…"]);
     dialogChoices()[0]?.click();
 
@@ -442,6 +453,8 @@ describe("checking out a remote branch with no local branch (unchanged, W24)", (
 
     const input = document.getElementById("dialogInput0") as HTMLInputElement;
     expect(input.value).toBe(LOCAL_NAME);
+    // The prompt asks for a new branch's name, not for the remote ref's name.
+    expect(dialogText()).toContain("Enter a name for the new branch from");
     submitDialog();
 
     expect(checkoutMessages(vscodeMock)).toEqual([
@@ -456,6 +469,20 @@ describe("checking out a remote branch with no local branch (unchanged, W24)", (
 
     expect(document.getElementById("dialog")?.className).toContain("inputInvalid");
     expect(document.getElementById("dialogAction")?.title).toContain("already exists");
+    expect(document.getElementById("dialogInputError0")?.textContent).toContain(
+      "already exists"
+    );
+
+    // Invalid characters get their own reason in the same line, and a free,
+    // valid name clears it again.
+    typeIntoDialogInput(0, "bad name");
+    expect(document.getElementById("dialogInputError0")?.textContent).toContain(
+      "invalid characters"
+    );
+    typeIntoDialogInput(0, "fresh-name");
+    expect(document.getElementById("dialogInputError0")?.textContent).toBe("");
+    expect(document.getElementById("dialogInput0")?.getAttribute("aria-invalid")).toBeNull();
+    typeIntoDialogInput(0, "main");
     const before = vscodeMock.sentMessages.length;
     submitDialog();
 

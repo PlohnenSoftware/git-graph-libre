@@ -50,6 +50,11 @@ describe("dialog styles", () => {
     expect(ruleFor(css, '#dialog.inputInvalid table.dialogForm input[type="text"]')).toContain(
       "var(--vscode-inputValidation-errorBorder"
     );
+    // The refused name's reason sits under its field, in the error tokens.
+    expect(ruleFor(css, "#dialog .dialogInputError")).toContain(
+      "var(--vscode-inputValidation-errorForeground"
+    );
+    expect(ruleFor(css, "#dialog .dialogInputError:empty")).toContain("display: none;");
   });
 
   it("styles dialog buttons like VS Code buttons", () => {

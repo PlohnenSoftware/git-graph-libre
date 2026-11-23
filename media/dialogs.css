@@ -527,6 +527,20 @@ dl.tagDetailsFields dd {
   background-color: var(--vscode-inputValidation-errorBackground);
   border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
 }
+/* Why a ref name is refused, under its field: the same message the blocked
+   button carries as its title, where it can actually be read. Empty, it
+   takes no room. */
+#dialog .dialogInputError {
+  display: block;
+  margin-top: 4px;
+  color: var(--vscode-inputValidation-errorForeground, var(--vscode-errorForeground));
+  font-size: 12px;
+  line-height: 16px;
+  white-space: normal;
+}
+#dialog .dialogInputError:empty {
+  display: none;
+}
 #dialog .dialogActions {
   display: flex;
   justify-content: flex-end;

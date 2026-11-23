@@ -273,7 +273,7 @@
   "dialog.addTag.lightweightNote": "Lekki tag to zwykłe odwołanie bez obiektu tagu, więc nie ma wiadomości i nie może być podpisany.",
   "dialog.addTag.optional": "Opcjonalne",
   "dialog.addTag.submit": "Dodaj tag",
-  "dialog.createBranch.title": "Wpisz nazwę gałęzi {0}",
+  "dialog.createBranch.title": "Wpisz nazwę nowej gałęzi utworzonej od {0}",
   "dialog.createBranch.submit": "Utwórz gałąź",
   "dialog.createBranch.checkout": "Przełącz na utworzoną gałąź",
   "dialog.compareWith.title": "Porównaj {0} z",

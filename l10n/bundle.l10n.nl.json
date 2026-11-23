@@ -273,7 +273,7 @@
   "dialog.addTag.lightweightNote": "Lightweight tags zijn slechts een ref zonder tagobject, dus ze bevatten geen bericht en kunnen niet worden ondertekend.",
   "dialog.addTag.optional": "Optioneel",
   "dialog.addTag.submit": "Tag toevoegen",
-  "dialog.createBranch.title": "Voer de naam van de branch {0} in",
+  "dialog.createBranch.title": "Voer een naam in voor de nieuwe branch vanaf {0}",
   "dialog.createBranch.submit": "Branch maken",
   "dialog.createBranch.checkout": "Nieuwe branch uitchecken na het aanmaken",
   "dialog.compareWith.title": "Vergelijk {0} met",

@@ -469,9 +469,12 @@ function existingBranchMessage(
 ): string {
   const ref = (name: string) => `<code>${escapeHtml(name)}</code>`;
   if (worktreePath !== null) {
+    // A dialog sentence names a worktree by its folder, with the full path on
+    // hover: the path itself wrapped the chip over two lines.
+    const folder = `<code title="${escapeHtml(worktreePath)}">${escapeHtml(worktreeFolderName(worktreePath))}</code>`;
     return l10n.dialogOpenWorktreeMessage
       .replace("{0}", () => ref(existing))
-      .replace("{1}", () => ref(worktreePath));
+      .replace("{1}", () => folder);
   }
   if (existing === suggestedName) {
     return l10n.dialogCheckoutRemoteExists.replace("{0}", () => ref(existing));
@@ -6824,20 +6827,25 @@ class GitGraphView {
       const action = document.getElementById("dialogAction");
       if (name !== "" && this.hasLocalBranch(name)) {
         dialog.className = "active inputInvalid";
-        if (action !== null) action.title = l10n.branchNameTaken.replace("{0}", () => name);
+        const taken = l10n.branchNameTaken.replace("{0}", () => name);
+        if (action !== null) action.title = taken;
+        setDialogInputError(inputIndex, taken);
         return;
       }
       // Pasted or picked input fires no keyup, so the form's own refresh may
       // not have run: recompute the same three states it would.
       if (name === "") {
         dialog.className = "active noInput";
+        setDialogInputError(inputIndex, null);
       } else if (refInvalid.exec(name) !== null) {
         dialog.className = "active inputInvalid";
-        if (action !== null)
-          action.title = l10n.invalidCharacters.replace("{0}", l10n.checkoutBranch);
+        const invalid = l10n.invalidCharacters.replace("{0}", l10n.checkoutBranch);
+        if (action !== null) action.title = invalid;
+        setDialogInputError(inputIndex, invalid);
       } else {
         dialog.className = "active";
         if (action !== null) action.title = "";
+        setDialogInputError(inputIndex, null);
       }
     };
     input.addEventListener("keyup", validate);
@@ -9033,7 +9041,26 @@ function renderDialogTextInput(
   if (input.type === "text" && input.placeholder !== null) {
     placeholder = ` placeholder="${escapeHtml(input.placeholder)}"`;
   }
-  return `<input id="dialogInput${index}" type="text" value="${escapeHtml(input.default)}"${placeholder}/>`;
+  if (input.type !== "text-ref") {
+    return `<input id="dialogInput${index}" type="text" value="${escapeHtml(input.default)}"${placeholder}/>`;
+  }
+  // A refused ref name says why in a line under the field, not only in the
+  // blocked button's title, which nobody hovers while the field is red.
+  return (
+    `<input id="dialogInput${index}" type="text" value="${escapeHtml(input.default)}"${placeholder}` +
+    ` aria-describedby="dialogInputError${index}"/>` +
+    `<span class="dialogInputError" id="dialogInputError${index}" role="alert"></span>`
+  );
+}
+/** The reason a ref name is refused, in its line under the field; null clears it. */
+function setDialogInputError(index: number, message: string | null) {
+  const error = document.getElementById(`dialogInputError${index}`);
+  if (error !== null) error.textContent = message ?? "";
+  const field = document.getElementById(`dialogInput${index}`);
+  if (field !== null) {
+    if (message === null) field.removeAttribute("aria-invalid");
+    else field.setAttribute("aria-invalid", "true");
+  }
 }
 function renderDialogTextareaInput(
   input: Extract<DialogInput, { type: "textarea" }>,
@@ -9101,6 +9128,12 @@ function bindFormDialogInputs(inputs: DialogInput[], textRefInput: number, actio
   const dialogAction = requireElement("dialogAction");
   const refreshActionState = () => {
     const { noInput, invalidInput } = getFormDialogInputState(inputs);
+    if (textRefInput > -1) {
+      setDialogInputError(
+        textRefInput,
+        invalidInput ? l10n.invalidCharacters.replace("{0}", actionName) : null
+      );
+    }
     const newClassName = getTextRefDialogClassName(noInput, invalidInput);
     if (dialog.className === newClassName) return;
     dialog.className = newClassName;

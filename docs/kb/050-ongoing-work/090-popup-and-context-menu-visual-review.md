@@ -173,7 +173,7 @@ numbers are from `ccc1aaee`. A suggested order is at the end.
   block for dialogs, at body size, with its own height cap and scroll, and
   the "more files" line as a quiet note under it.
 
-### V7 — The remote checkout name prompt
+### V7 — The remote checkout name prompt — done (P1)
 
 - **The title misleads.** `dialog.createBranch.title` is "Enter the name of
   the branch {0}", so the prompt reads "Enter the name of the branch
