@@ -60,7 +60,7 @@ default. The maintainer confirms each one before any slice that ships UI
 
 | ID | Work | Needs | Model | Status |
 | --- | --- | --- | --- | --- |
-| F3-01 | Engine bridge: typed wrappers for `authorStats` and `activityHeatmap` | — | Claude Haiku | ready |
+| F3-01 | Engine bridge: typed wrappers for `authorStats` and `activityHeatmap` | — | Claude Haiku | integrated `4ebc50c5` |
 | F3-02 | Statistics tab, webview (contributors and 7 x 24 heatmap) | F3-01, TQ1, TQ2 confirmed | Muse Code, Haiku fallback | waiting |
 | F3-03 | Engine-only availability (tab hidden without the engine) | F3-01, F3-02 | Haiku | waiting |
 | F3-04 | l10n for the Statistics tab in all five bundles | F3-02 | Claude Haiku | waiting |
@@ -96,3 +96,13 @@ both themes. Nothing is pushed.
 ## Integration log
 
 - `2026-11-23`: register and slice files written from the research.
+- `2026-11-23`: F3-01 (Claude Haiku) integrated into `gg-plus/next` at
+  `4ebc50c5` by fast-forward: optional `authorStats` / `activityHeatmap` members
+  on `EngineAddon` (names confirmed on the built addon), project types in
+  `src/backend/types/stats.types.ts`, and `src/backend/engine/stats.ts`
+  reads that validate the payload and answer a typed unavailable reason
+  (`backendCli`, `notVerified`, `noAddon`, `failed`) instead of throwing;
+  26 tests. Gates in its worktree: strict Biome clean, typecheck clean,
+  backend suite 1,569 passed (60 skipped, as in every linked worktree), KB
+  check clean. Follow-up from the report: a broader author/heatmap parity
+  check belongs with F3-02.
