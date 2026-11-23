@@ -63,7 +63,7 @@ not in the repository.
 Each entry says what shows, where it comes from, and the fix proposed. Line
 numbers are from `ccc1aaee`. A suggested order is at the end.
 
-### V1 — Doubled ellipsis while a worktree action runs
+### V1 — Doubled ellipsis while a worktree action runs — done (P1)
 
 - **Shows:** "Creating worktree ... ..." in the running-action dialog, and
   six dots in the status strip. The same for checking, removing and pruning.

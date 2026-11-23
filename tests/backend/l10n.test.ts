@@ -1,3 +1,4 @@
+import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -90,6 +91,29 @@ describe("l10n fallback", () => {
     vscodeL10n.uri = { fsPath: "/nonexistent/l10n/bundle.l10n.json" };
 
     expect(t("ui.date")).toBe("ui.date");
+  });
+
+  it("keeps every status string free of trailing dots, which the running-action dialog adds itself", () => {
+    // `showActionRunningDialog` appends " ..." to the status text, so a
+    // bundle value that already ends in dots doubles them on screen (V1).
+    const bundles = [
+      "bundle.l10n.json",
+      "bundle.l10n.nl.json",
+      "bundle.l10n.pl.json",
+      "bundle.l10n.zh-cn.json",
+      "bundle.l10n.zh-tw.json"
+    ];
+    for (const file of bundles) {
+      const bundle = JSON.parse(
+        fs.readFileSync(path.join(repoRoot, "l10n", file), "utf8")
+      ) as Record<string, string>;
+      for (const [key, value] of Object.entries(bundle)) {
+        if (!key.startsWith("status.")) continue;
+        expect(value.endsWith("..."), `${file}: ${key}`).toBe(false);
+        expect(value.endsWith("…"), `${file}: ${key}`).toBe(false);
+        expect(value.endsWith(" ..."), `${file}: ${key}`).toBe(false);
+      }
+    }
   });
 
   it("caches the bundle across calls", async () => {
