@@ -860,9 +860,15 @@ export function registerMessageHandlers(
   registerAction("cherrypickCommit", (msg) =>
     cherrypickCommit(gitClient.getInstance(), msg, recordGitCommand)
   );
-  registerAction("dropCommit", (msg) => dropCommit(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("dropCommit", (msg) =>
+    dropCommit(gitClient.getInstance(), { ...msg, binary: config.gitPath() }, recordGitCommand)
+  );
   registerAction("dropCommitSelection", (msg) =>
-    dropCommitSelection(gitClient.getInstance(), msg, recordGitCommand)
+    dropCommitSelection(
+      gitClient.getInstance(),
+      { ...msg, binary: config.gitPath() },
+      recordGitCommand
+    )
   );
   registerAction("editHeadCommitMessage", (msg) =>
     editHeadCommitMessage(gitClient.getInstance(), msg, recordGitCommand)
@@ -925,7 +931,11 @@ export function registerMessageHandlers(
     )
   );
   registerAction("squashCommitSelection", (msg) =>
-    squashCommitSelection(gitClient.getInstance(), msg, recordGitCommand)
+    squashCommitSelection(
+      gitClient.getInstance(),
+      { ...msg, binary: config.gitPath() },
+      recordGitCommand
+    )
   );
   registerAction("undoLastCommit", (msg) =>
     undoLastCommit(gitClient.getInstance(), msg, recordGitCommand)

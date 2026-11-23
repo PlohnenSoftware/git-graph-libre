@@ -140,7 +140,7 @@ type ActionPayloads = {
   abortRebase: unknown;
   updateBranchFromUpstream: { branchName: string; force: boolean };
   revertCommit: { commitHash: string; parentIndex: number; noCommit: boolean };
-  squashCommitSelection: { commitHashes: string[]; message: string; noVerify: boolean };
+  squashCommitSelection: { commitHashes: string[]; message: string };
   stageFiles: { filePaths: string[] };
   unstageFiles: { filePaths: string[] };
   undoLastCommit: unknown;

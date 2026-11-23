@@ -1,7 +1,10 @@
 import type { SimpleGit } from "simple-git";
 
-import type { ActionPayload, GitResetMode } from "@/backend/types";
-import { type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
+import { runInteractiveRebase } from "@/backend/actions/rebaseInteractive";
+import { loadRebaseRange } from "@/backend/queries/rebaseRange";
+import type { TodoEntry } from "@/backend/rebase/todo";
+import type { ActionPayload, GitRebaseRangeCommit, GitResetMode } from "@/backend/types";
+import { GitCommandError, type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
 
 type CommitActionPayloads = {
   checkoutCommit: ActionPayload<"checkoutCommit">;
@@ -17,6 +20,15 @@ type CommitActionPayloads = {
 
 type CommitActionInput<T extends keyof CommitActionPayloads> = CommitActionPayloads[T] & {
   repo?: string | null;
+};
+
+/**
+ * Drop and squash run through the interactive-rebase handoff (F2-10), whose
+ * dedicated spawn needs the resolved Git binary threaded in by the handler,
+ * like the `interactiveRebase` action's (`config.gitPath()`).
+ */
+type TodoCommitActionInput<T extends keyof CommitActionPayloads> = CommitActionInput<T> & {
+  binary: string;
 };
 
 function requireValue(value: string, label: string) {
@@ -119,60 +131,264 @@ export async function resetToCommit(
   });
 }
 
+/** A full object name: SHA-1 (40 digits) or SHA-256 (64 digits), either letter case. */
+const FULL_HASH = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
+
+/** The commits one drop or squash rebases over, with the selected set marked. */
+type SelectionPlan = {
+  readonly base: string;
+  readonly range: readonly GitRebaseRangeCommit[];
+  readonly selected: ReadonlySet<string>;
+};
+
+/**
+ * The selected hashes as a lower-case set, rejecting anything that is not a
+ * full hash before a hash reaches a Git argument list, where a leading dash
+ * would read as an option.
+ */
+function fullHashSet(commitHashes: readonly string[]): ReadonlySet<string> {
+  const selected = new Set<string>();
+  for (const commitHash of commitHashes) {
+    if (!FULL_HASH.test(commitHash)) {
+      throw new Error(`"${commitHash}" is not a full commit hash.`);
+    }
+    selected.add(commitHash.toLowerCase());
+  }
+  return selected;
+}
+
+/** The first parent of `hash`, or null when it is the root commit. */
+async function firstParentOf(
+  git: SimpleGit,
+  repo: string,
+  hash: string,
+  record?: GitCommandRecorder
+): Promise<string | null> {
+  const output = await runGitRaw(git, {
+    label: "commit.todo.parent",
+    kind: "action",
+    args: ["show", "-s", "--format=%P", hash],
+    repo,
+    record
+  });
+  const [first] = output
+    .trim()
+    .split(" ")
+    .filter((parent) => parent !== "");
+  return first ?? null;
+}
+
+/**
+ * The revision the selection's rebase starts after. `--octopus` finds the
+ * common ancestor of `HEAD` and every selected commit together (plain
+ * `merge-base` with three or more arguments treats later arguments as a
+ * hypothetical merge, returning the newest selected commit instead of the
+ * oldest). When that ancestor is itself selected, the rebase starts after
+ * its first parent; a selected root has no parent and is refused.
+ */
+async function selectionBase(
+  git: SimpleGit,
+  repo: string,
+  selected: ReadonlySet<string>,
+  record?: GitCommandRecorder
+): Promise<string> {
+  let mergeBase = "";
+  try {
+    mergeBase = (
+      await runGitRaw(git, {
+        label: "commit.todo.mergeBase",
+        kind: "action",
+        args: ["merge-base", "--octopus", "HEAD", ...selected],
+        repo,
+        record
+      })
+    )
+      .trim()
+      .toLowerCase();
+  } catch (error: unknown) {
+    if (error instanceof GitCommandError && error.record.error?.exitCode === 1) {
+      throw new Error("Every selected commit must be in the current branch's history.");
+    }
+    throw error;
+  }
+  if (mergeBase === "") {
+    throw new Error("Every selected commit must be in the current branch's history.");
+  }
+  if (!selected.has(mergeBase)) return mergeBase;
+  const parent = await firstParentOf(git, repo, mergeBase, record);
+  if (parent === null) {
+    throw new Error("The root commit cannot be dropped or squashed.");
+  }
+  return parent;
+}
+
+/**
+ * Reads the range the selection's todo must cover and checks the selection
+ * against it: every selected commit must lie in `base..HEAD`, and — the
+ * menu's standing exclusion, kept here so no caller can bypass it — have
+ * exactly one parent, so merges are refused rather than flattened silently
+ * by a `pick` or failed on by a `fixup`. Unselected merge commits in the
+ * range are omitted from the todo (matching Git's linear `rebase -i` todo),
+ * because Git refuses `pick <merge>` and leaves a broken rebase state.
+ */
+async function planSelectionRebase(
+  git: SimpleGit,
+  repo: string,
+  selected: ReadonlySet<string>,
+  record?: GitCommandRecorder
+): Promise<SelectionPlan> {
+  const base = await selectionBase(git, repo, selected, record);
+  const range = await loadRebaseRange(git, { repo, base, recordGitCommand: record });
+  if (range.error !== null) throw new Error(range.error.message);
+  const inRange = new Map(range.commits.map((commit) => [commit.hash.toLowerCase(), commit]));
+  for (const hash of selected) {
+    const commit = inRange.get(hash);
+    if (commit === undefined) {
+      throw new Error("Every selected commit must be in the current branch's history.");
+    }
+    if (commit.parents.length !== 1) {
+      throw new Error("Only commits with exactly one parent can be dropped or squashed.");
+    }
+  }
+  return {
+    base,
+    range: range.commits.filter((commit) => !commit.isMerge),
+    selected
+  };
+}
+
+/**
+ * Runs the planned todo through the interactive handoff. A pause is a
+ * successful start — the in-progress banner (F2-03) takes over — while a
+ * refusal surfaces Git's own words, as the `interactiveRebase` action does.
+ */
+async function runSelectionTodo(
+  git: SimpleGit,
+  input: { repo: string; binary: string; plan: SelectionPlan; entries: TodoEntry[] },
+  fallback: string,
+  record?: GitCommandRecorder
+): Promise<void> {
+  const result = await runInteractiveRebase(
+    git,
+    {
+      repo: input.repo,
+      binary: input.binary,
+      base: input.plan.base,
+      entries: input.entries,
+      rangeHashes: input.plan.range.map((commit) => commit.hash)
+    },
+    record
+  );
+  if (result.outcome === "failed" || result.outcome === "invalid-todo") {
+    throw new Error(result.stderr.trim() === "" ? fallback : result.stderr);
+  }
+}
+
+function dropEntries(plan: SelectionPlan): TodoEntry[] {
+  return plan.range.map((commit) => ({
+    action: plan.selected.has(commit.hash.toLowerCase()) ? "drop" : "pick",
+    hash: commit.hash
+  }));
+}
+
+/**
+ * The squash todo: the oldest selected commit is picked carrying the final
+ * message, the other selected commits meld into it as `fixup`. A `fixup`
+ * melds into the commit before it, so the selection must be one unbroken
+ * parent-child chain in range order; a gap or sibling branch would meld a
+ * commit into the wrong parent, so it is refused rather than reordered.
+ */
+function squashEntries(plan: SelectionPlan, message: string): TodoEntry[] {
+  const indices = plan.range.flatMap((commit, index) =>
+    plan.selected.has(commit.hash.toLowerCase()) ? [index] : []
+  );
+  const first = indices[0];
+  const last = indices.at(-1);
+  if (first === undefined || last === undefined || last - first !== indices.length - 1) {
+    throw new Error("Only an unbroken run of commits can be squashed.");
+  }
+  for (let i = first + 1; i <= last; i++) {
+    if (plan.range[i]?.parents[0]?.toLowerCase() !== plan.range[i - 1]?.hash.toLowerCase()) {
+      throw new Error("Only an unbroken run of commits can be squashed.");
+    }
+  }
+  return plan.range.map((commit, index) => {
+    if (index === first) return { action: "pick", hash: commit.hash, message };
+    return {
+      action: plan.selected.has(commit.hash.toLowerCase()) ? "fixup" : "pick",
+      hash: commit.hash
+    };
+  });
+}
+
+async function dropSelection(
+  git: SimpleGit,
+  input: { repo: string; binary: string; commitHashes: readonly string[] },
+  record?: GitCommandRecorder
+): Promise<void> {
+  requireValue(input.repo, "Repository");
+  requireValue(input.binary, "Git binary");
+  const plan = await planSelectionRebase(git, input.repo, fullHashSet(input.commitHashes), record);
+  await runSelectionTodo(
+    git,
+    { repo: input.repo, binary: input.binary, plan, entries: dropEntries(plan) },
+    "The selected commits could not be dropped.",
+    record
+  );
+}
+
 export async function dropCommit(
   git: SimpleGit,
-  input: CommitActionInput<"dropCommit">,
+  input: TodoCommitActionInput<"dropCommit">,
   record?: GitCommandRecorder
 ): Promise<void> {
   requireValue(input.commitHash, "Commit hash");
-  await runGitRaw(git, {
-    label: "commit.drop",
-    kind: "action",
-    args: ["rebase", "--onto", `${input.commitHash}^`, input.commitHash],
-    repo: input.repo ?? null,
+  await dropSelection(
+    git,
+    { repo: input.repo ?? "", binary: input.binary, commitHashes: [input.commitHash] },
     record
-  });
+  );
 }
 
 export async function dropCommitSelection(
   git: SimpleGit,
-  input: CommitActionInput<"dropCommitSelection">,
+  input: TodoCommitActionInput<"dropCommitSelection">,
   record?: GitCommandRecorder
 ): Promise<void> {
   requireCommitHashes(input.commitHashes, "Dropping selected commits", 1);
-  for (const commitHash of input.commitHashes) {
-    await dropCommit(git, { repo: input.repo ?? null, commitHash }, record);
-  }
+  await dropSelection(
+    git,
+    { repo: input.repo ?? "", binary: input.binary, commitHashes: input.commitHashes },
+    record
+  );
 }
 
 export async function squashCommitSelection(
   git: SimpleGit,
-  input: CommitActionInput<"squashCommitSelection">,
+  input: TodoCommitActionInput<"squashCommitSelection">,
   record?: GitCommandRecorder
 ): Promise<void> {
   requireCommitHashes(input.commitHashes, "Squashing selected commits", 2);
   requireValue(input.message, "Commit message");
-
-  const oldestCommit = input.commitHashes.at(-1);
-  if (oldestCommit === undefined) throw new Error("Oldest commit is required.");
-
-  await runGitRaw(git, {
-    label: "commit.squash.reset",
-    kind: "action",
-    args: ["reset", "--soft", `${oldestCommit}^`],
-    repo: input.repo ?? null,
+  const repo = input.repo ?? "";
+  requireValue(repo, "Repository");
+  requireValue(input.binary, "Git binary");
+  const selected = fullHashSet(input.commitHashes);
+  if (selected.size < 2) {
+    throw new Error("Squashing selected commits requires at least 2 distinct commit hashes.");
+  }
+  const plan = await planSelectionRebase(git, repo, selected, record);
+  await runSelectionTodo(
+    git,
+    {
+      repo,
+      binary: input.binary,
+      plan,
+      entries: squashEntries(plan, input.message)
+    },
+    "The selected commits could not be squashed.",
     record
-  });
-
-  const commitArgs = ["commit", "-m", input.message];
-  if (input.noVerify) commitArgs.push("--no-verify");
-  await runGitRaw(git, {
-    label: "commit.squash.commit",
-    kind: "action",
-    args: commitArgs,
-    repo: input.repo ?? null,
-    record
-  });
+  );
 }
 
 export async function undoLastCommit(
