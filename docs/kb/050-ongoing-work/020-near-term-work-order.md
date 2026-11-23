@@ -11,6 +11,15 @@ always_read: true
 
 # Near-Term Work Order
 
+**Planned for the next release (`2026-11-23`): Blame view (GitHub-inspired
+with hotspot coloring).** Prepared beside the Git Graph+ phases as Feature 4
+(`040-blame-view.md` under Future work) with its execution overview and
+tailored subagent slices in "Blame view" (`110-blame-view.md` under Ongoing
+work): slices `F4-01` to `F4-08` (plus optional engine slice `F4-09`),
+decisions `BQ1`–`BQ9`, and Git `2.56.1` porcelain/edge-case verification.
+`F4-01` is ready without a decision; `F4-03` onward wait on confirming
+`BQ1`–`BQ8`.
+
 **Also open (`2026-11-23`): unreachable-commits scan breaks graph load on a
 stale commit-graph.** Checking "Include unreachable commits" from the
 table-header menu on a repository with a stale commit-graph fails `git fsck`
