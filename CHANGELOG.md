@@ -111,6 +111,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   must not exist yet. The path stays editable, so a move can still rename
   the folder, and nothing moves until you confirm.
 
+- **The Worktrees popup's rows use icon buttons.** Every row has the same
+  shape, and **Copy Path**, **Lock**, **Unlock**, **Move** and **Remove** are
+  icon buttons at the top right of the row, each with a tooltip. A detached
+  HEAD has its own icon.
+
+- **Create Worktree's dialogs are clearer.** The folder dialog is wider, and
+  its field shows the end of a long path. The lock reason appears only once
+  **Lock** is ticked. After a worktree is created, its next steps are one-click
+  choices, and Cancel does nothing.
+
+- **The Diff, Reflog and Blame tabs have the Git Graph Libre icon.** They show
+  the same tab icon as the graph, in the light or dark version that the
+  `tabIconColorTheme` setting picks. The icon is set when a tab opens, so a
+  changed setting applies to tabs opened afterwards.
+
+- **Traditional Chinese says 存放庫 for "repository" everywhere.** Some
+  strings used 儲存庫 and others 存放庫; all now use 存放庫, the term VS Code's
+  own Traditional Chinese strings use.
+
 ### Fixed
 
 - **Include unreachable commits no longer breaks the graph.** On a repository
@@ -132,7 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   creating a worktree. It now wraps inside the popup, in every dialog, the
   Worktrees list and menu headers. The Delete Branch dialog for a branch held
   by another worktree is also shorter. It names the worktree by its folder,
-  with the full path on hover and in the option that removes it.
+  with the full path on hover and in the option that removes it. Its removal
+  checkbox must be ticked before the branch can be deleted.
 - **Commit text in other encodings.** With the Rust engine, a commit recorded
   in another encoding (`i18n.commitEncoding`, for example ISO-8859-1) showed
   garbled names and messages, and a subject after blank lines was lost. The
@@ -151,6 +171,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   empty graph.
 - **Remote branches under `changes/`** are shown with the Rust engine too, as
   Git always showed them.
+- **Worktree dialogs and their text.** The status shown while a worktree is
+  created, removed, pruned or checked no longer ends in dots that the dialog
+  already adds. A dialog without inputs no longer shows an empty table, and a
+  list in a dialog scrolls in a block of its own. Error text wraps beside the
+  error icon, not under it. Remove Worktree's button reads **Remove** instead
+  of **Yes**, and a checkbox whose label runs to two lines keeps its box beside
+  the first line.
+- **The remote checkout prompt.** It has a clearer title, shows an invalid
+  branch name's error under its field, and names the folder of a worktree that
+  holds the branch, with the full path on hover.
 
 The Rust engine is now `1.0.32`. Its fixes adapt parts of upstream commits
 `f007528`, `634ca6c` and `ff4aafe` of `neophack/vscode-git-graph-rs`; see
