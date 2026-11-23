@@ -108,8 +108,8 @@ the graph layout, outside this work; no slice reads it.
 | F2-01a | Todo model (pure) | — | Haiku | integrated `9f7d0865` |
 | F2-01b | Git handoff and spike | F2-01a | Muse Code | integrated `3d39ecaf` |
 | F2-02 | Range read and preflight | — | Muse Code | integrated `16b65eb2` |
-| F2-03 | In-progress state and controls | — | Muse Code | in progress |
-| F2-04 | Editor dialog: open, list, pick/drop/reorder, start | F2-01b, F2-02, F2-03 | Muse Code | waiting |
+| F2-03 | In-progress state and controls | — | Muse Code | integrated `40fbf8f4` |
+| F2-04 | Editor dialog: open, list, pick/drop/reorder, start | F2-01b, F2-02, F2-03 | Muse Code | ready |
 | F2-05 | Reword, squash, fixup and edit with messages | F2-04 | Muse Code | waiting |
 | F2-06 | Autosquash and fixup creation | F2-04, F2-05 | Muse Code | waiting |
 | F2-07 | Dirty tree, published history and worktree protections | F2-04 | Muse Code | waiting |
@@ -171,3 +171,15 @@ pushed, and nothing is tagged without the maintainer.
 - `2026-11-23`: maintainer accepted all recommended IQ defaults; `gg-plus/next`
   rebased onto `main` (`7db1d290`) so the Git Graph+ work sees release 1.11.0's
   KB and code; F2-03 dispatched to Muse Code.
+- `2026-11-23`: F2-03 integrated into `gg-plus/next` at `40fbf8f4` (first run
+  Muse Code, cut off by its quota; finished by Gemini 4 Argon through `agy`):
+  the in-progress state read from the per-worktree git dir, a banner above
+  the graph for `edit` and conflict stops with progress, Continue (blocked
+  while unmerged paths remain, IQ9; no silent `add -A`), Skip and Abort
+  (confirmed first), removing `<gitdir>/ggl-rebase/` when the rebase ends,
+  and a watcher on the rebase state. Integrator conflict resolution: the
+  `rebase.*` and `stats.*` l10n blocks were both placed before the first
+  `reflog.` key; both kept (`prompts/resolve-l10n.py`, 912 keys). Renders
+  under `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F2-03/`. Gates on
+  `40fbf8f4`: strict Biome on 20 files, typecheck, `l10n:check`, KB check,
+  backend 1,697 passed (60 skipped) and webview 1,165 passed. F2-04 is ready.
