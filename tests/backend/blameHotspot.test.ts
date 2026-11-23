@@ -94,7 +94,9 @@ describe("scoreBlameHunks: two commits and skewed timestamps (age)", () => {
     const hashes = Array.from({ length: 10 }, (_, index) => (index + 1).toString(16).repeat(40));
     const commits = commitMap(
       commit(hashes[0], NOW - 10 * 365 * DAY),
-      ...hashes.slice(1).map((hash, index) => commit(hash, NOW - (hashes.length - 1 - index) * 3600))
+      ...hashes
+        .slice(1)
+        .map((hash, index) => commit(hash, NOW - (hashes.length - 1 - index) * 3600))
     );
     const hunks = hashes.map((hash, index) => hunk(hash, index + 1));
     const levels = levelsOf(hunks, commits, "age");
