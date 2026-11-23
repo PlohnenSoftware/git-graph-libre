@@ -318,18 +318,102 @@ function rowElement(
   return tr;
 }
 
+/** One column header cell, with a resize handle on each edge that has a neighbour. */
+function columnHeaderCell(text: string, index: number, lastIndex: number): HTMLTableCellElement {
+  const cell = element("th", "reflog-head-cell", text);
+  // The graph's `resizeCol` handles: one per column edge, named for the
+  // column on its left, so every boundary can be dragged either way.
+  if (index > 0) {
+    const left = element("span", "resizeCol left");
+    left.dataset.col = String(index - 1);
+    cell.append(left);
+  }
+  if (index < lastIndex) {
+    const right = element("span", "resizeCol right");
+    right.dataset.col = String(index);
+    cell.append(right);
+  }
+  return cell;
+}
+
+/** The column a mousedown on a resize handle starts dragging, or null when it hit no handle. */
+function dragHandleColumn(event: MouseEvent): number | null {
+  const handle = event.target instanceof HTMLElement ? event.target.closest(".resizeCol") : null;
+  if (!(handle instanceof HTMLElement) || handle.dataset.col === undefined) return null;
+  return Number.parseInt(handle.dataset.col, 10);
+}
+
+/**
+ * Column drag-to-resize for the entries table. Dragging only restyles this
+ * table (as the graph's handler restyles its headers): rows and loaded pages
+ * are never rebuilt by a resize.
+ */
+function attachColumnResizing(
+  tableNode: HTMLElement,
+  headRow: HTMLTableRowElement,
+  headers: HTMLTableCellElement[],
+  initialWidths: ReflogViewState["columnWidths"],
+  callbacks: ReflogViewCallbacks
+): void {
+  let widths = initialWidths;
+  let dragCol = -1;
+  let mouseX = 0;
+  const applyWidths = () => {
+    if (widths === null) return;
+    tableNode.classList.add("fixedLayout");
+    // Widths are content widths on the header cells, as the graph sets
+    // them; under fixed layout the first row sizes every column.
+    headers.forEach((cell, index) => {
+      cell.style.width = `${widths?.[index] ?? MIN_COLUMN_WIDTH}px`;
+    });
+  };
+  const startResizing = (event: MouseEvent) => {
+    const col = dragHandleColumn(event);
+    if (col === null) return;
+    dragCol = col;
+    mouseX = event.clientX;
+    if (widths === null) {
+      // First drag, as in the graph: freeze the natural layout into fixed
+      // widths (rendered width minus the header cells' 8px side padding).
+      widths = headers.map((cell) => Math.max(cell.clientWidth - 16, MIN_COLUMN_WIDTH));
+      applyWidths();
+    }
+    headRow.classList.add("resizing");
+  };
+  const moveResizing = (event: MouseEvent) => {
+    if (dragCol < 0 || widths === null) return;
+    widths = resizeColumnWidths(widths, dragCol, event.clientX - mouseX);
+    mouseX = event.clientX;
+    applyWidths();
+  };
+  const stopResizing = () => {
+    if (dragCol < 0 || widths === null) return;
+    dragCol = -1;
+    headRow.classList.remove("resizing");
+    callbacks.onColumnWidthsChange?.([...widths]);
+  };
+  applyWidths();
+  headRow.addEventListener("mousedown", startResizing);
+  headRow.addEventListener("mousemove", moveResizing);
+  headRow.addEventListener("mouseup", stopResizing);
+  headRow.addEventListener("mouseleave", stopResizing);
+}
+
+/** Opens the context menu of an entry row. */
+type OpenRowMenu = (
+  event: MouseEvent,
+  row: ReflogRow,
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  sourceElem: HTMLElement
+) => void;
+
 function table(
   state: ReflogViewState,
   labels: ReflogLabels,
   now: Date,
   callbacks: ReflogViewCallbacks,
-  openRowMenu: (
-    event: MouseEvent,
-    row: ReflogRow,
-    state: ReflogViewState,
-    labels: ReflogLabels,
-    sourceElem: HTMLElement
-  ) => void
+  openRowMenu: OpenRowMenu
 ): HTMLElement {
   const scroll = element("div", "reflog-scroll");
   const tableNode = element("table", "reflog-table");
@@ -345,24 +429,8 @@ function table(
   const head = document.createElement("thead");
   const headRow = document.createElement("tr");
   headRow.className = "reflog-head-row";
-  const headers: HTMLTableCellElement[] = [];
-  columns.forEach((text, index) => {
-    const cell = element("th", "reflog-head-cell", text);
-    // The graph's `resizeCol` handles: one per column edge, named for the
-    // column on its left, so every boundary can be dragged either way.
-    if (index > 0) {
-      const left = element("span", "resizeCol left");
-      left.dataset.col = String(index - 1);
-      cell.append(left);
-    }
-    if (index < columns.length - 1) {
-      const right = element("span", "resizeCol right");
-      right.dataset.col = String(index);
-      cell.append(right);
-    }
-    headers.push(cell);
-    headRow.append(cell);
-  });
+  const headers = columns.map((text, index) => columnHeaderCell(text, index, columns.length - 1));
+  headRow.append(...headers);
   head.append(headRow);
   const body = document.createElement("tbody");
   for (const row of state.rows) {
@@ -372,51 +440,148 @@ function table(
   }
   tableNode.append(head, body);
   scroll.append(tableNode);
-
-  let widths = state.columnWidths;
-  const applyWidths = () => {
-    if (widths === null) return;
-    tableNode.classList.add("fixedLayout");
-    // Widths are content widths on the header cells, as the graph sets
-    // them; under fixed layout the first row sizes every column.
-    headers.forEach((cell, index) => {
-      cell.style.width = `${widths?.[index] ?? MIN_COLUMN_WIDTH}px`;
-    });
-  };
-  applyWidths();
-
-  // Dragging only restyles this table (as the graph's handler restyles its
-  // headers): rows and loaded pages are never rebuilt by a resize.
-  let dragCol = -1;
-  let mouseX = 0;
-  const stopResizing = () => {
-    if (dragCol < 0 || widths === null) return;
-    dragCol = -1;
-    headRow.classList.remove("resizing");
-    callbacks.onColumnWidthsChange?.([...widths]);
-  };
-  headRow.addEventListener("mousedown", (event) => {
-    const handle = event.target instanceof HTMLElement ? event.target.closest(".resizeCol") : null;
-    if (!(handle instanceof HTMLElement) || handle.dataset.col === undefined) return;
-    dragCol = Number.parseInt(handle.dataset.col, 10);
-    mouseX = event.clientX;
-    if (widths === null) {
-      // First drag, as in the graph: freeze the natural layout into fixed
-      // widths (rendered width minus the header cells' 8px side padding).
-      widths = headers.map((cell) => Math.max(cell.clientWidth - 16, MIN_COLUMN_WIDTH));
-      applyWidths();
-    }
-    headRow.classList.add("resizing");
-  });
-  headRow.addEventListener("mousemove", (event) => {
-    if (dragCol < 0 || widths === null) return;
-    widths = resizeColumnWidths(widths, dragCol, event.clientX - mouseX);
-    mouseX = event.clientX;
-    applyWidths();
-  });
-  headRow.addEventListener("mouseup", stopResizing);
-  headRow.addEventListener("mouseleave", stopResizing);
+  attachColumnResizing(tableNode, headRow, headers, state.columnWidths, callbacks);
   return scroll;
+}
+
+/** The error line of a failed load, worded with the error text. */
+function errorBlock(error: string, labels: ReflogLabels): HTMLElement {
+  return messageBlock(
+    "reflog-message reflog-error",
+    labels.loadError.replace("{0}", error),
+    "alert"
+  );
+}
+
+/** The notice that a search reached its cap, shown once loading has finished. */
+function searchCapNotes(state: ReflogViewState, labels: ReflogLabels): HTMLElement[] {
+  if (!state.searchCapped || state.loading) return [];
+  return [
+    messageBlock(
+      "reflog-cap-note",
+      labels.searchCapped.replace("{0}", REFLOG_SEARCH_CAP.toLocaleString(state.locale)),
+      "status"
+    )
+  ];
+}
+
+function loadMoreButton(
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  callbacks: ReflogViewCallbacks
+): HTMLButtonElement {
+  const more = element("button", "reflog-load-more", labels.loadMore);
+  more.type = "button";
+  more.disabled = state.loadingMore;
+  more.setAttribute("aria-busy", String(state.loadingMore));
+  more.addEventListener("click", callbacks.onLoadMore);
+  return more;
+}
+
+/** The entries table, then any error that came with rows already shown, then "Load more". */
+function rowsBlocks(
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  now: Date,
+  callbacks: ReflogViewCallbacks,
+  openRowMenu: OpenRowMenu
+): HTMLElement[] {
+  const blocks: HTMLElement[] = [table(state, labels, now, callbacks, openRowMenu)];
+  if (state.error !== null) blocks.push(errorBlock(state.error, labels));
+  if (state.hasMore) blocks.push(loadMoreButton(state, labels, callbacks));
+  return blocks;
+}
+
+/** The body under the header and controls: loading, the error, the empty word, or the entries. */
+function bodyBlocks(
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  now: Date,
+  callbacks: ReflogViewCallbacks,
+  openRowMenu: OpenRowMenu
+): HTMLElement[] {
+  if (state.loading) {
+    return [messageBlock("reflog-message reflog-loading", labels.loading, "status")];
+  }
+  // An error is its own block, never the empty wording.
+  if (state.error !== null && state.rows.length === 0) {
+    return [errorBlock(state.error, labels)];
+  }
+  if (state.rows.length === 0) return [emptyBlock(state, labels)];
+  return rowsBlocks(state, labels, now, callbacks, openRowMenu);
+}
+
+/** The focused control, so a render can put the focus and caret back on it. */
+type FocusSnapshot = {
+  id: string;
+  value: string | undefined;
+  selectionStart: number | null;
+  selectionEnd: number | null;
+};
+
+/**
+ * The control to carry across a render, or null when focus is outside the
+ * tab, inside an overlay, or on a control without an id.
+ */
+function focusSnapshot(root: HTMLElement, overlays: readonly HTMLElement[]): FocusSnapshot | null {
+  const active = root.ownerDocument.activeElement;
+  if (
+    !(active instanceof HTMLElement) ||
+    !root.contains(active) ||
+    overlays.some((overlay) => overlay.contains(active)) ||
+    active.id === ""
+  ) {
+    return null;
+  }
+  return {
+    id: active.id,
+    value: active instanceof HTMLInputElement ? active.value : undefined,
+    selectionStart: active instanceof HTMLInputElement ? active.selectionStart : null,
+    selectionEnd: active instanceof HTMLInputElement ? active.selectionEnd : null
+  };
+}
+
+/**
+ * Text typed while a debounced search had not been sent yet is newer than the
+ * state this render answers; keep it (the pending search will ask for it), but
+ * only here, never across a repository change.
+ */
+function carryUnsentSearch(
+  next: HTMLElement,
+  focused: FocusSnapshot,
+  searchQuery: string,
+  sameRepo: boolean
+): void {
+  if (
+    sameRepo &&
+    focused.id === "reflogSearch" &&
+    focused.value !== undefined &&
+    next instanceof HTMLInputElement &&
+    focused.value.trim() !== searchQuery
+  ) {
+    next.value = focused.value;
+  }
+}
+
+/** Puts the focus back on the control it was on before the render, with its caret. */
+function restoreFocus(
+  root: HTMLElement,
+  focused: FocusSnapshot,
+  state: ReflogViewState,
+  sameRepo: boolean
+): void {
+  const next = root.querySelector<HTMLElement>(`#${focused.id}`);
+  if (next === null) return;
+  carryUnsentSearch(next, focused, state.query.search, sameRepo);
+  next.focus();
+  if (next instanceof HTMLInputElement && focused.selectionStart !== null) {
+    try {
+      next.setSelectionRange(focused.selectionStart, focused.selectionEnd);
+    } catch {
+      // A search input has a selectable range; a control whose
+      // type cannot select ignores the carried range.
+    }
+  }
 }
 
 /**
@@ -447,19 +612,7 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
         root.replaceChildren();
         return;
       }
-      const active = root.ownerDocument.activeElement;
-      const focused =
-        active instanceof HTMLElement &&
-        root.contains(active) &&
-        !dialogs.overlays.some((overlay) => overlay.contains(active)) &&
-        active.id !== ""
-          ? {
-              id: active.id,
-              value: active instanceof HTMLInputElement ? active.value : undefined,
-              selectionStart: active instanceof HTMLInputElement ? active.selectionStart : null,
-              selectionEnd: active instanceof HTMLInputElement ? active.selectionEnd : null
-            }
-          : null;
+      const focused = focusSnapshot(root, dialogs.overlays);
       const sameRepo = state.repo === lastRepo;
       if (!sameRepo) {
         dialogs.hideContextMenu();
@@ -474,76 +627,13 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
       if (lostSection !== null) {
         children.push(lostSection);
       }
-      if (state.searchCapped && !state.loading) {
-        children.push(
-          messageBlock(
-            "reflog-cap-note",
-            labels.searchCapped.replace("{0}", REFLOG_SEARCH_CAP.toLocaleString(state.locale)),
-            "status"
-          )
-        );
-      }
-      if (state.loading) {
-        children.push(messageBlock("reflog-message reflog-loading", labels.loading, "status"));
-      } else if (state.error !== null && state.rows.length === 0) {
-        children.push(
-          messageBlock(
-            "reflog-message reflog-error",
-            labels.loadError.replace("{0}", state.error),
-            "alert"
-          )
-        );
-      } else if (state.rows.length === 0) {
-        children.push(emptyBlock(state, labels));
-      } else {
-        children.push(table(state, labels, now, callbacks, dialogs.openRowMenu));
-        if (state.error !== null) {
-          children.push(
-            messageBlock(
-              "reflog-message reflog-error",
-              labels.loadError.replace("{0}", state.error),
-              "alert"
-            )
-          );
-        }
-        if (state.hasMore) {
-          const more = element("button", "reflog-load-more", labels.loadMore);
-          more.type = "button";
-          more.disabled = state.loadingMore;
-          more.setAttribute("aria-busy", String(state.loadingMore));
-          more.addEventListener("click", callbacks.onLoadMore);
-          children.push(more);
-        }
-      }
+      children.push(
+        ...searchCapNotes(state, labels),
+        ...bodyBlocks(state, labels, now, callbacks, dialogs.openRowMenu)
+      );
       root.replaceChildren(...children, ...dialogs.overlays);
       lastRepo = state.repo;
-      if (focused !== null) {
-        const next = root.querySelector<HTMLElement>(`#${focused.id}`);
-        if (next !== null) {
-          // Text typed while a debounced search had not been sent yet
-          // is newer than the state this render answers; keep it (the
-          // pending search will ask for it), but only here, never
-          // across a repository change.
-          if (
-            sameRepo &&
-            focused.id === "reflogSearch" &&
-            focused.value !== undefined &&
-            next instanceof HTMLInputElement &&
-            focused.value.trim() !== state.query.search
-          ) {
-            next.value = focused.value;
-          }
-          next.focus();
-          if (next instanceof HTMLInputElement && focused.selectionStart !== null) {
-            try {
-              next.setSelectionRange(focused.selectionStart, focused.selectionEnd);
-            } catch {
-              // A search input has a selectable range; a control whose
-              // type cannot select ignores the carried range.
-            }
-          }
-        }
-      }
+      if (focused !== null) restoreFocus(root, focused, state, sameRepo);
     }
   };
 }
