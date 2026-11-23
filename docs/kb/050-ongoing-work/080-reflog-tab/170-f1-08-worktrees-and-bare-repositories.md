@@ -8,7 +8,7 @@ summary: >-
 
 # F1-08 — Worktrees and bare repositories
 
-Status: ready
+Status: claimed by Muse Code on 2026-11-23 12:04
 
 Needs: F1-05
 
