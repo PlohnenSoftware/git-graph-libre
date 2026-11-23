@@ -11,6 +11,11 @@ summary: >-
 
 Status: waiting
 
+**Maintainer override (`2026-11-23`, release 1.11.0): no editor title-bar
+icon.** Wire the Command Palette and the `editor/context`,
+`explorer/context`, `scm/resourceState/context` and Commit Details file
+menus only; drop the `editor/title` contribution this slice lists.
+
 Needs: F4-06
 
 Model: Claude Sonnet (cheapest first; escalate one step on failure)

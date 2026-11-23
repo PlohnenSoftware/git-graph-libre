@@ -75,6 +75,17 @@ dispatching `F4-03` onward:
 - **BQ9 (release placement):** next feature release; keep `F4-01`–`F4-09`
   until the release number is stamped.
 
+## Release 1.11.0 answers (`2026-11-23`)
+
+"Release 1.11.0 — Looking Back" (Ongoing work) holds the maintainer's answers
+for this run. For the Blame slices they mean: no editor title-bar icon
+(F4-07); agents translate all four languages; tracks may overlap on shared
+files, with the integrator resolving conflicts (this replaces the
+serialization rule below for this run), and Blame l10n keys are appended at
+the end of each bundle; the Blame tab reports opening and its outcome through
+T1's telemetry pattern once T1 is integrated (no other telemetry);
+worktrees under `/home/zam/Desktop/prog/_GGL/.ggl-wt/`.
+
 ## Standing rules for every slice
 
 - **Clean-room:** implement from Git's `git-blame(1)` documentation, VS Code

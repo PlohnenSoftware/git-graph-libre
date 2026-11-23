@@ -11,6 +11,13 @@ always_read: true
 
 # Near-Term Work Order
 
+**Now (`2026-11-23`): release 1.11.0 "Looking Back".** "Release 1.11.0 —
+Looking Back" (Ongoing work) holds the scope (everything on `main` since
+v1.10.0, the finished Reflog tab and the finished Blame view, popup fixes
+optional), the maintainer's answers for a long autonomous run, and slices T1,
+P1 and R90. Interactive rebase and the history/statistics view continue on
+`gg-plus/next` and do not ship in 1.11.0.
+
 **Planned for the next release (`2026-11-23`): Blame view (GitHub-inspired
 with hotspot coloring).** Prepared beside the Git Graph+ phases as Feature 4
 (`040-blame-view.md` under Future work) with its execution overview and
