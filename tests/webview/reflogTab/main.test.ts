@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ReflogHostMessage, ReflogWebviewMessage } from "@/reflogTabTypes";
+import { DEFAULT_COLUMN_WIDTHS } from "@/webview/reflogTab/columnResize";
 
 import { dataMessage, loadingMessage, lostCommit, lostCommitsMessage, page, row } from "./fixtures";
 
@@ -78,8 +79,10 @@ describe("reflog tab webview", () => {
     const headRow = first.root.querySelector(".reflog-head-row") as HTMLElement;
     headRow.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 120 }));
     headRow.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
-    // From the defaults (Q2), +20 traded across the message/commit edge.
-    const savedWidths = [52, 116, 112, 340, 68, 140, 168];
+    // From the defaults, +20 traded across the message/commit edge:
+    // Commit gives 20px. Q3 saves the six fixed widths, Message not
+    // among them, so the saved set has six entries.
+    const savedWidths = [52, 116, 112, 68, 140, 168];
     expect(first.savedState()).toEqual({ columnWidthsByRepo: { "/repos/one": savedWidths } });
     // The loaded page is untouched by the drag.
     expect(first.root.querySelectorAll("tbody tr")).toHaveLength(1);
@@ -90,7 +93,11 @@ describe("reflog tab webview", () => {
     const cols = [...second.root.querySelectorAll<HTMLElement>("thead th")].map(
       (cell) => cell.style.width
     );
-    expect(cols).toEqual(savedWidths.map((width) => `${width}px`));
+    // Message is not saved: until the fit runs (no layout in jsdom)
+    // it shows the default placeholder, which the fit then replaces.
+    expect(cols).toEqual(
+      [52, 116, 112, DEFAULT_COLUMN_WIDTHS[3], 68, 140, 168].map((width) => `${width}px`)
+    );
     expect(second.root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
     expect(second.root.querySelectorAll("tbody tr")).toHaveLength(2);
 

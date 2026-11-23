@@ -7,11 +7,13 @@ import {
   defaultColumnWidths,
   fitColumnWidthsToContainer,
   MESSAGE_COLUMN_INDEX,
+  MESSAGE_DRAG_MIN_WIDTH,
   MESSAGE_MIN_WIDTH,
   MIN_COLUMN_WIDTH,
   normalizeColumnWidths,
   REFLOG_COLUMN_COUNT,
-  resizeColumnWidths
+  resizeColumnWidths,
+  savedColumnWidths
 } from "@/webview/reflogTab/columnResize";
 
 /** A column's rendered width: its content width plus both sides' padding. */
@@ -34,8 +36,8 @@ describe("reflog column defaults (Q2)", () => {
     }
     // Widening a column and dragging it back by the same amount
     // lands exactly on its default again, Index included.
-    const widened = resizeColumnWidths(defaultColumnWidths(), 0, 100);
-    expect(resizeColumnWidths(widened, 0, -100)).toEqual([...DEFAULT_COLUMN_WIDTHS]);
+    const widened = resizeColumnWidths(defaultColumnWidths(), 0, 30);
+    expect(resizeColumnWidths(widened, 0, -30)).toEqual([...DEFAULT_COLUMN_WIDTHS]);
   });
 
   it("hands out a fresh copy of the defaults each time", () => {
@@ -45,25 +47,30 @@ describe("reflog column defaults (Q2)", () => {
   });
 });
 
-describe("reflog column resize arithmetic (Message is the flexible column, Q2)", () => {
+describe("reflog column resize arithmetic (Q3: every boundary trades its two columns)", () => {
   const widths = [50, 110, 90, 300, 90, 130, 120];
 
-  it("widens Message against Commit at Message's own right edge, and back", () => {
+  it("trades a fixed pair against each other, Message untouched", () => {
+    // Index|Action, Action|Sub-action, Commit|Date, Date|State.
+    expect(resizeColumnWidths(widths, 0, 20)).toEqual([70, 90, 90, 300, 90, 130, 120]);
+    expect(resizeColumnWidths(widths, 1, 20)).toEqual([50, 130, 70, 300, 90, 130, 120]);
+    expect(resizeColumnWidths(widths, 4, 20)).toEqual([50, 110, 90, 300, 110, 110, 120]);
+    expect(resizeColumnWidths(widths, 5, 20)).toEqual([50, 110, 90, 300, 90, 150, 100]);
+  });
+
+  it("changes only the fixed neighbour of a boundary next to Message, Message absorbs it", () => {
+    // Sub-action|Message: dragging right widens Sub-action.
+    expect(resizeColumnWidths(widths, 2, 20)).toEqual([50, 110, 110, 280, 90, 130, 120]);
+    // Message|Commit: dragging right narrows Commit, Message grows.
     expect(resizeColumnWidths(widths, 3, 40)).toEqual([50, 110, 90, 340, 50, 130, 120]);
     expect(resizeColumnWidths(widths, 3, -40)).toEqual([50, 110, 90, 260, 130, 130, 120]);
     // The input is not mutated.
     expect(widths[3]).toBe(300);
   });
 
-  it("trades every other boundary against Message, never against the neighbour", () => {
-    // Index widens, Message shrinks, Action keeps its width.
-    expect(resizeColumnWidths(widths, 0, 20)).toEqual([70, 110, 90, 280, 90, 130, 120]);
-    // Sub-action's right edge is Message's left edge: the same trade.
-    expect(resizeColumnWidths(widths, 2, 20)).toEqual([50, 110, 110, 280, 90, 130, 120]);
-    // Right of Message, Date widens against Message; State is untouched.
-    expect(resizeColumnWidths(widths, 5, 20)).toEqual([50, 110, 90, 280, 90, 150, 120]);
-    // Narrowing a fixed column grows Message by the same amount.
-    expect(resizeColumnWidths(widths, 5, -30)).toEqual([50, 110, 90, 330, 90, 100, 120]);
+  it("gives State, the last column, its width from Date through its left edge", () => {
+    // Dragging the Date|State edge left narrows Date and widens State.
+    expect(resizeColumnWidths(widths, 5, -30)).toEqual([50, 110, 90, 300, 90, 100, 150]);
   });
 
   it("keeps the total width through every drag, so a fitted table stays fitted", () => {
@@ -74,19 +81,32 @@ describe("reflog column resize arithmetic (Message is the flexible column, Q2)",
     }
   });
 
-  it("stops at the minimum on either side of the trade", () => {
-    expect(clampColumnResizeDelta(widths, 3, 400)).toBe(50);
-    expect(resizeColumnWidths(widths, 3, 400)).toEqual([50, 110, 90, 350, 40, 130, 120]);
-    expect(clampColumnResizeDelta(widths, 3, -400)).toBe(-260);
-    expect(resizeColumnWidths(widths, 3, -400)).toEqual([50, 110, 90, 40, 350, 130, 120]);
-    // The 200px floor is the automatic fit's only: an explicit drag
-    // may take Message below it, down to the minimum, as above.
-    expect(resizeColumnWidths(widths, 0, 260)[MESSAGE_COLUMN_INDEX]).toBe(MIN_COLUMN_WIDTH);
-    // A fixed column stops widening when Message reaches the minimum…
-    const narrowMessage = [50, 110, 90, 60, 90, 130, 120];
-    expect(resizeColumnWidths(narrowMessage, 1, 100)).toEqual([50, 130, 90, 40, 90, 130, 120]);
-    // …and stops narrowing at its own minimum.
-    expect(resizeColumnWidths(widths, 5, -200)).toEqual([50, 110, 90, 390, 90, 40, 120]);
+  it("stops both fixed columns of a trade at the 40px minimum", () => {
+    expect(clampColumnResizeDelta(widths, 0, 400)).toBe(70);
+    expect(resizeColumnWidths(widths, 0, 400)).toEqual([120, 40, 90, 300, 90, 130, 120]);
+    expect(resizeColumnWidths(widths, 5, -200)).toEqual([50, 110, 90, 300, 90, 40, 210]);
+    // Action|Sub-action dragged left: Action stops at 40, Sub-action takes 70.
+    expect(resizeColumnWidths(widths, 1, -400)).toEqual([50, 40, 160, 300, 90, 130, 120]);
+  });
+
+  it("drags Message no narrower than 64px, and a fixed neighbour stops with it", () => {
+    expect(MESSAGE_DRAG_MIN_WIDTH).toBe(64);
+    // Message|Commit dragged left: Message stops at 64, Commit takes the rest.
+    expect(clampColumnResizeDelta(widths, 3, -400)).toBe(-236);
+    expect(resizeColumnWidths(widths, 3, -400)).toEqual([50, 110, 90, 64, 326, 130, 120]);
+    // Sub-action|Message dragged right: Message stops at 64.
+    expect(resizeColumnWidths(widths, 2, 400)).toEqual([50, 110, 326, 64, 90, 130, 120]);
+    // A fixed column stops widening when Message is already at 64.
+    const narrowMessage = [50, 110, 90, 64, 90, 130, 120];
+    expect(resizeColumnWidths(narrowMessage, 2, 100)).toEqual(narrowMessage);
+  });
+
+  it("never drags Message below a width it already has, and grows it freely", () => {
+    // Message starts below its drag minimum (a fit at a tiny panel):
+    // a drag may not narrow it further, but may widen it.
+    const squeezed = [50, 110, 90, 60, 90, 130, 120];
+    expect(resizeColumnWidths(squeezed, 2, 100)).toEqual(squeezed);
+    expect(resizeColumnWidths(squeezed, 2, -30)).toEqual([50, 110, 60, 90, 90, 130, 120]);
   });
 });
 
@@ -159,6 +179,16 @@ describe("fitColumnWidthsToContainer (Q2)", () => {
     expect(fitColumnWidthsToContainer(widths, 902)).toEqual([50, 110, 90, 200, 90, 130, 120]);
   });
 
+  it("ignores the stored Message width: the fixed columns decide what Message gets", () => {
+    const withBigMessage = [50, 110, 90, 999, 90, 130, 120];
+    const withSmallMessage = [50, 110, 90, 1, 90, 130, 120];
+    for (const container of [1202, 902, 700]) {
+      expect(fitColumnWidthsToContainer(withBigMessage, container)).toEqual(
+        fitColumnWidthsToContainer(withSmallMessage, container)
+      );
+    }
+  });
+
   it("never renders wider than the container, even below the sum of the minimums", () => {
     for (const container of [1560, 1200, 1002, 988, 900, 700, 480, 400, 312]) {
       const fitted = fitColumnWidthsToContainer(defaultColumnWidths(), container);
@@ -177,13 +207,46 @@ describe("fitColumnWidthsToContainer (Q2)", () => {
   });
 });
 
-describe("normalizeColumnWidths (restored saved widths)", () => {
-  it("keeps a full set and raises any width below the minimum", () => {
-    expect(normalizeColumnWidths([50, 110, 90, 300, 90, 130, 120])).toEqual([
-      50, 110, 90, 300, 90, 130, 120
+describe("saved reflog widths (Q3: the six fixed widths)", () => {
+  it("saves the six fixed widths, Message left out", () => {
+    expect(savedColumnWidths([50, 110, 90, 340, 68, 140, 168])).toEqual([
+      50, 110, 90, 68, 140, 168
     ]);
-    expect(normalizeColumnWidths([10, 110.9, 90, 300, 90, 130, 120])).toEqual([
-      40, 110, 90, 300, 90, 130, 120
+  });
+
+  it("reads the six-width format back, with Message's placeholder", () => {
+    expect(normalizeColumnWidths([50, 110, 90, 68, 140, 168])).toEqual([
+      50,
+      110,
+      90,
+      DEFAULT_COLUMN_WIDTHS[MESSAGE_COLUMN_INDEX],
+      68,
+      140,
+      168
+    ]);
+  });
+
+  it("reads the Q2 seven-width format by dropping its Message entry", () => {
+    expect(normalizeColumnWidths([50, 110, 90, 300, 90, 130, 120])).toEqual([
+      50,
+      110,
+      90,
+      DEFAULT_COLUMN_WIDTHS[MESSAGE_COLUMN_INDEX],
+      90,
+      130,
+      120
+    ]);
+  });
+
+  it("raises any width below the minimum", () => {
+    expect(normalizeColumnWidths([10, 110.9, 90, 90, 130, 120])).toEqual([
+      40,
+      110,
+      90,
+      DEFAULT_COLUMN_WIDTHS[MESSAGE_COLUMN_INDEX],
+      90,
+      130,
+      120
     ]);
   });
 
@@ -191,7 +254,8 @@ describe("normalizeColumnWidths (restored saved widths)", () => {
     expect(normalizeColumnWidths(null)).toBeNull();
     expect(normalizeColumnWidths(undefined)).toBeNull();
     expect(normalizeColumnWidths([50, 110])).toBeNull();
-    expect(normalizeColumnWidths([50, 110, 90, 300, 90, 130, "wide"])).toBeNull();
+    expect(normalizeColumnWidths([50, 110, 90, 90, 130])).toBeNull();
+    expect(normalizeColumnWidths([50, 110, 90, 90, 130, "wide"])).toBeNull();
     expect(normalizeColumnWidths([50, 110, 90, 300, 90, 130, Number.NaN])).toBeNull();
     expect(normalizeColumnWidths("50,110")).toBeNull();
   });

@@ -488,23 +488,25 @@ describe("reflog table column resizing (F1-04F, Q2)", () => {
     expect(onColumnWidthsChange).toHaveBeenCalledWith([50, 110, 90, 340, 50, 130, 120]);
     expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
 
+    // Message stops at its 64px drag minimum (Q3): 340 − 276 = 64,
+    // and Commit takes the 276px: 50 + 276 = 326.
     drag(root, 3, 100, -400);
-    expect(colWidths(root)).toEqual(["50px", "110px", "90px", "40px", "350px", "130px", "120px"]);
-    expect(onColumnWidthsChange).toHaveBeenLastCalledWith([50, 110, 90, 40, 350, 130, 120]);
+    expect(colWidths(root)).toEqual(["50px", "110px", "90px", "64px", "326px", "130px", "120px"]);
+    expect(onColumnWidthsChange).toHaveBeenLastCalledWith([50, 110, 90, 64, 326, 130, 120]);
     expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
 
     // A reload re-renders from the kept widths: same table, same rows.
-    view.render({ ...state, columnWidths: [50, 110, 90, 40, 350, 130, 120] }, NOW);
-    expect(colWidths(root)).toEqual(["50px", "110px", "90px", "40px", "350px", "130px", "120px"]);
+    view.render({ ...state, columnWidths: [50, 110, 90, 64, 326, 130, 120] }, NOW);
+    expect(colWidths(root)).toEqual(["50px", "110px", "90px", "64px", "326px", "130px", "120px"]);
     expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
   });
 
   it("starts the first drag from the defaults and trades against Message (Q2)", () => {
     const { root, onColumnWidthsChange } = renderWith(null);
     drag(root, 0, 100, 110);
-    // Index +10, Message −10; Action, the boundary's neighbour, is
-    // untouched, and the total — so the table's fit — is unchanged.
-    expect(onColumnWidthsChange).toHaveBeenCalledWith([62, 116, 112, 310, 88, 140, 168]);
+    // Index +10, Action −10 (Q3: the Index|Action boundary trades
+    // between the two fixed columns); Message is untouched.
+    expect(onColumnWidthsChange).toHaveBeenCalledWith([62, 106, 112, 320, 88, 140, 168]);
     expect(root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
     // Dragging Index back down reaches its default again exactly.
     drag(root, 0, 110, 100);
@@ -587,18 +589,18 @@ describe("reflog table column resizing (F1-04F, Q2)", () => {
     const { root, onColumnWidthsChange } = renderWith([...WIDTHS]);
     stubContainerWidth(root, 702);
     window.dispatchEvent(new Event("resize"));
-    // Widening Index takes from Message, which the user may drag below
-    // its 200px automatic floor, down to the 40px minimum; the drag is
-    // not clamped here because Message still has room.
+    // Widening Index trades with Action (Q3), down to Action's 40px
+    // minimum: Action has 70px of its fitted 110px to give, so Index
+    // gains 30px, not 100px; Message is untouched and the total holds.
     drag(root, 0, 100, 200);
     expect(renderedTableWidth(root)).toBeLessThanOrEqual(702);
-    expect(colWidths(root)).toEqual(["145px", "70px", "62px", "100px", "62px", "76px", "75px"]);
-    // Narrowing Date gives its width to Message, down to Date's minimum;
-    // the total holds.
+    expect(colWidths(root)).toEqual(["75px", "40px", "62px", "200px", "62px", "76px", "75px"]);
+    // Dragging the Date|State edge left narrows Date, down to its 40px
+    // minimum, and State takes the width (Q3); the total holds.
     drag(root, 5, 100, 50);
-    expect(colWidths(root)).toEqual(["145px", "70px", "62px", "136px", "62px", "40px", "75px"]);
+    expect(colWidths(root)).toEqual(["75px", "40px", "62px", "200px", "62px", "40px", "111px"]);
     expect(renderedTableWidth(root)).toBe(702);
-    expect(onColumnWidthsChange).toHaveBeenLastCalledWith([145, 70, 62, 136, 62, 40, 75]);
+    expect(onColumnWidthsChange).toHaveBeenLastCalledWith([75, 40, 62, 200, 62, 40, 111]);
     expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
   });
 

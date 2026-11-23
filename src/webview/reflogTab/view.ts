@@ -349,15 +349,17 @@ function dragHandleColumn(event: MouseEvent): number | null {
 }
 
 /**
- * Column drag-to-resize for the entries table. The table always draws
- * with explicit widths — the defaults, or the user's saved set — fitted
- * to its scroll container, so it never renders wider than the tab:
- * Message absorbs every fit, and a drag trades a fixed column against
- * Message, keeping the total. Dragging and fitting only restyle this
- * table (as the graph's handler restyles its headers): rows and loaded
- * pages are never rebuilt by a resize. Returns the fit, which the view
- * runs once the table is in the document and again on window resizes;
- * fitting is display-only and never overwrites the saved widths.
+ * Column drag-to-resize for the entries table, as the graph's handler
+ * does it. Every boundary trades width between the two columns it
+ * separates (`resizeColumnWidths`); Message, the flexible column,
+ * takes what the fixed columns leave. The table always draws with
+ * explicit widths, fitted to its scroll container so it never renders
+ * wider than the tab. Two sets are kept: the chosen widths (defaults,
+ * saved set, or the result of the last drag) and the shown widths,
+ * which are the chosen ones fitted to the current container. A fit
+ * changes only the shown set, so widening grows the columns back.
+ * Dragging restyles this table only (as the graph's handler restyles
+ * its headers): rows and loaded pages are never rebuilt by a resize.
  */
 function attachColumnResizing(
   scroll: HTMLElement,
@@ -367,7 +369,10 @@ function attachColumnResizing(
   initialWidths: ReflogViewState["columnWidths"],
   callbacks: ReflogViewCallbacks
 ): () => void {
-  let widths = initialWidths === null ? defaultColumnWidths() : [...initialWidths];
+  // The chosen widths: what the user picked, and what gets saved.
+  let chosen = initialWidths === null ? defaultColumnWidths() : [...initialWidths];
+  // The shown widths: the chosen ones fitted to the container.
+  let widths = [...chosen];
   let dragCol = -1;
   let mouseX = 0;
   const applyWidths = () => {
@@ -379,7 +384,7 @@ function attachColumnResizing(
     });
   };
   const fitToContainer = () => {
-    widths = fitColumnWidthsToContainer(widths, scroll.clientWidth);
+    widths = fitColumnWidthsToContainer(chosen, scroll.clientWidth);
     applyWidths();
   };
   const startResizing = (event: MouseEvent) => {
@@ -392,6 +397,7 @@ function attachColumnResizing(
   const moveResizing = (event: MouseEvent) => {
     if (dragCol < 0) return;
     widths = resizeColumnWidths(widths, dragCol, event.clientX - mouseX);
+    chosen = [...widths];
     mouseX = event.clientX;
     applyWidths();
   };
@@ -399,7 +405,7 @@ function attachColumnResizing(
     if (dragCol < 0) return;
     dragCol = -1;
     headRow.classList.remove("resizing");
-    callbacks.onColumnWidthsChange?.([...widths]);
+    callbacks.onColumnWidthsChange?.([...chosen]);
   };
   applyWidths();
   headRow.addEventListener("mousedown", startResizing);
