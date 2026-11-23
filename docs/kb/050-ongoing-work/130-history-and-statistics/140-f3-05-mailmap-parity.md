@@ -8,7 +8,7 @@ summary: >-
 
 # F3-05 — Mailmap parity in `author_stats`
 
-Status: waiting on F3-01 integration, and on TQ5 confirmed
+Status: claimed by Muse Code on 2026-11-23 12:03
 
 Needs: F3-01 integrated; TQ5 confirmed
 
