@@ -7,11 +7,15 @@
 /** The actions a todo line may name. `reword` is editor-only: it serializes as `pick`. */
 export type TodoAction = "pick" | "reword" | "edit" | "squash" | "fixup" | "drop";
 
+/** Optional flag modifying a `fixup` todo line (`-C` replaces the target's message, as Git emits for `amend!`). */
+export type TodoFixupFlag = "-C";
+
 /** One todo line. `message` is carried for the editor and is not part of the todo text. */
 export type TodoEntry = {
   readonly action: TodoAction;
   readonly hash: string;
   readonly message?: string;
+  readonly fixupFlag?: TodoFixupFlag;
 };
 
 /** How a rebase run ended, shared with the runner so both sides use one type. */
@@ -162,15 +166,22 @@ export function validateTodo(
   return rejection ? { ok: false, rejection } : { ok: true };
 }
 
+function serializeTodoEntry(entry: TodoEntry): string {
+  const hash = entry.hash.toLowerCase();
+  if (entry.action === "fixup" && entry.fixupFlag === "-C") {
+    return `fixup -C ${hash}\n`;
+  }
+  return `${TODO_WORD[entry.action]} ${hash}\n`;
+}
+
 /**
  * The todo text Git reads: one `<action> <full hash>` line per entry, in
- * order, each ending in `\n`. Hashes are written in lower case. Call
+ * order, each ending in `\n`. Hashes are written in lower case. A `fixup`
+ * entry with `fixupFlag: "-C"` serializes as `fixup -C <full hash>`. Call
  * {@link validateTodo} first; this function does not check its input.
  */
 export function serializeTodo(entries: readonly TodoEntry[]): string {
-  return entries
-    .map((entry) => `${TODO_WORD[entry.action]} ${entry.hash.toLowerCase()}\n`)
-    .join("");
+  return entries.map(serializeTodoEntry).join("");
 }
 
 /** One squash group: a target entry and the members that meld into it. */

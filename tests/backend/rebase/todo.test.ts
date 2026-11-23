@@ -376,6 +376,12 @@ describe("serializeTodo", () => {
     expect(serializeTodo([])).toBe("");
   });
 
+  it("serializes fixup with fixupFlag -C as fixup -C <hash>", () => {
+    expect(serializeTodo([{ action: "fixup", hash: A.toUpperCase(), fixupFlag: "-C" }])).toBe(
+      `fixup -C ${A}\n`
+    );
+  });
+
   it("does not mutate its input", () => {
     const entries: TodoEntry[] = [{ action: "reword", hash: A, message: "m" }];
     const before = JSON.stringify(entries);
