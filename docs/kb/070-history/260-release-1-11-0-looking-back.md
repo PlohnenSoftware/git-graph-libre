@@ -84,7 +84,7 @@ releases (Rules) applies, with the answers below.
 | R90 | Release 1.11.0 | every `main` track | orchestrator | done `74ff94fe` (not tagged, not pushed) |
 | KB2 | Move the finished sections to History; roadmap and work order | R90 | Claude Haiku | integrated `b2c476e3` |
 | Q3 | Reflog columns resize like the graph's; State resizable and narrower (maintainer test) | Q2 | Claude Haiku | integrated `a059ef64` |
-| Q4 | Reflog: drop the redundant header; Scan button into the filter bar (maintainer test) | Q2 | Claude Haiku | ready |
+| Q4 | Reflog: drop the redundant header; Scan button into the filter bar (maintainer test) | Q2 | Claude Haiku | integrated `00a1fd9b` |
 
 ## Blocked — waiting for the maintainer
 
@@ -346,3 +346,16 @@ anything unsolvable within reason be marked here while the rest continues.
   (read by the integrator). Gates on `a059ef64`: strict Biome, typecheck,
   KB check, backend 1,594 passed (60 skipped in the worktree) and webview
   1,368 passed. Q4 (header into the filter bar) follows.
+- `2026-11-23`: Q4 (Claude Haiku) integrated at `00a1fd9b` (rebased over Q3
+  without conflicts): the Reflog tab's header bar (ref name and repository
+  name) is gone; "Scan for Lost Commits…" is the last control of the filter
+  bar, pushed right, so the filter bar is the tab's top row and the button
+  keeps its place; on a narrow tab it wraps to a second row, right-aligned.
+  The ref picker's title carries a worktree `HEAD`'s full path. Deviations:
+  no `role="toolbar"` (it would promise arrow-key handling); the picker
+  shows plain "HEAD" for this worktree's own `HEAD`, where the header said
+  "HEAD of worktree <name>" when linked worktrees exist (a wording choice
+  left to the maintainer); the claim commit's subject lacks "(Q4)" — the
+  agent's amend was blocked by a hook and the integrator accepted it as is.
+  Gates on `00a1fd9b`: strict Biome, typecheck, KB check, backend 1,594
+  passed (60 skipped in the worktree) and webview 1,369 passed.
