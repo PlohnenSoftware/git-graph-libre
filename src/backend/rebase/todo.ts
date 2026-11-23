@@ -29,11 +29,13 @@ export type TodoRejection =
   | { readonly reason: "bad-hash"; readonly hash: string }
   | { readonly reason: "duplicate-hash"; readonly hash: string }
   | { readonly reason: "first-entry-squash"; readonly action: "squash" | "fixup" }
+  | { readonly reason: "squash-without-target"; readonly hash: string }
   | {
       readonly reason: "range-mismatch";
       readonly missing: readonly string[];
       readonly extra: readonly string[];
-    };
+    }
+  | { readonly reason: "empty-message"; readonly hash: string };
 
 export type TodoValidation =
   | { readonly ok: true }
@@ -83,6 +85,37 @@ function findSquashFirst(entries: readonly TodoEntry[]): TodoRejection | null {
   return null;
 }
 
+/** Whether an action creates the commit later `squash`/`fixup` lines meld into. */
+export function isSquashGroupTarget(action: TodoAction): boolean {
+  return action === "pick" || action === "reword" || action === "edit";
+}
+
+function isSquashOrFixup(action: TodoAction): boolean {
+  return action === "squash" || action === "fixup";
+}
+
+/**
+ * A `squash`/`fixup` with no commit to meld into. A `drop` creates no
+ * commit, so a member after only drops is as targetless as one in first
+ * place; Git would stop on it with state left behind.
+ */
+function findSquashWithoutTarget(entries: readonly TodoEntry[]): TodoRejection | null {
+  let hasTarget = false;
+  for (const entry of entries) {
+    if (isSquashGroupTarget(entry.action)) hasTarget = true;
+    else if (isSquashOrFixup(entry.action) && !hasTarget) {
+      return { reason: "squash-without-target", hash: entry.hash };
+    }
+  }
+  return null;
+}
+
+/** An entry carrying a message must carry text; Git refuses an empty one. */
+function findEmptyMessage(entries: readonly TodoEntry[]): TodoRejection | null {
+  const bad = entries.find((entry) => entry.message !== undefined && entry.message.trim() === "");
+  return bad ? { reason: "empty-message", hash: bad.hash } : null;
+}
+
 function findRangeMismatch(
   entries: readonly TodoEntry[],
   rangeHashes: readonly string[]
@@ -109,7 +142,9 @@ function firstRejection(
     findBadHash(entries) ??
     findDuplicate(entries) ??
     findSquashFirst(entries) ??
-    findRangeMismatch(entries, rangeHashes)
+    findSquashWithoutTarget(entries) ??
+    findRangeMismatch(entries, rangeHashes) ??
+    findEmptyMessage(entries)
   );
 }
 
@@ -136,4 +171,32 @@ export function serializeTodo(entries: readonly TodoEntry[]): string {
   return entries
     .map((entry) => `${TODO_WORD[entry.action]} ${entry.hash.toLowerCase()}\n`)
     .join("");
+}
+
+/** One squash group: a target entry and the members that meld into it. */
+export type SquashGroup = {
+  readonly targetIndex: number;
+  readonly memberIndices: readonly number[];
+};
+
+/**
+ * Groups entries the way Git melds them: each `pick`/`reword`/`edit` opens
+ * a group, following `squash`/`fixup` entries join the open group, and a
+ * `drop` neither opens nor closes one (Git skips it, so a member after a
+ * drop still melds into the last target). Members before any target join
+ * no group; {@link validateTodo} rejects them. Groups with no members are
+ * included, one per target, in todo order.
+ */
+export function findSquashGroups(
+  entries: readonly { readonly action: TodoAction }[]
+): SquashGroup[] {
+  const groups: { targetIndex: number; memberIndices: number[] }[] = [];
+  for (const [index, entry] of entries.entries()) {
+    if (isSquashGroupTarget(entry.action)) {
+      groups.push({ targetIndex: index, memberIndices: [] });
+    } else if (isSquashOrFixup(entry.action)) {
+      groups[groups.length - 1]?.memberIndices.push(index);
+    }
+  }
+  return groups;
 }
