@@ -827,7 +827,7 @@
   "stats.cellMany": "{0} {1}:00：{2} 次提交",
   "stats.unavailable": "统计信息不可用。",
   "stats.unavailable.noAddon": "统计信息需要 Rust 引擎，但该引擎不可用。",
-  "stats.unavailable.backendCli": "统计信息需要 Rust 引擎，但 backend 设置使用的是 Git 命令行。",
+  "stats.unavailable.backendCli": "统计信息需要 Rust 引擎，但后端设置使用的是 Git 命令行。",
   "stats.unavailable.notVerified": "Git 尚未确认此仓库，因此 Rust 引擎无法读取它。",
   "stats.unavailable.failed": "Rust 引擎无法读取此仓库的统计信息。",
   "stats.weekday.sunday": "星期日",
