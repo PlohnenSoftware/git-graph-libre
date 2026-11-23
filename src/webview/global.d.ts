@@ -56,6 +56,8 @@ declare global {
   interface ContextMenuItem {
     title: string;
     checked?: boolean;
+    disabled?: boolean;
+    reason?: string;
     onClick: () => void;
   }
 
