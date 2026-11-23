@@ -79,8 +79,8 @@ that note, the slice file wins.
 | F1-09 | Reflog read through the engine | F1-03 | Sonnet | integrated `b5a3ae7e` |
 | F1-09F | Wire the Reflog tab to the engine reader | F1-09 | Haiku | integrated `10a2c006` |
 | F1-04F | Unify the Reflog tab with the graph | F1-04, F1-09 | Haiku | integrated `29594fde` |
-| F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | ready |
-| F1-08 | Worktrees and bare repositories | F1-05 | Sonnet | waiting |
+| F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | integrated `f0a51986` |
+| F1-08 | Worktrees and bare repositories | F1-05 | Sonnet | ready |
 | F1-06 | Recovery actions that cannot lose data | F1-08 | Sonnet | waiting |
 | F1-07 | Lost-commit scan (opt-in) | F1-06 | Sonnet | waiting |
 
@@ -206,3 +206,13 @@ headless render of the tab in both themes. Nothing is pushed.
   both themes): identical 8-character hashes, `Commit` and `Date`
   headers and date shapes; a third render shows the Commit column
   dragged wide. F1-05 is ready.
+- `2026-11-23`: F1-05 (Muse Code) integrated at `f0a51986` by fast-forward,
+  in parallel with the Blame view slices at the maintainer's request: Git's
+  own `--grep-reflog` with `--fixed-strings --regexp-ignore-case` for the
+  search, the action filter, the ref picker (HEAD, local branches, the
+  stash) and the "only in the reflog" toggle, searching up to the 5,000 cap.
+  New l10n keys sit inside the reflog block so the Blame slices' keys at the
+  end of each bundle merge cleanly. Translations are the agent's own. Gates
+  on `f0a51986`: strict Biome on the 22 touched files clean; typecheck
+  clean; `l10n:check` complete; `pnpm run test` backend 1,614 and webview
+  1,116 passed; KB check clean. F1-08 is ready.

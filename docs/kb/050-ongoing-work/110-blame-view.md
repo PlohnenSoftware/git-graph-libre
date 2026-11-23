@@ -123,8 +123,8 @@ dispatching `F4-03` onward:
 
 | ID | Work | Needs | Model | Status |
 | --- | --- | --- | --- | --- |
-| F4-01 | Blame CLI read query and porcelain parser | — | Sonnet | ready |
-| F4-02 | Hotspot age-heat and churn scoring model | F4-01 | Haiku | waiting |
+| F4-01 | Blame CLI read query and porcelain parser | — | Sonnet | integrated `1aac24df` |
+| F4-02 | Hotspot age-heat and churn scoring model | F4-01 | Haiku | ready |
 | F4-03 | Blame editor-tab panel and read-only view | F4-01, F4-02 | Sonnet | waiting |
 | F4-04 | Hotspot OKLCH palette, heat rail, legend and hover highlight | F4-03 | Haiku | waiting |
 | F4-05 | Parent-blame rewind stack, options, ignore-revs and find | F4-04 | Sonnet | waiting |
@@ -157,3 +157,16 @@ revision). Nothing is pushed without explicit instruction.
   through `180-f4-09-engine-blame-read.md` written under `110-blame-view/` for
   later execution (`F4-01` ready; `F4-02`–`F4-09` waiting on dependencies and
   maintainer confirmation of `BQ1`–`BQ9`).
+- `2026-11-23`: F4-01 (Muse Code) integrated at `1aac24df` by fast-forward:
+  `loadBlame` and `parseBlamePorcelain` in `src/backend/queries/blame.ts`, the
+  blame types in `queries.types.ts`, a minimal `src/backend/queries/index.ts`
+  barrel, 41 real-Git tests. Choices recorded in its report: untracked and
+  unborn decided by structural probes, never Git's message text; a
+  `contents` buffer is a revision blame, so bare repositories serve it;
+  every revision resolved through `rev-parse`; `MAX_BLAME_FILE_BYTES` is
+  2 MiB. The machine rebooted after the report and before integration; the
+  slice branch held every commit, and the worktree was recreated under
+  `/home/zam/Desktop/prog/_GGL/.ggl-wt/` because `/tmp` does not survive a
+  reboot. Gates on `f0a51986` (with F1-05): strict Biome on the four touched
+  files clean; typecheck clean; `pnpm run test` backend 1,614 and webview
+  1,116 passed. F4-02 is ready.

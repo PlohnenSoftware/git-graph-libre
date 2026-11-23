@@ -8,7 +8,7 @@ summary: >-
 
 # F4-02 — Hotspot age-heat and churn scoring model
 
-Status: waiting
+Status: ready
 
 Needs: F4-01
 

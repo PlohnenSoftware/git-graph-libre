@@ -8,7 +8,7 @@ summary: >-
 
 # F1-08 — Worktrees and bare repositories
 
-Status: waiting
+Status: ready
 
 Needs: F1-05
 
