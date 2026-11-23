@@ -40,6 +40,12 @@ describe("reflog column defaults (Q2)", () => {
     expect(resizeColumnWidths(widened, 0, -30)).toEqual([...DEFAULT_COLUMN_WIDTHS]);
   });
 
+  it("sizes State to its longest English label, not the old 168px (Q3)", () => {
+    // "Object no longer exists" renders as a 132.6px pill in the headless
+    // render (dark and light, Q3); the default is that pill rounded up.
+    expect(DEFAULT_COLUMN_WIDTHS[6]).toBe(133);
+  });
+
   it("hands out a fresh copy of the defaults each time", () => {
     const widths = defaultColumnWidths();
     widths[0] = 999;
@@ -133,7 +139,10 @@ describe("fitColumnWidthsToContainer (Q2)", () => {
     // least — and clip with an ellipsis. Message keeps a readable
     // 200px instead of wrapping one word per line.
     const fitted = fitColumnWidthsToContainer(defaultColumnWidths(), 700);
-    expect(fitted).toEqual([45, 66, 65, 200, 57, 74, 81]);
+    // Shrink order at 700px: 253px off the fixed columns in proportion
+    // to their slack (Index 7, Action 47, Sub-action 45, Commit 30,
+    // Date 63, State 58), the last 3px off the widest left, Date.
+    expect(fitted).toEqual([45, 69, 67, 200, 58, 74, 75]);
     expect(renderedWidth(fitted)).toBe(700);
     expect(fitted[MESSAGE_COLUMN_INDEX]).toBe(MESSAGE_MIN_WIDTH);
     fitted.forEach((width, index) => {
@@ -161,7 +170,7 @@ describe("fitColumnWidthsToContainer (Q2)", () => {
     const chosen = defaultColumnWidths();
     const at700 = fitColumnWidthsToContainer(chosen, 700);
     const at900 = fitColumnWidthsToContainer(chosen, 900);
-    expect(at900).toEqual([50, 101, 98, 200, 79, 120, 140]);
+    expect(at900).toEqual([51, 106, 103, 200, 82, 125, 121]);
     // Every fixed column is on its way back, Message still held.
     at900.forEach((width, index) => {
       if (index === MESSAGE_COLUMN_INDEX) return;
@@ -169,10 +178,10 @@ describe("fitColumnWidthsToContainer (Q2)", () => {
       expect(width).toBeLessThan(chosen[index] as number);
     });
     expect(at900[MESSAGE_COLUMN_INDEX]).toBe(MESSAGE_MIN_WIDTH);
-    // At 988px the fixed columns are whole again, Message at 200px…
-    expect(fitColumnWidthsToContainer(chosen, 988)).toEqual([52, 116, 112, 200, 88, 140, 168]);
+    // At 953px the fixed columns are whole again, Message at 200px…
+    expect(fitColumnWidthsToContainer(chosen, 953)).toEqual([52, 116, 112, 200, 88, 140, 133]);
     // …and only beyond that does Message grow past its floor.
-    expect(fitColumnWidthsToContainer(chosen, 1000)).toEqual([52, 116, 112, 212, 88, 140, 168]);
+    expect(fitColumnWidthsToContainer(chosen, 1000)).toEqual([52, 116, 112, 247, 88, 140, 133]);
     // The chosen widths a user saved come back the same way: at the
     // width where Message reaches its floor, the fixed columns are
     // the saved ones, not the defaults.

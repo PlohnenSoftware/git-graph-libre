@@ -506,7 +506,7 @@ describe("reflog table column resizing (F1-04F, Q2)", () => {
     drag(root, 0, 100, 110);
     // Index +10, Action −10 (Q3: the Index|Action boundary trades
     // between the two fixed columns); Message is untouched.
-    expect(onColumnWidthsChange).toHaveBeenCalledWith([62, 106, 112, 320, 88, 140, 168]);
+    expect(onColumnWidthsChange).toHaveBeenCalledWith([62, 106, 112, 320, 88, 140, 133]);
     expect(root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
     // Dragging Index back down reaches its default again exactly.
     drag(root, 0, 110, 100);

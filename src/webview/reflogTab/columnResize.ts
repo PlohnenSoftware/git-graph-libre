@@ -48,14 +48,17 @@ export const COLUMN_SIDE_PADDING_PX = 16;
  * its usual content on one line: a five-digit index, the longest
  * action word beside its dot, a sub-action pill, a hash at the
  * default `shortHashLength`, a date-and-time in the bundle's
- * "DD MM YYYY" shape with its three-letter months, and the longest
- * state label, "Object no longer exists", as its pill. Message's
+ * "DD MM YYYY" shape with its three-letter months. State's default
+ * is its longest English label, "Object no longer exists", as its
+ * pill (132.6px measured in the headless render, Q3, rounded up to
+ * 133px) plus the cell padding, which the rendered column adds on
+ * top. Message's
  * default is only a placeholder: the fit gives Message what the
  * fixed columns leave. Every default sits at or above
  * `MIN_COLUMN_WIDTH`, so a column the user widened can always be
  * dragged back down to its default.
  */
-export const DEFAULT_COLUMN_WIDTHS: readonly number[] = [52, 116, 112, 320, 88, 140, 168];
+export const DEFAULT_COLUMN_WIDTHS: readonly number[] = [52, 116, 112, 320, 88, 140, 133];
 
 /** A fresh copy of the default widths, safe for the caller to mutate. */
 export function defaultColumnWidths(): number[] {

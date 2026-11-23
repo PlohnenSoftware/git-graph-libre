@@ -82,7 +82,7 @@ describe("reflog tab webview", () => {
     // From the defaults, +20 traded across the message/commit edge:
     // Commit gives 20px. Q3 saves the six fixed widths, Message not
     // among them, so the saved set has six entries.
-    const savedWidths = [52, 116, 112, 68, 140, 168];
+    const savedWidths = [52, 116, 112, 68, 140, 133];
     expect(first.savedState()).toEqual({ columnWidthsByRepo: { "/repos/one": savedWidths } });
     // The loaded page is untouched by the drag.
     expect(first.root.querySelectorAll("tbody tr")).toHaveLength(1);
@@ -96,7 +96,7 @@ describe("reflog tab webview", () => {
     // Message is not saved: until the fit runs (no layout in jsdom)
     // it shows the default placeholder, which the fit then replaces.
     expect(cols).toEqual(
-      [52, 116, 112, DEFAULT_COLUMN_WIDTHS[3], 68, 140, 168].map((width) => `${width}px`)
+      [52, 116, 112, DEFAULT_COLUMN_WIDTHS[3], 68, 140, 133].map((width) => `${width}px`)
     );
     expect(second.root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
     expect(second.root.querySelectorAll("tbody tr")).toHaveLength(2);
@@ -107,7 +107,7 @@ describe("reflog tab webview", () => {
     expect(second.root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
     expect(
       [...second.root.querySelectorAll<HTMLElement>("thead th")].map((cell) => cell.style.width)
-    ).toEqual([52, 116, 112, 320, 88, 140, 168].map((width) => `${width}px`));
+    ).toEqual([52, 116, 112, 320, 88, 140, 133].map((width) => `${width}px`));
   });
 
   it("debounces the search box and sends other filter changes at once (F1-05)", async () => {
