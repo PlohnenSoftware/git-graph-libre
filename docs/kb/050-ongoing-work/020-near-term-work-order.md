@@ -11,21 +11,18 @@ always_read: true
 
 # Near-Term Work Order
 
-**Now (`2026-11-23`): release 1.11.0 "Looking Back".** "Release 1.11.0 —
-Looking Back" (Ongoing work) holds the scope (everything on `main` since
-v1.10.0, the finished Reflog tab and the finished Blame view, popup fixes
-optional), the maintainer's answers for a long autonomous run, and slices T1,
-P1 and R90. Interactive rebase and the history/statistics view continue on
-`gg-plus/next` and do not ship in 1.11.0.
+**Prepared (`2026-11-23`): release 1.11.0 "Looking Back" — awaiting the
+maintainer's tag and push.** "Release 1.11.0 — Looking Back" (History) holds
+the scope (everything on `main` since v1.10.0, the finished Reflog tab and the
+finished Blame view, popup fixes optional), the maintainer's answers for a
+long autonomous run, and slices T1, P1 and R90. Interactive rebase and the
+history/statistics view continue on `gg-plus/next` and do not ship in 1.11.0.
 
-**Planned for the next release (`2026-11-23`): Blame view (GitHub-inspired
-with hotspot coloring).** Prepared beside the Git Graph+ phases as Feature 4
-(`040-blame-view.md` under Future work) with its execution overview and
-tailored subagent slices in "Blame view" (`240-blame-view.md` under Ongoing
-work): slices `F4-01` to `F4-08` (plus optional engine slice `F4-09`),
-decisions `BQ1`–`BQ9`, and Git `2.56.1` porcelain/edge-case verification.
-`F4-01` is ready without a decision; `F4-03` onward wait on confirming
-`BQ1`–`BQ8`.
+**Done (`2026-11-23`): Blame view (GitHub-inspired with hotspot coloring), in
+release 1.11.0.** Prepared beside the Git Graph+ phases as Feature 4
+(`040-blame-view.md` under Future work). Its record is "Blame view" (History,
+`240-blame-view.md`): slices `F4-01` to `F4-08` integrated; the optional engine
+slice `F4-09` is deferred on `BQ8` profiling.
 
 **Fixed (`2026-11-23`): unreachable-commits scan broke graph load on a stale
 commit-graph.** Slice U1 (integrated `0a94f150`) runs the scan with
@@ -34,12 +31,11 @@ failed scan from replacing the graph, and feeds many extra tips to
 `git log --stdin`. The record is "Unreachable-commits scan breaks graph load
 on stale commit-graph" (History).
 
-**Also open (`2026-11-12`): popup defects to fix.** The maintainer asked for
-a visual review of every popup and context menu, the worktree ones first.
-The context menus are fixed. "Popup and context-menu visual review"
-(Ongoing work) lists what is left, V1–V11, with the cause and the proposed
-fix of each, a suggested order, and one question for the maintainer (VQ1,
-icon buttons in the Worktrees popup).
+**Done (`2026-11-12`): popup defects.** The maintainer asked for a visual
+review of every popup and context menu, the worktree ones first. The context
+menus are fixed, and every item V1–V11 is done (P1 and P1b, in release 1.11.0).
+The record is "Popup and context-menu visual review" (History), with the cause
+and the fix of each item.
 
 **Now (`2026-11-08`).** Two threads, both waiting for the maintainer:
 
