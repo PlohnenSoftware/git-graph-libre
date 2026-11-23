@@ -110,7 +110,7 @@ changes are separate signed commits; never push.
   - Pure: `columnResize.test.ts` now checks each boundary rule in both directions, the 40 and 64 px minimums, Date|State, the State default (pinned at 133), the fit ignoring the stored Message width, and the six/seven saved formats. Expectations that pinned the old pairing with Message (Index|Action moved Message; the 40 px Message drag floor) were updated to the new rules, and the 700/900/953 px fit expectations were recomputed from the new default.
   - View: `view.test.ts` drag expectations updated (Index|Action now trades with Action; Message|Commit drag floor 64 px; Date|State changes exactly Date and State; the fitted total holds at 702 px). The header handle test (two per middle column, one each for first and last) still passes unchanged.
   - Main: `main.test.ts` per-repository reload now expects six saved widths, and Message is the placeholder until the fit runs.
-  - Counts: the reflog webview tests went from 119 to 127 across 7 files (the pre-change count was measured at the Q2 base in this worktree; 119 is the count after the first commit's test changes; all green).
+  - Counts: the reflog webview suites now have 127 tests in 7 files, all passing. I did not measure the count at the base commit in this session, so no before-and-after figure is given.
 - **Gates:**
   - `pnpm run typecheck` — exit 0.
   - Strict Biome on the six touched `.ts` files — clean except the pre-existing `biome.strict.jsonc` schema-version info notice.
@@ -125,7 +125,7 @@ changes are separate signed commits; never push.
   - `reflog-q3-dark-700.png` — viewed. Index on one line; Message 200 px and readable multi-word rows; Sub-action header ellipsized ("Sub-acti…"); State pill clipped to "Object no lo…"; no horizontal scroll (686 = 686, the scrollbar refit).
   - `reflog-q3-light-700.png` — viewed; the same layout as dark.
   - `reflog-q3-dark-480.png` and `reflog-q3-light-480.png` — viewed. Every fixed column at the 40 px floor and clipped with ellipses ("Acti…", "Co…", "Date" as "23 N…"); Message wraps narrowly; no horizontal scroll (466 = 466). This is the step-3 fallback the rules specify and it is cramped, as in Q2.
-  - Pill measurements at all widths are in `make_and_shoot.py`'s output; `reflog-q3-*-{1560,700,480}` PNG names as listed.
+  - The pill and cell measurements for each render are printed by `make_and_shoot.py` (the `MEASURE` lines), and the harness sits beside the PNGs.
 - **Acceptance:**
   - Message is the flexible column — met.
   - Boundaries trade as specified, including Date|State — met (pure and view tests).
@@ -136,5 +136,5 @@ changes are separate signed commits; never push.
   - Saved-state migration — met (Q2 seven-entry format read by dropping Message).
   - Pure arithmetic in `columnResize.ts`, DOM in the view — met.
 - **Deviations from the slice:** The slice's "Message at least 64 px during a drag" replaces Q2's rule that a drag may take Message to 40 px. This is the intended change; the tests that pinned the old floor were updated and this is the only expectation change of that kind. `main.ts` was touched only for the save format (allowed by Touch).
-- **Open questions / follow-ups:** Native-speaker review of the zh-tw/nl/pl/zh-cn text is not relevant here (no strings). At 480 px the layout is cramped by design of the fit rule; the integrator should judge whether that width matters. Saved widths written by a drag at a narrow fit store the fitted fixed widths (a drag records what was on screen), as Q2 already did.
+- **Open questions / follow-ups:** At 480 px the layout is cramped by design of the fit rule; the integrator should judge whether that width matters. Saved widths written by a drag at a narrow fit store the fitted fixed widths (a drag records what was on screen), as Q2 already did.
 
