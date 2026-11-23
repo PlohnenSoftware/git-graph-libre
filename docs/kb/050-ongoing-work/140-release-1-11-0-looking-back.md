@@ -72,7 +72,7 @@ releases (Rules) applies, with the answers below.
 | T1 | Open-and-outcome telemetry for tabs and worktree buttons | — | Muse Code | integrated `70f2b583` |
 | P1 | Popup fixes V1–V10 | — | Muse Code → Gemini 4 Neon | integrated `9a61b9e9` |
 | P1b | Popup fix V11 (Create Worktree on a branch another worktree holds) | maintainer decision | — | **blocked** (see below) |
-| T1b | Blame tab open-and-outcome telemetry (`tab.blame`) | T1, F4-03 | Claude Haiku | ready |
+| T1b | Blame tab open-and-outcome telemetry (`tab.blame`) | T1, F4-03 | Claude Haiku | integrated `7ed42e61` |
 | R90 | Release 1.11.0 | every `main` track | orchestrator | waiting |
 
 ## Blocked — waiting for the maintainer
@@ -170,3 +170,11 @@ anything unsolvable within reason be marked here while the rest continues.
   above. Gates on `9a61b9e9`: strict Biome on 17 files, typecheck,
   `l10n:check`, KB check, backend 1,579 passed (60 skipped in the worktree)
   and webview 1,200 passed.
+- `2026-11-23`: T1b (Claude Haiku) integrated at `7ed42e61`: `tab.blame` in
+  `src/telemetry/tabOpen.ts`; the Blame panel reports once when an open's
+  first load settles (a load error is `ok: false`; binary, too large, empty,
+  untracked and unborn count as opened), `showBlame`'s early returns (no
+  editor, no repository) report `ok: false`, refreshes stay silent;
+  `telemetry.json` and the README name the signal. Gates on `7ed42e61`:
+  strict Biome on 8 files, typecheck, KB check, backend 1,579 passed (60
+  skipped in the worktree) and webview 1,210 passed.
