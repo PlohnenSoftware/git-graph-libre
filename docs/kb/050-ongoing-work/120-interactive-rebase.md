@@ -85,8 +85,8 @@ the graph layout, outside this work; no slice reads it.
 
 | ID | Work | Needs | Model | Status |
 | --- | --- | --- | --- | --- |
-| F2-01a | Todo model (pure) | — | Haiku | ready |
-| F2-01b | Git handoff and spike | F2-01a | Muse Code | waiting |
+| F2-01a | Todo model (pure) | — | Haiku | integrated `9f7d0865` |
+| F2-01b | Git handoff and spike | F2-01a | Muse Code | ready |
 | F2-02 | Range read and preflight | — | Muse Code | ready |
 | F2-03 | In-progress state and controls | — | Muse Code | waiting |
 | F2-04 | Editor dialog: open, list, pick/drop/reorder, start | F2-01b, F2-02, F2-03 | Muse Code | waiting |
@@ -121,3 +121,9 @@ pushed, and nothing is tagged without the maintainer.
 ## Integration log
 
 - `2026-11-23`: register and slice files written from the research.
+- `2026-11-23`: F2-01a (Claude Haiku) integrated into `gg-plus/next` at
+  `9f7d0865` by fast-forward: the pure todo model `src/backend/rebase/todo.ts`
+  (`validateTodo`, `serializeTodo`, outcome type), 38 unit tests; hashes match
+  case-insensitively and serialize lower case. Gates in its worktree: strict
+  Biome clean, typecheck clean, backend suite 1,543 passed (60 skipped, as
+  in every linked worktree), KB check clean. F2-01b is ready.

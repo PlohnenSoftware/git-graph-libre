@@ -8,7 +8,7 @@ summary: >-
 
 # F2-01b — Git handoff and spike
 
-Status: waiting
+Status: ready
 
 Needs: F2-01a
 
