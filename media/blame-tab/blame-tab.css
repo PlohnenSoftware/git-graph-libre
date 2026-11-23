@@ -219,7 +219,7 @@
   font: inherit;
   padding: 1px 4px;
   border-radius: 4px;
-  color: var(--vscode-dropdown-foreground, var(--vscode-foreground, oklch(88% 0 0)));
+  color: var(--vscode-dropdown-foreground, var(--vscode-editor-foreground, oklch(88% 0 0)));
   background: var(--vscode-dropdown-background, var(--ngg-transparent));
   border: 1px solid var(--vscode-dropdown-border, var(--ngg-neutral-border));
 }
