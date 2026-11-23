@@ -8,7 +8,7 @@ summary: >-
 
 # KB2 — Move release 1.11.0's finished sections to History
 
-Status: ready
+Status: claimed by Claude Haiku on 2026-11-23 18:04
 
 Needs: R90 (done)
 
