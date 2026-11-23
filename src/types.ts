@@ -112,6 +112,7 @@ export type ContextMenuActionsVisibility = {
     delete: boolean;
     merge: boolean;
     rebase: boolean;
+    interactiveRebase: boolean;
     push: boolean;
     pull: boolean;
     viewIssue: boolean;
@@ -138,6 +139,7 @@ export type ContextMenuActionsVisibility = {
     drop: boolean;
     merge: boolean;
     rebase: boolean;
+    interactiveRebase: boolean;
     reset: boolean;
     copyHash: boolean;
     copySubject: boolean;
