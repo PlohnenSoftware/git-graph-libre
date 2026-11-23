@@ -166,7 +166,7 @@ export function reflogQueriesEqual(left: ReflogQuery, right: ReflogQuery): boole
 
 function hasControlCharacter(text: string): boolean {
   for (const char of text) {
-    const code = char.charCodeAt(0);
+    const code = char.codePointAt(0) ?? 0;
     if (code < 0x20 || code === 0x7f) return true;
   }
   return false;
