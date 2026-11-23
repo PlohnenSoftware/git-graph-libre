@@ -221,6 +221,17 @@ type QueryPayloads = {
     /** `repo` comes back so an answer for a repository no longer shown is dropped. */
     response: { requestId: number; repo: string } & GitRebaseRangeResult;
   };
+  rebasePrediction: {
+    request: {
+      requestId: number;
+      repo: string;
+      base: string | null;
+      entries: GitRebasePredictionEntry[];
+    };
+    result: GitRebasePredictionResult;
+    /** `repo` comes back so an answer for a repository no longer shown is dropped. */
+    response: { requestId: number; repo: string } & GitRebasePredictionResult;
+  };
   operationState: {
     request: { requestId: number; repo: string };
     result: GitOperationStateResult;
@@ -578,5 +589,39 @@ export type GitOperationStateResult = {
   conflictFiles: string[];
   /** Present when an autostash pop conflicted after a completed rebase (F2-07). */
   autostashConflict?: GitAutostashConflict;
+  error: GitQueryError | null;
+};
+
+/** One planned todo entry sent to conflict prediction (F2-08). */
+export type GitRebasePredictionEntry = {
+  readonly action: "pick" | "reword" | "edit" | "squash" | "fixup" | "drop";
+  readonly hash: string;
+};
+
+/**
+ * Outcome of simulating a planned todo with `git merge-tree --write-tree` (F2-08).
+ * - `"clean"`: every non-dropped step merged cleanly within the probe limit.
+ * - `"capped"`: every probed step up to `probeLimit` merged cleanly, with more
+ *   steps left unprobed.
+ * - `"conflict"`: first conflicting step (`conflictHash`) and conflicted paths
+ *   (`conflictFiles`).
+ * - `"unavailable"`: Git is older than 2.40 (lacks `--write-tree` with
+ *   `--merge-base`).
+ * - `"error"`: invalid input or an unexpected Git failure (`error` is set).
+ */
+export type GitRebasePredictionStatus = "clean" | "capped" | "conflict" | "unavailable" | "error";
+
+export type GitRebasePredictionResult = {
+  status: GitRebasePredictionStatus;
+  /** Full hash of the first conflicting commit when `status === "conflict"`; null otherwise. */
+  conflictHash: string | null;
+  /** Conflicted paths from `merge-tree -z` when `status === "conflict"`; empty otherwise. */
+  conflictFiles: string[];
+  /** Number of non-dropped steps simulated before finishing, conflicting, or hitting the cap. */
+  probedCount: number;
+  /** Total number of non-dropped steps in the todo. */
+  totalSteps: number;
+  /** Probe limit applied to this prediction run. */
+  probeLimit: number;
   error: GitQueryError | null;
 };
