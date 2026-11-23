@@ -73,6 +73,8 @@ releases (Rules) applies, with the answers below.
 | P1 | Popup fixes V1–V10 | — | Muse Code → Gemini 4 Neon | integrated `9a61b9e9` |
 | P1b | Popup fix V11 (Create Worktree on a branch another worktree holds) | maintainer decision | — | **blocked** (see below) |
 | T1b | Blame tab open-and-outcome telemetry (`tab.blame`) | T1, F4-03 | Claude Haiku | integrated `7ed42e61` |
+| Q1 | GGL icon on the Diff, Reflog and Blame tabs (maintainer test) | — | Claude Haiku | ready |
+| Q2 | Reflog table column widths, no horizontal scroll (maintainer test) | — | Muse Code | ready |
 | R90 | Release 1.11.0 | every `main` track | orchestrator | waiting |
 
 ## Blocked — waiting for the maintainer
