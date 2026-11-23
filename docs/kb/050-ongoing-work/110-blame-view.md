@@ -131,7 +131,7 @@ dispatching `F4-03` onward:
 | F4-06 | Commit popover, Show in Graph, GGL Diff and Open File at Line | F4-05 | Sonnet | waiting |
 | F4-07 | Editor, Explorer, SCM and Commit Details entry points | F4-06 | Sonnet | waiting |
 | F4-08 | Worktrees, bare repositories, unsaved buffers and watcher refresh | F4-07 | Sonnet | waiting |
-| F4-09 | Optional: Rust engine blame read with parity tests | F4-01 | Sonnet | waiting (BQ8) |
+| F4-09 | Optional: Rust engine blame read with parity tests | F4-01 | Muse Code | deferred (BQ8 profiling: `gix` slower) |
 
 ## Integration acceptance
 

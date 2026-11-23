@@ -8,8 +8,30 @@ summary: >-
 
 # F4-09 — Optional: Rust engine blame read with parity tests
 
-Status: waiting (BQ8 — start only after maintainer approval and CLI profiling
-numbers justify adding `gix` blame surface)
+Status: deferred (`2026-11-23`) — BQ8's profiling found no speedup: `gix`
+blame is slower than `git blame` on every file measured (below). Not part of
+release 1.11.0. Revisit when a newer `gix` changes the numbers.
+
+**BQ8 profiling (`2026-11-23`, integrator).** Wall-clock time of
+`git blame --porcelain -- <file>` (Git `2.56.1`, process start included)
+against `gix blame <file>` built `--release` with `max-pure` from the engine's
+own pin (gitoxide `f06f106`, the `Cargo.lock` source), same machine, warm
+cache:
+
+| Repository (commits) | File (lines) | `git blame` | `gix blame` |
+| --- | --- | --- | --- |
+| git.git (82,443) | `diff.c` (7,860) | 612 ms | 1,012 ms |
+| git.git | `sequencer.c` (7,089) | 524 ms | 738 ms |
+| git.git | `builtin/blame.c` (1,334) | 251 ms | 434 ms |
+| git.git | `refs/files-backend.c` (4,116) | 315 ms | 400 ms |
+| this repository (1,504) | `src/webview/main.ts` (9,212) | 84 ms | 140 ms |
+| this repository | `src/extension/messageHandler.ts` (1,479) | 10 ms | 22 ms |
+
+`gix` is 1.3–2.2 times slower in every case, so an engine read would make the
+Blame tab slower, and BQ8's condition ("profiling on large files confirms a
+meaningful speedup") is not met. A gitoxide checkout one month older
+(`abdfc45`) measured the same within 5 %. The `git blame` side also already
+handles `-M`, `-C`, `--contents -` and ignore-revs, which `gix` would decline.
 
 Needs: F4-01
 
