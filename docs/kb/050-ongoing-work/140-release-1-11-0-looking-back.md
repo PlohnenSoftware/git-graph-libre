@@ -132,3 +132,12 @@ releases (Rules) applies, with the answers below.
   passed, engine parity tests included. Whether it ships in 1.11.0 (which
   needs every platform binary rebuilt and an engine version bump) is the
   maintainer's call.
+- `2026-11-23 12:33`: the maintainer chose to **ship gix 0.91 in 1.11.0** and
+  committed it as `11aec54b` (the workspace on gitoxide `main`, pinned by
+  `Cargo.lock` to `00e62ee`, plus the integrator's three adaptations). The
+  engine version stays **1.0.32**: by the rule on `EXPECTED_ENGINE_VERSION`
+  (`src/backend/engine/addon.ts`) a bump is due only when the TypeScript
+  relies on behavior an older binary lacks, and a dependency refresh adds
+  none (release 1.10.0's W01 refresh did not bump either); this also keeps
+  `gg-plus/next`'s mailmap engine at 1.0.33 without a clash. All six
+  platform binaries are rebuilt on gix 0.91 for R90.
