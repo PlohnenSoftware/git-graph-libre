@@ -10,7 +10,7 @@
 
 import type { GitBlameCommit, GitBlameHunk, GitBlameState } from "./backend/types";
 import type { BlameHunkHeat } from "./blameHotspot";
-import type { DateFormat } from "./types";
+import type { DateFormat, IssueLinkingConfig } from "./types";
 
 /** One blamed file to open: a repository, a path inside it, and where to land. */
 export type BlameOpenTarget = {
@@ -123,6 +123,34 @@ export type BlamePayload = {
   ignoreRevsFileUsed?: string | null;
 };
 
+/**
+ * One commit's full details for the commit popover (F4-06): the message
+ * the blame porcelain only summarizes, in the shape the graph's commit
+ * details already use (`GitCommitDetails` without its file list).
+ */
+export type BlameCommitPopoverDetails = {
+  hash: string;
+  parents: string[];
+  author: string;
+  authorMail: string;
+  /** When the change was authored, in Unix seconds. */
+  authorTime: number;
+  committer: string;
+  committerMail: string;
+  /** When the commit was made, in Unix seconds. */
+  committerTime: number;
+  /** The commit subject (the first line of `message`). */
+  subject: string;
+  /** The full commit message, subject first, trailing blank lines trimmed. */
+  message: string;
+};
+
+/** A popover details read: the details, or the failure's message. */
+export type BlameCommitPopoverResult = {
+  details: BlameCommitPopoverDetails | null;
+  error: string | null;
+};
+
 /** Where the tab's blames come from; the extension host implements it. */
 export type BlameSource = {
   load(
@@ -131,6 +159,12 @@ export type BlameSource = {
     rev: string | null,
     options?: BlameLoadOptions
   ): Promise<BlamePayload>;
+  /**
+   * The full commit details behind one hunk, for the commit popover and
+   * Copy Commit Message (F4-06). Optional so a bare blame fake keeps
+   * working; the CLI source implements it.
+   */
+  loadCommitPopover?(repo: string, commitHash: string): Promise<BlameCommitPopoverResult>;
 };
 
 /**
@@ -262,6 +296,40 @@ export type BlameLabels = {
   findNext: string;
   /** Close find bar button label. */
   findClose: string;
+  /** Accessible name of a hunk's commit header button, which opens the popover (F4-06). */
+  showCommitDetails: string;
+  /** Accessible name of the commit popover's close button (F4-06). */
+  popoverClose: string;
+  /** The popover's word when its commit details could not be read (`{0}` = the failure). */
+  popoverLoadError: string;
+  /** Popover action: reveal the hunk's commit in the graph (F4-06). */
+  showCommitInGraph: string;
+  /** Popover action: the graph's own `action.openInGglDiff` word (F4-06). */
+  openInGglDiff: string;
+  /** Popover action: add the commit to the session `--ignore-rev` list (F4-06). */
+  ignoreCommitSession: string;
+  /** Popover action: the graph's own `action.copyCommitHash` word (F4-06). */
+  copyCommitHash: string;
+  /** Popover action: copy the full commit message (F4-06). */
+  copyCommitMessage: string;
+  /** Popover and line-number action: open the file in VS Code at a line (F4-06). */
+  openFileAtLine: string;
+  /** Uncommitted popover action: blame the same file at `HEAD` (F4-06). */
+  viewBlameAtHead: string;
+  /** The uncommitted popover's one-line explanation (F4-06). */
+  uncommittedExplanation: string;
+  /** The graph's own `detail.commit` word, colon included (F4-06). */
+  detailCommit: string;
+  /** The graph's own `detail.author` word, colon included (F4-06). */
+  detailAuthor: string;
+  /** The graph's own `detail.authorDate` word, colon included (F4-06). */
+  detailAuthorDate: string;
+  /** The graph's own `detail.committer` word, colon included (F4-06). */
+  detailCommitter: string;
+  /** The graph's own `detail.committerDate` word, colon included (F4-06). */
+  detailCommitterDate: string;
+  /** The graph's own `detail.date` word, colon included (F4-06). */
+  detailDate: string;
 };
 
 /** The target fields every host message echoes, so the webview knows what it shows. */
@@ -327,8 +395,28 @@ export type BlameRepoChangedMessage = {
   repo: string;
 };
 
+/**
+ * Extension host to webview: one commit's full details for the popover
+ * (F4-06), answering a `loadCommitPopover` by its `requestId`, with the
+ * author's cached avatar (a data URI, or null) and the repository's
+ * issue-linking config the graph linkifies with.
+ */
+export type BlameCommitPopoverMessage = {
+  command: "blameCommitPopover";
+  requestId: number;
+  commitHash: string;
+  details: BlameCommitPopoverDetails | null;
+  avatar: string | null;
+  issueLinking: IssueLinkingConfig | null;
+  error: string | null;
+};
+
 /** Every message the extension host posts to the Blame tab. */
-export type BlameHostMessage = BlameDataMessage | BlameLoadingMessage | BlameRepoChangedMessage;
+export type BlameHostMessage =
+  | BlameDataMessage
+  | BlameLoadingMessage
+  | BlameRepoChangedMessage
+  | BlameCommitPopoverMessage;
 
 /** Webview to extension host: rewind to a hunk's parent commit and pre-rename path. */
 export type BlameRewindMessage = {
@@ -369,6 +457,46 @@ export type BlameClearIgnoredCommitMessage = {
   targetLine?: number | null;
 };
 
+/** Webview to extension host: read one commit's full details for the popover (F4-06). */
+export type BlameLoadCommitPopoverMessage = {
+  command: "loadCommitPopover";
+  requestId: number;
+  commitHash: string;
+};
+
+/** Webview to extension host: reveal a hunk's commit in the graph (F4-06). */
+export type BlameShowCommitInGraphMessage = {
+  command: "showCommitInGraph";
+  commitHash: string;
+};
+
+/**
+ * Webview to extension host: open the blamed file's diff for one commit
+ * (F4-06) — the file at `commitHash` against its `previous` commit and
+ * pre-rename path, or against nothing when the commit created the file.
+ */
+export type BlameOpenCommitFileDiffMessage = {
+  command: "openCommitFileDiff";
+  commitHash: string;
+  /** The file's path at `commitHash` (the hunk's origin path). */
+  filePath: string;
+  previousHash: string | null;
+  previousPath: string | null;
+};
+
+/** Webview to extension host: open the blamed file in VS Code at a 1-based line (F4-06). */
+export type BlameOpenFileAtLineMessage = {
+  command: "openFileAtLine";
+  line: number;
+};
+
+/** Webview to extension host: copy a commit's hash or full message (F4-06). */
+export type BlameCopyTextMessage = {
+  command: "copyText";
+  kind: "hash" | "message";
+  commitHash: string;
+};
+
 /** Webview to extension host. */
 export type BlameWebviewMessage =
   | { command: "ready" }
@@ -380,4 +508,9 @@ export type BlameWebviewMessage =
   | BlameNavigateMessage
   | BlameSetOptionsMessage
   | BlameIgnoreCommitMessage
-  | BlameClearIgnoredCommitMessage;
+  | BlameClearIgnoredCommitMessage
+  | BlameLoadCommitPopoverMessage
+  | BlameShowCommitInGraphMessage
+  | BlameOpenCommitFileDiffMessage
+  | BlameOpenFileAtLineMessage
+  | BlameCopyTextMessage;
