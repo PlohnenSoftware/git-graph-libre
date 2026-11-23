@@ -28,7 +28,9 @@ describe("statistics tab view", () => {
     const { root, view } = start();
     view.render(applyLoading(initialStatsState(), loadingMessage()));
     expect(root.querySelector(".stats-loading")?.textContent).toBe("Loading statistics…");
-    expect(root.querySelector(".stats-repo")?.textContent).toBe("one");
+    const title = root.querySelector<HTMLElement>(".stats-title");
+    expect(title?.textContent).toBe("Statistics: one");
+    expect(title?.title).toBe("/repos/one");
     expect(root.querySelector<HTMLButtonElement>(".stats-refresh")?.disabled).toBe(true);
   });
 

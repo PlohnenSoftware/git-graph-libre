@@ -29,15 +29,14 @@ function folderName(repo: string): string {
 
 function header(state: StatsViewState, labels: StatsLabels, callbacks: StatsViewCallbacks) {
   const bar = element("header", "stats-header");
-  bar.append(element("span", "stats-title", labels.title.replace("{0}", folderName(state.repo))));
-  const repo = element("span", "stats-repo", folderName(state.repo));
-  repo.title = state.repo;
+  const title = element("span", "stats-title", labels.title.replace("{0}", folderName(state.repo)));
+  title.title = state.repo;
   const refresh = element("button", "stats-refresh", labels.refresh);
   refresh.type = "button";
   refresh.disabled = state.loading;
   refresh.setAttribute("aria-busy", String(state.loading));
   refresh.addEventListener("click", callbacks.onRefresh);
-  bar.append(repo, refresh);
+  bar.append(title, refresh);
   return bar;
 }
 

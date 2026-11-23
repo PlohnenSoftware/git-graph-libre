@@ -25,7 +25,6 @@
   background: var(--vscode-editor-background, oklch(20% 0 0));
 }
 .ggl-stats .stats-title { font-weight: 600; }
-.ggl-stats .stats-repo { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
 .ggl-stats .stats-refresh {
   margin-left: auto;
   height: 28px;
