@@ -61,6 +61,11 @@ export type InteractiveRebaseResult = {
   exitCode: number | null;
   /** Git's stderr, verbatim (empty when the process exited 0). */
   stderr: string;
+  /**
+   * True when `--autostash` finished the rebase itself (state directory gone,
+   * exit 0) but reapplying the stash left unmerged paths in the index.
+   */
+  autostashConflict?: boolean;
 };
 
 /** The facts an outcome is decided from: files and the exit code, never messages. */
@@ -209,6 +214,14 @@ async function readHasUnmergedPaths(
   }
 }
 
+function buildInteractiveRebaseArgs(base: string | null, autostash?: boolean): string[] {
+  const args = ["rebase", "-i"];
+  if (autostash === true) args.push("--autostash");
+  else if (autostash === false) args.push("--no-autostash");
+  args.push(base === null ? "--root" : base);
+  return args;
+}
+
 function removeMessageFiles(files: readonly { filePath: string }[], messageDir: string): void {
   for (const { filePath } of files) fs.rmSync(filePath, { force: true });
   try {
@@ -260,7 +273,7 @@ export async function runInteractiveRebase(
     for (const file of planned.messageFiles) fs.writeFileSync(file.filePath, file.content, "utf8");
     fs.writeFileSync(todoFile, planned.text, "utf8");
 
-    const args = input.base === null ? ["rebase", "-i", "--root"] : ["rebase", "-i", input.base];
+    const args = buildInteractiveRebaseArgs(input.base, input.autostash);
     let exitCode: number | null = 0;
     let stderr = "";
     try {
@@ -286,7 +299,8 @@ export async function runInteractiveRebase(
     }
 
     const stateDir = stateDirOf(gitDir);
-    const hasUnmergedPaths = stateDir !== null && (await readHasUnmergedPaths(git, input, record));
+    const checkUnmerged = stateDir !== null || (exitCode === 0 && input.autostash === true);
+    const hasUnmergedPaths = checkUnmerged && (await readHasUnmergedPaths(git, input, record));
     const outcome = classifyRebaseOutcome({
       exitCode,
       hasState: stateDir !== null,
@@ -295,6 +309,9 @@ export async function runInteractiveRebase(
       hasUnmergedPaths
     });
     keepMessageFiles = stateDir !== null;
+    if (stateDir === null && exitCode === 0 && input.autostash === true && hasUnmergedPaths) {
+      return { outcome, exitCode, stderr, autostashConflict: true };
+    }
     return { outcome, exitCode, stderr };
   } finally {
     fs.rmSync(todoFile, { force: true });

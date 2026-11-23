@@ -12,6 +12,7 @@ import {
   type InteractiveRebaseResult,
   runInteractiveRebase
 } from "@/backend/actions/rebaseInteractive";
+import { loadRebaseRange } from "@/backend/queries/rebaseRange";
 import type { TodoEntry } from "@/backend/rebase/todo";
 import type { GitCommandRecord } from "@/backend/utils/gitRunner";
 
@@ -524,5 +525,139 @@ describe("runInteractiveRebase (real Git)", () => {
     expectNoTodoFile(fixture.dir);
     abort(fixture.dir);
     expect(subjects(fixture.dir)).toEqual(["commit base", "commit A", "commit B", "commit C"]);
+  });
+
+  it("stashes and reapplies dirty tracked changes when autostash is enabled", async () => {
+    const fixture = makeRepo();
+    const [, a, b, c] = fixture.hashes as [string, string, string, string];
+    const dirtyPath = path.join(fixture.dir, "fbase");
+    fs.writeFileSync(dirtyPath, "base\nlocal dirty edit\n");
+
+    const result = await rebase(fixture, [entry("pick", c), entry("pick", a), entry("pick", b)], {
+      autostash: true
+    });
+
+    expect(result).toMatchObject({ outcome: "completed", exitCode: 0 });
+    expect(result.autostashConflict).toBeUndefined();
+    expect(subjects(fixture.dir)).toEqual(["commit base", "commit C", "commit A", "commit B"]);
+    expect(fs.readFileSync(dirtyPath, "utf8")).toBe("base\nlocal dirty edit\n");
+    expect(git(["stash", "list"], fixture.dir).trim()).toBe("");
+    expect(stateDir(fixture.dir)).toBeNull();
+    expectNoTodoFile(fixture.dir);
+  });
+
+  it("passes --no-autostash so Git refuses a dirty tree even when rebase.autoStash is true", async () => {
+    const fixture = makeRepo();
+    const [, a, b, c] = fixture.hashes as [string, string, string, string];
+    git(["config", "rebase.autoStash", "true"], fixture.dir);
+    fs.appendFileSync(path.join(fixture.dir, "fA"), "dirty\n");
+
+    const result = await rebase(fixture, [entry("pick", c), entry("pick", a), entry("pick", b)], {
+      autostash: false
+    });
+
+    expect(result.outcome).toBe("failed");
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr.length).toBeGreaterThan(0);
+    expect(stateDir(fixture.dir)).toBeNull();
+    expect(subjects(fixture.dir)).toEqual(["commit base", "commit A", "commit B", "commit C"]);
+    expectNoTodoFile(fixture.dir);
+  });
+
+  it("keeps the stash entry and flags autostashConflict when applying the autostash conflicts", async () => {
+    const fixture = makeDependentRepo();
+    const [base, a, b] = fixture.hashes as [string, string, string];
+    fs.writeFileSync(path.join(fixture.dir, "f"), "one\nA2\nB3-dirty\n");
+
+    const result = await rebase(fixture, [entry("pick", a), entry("drop", b)], {
+      base,
+      rangeHashes: [a, b],
+      autostash: true
+    });
+
+    expect(result).toMatchObject({ outcome: "completed", exitCode: 0, autostashConflict: true });
+    expect(stateDir(fixture.dir)).toBeNull();
+    expect(git(["diff", "--name-only", "--diff-filter=U"], fixture.dir).trim()).toBe("f");
+    expect(git(["stash", "list", "--format=%gd %gs"], fixture.dir).trim()).toBe(
+      "stash@{0} autostash"
+    );
+    expectNoTodoFile(fixture.dir);
+  });
+
+  it("refuses a branch checked out in another worktree in preflight and reports alreadyUsedElsewhere", async () => {
+    const fixture = makeRepo();
+    const worktreeParent = tempDir("ggl-rebase-wt-conflict-");
+    const otherWorktree = path.join(worktreeParent, "other-main");
+    git(["worktree", "add", "-q", "--force", otherWorktree, "main"], fixture.dir);
+    tempDirs.push(otherWorktree);
+
+    const range = await loadRebaseRange(simpleGit(fixture.dir), {
+      repo: fixture.dir,
+      base: fixture.hashes[0] as string
+    });
+
+    expect(range.error).toBeNull();
+    expect(range.alreadyUsedElsewhere).toBe(true);
+    expect(range.preflight).toEqual({
+      canStart: false,
+      reasons: ["alreadyUsedElsewhere"]
+    });
+  });
+
+  it("distinguishes published commits for ahead, behind and diverged states against a bare remote", async () => {
+    const remote = tempDir("ggl-rebase-bare-remote-");
+    git(["init", "-q", "--bare", "-b", "main"], remote);
+
+    // Clone/push baseline with two pushed commits (base, A) and one local ahead commit (B).
+    const dir = tempDir("ggl-rebase-pub-");
+    git(["init", "-q", "-b", "main"], dir);
+    git(["config", "user.name", "Fixture"], dir);
+    git(["config", "user.email", "fixture@example.test"], dir);
+    git(["config", "commit.gpgsign", "false"], dir);
+    for (const name of ["base", "A"]) {
+      fs.writeFileSync(path.join(dir, `f${name}`), `${name}\n`);
+      git(["add", `f${name}`], dir);
+      git(["commit", "-q", "-m", `commit ${name}`], dir);
+    }
+    git(["remote", "add", "origin", remote], dir);
+    git(["push", "-q", "-u", "origin", "main"], dir);
+    const [base, a] = revList(dir) as [string, string];
+
+    // Ahead variant: B is local-only, A is published.
+    fs.writeFileSync(path.join(dir, "fB"), "B\n");
+    git(["add", "fB"], dir);
+    git(["commit", "-q", "-m", "commit B"], dir);
+    const ahead = await loadRebaseRange(simpleGit(dir), { repo: dir, base });
+    expect(ahead.error).toBeNull();
+    expect(ahead.commits.map((c) => [c.subject, c.isPublished])).toEqual([
+      ["commit A", true],
+      ["commit B", false]
+    ]);
+
+    // Behind variant: another clone pushes C to origin/main, local resets back to A and fetches.
+    const peer = tempDir("ggl-rebase-peer-");
+    git(["clone", "-q", remote, peer], peer);
+    git(["config", "user.name", "Fixture"], peer);
+    git(["config", "user.email", "fixture@example.test"], peer);
+    git(["config", "commit.gpgsign", "false"], peer);
+    fs.writeFileSync(path.join(peer, "fC"), "C\n");
+    git(["add", "fC"], peer);
+    git(["commit", "-q", "-m", "commit C"], peer);
+    git(["push", "-q", "origin", "main"], peer);
+
+    git(["fetch", "-q", "origin"], dir);
+    // Diverged (both ahead with B and behind origin/main with C): A is published, B is local-only.
+    const diverged = await loadRebaseRange(simpleGit(dir), { repo: dir, base });
+    expect(diverged.error).toBeNull();
+    expect(diverged.commits.map((c) => [c.subject, c.isPublished])).toEqual([
+      ["commit A", true],
+      ["commit B", false]
+    ]);
+
+    // Pure behind (HEAD at A, origin/main at C): A is published.
+    git(["reset", "-q", "--hard", a], dir);
+    const behind = await loadRebaseRange(simpleGit(dir), { repo: dir, base });
+    expect(behind.error).toBeNull();
+    expect(behind.commits.map((c) => [c.subject, c.isPublished])).toEqual([["commit A", true]]);
   });
 });

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { evaluateRebasePreflight, type RebasePreflightFacts } from "@/backend/rebase/preflight";
+import {
+  effectiveRebasePreflight,
+  evaluateRebasePreflight,
+  type RebasePreflightFacts
+} from "@/backend/rebase/preflight";
 import type { GitQueryError } from "@/backend/types";
 
 const clean: RebasePreflightFacts = {
@@ -78,5 +82,37 @@ describe("evaluateRebasePreflight", () => {
         facts({ commitCount: 0, dirty: true, inProgress: true, error: failed })
       )
     ).toEqual({ canStart: false, reasons: ["readFailed"] });
+  });
+
+  it("clears dirty when autostash is opted in without clearing other blockers", () => {
+    expect(evaluateRebasePreflight(facts({ dirty: true, autostash: true }))).toEqual({
+      canStart: true,
+      reasons: []
+    });
+    expect(
+      evaluateRebasePreflight(facts({ dirty: true, inProgress: true, autostash: true }))
+    ).toEqual({
+      canStart: false,
+      reasons: ["inProgress"]
+    });
+  });
+});
+
+describe("effectiveRebasePreflight", () => {
+  it("drops dirty when autostash is chosen and preserves all other reasons", () => {
+    const dirtyOnly = evaluateRebasePreflight(facts({ dirty: true }));
+    expect(effectiveRebasePreflight(dirtyOnly, { autostash: false })).toBe(dirtyOnly);
+    expect(effectiveRebasePreflight(dirtyOnly, { autostash: true })).toEqual({
+      canStart: true,
+      reasons: []
+    });
+
+    const dirtyAndWorktree = evaluateRebasePreflight(
+      facts({ dirty: true, alreadyUsedElsewhere: true })
+    );
+    expect(effectiveRebasePreflight(dirtyAndWorktree, { autostash: true })).toEqual({
+      canStart: false,
+      reasons: ["alreadyUsedElsewhere"]
+    });
   });
 });

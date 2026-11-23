@@ -131,6 +131,12 @@ type ActionPayloads = {
     base: string | null;
     entries: TodoEntry[];
     rangeHashes: string[];
+    /**
+     * `true` passes `--autostash` to stash and reapply local changes;
+     * `false` passes `--no-autostash` so Git refuses a dirty tree even when
+     * `rebase.autoStash` is configured; omitted leaves Git's default.
+     */
+    autostash?: boolean;
   };
   /** `git rebase --continue` for the repository's in-progress rebase (F2-03). No payload. */
   continueRebase: unknown;
