@@ -9,7 +9,7 @@ summary: >-
 
 # S2 — SonarQube new-code fixes (second scan)
 
-Status: S2a ready · S2b waiting (F4-05, F4-06)
+Status: S2a claimed by Claude Haiku on 2026-11-23 13:39 · S2b waiting (F4-05, F4-06)
 
 Needs: —
 
