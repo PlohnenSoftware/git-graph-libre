@@ -8,7 +8,7 @@ summary: >-
 
 # F4-08 — Worktrees, bare repositories, unsaved buffers and watcher refresh
 
-Status: claimed by Gemini 4 Neon (agy) on 2026-11-23 13:01
+Status: done — awaiting integration
 
 Needs: F4-07 (and maintainer confirmation of BQ6)
 
@@ -95,4 +95,66 @@ Claim and changes are separate signed commits; never push.
 
 ## Report
 
-Not started.
+- **Agent / date:** Gemini 4 Neon (agy), 2026-11-23 13:16
+- **Branch and commits:** `blame/F4-08` (base `c9b2f96f`)
+  - `95d6aa9e G docs(blame): claim slice (F4-08)`
+  - `60a64afb G feat(blame): add worktree, bare, unsaved buffer and watcher host support (F4-08)`
+  - `3b8387d6 G feat(blame): render worktree, bare, unsaved buffer UI and preserve scroll on refresh (F4-08)`
+  - `81a5f094 G test(blame): cover worktrees, bare repos, unsaved buffers, watcher and scroll stability (F4-08)`
+  - plus the report/status commit that adds this section
+- **Files changed:** 22 files (+1315 / −76 before this report commit):
+  - `src/blameTabTypes.ts` (+77 / −2)
+  - `src/extension/blameTab/blameData.ts` (+26 / −3)
+  - `src/extension/blameTab/blameTabPanel.ts` (+175 / −15)
+  - `src/extension/commandManager.ts` (+47 / −15)
+  - `src/webview/blameTab/main.ts` (+11 / −1)
+  - `src/webview/blameTab/rowModel.ts` (+42 / −6)
+  - `src/webview/blameTab/view.ts` (+197 / −14)
+  - `media/blame-tab/blame-tab.css` (+59 / −1)
+  - `l10n/bundle.l10n.json`, `l10n/bundle.l10n.nl.json`, `l10n/bundle.l10n.pl.json`, `l10n/bundle.l10n.zh-cn.json`, `l10n/bundle.l10n.zh-tw.json` (+7 / −1 each; 6 new keys appended at the end of every bundle, agent-translated for `nl`, `pl`, `zh-cn`, `zh-tw` — a native review would help)
+  - `tests/webview/blameTab/blameData.test.ts` (+88 / −3)
+  - `tests/webview/blameTab/blameTabCss.test.ts` (+6 / −1)
+  - `tests/webview/blameTab/fixtures.ts` (+10 / −1)
+  - `tests/webview/blameTab/main.test.ts` (+22 / −0)
+  - `tests/webview/blameTab/rowModel.test.ts` (+30 / −0)
+  - `tests/webview/blameTab/view.test.ts` (+169 / −2)
+  - `tests/webview/blameTabPanel.test.ts` (+267 / −11)
+  - `tests/webview/commandManager.test.ts` (+48 / −0)
+  - `docs/kb/050-ongoing-work/110-blame-view/170-f4-08-worktrees-bare-unsaved-and-watcher.md` (Status and Report)
+- **Tests added or changed:** +20 new tests (webview suite 1,243 → 1,263 passed across 94 files; backend suite 1,581 passed, 60 skipped in linked worktree, across 118 files):
+  - `tests/webview/blameTab/blameData.test.ts` (+4 real-Git tests): linked worktree divergent uncommitted edits without affecting main worktree; bare repository revision blame vs working-tree `bareWorkingTree` notice; unsaved dirty buffer via `--contents -` with matching line numbers; unborn repository state.
+  - `tests/webview/commandManager.test.ts` (+2 tests): dirty unsaved editor contents forwarded to `openBlameTab`; nested linked worktree resolves to the linked worktree root rather than an enclosing known main worktree.
+  - `tests/webview/blameTabPanel.test.ts` (+5 tests): `RepoFileWatcher` refreshes working-tree and `HEAD` modes with `preserveScroll: true` and no extra `tab.blame` telemetry; watcher and `onDidSaveTextDocument` do not clobber pinned historical commits (emits `blameRepoChanged`, `blameLatest` returns to latest); `onDidSaveTextDocument` clears `unsavedBuffer` pill and reloads saved working tree, and `blameHead` switches to `HEAD`; `openFile` opens target working-tree file, real linked-worktree `repoMeta`, and panel dispose stops watcher and all VS Code listeners; bare repository `repoMeta`, `openFile` no-op on bare, and `blameLatest` targeting `HEAD` on bare.
+  - `tests/webview/blameTab/rowModel.test.ts` (+2 tests): `unsavedBuffer`/`repoMeta`/`repoChanged`/`preserveScroll` propagation and `applyRepoChanged` scoping.
+  - `tests/webview/blameTab/view.test.ts` (+6 tests): linked worktree folder name + badge + full-path hover; `Unsaved buffer` pill + `Blame HEAD` button; `bareWorkingTree` localized notice + `bare` badge without error or `Open File`; `untracked`/`unborn` states with `Open File` action and no heat controls; `Repository changed` notice + `View latest` button; scroll position preservation across live refreshes and reuse of `.blame-scroll` without resetting unchanged body DOM.
+  - `tests/webview/blameTab/main.test.ts` (+1 test): `blameHead`, `blameLatest`, and `openFile` message wiring from UI clicks.
+  - `tests/webview/blameTab/blameTabCss.test.ts` (extended): regression assertions for `.blame-bare-working-tree`, `.blame-unsaved-pill`, `.blame-worktree-badge`, `.blame-action-btn`, `.blame-repo-changed`.
+- **Gates:**
+  - `npx biome check --config-path biome.strict.jsonc --error-on-warnings` on all 20 touched `.ts`/`.json` files: 0 errors, 0 warnings
+  - `pnpm run typecheck`: pass
+  - `node esbuild.js --production`: pass
+  - `pnpm run l10n:check`: 100% complete across `nl`, `pl`, `zh-cn`, `zh-tw` (899/899 bundle keys, 135/135 package.nls keys)
+  - `node ./docs/kb/housekeeping.mjs --check`: pass
+  - `pnpm run test`: backend 1,581 passed, 60 skipped (118 files); webview 1,263 passed (94 files)
+  - Headless renders (`PyQt6` QtWebEngine + `xvfb-run`, `QT_QPA_PLATFORM=xcb`, `QT_SCALE_FACTOR=2`, visually inspected):
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-08/worktree-unsaved-dark.png`
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-08/worktree-unsaved-light.png`
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-08/pinned-changed-dark.png`
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-08/pinned-changed-light.png`
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-08/bare-notice-dark.png`
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-08/bare-notice-light.png`
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-08/untracked-open-dark.png`
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-08/untracked-open-light.png`
+  - Sonar: integrator
+- **Acceptance:**
+  - Linked worktrees resolve to linked worktree root (including nested linked worktrees inside a known main worktree) and display worktree folder name + `Worktree` badge with full path on hover; uncommitted edits stay isolated to the linked worktree: **met** (`commandManager.ts`, `blameTabPanel.ts`, `view.ts`, real-Git tests in `blameData.test.ts` and `commandManager.test.ts`, renders `worktree-unsaved-{dark,light}.png`).
+  - Bare repository revision blame renders normally; working-tree blame shows localized `bareWorkingTree` notice (not a raw Git error); unborn and untracked states show distinct localized notices with `Open File` action and no broken controls: **met** (`blameData.ts`, `blameTabPanel.ts`, `view.ts`, `blameData.test.ts`, `view.test.ts`, `blameTabPanel.test.ts`, renders `{bare-notice,untracked-open}-{dark,light}.png`).
+  - Unsaved dirty editor buffers (`BQ6`) feed `document.getText()` through `loadBlame` (`--contents -`), render `Unsaved buffer` pill + one-click `Blame HEAD`, and clear cleanly onto the saved working tree on `onDidSaveTextDocument`: **met** (`commandManager.ts`, `blameData.ts`, `blameTabPanel.ts`, `view.ts`, `main.ts`, real-Git + panel + view tests).
+  - Live `RepoFileWatcher` refreshes working-tree and `HEAD` modes preserving scroll position without resetting unchanged DOM, never clobbers pinned historical commits (subtle `Repository changed` + `View latest` affordance instead), does not emit extra `tab.blame` telemetry, and disposes cleanly on panel dispose: **met** (`blameTabPanel.ts`, `rowModel.ts`, `view.ts`, `blameTabPanel.test.ts`, `view.test.ts`, renders `pinned-changed-{dark,light}.png`).
+- **Deviations from the slice:**
+  - `tests/webview/commandManager.test.ts` was updated alongside `src/extension/commandManager.ts` (which is in the Touch list) to cover dirty-buffer forwarding and nested linked worktree resolution.
+  - No Rust engine blame hook added because `F4-09` is deferred per BQ8 profiling.
+  - The one-click HEAD button uses `"Blame HEAD"` (matching the Touch list and integrator instructions rather than `"View HEAD"` in one bullet).
+- **Open questions / follow-ups:**
+  - Native review of the six agent-translated Blame keys in `nl`, `pl`, `zh-cn`, and `zh-tw`.
+  - When integrating alongside parallel `F4-05`, merge the additive fields on `BlameLoadOptions`, `BlameTargetEcho`, `BlameLabels`, `BlameWebviewMessage`, `blameData.ts`, `blameTabPanel.ts`, `rowModel.ts`, `view.ts`, `main.ts`, and `media/blame-tab/blame-tab.css`; `isAutoRefreshRev(target.rev)` already pauses watcher refreshes whenever `F4-05` pins a historical commit OID.
