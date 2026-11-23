@@ -374,8 +374,14 @@ function createReflogTab(deps: ReflogTabDeps) {
  */
 function readDisplay(activeRepo: string, deps: ReflogTabDeps): ReflogDisplay {
   const override = deps.repoManager?.getRepos?.()[activeRepo]?.includeReflog;
-  const includeReflog =
-    override === "enabled" ? true : override === "disabled" ? false : config.includeReflog();
+  let includeReflog: boolean;
+  if (override === "enabled") {
+    includeReflog = true;
+  } else if (override === "disabled") {
+    includeReflog = false;
+  } else {
+    includeReflog = config.includeReflog();
+  }
   return {
     shortHashLength: config.shortHashLength(),
     dateFormat: config.dateFormat(),
