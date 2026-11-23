@@ -5,7 +5,26 @@ import type {
   GitRebaseRangeResult
 } from "@/backend/types";
 
-export const F2_04_REBASE_ACTIONS: readonly TodoAction[] = ["pick", "drop"];
+import {
+  guardSquashRows,
+  hasEmptyRebaseMessage,
+  messageAfterActionChange,
+  payloadMessagesByHash,
+  withActionAndMessage
+} from "./groups";
+
+/** Every action the editor offers, in todo order (all six since F2-05). */
+export const REBASE_EDITOR_ACTIONS: readonly TodoAction[] = [
+  "pick",
+  "reword",
+  "edit",
+  "squash",
+  "fixup",
+  "drop"
+];
+
+/** The F2-04 name for {@link REBASE_EDITOR_ACTIONS}; kept for its callers. */
+export const F2_04_REBASE_ACTIONS: readonly TodoAction[] = REBASE_EDITOR_ACTIONS;
 
 const FIRST_ENTRY_FORBIDDEN_ACTIONS: ReadonlySet<TodoAction> = new Set<TodoAction>([
   "squash",
@@ -133,13 +152,34 @@ export function setRebaseRowAction(
   const current = state.rows[index];
   if (current.action === action && state.selectedIndex === index) return state;
 
+  const message = messageAfterActionChange(state.rows, index, action);
   const nextRows = state.rows.map((row, rowIndex) =>
-    rowIndex === index ? { ...row, action } : row
+    rowIndex === index ? withActionAndMessage(row, action, message) : row
   );
   return {
     ...state,
-    rows: guardFirstEntryRows(nextRows),
+    rows: guardSquashRows(nextRows),
     selectedIndex: index
+  };
+}
+
+/**
+ * Stores an edited message under its commit's hash, so reordering rows
+ * afterwards keeps the edit on that commit. Selection does not move:
+ * the message of a squash group belongs to its target, which may not be
+ * the selected row.
+ */
+export function setRebaseRowMessage(
+  state: RebaseEditorState,
+  hash: string,
+  message: string
+): RebaseEditorState {
+  const index = state.rows.findIndex((row) => row.hash === hash);
+  if (index < 0) return state;
+  if (state.rows[index]?.message === message) return state;
+  return {
+    ...state,
+    rows: state.rows.map((row, rowIndex) => (rowIndex === index ? { ...row, message } : row))
   };
 }
 
@@ -160,7 +200,7 @@ export function moveRebaseRow(
 
   return {
     ...state,
-    rows: guardFirstEntryRows(nextRows),
+    rows: guardSquashRows(nextRows),
     selectedIndex: toIndex
   };
 }
@@ -222,6 +262,7 @@ export function canStartInteractiveRebase(state: RebaseEditorState): boolean {
   if (!state.preflight.canStart) return false;
   if (state.rows.length === 0) return false;
   if (!canActionBeFirstEntry(state.rows[0].action)) return false;
+  if (hasEmptyRebaseMessage(state.rows)) return false;
   if (!isRebaseStateModified(state)) return false;
   if (state.requirePublishedAck && getPublishedCommits(state).length > 0 && !state.publishedAcked) {
     return false;
@@ -232,12 +273,13 @@ export function canStartInteractiveRebase(state: RebaseEditorState): boolean {
 export function toInteractiveRebasePayload(
   state: RebaseEditorState
 ): InteractiveRebaseStartPayload {
+  const messages = payloadMessagesByHash(state.rows);
   return {
     base: state.base,
     entries: state.rows.map((row) => ({
       action: row.action,
       hash: row.hash,
-      ...(row.message === undefined ? {} : { message: row.message })
+      ...(messages.has(row.hash) ? { message: messages.get(row.hash) as string } : {})
     })),
     rangeHashes: [...state.initialHashes]
   };

@@ -31,6 +31,10 @@ export type RebaseKeyTransition = {
 
 const ACTION_SHORTCUTS: Readonly<Record<string, TodoAction>> = {
   p: "pick",
+  r: "reword",
+  e: "edit",
+  s: "squash",
+  f: "fixup",
   d: "drop"
 };
 
