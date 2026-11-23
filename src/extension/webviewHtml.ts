@@ -168,6 +168,7 @@ export function buildWebviewHtml(opts: {
 			<link rel="stylesheet" type="text/css" href="${mediaUri("dialogs.css")}">
 			<link rel="stylesheet" type="text/css" href="${mediaUri("dropdown.css")}">
 			<link rel="stylesheet" type="text/css" href="${mediaUri("rebase-banner.css")}">
+			<link rel="stylesheet" type="text/css" href="${mediaUri("rebase-editor.css")}">
 			<title>${l10n.t("outputChannel.text")}</title>
 			<style>${colorParams}"</style>
 		</head>
