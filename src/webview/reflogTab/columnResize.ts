@@ -5,8 +5,11 @@
  * Message, whose cells already wrap, is the column that gives and
  * takes width. Widening a fixed column shrinks Message, narrowing one
  * grows it, and fitting a set of widths to a new container width
- * changes Message first. No column may fall under the graph's 40px
- * minimum while dragging. Pure arithmetic only; the view owns the DOM.
+ * changes Message first — but only down to its working minimum, so a
+ * narrow panel shares the loss with the fixed columns instead of
+ * wrapping every message one word per line. No column may fall under
+ * the graph's 40px minimum while dragging. Pure arithmetic only; the
+ * view owns the DOM.
  *
  * Widths are content widths, as the graph sets them on its header
  * cells: a column's rendered width is its width here plus the header
@@ -15,6 +18,15 @@
 
 /** The graph table's column minimum, in pixels. */
 export const MIN_COLUMN_WIDTH = 40;
+
+/**
+ * Message's working minimum for the automatic fit, in pixels: wide
+ * enough that a message wraps into a few readable lines instead of
+ * one word per line. The fit takes Message below it only once every
+ * fixed column sits at `MIN_COLUMN_WIDTH`; an explicit drag may take
+ * it to `MIN_COLUMN_WIDTH` at any time, because the user chose that.
+ */
+export const MESSAGE_MIN_WIDTH = 200;
 
 /** How many columns the reflog table draws. */
 export const REFLOG_COLUMN_COUNT = 7;
@@ -102,11 +114,14 @@ function shrinkFixedColumns(widths: number[], excess: number): number {
   if (totalSlack === 0) return remaining;
   widths.forEach((width, index) => {
     if (index === MESSAGE_COLUMN_INDEX || slack[index] === 0) return;
-    const give = Math.min(Math.round((excess * slack[index]) / totalSlack), slack[index]);
+    // Flooring, never rounding: a column may give a pixel less than
+    // its exact share, never more, so the settlement below only ever
+    // takes width and the returned remainder is never negative.
+    const give = Math.min(Math.floor((excess * slack[index]) / totalSlack), slack[index]);
     widths[index] = width - give;
     remaining -= give;
   });
-  // Rounding leaves at most a pixel per column unaccounted for; the
+  // Flooring leaves at most a pixel per column unaccounted for; the
   // widest fixed columns settle it, one pixel at a time.
   const widestFirst = widths
     .map((width, index) => ({ width, index }))
@@ -144,27 +159,44 @@ function scaleToAvailable(widths: number[], available: number): number[] {
 }
 
 /**
- * The widths fitted to a container `containerWidth` pixels wide, so
- * the rendered table is never wider than its container. Message
- * absorbs the difference first — a wider container grows only it, a
- * narrower one shrinks it down to the minimum — and saved widths
- * that still do not fit are then scaled back on the fixed columns.
- * A container that reports no width yet (the table is not laid out)
- * leaves the widths unchanged.
+ * Takes `excess` pixels off Message in place, never below `floor`.
+ * Returns what it could not take.
+ */
+function shrinkMessageColumn(widths: number[], excess: number, floor: number): number {
+  const give = Math.min(excess, Math.max(widths[MESSAGE_COLUMN_INDEX] - floor, 0));
+  widths[MESSAGE_COLUMN_INDEX] -= give;
+  return excess - give;
+}
+
+/**
+ * The chosen widths — the defaults, or the user's saved set — fitted
+ * to a container `containerWidth` pixels wide, so the rendered table
+ * is never wider than its container. A wider container grows only
+ * Message. A narrower one takes width in order: Message first, down
+ * to `MESSAGE_MIN_WIDTH`; then the fixed columns, in proportion to
+ * their slack above `MIN_COLUMN_WIDTH`, clipping their cells (and
+ * headers) with an ellipsis; only once every fixed column sits at
+ * the minimum does Message go below its working minimum, down to
+ * `MIN_COLUMN_WIDTH`. Passing the chosen widths — never an already
+ * fitted set — is what makes widening the exact reverse: at a wider
+ * container the same rules give the fixed columns their chosen
+ * widths back while Message is still at its working minimum, and
+ * Message takes everything beyond that. A container that reports no
+ * width yet (the table is not laid out) leaves the widths unchanged.
  */
 export function fitColumnWidthsToContainer(widths: number[], containerWidth: number): number[] {
   const available = Math.floor(containerWidth) - REFLOG_COLUMN_COUNT * COLUMN_SIDE_PADDING_PX;
   if (!Number.isFinite(available) || available <= 0) return [...widths];
   const next = [...widths];
-  next[MESSAGE_COLUMN_INDEX] += available - totalWidth(next);
-  if (next[MESSAGE_COLUMN_INDEX] >= MIN_COLUMN_WIDTH) return next;
-  const excess = MIN_COLUMN_WIDTH - next[MESSAGE_COLUMN_INDEX];
-  next[MESSAGE_COLUMN_INDEX] = MIN_COLUMN_WIDTH;
-  const remaining = shrinkFixedColumns(next, excess);
-  // Rounding can take a pixel too many off the fixed columns;
-  // Message, the flexible column, takes those back.
-  if (remaining < 0) next[MESSAGE_COLUMN_INDEX] -= remaining;
-  if (remaining <= 0) return next;
+  const surplus = available - totalWidth(next);
+  if (surplus >= 0) {
+    next[MESSAGE_COLUMN_INDEX] += surplus;
+    return next;
+  }
+  let excess = shrinkMessageColumn(next, -surplus, MESSAGE_MIN_WIDTH);
+  if (excess > 0) excess = shrinkFixedColumns(next, excess);
+  if (excess > 0) excess = shrinkMessageColumn(next, excess, MIN_COLUMN_WIDTH);
+  if (excess <= 0) return next;
   return scaleToAvailable(next, available);
 }
 

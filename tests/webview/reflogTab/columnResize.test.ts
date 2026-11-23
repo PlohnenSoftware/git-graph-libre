@@ -7,6 +7,7 @@ import {
   defaultColumnWidths,
   fitColumnWidthsToContainer,
   MESSAGE_COLUMN_INDEX,
+  MESSAGE_MIN_WIDTH,
   MIN_COLUMN_WIDTH,
   normalizeColumnWidths,
   REFLOG_COLUMN_COUNT,
@@ -21,6 +22,7 @@ function renderedWidth(widths: number[]): number {
 describe("reflog column defaults (Q2)", () => {
   it("uses the graph table's 40px minimum over the seven columns, Message fourth", () => {
     expect(MIN_COLUMN_WIDTH).toBe(40);
+    expect(MESSAGE_MIN_WIDTH).toBe(200);
     expect(REFLOG_COLUMN_COUNT).toBe(7);
     expect(MESSAGE_COLUMN_INDEX).toBe(3);
     expect(DEFAULT_COLUMN_WIDTHS).toHaveLength(REFLOG_COLUMN_COUNT);
@@ -77,6 +79,9 @@ describe("reflog column resize arithmetic (Message is the flexible column, Q2)",
     expect(resizeColumnWidths(widths, 3, 400)).toEqual([50, 110, 90, 350, 40, 130, 120]);
     expect(clampColumnResizeDelta(widths, 3, -400)).toBe(-260);
     expect(resizeColumnWidths(widths, 3, -400)).toEqual([50, 110, 90, 40, 350, 130, 120]);
+    // The 200px floor is the automatic fit's only: an explicit drag
+    // may take Message below it, down to the minimum, as above.
+    expect(resizeColumnWidths(widths, 0, 260)[MESSAGE_COLUMN_INDEX]).toBe(MIN_COLUMN_WIDTH);
     // A fixed column stops widening when Message reaches the minimum…
     const narrowMessage = [50, 110, 90, 60, 90, 130, 120];
     expect(resizeColumnWidths(narrowMessage, 1, 100)).toEqual([50, 130, 90, 40, 90, 130, 120]);
@@ -95,22 +100,67 @@ describe("fitColumnWidthsToContainer (Q2)", () => {
     expect(widths[3]).toBe(300);
   });
 
-  it("shrinks only Message while it stays above the minimum", () => {
+  it("shrinks only Message while it stays above its working minimum (step 1)", () => {
+    expect(fitColumnWidthsToContainer(widths, 952)).toEqual([50, 110, 90, 250, 90, 130, 120]);
+    // Exactly at the working minimum, no fixed column has given yet.
     expect(fitColumnWidthsToContainer(widths, 902)).toEqual([50, 110, 90, 200, 90, 130, 120]);
   });
 
-  it("scales saved widths back, Message first, when they no longer fit", () => {
-    // The defaults no longer fit a 700px panel even with Message at
-    // its minimum, so the fixed columns give in proportion to their
-    // slack above the minimum — Index, the narrowest, gives least.
+  it("then shrinks the fixed columns, Message held at 200px, at a 700px panel (step 2)", () => {
+    // The defaults do not fit a 700px panel with Message at its
+    // working minimum, so the fixed columns give in proportion to
+    // their slack above the minimum — Index, the narrowest, gives
+    // least — and clip with an ellipsis. Message keeps a readable
+    // 200px instead of wrapping one word per line.
     const fitted = fitColumnWidthsToContainer(defaultColumnWidths(), 700);
-    expect(fitted).toEqual([48, 94, 91, 40, 74, 111, 130]);
+    expect(fitted).toEqual([45, 66, 65, 200, 57, 74, 81]);
     expect(renderedWidth(fitted)).toBe(700);
-    expect(fitted[MESSAGE_COLUMN_INDEX]).toBe(MIN_COLUMN_WIDTH);
+    expect(fitted[MESSAGE_COLUMN_INDEX]).toBe(MESSAGE_MIN_WIDTH);
+    fitted.forEach((width, index) => {
+      if (index === MESSAGE_COLUMN_INDEX) return;
+      expect(width).toBeLessThan(DEFAULT_COLUMN_WIDTHS[index] as number);
+      expect(width).toBeGreaterThanOrEqual(MIN_COLUMN_WIDTH);
+    });
+  });
+
+  it("takes Message below 200px only once every fixed column sits at the minimum (step 3)", () => {
+    const fitted = fitColumnWidthsToContainer(defaultColumnWidths(), 480);
+    expect(fitted).toEqual([40, 40, 40, 128, 40, 40, 40]);
+    expect(renderedWidth(fitted)).toBe(480);
+    expect(fitted[MESSAGE_COLUMN_INDEX]).toBeLessThan(MESSAGE_MIN_WIDTH);
+    expect(fitted[MESSAGE_COLUMN_INDEX]).toBeGreaterThan(MIN_COLUMN_WIDTH);
+    // Narrower still, Message approaches the minimum last.
+    expect(fitColumnWidthsToContainer(defaultColumnWidths(), 400)).toEqual([
+      40, 40, 40, 48, 40, 40, 40
+    ]);
+  });
+
+  it("grows the fixed columns back to the chosen widths before Message passes 200px (step 4)", () => {
+    // The view keeps the chosen widths and refits them at each
+    // container width; widening is the shrink order reversed.
+    const chosen = defaultColumnWidths();
+    const at700 = fitColumnWidthsToContainer(chosen, 700);
+    const at900 = fitColumnWidthsToContainer(chosen, 900);
+    expect(at900).toEqual([50, 101, 98, 200, 79, 120, 140]);
+    // Every fixed column is on its way back, Message still held.
+    at900.forEach((width, index) => {
+      if (index === MESSAGE_COLUMN_INDEX) return;
+      expect(width).toBeGreaterThan(at700[index] as number);
+      expect(width).toBeLessThan(chosen[index] as number);
+    });
+    expect(at900[MESSAGE_COLUMN_INDEX]).toBe(MESSAGE_MIN_WIDTH);
+    // At 988px the fixed columns are whole again, Message at 200px…
+    expect(fitColumnWidthsToContainer(chosen, 988)).toEqual([52, 116, 112, 200, 88, 140, 168]);
+    // …and only beyond that does Message grow past its floor.
+    expect(fitColumnWidthsToContainer(chosen, 1000)).toEqual([52, 116, 112, 212, 88, 140, 168]);
+    // The chosen widths a user saved come back the same way: at the
+    // width where Message reaches its floor, the fixed columns are
+    // the saved ones, not the defaults.
+    expect(fitColumnWidthsToContainer(widths, 902)).toEqual([50, 110, 90, 200, 90, 130, 120]);
   });
 
   it("never renders wider than the container, even below the sum of the minimums", () => {
-    for (const container of [1560, 1200, 1002, 900, 700, 500, 400, 312]) {
+    for (const container of [1560, 1200, 1002, 988, 900, 700, 480, 400, 312]) {
       const fitted = fitColumnWidthsToContainer(defaultColumnWidths(), container);
       expect(renderedWidth(fitted), `container ${container}`).toBeLessThanOrEqual(container);
       expect(renderedWidth(fitted), `container ${container}`).toBe(container);
