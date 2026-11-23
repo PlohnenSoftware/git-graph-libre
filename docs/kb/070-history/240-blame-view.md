@@ -12,7 +12,8 @@ summary: >-
 
 # Blame view (`2026-11-23`)
 
-Status: in progress (`2026-11-23`), for release 1.11.0.
+Status: done (`2026-11-23`) in release 1.11.0 (prepared, release commit
+`74ff94fe`): F4-01 to F4-08 integrated; F4-09 deferred.
 
 **Maintainer goal, `2026-11-23`:** "implement the slices described in the
 recent commits and finalize release 1.11.0", with the orchestrating agent

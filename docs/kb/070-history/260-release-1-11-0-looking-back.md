@@ -12,7 +12,8 @@ summary: >-
 
 # Release 1.11.0 — "Looking Back" (`2026-11-23`)
 
-Status: in progress. Integrator: the orchestrating Claude session
+Status: prepared (`2026-11-23`): release commit `74ff94fe` on local `main`,
+not tagged and not pushed; the maintainer tags `v1.11.0`. Integrator: the orchestrating Claude session
 (Opus 5.5). Integration branch: `main`, local and unpushed. Multi-agent
 releases (Rules) applies, with the answers below.
 
@@ -81,7 +82,7 @@ releases (Rules) applies, with the answers below.
 | Q2 | Reflog table column widths, no horizontal scroll (maintainer test) | — | Muse Code → Claude Haiku | integrated `53954365` |
 | N1 | Release notes: Blame F4-05/F4-06, Q1, L2, P1 | those slices | Claude Haiku | integrated `d25ed146` |
 | R90 | Release 1.11.0 | every `main` track | orchestrator | done `74ff94fe` (not tagged, not pushed) |
-| KB2 | Move the finished sections to History; roadmap and work order | R90 | Claude Haiku | ready |
+| KB2 | Move the finished sections to History; roadmap and work order | R90 | Claude Haiku | integrated `b2c476e3` |
 
 ## Blocked — waiting for the maintainer
 
@@ -309,3 +310,12 @@ anything unsolvable within reason be marked here while the rest continues.
   1,654 and webview 1,360 passed; renders under
   `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/R90/`. Not tagged, not pushed.
   KB2 moves the finished sections to History.
+- `2026-11-23`: KB2 (Claude Haiku) integrated at `b2c476e3`: the Blame view
+  register, the popup and context-menu review and this section moved to
+  History (`240-`, `250-`, `260-`), every reference fixed and the index
+  regenerated, roadmap rows added for the Reflog tab and the Blame view
+  ("Done in `v1.11.0`"), and the Near-Term Work Order updated. Historical
+  report lines that named the old paths were rewritten to the new ones.
+  The integrator then set this section's and the Blame register's status
+  lines and the roadmap's popup note. Gates on `b2c476e3`: KB check, backend
+  1,594 passed (60 skipped in the worktree) and webview 1,360 passed.
