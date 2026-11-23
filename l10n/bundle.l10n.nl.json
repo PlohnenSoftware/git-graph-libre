@@ -905,5 +905,11 @@
   "blame.heatOff": "Uit",
   "command.showBlame.fileNoRepo": "Dit bestand bevindt zich niet in een Git-repository.",
   "action.showBlameAtCommit": "Blame bij commit weergeven",
-  "action.showBlameBeforeDeletion": "Blame vóór verwijdering weergeven"
+  "action.showBlameBeforeDeletion": "Blame vóór verwijdering weergeven",
+  "blame.unsavedBuffer": "Niet-opgeslagen buffer",
+  "blame.blameHead": "HEAD blamen",
+  "blame.worktree": "Worktree",
+  "blame.bareWorkingTree": "Dit is een kale repository zonder werkboom om te blamen. Open in plaats daarvan een bestand bij een specifieke commit vanuit Commitdetails.",
+  "blame.repoChanged": "Repository gewijzigd",
+  "blame.viewLatest": "Nieuwste weergeven"
 }

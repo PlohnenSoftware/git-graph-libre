@@ -905,5 +905,11 @@
   "blame.heatOff": "关闭",
   "command.showBlame.fileNoRepo": "此文件不在 Git 仓库中。",
   "action.showBlameAtCommit": "在此提交中显示 blame",
-  "action.showBlameBeforeDeletion": "显示删除前的 blame"
+  "action.showBlameBeforeDeletion": "显示删除前的 blame",
+  "blame.unsavedBuffer": "未保存的缓冲区",
+  "blame.blameHead": "Blame HEAD",
+  "blame.worktree": "工作树",
+  "blame.bareWorkingTree": "这是一个裸仓库，没有可供 blame 的工作区。请改为从提交详情中在特定提交处打开文件。",
+  "blame.repoChanged": "仓库已更改",
+  "blame.viewLatest": "查看最新"
 }

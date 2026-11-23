@@ -905,5 +905,11 @@
   "blame.heatOff": "Wyłączone",
   "command.showBlame.fileNoRepo": "Ten plik nie znajduje się w repozytorium Git.",
   "action.showBlameAtCommit": "Pokaż blame w tym commicie",
-  "action.showBlameBeforeDeletion": "Pokaż blame przed usunięciem"
+  "action.showBlameBeforeDeletion": "Pokaż blame przed usunięciem",
+  "blame.unsavedBuffer": "Niezapisany bufor",
+  "blame.blameHead": "Blame dla HEAD",
+  "blame.worktree": "Worktree",
+  "blame.bareWorkingTree": "To jest puste repozytorium bez drzewa roboczego do blame. Zamiast tego otwórz plik dla konkretnego commitu w szczegółach commitu.",
+  "blame.repoChanged": "Repozytorium zostało zmienione",
+  "blame.viewLatest": "Pokaż najnowsze"
 }

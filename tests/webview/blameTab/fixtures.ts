@@ -32,7 +32,16 @@ export const LABELS: BlameLabels = {
   heatAge: "Age",
   heatCalendar: "Calendar",
   heatChurn: "Churn",
-  heatOff: "Off"
+  heatOff: "Off",
+  unsavedBuffer: "Unsaved buffer",
+  blameHead: "Blame HEAD",
+  worktree: "Worktree",
+  bare: "bare",
+  bareWorkingTree:
+    "This is a bare repository and has no working tree to blame. Open a file from Commit Details at a specific commit instead.",
+  openFile: "Open File",
+  repoChanged: "Repository changed",
+  viewLatest: "View latest"
 };
 
 /** The graph display settings at their English defaults. */

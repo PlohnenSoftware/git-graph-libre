@@ -3,7 +3,8 @@ import type { SimpleGit } from "simple-git";
 import { loadBlame } from "@/backend/queries/blame";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { type BlameHotspotMode, scoreBlameHunks } from "@/blameHotspot";
-import type { BlamePayload, BlameSource } from "@/blameTabTypes";
+import type { BlameLoadOptions, BlamePayload, BlameSource } from "@/blameTabTypes";
+import { isBareCommonDir } from "../repoLayout";
 
 export type BlameSourceDeps = {
   /** A Git instance rooted at the repository being read. */
@@ -36,11 +37,33 @@ export function createBlameSource(deps: BlameSourceDeps): BlameSource {
   const mode: BlameHotspotMode = deps.mode ?? "age";
   const nowSeconds = deps.nowSeconds ?? (() => Math.floor(Date.now() / 1000));
   return {
-    async load(repo: string, filePath: string, rev: string | null): Promise<BlamePayload> {
+    async load(
+      repo: string,
+      filePath: string,
+      rev: string | null,
+      options?: BlameLoadOptions
+    ): Promise<BlamePayload> {
+      // A bare repository has no working tree; show a localized notice instead
+      // of a raw Git error, while revision blames (Commit Details) run normally.
+      if (rev === null && options?.contents === undefined && isBareCommonDir(repo)) {
+        return {
+          state: "bareWorkingTree",
+          commits: {},
+          hunks: [],
+          resolvedRev: null,
+          totalLines: 0,
+          error: null
+        };
+      }
       const result = await loadBlame(
         deps.createGit(repo),
         repo,
-        { filePath, rev, binary: deps.gitPath() },
+        {
+          filePath,
+          rev,
+          ...(options?.contents !== undefined ? { contents: options.contents } : {}),
+          binary: deps.gitPath()
+        },
         deps.record
       );
       if (result.error !== null) {

@@ -1,6 +1,8 @@
+import path from "node:path";
+
 import * as vscode from "vscode";
 
-import { buildExtensionUri } from "@/backend/utils/path";
+import { buildExtensionUri, getPathFromStr } from "@/backend/utils/path";
 import type {
   BlameDataMessage,
   BlameDisplay,
@@ -8,16 +10,22 @@ import type {
   BlameLoadingMessage,
   BlameOpenTarget,
   BlamePayload,
+  BlameRepoMeta,
   BlameSource,
   BlameTypography,
   BlameWebviewMessage
 } from "@/blameTabTypes";
 import { config } from "@/config";
 import * as l10n from "@/l10n";
+import { RepoFileWatcher } from "@/repoFileWatcher";
 import type { TelemetryReporter } from "@/telemetry";
 import { createTabOpenReporter, TAB_FEATURE_BLAME } from "@/telemetry/tabOpen";
 
+import { isBareCommonDir, worktreeGroupOf } from "../repoLayout";
 import { buildBlameTabHtml } from "./blameTabHtml";
+
+/** The file watcher's part the panel uses; tests substitute their own. */
+export type BlameWatcher = Pick<RepoFileWatcher, "start" | "stop">;
 
 export type BlameTabDeps = {
   extensionPath: string;
@@ -26,6 +34,15 @@ export type BlameTabDeps = {
   locale?: string;
   /** Reports each open's outcome, once (T1b); see `src/telemetry/tabOpen.ts`. */
   telemetry?: Pick<TelemetryReporter, "logFeature">;
+  /** Creates the repository watcher; defaults to the graph's `RepoFileWatcher`. */
+  createWatcher?: (onRefresh: () => void) => BlameWatcher;
+  /** Opens a working-tree file in VS Code's editor; defaults to `openTextDocument` + `showTextDocument`. */
+  openFile?: (filePath: string) => Thenable<unknown>;
+  /**
+   * Reads whether an open editor holds unsaved changes for `fsPath`, so live
+   * refreshes stay on the live buffer until the document is saved (BQ6).
+   */
+  readOpenDocument?: (fsPath: string) => { dirty: boolean; text: string } | null;
 };
 
 // One tab at a time, reused like the GGL Diff tab and the Reflog tab.
@@ -65,6 +82,58 @@ function normalizeTargetLine(value: number | null | undefined): number | null {
   return typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : null;
 }
 
+/** Auto-refresh applies only to working-tree and HEAD blames, never pinned commits. */
+function isAutoRefreshRev(rev: string | null): boolean {
+  return rev === null || rev === "HEAD";
+}
+
+function readRepoMeta(repo: string): BlameRepoMeta {
+  if (repo === "") return { linkedWorktree: false, bare: false };
+  const bare = isBareCommonDir(repo);
+  const linkedWorktree = !bare && worktreeGroupOf(repo).linked;
+  return { linkedWorktree, bare };
+}
+
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 1 && value[end - 1] === "/") end -= 1;
+  return end === value.length ? value : value.slice(0, end);
+}
+
+function targetDiskPath(repo: string, filePath: string): string {
+  return `${trimTrailingSlashes(getPathFromStr(repo))}/${filePath}`;
+}
+
+function resolveTargetFsPath(repo: string, filePath: string): string | null {
+  if (repo === "" || filePath === "" || filePath.includes("\0")) return null;
+  const root = path.resolve(repo);
+  const resolved = path.resolve(repo, ...filePath.split("/"));
+  if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) return null;
+  return resolved;
+}
+
+function defaultCreateWatcher(onRefresh: () => void): BlameWatcher {
+  if (typeof vscode.workspace.createFileSystemWatcher !== "function") {
+    return { start: () => {}, stop: () => {} };
+  }
+  return new RepoFileWatcher(onRefresh);
+}
+
+async function defaultOpenFile(filePath: string): Promise<void> {
+  const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+  await vscode.window.showTextDocument(document, { preview: false });
+}
+
+function defaultReadOpenDocument(fsPath: string): { dirty: boolean; text: string } | null {
+  const normalized = getPathFromStr(fsPath);
+  const docs = vscode.workspace.textDocuments ?? [];
+  const doc = docs.find(
+    (entry) => entry.uri.scheme === "file" && getPathFromStr(entry.uri.fsPath) === normalized
+  );
+  if (doc === undefined) return null;
+  return { dirty: doc.isDirty, text: doc.isDirty ? doc.getText() : "" };
+}
+
 function createBlameTab(deps: BlameTabDeps) {
   // `retainContextWhenHidden` keeps the document alive while its tab is in
   // the background, so a refresh is one message, never a document reload.
@@ -83,6 +152,7 @@ function createBlameTab(deps: BlameTabDeps) {
   );
   panel.webview.html = buildBlameTabHtml(panel.webview, deps.extensionPath);
   const reportOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_BLAME);
+  const readOpenDocument = deps.readOpenDocument ?? defaultReadOpenDocument;
 
   let ready = false;
   let disposed = false;
@@ -92,10 +162,14 @@ function createBlameTab(deps: BlameTabDeps) {
   // Set by each open (`show`) and cleared once the open's outcome is sent,
   // so one open reports exactly once, whichever load settles it.
   let opening = false;
+  let repoMeta: BlameRepoMeta = { linkedWorktree: false, bare: false };
+  let repoChanged = false;
+  let watchedRepo = "";
   let target: Required<Pick<BlameOpenTarget, "repo" | "filePath">> & {
     rev: string | null;
     targetLine: number | null;
-  } = { repo: "", filePath: "", rev: null, targetLine: null };
+    contents: string | undefined;
+  } = { repo: "", filePath: "", rev: null, targetLine: null, contents: undefined };
   let source: BlameSource | undefined;
 
   const echo = (): Omit<BlameDataMessage, "command" | "requestId" | "payload"> => ({
@@ -106,25 +180,42 @@ function createBlameTab(deps: BlameTabDeps) {
     locale: deps.locale ?? vscode.env.language,
     labels: readLabels(),
     display: readDisplay(),
-    typography: readTypography()
+    typography: readTypography(),
+    unsavedBuffer: target.contents !== undefined,
+    repoMeta,
+    repoChanged
   });
 
-  const load = async (): Promise<void> => {
+  const syncOpenContents = (): void => {
+    if (target.rev !== null || repoMeta.bare || target.repo === "" || target.filePath === "") {
+      return;
+    }
+    const open = readOpenDocument(targetDiskPath(target.repo, target.filePath));
+    if (open !== null) {
+      target = { ...target, contents: open.dirty ? open.text : undefined };
+    }
+  };
+
+  const load = async (preserveScroll = false): Promise<void> => {
     if (source === undefined || target.repo === "" || target.filePath === "") return;
     const activeSource = source;
     const activeTarget = target;
     const requestId = ++latestRequest;
-    pending = { command: "blameLoading", requestId, ...echo() };
-    if (ready) void panel.webview.postMessage(pending);
+    if (!preserveScroll) {
+      pending = { command: "blameLoading", requestId, ...echo() };
+      if (ready) void panel.webview.postMessage(pending);
+    }
+    const loadOptions =
+      activeTarget.contents !== undefined ? { contents: activeTarget.contents } : undefined;
     const payload = await activeSource
-      .load(activeTarget.repo, activeTarget.filePath, activeTarget.rev)
+      .load(activeTarget.repo, activeTarget.filePath, activeTarget.rev, loadOptions)
       .catch(failedPayload);
     // A newer load (a retargeted tab, a settings refresh) supersedes this
     // one: its reply is dropped here, and the webview drops by request id
     // anything that still slips through.
     if (disposed || requestId !== latestRequest) return;
     pending = undefined;
-    last = { command: "blameData", requestId, ...echo(), payload };
+    last = { command: "blameData", requestId, ...echo(), preserveScroll, payload };
     if (ready) void panel.webview.postMessage(last);
     // The open's outcome is the first settled load after it (T1b). A refresh
     // or a settings reload after that reports nothing.
@@ -134,19 +225,51 @@ function createBlameTab(deps: BlameTabDeps) {
     }
   };
 
+  // Follow repository changes live for working-tree and HEAD blames, while
+  // keeping pinned historical commits undisturbed until the user asks.
+  const watcher = (deps.createWatcher ?? defaultCreateWatcher)(() => {
+    if (disposed || source === undefined || target.repo === "" || target.filePath === "") return;
+    if (isAutoRefreshRev(target.rev)) {
+      deps.outputChannel.appendLine(`[blameTab] refresh repo=${target.repo}`);
+      syncOpenContents();
+      void load(true);
+      return;
+    }
+    repoChanged = true;
+    if (last !== undefined) last = { ...last, repoChanged: true };
+    if (ready) void panel.webview.postMessage({ command: "blameRepoChanged", repo: target.repo });
+  });
+
   const show = (next: BlameOpenTarget, nextSource: BlameSource): void => {
+    repoMeta = readRepoMeta(next.repo);
+    repoChanged = false;
     target = {
       repo: next.repo,
       filePath: next.filePath,
       rev: next.rev ?? null,
-      targetLine: normalizeTargetLine(next.targetLine)
+      targetLine: normalizeTargetLine(next.targetLine),
+      contents: next.contents
     };
     source = nextSource;
     // The next settled load is this open's outcome.
     opening = true;
     panel.title = l10n.t("blame.title", fileName(target.filePath));
     panel.reveal(vscode.ViewColumn.Active);
-    void load();
+    if (watchedRepo !== target.repo) {
+      watchedRepo = target.repo;
+      watcher.start(target.repo);
+    }
+    void load(false);
+  };
+
+  const openTargetFile = (): void => {
+    if (repoMeta.bare) return;
+    const fsPath = resolveTargetFsPath(target.repo, target.filePath);
+    if (fsPath === null) return;
+    const opener = deps.openFile ?? defaultOpenFile;
+    void Promise.resolve(opener(fsPath)).catch((error: unknown) => {
+      deps.outputChannel.appendLine(`[blameTab] openFile failed: ${String(error)}`);
+    });
   };
 
   const received = panel.webview.onDidReceiveMessage((message: BlameWebviewMessage) => {
@@ -156,8 +279,39 @@ function createBlameTab(deps: BlameTabDeps) {
       if (last !== undefined) void panel.webview.postMessage(last);
       else if (pending !== undefined) void panel.webview.postMessage(pending);
     } else if (message.command === "refresh") {
-      void load();
+      repoChanged = false;
+      syncOpenContents();
+      void load(true);
+    } else if (message.command === "blameHead") {
+      target = { ...target, rev: "HEAD", contents: undefined };
+      repoChanged = false;
+      void load(true);
+    } else if (message.command === "blameLatest") {
+      target = { ...target, rev: repoMeta.bare ? "HEAD" : null, contents: undefined };
+      repoChanged = false;
+      syncOpenContents();
+      void load(true);
+    } else if (message.command === "openFile") {
+      openTargetFile();
     }
+  });
+  // Saving the blamed file clears the unsaved-buffer pill and refreshes onto
+  // the saved working tree without touching pinned historical revisions.
+  const saved = vscode.workspace.onDidSaveTextDocument?.((document) => {
+    if (
+      disposed ||
+      target.rev !== null ||
+      document.uri.scheme !== "file" ||
+      target.repo === "" ||
+      target.filePath === ""
+    ) {
+      return;
+    }
+    if (getPathFromStr(document.uri.fsPath) !== targetDiskPath(target.repo, target.filePath)) {
+      return;
+    }
+    target = { ...target, contents: undefined };
+    void load(true);
   });
   // The tab follows the graph's display settings and the editor's
   // typography live: a change reloads the file on screen with the
@@ -170,13 +324,15 @@ function createBlameTab(deps: BlameTabDeps) {
       event.affectsConfiguration("editor.lineHeight") ||
       event.affectsConfiguration("editor.tabSize")
     ) {
-      void load();
+      void load(true);
     }
   });
   panel.onDidDispose(() => {
     disposed = true;
     received.dispose();
     settings.dispose();
+    saved?.dispose();
+    watcher.stop();
     if (current === show) current = undefined;
   });
   return show;
@@ -266,6 +422,14 @@ function readLabels(): BlameLabels {
     heatAge: l10n.t("blame.heatAge"),
     heatCalendar: l10n.t("blame.heatCalendar"),
     heatChurn: l10n.t("blame.heatChurn"),
-    heatOff: l10n.t("blame.heatOff")
+    heatOff: l10n.t("blame.heatOff"),
+    unsavedBuffer: l10n.t("blame.unsavedBuffer"),
+    blameHead: l10n.t("blame.blameHead"),
+    worktree: l10n.t("blame.worktree"),
+    bare: l10n.t("ui.worktreeBadgeBare"),
+    bareWorkingTree: l10n.t("blame.bareWorkingTree"),
+    openFile: l10n.t("action.openFile"),
+    repoChanged: l10n.t("blame.repoChanged"),
+    viewLatest: l10n.t("blame.viewLatest")
   };
 }

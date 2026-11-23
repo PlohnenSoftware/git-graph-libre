@@ -905,5 +905,11 @@
   "blame.heatOff": "Off",
   "command.showBlame.fileNoRepo": "This file is not inside a Git repository.",
   "action.showBlameAtCommit": "Show Blame at Commit",
-  "action.showBlameBeforeDeletion": "Show Blame Before Deletion"
+  "action.showBlameBeforeDeletion": "Show Blame Before Deletion",
+  "blame.unsavedBuffer": "Unsaved buffer",
+  "blame.blameHead": "Blame HEAD",
+  "blame.worktree": "Worktree",
+  "blame.bareWorkingTree": "This is a bare repository and has no working tree to blame. Open a file from Commit Details at a specific commit instead.",
+  "blame.repoChanged": "Repository changed",
+  "blame.viewLatest": "View latest"
 }

@@ -905,5 +905,11 @@
   "blame.heatOff": "關閉",
   "command.showBlame.fileNoRepo": "此檔案不在 Git 儲存庫中。",
   "action.showBlameAtCommit": "在此提交中顯示 blame",
-  "action.showBlameBeforeDeletion": "顯示刪除前的 blame"
+  "action.showBlameBeforeDeletion": "顯示刪除前的 blame",
+  "blame.unsavedBuffer": "未儲存的緩衝區",
+  "blame.blameHead": "Blame HEAD",
+  "blame.worktree": "工作樹",
+  "blame.bareWorkingTree": "這是一個裸倉庫，沒有可供 blame 的工作區。請改為從提交詳細資料中在特定提交處開啟檔案。",
+  "blame.repoChanged": "儲存庫已變更",
+  "blame.viewLatest": "檢視最新"
 }

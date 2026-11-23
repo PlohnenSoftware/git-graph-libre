@@ -54,6 +54,11 @@ type WindowApi = {
    * VS Code default below always provides it.
    */
   getActiveTextEditorLine?: () => number | undefined;
+  /**
+   * Live text of an open dirty `TextDocument` matching `fsPath`, or undefined
+   * when clean on disk or not open in an editor (BQ6, F4-08).
+   */
+  getDirtyDocumentText?: (fsPath: string) => string | undefined;
   showErrorMessage(message: string): Thenable<unknown>;
   showInformationMessage(message: string): Thenable<unknown>;
   showOpenDialog(
@@ -268,6 +273,22 @@ function createVsCodeWindowApi(): WindowApi {
     getActiveTextEditorLine: () => {
       const editor = vscode.window.activeTextEditor;
       return editor === undefined ? undefined : editor.selection.active.line + 1;
+    },
+    getDirtyDocumentText: (fsPath) => {
+      const normalized = getPathFromStr(fsPath);
+      const active = vscode.window.activeTextEditor?.document;
+      if (
+        active?.isDirty &&
+        active.uri.scheme === "file" &&
+        getPathFromStr(active.uri.fsPath) === normalized
+      ) {
+        return active.getText();
+      }
+      const open = (vscode.workspace.textDocuments ?? []).find(
+        (doc) =>
+          doc.isDirty && doc.uri.scheme === "file" && getPathFromStr(doc.uri.fsPath) === normalized
+      );
+      return open?.getText();
     },
     showErrorMessage: (message) => vscode.window.showErrorMessage(message),
     showInformationMessage: (message) => vscode.window.showInformationMessage(message),
@@ -738,20 +759,28 @@ export function createCommandManager(deps: CommandManagerDeps) {
       ? "command.showBlame.fileNoRepo"
       : "command.showBlame.noRepo";
     const targetPath = getPathFromStr(resolvedUri.fsPath);
-    let repo = findKnownRepoForPath(deps.repoManager.getRepos(), targetPath);
+    const repos = deps.repoManager.getRepos();
+    const knownRepo = findKnownRepoForPath(repos, targetPath);
+    // Ask Git for the file's actual toplevel so a linked worktree nested inside
+    // a known main worktree resolves to the linked worktree, never its parent.
+    const gitRoot = await resolveGitRoot(
+      path.dirname(targetPath),
+      deps.config.gitPath(),
+      recordGitCommand
+    );
+    let repo: string | null = knownRepo;
+    if (
+      gitRoot !== null &&
+      targetPath.startsWith(`${gitRoot}/`) &&
+      (knownRepo === null || gitRoot.length > knownRepo.length)
+    ) {
+      if (!Object.hasOwn(repos, gitRoot)) deps.repoManager.addRepo(gitRoot);
+      repo = gitRoot;
+    }
     if (repo === null) {
-      const resolvedRepo = await resolveGitRoot(
-        path.dirname(targetPath),
-        deps.config.gitPath(),
-        recordGitCommand
-      );
-      if (resolvedRepo === null) {
-        reportBlameOpen(false);
-        await windowApi.showWarningMessage(l10n.t(noRepoKey));
-        return;
-      }
-      deps.repoManager.addRepo(resolvedRepo);
-      repo = resolvedRepo;
+      reportBlameOpen(false);
+      await windowApi.showWarningMessage(l10n.t(noRepoKey));
+      return;
     }
 
     const filePath = targetPath.startsWith(`${repo}/`) ? targetPath.slice(repo.length + 1) : "";
@@ -768,7 +797,12 @@ export function createCommandManager(deps: CommandManagerDeps) {
         isFileScheme(activeTarget) &&
         getPathFromStr(activeTarget.fsPath) === targetPath);
     const targetLine = matchesActiveEditor ? (windowApi.getActiveTextEditorLine?.() ?? null) : null;
-    openBlame({ repo, filePath, targetLine });
+    const contents = windowApi.getDirtyDocumentText?.(resolvedUri.fsPath);
+    openBlame(
+      contents === undefined
+        ? { repo, filePath, targetLine }
+        : { repo, filePath, targetLine, contents }
+    );
   }
 
   function registerAll() {

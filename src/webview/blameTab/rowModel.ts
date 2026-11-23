@@ -1,4 +1,4 @@
-import type { GitBlameCommit, GitBlameState } from "@/backend/types";
+import type { GitBlameCommit } from "@/backend/types";
 import { type BlameHotspotMode, scoreBlameHunks } from "@/blameHotspot";
 import type {
   BlameDataMessage,
@@ -6,11 +6,15 @@ import type {
   BlameHunkView,
   BlameLabels,
   BlameLoadingMessage,
+  BlameRepoChangedMessage,
+  BlameRepoMeta,
+  BlameTabState,
   BlameTypography
 } from "@/blameTabTypes";
 import { formatRelativeDate, pad2 } from "@/webview/utils/date";
 
 const HOTSPOT_MODES: readonly BlameHotspotMode[] = ["age", "calendar", "churn", "off"];
+const DEFAULT_REPO_META: BlameRepoMeta = { linkedWorktree: false, bare: false };
 
 /**
  * Everything the Blame tab draws, as one value the messages update. The
@@ -36,8 +40,8 @@ export type BlameViewState = {
   typography: BlameTypography;
   commits: Record<string, GitBlameCommit>;
   hunks: BlameHunkView[];
-  /** F4-01's state for the blamed file; null before data and on an error. */
-  blameState: GitBlameState | null;
+  /** F4-01's state (or `bareWorkingTree`) for the blamed file; null before data and on an error. */
+  blameState: BlameTabState | null;
   /** The commit OID the revision resolved to, or null for the working tree. */
   resolvedRev: string | null;
   totalLines: number;
@@ -54,6 +58,14 @@ export type BlameViewState = {
    * recomputed from it here, never by a new `git blame`.
    */
   hotspotMode: BlameHotspotMode;
+  /** True when the blamed text came from an unsaved dirty editor buffer (BQ6). */
+  unsavedBuffer: boolean;
+  /** Repository layout metadata for linked worktree and bare repository display. */
+  repoMeta: BlameRepoMeta;
+  /** True when the repository changed while a pinned historical commit is shown. */
+  repoChanged: boolean;
+  /** True when the latest render came from a live refresh that should keep scroll position. */
+  preserveScroll: boolean;
 };
 
 /** The saved hotspot mode, or `age` (the default) for anything unknown. */
@@ -89,7 +101,8 @@ export function applyHotspotMode(
   return {
     ...state,
     hotspotMode: mode,
-    hunks: scoreHunks(state.hunks, state.commits, mode, nowSeconds)
+    hunks: scoreHunks(state.hunks, state.commits, mode, nowSeconds),
+    preserveScroll: true
   };
 }
 
@@ -132,7 +145,11 @@ export function initialBlameState(hotspotMode: BlameHotspotMode = "age"): BlameV
     totalLines: 0,
     error: null,
     gutterWidth: null,
-    hotspotMode
+    hotspotMode,
+    unsavedBuffer: false,
+    repoMeta: DEFAULT_REPO_META,
+    repoChanged: false,
+    preserveScroll: false
   };
 }
 
@@ -169,7 +186,11 @@ export function applyLoading(state: BlameViewState, message: BlameLoadingMessage
     totalLines: keep ? state.totalLines : 0,
     error: keep ? state.error : null,
     // Widths are per repository: a new one starts from its own saved width.
-    gutterWidth: sameRepo ? state.gutterWidth : null
+    gutterWidth: sameRepo ? state.gutterWidth : null,
+    unsavedBuffer: message.unsavedBuffer === true,
+    repoMeta: message.repoMeta ?? (sameRepo ? state.repoMeta : DEFAULT_REPO_META),
+    repoChanged: message.repoChanged === true,
+    preserveScroll: false
   };
 }
 
@@ -203,8 +224,21 @@ export function applyData(
     // Same per-repository rule as a load start, for a page that lands
     // without one (a replayed page after a document rebuild).
     gutterWidth: message.repo === state.repo ? state.gutterWidth : null,
-    hotspotMode: state.hotspotMode
+    hotspotMode: state.hotspotMode,
+    unsavedBuffer: message.unsavedBuffer === true,
+    repoMeta: message.repoMeta ?? DEFAULT_REPO_META,
+    repoChanged: message.repoChanged === true,
+    preserveScroll: message.preserveScroll === true
   };
+}
+
+/** Marks the pinned historical view as stale without disturbing its lines. */
+export function applyRepoChanged(
+  state: BlameViewState,
+  message: BlameRepoChangedMessage
+): BlameViewState {
+  if (message.repo !== state.repo) return state;
+  return { ...state, repoChanged: true, preserveScroll: true };
 }
 
 /**

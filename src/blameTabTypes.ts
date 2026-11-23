@@ -24,6 +24,31 @@ export type BlameOpenTarget = {
   rev?: string | null;
   /** The 1-based line to highlight and scroll to, or null for none. */
   targetLine?: number | null;
+  /**
+   * Unsaved editor text to blame through `git blame --contents -` (BQ6).
+   * Absent for saved working-tree and historical revision blames.
+   */
+  contents?: string;
+};
+
+/**
+ * Every state the Blame tab renders: F4-01's query states plus
+ * `bareWorkingTree` when working-tree blame is attempted on a bare repository.
+ */
+export type BlameTabState = GitBlameState | "bareWorkingTree";
+
+/** Repository layout facts carried to the Blame tab header and guards (F4-08). */
+export type BlameRepoMeta = {
+  /** True when the blamed repository is a linked worktree. */
+  linkedWorktree: boolean;
+  /** True when the blamed repository is a bare repository (no working tree). */
+  bare: boolean;
+};
+
+/** Optional per-load inputs beyond `(repo, filePath, rev)`. */
+export type BlameLoadOptions = {
+  /** Unsaved editor text to blame through `git blame --contents -` (BQ6). */
+  contents?: string;
 };
 
 /** One hunk as the tab draws it: the F4-01 hunk with its F4-02 heat. */
@@ -33,8 +58,8 @@ export type BlameHunkView = GitBlameHunk & {
 
 /** One blamed file, as `loadBlame` returned it and the source scored it. */
 export type BlamePayload = {
-  /** `lines`, `empty`, `binary`, `tooLarge`, `untracked` or `unborn`; null exactly when `error` is set. */
-  state: GitBlameState | null;
+  /** `lines`, `empty`, `binary`, `tooLarge`, `untracked`, `unborn` or `bareWorkingTree`; null on error. */
+  state: BlameTabState | null;
   /** Every commit the hunks name, by hash. Empty unless `state` is `lines`. */
   commits: Record<string, GitBlameCommit>;
   /** The file's lines grouped into hunks, top to bottom. */
@@ -49,7 +74,12 @@ export type BlamePayload = {
 
 /** Where the tab's blames come from; the extension host implements it. */
 export type BlameSource = {
-  load(repo: string, filePath: string, rev: string | null): Promise<BlamePayload>;
+  load(
+    repo: string,
+    filePath: string,
+    rev: string | null,
+    options?: BlameLoadOptions
+  ): Promise<BlamePayload>;
 };
 
 /**
@@ -119,6 +149,22 @@ export type BlameLabels = {
   heatChurn: string;
   /** Hotspot mode: no heat fills. */
   heatOff: string;
+  /** Pill text when blaming unsaved editor edits via `--contents -` (BQ6). */
+  unsavedBuffer: string;
+  /** One-click switch from an unsaved buffer blame to `HEAD` (BQ6). */
+  blameHead: string;
+  /** Badge marking a linked worktree in the header (F4-08). */
+  worktree: string;
+  /** Badge marking a bare repository in the header (reuses `ui.worktreeBadgeBare`). */
+  bare: string;
+  /** Notice when working-tree blame is attempted on a bare repository. */
+  bareWorkingTree: string;
+  /** Action opening the blamed file in VS Code's editor (reuses `action.openFile`). */
+  openFile: string;
+  /** Subtle notice when the repository changed while a historical commit is pinned. */
+  repoChanged: string;
+  /** Action returning from a pinned historical commit to the latest view. */
+  viewLatest: string;
 };
 
 /** The target fields every host message echoes, so the webview knows what it shows. */
@@ -136,6 +182,12 @@ type BlameTargetEcho = {
   display: BlameDisplay;
   /** The editor typography, read live for this load. */
   typography: BlameTypography;
+  /** True when the blamed text came from an unsaved editor buffer (`--contents -`). */
+  unsavedBuffer?: boolean;
+  /** Repository layout metadata for linked worktree and bare repository display. */
+  repoMeta?: BlameRepoMeta;
+  /** True when the repository changed while a historical commit is pinned. */
+  repoChanged?: boolean;
 };
 
 /**
@@ -148,6 +200,8 @@ export type BlameDataMessage = BlameTargetEcho & {
   command: "blameData";
   requestId: number;
   payload: BlamePayload;
+  /** True on live/manual refreshes so the webview preserves scroll position instead of jumping. */
+  preserveScroll?: boolean;
 };
 
 /**
@@ -160,8 +214,23 @@ export type BlameLoadingMessage = BlameTargetEcho & {
   requestId: number;
 };
 
+/**
+ * Extension host to webview: the watched repository changed while a
+ * historical commit is pinned, so the historical view stays intact and the
+ * header can offer a manual jump to latest.
+ */
+export type BlameRepoChangedMessage = {
+  command: "blameRepoChanged";
+  repo: string;
+};
+
 /** Every message the extension host posts to the Blame tab. */
-export type BlameHostMessage = BlameDataMessage | BlameLoadingMessage;
+export type BlameHostMessage = BlameDataMessage | BlameLoadingMessage | BlameRepoChangedMessage;
 
 /** Webview to extension host. */
-export type BlameWebviewMessage = { command: "ready" } | { command: "refresh" };
+export type BlameWebviewMessage =
+  | { command: "ready" }
+  | { command: "refresh" }
+  | { command: "blameHead" }
+  | { command: "blameLatest" }
+  | { command: "openFile" };
