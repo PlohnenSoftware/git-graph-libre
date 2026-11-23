@@ -9,7 +9,7 @@ summary: >-
 
 # F4-07 — Editor, Explorer, SCM and Commit Details entry points
 
-Status: ready (pulled forward by the integrator, `2026-11-23`)
+Status: claimed by Gemini 4 Neon (agy) on 2026-11-23 12:47
 
 **Maintainer override (`2026-11-23`, release 1.11.0): no editor title-bar
 icon.** Wire the Command Palette and the `editor/context`,
