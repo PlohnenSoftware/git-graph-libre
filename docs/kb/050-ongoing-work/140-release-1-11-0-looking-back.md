@@ -194,3 +194,9 @@ anything unsolvable within reason be marked here while the rest continues.
   (the 41 blame tests pass unedited). Gates on `0cfaa6c5`: strict Biome,
   typecheck, KB check, backend 1,580 passed (60 skipped in the worktree) and
   webview 1,232 passed. The next Sonar scan confirms the counts.
+- `2026-11-23 12:05Z`: **Gemini 4 Argon quota exhausted** ("Individual quota
+  reached", resets in about 167 hours). F2-04 stopped after five commits plus
+  uncommitted tests; it is queued for Muse Code at its reset (`16:01:30Z`,
+  `prompts/muse-queue-at-reset.sh`, queue `/home/zam/Desktop/prog/_GGL/.ggl-wt/muse-queue.txt`)
+  with the continuation note. Gemini 4 Neon still answers; 1.11.0 slices get
+  it first, Git Graph+ slices wait for Muse Code.
