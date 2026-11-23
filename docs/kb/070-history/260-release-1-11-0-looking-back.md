@@ -319,3 +319,14 @@ anything unsolvable within reason be marked here while the rest continues.
   The integrator then set this section's and the Blame register's status
   lines and the roadmap's popup note. Gates on `b2c476e3`: KB check, backend
   1,594 passed (60 skipped in the worktree) and webview 1,360 passed.
+- `2026-11-23`: credits fixed at the maintainer's prompt: `0dc1e243` adds
+  Antigravity (Gemini 4 Neon and Argon), Claude Fable 5.2 and Muse Code's
+  `muse-wonder-full-1.0` to the Settings tab's AI agents; `e4c13e7c` adds
+  Raphaël Balet (rbalet, three commits of `2026-11-05`) to `NOTICE.md`, the
+  tab and `package.json`, and Thomas KT Chan to `package.json`. The smaller
+  MIT-era authors stay out of `package.json` (maintainer). A "Release slice:
+  credits" rule now makes this check part of every release. Final tree
+  `e4c13e7c`: backend 1,654 and webview 1,360 passed in the main checkout,
+  `pnpm run package`, `l10n:check` and the KB check pass, and the first
+  analysis at `1.11.0` (task `13737842`) is gate OK with 0 new issues. Tag
+  `v1.11.0` on `main`'s tip; everything after `74ff94fe` is credits and KB.

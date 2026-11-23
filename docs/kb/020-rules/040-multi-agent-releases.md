@@ -352,6 +352,27 @@ Append one line to the overview's integration log: the date, the slices, the
 HEAD commit, the test counts, the coverage, the Sonar task id with the gate
 verdict, and the agent and model choices made in that wave.
 
+### Release slice: credits
+
+**Standing rule (maintainer, `2026-11-23`).** The release slice checks every
+contributor credit before its release commit, because the lists drift: at
+1.11.0, Raphaël Balet's three merged commits of 1.10.0 had reached none of
+them, and the Settings tab's AI agents list had no Gemini.
+
+- People: compare every human git author since the last tag (and, once a
+  release, all refs: `git log --all --format='%an <%ae>'`, bots left out)
+  with the AGPL roster in `NOTICE.md`, the MIT rosters in `LICENSE.mit`, the
+  `people` lists in `src/webview/contributors.ts` (the Settings popup's
+  Contributors tab) and `package.json`'s `contributors`. A person who wrote
+  code after `2026-07-01` belongs in `NOTICE.md`, the tab's Git Graph Libre
+  era and `package.json`. The smaller MIT-era authors stay out of
+  `package.json` by the maintainer's choice; the tab and `LICENSE.mit`
+  credit them.
+- Agents: run `pnpm run contributors:agents` and add any new agent or model
+  variant to `COAUTHOR_AGENTS` in `src/webview/contributors.ts`.
+- Pull requests: their authors are also thanked by name in the release's
+  `CHANGELOG.md` section (`NOTICE.md` says so).
+
 ### Closing issues
 
 When the slice that completes an issue is integrated and the gate passes on
