@@ -80,7 +80,7 @@ releases (Rules) applies, with the answers below.
 | Q1 | GGL icon on the Diff, Reflog and Blame tabs (maintainer test) | — | Claude Haiku | integrated `98bbf66a` |
 | Q2 | Reflog table column widths, no horizontal scroll (maintainer test) | — | Muse Code → Claude Haiku | integrated `53954365` |
 | N1 | Release notes: Blame F4-05/F4-06, Q1, L2, P1 | those slices | Claude Haiku | integrated `d25ed146` |
-| R90 | Release 1.11.0 | every `main` track | orchestrator | claimed |
+| R90 | Release 1.11.0 | every `main` track | orchestrator | done `74ff94fe` (not tagged, not pushed) |
 
 ## Blocked — waiting for the maintainer
 
@@ -301,3 +301,10 @@ anything unsolvable within reason be marked here while the rest continues.
   passed (60 skipped in the worktree) and webview 1,360 passed. Every `main`
   slice is integrated; R90 claimed by the orchestrator. Muse Code's quota is
   out until 21:02 UTC; F2-06 and F2-10 are queued for it.
+- `2026-11-23`: **release 1.11.0 prepared** (R90): last analysis at `1.10.0`
+  gate OK (0 new issues, coverage 89.8 %); release commit `74ff94fe`
+  (version and `sonar.projectVersion` 1.11.0, `[1.11.0] - 2026-11-23`);
+  graphify refresh `67c16118`; release gate on the main checkout: backend
+  1,654 and webview 1,360 passed; renders under
+  `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/R90/`. Not tagged, not pushed.
+  KB2 moves the finished sections to History.
