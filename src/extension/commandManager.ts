@@ -29,6 +29,7 @@ import { createScmDiffTabHandlers } from "./diffTab/scmCommands";
 import { createReflogSource } from "./reflogTab/reflogData";
 import { openReflogTab as openReflogPanel } from "./reflogTab/reflogTabPanel";
 import type { RepoManager } from "./repoManager";
+import { isStatsTabAvailable } from "./statsTab/availability";
 import { createStatsSource } from "./statsTab/statsData";
 import { openStatsTab as openStatsPanel } from "./statsTab/statsTabPanel";
 import { copyToClipboard } from "./utils/clipboard";
@@ -128,6 +129,8 @@ export type CommandManagerDeps = {
    * statistics panel fed by F3-01's engine-only source; tests replace it.
    */
   openStatsTab?: (repo: string) => void;
+  /** Whether the engine-only Statistics tab can be offered (F3-03); defaults to the engine check. */
+  isStatsTabAvailable?: () => boolean;
   /** Open the GGL Diff tab from Source Control (D46); wired in `extension.ts`. */
   openScmDiffTab?: (request: DiffTabRequest) => void;
   /**
@@ -669,7 +672,15 @@ export function createCommandManager(deps: CommandManagerDeps) {
     if (repo !== undefined) openReflog(repo);
   }
 
+  const statsTabAvailable =
+    deps.isStatsTabAvailable ??
+    ((): boolean => isStatsTabAvailable({ backend: deps.config.backend }));
+
   async function showStatistics(requested?: unknown) {
+    if (!statsTabAvailable()) {
+      deps.outputChannel.appendLine("[statsTab] unavailable; refusing showStatistics");
+      return;
+    }
     const repo = await pickRepoForTab(
       requested,
       "command.showStatistics.noRepo",

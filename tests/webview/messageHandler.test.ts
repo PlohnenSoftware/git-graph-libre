@@ -79,6 +79,7 @@ describe("registerMessageHandlers", () => {
     options: {
       extensionPath?: string;
       diffTabAvailable?: boolean;
+      statsTabAvailable?: boolean;
       showTagRemotes?: "off" | "origin" | "all";
       postFails?: boolean;
     } = {}
@@ -87,6 +88,7 @@ describe("registerMessageHandlers", () => {
     const consentPrompts: number[] = [];
     const openedDiffTabs: DiffTabRequest[] = [];
     const openedReflogTabs: string[] = [];
+    const openedStatsTabs: string[] = [];
     const handlers = new Map<
       RequestMessage["command"],
       (msg: RequestMessage) => void | Promise<void>
@@ -168,7 +170,11 @@ describe("registerMessageHandlers", () => {
       openReflogTab: (repoPath: string) => {
         openedReflogTabs.push(repoPath);
       },
-      isDiffTabAvailable: () => options.diffTabAvailable ?? true
+      openStatsTab: (repoPath: string) => {
+        openedStatsTabs.push(repoPath);
+      },
+      isDiffTabAvailable: () => options.diffTabAvailable ?? true,
+      isStatsTabAvailable: () => options.statsTabAvailable ?? true
     });
 
     return {
@@ -181,7 +187,8 @@ describe("registerMessageHandlers", () => {
       telemetryEvents,
       consentPrompts,
       openedDiffTabs,
-      openedReflogTabs
+      openedReflogTabs,
+      openedStatsTabs
     };
   }
 
@@ -1715,5 +1722,25 @@ describe("registerMessageHandlers", () => {
     const { handlers, openedReflogTabs } = registerHandlersForTest();
     await handlers.get("showReflog")?.({ command: "showReflog", repo: "/elsewhere" });
     expect(openedReflogTabs).toEqual([]);
+  });
+
+  it("opens the statistics tab for a known repository when available (F3-03)", async () => {
+    const { handlers, openedStatsTabs } = registerHandlersForTest();
+    await handlers.get("showStatistics")?.({ command: "showStatistics", repo });
+    expect(openedStatsTabs).toEqual([repo]);
+  });
+
+  it("refuses showStatistics when the engine is unavailable or the repository is unknown (F3-03)", async () => {
+    const unavailable = registerHandlersForTest(repo, { statsTabAvailable: false });
+    await unavailable.handlers.get("showStatistics")?.({ command: "showStatistics", repo });
+    expect(unavailable.openedStatsTabs).toEqual([]);
+    expect(unavailable.outputLines).toContain("[statsTab] unavailable; refusing showStatistics");
+
+    const unknown = registerHandlersForTest();
+    await unknown.handlers.get("showStatistics")?.({
+      command: "showStatistics",
+      repo: "/elsewhere"
+    });
+    expect(unknown.openedStatsTabs).toEqual([]);
   });
 });

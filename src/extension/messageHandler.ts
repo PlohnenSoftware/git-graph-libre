@@ -124,6 +124,7 @@ import { createReflogSource } from "./reflogTab/reflogData";
 import { openReflogTab as openGglReflogTab } from "./reflogTab/reflogTabPanel";
 import { exportRepoConfigFile, importRepoConfigFile } from "./repoConfigFile";
 import type { RepoManager } from "./repoManager";
+import { isStatsTabAvailable } from "./statsTab/availability";
 import { createStatsSource } from "./statsTab/statsData";
 import { openStatsTab as openGglStatsTab } from "./statsTab/statsTabPanel";
 import type { WebviewBridge } from "./webviewBridge";
@@ -558,6 +559,8 @@ export function registerMessageHandlers(
     openStatsTab?: (repo: string) => void;
     /** Whether the tab can be fed (D45); defaults to the engine check. */
     isDiffTabAvailable?: () => boolean;
+    /** Whether the engine-only Statistics tab can be offered (F3-03); defaults to the engine check. */
+    isStatsTabAvailable?: () => boolean;
   }
 ) {
   const {
@@ -634,6 +637,8 @@ export function registerMessageHandlers(
     });
   const diffTabAvailable =
     deps.isDiffTabAvailable ?? ((): boolean => isDiffTabAvailable({ backend: config.backend }));
+  const statsTabAvailable =
+    deps.isStatsTabAvailable ?? ((): boolean => isStatsTabAvailable({ backend: config.backend }));
 
   /**
    * Every repository read starts here. The preference is read live, so
@@ -1497,8 +1502,12 @@ export function registerMessageHandlers(
     if (Object.hasOwn(repoManager.getRepos(), msg.repo)) openReflog(msg.repo);
   });
 
-  // The graph toolbar's Statistics button, on the same terms as Reflog.
+  // The graph toolbar's Statistics button, gated on engine availability (F3-03).
   bridge.onMessage("showStatistics", (msg) => {
+    if (!statsTabAvailable()) {
+      outputChannel?.appendLine("[statsTab] unavailable; refusing showStatistics");
+      return;
+    }
     if (Object.hasOwn(repoManager.getRepos(), msg.repo)) openStatistics(msg.repo);
   });
 

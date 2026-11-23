@@ -80,7 +80,9 @@ function capturedSource(): StatsSource {
   return call.source;
 }
 
-function openViaMessageHandler(): Map<RequestMessage["command"], (msg: RequestMessage) => unknown> {
+function openViaMessageHandler(
+  isStatsTabAvailable?: () => boolean
+): Map<RequestMessage["command"], (msg: RequestMessage) => unknown> {
   const handlers = new Map<RequestMessage["command"], (msg: RequestMessage) => unknown>();
   const bridge = {
     post: (_msg: ResponseMessage) => {},
@@ -105,7 +107,8 @@ function openViaMessageHandler(): Map<RequestMessage["command"], (msg: RequestMe
     } as unknown as RepoSearch,
     extensionState: { setLastActiveRepo: vi.fn() } as unknown as ExtensionState,
     avatarManager: {} as AvatarManager,
-    repoFileWatcher: { start: vi.fn() } as unknown as RepoFileWatcher
+    repoFileWatcher: { start: vi.fn() } as unknown as RepoFileWatcher,
+    ...(isStatsTabAvailable === undefined ? {} : { isStatsTabAvailable })
     // No openStatsTab: the handler's default assembly is under test.
   });
   return handlers;
@@ -114,7 +117,7 @@ function openViaMessageHandler(): Map<RequestMessage["command"], (msg: RequestMe
 type QuickPickItem = { label: string; description: string; repo: string };
 type CommandHandler = (...args: unknown[]) => unknown;
 
-async function openViaCommandManager(): Promise<StatsSource> {
+async function openViaCommandManager(isStatsTabAvailable?: () => boolean): Promise<void> {
   const handlers = new Map<string, CommandHandler>();
   const manager = createCommandManager({
     commandApi: {
@@ -161,13 +164,13 @@ async function openViaCommandManager(): Promise<StatsSource> {
     openGraphView: vi.fn(),
     getCurrentPanel: () => undefined,
     extensionPath: root,
-    isVerified: () => verified.value
+    isVerified: () => verified.value,
+    ...(isStatsTabAvailable === undefined ? {} : { isStatsTabAvailable })
     // No openStatsTab: the manager's default assembly is under test.
   });
   manager.registerAll();
   await handlers.get("git-graph-libre.showStatistics")?.(repo);
   manager.dispose();
-  return capturedSource();
 }
 
 /** The answers one assembled source must give as its live deps flip. */
@@ -194,7 +197,7 @@ async function expectLiveGates(source: StatsSource): Promise<void> {
 
 describe("statistics tab assembly (F3-02)", () => {
   it("the graph handler opens the tab only for a known repository, with live gates", async () => {
-    const handlers = openViaMessageHandler();
+    const handlers = openViaMessageHandler(() => true);
     handlers.get("showStatistics")?.({ command: "showStatistics", repo: "/elsewhere" });
     expect(opened.calls).toHaveLength(0);
     handlers.get("showStatistics")?.({ command: "showStatistics", repo });
@@ -202,6 +205,15 @@ describe("statistics tab assembly (F3-02)", () => {
   });
 
   it("the command manager assembles the same source for its command", async () => {
-    await expectLiveGates(await openViaCommandManager());
+    await openViaCommandManager(() => true);
+    await expectLiveGates(capturedSource());
+  });
+
+  it("both default routes refuse to open the tab on the git-cli backend (F3-03)", async () => {
+    backendSetting.value = "git-cli";
+    const handlers = openViaMessageHandler();
+    handlers.get("showStatistics")?.({ command: "showStatistics", repo });
+    await openViaCommandManager();
+    expect(opened.calls).toHaveLength(0);
   });
 });
