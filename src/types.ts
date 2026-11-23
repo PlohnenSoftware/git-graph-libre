@@ -140,6 +140,9 @@ export type ContextMenuActionsVisibility = {
     merge: boolean;
     rebase: boolean;
     interactiveRebase: boolean;
+    createFixup: boolean;
+    createSquash: boolean;
+    createReword: boolean;
     reset: boolean;
     copyHash: boolean;
     copySubject: boolean;

@@ -60,6 +60,18 @@
   color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
 }
 
+.rebaseEditorAutosquashBar {
+  margin-top: 4px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  background-color: var(--ngg-neutral-overlay-subtle);
+}
+
+.rebaseEditorAutosquashRow {
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
+}
+
 .rebaseEditorNotices {
   flex: none;
   display: flex;
@@ -439,6 +451,15 @@
   color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
 }
 
+.rebaseEditorBadge-amend {
+  border-color: color-mix(
+    in oklab,
+    var(--vscode-editorInfo-foreground, var(--ngg-accent)) 50%,
+    var(--vscode-panel-border, var(--ngg-neutral-border))
+  );
+  color: var(--vscode-editorInfo-foreground, var(--vscode-editor-foreground));
+}
+
 .rebaseEditorAuthorCell {
   white-space: nowrap;
   overflow: hidden;
@@ -670,6 +691,7 @@
 }
 
 @media (forced-colors: active) {
+  .rebaseEditorAutosquashBar,
   .rebaseEditorNotice,
   .rebaseEditorLongRangePrompt,
   .rebaseEditorBody,

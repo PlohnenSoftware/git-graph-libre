@@ -21,6 +21,7 @@ import {
   type RebaseEditorState,
   resetRebaseEditorState,
   selectRebaseRow,
+  setAutosquashEnabled,
   setAutostash,
   setLongRangeConfirmPending,
   setPublishedAcked,
@@ -118,6 +119,19 @@ function renderSubheaderHtml(state: RebaseEditorState): string {
   );
 }
 
+function renderAutosquashBarHtml(state: RebaseEditorState): string {
+  if (!state.hasAutosquashMarkers) return "";
+  const checkedAttr = state.autosquashEnabled ? " checked" : "";
+  return (
+    '<div class="rebaseEditorAutosquashBar" id="rebaseEditorAutosquashBar">' +
+    '<label class="checkRow rebaseEditorCheckRow rebaseEditorAutosquashRow">' +
+    `<input type="checkbox" id="rebaseEditorAutosquash" class="rebaseEditorCheckbox"${checkedAttr}>` +
+    `<span>${escapeHtml(l10n.rebaseAutosquashToggle)}</span>` +
+    "</label>" +
+    "</div>"
+  );
+}
+
 function renderNoticesHtml(
   state: RebaseEditorState,
   shortHashLength: number,
@@ -191,6 +205,11 @@ function renderRowHtml(
   if (row.isPublished) {
     badges.push(
       `<span class="rebaseEditorBadge rebaseEditorBadge-published">${escapeHtml(l10n.rebaseBadgePublished)}</span>`
+    );
+  }
+  if (row.action === "fixup" && row.fixupFlag === "-C") {
+    badges.push(
+      `<span class="rebaseEditorBadge rebaseEditorBadge-amend" title="${escapeHtml(l10n.rebaseBadgeAmendTitle)}">${escapeHtml(l10n.rebaseBadgeAmend)}</span>`
     );
   }
 
@@ -279,6 +298,7 @@ function renderDialogShellHtml(
     '<div class="rebaseEditorHeader">' +
     `<div class="dialogTitle rebaseEditorTitle">${escapeHtml(l10n.rebaseEditorTitle)}</div>` +
     renderSubheaderHtml(state) +
+    renderAutosquashBarHtml(state) +
     "</div>" +
     `<div class="rebaseEditorNotices" id="rebaseEditorNotices" aria-live="polite">${renderNoticesHtml(state, shortHashLength, canOpenWorktree)}</div>` +
     '<div class="rebaseEditorBody" id="rebaseEditorBody">' +
@@ -341,6 +361,11 @@ function syncDialogChrome(
   if (resetBtn !== null) {
     resetBtn.disabled = !modified;
   }
+
+  const autosquashInput = dialog.querySelector<HTMLInputElement>("#rebaseEditorAutosquash");
+  if (autosquashInput !== null) {
+    autosquashInput.checked = state.autosquashEnabled;
+  }
 }
 
 function syncDialogInteractiveState(
@@ -362,7 +387,13 @@ function syncDialogInteractiveState(
   }
 }
 
-type EditorFocusTarget = "row" | "select" | "autostash" | "publishedAck" | "longRangeConfirm";
+type EditorFocusTarget =
+  | "row"
+  | "select"
+  | "autostash"
+  | "autosquash"
+  | "publishedAck"
+  | "longRangeConfirm";
 
 function focusEditorTarget(
   dialog: HTMLElement,
@@ -371,6 +402,10 @@ function focusEditorTarget(
 ) {
   if (focusTarget === "autostash") {
     dialog.querySelector<HTMLElement>("#rebaseEditorAutostash")?.focus();
+    return;
+  }
+  if (focusTarget === "autosquash") {
+    dialog.querySelector<HTMLElement>("#rebaseEditorAutosquash")?.focus();
     return;
   }
   if (focusTarget === "publishedAck") {
@@ -442,6 +477,10 @@ export function openRebaseEditorDialog(
     if (target instanceof HTMLInputElement && target.type === "checkbox") {
       if (target.id === "rebaseEditorAutostash") {
         updateState(setAutostash(state, target.checked), "autostash");
+        return;
+      }
+      if (target.id === "rebaseEditorAutosquash") {
+        updateState(setAutosquashEnabled(state, target.checked), "autosquash");
         return;
       }
       if (target.id === "rebaseEditorPublishedAck") {

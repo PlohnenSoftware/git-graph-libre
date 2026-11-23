@@ -1,5 +1,6 @@
+import { arrangeAutosquash, hasAutosquashMarkers } from "@/backend/rebase/autosquash";
 import { effectiveRebasePreflight } from "@/backend/rebase/preflight";
-import type { TodoAction, TodoEntry } from "@/backend/rebase/todo";
+import type { TodoAction, TodoEntry, TodoFixupFlag } from "@/backend/rebase/todo";
 import type {
   GitRebaseOperation,
   GitRebasePreflight,
@@ -43,6 +44,7 @@ export type RebaseEditorRow = {
   readonly isMerge: boolean;
   readonly isPublished: boolean;
   readonly action: TodoAction;
+  readonly fixupFlag?: TodoFixupFlag;
   readonly message?: string;
 };
 
@@ -69,6 +71,10 @@ export type RebaseEditorState = {
   readonly otherWorktreePath: string | null;
   /** Waiting for user confirmation before starting a very long range (F2-07). */
   readonly longRangeConfirmPending: boolean;
+  /** True when `fixup!`, `squash!`, or `amend!` markers exist in the range (F2-06). */
+  readonly hasAutosquashMarkers: boolean;
+  /** Whether Git's autosquash arrangement is currently applied (F2-06). */
+  readonly autosquashEnabled: boolean;
 };
 
 export type CreateRebaseEditorStateOptions = {
@@ -124,11 +130,31 @@ function toInitialRow(commit: GitRebaseRangeCommit): RebaseEditorRow {
   };
 }
 
+function buildAutosquashRows(commits: readonly GitRebaseRangeCommit[]): readonly RebaseEditorRow[] {
+  const byHash = new Map(commits.map((commit) => [commit.hash.toLowerCase(), commit]));
+  const arranged = arrangeAutosquash(commits);
+  const rows: RebaseEditorRow[] = [];
+  for (const entry of arranged) {
+    const commit = byHash.get(entry.hash.toLowerCase());
+    if (commit === undefined) continue;
+    rows.push({
+      ...toInitialRow(commit),
+      action: entry.action,
+      ...(entry.fixupFlag === "-C" ? { fixupFlag: "-C" as const } : {})
+    });
+  }
+  return guardSquashRows(rows);
+}
+
 export function createRebaseEditorState(
   range: GitRebaseRangeResult,
   options: CreateRebaseEditorStateOptions
 ): RebaseEditorState {
-  const rows = range.commits.map(toInitialRow);
+  const markersPresent = hasAutosquashMarkers(range.commits);
+  const autosquashEnabled = markersPresent && range.autoSquash !== false;
+  const rows = autosquashEnabled
+    ? buildAutosquashRows(range.commits)
+    : range.commits.map(toInitialRow);
   return {
     base: options.base,
     baseLabel: options.baseLabel,
@@ -147,7 +173,9 @@ export function createRebaseEditorState(
     publishedAcked: false,
     autostash: false,
     otherWorktreePath: options.otherWorktreePath ?? null,
-    longRangeConfirmPending: false
+    longRangeConfirmPending: false,
+    hasAutosquashMarkers: markersPresent,
+    autosquashEnabled
   };
 }
 
@@ -243,7 +271,25 @@ export function resetRebaseEditorState(state: RebaseEditorState): RebaseEditorSt
     selectedIndex: rows.length > 0 ? 0 : -1,
     publishedAcked: false,
     autostash: false,
-    longRangeConfirmPending: false
+    longRangeConfirmPending: false,
+    autosquashEnabled: false
+  };
+}
+
+export function setAutosquashEnabled(
+  state: RebaseEditorState,
+  enabled: boolean
+): RebaseEditorState {
+  if (!state.hasAutosquashMarkers || state.autosquashEnabled === enabled) return state;
+  const rows = enabled
+    ? buildAutosquashRows(state.initialCommits)
+    : state.initialCommits.map(toInitialRow);
+  return {
+    ...state,
+    rows,
+    selectedIndex: rows.length > 0 ? 0 : -1,
+    longRangeConfirmPending: false,
+    autosquashEnabled: enabled
   };
 }
 
@@ -325,6 +371,7 @@ export function toInteractiveRebasePayload(
     entries: state.rows.map((row) => ({
       action: row.action,
       hash: row.hash,
+      ...(row.action === "fixup" && row.fixupFlag === "-C" ? { fixupFlag: "-C" as const } : {}),
       ...(messages.has(row.hash) ? { message: messages.get(row.hash) as string } : {})
     })),
     rangeHashes: [...state.initialHashes],

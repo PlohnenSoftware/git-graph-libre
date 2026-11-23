@@ -29,7 +29,12 @@ export function combinedGroupMessage(
   const parts = [originalMessageOf(rows[targetIndex] as RebaseEditorRow)];
   for (const index of memberIndices) {
     const member = rows[index] as RebaseEditorRow;
-    if (member.action === "squash") parts.push(originalMessageOf(member));
+    if (member.action === "squash") {
+      parts.push(originalMessageOf(member));
+    } else if (member.action === "fixup" && member.fixupFlag === "-C") {
+      parts.length = 0;
+      parts.push(member.body === "" ? originalMessageOf(member) : member.body);
+    }
   }
   return parts.join("\n\n");
 }
@@ -150,11 +155,11 @@ export function withActionAndMessage(
   action: TodoAction,
   message: string | undefined
 ): RebaseEditorRow {
+  const { message: _dropped, fixupFlag: _droppedFlag, ...rest } = row;
   if (message === undefined) {
-    const { message: _dropped, ...rest } = row;
     return { ...rest, action };
   }
-  return { ...row, action, message };
+  return { ...rest, action, message };
 }
 
 /**

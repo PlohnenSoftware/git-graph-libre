@@ -638,6 +638,14 @@ class GitGraphView {
     seq: number;
     repo: string;
   } | null = null;
+  /** The Create Fixup / Squash / Reword dialog awaiting staged count and target message (F2-06). */
+  private pendingFixupDialog: {
+    requestId: number;
+    repo: string;
+    target: string;
+    kind: "fixup" | "squash" | "reword";
+    sourceElem: HTMLElement | null;
+  } | null = null;
   /** The folder of the worktree being created, for the finish step (Y8) once Git answers. */
   private pendingCreatedWorktree: string | null = null;
   /**
@@ -3852,6 +3860,23 @@ class GitGraphView {
     }
     return [disabledItem];
   }
+  private buildCommitFixupMenuItems(hash: string, sourceElem: HTMLElement): ContextMenuElement[] {
+    if (!this.isHeadAncestor(hash)) return [];
+    return [
+      this.visibleContextMenuItem("commit", "createFixup", {
+        title: l10n.rebaseCreateFixup + ELLIPSIS,
+        onClick: () => this.requestFixupCommitDialog(hash, "fixup", sourceElem)
+      }),
+      this.visibleContextMenuItem("commit", "createSquash", {
+        title: l10n.rebaseCreateSquash + ELLIPSIS,
+        onClick: () => this.requestFixupCommitDialog(hash, "squash", sourceElem)
+      }),
+      this.visibleContextMenuItem("commit", "createReword", {
+        title: l10n.rebaseCreateReword + ELLIPSIS,
+        onClick: () => this.requestFixupCommitDialog(hash, "reword", sourceElem)
+      })
+    ];
+  }
   private buildCommitIntegrationMenuItems(
     hash: string,
     sourceElem: HTMLElement
@@ -3871,6 +3896,7 @@ class GitGraphView {
             this.requestInteractiveRebaseRange(hash, this.displayHash(hash), sourceElem)
           )
         : []),
+      ...this.buildCommitFixupMenuItems(hash, sourceElem),
       this.visibleContextMenuItem("commit", "reset", {
         title: l10n.reset + ELLIPSIS,
         onClick: () => this.showResetCommitDialog(hash, sourceElem)
@@ -4332,6 +4358,143 @@ class GitGraphView {
     }
     this.pendingRebasePrediction = null;
     activeRebaseEditor?.applyPrediction(pending.seq, msg);
+  }
+  private requestFixupCommitDialog(
+    target: string,
+    kind: "fixup" | "squash" | "reword",
+    sourceElem: HTMLElement | null
+  ) {
+    if (this.currentRepo === "") return;
+    const requestId = this.createRequestId();
+    this.pendingFixupDialog = {
+      requestId,
+      repo: this.currentRepo,
+      target,
+      kind,
+      sourceElem
+    };
+    sendMessage({
+      command: "fixupDialogInfo",
+      requestId,
+      repo: this.currentRepo,
+      target
+    });
+    showActionRunningDialog(l10n.statusLoadingFixupInfo);
+  }
+  public loadFixupDialogInfo(msg: Extract<GGL.ResponseMessage, { command: "fixupDialogInfo" }>) {
+    const pending = this.pendingFixupDialog;
+    if (pending === null || pending.requestId !== msg.requestId || pending.repo !== msg.repo) {
+      return;
+    }
+    this.pendingFixupDialog = null;
+    if (msg.error !== null) {
+      setStatusStrip("error", l10n.unableToLoadFixupInfo);
+      showErrorDialog(l10n.unableToLoadFixupInfo, formatQueryError(msg.error), pending.sourceElem);
+      return;
+    }
+    setStatusStrip("ready", l10n.statusReady);
+    this.showCreateFixupDialog(pending.target, pending.kind, msg, pending.sourceElem);
+  }
+  private fixupStagedCountNote(kind: "fixup" | "squash" | "reword", stagedCount: number): string {
+    if (kind === "reword") {
+      if (stagedCount === 0) return l10n.rebaseRewordEmptyNote;
+      if (stagedCount === 1) return l10n.rebaseRewordStagedUntouchedOne;
+      return l10n.rebaseRewordStagedUntouchedMany.replace("{0}", String(stagedCount));
+    }
+    if (stagedCount === 0) return l10n.rebaseFixupNoStagedChanges;
+    if (stagedCount === 1) return l10n.rebaseFixupStagedCountOne;
+    return l10n.rebaseFixupStagedCountMany.replace("{0}", String(stagedCount));
+  }
+  private fixupDialogStrings(kind: "fixup" | "squash" | "reword") {
+    if (kind === "squash") {
+      return {
+        titleTemplate: l10n.rebaseSquashDialogTitle,
+        submitLabel: l10n.rebaseCreateSquash,
+        runningLabel: l10n.statusCreatingSquashCommit,
+        prefix: "squash! "
+      };
+    }
+    if (kind === "reword") {
+      return {
+        titleTemplate: l10n.rebaseRewordDialogTitle,
+        submitLabel: l10n.rebaseCreateReword,
+        runningLabel: l10n.statusCreatingRewordCommit,
+        prefix: "amend! "
+      };
+    }
+    return {
+      titleTemplate: l10n.rebaseFixupDialogTitle,
+      submitLabel: l10n.rebaseCreateFixup,
+      runningLabel: l10n.statusCreatingFixupCommit,
+      prefix: "fixup! "
+    };
+  }
+  private showCreateFixupDialog(
+    target: string,
+    kind: "fixup" | "squash" | "reword",
+    info: { stagedCount: number; targetSubject: string; targetMessage: string },
+    sourceElem: HTMLElement | null
+  ) {
+    const copy = this.fixupDialogStrings(kind);
+    const title = copy.titleTemplate.replace(
+      "{0}",
+      () => `<b><i>${this.displayHash(target)}</i></b>`
+    );
+    const stagedNote = this.fixupStagedCountNote(kind, info.stagedCount);
+    const previewNote = l10n.rebaseFixupMessagePreview.replace(
+      "{0}",
+      () => `${copy.prefix}${info.targetSubject}`
+    );
+    const needsStaged = kind !== "reword";
+    const blockedByEmptyIndex = needsStaged && info.stagedCount === 0;
+    const inputs: DialogInput[] = [
+      { type: "note", text: stagedNote },
+      { type: "note", text: previewNote }
+    ];
+    if (kind === "squash" && !blockedByEmptyIndex) {
+      inputs.push({
+        type: "textarea",
+        name: l10n.rebaseFixupExtraMessage,
+        default: "",
+        placeholder: null
+      });
+    } else if (kind === "reword") {
+      inputs.push({
+        type: "textarea",
+        name: l10n.rebaseRewordNewMessage,
+        default: info.targetMessage,
+        placeholder: null,
+        required: true
+      });
+    }
+
+    showFormDialog(
+      title,
+      inputs,
+      copy.submitLabel,
+      (values) => {
+        const rawMessage = values[2] ?? "";
+        const message = this.normalizeCommitMessage(rawMessage);
+        if (kind === "reword" && message.trim() === "") {
+          showErrorDialog(l10n.rebaseRewordEmptyMessage, null, sourceElem);
+          return;
+        }
+        sendMessage({
+          command: "commitFixup",
+          repo: this.currentRepo,
+          target,
+          kind,
+          ...(message.trim() === "" ? {} : { message })
+        });
+        showActionRunningDialog(copy.runningLabel);
+      },
+      sourceElem
+    );
+
+    if (blockedByEmptyIndex) {
+      dialog.className = "active noInput";
+      document.getElementById("dialogAction")?.setAttribute("aria-disabled", "true");
+    }
   }
   private showRebaseEditorDialog(
     range: GitRebaseRangeResult,
@@ -6521,6 +6684,10 @@ class GitGraphView {
     }
     return ancestors;
   }
+  private isHeadAncestor(hash: string): boolean {
+    if (hash === "*" || this.commitHead === null) return false;
+    return this.loadedHeadAncestors().has(hash);
+  }
   private isStrictHeadAncestor(hash: string): boolean {
     if (hash === "*" || this.commitHead === null || hash === this.commitHead) return false;
     return this.loadedHeadAncestors().has(hash);
@@ -8595,6 +8762,7 @@ const actionErrorLabels = {
   resetToCommit: l10n.unableToReset,
   rebaseCurrentBranch: l10n.unableToRebase,
   interactiveRebase: l10n.unableToStartInteractiveRebase,
+  commitFixup: l10n.unableToCreateFixup,
   revertCommit: l10n.unableToRevert,
   squashCommitSelection: l10n.unableToSquashSelection,
   undoLastCommit: l10n.unableToUndoLastCommit,
@@ -8652,6 +8820,7 @@ const responseHandlers: ResponseHandlerMap = {
   operationState: (msg) => gitGraph.loadOperationState(msg),
   rebaseRange: (msg) => gitGraph.loadRebaseRange(msg),
   rebasePrediction: (msg) => gitGraph.loadRebasePrediction(msg),
+  fixupDialogInfo: (msg) => gitGraph.loadFixupDialogInfo(msg),
   continueRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToContinueRebase),
   skipRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToSkipRebase),
   abortRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToAbortRebase),
