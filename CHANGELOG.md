@@ -10,18 +10,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **A Reflog tab.** **Show Reflog**, from the Command Palette or the graph
-  toolbar, opens a tab that lists the `HEAD` reflog page by page: each
-  entry's index, commit, date, action and sub-action (such as a rebase's
-  pick, squash or abort) and message, as Git recorded it. Actions are
-  colored by kind, and each entry says whether its commit is still on a
-  branch or tag, is only in the reflog, or no longer exists, so lost work is
-  easy to spot. The tab uses the graph's hash length, date format and words, its
-  columns can be resized and keep their widths per repository, it refreshes
-  when the repository changes, and with the Rust engine it reads the reflog
-  without starting Git. A search finds the entries whose message contains
-  the text you type, across up to 5,000 entries. Filters narrow the list by
-  action, choose which reflog to show (`HEAD`, a local branch or the stash),
-  and show only the entries whose commit is only in the reflog.
+  toolbar, opens a tab that lists the `HEAD` reflog page by page: each entry's
+  index, commit, date, action and sub-action (such as a rebase's pick, squash
+  or abort) and message, as Git recorded it. Actions are colored by kind, and
+  each entry says whether its commit is still on a branch or tag, is only in
+  the reflog, or no longer exists, so lost work is easy to spot. The tab uses
+  the graph's hash length, date format and words, its columns can be resized
+  and keep their widths per repository, it refreshes when the repository
+  changes, and with the Rust engine it reads the reflog without starting Git.
+  A search finds the entries whose message contains the text you type, across
+  up to 5,000 entries. Filters narrow the list by action, choose which reflog
+  to show (`HEAD`, a local branch or the stash), and show only the entries
+  whose commit is only in the reflog. The ref picker also lists the HEAD of
+  each other worktree, read in that worktree, and a bare repository shows its
+  branch reflogs with a note that Git keeps no HEAD reflog there by default.
+  Each entry can be recovered with **Create Branch Here…**, **Create Tag
+  Here…**, **Check Out (Detached)**, **Copy Hash**, **Show in Graph** (which
+  offers to turn on **Include reflog** for a commit that is only in the
+  reflog) or **Reset Current Branch to Here…**, which uses the usual reset
+  dialog: mixed by default, and hard only after a second confirmation. An
+  entry whose commit no longer exists cannot be recovered, and the tab says
+  so.
+
+- **Scan for lost commits, on request.** **Scan for Lost Commits…** in the
+  Reflog tab lists the commits that no branch, tag or reflog reaches. The scan
+  shows its progress, can be canceled and stops after 30 seconds. Its results
+  warn that these commits disappear when Git runs garbage collection, and
+  **Create Branch Here…** saves any of them to a new branch without moving
+  HEAD.
 
 ### Changed
 
