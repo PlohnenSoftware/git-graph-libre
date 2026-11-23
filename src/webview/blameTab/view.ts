@@ -2,6 +2,7 @@ import type { GitBlameCommit } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
 import type { BlameHotspotMode } from "@/blameHotspot";
 import type {
+  BlameCommitPopoverMessage,
   BlameHunkView,
   BlameLabels,
   BlameNavigateDirection,
@@ -10,6 +11,11 @@ import type {
 import { octicon } from "@/octicons";
 import { worktreeFolderName } from "../utils/git";
 import { clampGutterWidth, DEFAULT_GUTTER_WIDTH, resizeGutterWidth } from "./columnResize";
+import {
+  type BlamePopoverContext,
+  type BlamePopoverDiffRequest,
+  createBlamePopover
+} from "./popover";
 import {
   applyFindQuery,
   type BlameViewState,
@@ -50,6 +56,16 @@ export type BlameViewCallbacks = {
   onClearIgnoredCommit?: (commitHash: string | null, visibleLine: number | null) => void;
   /** Find state changed inside the view; the caller updates its stored state (F4-05). */
   onFindStateChange?: (state: BlameViewState) => void;
+  /** The popover opened for a commit; fetch its full details by request id (F4-06). */
+  onLoadCommitPopover?: (commitHash: string, requestId: number) => void;
+  /** The user asked to reveal a hunk's commit in the graph (F4-06). */
+  onShowCommitInGraph?: (commitHash: string) => void;
+  /** The user asked for a hunk commit's file diff (F4-06). */
+  onOpenCommitFileDiff?: (request: BlamePopoverDiffRequest) => void;
+  /** The user clicked a line number or the popover's open-at-line action (F4-06). */
+  onOpenFileAtLine?: (line: number) => void;
+  /** The user asked to copy a commit's hash or full message (F4-06). */
+  onCopyText?: (kind: "hash" | "message", commitHash: string) => void;
 };
 
 /** The ten heat steps, coldest first: the legend draws one swatch for each. */
@@ -632,11 +648,22 @@ function gutterElement(
   const uncommitted = commit?.uncommitted === true || hunk.heat.uncommitted;
   if (uncommitted) {
     // No fake hash, no date, and no rewind button: the all-zero OID is not a commit.
-    gutter.append(element("div", "blame-summary blame-uncommitted", labels.uncommitted));
+    const head = element(
+      "button",
+      "blame-summary blame-uncommitted blame-popover-trigger",
+      labels.uncommitted
+    );
+    head.type = "button";
+    head.title = labels.showCommitDetails;
+    head.setAttribute("aria-haspopup", "dialog");
+    gutter.append(head);
   } else if (commit !== undefined) {
     const head = element("div", "blame-gutter-head");
-    const summary = element("div", "blame-summary", commit.summary);
+    const summary = element("button", "blame-summary blame-popover-trigger", commit.summary);
+    summary.type = "button";
     summary.title = commit.summary;
+    summary.setAttribute("aria-label", `${labels.showCommitDetails}: ${commit.summary}`);
+    summary.setAttribute("aria-haspopup", "dialog");
     head.append(summary, rewindButton(hunk, commit, state, labels, callbacks));
 
     const meta = element("div", "blame-meta");
@@ -661,11 +688,14 @@ function gutterElement(
     // that can honestly be shown for it.
     const head = element("div", "blame-gutter-head");
     const hash = element(
-      "code",
-      "blame-hash",
+      "button",
+      "blame-hash blame-popover-trigger",
       abbrevCommit(hunk.commitHash, state.display.shortHashLength)
     );
+    hash.type = "button";
     hash.title = hunk.commitHash;
+    hash.setAttribute("aria-label", `${labels.showCommitDetails}: ${hunk.commitHash}`);
+    hash.setAttribute("aria-haspopup", "dialog");
     head.append(hash, rewindButton(hunk, undefined, state, labels, callbacks));
     gutter.append(head);
   }
@@ -716,6 +746,7 @@ function hunkElement(
   band.dataset.commit = hunk.commitHash;
   band.dataset.heat = heatAttribute(hunk);
   band.dataset.startLine = String(hunk.startLine);
+  band.dataset.hunkIndex = String(hunkIndex);
   if (highlights.matchedHunks.has(hunkIndex)) band.classList.add("is-find-match");
   if (highlights.activeHunkIndex === hunkIndex) band.classList.add("is-find-active-hunk");
 
@@ -726,7 +757,10 @@ function hunkElement(
     if (state.targetLine === line.finalLine) row.classList.add("blame-target-line");
     if (highlights.matchedLines.has(line.finalLine)) row.classList.add("is-find-match");
     if (highlights.activeLine === line.finalLine) row.classList.add("is-find-active");
-    const number = element("span", "blame-line-number", String(line.finalLine));
+    const number = element("button", "blame-line-number", String(line.finalLine));
+    number.type = "button";
+    number.title = labels.openFileAtLine;
+    number.setAttribute("aria-label", `${labels.openFileAtLine}: ${line.finalLine}`);
     const text = element("span", "blame-line-text", line.content);
     row.append(number, text);
     source.append(row);
@@ -978,6 +1012,72 @@ export function createBlameView(root: HTMLElement, callbacks: BlameViewCallbacks
   let renderedState: BlameViewState | null = null;
   let renderedScroll: HTMLElement | null = null;
 
+  // The commit popover and hunk context menu (F4-06) live in their own
+  // module on `body`; the view only maps hunk DOM back to state and
+  // forwards their actions to the tab's callbacks.
+  const popover = createBlamePopover(root.ownerDocument, {
+    onLoadDetails: (commitHash, requestId) =>
+      callbacks.onLoadCommitPopover?.(commitHash, requestId),
+    onShowInGraph: (commitHash) => callbacks.onShowCommitInGraph?.(commitHash),
+    onOpenDiff: (request) => callbacks.onOpenCommitFileDiff?.(request),
+    onRewind: (target) => callbacks.onRewind?.(target),
+    onIgnoreCommit: (commitHash) => {
+      if (lastState !== null) {
+        callbacks.onIgnoreCommit?.(commitHash, currentVisibleLine(root, lastState));
+      }
+    },
+    onCopyText: (kind, commitHash) => callbacks.onCopyText?.(kind, commitHash),
+    onOpenFileAtLine: (line) => callbacks.onOpenFileAtLine?.(line),
+    onBlameHead: () => callbacks.onBlameHead?.()
+  });
+
+  const bandOf = (target: EventTarget | null): HTMLElement | null =>
+    target instanceof Element ? target.closest<HTMLElement>(".blame-hunk") : null;
+
+  const lineOf = (target: EventTarget | null, band: HTMLElement): number => {
+    const row = target instanceof Element ? target.closest<HTMLElement>(".blame-line") : null;
+    const line = Number(row?.dataset.line);
+    return Number.isInteger(line) && line >= 1 ? line : Number(band.dataset.startLine);
+  };
+
+  const contextFor = (band: HTMLElement, line: number): BlamePopoverContext | null => {
+    if (lastState === null || lastState.labels === null) return null;
+    const hunk = lastState.hunks[Number(band.dataset.hunkIndex)];
+    if (hunk === undefined) return null;
+    return {
+      commit: lastState.commits[hunk.commitHash],
+      hunk,
+      labels: lastState.labels,
+      display: lastState.display,
+      locale: lastState.locale,
+      now: lastNow,
+      line,
+      ignored: lastState.ignoreRevs.includes(hunk.commitHash)
+    };
+  };
+
+  root.addEventListener("click", (event) => {
+    const band = bandOf(event.target);
+    if (band === null || !(event.target instanceof Element)) return;
+    if (event.target.closest(".blame-line-number") !== null) {
+      callbacks.onOpenFileAtLine?.(lineOf(event.target, band));
+      return;
+    }
+    const trigger = event.target.closest<HTMLElement>(".blame-popover-trigger");
+    if (trigger !== null) {
+      const context = contextFor(band, lineOf(event.target, band));
+      if (context !== null) popover.open(trigger, context);
+    }
+  });
+  root.addEventListener("contextmenu", (event) => {
+    const band = bandOf(event.target);
+    if (band === null) return;
+    const context = contextFor(band, lineOf(event.target, band));
+    if (context === null) return;
+    event.preventDefault();
+    popover.openContextMenu(event.clientX, event.clientY, band, context);
+  });
+
   const updateFindState = (next: BlameViewState, focusFindInput = false): void => {
     lastState = next;
     callbacks.onFindStateChange?.(next);
@@ -1026,6 +1126,7 @@ export function createBlameView(root: HTMLElement, callbacks: BlameViewCallbacks
       lastTargetKey = "";
       renderedState = null;
       renderedScroll = null;
+      popover.close();
       root.replaceChildren();
       return;
     }
@@ -1033,6 +1134,8 @@ export function createBlameView(root: HTMLElement, callbacks: BlameViewCallbacks
     const focused = captureFocusedInput(root);
     const targetKey = `${state.repo}\0${state.filePath}\0${state.rev ?? ""}`;
     const sameTarget = targetKey === lastTargetKey;
+    // A popover belongs to the file it was opened over (F4-06).
+    if (!sameTarget) popover.close();
     const prevScrollEl = root.querySelector<HTMLElement>(".blame-scroll");
     const prevScrollTop = sameTarget || state.preserveScroll ? (prevScrollEl?.scrollTop ?? 0) : 0;
     const prevScrollLeft = state.preserveScroll ? (prevScrollEl?.scrollLeft ?? 0) : 0;
@@ -1088,5 +1191,11 @@ export function createBlameView(root: HTMLElement, callbacks: BlameViewCallbacks
     }
   }
 
-  return { render };
+  return {
+    render,
+    /** A commit popover details reply landed (F4-06). */
+    applyCommitPopover: (message: BlameCommitPopoverMessage): void => {
+      popover.applyDetails(message);
+    }
+  };
 }

@@ -92,6 +92,21 @@ const view = createBlameView(root, {
   onClearIgnoredCommit: (commitHash, targetLine) => {
     host.postMessage({ command: "clearIgnoredCommit", commitHash, targetLine });
   },
+  onLoadCommitPopover: (commitHash, requestId) => {
+    host.postMessage({ command: "loadCommitPopover", commitHash, requestId });
+  },
+  onShowCommitInGraph: (commitHash) => {
+    host.postMessage({ command: "showCommitInGraph", commitHash });
+  },
+  onOpenCommitFileDiff: (request) => {
+    host.postMessage({ command: "openCommitFileDiff", ...request });
+  },
+  onOpenFileAtLine: (line) => {
+    host.postMessage({ command: "openFileAtLine", line });
+  },
+  onCopyText: (kind, commitHash) => {
+    host.postMessage({ command: "copyText", kind, commitHash });
+  },
   onFindStateChange: (next) => {
     state = next;
   }
@@ -116,6 +131,10 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
       message as Extract<BlameHostMessage, { command: "blameRepoChanged" }>
     );
     view.render(state);
+  } else if (message?.command === "blameCommitPopover") {
+    view.applyCommitPopover(
+      message as Extract<BlameHostMessage, { command: "blameCommitPopover" }>
+    );
   }
 });
 view.render(state);
