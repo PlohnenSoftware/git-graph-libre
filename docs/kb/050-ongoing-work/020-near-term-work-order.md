@@ -11,6 +11,15 @@ always_read: true
 
 # Near-Term Work Order
 
+**Also open (`2026-11-23`): unreachable-commits scan breaks graph load on a
+stale commit-graph.** Checking "Include unreachable commits" from the
+table-header menu on a repository with a stale commit-graph fails `git fsck`
+with exit `16`, dumps ~220 KB of `stdout` ahead of `stderr` via
+`simple-git`, and aborts the graph load even after `git log` succeeds.
+"Unreachable-commits scan breaks graph load on stale commit-graph" (Ongoing
+work) holds the verified root cause, adjacent risks (`F1-07`, Windows argv
+limit), workarounds, and proposed fix.
+
 **Also open (`2026-11-12`): popup defects to fix.** The maintainer asked for
 a visual review of every popup and context menu, the worktree ones first.
 The context menus are fixed. "Popup and context-menu visual review"
