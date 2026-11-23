@@ -80,8 +80,8 @@ that note, the slice file wins.
 | F1-09F | Wire the Reflog tab to the engine reader | F1-09 | Haiku | integrated `10a2c006` |
 | F1-04F | Unify the Reflog tab with the graph | F1-04, F1-09 | Haiku | integrated `29594fde` |
 | F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | integrated `f0a51986` |
-| F1-08 | Worktrees and bare repositories | F1-05 | Sonnet | ready |
-| F1-06 | Recovery actions that cannot lose data | F1-08 | Sonnet | waiting |
+| F1-08 | Worktrees and bare repositories | F1-05 | Sonnet | integrated `d8f56cb7` |
+| F1-06 | Recovery actions that cannot lose data | F1-08 | Sonnet | ready |
 | F1-07 | Lost-commit scan (opt-in) | F1-06 | Sonnet | waiting |
 
 ## Integration acceptance
@@ -216,3 +216,14 @@ headless render of the tab in both themes. Nothing is pushed.
   on `f0a51986`: strict Biome on the 22 touched files clean; typecheck
   clean; `l10n:check` complete; `pnpm run test` backend 1,614 and webview
   1,116 passed; KB check clean. F1-08 is ready.
+- `2026-11-23`: F1-08 integrated at `d8f56cb7` (first run Muse Code, cut off by
+  its quota; finished by Gemini 4 Argon through `agy`): the ref picker adds the
+  other worktrees' HEADs (read in that worktree, locked or missing ones
+  marked), the header names whose HEAD is shown, a bare repository shows
+  branch reflogs with a note that Git keeps no HEAD reflog there, and the
+  panel follows or closes when its repository is removed or switched,
+  closing engine handles. Integrator conflict resolution: the Reflog
+  assembly sites in `commandManager.ts` and `messageHandler.ts` take both
+  T1's `telemetry` and F1-08's `repoManager`. Gates on `d8f56cb7`: strict
+  Biome on 20 files, typecheck, `l10n:check`, KB check, backend 1,578 passed
+  (60 skipped in the worktree) and webview 1,142 passed. F1-06 is ready.

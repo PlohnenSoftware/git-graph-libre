@@ -8,7 +8,7 @@ summary: >-
 
 # F1-06 — Recovery actions that cannot lose data
 
-Status: waiting
+Status: ready
 
 Needs: F1-08
 
