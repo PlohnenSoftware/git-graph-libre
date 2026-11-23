@@ -132,6 +132,12 @@ type ActionPayloads = {
     entries: TodoEntry[];
     rangeHashes: string[];
   };
+  /** `git rebase --continue` for the repository's in-progress rebase (F2-03). No payload. */
+  continueRebase: unknown;
+  /** `git rebase --skip` for the repository's in-progress rebase (F2-03). No payload. */
+  skipRebase: unknown;
+  /** `git rebase --abort` for the repository's in-progress rebase (F2-03). No payload. */
+  abortRebase: unknown;
   updateBranchFromUpstream: { branchName: string; force: boolean };
   revertCommit: { commitHash: string; parentIndex: number; noCommit: boolean };
   squashCommitSelection: { commitHashes: string[]; message: string; noVerify: boolean };

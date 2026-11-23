@@ -33,7 +33,12 @@ import {
 import { openExternalDirDiff } from "@/backend/actions/externalDiff";
 import { resetFileToRevision } from "@/backend/actions/file";
 import { mergeBranch, mergeCommit } from "@/backend/actions/merge";
-import { rebaseCurrentBranch } from "@/backend/actions/rebase";
+import {
+  abortRebase,
+  continueRebase,
+  rebaseCurrentBranch,
+  skipRebase
+} from "@/backend/actions/rebase";
 import { runInteractiveRebase } from "@/backend/actions/rebaseInteractive";
 import {
   addRemote,
@@ -893,6 +898,27 @@ export function registerMessageHandlers(
       );
     }
   });
+  registerAction("continueRebase", (msg) =>
+    continueRebase(
+      gitClient.getInstance(),
+      { repo: msg.repo, binary: config.gitPath() },
+      recordGitCommand
+    )
+  );
+  registerAction("skipRebase", (msg) =>
+    skipRebase(
+      gitClient.getInstance(),
+      { repo: msg.repo, binary: config.gitPath() },
+      recordGitCommand
+    )
+  );
+  registerAction("abortRebase", (msg) =>
+    abortRebase(
+      gitClient.getInstance(),
+      { repo: msg.repo, binary: config.gitPath() },
+      recordGitCommand
+    )
+  );
   registerAction("squashCommitSelection", (msg) =>
     squashCommitSelection(gitClient.getInstance(), msg, recordGitCommand)
   );
