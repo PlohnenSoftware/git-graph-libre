@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   applyData,
+  applyFindQuery,
   applyLoading,
   applyRepoChanged,
+  closeFind,
   commitDate,
+  computeFindMatches,
   heatAttribute,
-  initialBlameState
+  initialBlameState,
+  openFind,
+  stepFindMatch
 } from "@/webview/blameTab/rowModel";
 
 import {
@@ -17,7 +22,9 @@ import {
   hunk,
   LABELS,
   NEW_HASH,
-  payload
+  OLD_HASH,
+  payload,
+  ZERO_HASH
 } from "./fixtures";
 
 const loadingMessage = (overrides = {}) => fixtureLoading({ requestId: 2, ...overrides });
@@ -154,5 +161,90 @@ describe("blame row model", () => {
     expect(marked.repoChanged).toBe(true);
     expect(marked.preserveScroll).toBe(true);
     expect(marked.hunks).toEqual(loaded.hunks);
+  });
+
+  it("matches source lines, author, summary and commit hash case-insensitively and skips uncommitted metadata", () => {
+    const base = payload();
+    const uncommittedHunk = hunk({
+      commitHash: ZERO_HASH,
+      startLine: 5,
+      lineCount: 1,
+      lines: [{ finalLine: 5, origLine: 5, content: "const draft = true;" }],
+      heat: { level: null, uncommitted: true, commitHunkCount: 1, commitLineCount: 1 }
+    });
+    const hunks = [...base.hunks, uncommittedHunk];
+    const commits = {
+      ...base.commits,
+      [ZERO_HASH]: commit({
+        hash: ZERO_HASH,
+        author: "Not Committed Yet",
+        summary: "",
+        uncommitted: true
+      })
+    };
+
+    expect(computeFindMatches(hunks, commits, "")).toEqual([]);
+    // Source line matches across hunks.
+    expect(computeFindMatches(hunks, commits, "EXPORT CONST")).toEqual([
+      { hunkIndex: 0, line: 1, kind: "line" },
+      { hunkIndex: 0, line: 2, kind: "line" },
+      { hunkIndex: 1, line: 3, kind: "line" }
+    ]);
+    // Author match produces one hunk match anchored at startLine.
+    expect(computeFindMatches(hunks, commits, "ben")).toEqual([
+      { hunkIndex: 1, line: 3, kind: "hunk" }
+    ]);
+    // Summary match.
+    expect(computeFindMatches(hunks, commits, "first lines")).toEqual([
+      { hunkIndex: 0, line: 1, kind: "hunk" }
+    ]);
+    // Commit hash match.
+    expect(computeFindMatches(hunks, commits, OLD_HASH.slice(0, 8))).toEqual([
+      { hunkIndex: 0, line: 1, kind: "hunk" }
+    ]);
+    // Uncommitted lines match source text, not fake commit metadata.
+    expect(computeFindMatches(hunks, commits, "draft")).toEqual([
+      { hunkIndex: 2, line: 5, kind: "line" }
+    ]);
+    expect(computeFindMatches(hunks, commits, "not committed")).toEqual([]);
+  });
+
+  it("opens, steps with wrap-around, recomputes on same-repo data, and closes Find state", () => {
+    let state = applyData(initialBlameState(), dataMessage());
+    state = openFind(state);
+    expect(state.findOpen).toBe(true);
+    expect(openFind(state)).toBe(state);
+
+    state = applyFindQuery(state, "const");
+    expect(state.findMatches).toHaveLength(3);
+    expect(state.findActiveIndex).toBe(0);
+
+    state = stepFindMatch(state, 1);
+    expect(state.findActiveIndex).toBe(1);
+    state = stepFindMatch(state, 1);
+    expect(state.findActiveIndex).toBe(2);
+    state = stepFindMatch(state, 1);
+    expect(state.findActiveIndex).toBe(0);
+    state = stepFindMatch(state, -1);
+    expect(state.findActiveIndex).toBe(2);
+
+    // Same-repo data recomputes matches and preserves find bar open.
+    const reloaded = applyData(state, dataMessage({ requestId: 2 }));
+    expect(reloaded.findOpen).toBe(true);
+    expect(reloaded.findQuery).toBe("const");
+    expect(reloaded.findMatches).toHaveLength(3);
+    expect(reloaded.findActiveIndex).toBe(2);
+
+    // Switching repos resets find bar.
+    const otherRepo = applyData(reloaded, dataMessage({ requestId: 3, repo: "/repos/two" }));
+    expect(otherRepo.findOpen).toBe(false);
+    expect(otherRepo.findQuery).toBe("");
+    expect(otherRepo.findMatches).toEqual([]);
+
+    const closed = closeFind(reloaded);
+    expect(closed.findOpen).toBe(false);
+    expect(closed.findQuery).toBe("");
+    expect(closed.findMatches).toEqual([]);
+    expect(closed.findActiveIndex).toBe(-1);
   });
 });

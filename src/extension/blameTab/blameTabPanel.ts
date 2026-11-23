@@ -22,6 +22,7 @@ import type { TelemetryReporter } from "@/telemetry";
 import { createTabOpenReporter, TAB_FEATURE_BLAME } from "@/telemetry/tabOpen";
 
 import { isBareCommonDir, worktreeGroupOf } from "../repoLayout";
+import { createBlameNavigator } from "./blameData";
 import { buildBlameTabHtml } from "./blameTabHtml";
 
 /** The file watcher's part the panel uses; tests substitute their own. */
@@ -75,11 +76,6 @@ function failedPayload(error: unknown): BlamePayload {
     totalLines: 0,
     error: error instanceof Error ? error.message : String(error)
   };
-}
-
-/** A target line the tab may act on: a whole 1-based line, or none. */
-function normalizeTargetLine(value: number | null | undefined): number | null {
-  return typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : null;
 }
 
 /** Auto-refresh applies only to working-tree and HEAD blames, never pinned commits. */
@@ -153,6 +149,7 @@ function createBlameTab(deps: BlameTabDeps) {
   panel.webview.html = buildBlameTabHtml(panel.webview, deps.extensionPath);
   const reportOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_BLAME);
   const readOpenDocument = deps.readOpenDocument ?? defaultReadOpenDocument;
+  const navigator = createBlameNavigator();
 
   let ready = false;
   let disposed = false;
@@ -165,50 +162,70 @@ function createBlameTab(deps: BlameTabDeps) {
   let repoMeta: BlameRepoMeta = { linkedWorktree: false, bare: false };
   let repoChanged = false;
   let watchedRepo = "";
-  let target: Required<Pick<BlameOpenTarget, "repo" | "filePath">> & {
-    rev: string | null;
-    targetLine: number | null;
-    contents: string | undefined;
-  } = { repo: "", filePath: "", rev: null, targetLine: null, contents: undefined };
+  // Unsaved editor text for the working-tree target (BQ6); only ever sent
+  // while the navigator sits on the working tree (`rev === null`).
+  let contents: string | undefined;
   let source: BlameSource | undefined;
 
-  const echo = (): Omit<BlameDataMessage, "command" | "requestId" | "payload"> => ({
-    repo: target.repo,
-    filePath: target.filePath,
-    rev: target.rev,
-    targetLine: target.targetLine,
-    locale: deps.locale ?? vscode.env.language,
-    labels: readLabels(),
-    display: readDisplay(),
-    typography: readTypography(),
-    unsavedBuffer: target.contents !== undefined,
-    repoMeta,
-    repoChanged
-  });
+  const echo = (): Omit<BlameDataMessage, "command" | "requestId" | "payload"> => {
+    const snap = navigator.snapshot();
+    return {
+      repo: snap.repo,
+      filePath: snap.filePath,
+      rev: snap.rev,
+      targetLine: snap.targetLine,
+      locale: deps.locale ?? vscode.env.language,
+      labels: readLabels(),
+      display: readDisplay(),
+      typography: readTypography(),
+      unsavedBuffer: snap.rev === null && contents !== undefined,
+      repoMeta,
+      repoChanged,
+      navigation: snap.navigation,
+      options: snap.options,
+      ignoreRevs: snap.ignoreRevs
+    };
+  };
 
   const syncOpenContents = (): void => {
-    if (target.rev !== null || repoMeta.bare || target.repo === "" || target.filePath === "") {
+    const snap = navigator.snapshot();
+    if (snap.rev !== null || repoMeta.bare || snap.repo === "" || snap.filePath === "") {
       return;
     }
-    const open = readOpenDocument(targetDiskPath(target.repo, target.filePath));
+    const open = readOpenDocument(targetDiskPath(snap.repo, snap.filePath));
     if (open !== null) {
-      target = { ...target, contents: open.dirty ? open.text : undefined };
+      contents = open.dirty ? open.text : undefined;
     }
   };
 
+  // After a rewind or navigation the unsaved buffer only still applies on
+  // the working tree; anywhere historical it is dropped, which also pins
+  // the target so the watcher leaves it alone.
+  const syncContentsForCurrent = (): void => {
+    if (navigator.snapshot().rev === null) {
+      syncOpenContents();
+    } else {
+      contents = undefined;
+    }
+    if (isAutoRefreshRev(navigator.snapshot().rev)) repoChanged = false;
+  };
+
   const load = async (preserveScroll = false): Promise<void> => {
-    if (source === undefined || target.repo === "" || target.filePath === "") return;
+    const snap = navigator.snapshot();
+    if (source === undefined || snap.repo === "" || snap.filePath === "") return;
     const activeSource = source;
-    const activeTarget = target;
     const requestId = ++latestRequest;
+    panel.title = l10n.t("blame.title", fileName(snap.filePath));
     if (!preserveScroll) {
       pending = { command: "blameLoading", requestId, ...echo() };
       if (ready) void panel.webview.postMessage(pending);
     }
-    const loadOptions =
-      activeTarget.contents !== undefined ? { contents: activeTarget.contents } : undefined;
+    const loadOptions = {
+      ...snap.loadOptions,
+      ...(snap.rev === null && contents !== undefined ? { contents } : {})
+    };
     const payload = await activeSource
-      .load(activeTarget.repo, activeTarget.filePath, activeTarget.rev, loadOptions)
+      .load(snap.repo, snap.filePath, snap.rev, loadOptions)
       .catch(failedPayload);
     // A newer load (a retargeted tab, a settings refresh) supersedes this
     // one: its reply is dropped here, and the webview drops by request id
@@ -217,8 +234,8 @@ function createBlameTab(deps: BlameTabDeps) {
     pending = undefined;
     last = { command: "blameData", requestId, ...echo(), preserveScroll, payload };
     if (ready) void panel.webview.postMessage(last);
-    // The open's outcome is the first settled load after it (T1b). A refresh
-    // or a settings reload after that reports nothing.
+    // The open's outcome is the first settled load after it (T1b). A refresh,
+    // rewind, navigation or option change after that reports nothing.
     if (opening) {
       opening = false;
       reportOpen(payload.error === null);
@@ -228,43 +245,40 @@ function createBlameTab(deps: BlameTabDeps) {
   // Follow repository changes live for working-tree and HEAD blames, while
   // keeping pinned historical commits undisturbed until the user asks.
   const watcher = (deps.createWatcher ?? defaultCreateWatcher)(() => {
-    if (disposed || source === undefined || target.repo === "" || target.filePath === "") return;
-    if (isAutoRefreshRev(target.rev)) {
-      deps.outputChannel.appendLine(`[blameTab] refresh repo=${target.repo}`);
+    const snap = navigator.snapshot();
+    if (disposed || source === undefined || snap.repo === "" || snap.filePath === "") return;
+    if (isAutoRefreshRev(snap.rev)) {
+      deps.outputChannel.appendLine(`[blameTab] refresh repo=${snap.repo}`);
       syncOpenContents();
       void load(true);
       return;
     }
     repoChanged = true;
     if (last !== undefined) last = { ...last, repoChanged: true };
-    if (ready) void panel.webview.postMessage({ command: "blameRepoChanged", repo: target.repo });
+    if (ready) void panel.webview.postMessage({ command: "blameRepoChanged", repo: snap.repo });
   });
 
   const show = (next: BlameOpenTarget, nextSource: BlameSource): void => {
     repoMeta = readRepoMeta(next.repo);
     repoChanged = false;
-    target = {
-      repo: next.repo,
-      filePath: next.filePath,
-      rev: next.rev ?? null,
-      targetLine: normalizeTargetLine(next.targetLine),
-      contents: next.contents
-    };
+    contents = next.contents;
+    navigator.open(next);
     source = nextSource;
     // The next settled load is this open's outcome.
     opening = true;
-    panel.title = l10n.t("blame.title", fileName(target.filePath));
+    panel.title = l10n.t("blame.title", fileName(next.filePath));
     panel.reveal(vscode.ViewColumn.Active);
-    if (watchedRepo !== target.repo) {
-      watchedRepo = target.repo;
-      watcher.start(target.repo);
+    if (watchedRepo !== next.repo) {
+      watchedRepo = next.repo;
+      watcher.start(next.repo);
     }
     void load(false);
   };
 
   const openTargetFile = (): void => {
     if (repoMeta.bare) return;
-    const fsPath = resolveTargetFsPath(target.repo, target.filePath);
+    const snap = navigator.snapshot();
+    const fsPath = resolveTargetFsPath(snap.repo, snap.filePath);
     if (fsPath === null) return;
     const opener = deps.openFile ?? defaultOpenFile;
     void Promise.resolve(opener(fsPath)).catch((error: unknown) => {
@@ -272,45 +286,82 @@ function createBlameTab(deps: BlameTabDeps) {
     });
   };
 
-  const received = panel.webview.onDidReceiveMessage((message: BlameWebviewMessage) => {
-    if (message.command === "ready") {
-      // Also after a reload or a restore: the new document needs the data.
-      ready = true;
-      if (last !== undefined) void panel.webview.postMessage(last);
-      else if (pending !== undefined) void panel.webview.postMessage(pending);
-    } else if (message.command === "refresh") {
-      repoChanged = false;
-      syncOpenContents();
-      void load(true);
-    } else if (message.command === "blameHead") {
-      target = { ...target, rev: "HEAD", contents: undefined };
-      repoChanged = false;
-      void load(true);
-    } else if (message.command === "blameLatest") {
-      target = { ...target, rev: repoMeta.bare ? "HEAD" : null, contents: undefined };
-      repoChanged = false;
-      syncOpenContents();
-      void load(true);
-    } else if (message.command === "openFile") {
-      openTargetFile();
+  const handleMessage = (message: BlameWebviewMessage): void => {
+    switch (message.command) {
+      case "ready":
+        // Also after a reload or a restore: the new document needs the data.
+        ready = true;
+        if (last !== undefined) void panel.webview.postMessage(last);
+        else if (pending !== undefined) void panel.webview.postMessage(pending);
+        return;
+      case "refresh":
+        repoChanged = false;
+        syncOpenContents();
+        void load(true);
+        return;
+      case "blameHead":
+        if (navigator.blameHead()) {
+          contents = undefined;
+          repoChanged = false;
+          void load(true);
+        }
+        return;
+      case "blameLatest":
+        if (repoMeta.bare) {
+          navigator.blameHead();
+        } else {
+          navigator.navigate("latest");
+        }
+        contents = undefined;
+        repoChanged = false;
+        syncOpenContents();
+        void load(true);
+        return;
+      case "openFile":
+        openTargetFile();
+        return;
+      case "rewind":
+        if (navigator.rewind(message)) {
+          syncContentsForCurrent();
+          void load();
+        }
+        return;
+      case "navigate":
+        if (navigator.navigate(message.direction)) {
+          syncContentsForCurrent();
+          void load();
+        }
+        return;
+      case "setOptions":
+        if (navigator.setOptions(message.options, message.targetLine)) void load();
+        return;
+      case "ignoreCommit":
+        if (navigator.ignoreCommit(message.commitHash, message.targetLine)) void load();
+        return;
+      case "clearIgnoredCommit":
+        if (navigator.clearIgnoredCommit(message.commitHash, message.targetLine)) void load();
+        return;
     }
-  });
+  };
+
+  const received = panel.webview.onDidReceiveMessage(handleMessage);
   // Saving the blamed file clears the unsaved-buffer pill and refreshes onto
   // the saved working tree without touching pinned historical revisions.
   const saved = vscode.workspace.onDidSaveTextDocument?.((document) => {
+    const snap = navigator.snapshot();
     if (
       disposed ||
-      target.rev !== null ||
+      snap.rev !== null ||
       document.uri.scheme !== "file" ||
-      target.repo === "" ||
-      target.filePath === ""
+      snap.repo === "" ||
+      snap.filePath === ""
     ) {
       return;
     }
-    if (getPathFromStr(document.uri.fsPath) !== targetDiskPath(target.repo, target.filePath)) {
+    if (getPathFromStr(document.uri.fsPath) !== targetDiskPath(snap.repo, snap.filePath)) {
       return;
     }
-    target = { ...target, contents: undefined };
+    contents = undefined;
     void load(true);
   });
   // The tab follows the graph's display settings and the editor's
@@ -430,6 +481,29 @@ function readLabels(): BlameLabels {
     bareWorkingTree: l10n.t("blame.bareWorkingTree"),
     openFile: l10n.t("action.openFile"),
     repoChanged: l10n.t("blame.repoChanged"),
-    viewLatest: l10n.t("blame.viewLatest")
+    viewLatest: l10n.t("blame.viewLatest"),
+    rewind: l10n.t("blame.rewind"),
+    rewindTo: l10n.t("blame.rewindTo"),
+    rewindToPath: l10n.t("blame.rewindToPath"),
+    initialCommit: l10n.t("blame.initialCommit"),
+    navBack: l10n.t("blame.navBack"),
+    navForward: l10n.t("blame.navForward"),
+    navLatest: l10n.t("blame.navLatest"),
+    navLatestTitle: l10n.t("blame.navLatestTitle"),
+    renamedFrom: l10n.t("blame.renamedFrom"),
+    optionIgnoreWhitespace: l10n.t("blame.optionIgnoreWhitespace"),
+    optionDetectMoves: l10n.t("blame.optionDetectMoves"),
+    optionDetectCopies: l10n.t("blame.optionDetectCopies"),
+    ignoringRevsFile: l10n.t("blame.ignoringRevsFile"),
+    ignoreRevsFileOff: l10n.t("blame.ignoreRevsFileOff"),
+    ignoringCommit: l10n.t("blame.ignoringCommit"),
+    removeIgnoredCommit: l10n.t("blame.removeIgnoredCommit"),
+    clearIgnoredCommits: l10n.t("blame.clearIgnoredCommits"),
+    findToggle: l10n.t("blame.findToggle"),
+    findPlaceholder: l10n.t("blame.findPlaceholder"),
+    findCount: l10n.t("blame.findCount"),
+    findPrev: l10n.t("blame.findPrev"),
+    findNext: l10n.t("blame.findNext"),
+    findClose: l10n.t("blame.findClose")
   };
 }

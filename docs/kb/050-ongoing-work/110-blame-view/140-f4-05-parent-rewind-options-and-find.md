@@ -8,7 +8,7 @@ summary: >-
 
 # F4-05 — Parent-blame rewind stack, options, ignore-revs and find
 
-Status: ready
+Status: done — awaiting integration
 
 Needs: F4-04 (and maintainer confirmation of BQ5)
 
@@ -103,4 +103,55 @@ never push.
 
 ## Report
 
-Not started.
+- **Agent / date:** Gemini 4 Argon (agy) started the slice and committed the claim, octicons, and host/l10n layer before hitting a provider quota cutoff; Gemini 4 Neon (agy) continued, refined, tested, rendered, and finished it, 2026-11-23 13:23
+- **Branch and commits:** `blame/F4-05`
+  - `ceb729e8 G docs(blame): claim F4-05 (F4-05)`
+  - `7a8afbfd G feat(blame): generate arrow-left, arrow-right and versions octicons (F4-05)`
+  - `8a13f258 G feat(blame): add rewind stack, option toggles, ignore-revs and l10n to host (F4-05)`
+  - `32a7c351 G feat(blame): add rewind UI, option toggles, ignore-revs chips and find bar (F4-05)`
+  - `4e49d7fa G test(blame): cover rewind stack, options, ignore-revs and find (F4-05)`
+  - plus this report/status commit
+- **Files changed:** (22 files, `+2510 / -155` before this report commit)
+  - `scripts/generate-octicons.js` (+3)
+  - `src/octicons.ts` (+15)
+  - `src/blameTabTypes.ts` (+167 / -7)
+  - `src/extension/blameTab/blameData.ts` (+243 / -2)
+  - `src/extension/blameTab/blameTabPanel.ts` (+77 / -43)
+  - `src/webview/blameTab/main.ts` (+23)
+  - `src/webview/blameTab/rowModel.ts` (+207 / -16)
+  - `src/webview/blameTab/view.ts` (+623 / -72)
+  - `media/blame-tab/blame-tab.css` (+207 / -6)
+  - `l10n/bundle.l10n.json`, `l10n/bundle.l10n.nl.json`, `l10n/bundle.l10n.pl.json`, `l10n/bundle.l10n.zh-cn.json`, `l10n/bundle.l10n.zh-tw.json` (+24 / -1 each; 23 new keys appended at the end)
+  - `tests/webview/blameTab/fixtures.ts` (+24 / -1)
+  - `tests/webview/blameTab/blameData.test.ts` (+248 / -1)
+  - `tests/webview/blameTab/blameTabCss.test.ts` (+11)
+  - `tests/webview/blameTab/main.test.ts` (+37 / -1)
+  - `tests/webview/blameTab/rowModel.test.ts` (+94 / -2)
+  - `tests/webview/blameTab/view.test.ts` (+266 / -4)
+  - `tests/webview/blameTabPanel.test.ts` (+138)
+  - `docs/kb/050-ongoing-work/110-blame-view/140-f4-05-parent-rewind-options-and-find.md` (Status and Report)
+- **Tests added or changed:** 17 new tests across `tests/webview/blameTab/{blameData,blameTabCss,main,rowModel,view}.test.ts` and `tests/webview/blameTabPanel.test.ts` (focused blameTab suite: 79 -> 96 passed across 9 files; full webview suite: 1,232 -> 1,249 passed across 94 files).
+- **Gates:**
+  - `npx biome check --config-path biome.strict.jsonc --error-on-warnings` on all 20 touched `.ts`/`.js`/`.json` files: passed (0 errors, 0 warnings)
+  - `pnpm run typecheck`: passed (`src`, `src/webview`, `tests`)
+  - `node esbuild.js --production`: passed
+  - `pnpm run l10n:check`: passed (`bundle.l10n.*` 913 keys at 100.0% across `nl`, `pl`, `zh-cn`, `zh-tw`; `package.nls.*` 134 keys at 100.0%)
+  - `node ./docs/kb/housekeeping.mjs --check`: passed
+  - `npx vitest run --project webview tests/webview/blameTab/ tests/webview/blameTabPanel.test.ts`: 9 files, 96 passed
+  - `pnpm run test`: backend 118 files, 1,579 passed | 60 skipped (1,639, expected worktree skips); webview 94 files, 1,249 passed
+  - Headless renders (`xvfb-run` + PyQt6 `QtWebEngineView` using real `media/tokens.css`, `media/blame-tab/blame-tab.css`, and `out/blameTab.min.js`), visually inspected:
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-05/blame-rewound-dark.png`
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-05/blame-rewound-light.png`
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-05/blame-find-dark.png`
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-05/blame-find-light.png`
+  - Sonar: integrator
+- **Acceptance:**
+  - Parent-blame rewind button on committed hunks with `previous`, disabled with "Initial commit for this file" tooltip on boundary / `previous === null` hunks, omitted on uncommitted hunks: met (`src/webview/blameTab/view.ts`, `tests/webview/blameTab/view.test.ts`).
+  - Back/Forward/Latest navigation stack pushing `{ rev, filePath, targetLine }` across renames, clearing forward entries on rewind, updating panel title, and showing header rename notice without emitting duplicate `tab.blame` telemetry: met (`src/extension/blameTab/{blameData,blameTabPanel}.ts`, `tests/webview/blameTab/blameData.test.ts`, `tests/webview/blameTabPanel.test.ts`).
+  - Header toggles for `-w`, `-M`, `-C`, auto-detected `.git-blame-ignore-revs` toggle chip (enabled by default per `BQ5`, never passing `--ignore-revs-file` when absent), and removable per-session `--ignore-rev` chips with "Clear all", reloading in place with fresh `requestId` and preserving visible scroll position: met (`blameData.ts`, `blameTabPanel.ts`, `view.ts`, real-Git tests in `blameData.test.ts`, `view.test.ts`, `blameTabPanel.test.ts`).
+  - In-tab Find & Author filter bar (`Ctrl+F` / `Cmd+F` and header search toggle) matching source text, author, summary, and commit hash (case-insensitive substring) with `N / M` counter, Enter / Shift+Enter and Next/Prev jump, and Escape to clear/close: met (`rowModel.ts`, `view.ts`, `rowModel.test.ts`, `view.test.ts`).
+  - Headless dark/light renders of a rewound historical revision with Back/Latest controls, rename notice, active `.git-blame-ignore-revs` chip, session `--ignore-rev` chip, and open Find bar: met (PNGs listed above).
+- **Deviations from the slice:** none. All 22 changed files are inside the Touch list.
+- **Open questions / follow-ups:**
+  - The 23 new `blame.*` strings in `nl`, `pl`, `zh-cn`, and `zh-tw` were translated by the agent; a native-speaker review would help.
+  - `F4-06` can wire its commit popover "Ignore Commit (This Session)" action directly to the existing `ignoreCommit` webview message (`BlameIgnoreCommitMessage`) already handled by `blameTabPanel.ts` and `main.ts`.

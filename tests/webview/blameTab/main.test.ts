@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { BlameHostMessage, BlameWebviewMessage } from "@/blameTabTypes";
 
-import { dataMessage, hunk, loadingMessage, payload } from "./fixtures";
+import { dataMessage, hunk, loadingMessage, NEW_HASH, OLD_HASH, payload } from "./fixtures";
 
 // Each test loads a fresh copy of the script, which posts to its own list.
 // The saved webview state is one object the script reads once and replaces
@@ -116,5 +116,41 @@ describe("blame tab webview", () => {
     );
     root.querySelector<HTMLButtonElement>(".blame-open-file-btn")?.click();
     expect(posted.at(-1)).toEqual({ command: "openFile" });
+  });
+
+  it("posts rewind, navigate, setOptions and clearIgnoredCommit messages to the host", async () => {
+    const { posted, root } = await start();
+    send(
+      dataMessage({
+        rev: NEW_HASH,
+        targetLine: 3,
+        navigation: {
+          backCount: 1,
+          forwardCount: 1,
+          canLatest: true,
+          initialFilePath: "src/file.ts"
+        },
+        ignoreRevs: [OLD_HASH],
+        payload: payload({ resolvedRev: NEW_HASH, hasIgnoreRevsFile: true })
+      })
+    );
+
+    const rewindBtn = root.querySelector<HTMLButtonElement>(".blame-rewind-btn:not(:disabled)");
+    rewindBtn?.click();
+    root.querySelector<HTMLButtonElement>(".blame-nav-back")?.click();
+    root.querySelector<HTMLButtonElement>(".blame-option-w")?.click();
+    root.querySelector<HTMLButtonElement>(".blame-ignore-revs-file-chip")?.click();
+    root.querySelector<HTMLButtonElement>(".blame-chip-remove")?.click();
+    root.querySelector<HTMLButtonElement>(".blame-clear-ignored-btn")?.click();
+
+    expect(posted).toEqual([
+      { command: "ready" },
+      { command: "rewind", rev: OLD_HASH, filePath: "src/file.ts", targetLine: 3 },
+      { command: "navigate", direction: "back" },
+      { command: "setOptions", options: { ignoreWhitespace: true }, targetLine: 3 },
+      { command: "setOptions", options: { useIgnoreRevsFile: false }, targetLine: 3 },
+      { command: "clearIgnoredCommit", commitHash: OLD_HASH, targetLine: 3 },
+      { command: "clearIgnoredCommit", commitHash: null, targetLine: 3 }
+    ]);
   });
 });

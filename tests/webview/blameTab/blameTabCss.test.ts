@@ -63,4 +63,15 @@ describe("blame tab styles", () => {
     expect(body).toContain(".ggl-blame .blame-action-btn");
     expect(body).toContain(".ggl-blame .blame-repo-changed");
   });
+
+  it("styles rewind buttons, navigation/option toggles, ignore-revs chips and find highlights", () => {
+    expect(body).toContain(".ggl-blame .blame-rewind-btn");
+    expect(body).toContain(".ggl-blame .blame-nav-btn");
+    expect(body).toContain(".ggl-blame .blame-option-toggle.is-active");
+    expect(body).toContain(".ggl-blame .blame-chip.is-active");
+    expect(body).toContain(".ggl-blame .blame-find-bar");
+    expect(body).toContain(".ggl-blame .blame-line.is-find-match");
+    expect(body).toContain(".ggl-blame .blame-line.is-find-active");
+    expect(body).toContain(".ggl-blame .blame-rename-notice");
+  });
 });

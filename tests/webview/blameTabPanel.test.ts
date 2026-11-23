@@ -657,4 +657,142 @@ describe("openBlameTab", () => {
     await flush();
     expect(loads).toEqual([OLD_HASH, "HEAD"]);
   });
+
+  it("handles rewind, Back, Forward and Latest without reporting a new tab open", async () => {
+    const spy = telemetrySpy();
+    const calls: Array<{ repo: string; filePath: string; rev: string | null }> = [];
+    const source: BlameSource = {
+      load: async (repo, filePath, rev) => {
+        calls.push({ repo, filePath, rev });
+        return payload({ resolvedRev: rev });
+      }
+    };
+    open({ repo: "/repos/one", filePath: "src/renamed.ts", targetLine: 5 }, source, spy.telemetry);
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    expect(spy.sent).toEqual([{ feature: "tab.blame", ok: true }]);
+
+    const parentHash = "a".repeat(40);
+    panel.send({
+      command: "rewind",
+      rev: parentHash,
+      filePath: "src/orig.ts",
+      targetLine: 2
+    });
+    await flush();
+    expect(panel.title).toBe("Blame: orig.ts");
+    const afterRewind = panel.posted.at(-1) as Extract<BlameHostMessage, { command: "blameData" }>;
+    expect(afterRewind.filePath).toBe("src/orig.ts");
+    expect(afterRewind.rev).toBe(parentHash);
+    expect(afterRewind.targetLine).toBe(2);
+    expect(afterRewind.navigation).toEqual({
+      backCount: 1,
+      forwardCount: 0,
+      canLatest: true,
+      initialFilePath: "src/renamed.ts"
+    });
+
+    panel.send({ command: "navigate", direction: "back" });
+    await flush();
+    expect(panel.title).toBe("Blame: renamed.ts");
+    const afterBack = panel.posted.at(-1) as Extract<BlameHostMessage, { command: "blameData" }>;
+    expect(afterBack.rev).toBeNull();
+    expect(afterBack.filePath).toBe("src/renamed.ts");
+    expect(afterBack.targetLine).toBe(5);
+    expect(afterBack.navigation).toEqual({
+      backCount: 0,
+      forwardCount: 1,
+      canLatest: false,
+      initialFilePath: "src/renamed.ts"
+    });
+
+    panel.send({ command: "navigate", direction: "forward" });
+    await flush();
+    panel.send({ command: "navigate", direction: "latest" });
+    await flush();
+    const afterLatest = panel.posted.at(-1) as Extract<BlameHostMessage, { command: "blameData" }>;
+    expect(afterLatest.rev).toBeNull();
+    expect(afterLatest.filePath).toBe("src/renamed.ts");
+    expect(afterLatest.navigation).toEqual({
+      backCount: 0,
+      forwardCount: 0,
+      canLatest: false,
+      initialFilePath: "src/renamed.ts"
+    });
+
+    expect(calls.map((c) => `${c.filePath}@${c.rev ?? "WT"}`)).toEqual([
+      "src/renamed.ts@WT",
+      `src/orig.ts@${parentHash}`,
+      "src/renamed.ts@WT",
+      `src/orig.ts@${parentHash}`,
+      "src/renamed.ts@WT"
+    ]);
+    // Rewinds and history navigation never emit a second tab.blame open event.
+    expect(spy.sent).toEqual([{ feature: "tab.blame", ok: true }]);
+  });
+
+  it("reloads in place on setOptions, ignoreCommit and clearIgnoredCommit with fresh requestIds", async () => {
+    const spy = telemetrySpy();
+    const loads: Array<{ rev: string | null; options: unknown }> = [];
+    const source: BlameSource = {
+      load: async (_repo, _filePath, rev, options) => {
+        loads.push({ rev, options });
+        return payload({ hasIgnoreRevsFile: true });
+      }
+    };
+    open({ repo: "/repos/one", filePath: "src/file.ts", targetLine: 1 }, source, spy.telemetry);
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+
+    panel.send({
+      command: "setOptions",
+      options: { ignoreWhitespace: true, useIgnoreRevsFile: false },
+      targetLine: 14
+    });
+    await flush();
+    const afterOpt = panel.posted.at(-1) as Extract<BlameHostMessage, { command: "blameData" }>;
+    expect(afterOpt.requestId).toBe(2);
+    expect(afterOpt.targetLine).toBe(14);
+    expect(afterOpt.options).toEqual({
+      ignoreWhitespace: true,
+      detectMoves: false,
+      detectCopies: false,
+      useIgnoreRevsFile: false
+    });
+
+    const hashA = "a".repeat(40);
+    const hashB = "b".repeat(40);
+    panel.send({ command: "ignoreCommit", commitHash: hashA, targetLine: 15 });
+    await flush();
+    panel.send({ command: "ignoreCommit", commitHash: hashB });
+    await flush();
+    // Invalid hash does not trigger a reload.
+    const countBeforeInvalid = loads.length;
+    panel.send({ command: "ignoreCommit", commitHash: "--bad" });
+    await flush();
+    expect(loads).toHaveLength(countBeforeInvalid);
+
+    panel.send({ command: "clearIgnoredCommit", commitHash: hashA, targetLine: 16 });
+    await flush();
+    const afterOne = panel.posted.at(-1) as Extract<BlameHostMessage, { command: "blameData" }>;
+    expect(afterOne.ignoreRevs).toEqual([hashB]);
+    expect(afterOne.targetLine).toBe(16);
+
+    panel.send({ command: "clearIgnoredCommit", commitHash: null });
+    await flush();
+    const afterClear = panel.posted.at(-1) as Extract<BlameHostMessage, { command: "blameData" }>;
+    expect(afterClear.ignoreRevs).toEqual([]);
+
+    expect(loads.at(1)?.options).toMatchObject({
+      ignoreWhitespace: true,
+      useIgnoreRevsFile: false,
+      ignoreRevs: []
+    });
+    expect(loads.at(3)?.options).toMatchObject({
+      ignoreRevs: [hashA, hashB]
+    });
+    expect(spy.sent).toEqual([{ feature: "tab.blame", ok: true }]);
+  });
 });

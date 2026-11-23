@@ -1,7 +1,7 @@
-/* The Blame tab (F4-03, heat in F4-04): theme tokens first, `--ngg-*`
-   OKLCH fallbacks second, per the Webview UI Styling Guide. The heat
-   levels are the `--ngg-blame-heat-0`..`9` tokens (media/tokens.css),
-   chosen per hunk by its `data-heat` hook. */
+/* The Blame tab (F4-03, heat in F4-04, rewind/options/find in F4-05):
+   theme tokens first, `--ngg-*` OKLCH fallbacks second, per the Webview
+   UI Styling Guide. The heat levels are the `--ngg-blame-heat-0`..`9`
+   tokens (media/tokens.css), chosen per hunk by its `data-heat` hook. */
 
 .ggl-blame {
   display: flex;
@@ -24,7 +24,7 @@
   flex: none;
   display: flex;
   gap: 8px;
-  align-items: baseline;
+  align-items: center;
   flex-wrap: wrap;
   padding: 8px 12px;
   border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
@@ -38,6 +38,26 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.ggl-blame .blame-rename-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+  background: color-mix(in oklab, var(--vscode-badge-background, var(--ngg-accent)) 22%, var(--ngg-transparent));
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.ggl-blame .blame-rename-icon {
+  display: inline-flex;
+  align-items: center;
+}
+.ggl-blame .blame-rename-icon .octicon {
+  width: 12px;
+  height: 12px;
+}
 .ggl-blame .blame-rev {
   flex: none;
   padding: 1px 7px;
@@ -48,6 +68,136 @@
   color: var(--vscode-badge-foreground, var(--ngg-accent-foreground));
 }
 .ggl-blame .blame-line-count { flex: none; color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+/* Back / Forward / Latest revision navigation stack controls (F4-05). */
+.ggl-blame .blame-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.ggl-blame .blame-nav-btn,
+.ggl-blame .blame-option-toggle,
+.ggl-blame .blame-chip,
+.ggl-blame .blame-clear-ignored-btn,
+.ggl-blame .blame-find-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--vscode-button-secondaryForeground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  background: var(--vscode-button-secondaryBackground, var(--ngg-transparent));
+  border: 1px solid var(--vscode-button-border, var(--vscode-panel-border, var(--ngg-neutral-border)));
+}
+.ggl-blame .blame-nav-btn .octicon,
+.ggl-blame .blame-option-toggle .octicon,
+.ggl-blame .blame-find-btn .octicon {
+  width: 12px;
+  height: 12px;
+}
+.ggl-blame .blame-nav-btn:hover:not(:disabled),
+.ggl-blame .blame-option-toggle:hover:not(:disabled),
+.ggl-blame .blame-chip:hover:not(:disabled),
+.ggl-blame .blame-clear-ignored-btn:hover:not(:disabled),
+.ggl-blame .blame-find-btn:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle)));
+}
+.ggl-blame .blame-nav-btn:disabled,
+.ggl-blame .blame-find-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.ggl-blame .blame-option-toggle.is-active,
+.ggl-blame .blame-chip.is-active {
+  color: var(--vscode-badge-foreground, var(--ngg-accent-foreground));
+  background: color-mix(in oklab, var(--vscode-badge-background, var(--ngg-accent)) 80%, var(--ngg-transparent));
+  border-color: var(--vscode-focusBorder, var(--ngg-accent));
+}
+.ggl-blame .blame-nav-btn:focus-visible,
+.ggl-blame .blame-option-toggle:focus-visible,
+.ggl-blame .blame-chip:focus-visible,
+.ggl-blame .blame-chip-remove:focus-visible,
+.ggl-blame .blame-clear-ignored-btn:focus-visible,
+.ggl-blame .blame-find-btn:focus-visible,
+.ggl-blame .blame-rewind-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
+.ggl-blame .blame-options {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ggl-blame .blame-ignored-commits {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ggl-blame .blame-ignore-rev-chip {
+  cursor: default;
+  padding-right: 3px;
+}
+.ggl-blame .blame-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--ngg-transparent);
+  color: inherit;
+  cursor: pointer;
+}
+.ggl-blame .blame-chip-remove .octicon {
+  width: 11px;
+  height: 11px;
+}
+.ggl-blame .blame-chip-remove:hover {
+  background: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle));
+}
+/* In-tab Find & Author filter bar (F4-05). */
+.ggl-blame .blame-find-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background, oklch(22% 0 0)));
+}
+.ggl-blame .blame-find-bar[hidden] {
+  display: none;
+}
+.ggl-blame .blame-find-input {
+  flex: 0 1 280px;
+  min-width: 140px;
+  height: 24px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--vscode-input-foreground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  background: var(--vscode-input-background, var(--ngg-transparent));
+  border: 1px solid var(--vscode-input-border, var(--ngg-neutral-border));
+}
+.ggl-blame .blame-find-input:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
+.ggl-blame .blame-find-count {
+  flex: none;
+  min-width: 4ch;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+}
 .ggl-blame .blame-scroll { flex: 1; min-height: 0; overflow: auto; }
 /* One hunk is one band: the gutter's commit block once, beside every
    line the commit owns, with a clean border to the next band. */
@@ -124,11 +274,46 @@
   height: 100%;
   cursor: col-resize;
 }
+.ggl-blame .blame-gutter-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
 .ggl-blame .blame-summary {
+  flex: 1;
+  min-width: 0;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.ggl-blame .blame-rewind-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid var(--ngg-transparent);
+  background: var(--ngg-transparent);
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+  cursor: pointer;
+}
+.ggl-blame .blame-rewind-btn .octicon {
+  width: 13px;
+  height: 13px;
+}
+.ggl-blame .blame-rewind-btn:hover:not(:disabled) {
+  color: var(--vscode-editor-foreground, oklch(88% 0 0));
+  background: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle));
+  border-color: var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.ggl-blame .blame-rewind-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 .ggl-blame .blame-uncommitted { color: var(--ngg-uncommitted); font-weight: 600; }
 .ggl-blame .blame-meta {
@@ -158,6 +343,18 @@
 .ggl-blame .blame-line:hover { background: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-subtle)); }
 .ggl-blame .blame-target-line {
   background: color-mix(in oklab, var(--vscode-list-activeSelectionBackground, var(--ngg-accent)) 24%, var(--ngg-transparent));
+}
+.ggl-blame .blame-line.is-find-match {
+  background: color-mix(in oklab, var(--vscode-editor-findMatchHighlightBackground, var(--ngg-blame-heat-6)) 32%, var(--ngg-transparent));
+}
+.ggl-blame .blame-line.is-find-active {
+  background: color-mix(in oklab, var(--vscode-editor-findMatchBackground, var(--ngg-blame-heat-8)) 48%, var(--ngg-transparent));
+  outline: 1px solid var(--vscode-editor-findMatchBorder, var(--vscode-focusBorder, var(--ngg-accent)));
+  outline-offset: -1px;
+}
+.ggl-blame .blame-hunk.is-find-active-hunk .blame-gutter {
+  outline: 1px solid var(--vscode-editor-findMatchBorder, var(--vscode-focusBorder, var(--ngg-accent)));
+  outline-offset: -1px;
 }
 .ggl-blame .blame-line-number {
   flex: none;
@@ -296,6 +493,12 @@
   .ggl-blame .blame-bare-badge,
   .ggl-blame .blame-unsaved-pill,
   .ggl-blame .blame-action-btn { border: 1px solid CanvasText; }
+  .ggl-blame .blame-option-toggle.is-active,
+  .ggl-blame .blame-chip.is-active { outline: 2px solid Highlight; }
+  .ggl-blame .blame-rename-notice { border: 1px solid CanvasText; }
+  .ggl-blame .blame-line.is-find-match { outline: 1px dashed Highlight; }
+  .ggl-blame .blame-line.is-find-active { outline: 2px solid Highlight; }
+  .ggl-blame .blame-hunk.is-find-active-hunk .blame-gutter { outline: 2px solid Highlight; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ggl-blame .blame-hunk::after { transition: none; }

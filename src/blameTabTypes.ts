@@ -1,10 +1,11 @@
 /**
- * Types shared by the extension host and the Blame tab webview (F4-03),
- * mirroring the GGL Diff tab's split in `diffTabTypes.ts` and the Reflog
- * tab's in `reflogTabTypes.ts`. The read itself is `loadBlame` in
- * `src/backend/queries/blame.ts` (F4-01) and the heat is `scoreBlameHunks`
- * in `src/blameHotspot.ts` (F4-02); these types only carry one blamed file
- * across the webview boundary.
+ * Types shared by the extension host and the Blame tab webview (F4-03,
+ * F4-04, F4-05, F4-08), mirroring the GGL Diff tab's split in `diffTabTypes.ts`
+ * and the Reflog tab's in `reflogTabTypes.ts`. The read itself is
+ * `loadBlame` in `src/backend/queries/blame.ts` (F4-01) and the heat is
+ * `scoreBlameHunks` in `src/blameHotspot.ts` (F4-02); these types only
+ * carry one blamed file and its navigation/options state across the
+ * webview boundary.
  */
 
 import type { GitBlameCommit, GitBlameHunk, GitBlameState } from "./backend/types";
@@ -45,10 +46,56 @@ export type BlameRepoMeta = {
   bare: boolean;
 };
 
-/** Optional per-load inputs beyond `(repo, filePath, rev)`. */
-export type BlameLoadOptions = {
+/**
+ * Header blame option toggles (F4-05, decision BQ5): plain blame by
+ * default, with `.git-blame-ignore-revs` at the repository root enabled
+ * automatically when the file exists.
+ */
+export type BlameOptions = {
+  /** Pass `-w`: ignore whitespace when comparing parent and child. */
+  ignoreWhitespace: boolean;
+  /** Pass `-M`: detect lines moved or copied within the same file. */
+  detectMoves: boolean;
+  /** Pass `-C`: detect lines moved or copied from other files changed in the same commit. */
+  detectCopies: boolean;
+  /**
+   * Pass `--ignore-revs-file=.git-blame-ignore-revs` when the repository
+   * root has a `.git-blame-ignore-revs` file (`BQ5`, true by default).
+   */
+  useIgnoreRevsFile: boolean;
+};
+
+/** Options passed to `BlameSource.load` for one blame read (F4-05). */
+export type BlameLoadOptions = Partial<BlameOptions> & {
+  /** Per-session commit hashes skipped via `--ignore-rev=<hash>`. */
+  ignoreRevs?: readonly string[];
   /** Unsaved editor text to blame through `git blame --contents -` (BQ6). */
   contents?: string;
+};
+
+/** One entry on the Blame tab's Back/Forward parent-rewind stack (F4-05). */
+export type BlameHistoryEntry = {
+  rev: string | null;
+  filePath: string;
+  targetLine: number | null;
+};
+
+/** Direction for in-tab revision history navigation (F4-05). */
+export type BlameNavigateDirection = "back" | "forward" | "latest";
+
+/**
+ * Snapshot of the panel's Back/Forward/Latest navigation stack echoed on
+ * every host message so the header can draw its controls and rename notice.
+ */
+export type BlameNavigationState = {
+  /** Entries available to pop on Back. */
+  backCount: number;
+  /** Entries available to pop on Forward. */
+  forwardCount: number;
+  /** True when the tab is not already at its initial working-tree target. */
+  canLatest: boolean;
+  /** The file path the tab opened on before any rewinds across renames. */
+  initialFilePath: string;
 };
 
 /** One hunk as the tab draws it: the F4-01 hunk with its F4-02 heat. */
@@ -70,6 +117,10 @@ export type BlamePayload = {
   totalLines: number;
   /** The read failure's message; null when the read worked. */
   error: string | null;
+  /** True when `.git-blame-ignore-revs` exists at the repository root (F4-05). */
+  hasIgnoreRevsFile?: boolean;
+  /** The `--ignore-revs-file` path used for this read, or null when none was passed (F4-05). */
+  ignoreRevsFileUsed?: string | null;
 };
 
 /** Where the tab's blames come from; the extension host implements it. */
@@ -165,6 +216,52 @@ export type BlameLabels = {
   repoChanged: string;
   /** Action returning from a pinned historical commit to the latest view. */
   viewLatest: string;
+  /** Accessible label for the per-hunk parent-blame rewind button (F4-05). */
+  rewind: string;
+  /** Rewind tooltip when the path stayed the same (`{0}` = short parent hash). */
+  rewindTo: string;
+  /** Rewind tooltip when the file was renamed (`{0}` = short parent hash, `{1}` = parent path). */
+  rewindToPath: string;
+  /** Tooltip on a boundary / file-creation hunk where blame cannot go earlier. */
+  initialCommit: string;
+  /** Header Back navigation button label. */
+  navBack: string;
+  /** Header Forward navigation button label. */
+  navForward: string;
+  /** Header Latest navigation button label. */
+  navLatest: string;
+  /** Header Latest navigation button tooltip. */
+  navLatestTitle: string;
+  /** Header rename badge when current `filePath` differs from `initialFilePath` (`{0}`). */
+  renamedFrom: string;
+  /** Header toggle tooltip/label for `-w`. */
+  optionIgnoreWhitespace: string;
+  /** Header toggle tooltip/label for `-M`. */
+  optionDetectMoves: string;
+  /** Header toggle tooltip/label for `-C`. */
+  optionDetectCopies: string;
+  /** Header chip label when `.git-blame-ignore-revs` is active. */
+  ignoringRevsFile: string;
+  /** Header chip label when `.git-blame-ignore-revs` is present but turned off. */
+  ignoreRevsFileOff: string;
+  /** Header chip label for a per-session `--ignore-rev` commit (`{0}` = short hash). */
+  ignoringCommit: string;
+  /** Accessible label for removing one session `--ignore-rev` chip (`{0}` = short hash). */
+  removeIgnoredCommit: string;
+  /** Header button label to clear all session ignored commits. */
+  clearIgnoredCommits: string;
+  /** Header button label to toggle the in-tab Find bar. */
+  findToggle: string;
+  /** Placeholder and accessible label for the in-tab Find input. */
+  findPlaceholder: string;
+  /** Match counter pattern (`{0} / {1}`). */
+  findCount: string;
+  /** Previous match button label. */
+  findPrev: string;
+  /** Next match button label. */
+  findNext: string;
+  /** Close find bar button label. */
+  findClose: string;
 };
 
 /** The target fields every host message echoes, so the webview knows what it shows. */
@@ -188,6 +285,12 @@ type BlameTargetEcho = {
   repoMeta?: BlameRepoMeta;
   /** True when the repository changed while a historical commit is pinned. */
   repoChanged?: boolean;
+  /** Current Back/Forward/Latest navigation state (F4-05). */
+  navigation?: BlameNavigationState;
+  /** Active header blame option toggles (F4-05). */
+  options?: BlameOptions;
+  /** Per-session commit hashes ignored with `--ignore-rev` (F4-05). */
+  ignoreRevs?: string[];
 };
 
 /**
@@ -227,10 +330,54 @@ export type BlameRepoChangedMessage = {
 /** Every message the extension host posts to the Blame tab. */
 export type BlameHostMessage = BlameDataMessage | BlameLoadingMessage | BlameRepoChangedMessage;
 
+/** Webview to extension host: rewind to a hunk's parent commit and pre-rename path. */
+export type BlameRewindMessage = {
+  command: "rewind";
+  rev: string;
+  filePath: string;
+  targetLine: number | null;
+};
+
+/** Webview to extension host: step Back, Forward, or jump to Latest. */
+export type BlameNavigateMessage = {
+  command: "navigate";
+  direction: BlameNavigateDirection;
+};
+
+/** Webview to extension host: toggle `-w`, `-M`, `-C` or `.git-blame-ignore-revs`. */
+export type BlameSetOptionsMessage = {
+  command: "setOptions";
+  options: Partial<BlameOptions>;
+  targetLine?: number | null;
+};
+
+/** Webview to extension host: add a commit hash to the session `--ignore-rev` list. */
+export type BlameIgnoreCommitMessage = {
+  command: "ignoreCommit";
+  commitHash: string;
+  targetLine?: number | null;
+};
+
+/**
+ * Webview to extension host: remove one commit hash from the session
+ * `--ignore-rev` list, or clear all session ignored commits when
+ * `commitHash` is null or omitted.
+ */
+export type BlameClearIgnoredCommitMessage = {
+  command: "clearIgnoredCommit";
+  commitHash?: string | null;
+  targetLine?: number | null;
+};
+
 /** Webview to extension host. */
 export type BlameWebviewMessage =
   | { command: "ready" }
   | { command: "refresh" }
   | { command: "blameHead" }
   | { command: "blameLatest" }
-  | { command: "openFile" };
+  | { command: "openFile" }
+  | BlameRewindMessage
+  | BlameNavigateMessage
+  | BlameSetOptionsMessage
+  | BlameIgnoreCommitMessage
+  | BlameClearIgnoredCommitMessage;

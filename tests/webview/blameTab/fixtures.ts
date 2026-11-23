@@ -41,7 +41,30 @@ export const LABELS: BlameLabels = {
     "This is a bare repository and has no working tree to blame. Open a file from Commit Details at a specific commit instead.",
   openFile: "Open File",
   repoChanged: "Repository changed",
-  viewLatest: "View latest"
+  viewLatest: "View latest",
+  rewind: "View blame prior to this change",
+  rewindTo: "View blame prior to this change ({0})",
+  rewindToPath: "View blame prior to this change ({0} · {1})",
+  initialCommit: "Initial commit for this file",
+  navBack: "Back",
+  navForward: "Forward",
+  navLatest: "Latest",
+  navLatestTitle: "Jump back to the latest blame",
+  renamedFrom: "Renamed ({0})",
+  optionIgnoreWhitespace: "Ignore whitespace (-w)",
+  optionDetectMoves: "Detect moved lines (-M)",
+  optionDetectCopies: "Detect copied lines (-C)",
+  ignoringRevsFile: "Ignoring .git-blame-ignore-revs",
+  ignoreRevsFileOff: "Ignore .git-blame-ignore-revs",
+  ignoringCommit: "Ignoring {0}",
+  removeIgnoredCommit: "Stop ignoring commit {0}",
+  clearIgnoredCommits: "Clear all",
+  findToggle: "Find in blame",
+  findPlaceholder: "Find line, author, summary or commit…",
+  findCount: "{0} / {1}",
+  findPrev: "Previous match",
+  findNext: "Next match",
+  findClose: "Close find"
 };
 
 /** The graph display settings at their English defaults. */

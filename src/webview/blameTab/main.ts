@@ -71,7 +71,30 @@ const view = createBlameView(root, {
   },
   onBlameHead: () => host.postMessage({ command: "blameHead" }),
   onBlameLatest: () => host.postMessage({ command: "blameLatest" }),
-  onOpenFile: () => host.postMessage({ command: "openFile" })
+  onOpenFile: () => host.postMessage({ command: "openFile" }),
+  onRewind: (target) => {
+    host.postMessage({
+      command: "rewind",
+      rev: target.rev,
+      filePath: target.filePath,
+      targetLine: target.targetLine
+    });
+  },
+  onNavigate: (direction) => {
+    host.postMessage({ command: "navigate", direction });
+  },
+  onOptionsChange: (options, targetLine) => {
+    host.postMessage({ command: "setOptions", options, targetLine });
+  },
+  onIgnoreCommit: (commitHash, targetLine) => {
+    host.postMessage({ command: "ignoreCommit", commitHash, targetLine });
+  },
+  onClearIgnoredCommit: (commitHash, targetLine) => {
+    host.postMessage({ command: "clearIgnoredCommit", commitHash, targetLine });
+  },
+  onFindStateChange: (next) => {
+    state = next;
+  }
 });
 
 window.addEventListener("message", (event: MessageEvent<unknown>) => {

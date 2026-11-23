@@ -1,10 +1,31 @@
 import type { GitBlameCommit } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
 import type { BlameHotspotMode } from "@/blameHotspot";
-import type { BlameHunkView, BlameLabels } from "@/blameTabTypes";
+import type {
+  BlameHunkView,
+  BlameLabels,
+  BlameNavigateDirection,
+  BlameOptions
+} from "@/blameTabTypes";
+import { octicon } from "@/octicons";
 import { worktreeFolderName } from "../utils/git";
 import { clampGutterWidth, DEFAULT_GUTTER_WIDTH, resizeGutterWidth } from "./columnResize";
-import { type BlameViewState, commitDate, heatAttribute, normalizeHotspotMode } from "./rowModel";
+import {
+  applyFindQuery,
+  type BlameViewState,
+  closeFind,
+  commitDate,
+  heatAttribute,
+  normalizeHotspotMode,
+  openFind,
+  stepFindMatch
+} from "./rowModel";
+
+export type BlameRewindTarget = {
+  rev: string;
+  filePath: string;
+  targetLine: number | null;
+};
 
 export type BlameViewCallbacks = {
   /** A gutter drag ended with this width; the caller keeps it per repo. */
@@ -17,6 +38,18 @@ export type BlameViewCallbacks = {
   onBlameLatest?: () => void;
   /** The user clicked "Open File" from an untracked or unborn notice state. */
   onOpenFile?: () => void;
+  /** The user clicked "View blame prior to this change" on a hunk (F4-05). */
+  onRewind?: (target: BlameRewindTarget) => void;
+  /** The user clicked Back, Forward, or Latest in the header (F4-05). */
+  onNavigate?: (direction: BlameNavigateDirection) => void;
+  /** The user toggled `-w`, `-M`, `-C` or `.git-blame-ignore-revs` in the header (F4-05). */
+  onOptionsChange?: (options: Partial<BlameOptions>, visibleLine: number | null) => void;
+  /** The user requested ignoring a commit for this session (F4-05 / F4-06). */
+  onIgnoreCommit?: (commitHash: string, visibleLine: number | null) => void;
+  /** The user removed one session ignored commit chip, or cleared all (`null`) (F4-05). */
+  onClearIgnoredCommit?: (commitHash: string | null, visibleLine: number | null) => void;
+  /** Find state changed inside the view; the caller updates its stored state (F4-05). */
+  onFindStateChange?: (state: BlameViewState) => void;
 };
 
 /** The ten heat steps, coldest first: the legend draws one swatch for each. */
@@ -36,6 +69,32 @@ function modeLabel(mode: BlameHotspotMode, labels: BlameLabels): string {
     default:
       return labels.heatAge;
   }
+}
+
+function element<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className: string,
+  text?: string
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function folderName(repo: string): string {
+  return worktreeFolderName(repo);
+}
+
+/** The 1-based line currently at the top of `.blame-scroll`, or `state.targetLine`. */
+function currentVisibleLine(root: HTMLElement, state: BlameViewState): number | null {
+  const scroll = root.querySelector<HTMLElement>(".blame-scroll");
+  if (scroll !== null && scroll.scrollTop > 0 && state.typography.lineHeight > 0) {
+    const estimated = Math.floor(scroll.scrollTop / state.typography.lineHeight) + 1;
+    const cap = state.totalLines > 0 ? state.totalLines : estimated;
+    return Math.max(1, Math.min(cap, estimated));
+  }
+  return state.targetLine;
 }
 
 /**
@@ -75,21 +134,6 @@ function heatControls(
   });
   group.append(select);
   return group;
-}
-
-function element<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className: string,
-  text?: string
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
-
-function folderName(repo: string): string {
-  return worktreeFolderName(repo);
 }
 
 function actionButton(className: string, label: string, onClick?: () => void): HTMLButtonElement {
@@ -134,19 +178,236 @@ function repoBadge(state: BlameViewState, labels: BlameLabels): HTMLElement | nu
   return null;
 }
 
-function header(
+/**
+ * Header Back, Forward, and Latest navigation controls (F4-05), shown
+ * whenever the navigation stack has entries (`backCount + forwardCount > 0`)
+ * or a historical revision / renamed path is pinned (`rev !== null` or
+ * `canLatest`).
+ */
+function navControls(
+  state: BlameViewState,
+  labels: BlameLabels,
+  callbacks: BlameViewCallbacks
+): HTMLElement | null {
+  const { navigation } = state;
+  const showNav =
+    navigation.backCount > 0 ||
+    navigation.forwardCount > 0 ||
+    state.rev !== null ||
+    navigation.canLatest;
+  if (!showNav) return null;
+
+  const nav = element("div", "blame-nav");
+  nav.setAttribute("role", "group");
+
+  const back = element("button", "blame-nav-btn blame-nav-back");
+  back.type = "button";
+  back.disabled = navigation.backCount === 0;
+  back.title = labels.navBack;
+  back.setAttribute("aria-label", labels.navBack);
+  back.innerHTML = octicon("arrow-left");
+  back.append(element("span", "blame-nav-label", labels.navBack));
+  back.addEventListener("click", () => callbacks.onNavigate?.("back"));
+
+  const forward = element("button", "blame-nav-btn blame-nav-forward");
+  forward.type = "button";
+  forward.disabled = navigation.forwardCount === 0;
+  forward.title = labels.navForward;
+  forward.setAttribute("aria-label", labels.navForward);
+  forward.innerHTML = octicon("arrow-right");
+  forward.append(element("span", "blame-nav-label", labels.navForward));
+  forward.addEventListener("click", () => callbacks.onNavigate?.("forward"));
+
+  const latest = element("button", "blame-nav-btn blame-nav-latest", labels.navLatest);
+  latest.type = "button";
+  latest.disabled = !navigation.canLatest;
+  latest.title = labels.navLatestTitle;
+  latest.setAttribute("aria-label", labels.navLatest);
+  latest.addEventListener("click", () => callbacks.onNavigate?.("latest"));
+
+  nav.append(back, forward, latest);
+  return nav;
+}
+
+function optionToggleButton(
+  className: string,
+  optionKey: keyof BlameOptions,
+  shortText: string,
+  fullLabel: string,
+  active: boolean,
+  onToggle: () => void
+): HTMLButtonElement {
+  const btn = element(
+    "button",
+    active ? `blame-option-toggle ${className} is-active` : `blame-option-toggle ${className}`,
+    shortText
+  );
+  btn.type = "button";
+  btn.dataset.option = optionKey;
+  btn.title = fullLabel;
+  btn.setAttribute("aria-label", fullLabel);
+  btn.setAttribute("aria-pressed", String(active));
+  btn.addEventListener("click", onToggle);
+  return btn;
+}
+
+function ignoredCommitsGroup(
+  root: HTMLElement,
   state: BlameViewState,
   labels: BlameLabels,
   callbacks: BlameViewCallbacks
 ): HTMLElement {
+  const list = element("div", "blame-ignored-commits");
+  for (const hash of state.ignoreRevs) {
+    const shortHash = abbrevCommit(hash, state.display.shortHashLength);
+    const chip = element("span", "blame-chip blame-ignore-rev-chip");
+    chip.dataset.ignoreRev = hash;
+    chip.title = hash;
+    chip.append(
+      element("span", "blame-chip-text", labels.ignoringCommit.replace("{0}", shortHash))
+    );
+    const remove = element("button", "blame-chip-remove");
+    remove.type = "button";
+    const removeLabel = labels.removeIgnoredCommit.replace("{0}", shortHash);
+    remove.title = removeLabel;
+    remove.setAttribute("aria-label", removeLabel);
+    remove.innerHTML = octicon("x");
+    remove.addEventListener("click", () => {
+      callbacks.onClearIgnoredCommit?.(hash, currentVisibleLine(root, state));
+    });
+    chip.append(remove);
+    list.append(chip);
+  }
+  const clearAll = element("button", "blame-clear-ignored-btn", labels.clearIgnoredCommits);
+  clearAll.type = "button";
+  clearAll.title = labels.clearIgnoredCommits;
+  clearAll.setAttribute("aria-label", labels.clearIgnoredCommits);
+  clearAll.addEventListener("click", () => {
+    callbacks.onClearIgnoredCommit?.(null, currentVisibleLine(root, state));
+  });
+  list.append(clearAll);
+  return list;
+}
+
+/**
+ * Header blame option toggles (`-w`, `-M`, `-C`), the `.git-blame-ignore-revs`
+ * toggle chip (when the file exists at the repo root), removable session
+ * `--ignore-rev` chips with "Clear all", and the in-tab Find toggle (F4-05).
+ */
+function optionControls(
+  root: HTMLElement,
+  state: BlameViewState,
+  labels: BlameLabels,
+  callbacks: BlameViewCallbacks,
+  onToggleFind: () => void
+): HTMLElement {
+  const group = element("div", "blame-options");
+  const toggleOption = (patch: Partial<BlameOptions>) => {
+    callbacks.onOptionsChange?.(patch, currentVisibleLine(root, state));
+  };
+
+  group.append(
+    optionToggleButton(
+      "blame-option-w",
+      "ignoreWhitespace",
+      "-w",
+      labels.optionIgnoreWhitespace,
+      state.options.ignoreWhitespace,
+      () => toggleOption({ ignoreWhitespace: !state.options.ignoreWhitespace })
+    ),
+    optionToggleButton(
+      "blame-option-m",
+      "detectMoves",
+      "-M",
+      labels.optionDetectMoves,
+      state.options.detectMoves,
+      () => toggleOption({ detectMoves: !state.options.detectMoves })
+    ),
+    optionToggleButton(
+      "blame-option-c",
+      "detectCopies",
+      "-C",
+      labels.optionDetectCopies,
+      state.options.detectCopies,
+      () => toggleOption({ detectCopies: !state.options.detectCopies })
+    )
+  );
+
+  if (state.hasIgnoreRevsFile) {
+    const active = state.options.useIgnoreRevsFile;
+    const text = active ? labels.ignoringRevsFile : labels.ignoreRevsFileOff;
+    const chip = element(
+      "button",
+      active
+        ? "blame-chip blame-ignore-revs-file-chip is-active"
+        : "blame-chip blame-ignore-revs-file-chip",
+      text
+    );
+    chip.type = "button";
+    chip.dataset.option = "useIgnoreRevsFile";
+    chip.title = text;
+    chip.setAttribute("aria-label", text);
+    chip.setAttribute("aria-pressed", String(active));
+    chip.addEventListener("click", () => toggleOption({ useIgnoreRevsFile: !active }));
+    group.append(chip);
+  }
+
+  if (state.ignoreRevs.length > 0) {
+    group.append(ignoredCommitsGroup(root, state, labels, callbacks));
+  }
+
+  if (state.blameState === "lines") {
+    const findBtn = element(
+      "button",
+      state.findOpen
+        ? "blame-option-toggle blame-find-toggle is-active"
+        : "blame-option-toggle blame-find-toggle"
+    );
+    findBtn.type = "button";
+    findBtn.title = labels.findToggle;
+    findBtn.setAttribute("aria-label", labels.findToggle);
+    findBtn.setAttribute("aria-expanded", String(state.findOpen));
+    findBtn.setAttribute("aria-pressed", String(state.findOpen));
+    findBtn.innerHTML = octicon("search");
+    findBtn.addEventListener("click", onToggleFind);
+    group.append(findBtn);
+  }
+
+  return group;
+}
+
+function header(
+  root: HTMLElement,
+  state: BlameViewState,
+  labels: BlameLabels,
+  callbacks: BlameViewCallbacks,
+  onToggleFind: () => void
+): HTMLElement {
   const bar = element("header", "blame-header");
   const repo = element("span", "blame-repo", folderName(state.repo));
   repo.title = state.repo;
-  bar.append(repo);
   const kindBadge = repoBadge(state, labels);
   if (kindBadge !== null) bar.append(kindBadge);
   const path = element("span", "blame-path", state.filePath);
   path.title = state.filePath;
+  bar.append(repo, path);
+
+  const initialPath = state.navigation.initialFilePath;
+  if (initialPath !== "" && state.filePath !== initialPath) {
+    const renamed = element("span", "blame-rename-notice");
+    renamed.dataset.initialPath = initialPath;
+    renamed.title = `${state.filePath} → ${initialPath}`;
+    const icon = element("span", "blame-rename-icon");
+    icon.innerHTML = octicon("file-moved");
+    const text = element(
+      "span",
+      "blame-rename-text",
+      labels.renamedFrom.replace("{0}", initialPath)
+    );
+    renamed.append(icon, text);
+    bar.append(renamed);
+  }
+
   const badge = revBadge(state, labels);
   const rev = element(
     "span",
@@ -159,7 +420,7 @@ function header(
     "blame-line-count",
     labels.lineCount.replace("{0}", state.totalLines.toLocaleString(state.locale))
   );
-  bar.append(path, rev);
+  bar.append(rev);
   if (state.unsavedBuffer) {
     bar.append(actionButton("blame-head-btn", labels.blameHead, callbacks.onBlameHead));
   }
@@ -173,7 +434,84 @@ function header(
     bar.append(notice);
   }
   bar.append(count);
+
+  const nav = navControls(state, labels, callbacks);
+  if (nav !== null) bar.append(nav);
+
+  const showOptions =
+    state.blameState === "lines" ||
+    state.hasIgnoreRevsFile ||
+    state.ignoreRevs.length > 0 ||
+    state.options.ignoreWhitespace ||
+    state.options.detectMoves ||
+    state.options.detectCopies;
+  if (showOptions) {
+    bar.append(optionControls(root, state, labels, callbacks, onToggleFind));
+  }
+
   if (state.blameState === "lines") bar.append(heatControls(state, labels, callbacks));
+  return bar;
+}
+
+function findBarElement(
+  state: BlameViewState,
+  labels: BlameLabels,
+  onQuery: (query: string) => void,
+  onStep: (delta: 1 | -1) => void,
+  onClose: () => void
+): HTMLElement {
+  const bar = element("div", state.findOpen ? "blame-find-bar is-open" : "blame-find-bar");
+  bar.setAttribute("role", "search");
+  bar.hidden = !state.findOpen;
+
+  const input = element("input", "blame-find-input");
+  input.id = "blameFindInput";
+  input.type = "search";
+  input.value = state.findQuery;
+  input.placeholder = labels.findPlaceholder;
+  input.setAttribute("aria-label", labels.findPlaceholder);
+  input.addEventListener("input", () => onQuery(input.value));
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      onStep(event.shiftKey ? -1 : 1);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    }
+  });
+
+  const total = state.findMatches.length;
+  const current = total > 0 && state.findActiveIndex >= 0 ? state.findActiveIndex + 1 : 0;
+  const countText = labels.findCount.replace("{0}", String(current)).replace("{1}", String(total));
+  const counter = element("span", "blame-find-count", countText);
+  counter.setAttribute("aria-live", "polite");
+
+  const prev = element("button", "blame-find-btn blame-find-prev");
+  prev.type = "button";
+  prev.disabled = total === 0;
+  prev.title = labels.findPrev;
+  prev.setAttribute("aria-label", labels.findPrev);
+  prev.innerHTML = octicon("arrow-up");
+  prev.addEventListener("click", () => onStep(-1));
+
+  const next = element("button", "blame-find-btn blame-find-next");
+  next.type = "button";
+  next.disabled = total === 0;
+  next.title = labels.findNext;
+  next.setAttribute("aria-label", labels.findNext);
+  next.innerHTML = octicon("arrow-down");
+  next.addEventListener("click", () => onStep(1));
+
+  const close = element("button", "blame-find-btn blame-find-close");
+  close.type = "button";
+  close.title = labels.findClose;
+  close.setAttribute("aria-label", labels.findClose);
+  close.innerHTML = octicon("x");
+  close.addEventListener("click", onClose);
+
+  bar.append(input, counter, prev, next, close);
   return bar;
 }
 
@@ -234,21 +572,73 @@ function stateBlock(
   }
 }
 
+/**
+ * Per-hunk "View blame prior to this change" rewind button (F4-05).
+ * Enabled on committed hunks with `previous: { hash, path }` and
+ * `boundary !== true`; disabled with the `"Initial commit for this file"`
+ * tooltip on boundary or `previous === null` hunks.
+ */
+function rewindButton(
+  hunk: BlameHunkView,
+  commit: GitBlameCommit | undefined,
+  state: BlameViewState,
+  labels: BlameLabels,
+  callbacks: BlameViewCallbacks
+): HTMLButtonElement {
+  const canRewind = commit?.boundary !== true && hunk.previous !== null;
+  if (canRewind && hunk.previous !== null) {
+    const previous = hunk.previous;
+    const shortPrev = abbrevCommit(previous.hash, state.display.shortHashLength);
+    const tip =
+      previous.path !== state.filePath
+        ? labels.rewindToPath.replace("{0}", shortPrev).replace("{1}", previous.path)
+        : labels.rewindTo.replace("{0}", shortPrev);
+    const btn = element("button", "blame-rewind-btn");
+    btn.type = "button";
+    btn.title = tip;
+    btn.setAttribute("aria-label", tip);
+    btn.dataset.previousHash = previous.hash;
+    btn.dataset.previousPath = previous.path;
+    btn.dataset.origStartLine = String(hunk.origStartLine);
+    btn.innerHTML = octicon("versions");
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      callbacks.onRewind?.({
+        rev: previous.hash,
+        filePath: previous.path,
+        targetLine: hunk.origStartLine
+      });
+    });
+    return btn;
+  }
+  const btn = element("button", "blame-rewind-btn is-boundary");
+  btn.type = "button";
+  btn.disabled = true;
+  btn.title = labels.initialCommit;
+  btn.setAttribute("aria-label", labels.initialCommit);
+  btn.innerHTML = octicon("versions");
+  return btn;
+}
+
 function gutterElement(
   hunk: BlameHunkView,
   commit: GitBlameCommit | undefined,
   state: BlameViewState,
   labels: BlameLabels,
-  now: Date
+  now: Date,
+  callbacks: BlameViewCallbacks
 ): HTMLElement {
   const gutter = element("div", "blame-gutter");
   const uncommitted = commit?.uncommitted === true || hunk.heat.uncommitted;
   if (uncommitted) {
-    // No fake hash and no date: the all-zero OID is not a commit.
+    // No fake hash, no date, and no rewind button: the all-zero OID is not a commit.
     gutter.append(element("div", "blame-summary blame-uncommitted", labels.uncommitted));
   } else if (commit !== undefined) {
+    const head = element("div", "blame-gutter-head");
     const summary = element("div", "blame-summary", commit.summary);
     summary.title = commit.summary;
+    head.append(summary, rewindButton(hunk, commit, state, labels, callbacks));
+
     const meta = element("div", "blame-meta");
     const author = element("span", "blame-author", commit.author);
     author.title =
@@ -265,17 +655,19 @@ function gutterElement(
     date.title = shown.title;
     date.setAttribute("aria-label", `${labels.columnDate} ${shown.title}`);
     meta.append(author, hash, date);
-    gutter.append(summary, meta);
+    gutter.append(head, meta);
   } else {
     // A hunk whose commit the payload does not carry: the hash is all
     // that can honestly be shown for it.
+    const head = element("div", "blame-gutter-head");
     const hash = element(
       "code",
       "blame-hash",
       abbrevCommit(hunk.commitHash, state.display.shortHashLength)
     );
     hash.title = hunk.commitHash;
-    gutter.append(hash);
+    head.append(hash, rewindButton(hunk, undefined, state, labels, callbacks));
+    gutter.append(head);
   }
   const handle = element("span", "blame-gutter-resize");
   handle.setAttribute("role", "separator");
@@ -286,11 +678,37 @@ function gutterElement(
   return gutter;
 }
 
+type FindHighlights = {
+  matchedHunks: Set<number>;
+  matchedLines: Set<number>;
+  activeHunkIndex: number;
+  activeLine: number;
+};
+
+function buildFindHighlights(state: BlameViewState): FindHighlights {
+  const matchedHunks = new Set<number>();
+  const matchedLines = new Set<number>();
+  for (const match of state.findMatches) {
+    matchedHunks.add(match.hunkIndex);
+    matchedLines.add(match.line);
+  }
+  const active = state.findActiveIndex >= 0 ? state.findMatches[state.findActiveIndex] : undefined;
+  return {
+    matchedHunks,
+    matchedLines,
+    activeHunkIndex: active?.hunkIndex ?? -1,
+    activeLine: active?.line ?? -1
+  };
+}
+
 function hunkElement(
   hunk: BlameHunkView,
+  hunkIndex: number,
   state: BlameViewState,
   labels: BlameLabels,
-  now: Date
+  now: Date,
+  highlights: FindHighlights,
+  callbacks: BlameViewCallbacks
 ): HTMLElement {
   const band = element("section", "blame-hunk");
   // One keyboard stop per hunk: focusing it marks the commit's other hunks.
@@ -298,17 +716,25 @@ function hunkElement(
   band.dataset.commit = hunk.commitHash;
   band.dataset.heat = heatAttribute(hunk);
   band.dataset.startLine = String(hunk.startLine);
+  if (highlights.matchedHunks.has(hunkIndex)) band.classList.add("is-find-match");
+  if (highlights.activeHunkIndex === hunkIndex) band.classList.add("is-find-active-hunk");
+
   const source = element("div", "blame-source");
   for (const line of hunk.lines) {
     const row = element("div", "blame-line");
     row.dataset.line = String(line.finalLine);
     if (state.targetLine === line.finalLine) row.classList.add("blame-target-line");
+    if (highlights.matchedLines.has(line.finalLine)) row.classList.add("is-find-match");
+    if (highlights.activeLine === line.finalLine) row.classList.add("is-find-active");
     const number = element("span", "blame-line-number", String(line.finalLine));
     const text = element("span", "blame-line-text", line.content);
     row.append(number, text);
     source.append(row);
   }
-  band.append(gutterElement(hunk, state.commits[hunk.commitHash], state, labels, now), source);
+  band.append(
+    gutterElement(hunk, state.commits[hunk.commitHash], state, labels, now, callbacks),
+    source
+  );
   return band;
 }
 
@@ -320,7 +746,10 @@ function bodyElement(
 ): HTMLElement {
   const scroll = element("div", "blame-scroll");
   const body = element("div", "blame-body");
-  for (const hunk of state.hunks) body.append(hunkElement(hunk, state, labels, now));
+  const highlights = buildFindHighlights(state);
+  state.hunks.forEach((hunk, hunkIndex) => {
+    body.append(hunkElement(hunk, hunkIndex, state, labels, now, highlights, callbacks));
+  });
   scroll.append(body);
 
   // Dragging any gutter's right edge restyles this body alone (as the
@@ -426,7 +855,10 @@ function sameRenderedMeta(prev: BlameViewState, next: BlameViewState): boolean {
     prev.display.dateFormat === next.display.dateFormat &&
     prev.display.dateFormat !== "Relative" &&
     prev.totalLines === next.totalLines &&
-    prev.hunks.length === next.hunks.length
+    prev.hunks.length === next.hunks.length &&
+    prev.findOpen === next.findOpen &&
+    prev.findQuery === next.findQuery &&
+    prev.findActiveIndex === next.findActiveIndex
   );
 }
 
@@ -444,90 +876,217 @@ function sameRenderedBody(prev: BlameViewState | null, next: BlameViewState): bo
   return true;
 }
 
+type FocusedSnapshot = {
+  id: string;
+  selectionStart: number | null;
+  selectionEnd: number | null;
+};
+
+function captureFocusedInput(root: HTMLElement): FocusedSnapshot | null {
+  const active = root.ownerDocument.activeElement;
+  if (!(active instanceof HTMLElement) || !root.contains(active) || active.id === "") return null;
+  if (active instanceof HTMLInputElement) {
+    return {
+      id: active.id,
+      selectionStart: active.selectionStart,
+      selectionEnd: active.selectionEnd
+    };
+  }
+  return { id: active.id, selectionStart: null, selectionEnd: null };
+}
+
+function restoreFocusedInput(root: HTMLElement, focused: FocusedSnapshot | null): void {
+  if (focused === null) return;
+  const next = root.querySelector<HTMLElement>(`#${focused.id}`);
+  if (next === null) return;
+  next.focus();
+  if (next instanceof HTMLInputElement && focused.selectionStart !== null) {
+    try {
+      next.setSelectionRange(focused.selectionStart, focused.selectionEnd);
+    } catch {
+      // Non-selectable inputs ignore selection range restoration.
+    }
+  }
+}
+
+function scrollLineIntoView(root: HTMLElement, line: number | null): void {
+  if (line === null || line < 1) return;
+  const target = root.querySelector<HTMLElement>(`.blame-line[data-line="${line}"]`);
+  if (target !== null && typeof target.scrollIntoView === "function") {
+    target.scrollIntoView({ block: "center" });
+  }
+}
+
+function contentElement(
+  state: BlameViewState,
+  labels: BlameLabels,
+  now: Date,
+  callbacks: BlameViewCallbacks
+): HTMLElement | null {
+  if (state.loading) {
+    return messageBlock("blame-message blame-loading", labels.loading, "status");
+  }
+  if (state.error !== null) {
+    return messageBlock(
+      "blame-message blame-error",
+      labels.loadError.replace("{0}", state.error),
+      "alert"
+    );
+  }
+  if (state.blameState === "lines") {
+    return bodyElement(state, labels, now, callbacks);
+  }
+  return stateBlock(state, labels, callbacks);
+}
+
+function syncScrollPosition(
+  root: HTMLElement,
+  state: BlameViewState,
+  sameTarget: boolean,
+  prevScrollTop: number
+): void {
+  if (state.blameState !== "lines") return;
+  const newScroll = root.querySelector<HTMLElement>(".blame-scroll");
+  const preservedScroll =
+    (sameTarget || state.preserveScroll) && prevScrollTop > 0 && newScroll !== null;
+  if (preservedScroll) {
+    newScroll.scrollTop = prevScrollTop;
+  }
+  const activeMatch =
+    state.findActiveIndex >= 0 ? state.findMatches[state.findActiveIndex] : undefined;
+  if (activeMatch !== undefined) {
+    scrollLineIntoView(root, activeMatch.line);
+  } else if (!preservedScroll && !state.preserveScroll && state.targetLine !== null) {
+    scrollLineIntoView(root, state.targetLine);
+  }
+}
+
 /**
  * Draws the tab from its state: a sticky header naming the repository,
- * the file, its revision and its line count, then the loading word, one
- * of the distinct non-line states, an error of its own, or the grouped
- * hunks. On an initial open, the target line is scrolled into view; on a
- * live refresh, the scroll position is preserved without resetting an
- * unchanged body DOM.
+ * the file, its revision, its line count, navigation stack controls, and
+ * blame option toggles, an in-tab Find / Author filter bar, then the
+ * loading word, one of the distinct non-line states, an error of its own,
+ * or the grouped hunks. On an initial open, the target line is scrolled
+ * into view; on a live refresh, the scroll position is preserved without
+ * resetting an unchanged body DOM.
  */
 export function createBlameView(root: HTMLElement, callbacks: BlameViewCallbacks) {
   root.classList.add("ggl-blame");
+  let lastState: BlameViewState | null = null;
+  let lastNow: Date = new Date();
+  let lastTargetKey = "";
   let renderedState: BlameViewState | null = null;
   let renderedScroll: HTMLElement | null = null;
 
-  return {
-    render(state: BlameViewState, now: Date = new Date()): void {
-      const { labels } = state;
-      if (labels === null) {
-        renderedState = null;
-        renderedScroll = null;
-        root.replaceChildren();
-        return;
-      }
-      root.style.setProperty("--blame-font-size", `${state.typography.fontSize}px`);
-      root.style.setProperty("--blame-line-height", `${state.typography.lineHeight}px`);
-      root.style.setProperty("tab-size", `${state.typography.tabSize}`);
-      const nextHeader = header(state, labels, callbacks);
-
-      if (
-        state.preserveScroll &&
-        renderedScroll !== null &&
-        renderedScroll.parentElement === root &&
-        sameRenderedBody(renderedState, state)
-      ) {
-        const currentHeader = root.querySelector("header.blame-header");
-        if (currentHeader !== null) currentHeader.replaceWith(nextHeader);
-        else root.prepend(nextHeader);
-        renderedState = state;
-        return;
-      }
-
-      const savedScroll =
-        state.preserveScroll && renderedScroll !== null && renderedScroll.parentElement === root
-          ? { top: renderedScroll.scrollTop, left: renderedScroll.scrollLeft }
-          : null;
-
-      const children: HTMLElement[] = [nextHeader];
-      if (state.loading) {
-        renderedScroll = null;
-        children.push(messageBlock("blame-message blame-loading", labels.loading, "status"));
-      } else if (state.error !== null) {
-        renderedScroll = null;
-        children.push(
-          messageBlock(
-            "blame-message blame-error",
-            labels.loadError.replace("{0}", state.error),
-            "alert"
-          )
-        );
-      } else if (state.blameState === "lines") {
-        renderedScroll = bodyElement(state, labels, now, callbacks);
-        children.push(renderedScroll);
-      } else {
-        renderedScroll = null;
-        const block = stateBlock(state, labels, callbacks);
-        if (block !== null) children.push(block);
-      }
-      root.replaceChildren(...children);
-      renderedState = state;
-
-      if (state.preserveScroll && savedScroll !== null && renderedScroll !== null) {
-        renderedScroll.scrollTop = savedScroll.top;
-        renderedScroll.scrollLeft = savedScroll.left;
-      } else if (
-        !state.preserveScroll &&
-        state.blameState === "lines" &&
-        state.targetLine !== null
-      ) {
-        const target = root.querySelector<HTMLElement>(
-          `.blame-line[data-line="${state.targetLine}"]`
-        );
-        if (target !== null && typeof target.scrollIntoView === "function") {
-          target.scrollIntoView({ block: "center" });
-        }
-      }
+  const updateFindState = (next: BlameViewState, focusFindInput = false): void => {
+    lastState = next;
+    callbacks.onFindStateChange?.(next);
+    render(next, lastNow);
+    if (focusFindInput) {
+      const input = root.querySelector<HTMLInputElement>("#blameFindInput");
+      input?.focus();
+      if (input !== null && input.value !== "") input.select();
     }
   };
+
+  const toggleFind = (): void => {
+    if (lastState === null) return;
+    if (lastState.findOpen) {
+      updateFindState(closeFind(lastState));
+    } else {
+      updateFindState(openFind(lastState), true);
+    }
+  };
+
+  const applyFind = (transform: (current: BlameViewState) => BlameViewState): void => {
+    if (lastState !== null) updateFindState(transform(lastState));
+  };
+
+  window.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (!root.isConnected || lastState === null || lastState.blameState !== "lines") return;
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      !event.shiftKey &&
+      event.key.toLowerCase() === "f"
+    ) {
+      event.preventDefault();
+      updateFindState(openFind(lastState), true);
+    } else if (event.key === "Escape" && lastState.findOpen) {
+      event.preventDefault();
+      updateFindState(closeFind(lastState));
+    }
+  });
+
+  function render(state: BlameViewState, now: Date = new Date()): void {
+    lastState = state;
+    lastNow = now;
+    const { labels } = state;
+    if (labels === null) {
+      lastTargetKey = "";
+      renderedState = null;
+      renderedScroll = null;
+      root.replaceChildren();
+      return;
+    }
+
+    const focused = captureFocusedInput(root);
+    const targetKey = `${state.repo}\0${state.filePath}\0${state.rev ?? ""}`;
+    const sameTarget = targetKey === lastTargetKey;
+    const prevScrollEl = root.querySelector<HTMLElement>(".blame-scroll");
+    const prevScrollTop = sameTarget || state.preserveScroll ? (prevScrollEl?.scrollTop ?? 0) : 0;
+    const prevScrollLeft = state.preserveScroll ? (prevScrollEl?.scrollLeft ?? 0) : 0;
+    lastTargetKey = targetKey;
+
+    root.style.setProperty("--blame-font-size", `${state.typography.fontSize}px`);
+    root.style.setProperty("--blame-line-height", `${state.typography.lineHeight}px`);
+    root.style.setProperty("tab-size", `${state.typography.tabSize}`);
+
+    const nextHeader = header(root, state, labels, callbacks, toggleFind);
+
+    // A live refresh of an unchanged blame keeps the body DOM (and its
+    // scroll) exactly as it is; only the header is redrawn.
+    if (
+      state.preserveScroll &&
+      renderedScroll !== null &&
+      renderedScroll.parentElement === root &&
+      sameRenderedBody(renderedState, state)
+    ) {
+      const currentHeader = root.querySelector("header.blame-header");
+      if (currentHeader !== null) currentHeader.replaceWith(nextHeader);
+      else root.prepend(nextHeader);
+      renderedState = state;
+      return;
+    }
+
+    const children: HTMLElement[] = [nextHeader];
+    if (state.blameState === "lines" && !state.loading && state.error === null) {
+      children.push(
+        findBarElement(
+          state,
+          labels,
+          (query) => applyFind((cur) => applyFindQuery(cur, query)),
+          (delta) => applyFind((cur) => stepFindMatch(cur, delta)),
+          () => applyFind(closeFind)
+        )
+      );
+    }
+
+    const content = contentElement(state, labels, now, callbacks);
+    if (content !== null) children.push(content);
+    renderedScroll =
+      content !== null && state.blameState === "lines" && !state.loading && state.error === null
+        ? content
+        : null;
+
+    root.replaceChildren(...children);
+    renderedState = state;
+    restoreFocusedInput(root, focused);
+    syncScrollPosition(root, state, sameTarget, prevScrollTop);
+    if (state.preserveScroll && renderedScroll !== null && prevScrollLeft > 0) {
+      renderedScroll.scrollLeft = prevScrollLeft;
+    }
+  }
+
+  return { render };
 }

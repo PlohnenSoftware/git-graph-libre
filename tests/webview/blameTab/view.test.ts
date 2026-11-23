@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { applyData, applyLoading, initialBlameState } from "@/webview/blameTab/rowModel";
-import { createBlameView } from "@/webview/blameTab/view";
+import { type BlameViewCallbacks, createBlameView } from "@/webview/blameTab/view";
 
 import {
   commit,
@@ -10,6 +10,7 @@ import {
   hunk,
   LABELS,
   loadingMessage,
+  NEW_HASH,
   OLD_HASH,
   payload,
   ZERO_HASH
@@ -17,20 +18,43 @@ import {
 
 const NOW = new Date(1_700_000_000_000 + 5 * 60_000);
 
-function start() {
+function start(extra: Partial<BlameViewCallbacks> = {}) {
   document.body.innerHTML = '<div id="blameTab"></div>';
   const root = document.getElementById("blameTab") as HTMLElement;
   const onGutterWidthChange = vi.fn();
   const onBlameHead = vi.fn();
   const onBlameLatest = vi.fn();
   const onOpenFile = vi.fn();
+  const onRewind = vi.fn();
+  const onNavigate = vi.fn();
+  const onOptionsChange = vi.fn();
+  const onClearIgnoredCommit = vi.fn();
+  const onFindStateChange = vi.fn();
   const view = createBlameView(root, {
     onGutterWidthChange,
     onBlameHead,
     onBlameLatest,
-    onOpenFile
+    onOpenFile,
+    onRewind,
+    onNavigate,
+    onOptionsChange,
+    onClearIgnoredCommit,
+    onFindStateChange,
+    ...extra
   });
-  return { root, view, onGutterWidthChange, onBlameHead, onBlameLatest, onOpenFile };
+  return {
+    root,
+    view,
+    onGutterWidthChange,
+    onBlameHead,
+    onBlameLatest,
+    onOpenFile,
+    onRewind,
+    onNavigate,
+    onOptionsChange,
+    onClearIgnoredCommit,
+    onFindStateChange
+  };
 }
 
 afterEach(() => {
@@ -459,6 +483,245 @@ describe("blame tab view", () => {
       const scrollAfter = root.querySelector<HTMLElement>(".blame-scroll");
       expect(scrollAfter?.scrollTop).toBe(180);
       expect(scrollAfter?.scrollLeft).toBe(24);
+      expect(scrolled).toEqual(["3"]);
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+    }
+  });
+
+  it("renders enabled rewind buttons on non-boundary hunks and disabled ones on boundary hunks", () => {
+    const { root, view, onRewind } = start();
+    const renamedPayload = payload({
+      hunks: [
+        hunk(), // boundary commit (OLD_HASH), previous: null
+        hunk({
+          commitHash: NEW_HASH,
+          startLine: 3,
+          origStartLine: 9,
+          previous: { hash: OLD_HASH, path: "src/old-file.ts" },
+          lines: [{ finalLine: 3, origLine: 9, content: "export const three = 3;" }],
+          heat: { level: 9, uncommitted: false, commitHunkCount: 1, commitLineCount: 1 }
+        })
+      ]
+    });
+    view.render(applyData(initialBlameState(), dataMessage({ payload: renamedPayload })), NOW);
+
+    const buttons = [...root.querySelectorAll<HTMLButtonElement>(".blame-rewind-btn")];
+    expect(buttons).toHaveLength(2);
+    expect(buttons[0].disabled).toBe(true);
+    expect(buttons[0].title).toBe("Initial commit for this file");
+
+    expect(buttons[1].disabled).toBe(false);
+    expect(buttons[1].title).toBe("View blame prior to this change (aaaaaaaa · src/old-file.ts)");
+    buttons[1].click();
+    expect(onRewind).toHaveBeenCalledWith({
+      rev: OLD_HASH,
+      filePath: "src/old-file.ts",
+      targetLine: 9
+    });
+  });
+
+  it("shows Back, Forward, Latest and rename notice from navigation state", () => {
+    const { root, view, onNavigate } = start();
+    // Initial working tree with empty stack hides navigation controls.
+    view.render(applyData(initialBlameState(), dataMessage()), NOW);
+    expect(root.querySelector(".blame-nav")).toBeNull();
+    expect(root.querySelector(".blame-rename-notice")).toBeNull();
+
+    // Rewound across a rename: Back enabled, Forward disabled, Latest enabled, rename notice shown.
+    view.render(
+      applyData(
+        initialBlameState(),
+        dataMessage({
+          filePath: "src/orig.ts",
+          rev: OLD_HASH,
+          navigation: {
+            backCount: 1,
+            forwardCount: 0,
+            canLatest: true,
+            initialFilePath: "src/renamed.ts"
+          },
+          payload: payload({ resolvedRev: OLD_HASH })
+        })
+      ),
+      NOW
+    );
+    const back = root.querySelector<HTMLButtonElement>(".blame-nav-back");
+    const forward = root.querySelector<HTMLButtonElement>(".blame-nav-forward");
+    const latest = root.querySelector<HTMLButtonElement>(".blame-nav-latest");
+    expect(back?.disabled).toBe(false);
+    expect(forward?.disabled).toBe(true);
+    expect(latest?.disabled).toBe(false);
+    expect(root.querySelector(".blame-rename-notice")?.textContent).toContain("src/renamed.ts");
+
+    back?.click();
+    latest?.click();
+    expect(onNavigate).toHaveBeenNthCalledWith(1, "back");
+    expect(onNavigate).toHaveBeenNthCalledWith(2, "latest");
+
+    // Stepped back to working tree: Forward enabled, Back and Latest disabled.
+    view.render(
+      applyData(
+        initialBlameState(),
+        dataMessage({
+          navigation: {
+            backCount: 0,
+            forwardCount: 1,
+            canLatest: false,
+            initialFilePath: "src/renamed.ts"
+          }
+        })
+      ),
+      NOW
+    );
+    expect(root.querySelector<HTMLButtonElement>(".blame-nav-back")?.disabled).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>(".blame-nav-forward")?.disabled).toBe(false);
+    expect(root.querySelector<HTMLButtonElement>(".blame-nav-latest")?.disabled).toBe(true);
+    root.querySelector<HTMLButtonElement>(".blame-nav-forward")?.click();
+    expect(onNavigate).toHaveBeenLastCalledWith("forward");
+  });
+
+  it("renders option toggles, .git-blame-ignore-revs chip, and removable session ignore-rev chips", () => {
+    const { root, view, onOptionsChange, onClearIgnoredCommit } = start();
+    view.render(
+      applyData(
+        initialBlameState(),
+        dataMessage({
+          targetLine: 3,
+          options: {
+            ignoreWhitespace: true,
+            detectMoves: false,
+            detectCopies: false,
+            useIgnoreRevsFile: true
+          },
+          ignoreRevs: [OLD_HASH, NEW_HASH],
+          payload: payload({
+            hasIgnoreRevsFile: true,
+            ignoreRevsFileUsed: ".git-blame-ignore-revs"
+          })
+        })
+      ),
+      NOW
+    );
+
+    const wBtn = root.querySelector<HTMLButtonElement>(".blame-option-w");
+    const mBtn = root.querySelector<HTMLButtonElement>(".blame-option-m");
+    const cBtn = root.querySelector<HTMLButtonElement>(".blame-option-c");
+    expect(wBtn?.getAttribute("aria-pressed")).toBe("true");
+    expect(mBtn?.getAttribute("aria-pressed")).toBe("false");
+    expect(cBtn?.getAttribute("aria-pressed")).toBe("false");
+
+    wBtn?.click();
+    expect(onOptionsChange).toHaveBeenCalledWith({ ignoreWhitespace: false }, 3);
+    mBtn?.click();
+    expect(onOptionsChange).toHaveBeenCalledWith({ detectMoves: true }, 3);
+    cBtn?.click();
+    expect(onOptionsChange).toHaveBeenCalledWith({ detectCopies: true }, 3);
+
+    const ignoreFileChip = root.querySelector<HTMLButtonElement>(".blame-ignore-revs-file-chip");
+    expect(ignoreFileChip?.textContent).toBe("Ignoring .git-blame-ignore-revs");
+    expect(ignoreFileChip?.getAttribute("aria-pressed")).toBe("true");
+    ignoreFileChip?.click();
+    expect(onOptionsChange).toHaveBeenCalledWith({ useIgnoreRevsFile: false }, 3);
+
+    const chips = [...root.querySelectorAll<HTMLElement>(".blame-ignore-rev-chip")];
+    expect(chips).toHaveLength(2);
+    expect(chips[0].textContent).toContain("aaaaaaaa");
+    chips[0].querySelector<HTMLButtonElement>(".blame-chip-remove")?.click();
+    expect(onClearIgnoredCommit).toHaveBeenCalledWith(OLD_HASH, 3);
+
+    root.querySelector<HTMLButtonElement>(".blame-clear-ignored-btn")?.click();
+    expect(onClearIgnoredCommit).toHaveBeenCalledWith(null, 3);
+  });
+
+  it("supports Find & Author filter via Ctrl+F, typing, Enter/Shift+Enter, buttons and Escape", () => {
+    const { root, view } = start();
+    const scrolled: unknown[] = [];
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      value: function (this: HTMLElement) {
+        scrolled.push(this.dataset.line);
+      },
+      configurable: true
+    });
+    try {
+      view.render(applyData(initialBlameState(), dataMessage()), NOW);
+      expect(root.querySelector<HTMLElement>(".blame-find-bar")?.hidden).toBe(true);
+
+      // Ctrl+F opens the find bar and focuses the search input.
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "f", ctrlKey: true, bubbles: true })
+      );
+      const bar = root.querySelector<HTMLElement>(".blame-find-bar");
+      expect(bar?.hidden).toBe(false);
+      const input = root.querySelector<HTMLInputElement>("#blameFindInput");
+      expect(document.activeElement).toBe(input);
+
+      // Typing a source query updates counter and highlights active match.
+      if (input !== null) {
+        input.value = "const";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      expect(root.querySelector(".blame-find-count")?.textContent).toBe("1 / 3");
+      expect(root.querySelectorAll(".blame-line.is-find-match")).toHaveLength(3);
+      expect(
+        root.querySelector('.blame-line[data-line="1"]')?.classList.contains("is-find-active")
+      ).toBe(true);
+
+      // Enter advances to next match; Shift+Enter reverses.
+      const activeInput = root.querySelector<HTMLInputElement>("#blameFindInput");
+      activeInput?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      expect(root.querySelector(".blame-find-count")?.textContent).toBe("2 / 3");
+      expect(
+        root.querySelector('.blame-line[data-line="2"]')?.classList.contains("is-find-active")
+      ).toBe(true);
+
+      const inputAfterNext = root.querySelector<HTMLInputElement>("#blameFindInput");
+      inputAfterNext?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", shiftKey: true, bubbles: true })
+      );
+      expect(root.querySelector(".blame-find-count")?.textContent).toBe("1 / 3");
+
+      // Author search highlights the matching hunk.
+      const authorInput = root.querySelector<HTMLInputElement>("#blameFindInput");
+      if (authorInput !== null) {
+        authorInput.value = "Ben";
+        authorInput.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      expect(root.querySelector(".blame-find-count")?.textContent).toBe("1 / 1");
+      expect(root.querySelectorAll(".blame-hunk.is-find-active-hunk")).toHaveLength(1);
+      expect(scrolled.at(-1)).toBe("3");
+
+      // Escape inside the input clears matches and closes the find bar.
+      const escInput = root.querySelector<HTMLInputElement>("#blameFindInput");
+      escInput?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      expect(root.querySelector<HTMLElement>(".blame-find-bar")?.hidden).toBe(true);
+      expect(root.querySelectorAll(".blame-line.is-find-match")).toHaveLength(0);
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+    }
+  });
+
+  it("preserves scrollTop on same-target reload instead of jumping back to targetLine", () => {
+    const { root, view } = start();
+    const scrolled: unknown[] = [];
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      value: function (this: HTMLElement) {
+        scrolled.push(this.dataset.line);
+      },
+      configurable: true
+    });
+    try {
+      const first = applyData(initialBlameState(), dataMessage({ targetLine: 3 }));
+      view.render(first, NOW);
+      expect(scrolled).toEqual(["3"]);
+
+      const scrollEl = root.querySelector<HTMLElement>(".blame-scroll");
+      if (scrollEl !== null) scrollEl.scrollTop = 210;
+
+      // Same-target reload (e.g. toggling -w) keeps scrollTop = 210 without calling scrollIntoView again.
+      const reloaded = applyData(first, dataMessage({ requestId: 2, targetLine: 3 }));
+      view.render(reloaded, NOW);
+      expect(root.querySelector<HTMLElement>(".blame-scroll")?.scrollTop).toBe(210);
       expect(scrolled).toEqual(["3"]);
     } finally {
       Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");

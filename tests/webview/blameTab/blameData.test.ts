@@ -7,7 +7,11 @@ import { simpleGit } from "simple-git";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
-import { createBlameSource } from "@/extension/blameTab/blameData";
+import {
+  createBlameNavigator,
+  createBlameSource,
+  ROOT_IGNORE_REVS_FILE
+} from "@/extension/blameTab/blameData";
 
 const dirs: string[] = [];
 
@@ -26,6 +30,10 @@ function commitFile(dir: string, name: string, content: string, message: string,
   fs.writeFileSync(path.join(dir, name), content);
   git(["add", "."], dir);
   git(["commit", `--date=${date}`, "-m", message], dir);
+}
+
+async function headHash(dir: string): Promise<string> {
+  return (await simpleGit({ baseDir: dir, binary: "git" }).revparse(["HEAD"])).trim();
 }
 
 function source(record?: GitCommandRecorder, gitPath: () => string = () => "git") {
@@ -210,5 +218,244 @@ describe("createBlameSource (real Git)", () => {
     expect(result.error).toBeNull();
     expect(result.state).toBe("unborn");
     expect(result.hunks).toEqual([]);
+  });
+
+  it("rewinds across a file rename using previous.hash and previous.path", async () => {
+    const dir = repo();
+    commitFile(
+      dir,
+      "orig.txt",
+      "alpha\nbeta\ngamma\ndelta\nepsilon\n",
+      "initial orig",
+      "2020-01-01T00:00:00Z"
+    );
+    git(["mv", "orig.txt", "renamed.txt"], dir);
+    fs.writeFileSync(path.join(dir, "renamed.txt"), "alpha\nbeta\ngamma\ndelta\nepsilon\nzeta\n");
+    git(["add", "."], dir);
+    git(["commit", "--date=2024-01-01T00:00:00Z", "-m", "rename and add zeta"], dir);
+
+    const blame = source();
+    const nav = createBlameNavigator();
+    nav.open({ repo: dir, filePath: "renamed.txt", targetLine: 6 });
+
+    const current = await blame.load(dir, "renamed.txt", null);
+    expect(current.error).toBeNull();
+    expect(current.hasIgnoreRevsFile).toBe(false);
+    expect(current.ignoreRevsFileUsed).toBeNull();
+
+    const zetaHunk = current.hunks.find((h) => h.lines.some((l) => l.content === "zeta"));
+    expect(zetaHunk?.previous).not.toBeNull();
+    expect(zetaHunk?.previous?.path).toBe("orig.txt");
+
+    const prev = zetaHunk?.previous as { hash: string; path: string };
+    expect(
+      nav.rewind({ rev: prev.hash, filePath: prev.path, targetLine: zetaHunk?.origStartLine })
+    ).toBe(true);
+
+    const snap = nav.snapshot();
+    expect(snap.filePath).toBe("orig.txt");
+    expect(snap.rev).toBe(prev.hash);
+    expect(snap.navigation).toEqual({
+      backCount: 1,
+      forwardCount: 0,
+      canLatest: true,
+      initialFilePath: "renamed.txt"
+    });
+
+    const rewound = await blame.load(dir, snap.filePath, snap.rev, snap.loadOptions);
+    expect(rewound.error).toBeNull();
+    expect(rewound.state).toBe("lines");
+    expect(rewound.totalLines).toBe(5);
+    expect(rewound.resolvedRev).toBe(prev.hash);
+    expect(rewound.hunks.flatMap((h) => h.lines.map((l) => l.content))).toEqual([
+      "alpha",
+      "beta",
+      "gamma",
+      "delta",
+      "epsilon"
+    ]);
+  });
+
+  it("auto-detects .git-blame-ignore-revs by default and lets the user toggle it off", async () => {
+    const dir = repo();
+    commitFile(dir, "a.txt", "line one\n", "original author", "2020-01-01T00:00:00Z");
+    const firstHash = await headHash(dir);
+    commitFile(dir, "a.txt", "line one!\n", "formatting pass", "2024-01-01T00:00:00Z");
+    const formatHash = await headHash(dir);
+    commitFile(
+      dir,
+      ROOT_IGNORE_REVS_FILE,
+      `${formatHash}\n`,
+      "add ignore revs",
+      "2024-01-02T00:00:00Z"
+    );
+
+    const blame = source();
+    const withDefault = await blame.load(dir, "a.txt", null);
+    expect(withDefault.error).toBeNull();
+    expect(withDefault.hasIgnoreRevsFile).toBe(true);
+    expect(withDefault.ignoreRevsFileUsed).toBe(ROOT_IGNORE_REVS_FILE);
+    expect(withDefault.hunks[0]?.commitHash).toBe(firstHash);
+
+    const toggledOff = await blame.load(dir, "a.txt", null, { useIgnoreRevsFile: false });
+    expect(toggledOff.error).toBeNull();
+    expect(toggledOff.hasIgnoreRevsFile).toBe(true);
+    expect(toggledOff.ignoreRevsFileUsed).toBeNull();
+    expect(toggledOff.hunks[0]?.commitHash).toBe(formatHash);
+  });
+
+  it("honors the -w ignore-whitespace toggle and per-session --ignore-rev", async () => {
+    const dir = repo();
+    commitFile(dir, "ws.txt", "  const value = 1;\n", "initial value", "2020-01-01T00:00:00Z");
+    const firstHash = await headHash(dir);
+    commitFile(dir, "ws.txt", "    const value = 1;\n", "reindent value", "2024-01-01T00:00:00Z");
+    const secondHash = await headHash(dir);
+
+    const blame = source();
+    const plain = await blame.load(dir, "ws.txt", null);
+    expect(plain.error).toBeNull();
+    expect(plain.hunks[0]?.commitHash).toBe(secondHash);
+
+    const ignoreWs = await blame.load(dir, "ws.txt", null, { ignoreWhitespace: true });
+    expect(ignoreWs.error).toBeNull();
+    expect(ignoreWs.hunks[0]?.commitHash).toBe(firstHash);
+
+    const sessionIgnored = await blame.load(dir, "ws.txt", null, { ignoreRevs: [secondHash] });
+    expect(sessionIgnored.error).toBeNull();
+    expect(sessionIgnored.hunks[0]?.commitHash).toBe(firstHash);
+  });
+
+  it("passes -M and -C move/copy detection flags cleanly", async () => {
+    const dir = repo();
+    commitFile(
+      dir,
+      "moved.txt",
+      "line one\nline two\nline three\nline four\n",
+      "first",
+      "2020-01-01T00:00:00Z"
+    );
+    commitFile(
+      dir,
+      "moved.txt",
+      "line three\nline four\nline one\nline two\n",
+      "reorder",
+      "2024-01-01T00:00:00Z"
+    );
+
+    const result = await source().load(dir, "moved.txt", null, {
+      detectMoves: true,
+      detectCopies: true
+    });
+    expect(result.error).toBeNull();
+    expect(result.state).toBe("lines");
+    expect(result.totalLines).toBe(4);
+  });
+});
+
+describe("createBlameNavigator", () => {
+  const REV_A = "a".repeat(40);
+  const REV_B = "b".repeat(40);
+  const REV_C = "c".repeat(40);
+
+  it("maintains Back, Forward, and Latest navigation stack across rewinds", () => {
+    const nav = createBlameNavigator();
+    nav.open({ repo: "/repos/one", filePath: "src/new.ts", targetLine: 10 });
+
+    expect(nav.navigate("back")).toBe(false);
+    expect(nav.navigate("forward")).toBe(false);
+    expect(nav.navigate("latest")).toBe(false);
+
+    expect(nav.rewind({ rev: REV_A, filePath: "src/new.ts", targetLine: 4 })).toBe(true);
+    expect(nav.rewind({ rev: REV_B, filePath: "src/old.ts", targetLine: 2 })).toBe(true);
+    expect(nav.snapshot()).toMatchObject({
+      rev: REV_B,
+      filePath: "src/old.ts",
+      targetLine: 2,
+      navigation: {
+        backCount: 2,
+        forwardCount: 0,
+        canLatest: true,
+        initialFilePath: "src/new.ts"
+      }
+    });
+
+    expect(nav.navigate("back")).toBe(true);
+    expect(nav.snapshot()).toMatchObject({
+      rev: REV_A,
+      filePath: "src/new.ts",
+      targetLine: 4,
+      navigation: { backCount: 1, forwardCount: 1, canLatest: true }
+    });
+
+    expect(nav.navigate("forward")).toBe(true);
+    expect(nav.snapshot()).toMatchObject({
+      rev: REV_B,
+      filePath: "src/old.ts",
+      targetLine: 2,
+      navigation: { backCount: 2, forwardCount: 0, canLatest: true }
+    });
+
+    // Rewinding after going back clears the forward stack.
+    expect(nav.navigate("back")).toBe(true);
+    expect(nav.rewind({ rev: REV_C, filePath: "src/alt.ts", targetLine: 7 })).toBe(true);
+    expect(nav.snapshot().navigation).toEqual({
+      backCount: 2,
+      forwardCount: 0,
+      canLatest: true,
+      initialFilePath: "src/new.ts"
+    });
+
+    // Latest jumps straight back to the starting working tree & path.
+    expect(nav.navigate("latest")).toBe(true);
+    expect(nav.snapshot()).toMatchObject({
+      rev: null,
+      filePath: "src/new.ts",
+      targetLine: 10,
+      navigation: {
+        backCount: 0,
+        forwardCount: 0,
+        canLatest: false,
+        initialFilePath: "src/new.ts"
+      }
+    });
+  });
+
+  it("tracks option toggles and session ignoreRevs and rejects invalid hashes", () => {
+    const nav = createBlameNavigator();
+    expect(nav.setOptions({ ignoreWhitespace: true })).toBe(false);
+    expect(nav.ignoreCommit(REV_A)).toBe(false);
+
+    nav.open({ repo: "/repos/one", filePath: "src/a.ts", targetLine: 3 });
+    expect(nav.setOptions({ ignoreWhitespace: true, detectMoves: true }, 18)).toBe(true);
+    expect(nav.snapshot()).toMatchObject({
+      targetLine: 18,
+      options: {
+        ignoreWhitespace: true,
+        detectMoves: true,
+        detectCopies: false,
+        useIgnoreRevsFile: true
+      }
+    });
+
+    // Rejects option-like strings, empty, whitespace/control chars, and all-zero OIDs.
+    expect(nav.ignoreCommit("")).toBe(false);
+    expect(nav.ignoreCommit("--exec=evil")).toBe(false);
+    expect(nav.ignoreCommit("0".repeat(40))).toBe(false);
+    expect(nav.ignoreCommit("abc def")).toBe(false);
+
+    expect(nav.ignoreCommit(REV_A, 22)).toBe(true);
+    expect(nav.ignoreCommit(REV_A)).toBe(false); // duplicate
+    expect(nav.ignoreCommit(REV_B)).toBe(true);
+    expect(nav.snapshot().ignoreRevs).toEqual([REV_A, REV_B]);
+    expect(nav.snapshot().targetLine).toBe(22);
+
+    expect(nav.clearIgnoredCommit("missing")).toBe(false);
+    expect(nav.clearIgnoredCommit(REV_A, 25)).toBe(true);
+    expect(nav.snapshot().ignoreRevs).toEqual([REV_B]);
+    expect(nav.snapshot().targetLine).toBe(25);
+
+    expect(nav.clearIgnoredCommit(null, 30)).toBe(true);
+    expect(nav.snapshot().ignoreRevs).toEqual([]);
+    expect(nav.clearIgnoredCommit(null)).toBe(false);
   });
 });
