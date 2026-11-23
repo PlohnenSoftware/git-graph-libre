@@ -84,6 +84,7 @@ releases (Rules) applies, with the answers below.
 | R90 | Release 1.11.0 | every `main` track | orchestrator | done `74ff94fe` (not tagged, not pushed) |
 | KB2 | Move the finished sections to History; roadmap and work order | R90 | Claude Haiku | integrated `b2c476e3` |
 | Q3 | Reflog columns resize like the graph's; State resizable and narrower (maintainer test) | Q2 | Claude Haiku | ready |
+| Q4 | Reflog: drop the redundant header; Scan button into the filter bar (maintainer test) | Q2 | Claude Haiku | ready |
 
 ## Blocked — waiting for the maintainer
 
