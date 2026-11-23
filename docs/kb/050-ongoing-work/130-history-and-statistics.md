@@ -70,7 +70,7 @@ ran first.
 | F3-02 | Statistics tab, webview (contributors and 7 x 24 heatmap) | F3-01 (TQ1, TQ2 answered) | Muse Code, Haiku fallback | integrated `8991c7eb` |
 | F3-03 | Engine-only availability (tab hidden without the engine) | F3-01, F3-02 | Haiku | ready |
 | F3-04 | l10n for the Statistics tab in all five bundles | F3-02 | Claude Haiku | ready |
-| F3-05 | Mailmap parity in `author_stats` (decision TQ5) | F3-01 (TQ5 answered) | Muse Code | in progress |
+| F3-05 | Mailmap parity in `author_stats` (decision TQ5) | F3-01 (TQ5 answered) | Muse Code | integrated `d094045d` |
 | F3-06 | Date-range filter (only if TQ1 picks the scrubber reading) | F3-02, TQ1 | Muse Code | not selected |
 | F3-07 | File History: engine path-scoped log (TQ1 answered: taken) | F3-02 (TQ1 answered) | Muse Code | ready |
 | F3-08 | VS Code Timeline provider over F3-07 (only if TQ1 picks Timeline) | F3-07 (TQ1 answered: taken) | Muse Code | waiting on F3-07 |
@@ -128,3 +128,14 @@ both themes. Nothing is pushed.
   T1. Gates on `8991c7eb`: strict Biome on 35 files, typecheck, `l10n:check`, KB
   check, backend 1,678 passed (60 skipped) and webview 1,152 passed.
   F3-03, F3-04 and F3-07 (file history) are ready.
+- `2026-11-23`: F3-05 (Muse Code) integrated into `gg-plus/next` at `d094045d`:
+  `author_stats` applies the mailmap from every source Git reads (the
+  working tree's `.mailmap`, `mailmap.blob`, `mailmap.file`), matching
+  `git shortlog -sne --all --no-merges` exactly (17 new engine tests; 0
+  mismatches on this repository, 20 authors, about 37 ms). Engine bumped to
+  **1.0.33** on `gg-plus/next` only (`main` and release 1.11.0 stay on
+  1.0.32). Follow-up for the maintainer: whether the graph's own mailmap
+  decline in `load_commits` and the `authors` filter should share this code.
+  Gates: Rust arm (fmt, clippy, check, test) clean; addon rebuilt
+  (`engineVersion` 1.0.33); strict Biome, typecheck, KB check; backend 1,679
+  passed (60 skipped) and webview 1,152 passed.
