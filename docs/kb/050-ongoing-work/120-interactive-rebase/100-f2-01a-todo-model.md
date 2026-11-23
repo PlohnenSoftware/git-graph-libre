@@ -7,7 +7,7 @@ summary: >-
 
 # F2-01a — Todo model (pure)
 
-Status: claimed by Claude Haiku on 2026-11-23 02:05
+Status: done — awaiting integration
 
 Needs: none
 
@@ -77,4 +77,13 @@ pnpm exec vitest run tests/backend/rebase/todo.test.ts
 
 ## Report
 
-Not started.
+## Report
+
+- **Agent / date:** Claude Haiku 5.5 (claude-haiku-5-5), 2026-11-23 02:05 (claim) to 2026-11-23 (report)
+- **Branch and commits:** `rebase/F2-01a` — `ddc9d8f9 G docs(kb): claim the todo model slice (F2-01a)`; `8e34e078 G feat(rebase): add the pure todo model (F2-01a)`; `338d72a3 G test(rebase): cover the todo model rules and serialization (F2-01a)`; this report commit (see git log)
+- **Files changed:** `src/backend/rebase/todo.ts` (new, 139 lines); `tests/backend/rebase/todo.test.ts` (new, 323 lines); this slice file (claim and report lines only). Code and tests: 462 added lines in total.
+- **Tests added or changed:** 38 new unit tests in `tests/backend/rebase/todo.test.ts`, covering rules 1 to 6, rule order, abbreviated, uppercase and 64-digit hashes, serialization order, line endings, every action word, reword as pick, messages kept out of the text, and no mutation of inputs. Count before: 0; after: 38.
+- **Gates:** `npx vitest run --project backend tests/backend/rebase/todo.test.ts`: 38 passed. `npx biome check --config-path biome.strict.jsonc --error-on-warnings src/backend/rebase/todo.ts tests/backend/rebase/todo.test.ts`: exit 0, no errors. `pnpm run typecheck`: exit 0. `node ./docs/kb/housekeeping.mjs --check`: exit 0. Sonar: integrator
+- **Acceptance:** types `TodoAction`, `TodoEntry`, `TodoRunOutcome` exported: met. `validateTodo` returns a discriminated union naming the first failed rule (not an exception), rules in the slice order: met (tests per rule and per order pair). `serializeTodo` one `<action> <full hash>` line per entry, `\n` endings, final newline, reword as pick: met. No Git, no I/O, no vscode import, readonly inputs, no mutation: met (module imports nothing; mutation test). Unit tests for every listed case: met.
+- **Deviations from the slice:** Two choices the slice left open, both recorded here for the integrator. (1) Hash matching is case-insensitive: an uppercase full hash passes rule 3, matches the lowercase range, and counts as a duplicate of its lowercase copy; `serializeTodo` writes hashes in lower case, as Git prints them. (2) For an empty list, rule 1 (base) is still checked first, per the rule order. The `validateTodo` result carries the missing and extra hashes for rule 6. No other deviation.
+- **Open questions / follow-ups:** The `README.md` and the Biome config schema notice (`2.5.13` configured, `2.6.8` expected by the CLI) were already present in the base and are not touched by this slice; Biome still exits 0. No follow-ups for this slice.
