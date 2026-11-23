@@ -79,6 +79,7 @@ releases (Rules) applies, with the answers below.
 | T1b | Blame tab open-and-outcome telemetry (`tab.blame`) | T1, F4-03 | Claude Haiku | integrated `7ed42e61` |
 | Q1 | GGL icon on the Diff, Reflog and Blame tabs (maintainer test) | — | Claude Haiku | integrated `98bbf66a` |
 | Q2 | Reflog table column widths, no horizontal scroll (maintainer test) | — | Muse Code | ready |
+| N1 | Release notes: Blame F4-05/F4-06, Q1, L2, P1 | those slices | Claude Haiku | ready |
 | R90 | Release 1.11.0 | every `main` track | orchestrator | waiting |
 
 ## Blocked — waiting for the maintainer
