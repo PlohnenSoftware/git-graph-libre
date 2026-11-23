@@ -49,6 +49,30 @@
   background-color: var(--vscode-menu-selectionBackground);
   color: var(--vscode-menu-selectionForeground);
 }
+#contextMenu li.contextMenuItem.contextMenuItemDisabled {
+  opacity: 0.68;
+  cursor: default;
+}
+#contextMenu li.contextMenuItem.contextMenuItemDisabled:hover {
+  background-color: var(--ngg-transparent);
+  color: var(--vscode-menu-foreground);
+}
+.contextMenuItemReason {
+  display: block;
+  max-width: 320px;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (forced-colors: active) {
+  #contextMenu li.contextMenuItem.contextMenuItemDisabled,
+  #contextMenu li.contextMenuItem.contextMenuItemDisabled .contextMenuItemReason {
+    opacity: 1;
+    color: GrayText;
+  }
+}
 #contextMenu li.contextMenuDivider {
   margin: 4px 6px;
   border-top: 1px solid var(--vscode-menu-separatorBackground, var(--ngg-neutral-border));

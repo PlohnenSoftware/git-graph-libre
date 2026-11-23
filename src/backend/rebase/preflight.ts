@@ -12,6 +12,8 @@ export type RebasePreflightFacts = {
   alreadyUsedElsewhere: boolean | "unknown";
   /** The range read's own failure, when it failed. */
   error: GitQueryError | null;
+  /** When true, `--autostash` handles a dirty tree so `dirty` does not block start. */
+  autostash?: boolean;
 };
 
 /**
@@ -32,7 +34,27 @@ export function evaluateRebasePreflight(facts: RebasePreflightFacts): GitRebaseP
   const reasons: RebasePreflightReason[] = [];
   if (facts.inProgress) reasons.push("inProgress");
   if (facts.commitCount === 0) reasons.push("emptyRange");
-  if (facts.dirty) reasons.push("dirty");
+  if (facts.dirty && facts.autostash !== true) reasons.push("dirty");
   if (facts.alreadyUsedElsewhere === true) reasons.push("alreadyUsedElsewhere");
+  return { canStart: reasons.length === 0, reasons };
+}
+
+export type EffectivePreflightOptions = {
+  readonly autostash?: boolean;
+};
+
+/**
+ * Re-evaluates a preflight answer with choices made in the editor (F2-07):
+ * opting into `--autostash` clears the `dirty` refusal while keeping every
+ * other blocking reason intact.
+ */
+export function effectiveRebasePreflight(
+  preflight: GitRebasePreflight,
+  options: EffectivePreflightOptions = {}
+): GitRebasePreflight {
+  if (options.autostash !== true || !preflight.reasons.includes("dirty")) {
+    return preflight;
+  }
+  const reasons = preflight.reasons.filter((reason) => reason !== "dirty");
   return { canStart: reasons.length === 0, reasons };
 }

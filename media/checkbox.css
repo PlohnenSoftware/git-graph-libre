@@ -10,6 +10,7 @@
 
 #dialog table.dialogForm input[type="checkbox"],
 .settingsExtensionInput[type="checkbox"],
+.rebaseEditorCheckbox[type="checkbox"],
 #showRemoteBranchesCheckbox {
   appearance: none;
   display: inline-block;
@@ -68,6 +69,7 @@
    attention than the setting it represents. The box stays neutral. */
 #dialog table.dialogForm input[type="checkbox"]:checked::after,
 .settingsExtensionInput[type="checkbox"]:checked::after,
+.rebaseEditorCheckbox[type="checkbox"]:checked::after,
 #showRemoteBranchesCheckbox:checked::after {
   content: "";
   position: absolute;
@@ -78,6 +80,7 @@
 /* A mixed checkbox gets a centered bar rather than a tick. */
 #dialog table.dialogForm input[type="checkbox"]:indeterminate::after,
 .settingsExtensionInput[type="checkbox"]:indeterminate::after,
+.rebaseEditorCheckbox[type="checkbox"]:indeterminate::after,
 #showRemoteBranchesCheckbox:indeterminate::after {
   content: "";
   position: absolute;
@@ -90,17 +93,20 @@
    beside it use. */
 #dialog table.dialogForm input[type="checkbox"]:hover:not(:disabled),
 .settingsExtensionInput[type="checkbox"]:hover:not(:disabled),
+.rebaseEditorCheckbox[type="checkbox"]:hover:not(:disabled),
 #showRemoteBranchesCheckbox:hover:not(:disabled) {
   background-color: var(--ngg-neutral-overlay-medium);
 }
 #dialog table.dialogForm input[type="checkbox"]:focus-visible,
 .settingsExtensionInput[type="checkbox"]:focus-visible,
+.rebaseEditorCheckbox[type="checkbox"]:focus-visible,
 #showRemoteBranchesCheckbox:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 1px;
 }
 #dialog table.dialogForm input[type="checkbox"]:disabled,
 .settingsExtensionInput[type="checkbox"]:disabled,
+.rebaseEditorCheckbox[type="checkbox"]:disabled,
 #showRemoteBranchesCheckbox:disabled {
   opacity: 0.5;
   cursor: default;
@@ -111,6 +117,7 @@
 @media (forced-colors: active) {
   #dialog table.dialogForm input[type="checkbox"],
   .settingsExtensionInput[type="checkbox"],
+  .rebaseEditorCheckbox[type="checkbox"],
   #showRemoteBranchesCheckbox {
     border-color: ButtonText;
     background-color: ButtonFace;
@@ -119,6 +126,8 @@
   #dialog table.dialogForm input[type="checkbox"]:indeterminate::after,
   .settingsExtensionInput[type="checkbox"]:checked::after,
   .settingsExtensionInput[type="checkbox"]:indeterminate::after,
+  .rebaseEditorCheckbox[type="checkbox"]:checked::after,
+  .rebaseEditorCheckbox[type="checkbox"]:indeterminate::after,
   #showRemoteBranchesCheckbox:checked::after,
   #showRemoteBranchesCheckbox:indeterminate::after {
     background-color: ButtonText;
@@ -127,6 +136,7 @@
 @media (prefers-reduced-motion: reduce) {
   #dialog table.dialogForm input[type="checkbox"],
   .settingsExtensionInput[type="checkbox"],
+  .rebaseEditorCheckbox[type="checkbox"],
   #showRemoteBranchesCheckbox {
     transition: none;
   }

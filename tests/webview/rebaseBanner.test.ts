@@ -201,6 +201,29 @@ describe("rebase banner", () => {
     );
     expect(slot().querySelector("b")).toBeNull();
   });
+
+  it("shows an autostash conflict banner with the kept stash selector and clickable conflict files", () => {
+    render({
+      kind: null,
+      rebase: null,
+      conflictFiles: ["src/f.ts"],
+      autostashConflict: { stashSelector: "stash@{0}", stashHash: HASH },
+      error: null
+    });
+
+    const banner = slot().querySelector<HTMLElement>(".rebaseBanner");
+    expect(banner?.dataset.reason).toBe("autostash-conflict");
+    expect(slot().querySelector(".rebaseBannerText")?.textContent).toBe(
+      strings.rebaseAutostashConflictTitle
+    );
+    expect(slot().querySelector(".rebaseBannerHint")?.textContent).toContain("stash@{0}");
+    expect(slot().querySelectorAll("button[data-action]")).toHaveLength(0);
+
+    const fileBtn = slot().querySelector<HTMLButtonElement>(".rebaseConflictFile");
+    expect(fileBtn?.textContent).toBe("src/f.ts");
+    fileBtn?.click();
+    expect(callbacks.onOpenFile).toHaveBeenCalledWith("src/f.ts");
+  });
 });
 
 const REPO = "/workspace/rebaserepo";

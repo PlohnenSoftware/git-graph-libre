@@ -112,9 +112,9 @@ the graph layout, outside this work; no slice reads it.
 | F2-04 | Editor dialog: open, list, pick/drop/reorder, start | F2-01b, F2-02, F2-03 | Muse Code | integrated `48be134c` |
 | F2-05 | Reword, squash, fixup and edit with messages | F2-04 | Muse Code | integrated `4c62b924` |
 | F2-06 | Autosquash and fixup creation | F2-04, F2-05 | Muse Code | ready |
-| F2-07 | Dirty tree, published history and worktree protections | F2-04 | Muse Code | ready |
-| F2-08 | Conflict prediction for the planned todo | F2-04, F2-05 | Muse Code | ready |
-| F2-09 | Plain-rebase prediction and drag-to-rebase | F2-07, F2-08 | Muse Code | waiting |
+| F2-07 | Dirty tree, published history and worktree protections | F2-04 | Gemini 4 Neon | integrated `7257f2cf` (merge) |
+| F2-08 | Conflict prediction for the planned todo | F2-04, F2-05 | Gemini 4 Neon | integrated `9e04c8e5` |
+| F2-09 | Plain-rebase prediction and drag-to-rebase | F2-07, F2-08 | Muse Code | deferred (IQ8: not now, after the core ships) |
 | F2-10 | Route drop and squash through the todo | F2-05 | Muse Code | ready |
 
 F2-01 is split for the agent choice: F2-01a is pure, with no Git and no UI, so
@@ -208,3 +208,26 @@ pushed, and nothing is tagged without the maintainer.
   and F2-10 are ready; F2-06 and F2-10 start now beside F2-07, and F2-08
   follows one of them so the editor model does not get a fourth parallel
   writer.
+- `2026-11-23`: F2-07 (Gemini 4 Neon, `agy`) integrated into `gg-plus/next` at
+  `7257f2cf`, the first integration by **merge** under the new no-squash
+  rule: F2-07 ran beside F2-05, so a rebase conflicted; Neon merged
+  `gg-plus/next` into `rebase/F2-07` (one signed merge commit; `model.ts`
+  keeps F2-05's `guardSquashRows` with F2-07's `longRangeConfirmPending`,
+  also cleared on a message edit; `view.ts` combines F2-07's protection
+  notices with F2-05's message notices and keeps F2-05's chrome/interactive
+  split), and the integrator fast-forwarded. F2-07 adds the dirty-tree,
+  published-history (the IQ5 acknowledgement checkbox gating Start) and
+  worktree protections. Gates on `7257f2cf`: strict Biome on 17 files,
+  typecheck, `l10n:check`, KB check, backend 1,734 passed (60 skipped) and
+  webview 1,216 passed. F2-06 and F2-10 were cut off by Muse Code's quota
+  at about 16:50 UTC and are queued to continue at 21:03 UTC; F2-08 goes to
+  Gemini 4 Neon now. F2-09 waits for F2-08.
+- `2026-11-23`: F2-08 (Gemini 4 Neon, `agy`) integrated into `gg-plus/next` at
+  `9e04c8e5` (it started from the tip, so no rebase was needed): conflict
+  prediction for the planned todo. Gates on `9e04c8e5`: typecheck,
+  `l10n:check`, KB check, backend 1,754 passed (60 skipped) and webview
+  1,221 passed (`integrate.sh` failed only at its last line because the
+  integrator edited the script mid-run; the fast-forward was done by hand
+  after the gate had passed). F2-09 stays deferred: IQ8's answer is "not
+  now, re-evaluate after the core ships". Open: F2-06 and F2-10 (queued for
+  Muse Code at 21:03 UTC), then the 1.11.0 sync merge of `main`.

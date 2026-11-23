@@ -46,6 +46,8 @@ import { resolveGlobalShortcut } from "./keyboardShortcuts";
 import { renderRebaseBanner } from "./rebaseBanner";
 import {
   createRebaseEditorState,
+  evaluateInteractiveRebaseMenuState,
+  findOtherWorktreeForBranch,
   openRebaseEditorDialog,
   type RebaseEditorController
 } from "./rebaseEditor";
@@ -629,6 +631,12 @@ class GitGraphView {
     base: string | null;
     baseLabel: string;
     sourceElem: HTMLElement | null;
+  } | null = null;
+  /** The interactive rebase editor's latest conflict prediction request awaiting its reply. */
+  private pendingRebasePrediction: {
+    requestId: number;
+    seq: number;
+    repo: string;
   } | null = null;
   /** The folder of the worktree being created, for the finish step (Y8) once Git answers. */
   private pendingCreatedWorktree: string | null = null;
@@ -1324,6 +1332,7 @@ class GitGraphView {
       kind: msg.kind,
       rebase: msg.rebase,
       conflictFiles: msg.conflictFiles,
+      ...(msg.autostashConflict === undefined ? {} : { autostashConflict: msg.autostashConflict }),
       error: msg.error
     };
     this.updateRebaseBanner();
@@ -3819,6 +3828,30 @@ class GitGraphView {
     }
     if (items.length > 0) menu.push(null, ...items);
   }
+  private buildInteractiveRebaseMenuItems(
+    group: "commit" | "branch",
+    onClick: () => void
+  ): ContextMenuElement[] {
+    if (!this.isContextMenuActionVisible(group, "interactiveRebase")) return [];
+    const menuState = evaluateInteractiveRebaseMenuState({
+      operationState: this.operationState,
+      currentBranch: this.gitBranchHead,
+      worktrees: this.gitWorktrees
+    });
+    if (!menuState.disabled) {
+      return [{ title: l10n.interactiveRebase + ELLIPSIS, onClick }];
+    }
+    const disabledItem: ContextMenuItem = {
+      title: l10n.interactiveRebase + ELLIPSIS,
+      disabled: true,
+      reason: menuState.reason,
+      onClick: () => undefined
+    };
+    if (menuState.kind === "worktree" && this.gitBranchHead !== null) {
+      return [disabledItem, this.buildOpenWorktreeMenuItem(this.gitBranchHead)];
+    }
+    return [disabledItem];
+  }
   private buildCommitIntegrationMenuItems(
     hash: string,
     sourceElem: HTMLElement
@@ -3834,13 +3867,9 @@ class GitGraphView {
         onClick: () => this.showRebaseDialog(hash, this.displayHash(hash), "commit", sourceElem)
       }),
       ...(this.isStrictHeadAncestor(hash)
-        ? [
-            this.visibleContextMenuItem("commit", "interactiveRebase", {
-              title: l10n.interactiveRebase + ELLIPSIS,
-              onClick: () =>
-                this.requestInteractiveRebaseRange(hash, this.displayHash(hash), sourceElem)
-            })
-          ]
+        ? this.buildInteractiveRebaseMenuItems("commit", () =>
+            this.requestInteractiveRebaseRange(hash, this.displayHash(hash), sourceElem)
+          )
         : []),
       this.visibleContextMenuItem("commit", "reset", {
         title: l10n.reset + ELLIPSIS,
@@ -3911,17 +3940,14 @@ class GitGraphView {
         onClick: () => this.showDropSelectedCommitsDialog(selectedCommits, sourceElem)
       });
     }
-    if (
-      oldestCommit !== undefined &&
-      this.selectedCommitsAreLoadedHeadChain(selectedCommits) &&
-      this.isContextMenuActionVisible("commit", "interactiveRebase")
-    ) {
+    if (oldestCommit !== undefined && this.selectedCommitsAreLoadedHeadChain(selectedCommits)) {
       const parentHash = oldestCommit.parentHashes[0] ?? null;
       const baseLabel = parentHash === null ? l10n.rebaseEditorRoot : this.displayHash(parentHash);
-      menu.push({
-        title: l10n.interactiveRebase + ELLIPSIS,
-        onClick: () => this.requestInteractiveRebaseRange(parentHash, baseLabel, sourceElem)
-      });
+      menu.push(
+        ...this.buildInteractiveRebaseMenuItems("commit", () =>
+          this.requestInteractiveRebaseRange(parentHash, baseLabel, sourceElem)
+        )
+      );
     }
     return menu;
   }
@@ -4299,6 +4325,14 @@ class GitGraphView {
     setStatusStrip("ready", l10n.statusReady);
     this.showRebaseEditorDialog(msg, pending.base, pending.baseLabel, pending.sourceElem);
   }
+  public loadRebasePrediction(msg: Extract<GGL.ResponseMessage, { command: "rebasePrediction" }>) {
+    const pending = this.pendingRebasePrediction;
+    if (pending === null || pending.requestId !== msg.requestId || pending.repo !== msg.repo) {
+      return;
+    }
+    this.pendingRebasePrediction = null;
+    activeRebaseEditor?.applyPrediction(pending.seq, msg);
+  }
   private showRebaseEditorDialog(
     range: GitRebaseRangeResult,
     base: string | null,
@@ -4306,7 +4340,13 @@ class GitGraphView {
     sourceElem: HTMLElement | null
   ) {
     destroyActiveRebaseEditor();
-    const initialState = createRebaseEditorState(range, { base, baseLabel });
+    this.pendingRebasePrediction = null;
+    const otherWorktree = findOtherWorktreeForBranch(this.gitWorktrees, range.branch);
+    const initialState = createRebaseEditorState(range, {
+      base,
+      baseLabel,
+      otherWorktreePath: otherWorktree?.path ?? null
+    });
     dialogMenuSource = sourceElem;
     if (dialogMenuSource !== null) dialogMenuSource.classList.add("dialogActive");
     activeRebaseEditor = openRebaseEditorDialog(
@@ -4317,18 +4357,52 @@ class GitGraphView {
       {
         onStart: (payload) => {
           destroyActiveRebaseEditor();
+          this.pendingRebasePrediction = null;
           this.clearCommitSelection();
           sendMessage({
             command: "interactiveRebase",
             repo: this.currentRepo,
             base: payload.base,
             entries: payload.entries,
-            rangeHashes: payload.rangeHashes
+            rangeHashes: payload.rangeHashes,
+            ...(payload.autostash === undefined ? {} : { autostash: payload.autostash })
           });
           showActionRunningDialog(l10n.statusStartingInteractiveRebase);
         },
         onCancel: () => {
+          this.pendingRebasePrediction = null;
           hideDialog();
+        },
+        onOpenWorktree: (worktreePath) => {
+          destroyActiveRebaseEditor();
+          this.pendingRebasePrediction = null;
+          hideDialog();
+          if (range.branch !== null && this.otherWorktreePath(range.branch) !== null) {
+            this.openWorktreeAction(range.branch);
+            return;
+          }
+          sendMessage({
+            command: "openWorktree",
+            repo: this.currentRepo,
+            path: worktreePath,
+            newWindow: true
+          });
+        },
+        onPredict: (request) => {
+          if (this.currentRepo === "") return;
+          const requestId = this.createRequestId();
+          this.pendingRebasePrediction = {
+            requestId,
+            seq: request.seq,
+            repo: this.currentRepo
+          };
+          sendMessage({
+            command: "rebasePrediction",
+            requestId,
+            repo: this.currentRepo,
+            base: request.base,
+            entries: request.entries
+          });
         }
       }
     );
@@ -5086,12 +5160,11 @@ class GitGraphView {
     );
     if (branchHash !== null && this.isStrictHeadAncestor(branchHash)) {
       menu.push(
-        this.visibleContextMenuItem("branch", "interactiveRebase", {
-          title: l10n.interactiveRebase + ELLIPSIS,
+        ...this.buildInteractiveRebaseMenuItems("branch", () =>
           // The base is the branch tip's hash, not its name, so the range
           // stays the one that was read even if the branch later moves.
-          onClick: () => this.requestInteractiveRebaseRange(branchHash, refName, sourceElem)
-        })
+          this.requestInteractiveRebaseRange(branchHash, refName, sourceElem)
+        )
       );
     }
   }
@@ -8578,6 +8651,7 @@ type ResponseHandlerMap = {
 const responseHandlers: ResponseHandlerMap = {
   operationState: (msg) => gitGraph.loadOperationState(msg),
   rebaseRange: (msg) => gitGraph.loadRebaseRange(msg),
+  rebasePrediction: (msg) => gitGraph.loadRebasePrediction(msg),
   continueRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToContinueRebase),
   skipRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToSkipRebase),
   abortRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToAbortRebase),
@@ -8841,15 +8915,24 @@ function renderContextMenuHeader(header: ContextMenuHeader | undefined): string 
 
 function renderContextMenuItem(item: ContextMenuItem, index: number): string {
   const isCheckbox = item.checked !== undefined;
+  const isDisabled = item.disabled === true;
   const checkboxClass = isCheckbox ? " contextMenuItemCheckbox" : "";
+  const disabledClass = isDisabled ? " contextMenuItemDisabled" : "";
   const checkboxAttributes = isCheckbox
     ? ` role="menuitemcheckbox" aria-checked="${item.checked === true}"`
     : ' role="menuitem"';
+  const disabledAttributes = isDisabled ? ' aria-disabled="true"' : "";
+  const indexAttribute = isDisabled ? "" : ` data-index="${index}"`;
+  const titleAttribute = item.reason === undefined ? "" : ` title="${escapeHtml(item.reason)}"`;
   const checkmark = item.checked === true ? "✓" : "";
   const checkbox = isCheckbox
     ? `<span class="contextMenuCheck" aria-hidden="true">${checkmark}</span>`
     : "";
-  return `<li class="contextMenuItem${checkboxClass}" data-index="${index}"${checkboxAttributes}>${checkbox}${item.title}</li>`;
+  const reasonHtml =
+    item.reason === undefined
+      ? ""
+      : `<span class="contextMenuItemReason">${escapeHtml(item.reason)}</span>`;
+  return `<li class="contextMenuItem${checkboxClass}${disabledClass}"${indexAttribute}${checkboxAttributes}${disabledAttributes}${titleAttribute}>${checkbox}${item.title}${reasonHtml}</li>`;
 }
 
 function renderContextMenuItems(visibleItems: ContextMenuRow[]): string {
@@ -8896,13 +8979,13 @@ function showContextMenu(
 
   addListenerToClass("contextMenuItem", "click", (ev) => {
     ev.stopPropagation();
-    hideContextMenu();
     if (
       !(ev.currentTarget instanceof HTMLElement) ||
       ev.currentTarget.dataset.index === undefined
     ) {
       return;
     }
+    hideContextMenu();
     visibleItems[Number.parseInt(ev.currentTarget.dataset.index, 10)]?.onClick();
   });
 
