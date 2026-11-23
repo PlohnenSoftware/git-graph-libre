@@ -571,6 +571,12 @@ describe("Create Worktree from a branch", () => {
       "/workspace/createrepo.worktrees/feature/menu"
     );
     expect(dialogInput<HTMLSelectElement>(1).value).toBe("branch");
+    // A branch no other worktree holds keeps all three modes (P1b).
+    expect([...dialogInput<HTMLSelectElement>(1).options].map((option) => option.value)).toEqual([
+      "branch",
+      "new",
+      "detach"
+    ]);
     // The full folder path is the field's title, for when it overflows.
     expect(dialogInput<HTMLInputElement>(0).title).toBe(
       "/workspace/createrepo.worktrees/feature/menu"
@@ -597,7 +603,53 @@ describe("Create Worktree from a branch", () => {
     });
   });
 
-  it("refuses a branch checked out elsewhere and offers that worktree instead", async () => {
+  it("opens Create Worktree with only a new branch and a detached HEAD for a branch checked out elsewhere (P1b)", async () => {
+    const { vscodeMock } = await bootWebview({
+      worktrees: [
+        worktree({}),
+        worktree({ path: OTHER_WORKTREE, branch: "feature/menu", isMain: false, isCurrent: false })
+      ]
+    });
+    openRefContextMenu(".gitRef.head", "feature/menu");
+    // "Open Worktree…" stays in the same menu, unchanged.
+    expect(contextMenuItems()).toContain("Open Worktree…");
+    expect(contextMenuItems()).toContain("Create Worktree…");
+    clickContextMenuItem("Create Worktree…");
+
+    // The Create Worktree dialog opens, not the Open Worktree dialog: it
+    // names the held branch, pre-fills the folder as usual, and offers only
+    // the two modes Git allows there, opening on the new branch.
+    expect(dialogText()).toContain("Create a worktree from feature/menu");
+    expect(dialogText()).not.toContain(OTHER_WORKTREE);
+    expect(dialogInput<HTMLInputElement>(0).value).toBe(
+      "/workspace/createrepo.worktrees/feature/menu"
+    );
+    const select = dialogInput<HTMLSelectElement>(1);
+    expect([...select.options].map((option) => option.value)).toEqual(["new", "detach"]);
+    expect([...select.options].map((option) => option.text)).toEqual([
+      "New branch from feature/menu",
+      "Detached HEAD at feature/menu"
+    ]);
+    expect(select.value).toBe("new");
+    expect(vscodeMock.sentMessages.some((msg) => msg.command === "openWorktree")).toBe(false);
+
+    const name = dialogInput<HTMLInputElement>(2);
+    name.value = "feature/menu-copy";
+    name.dispatchEvent(new Event("keyup", { bubbles: true }));
+    submitDialog();
+
+    expect(latestRequest(vscodeMock.sentMessages, "addWorktree")).toMatchObject({
+      repo: REPO,
+      path: "/workspace/createrepo.worktrees/feature/menu",
+      branch: null,
+      newBranch: "feature/menu-copy",
+      startPoint: "feature/menu",
+      detach: false,
+      lockReason: null
+    });
+  });
+
+  it("detaches at the held branch's tip when that mode is chosen (P1b)", async () => {
     const { vscodeMock } = await bootWebview({
       worktrees: [
         worktree({}),
@@ -607,15 +659,57 @@ describe("Create Worktree from a branch", () => {
     openRefContextMenu(".gitRef.head", "feature/menu");
     clickContextMenuItem("Create Worktree…");
 
-    expect(dialogText()).toContain(OTHER_WORKTREE);
-    expect(dialogText()).toContain("Open in New Window");
+    const select = dialogInput<HTMLSelectElement>(1);
+    select.value = "detach";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
     submitDialog();
 
-    expect(vscodeMock.sentMessages.some((msg) => msg.command === "addWorktree")).toBe(false);
-    expect(latestRequest(vscodeMock.sentMessages, "openWorktree")).toMatchObject({
-      path: OTHER_WORKTREE,
-      newWindow: true
+    expect(latestRequest(vscodeMock.sentMessages, "addWorktree")).toMatchObject({
+      repo: REPO,
+      path: "/workspace/createrepo.worktrees/feature/menu",
+      branch: null,
+      newBranch: null,
+      startPoint: "feature/menu",
+      detach: true,
+      lockReason: null
     });
+  });
+});
+
+describe("resolveCreateWorktreeSource (P1b)", () => {
+  const heldSource = {
+    label: "feature/menu",
+    startPoint: "feature/menu",
+    folderName: "feature/menu",
+    branch: "feature/menu",
+    newBranchName: "",
+    mode: "branch" as const
+  };
+
+  it("drops the checkout mode and opens on a new branch for a held branch", async () => {
+    const { main } = await bootWebview();
+    const resolved = main.resolveCreateWorktreeSource(heldSource, [
+      worktree({}),
+      worktree({ path: OTHER_WORKTREE, branch: "feature/menu", isMain: false, isCurrent: false })
+    ]);
+
+    expect(resolved).toEqual({ ...heldSource, branch: null, mode: "new" });
+  });
+
+  it("returns the source unchanged when no other worktree holds the branch", async () => {
+    const { main } = await bootWebview();
+
+    expect(main.resolveCreateWorktreeSource(heldSource, [worktree({})])).toBe(heldSource);
+    // The current worktree holding the branch is not "another worktree".
+    expect(
+      main.resolveCreateWorktreeSource(heldSource, [worktree({ branch: "feature/menu" })])
+    ).toBe(heldSource);
+    const noBranch = { ...heldSource, branch: null, mode: "detach" as const };
+    expect(
+      main.resolveCreateWorktreeSource(noBranch, [
+        worktree({ path: OTHER_WORKTREE, branch: "feature/menu", isMain: false, isCurrent: false })
+      ])
+    ).toBe(noBranch);
   });
 });
 

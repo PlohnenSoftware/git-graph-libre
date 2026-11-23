@@ -411,6 +411,21 @@ export function otherWorktreesHoldingBranch(
   return worktrees.filter((worktree) => !worktree.isCurrent && worktree.branch === branch);
 }
 
+/**
+ * The Create Worktree source as the dialog may offer it (P1b, V11): a branch
+ * another worktree has checked out cannot be checked out again, so that mode
+ * drops out and the dialog opens on a new branch from it (a detached HEAD at
+ * its tip stays the other mode). Every other source is returned unchanged.
+ */
+export function resolveCreateWorktreeSource(
+  source: CreateWorktreeSource,
+  worktrees: readonly GitWorktree[]
+): CreateWorktreeSource {
+  if (source.branch === null) return source;
+  if (otherWorktreesHoldingBranch(worktrees, source.branch).length === 0) return source;
+  return { ...source, branch: null, mode: "new" };
+}
+
 export type WorktreeCheckoutStrings = {
   checkedOutInWorktree: string;
   worktreeLocked: string;
@@ -4670,23 +4685,19 @@ class GitGraphView {
     );
   }
   /**
-   * "Create Worktree…" (W22), one dialog for every entry point. A branch
-   * another worktree already has checked out is refused here, from the
-   * worktree list, offering that worktree instead — never from a Git error
-   * after the fact. The backend repeats every refusal before Git runs.
+   * "Create Worktree…" (W22), one dialog for every entry point. On a branch
+   * another worktree already has checked out, the dialog offers only the two
+   * modes Git allows there — a new branch from it and a detached HEAD at its
+   * tip (P1b, V11) — and opens on the new branch; "Open Worktree…" in the
+   * same menu still goes to that worktree. The backend repeats every
+   * refusal before Git runs.
    */
   private showCreateWorktreeDialog(source: CreateWorktreeSource, sourceElem: HTMLElement | null) {
-    if (
-      source.branch !== null &&
-      otherWorktreesHoldingBranch(this.gitWorktrees, source.branch).length > 0
-    ) {
-      this.openWorktreeAction(source.branch);
-      return;
-    }
+    const resolved = resolveCreateWorktreeSource(source, this.gitWorktrees);
 
     const options: { name: string; value: string }[] = [];
-    if (source.branch !== null) {
-      const branch = source.branch;
+    if (resolved.branch !== null) {
+      const branch = resolved.branch;
       options.push({
         name: l10n.dialogCreateWorktreeCheckoutBranch.replace("{0}", () => branch),
         value: "branch"
@@ -4694,20 +4705,20 @@ class GitGraphView {
     }
     options.push(
       {
-        name: l10n.dialogCreateWorktreeNewBranchFrom.replace("{0}", () => source.label),
+        name: l10n.dialogCreateWorktreeNewBranchFrom.replace("{0}", () => resolved.label),
         value: "new"
       },
       {
-        name: l10n.dialogCreateWorktreeDetachedAt.replace("{0}", () => source.label),
+        name: l10n.dialogCreateWorktreeDetachedAt.replace("{0}", () => resolved.label),
         value: "detach"
       }
     );
-    const mode = source.branch === null && source.mode === "branch" ? "new" : source.mode;
+    const mode = resolved.branch === null && resolved.mode === "branch" ? "new" : resolved.mode;
 
     showFormDialog(
       l10n.dialogCreateWorktreeTitle.replace(
         "{0}",
-        () => `<b><i>${escapeHtml(source.label)}</i></b>`
+        () => `<b><i>${escapeHtml(resolved.label)}</i></b>`
       ),
       [
         {
@@ -4715,7 +4726,7 @@ class GitGraphView {
           name: l10n.dialogCreateWorktreeFolder,
           default: defaultWorktreePath(
             this.currentRepo,
-            source.folderName,
+            resolved.folderName,
             this.config.worktreePathTemplate
           ),
           required: true
@@ -4724,7 +4735,7 @@ class GitGraphView {
         {
           type: "text-ref",
           name: l10n.dialogCreateWorktreeNewBranch,
-          default: source.newBranchName,
+          default: resolved.newBranchName,
           dependsOn: { input: 1, value: "new" }
         },
         { type: "checkbox", name: l10n.dialogCreateWorktreeLock, value: false },
@@ -4737,7 +4748,7 @@ class GitGraphView {
         }
       ],
       l10n.dialogCreateWorktreeSubmit,
-      (values) => this.submitCreateWorktree(source, values),
+      (values) => this.submitCreateWorktree(resolved, values),
       sourceElem
     );
   }
