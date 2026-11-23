@@ -95,3 +95,14 @@ releases (Rules) applies, with the answers below.
   `gg-plus/next`) add `tab.blame` / `tab.statistics` the same way. Gates on
   `70f2b583`: strict Biome on 16 files, typecheck, KB check, backend 1,575 passed
   (60 skipped in the worktree) and webview 1,130 passed.
+- `2026-11-23 11:20Z`: **Muse Code quota exhausted** (HTTP 429, "Subscription
+  quota exhausted", window resets `16:00:06Z`; `muse-ember-1.0` answered a
+  one-word probe but failed real runs). Cut off mid-slice, with their signed
+  commits on the slice branches and uncommitted edits left in the worktrees:
+  F4-03 (6 commits), F1-08 (2), P1 (9), F2-03 (6), F3-07 (0) and F3-03 (the
+  Muse continuation of Haiku's blocked first attempt). A detached script,
+  `/home/zam/Desktop/prog/_GGL/.ggl-wt/prompts/resume-at-reset.sh`,
+  relaunches all six at `16:01:30Z` with a continuation note
+  (`prompts/continue.note`): read the branch's commits and the uncommitted
+  diff, keep what is correct, finish the slice. Until then only easy Haiku
+  work runs (release-notes groundwork), to spare the Claude quota.
