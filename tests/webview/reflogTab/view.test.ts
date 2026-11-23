@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   applyData,
   applyLoading,
+  applyLostCommits,
   initialReflogState,
   markLoadingMore
 } from "@/webview/reflogTab/rowModel";
@@ -13,6 +14,8 @@ import {
   dataMessage,
   LABELS,
   loadingMessage,
+  lostCommit,
+  lostCommitsMessage,
   page,
   REF_OPTIONS,
   row,
@@ -27,8 +30,30 @@ function start() {
   const onLoadMore = vi.fn();
   const onColumnWidthsChange = vi.fn();
   const onQueryChange = vi.fn();
-  const view = createReflogView(root, { onLoadMore, onColumnWidthsChange, onQueryChange });
-  return { root, view, onLoadMore, onColumnWidthsChange, onQueryChange };
+  const onScanLostCommits = vi.fn();
+  const onCancelLostCommitsScan = vi.fn();
+  const onCloseLostCommits = vi.fn();
+  const onCreateLostCommitBranch = vi.fn();
+  const view = createReflogView(root, {
+    onLoadMore,
+    onColumnWidthsChange,
+    onQueryChange,
+    onScanLostCommits,
+    onCancelLostCommitsScan,
+    onCloseLostCommits,
+    onCreateLostCommitBranch
+  });
+  return {
+    root,
+    view,
+    onLoadMore,
+    onColumnWidthsChange,
+    onQueryChange,
+    onScanLostCommits,
+    onCancelLostCommitsScan,
+    onCloseLostCommits,
+    onCreateLostCommitBranch
+  };
 }
 
 afterEach(() => {
@@ -589,5 +614,112 @@ describe("reflog worktrees and bare repositories (F1-08)", () => {
     view.render(applyData(initialReflogState(), dataMessage({ bare: true })), NOW);
     expect(root.querySelector(".reflog-bare-note")).toBeNull();
     expect(root.querySelector("table")).not.toBeNull();
+  });
+});
+
+describe("reflog lost-commit scan view (F1-07)", () => {
+  it("shows only the opt-in scan button while idle, then progress and cancel while scanning", () => {
+    const { root, view, onScanLostCommits, onCancelLostCommitsScan } = start();
+    const base = applyData(initialReflogState(), dataMessage());
+    view.render(base, NOW);
+    expect(root.querySelector(".reflog-lost-panel")).toBeNull();
+    const scanBtn = root.querySelector<HTMLButtonElement>("#reflogLostScanBtn");
+    expect(scanBtn?.textContent).toBe("Scan for Lost Commits…");
+    expect(scanBtn?.disabled).toBe(false);
+    scanBtn?.click();
+    expect(onScanLostCommits).toHaveBeenCalledOnce();
+
+    const scanning = applyLostCommits(
+      base,
+      lostCommitsMessage({ status: "scanning", commits: [] })
+    );
+    view.render(scanning, NOW);
+    expect(root.querySelector<HTMLButtonElement>("#reflogLostScanBtn")?.disabled).toBe(true);
+    expect(root.querySelector(".reflog-lost-progress")?.textContent).toContain(
+      "Scanning repository for lost commits…"
+    );
+    const cancelBtn = root.querySelector<HTMLButtonElement>("#reflogLostCancelBtn");
+    expect(cancelBtn?.textContent).toBe("Cancel");
+    cancelBtn?.click();
+    expect(onCancelLostCommitsScan).toHaveBeenCalledOnce();
+  });
+
+  it("renders discovered lost commits with GC warning and Create Branch Here… per row", () => {
+    const { root, view, onCreateLostCommitBranch, onCloseLostCommits } = start();
+    const base = applyData(initialReflogState(), dataMessage());
+    const itemA = lostCommit({
+      hash: "0123456789abcdef0123456789abcdef01234567",
+      subject: "abandoned feature"
+    });
+    const itemB = lostCommit({
+      hash: "fedcba9876543210fedcba9876543210fedcba98",
+      subject: ""
+    });
+    const done = applyLostCommits(
+      base,
+      lostCommitsMessage({
+        status: "done",
+        commits: [itemA, itemB],
+        busyHash: itemB.hash,
+        feedback: { kind: "success", message: 'Created branch "saved" at 12345678.' }
+      })
+    );
+    view.render(done, NOW);
+
+    expect(root.querySelector(".reflog-lost-count")?.textContent).toBe("2");
+    expect(root.querySelector(".reflog-lost-gc-note")?.textContent).toContain("garbage collection");
+    expect(root.querySelector(".reflog-lost-feedback-success")?.textContent).toBe(
+      'Created branch "saved" at 12345678.'
+    );
+    const rows = [...root.querySelectorAll(".reflog-lost-row")];
+    expect(rows).toHaveLength(2);
+    expect(rows[0].querySelector("code.reflog-hash")?.textContent).toBe("01234567");
+    expect(rows[0].querySelector(".reflog-lost-subject")?.textContent).toBe("abandoned feature");
+    expect(rows[1].querySelector(".reflog-lost-subject")?.textContent).toBe("—");
+
+    const buttons = [...root.querySelectorAll<HTMLButtonElement>(".reflog-lost-action-btn")];
+    expect(buttons[0].textContent).toBe("Create Branch Here…");
+    expect(buttons[0].disabled).toBe(false);
+    expect(buttons[1].disabled).toBe(true);
+    buttons[0].click();
+    expect(onCreateLostCommitBranch).toHaveBeenCalledWith(itemA.hash);
+
+    root.querySelector<HTMLButtonElement>("#reflogLostCloseBtn")?.click();
+    expect(onCloseLostCommits).toHaveBeenCalledOnce();
+  });
+
+  it("renders empty, canceled, timed-out, and error states distinctly", () => {
+    const { root, view } = start();
+    const base = applyData(initialReflogState(), dataMessage());
+
+    view.render(applyLostCommits(base, lostCommitsMessage({ status: "done", commits: [] })), NOW);
+    expect(root.querySelector(".reflog-lost-empty")?.textContent).toContain("No lost commits");
+    expect(root.querySelector(".reflog-lost-table")).toBeNull();
+
+    view.render(
+      applyLostCommits(base, lostCommitsMessage({ status: "canceled", commits: [] })),
+      NOW
+    );
+    expect(root.querySelector(".reflog-lost-status")?.textContent).toBe(
+      "Lost-commit scan canceled."
+    );
+
+    view.render(
+      applyLostCommits(base, lostCommitsMessage({ status: "timedOut", commits: [] })),
+      NOW
+    );
+    expect(root.querySelector(".reflog-lost-error")?.textContent).toContain("timed out");
+    expect(root.querySelector(".reflog-lost-error")?.getAttribute("role")).toBe("alert");
+
+    view.render(
+      applyLostCommits(
+        base,
+        lostCommitsMessage({ status: "error", commits: [], error: "fsck failed" })
+      ),
+      NOW
+    );
+    expect(root.querySelector(".reflog-lost-error")?.textContent).toBe(
+      "Unable to scan for lost commits: fsck failed"
+    );
   });
 });

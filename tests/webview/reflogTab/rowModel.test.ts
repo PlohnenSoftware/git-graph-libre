@@ -3,6 +3,7 @@ import { defaultReflogQuery, normalizeReflogQuery, REFLOG_SEARCH_CAP } from "@/r
 import {
   applyData,
   applyLoading,
+  applyLostCommits,
   badgeFor,
   entryDate,
   initialReflogState,
@@ -15,6 +16,8 @@ import {
   dataMessage,
   loadingMessage as fixtureLoading,
   LABELS,
+  lostCommit,
+  lostCommitsMessage,
   page,
   row
 } from "./fixtures";
@@ -258,5 +261,32 @@ describe("reflog row model", () => {
     expect(state.display).toEqual(changed);
     const loading = applyLoading(state, loadingMessage({ display: DISPLAY }));
     expect(loading.display).toEqual(DISPLAY);
+  });
+
+  it("tracks lost-commit scans per repository and ignores stale scan ids (F1-07)", () => {
+    const loaded = applyData(initialReflogState(), dataMessage());
+    expect(loaded.lostCommits.status).toBe("idle");
+
+    const scanned = applyLostCommits(
+      loaded,
+      lostCommitsMessage({ scanId: 3, commits: [lostCommit()] })
+    );
+    expect(scanned.lostCommits.status).toBe("done");
+    expect(scanned.lostCommits.commits).toHaveLength(1);
+
+    // Older scan id and foreign repository messages are dropped.
+    expect(applyLostCommits(scanned, lostCommitsMessage({ scanId: 2, status: "canceled" }))).toBe(
+      scanned
+    );
+    expect(applyLostCommits(scanned, lostCommitsMessage({ scanId: 4, repo: "/repos/other" }))).toBe(
+      scanned
+    );
+
+    // Same-repo data refresh keeps the lost-commit results; switching repo resets them.
+    const sameRepoRefresh = applyData(scanned, dataMessage({ requestId: 2 }));
+    expect(sameRepoRefresh.lostCommits.status).toBe("done");
+    const switchedRepo = applyData(scanned, dataMessage({ requestId: 3, repo: "/repos/two" }));
+    expect(switchedRepo.lostCommits.status).toBe("idle");
+    expect(switchedRepo.lostCommits.commits).toEqual([]);
   });
 });

@@ -102,6 +102,18 @@ describe("reflog tab styles", () => {
     expect(body).toContain(".ggl-reflog .reflog-head-row.resizing .reflog-head-cell {");
   });
 
+  it("styles the opt-in lost-commit panel on theme tokens with reduced-motion and forced-colors rules (F1-07)", () => {
+    expect(body).toContain(".ggl-reflog .reflog-scan-button {");
+    expect(body).toContain(".ggl-reflog .reflog-lost-panel {");
+    expect(body).toContain(".ggl-reflog .reflog-lost-gc-note {");
+    expect(body).toContain("var(--vscode-editorWidget-background");
+    expect(body).toContain("var(--vscode-button-secondaryBackground");
+    expect(body).toContain("var(--vscode-editorWarning-foreground");
+    expect(body).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(body).toContain(".ggl-reflog .reflog-lost-spinner { animation: none; }");
+    expect(body).toContain(".ggl-reflog .reflog-lost-action-btn { border: 1px solid ButtonText; }");
+  });
+
   it("defines every reflog color token for both themes, OKLCH only (F1-04)", () => {
     expect(tokens).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(tokens).not.toMatch(/\b(?:rgba?|hsla?)\(/);

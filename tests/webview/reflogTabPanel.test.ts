@@ -3,7 +3,7 @@ import { openReflogTab, type ReflogWatcher } from "@/extension/reflogTab/reflogT
 import type { ReflogHostMessage, ReflogPage, ReflogSource } from "@/reflogTabTypes";
 import { TAB_FEATURE_REFLOG } from "@/telemetry/tabOpen";
 import { resetVscodeMock, setConfigurationValue } from "./__mocks__/vscode";
-import { page, row } from "./reflogTab/fixtures";
+import { lostCommit, page, row } from "./reflogTab/fixtures";
 
 type FakePanel = ReturnType<typeof createFakePanel>;
 
@@ -609,5 +609,233 @@ describe("openReflogTab", () => {
     // A reveal of the same repository releases nothing.
     open("/repos/two");
     expect(releaseWorktrees).toHaveBeenCalledTimes(1);
+  });
+
+  describe("lost-commit scan and recovery (F1-07)", () => {
+    it("scans on request, posts progress then results, and reports no extra telemetry", async () => {
+      const spy = createTelemetrySpy();
+      const pending = deferred<{
+        commits: ReturnType<typeof lostCommit>[];
+        canceled: boolean;
+        timedOut: boolean;
+        error: string | null;
+      }>();
+      const source: ReflogSource = {
+        loadPage: async () => page(),
+        scanLostCommits: () => pending.promise
+      };
+      openMeasured(spy, "/repos/one", source);
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+
+      panel.send({ command: "scanLostCommits" });
+      await flush();
+      const lostMessages = () =>
+        panel.posted.filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogLostCommits" }> =>
+            m.command === "reflogLostCommits"
+        );
+      expect(lostMessages()).toHaveLength(1);
+      expect(lostMessages()[0].status).toBe("scanning");
+
+      const item = lostCommit();
+      pending.resolve({ commits: [item], canceled: false, timedOut: false, error: null });
+      await flush();
+      expect(lostMessages()).toHaveLength(2);
+      expect(lostMessages()[1]).toMatchObject({ status: "done", commits: [item], error: null });
+
+      // Ready replays the current lost-commit state alongside the reflog page.
+      panel.send({ command: "ready" });
+      expect(lostMessages()).toHaveLength(3);
+      expect(lostMessages()[2]).toEqual(lostMessages()[1]);
+
+      // Only the initial tab open was reported; scanning adds no telemetry.
+      expect(spy.sent).toEqual([{ feature: TAB_FEATURE_REFLOG, ok: true }]);
+    });
+
+    it("aborts an in-flight scan on cancel, repo switch, and panel dispose", async () => {
+      let activeSignal: AbortSignal | undefined;
+      const source: ReflogSource = {
+        loadPage: async () => page(),
+        scanLostCommits: (_repo, signal) => {
+          activeSignal = signal;
+          return new Promise(() => {});
+        }
+      };
+      open("/repos/one", source);
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+
+      panel.send({ command: "scanLostCommits" });
+      expect(activeSignal?.aborted).toBe(false);
+      panel.send({ command: "cancelLostCommitsScan" });
+      expect(activeSignal?.aborted).toBe(true);
+      const canceled = panel.posted
+        .filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogLostCommits" }> =>
+            m.command === "reflogLostCommits"
+        )
+        .at(-1);
+      expect(canceled?.status).toBe("canceled");
+
+      // Closing the panel resets to idle.
+      panel.send({ command: "closeLostCommits" });
+      const closed = panel.posted
+        .filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogLostCommits" }> =>
+            m.command === "reflogLostCommits"
+        )
+        .at(-1);
+      expect(closed?.status).toBe("idle");
+
+      // Switching repositories aborts any running scan.
+      panel.send({ command: "scanLostCommits" });
+      const secondSignal = activeSignal;
+      expect(secondSignal?.aborted).toBe(false);
+      open("/repos/two", source);
+      expect(secondSignal?.aborted).toBe(true);
+
+      // Disposing the panel aborts any running scan.
+      panel.send({ command: "scanLostCommits" });
+      const thirdSignal = activeSignal;
+      expect(thirdSignal?.aborted).toBe(false);
+      panel.dispose();
+      expect(thirdSignal?.aborted).toBe(true);
+    });
+
+    it("surfaces timeout and error scan results cleanly", async () => {
+      let nextResult = {
+        commits: [],
+        canceled: false,
+        timedOut: true,
+        error: "Lost-commit scan timed out after 30000 ms."
+      };
+      const source: ReflogSource = {
+        loadPage: async () => page(),
+        scanLostCommits: async () => nextResult
+      };
+      open("/repos/one", source);
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+
+      panel.send({ command: "scanLostCommits" });
+      await flush();
+      const lostMessages = () =>
+        panel.posted.filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogLostCommits" }> =>
+            m.command === "reflogLostCommits"
+        );
+      expect(lostMessages().at(-1)?.status).toBe("timedOut");
+
+      nextResult = { commits: [], canceled: false, timedOut: false, error: "fsck failed" };
+      panel.send({ command: "scanLostCommits" });
+      await flush();
+      expect(lostMessages().at(-1)).toMatchObject({ status: "error", error: "fsck failed" });
+    });
+
+    it("prompts for a branch name, creates the branch, removes the commit, and refreshes", async () => {
+      const item = lostCommit();
+      const created: Array<{ repo: string; hash: string; branch: string }> = [];
+      let loads = 0;
+      const promptBranchName = vi.fn(
+        async (options: { validateInput?: (v: string) => unknown }) => {
+          expect(options.validateInput?.("-bad")).toBeTruthy();
+          expect(options.validateInput?.("good-branch")).toBeUndefined();
+          return "recover/lost-work";
+        }
+      );
+      const source: ReflogSource = {
+        loadPage: async () => {
+          loads++;
+          return page();
+        },
+        scanLostCommits: async () => ({
+          commits: [item],
+          canceled: false,
+          timedOut: false,
+          error: null
+        }),
+        createBranch: async (repo, hash, branch) => {
+          created.push({ repo, hash, branch });
+          return null;
+        }
+      };
+
+      openReflogTab("/repos/one", source, {
+        extensionPath: EXTENSION,
+        outputChannel: log,
+        createWatcher: fakeWatcher().create,
+        locale: "en",
+        promptBranchName
+      });
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+      const loadsBefore = loads;
+
+      panel.send({ command: "scanLostCommits" });
+      await flush();
+      panel.send({ command: "createLostCommitBranch", hash: item.hash });
+      await flush();
+
+      expect(created).toEqual([
+        { repo: "/repos/one", hash: item.hash, branch: "recover/lost-work" }
+      ]);
+      const finalLost = panel.posted
+        .filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogLostCommits" }> =>
+            m.command === "reflogLostCommits"
+        )
+        .at(-1);
+      expect(finalLost?.commits).toEqual([]);
+      expect(finalLost?.feedback).toEqual({
+        kind: "success",
+        message: 'Created branch "recover/lost-work" at 01234567.'
+      });
+      expect(loads).toBeGreaterThan(loadsBefore);
+    });
+
+    it("keeps the commit and shows an error when branch creation fails", async () => {
+      const item = lostCommit();
+      const source: ReflogSource = {
+        loadPage: async () => page(),
+        scanLostCommits: async () => ({
+          commits: [item],
+          canceled: false,
+          timedOut: false,
+          error: null
+        }),
+        createBranch: async () => "branch already exists"
+      };
+      openReflogTab("/repos/one", source, {
+        extensionPath: EXTENSION,
+        outputChannel: log,
+        createWatcher: fakeWatcher().create,
+        locale: "en",
+        promptBranchName: async () => "existing"
+      });
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+      panel.send({ command: "scanLostCommits" });
+      await flush();
+      panel.send({ command: "createLostCommitBranch", hash: item.hash });
+      await flush();
+
+      const finalLost = panel.posted
+        .filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogLostCommits" }> =>
+            m.command === "reflogLostCommits"
+        )
+        .at(-1);
+      expect(finalLost?.commits).toEqual([item]);
+      expect(finalLost?.feedback).toEqual({
+        kind: "error",
+        message: 'Unable to create branch "existing": branch already exists'
+      });
+    });
   });
 });

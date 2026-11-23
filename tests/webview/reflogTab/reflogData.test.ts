@@ -418,3 +418,52 @@ describe("createReflogSource with worktrees and bare repositories (F1-08, real G
     expect(stillNone.state).toBe("none");
   });
 });
+
+describe("createReflogSource lost-commit scan and recovery (F1-07, real Git)", () => {
+  it("scans dropped stashes and abandoned commits and recovers one with Create Branch without moving HEAD", async () => {
+    const dir = repo();
+    const headBefore = (await simpleGit({ baseDir: dir, binary: "git" }).revparse(["HEAD"])).trim();
+    commit(dir, "abandoned-commit");
+    const abandoned = (await simpleGit({ baseDir: dir, binary: "git" }).revparse(["HEAD"])).trim();
+    git(["reset", "--hard", "HEAD~1"], dir);
+
+    fs.writeFileSync(path.join(dir, "f"), "stashed-body");
+    git(["stash", "push", "-m", "dropped-stash-entry"], dir);
+    const droppedStash = (
+      await simpleGit({ baseDir: dir, binary: "git" }).revparse(["refs/stash"])
+    ).trim();
+    git(["stash", "drop"], dir);
+    git(["reflog", "expire", "--expire=now", "--all"], dir);
+
+    const src = source();
+    const found = await src.scanLostCommits?.(dir);
+    expect(found?.error).toBeNull();
+    expect(found?.canceled).toBe(false);
+    expect(found?.timedOut).toBe(false);
+    const hashes = found?.commits.map((entry) => entry.hash) ?? [];
+    expect(hashes).toContain(abandoned);
+    expect(hashes).toContain(droppedStash);
+
+    // Recover the abandoned commit via Create Branch without moving HEAD.
+    const createError = await src.createBranch?.(dir, abandoned, "recovered/abandoned");
+    expect(createError).toBeNull();
+    const g = simpleGit({ baseDir: dir, binary: "git" });
+    expect((await g.revparse(["HEAD"])).trim()).toBe(headBefore);
+    expect((await g.revparse(["refs/heads/recovered/abandoned"])).trim()).toBe(abandoned);
+
+    // Once reachable from the new branch, the commit no longer appears as lost.
+    const after = await src.scanLostCommits?.(dir);
+    expect(after?.commits.map((entry) => entry.hash)).not.toContain(abandoned);
+    expect(after?.commits.map((entry) => entry.hash)).toContain(droppedStash);
+  });
+
+  it("rejects invalid commit hashes and dash-led branch names before invoking Git", async () => {
+    const dir = repo();
+    const src = source();
+    expect(await src.createBranch?.(dir, "--all", "safe-name")).toContain("Invalid commit hash");
+    expect(await src.createBranch?.(dir, "a".repeat(40), "-D")).toContain("Invalid branch name");
+    expect(await src.createBranch?.(dir, "a".repeat(40), "has space")).toContain(
+      "Invalid branch name"
+    );
+  });
+});

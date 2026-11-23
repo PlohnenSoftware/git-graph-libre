@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ReflogHostMessage, ReflogWebviewMessage } from "@/reflogTabTypes";
 
-import { dataMessage, loadingMessage, page, row } from "./fixtures";
+import { dataMessage, loadingMessage, lostCommit, lostCommitsMessage, page, row } from "./fixtures";
 
 // Each test loads a fresh copy of the script, which posts to its own list.
 // The saved webview state is one object the script reads once and replaces
@@ -144,5 +144,24 @@ describe("reflog tab webview", () => {
     const { root } = await start();
     send(dataMessage(), "https://example.invalid");
     expect(root.childElementCount).toBe(0);
+  });
+
+  it("posts lost-commit scan, cancel, create-branch, and close messages (F1-07)", async () => {
+    const { posted, root } = await start();
+    send(dataMessage());
+    root.querySelector<HTMLButtonElement>("#reflogLostScanBtn")?.click();
+    expect(posted.at(-1)).toEqual({ command: "scanLostCommits" });
+
+    send(lostCommitsMessage({ status: "scanning", commits: [] }));
+    root.querySelector<HTMLButtonElement>("#reflogLostCancelBtn")?.click();
+    expect(posted.at(-1)).toEqual({ command: "cancelLostCommitsScan" });
+
+    const item = lostCommit();
+    send(lostCommitsMessage({ scanId: 2, status: "done", commits: [item] }));
+    root.querySelector<HTMLButtonElement>(".reflog-lost-action-btn")?.click();
+    expect(posted.at(-1)).toEqual({ command: "createLostCommitBranch", hash: item.hash });
+
+    root.querySelector<HTMLButtonElement>("#reflogLostCloseBtn")?.click();
+    expect(posted.at(-1)).toEqual({ command: "closeLostCommits" });
   });
 });
