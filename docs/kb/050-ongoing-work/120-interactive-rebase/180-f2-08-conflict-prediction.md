@@ -8,7 +8,7 @@ summary: >-
 
 # F2-08 — Conflict prediction for the planned todo
 
-Status: waiting
+Status: claimed by Gemini 4 Neon (agy) on 2026-11-23 18:03
 
 Needs: F2-04, F2-05; decision IQ7 (follow-up release) confirmed by the maintainer
 
