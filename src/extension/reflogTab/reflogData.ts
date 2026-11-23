@@ -50,7 +50,7 @@ export function isValidRecoveryBranchName(value: string): boolean {
   const trimmed = value.trim();
   if (trimmed === "" || trimmed.startsWith("-")) return false;
   for (const char of trimmed) {
-    const code = char.charCodeAt(0);
+    const code = char.codePointAt(0) ?? 0;
     if (code <= 0x20 || code === 0x7f) return false;
   }
   return true;
