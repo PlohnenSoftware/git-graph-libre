@@ -265,6 +265,8 @@ describe("loadCommits", () => {
         hard: false,
         dateType: "Author Date",
         showUncommittedChanges: false,
+        repo: discoveryRepo,
+        gitPath: "git",
         recordGitCommand: (record) => discoveryRecords.push(record)
       });
 
@@ -273,9 +275,15 @@ describe("loadCommits", () => {
       expect(discoveryResult.commits.some((commit) => commit.hash === unreachableHash)).toBe(true);
       expect(
         discoveryRecords.find((record) => record.label === "loadCommits.unreachable")?.args
-      ).toEqual(
-        expect.arrayContaining(["fsck", "--unreachable", "--no-reflogs", "--connectivity-only"])
-      );
+      ).toEqual([
+        "-c",
+        "core.commitGraph=false",
+        "fsck",
+        "--unreachable",
+        "--no-reflogs",
+        "--no-progress",
+        "--connectivity-only"
+      ]);
     } finally {
       fs.rmSync(discoveryRepo, { recursive: true, force: true });
     }
@@ -298,6 +306,125 @@ describe("loadCommits", () => {
     expect(result.error).toBeNull();
     expect(records.some((record) => record.label === "loadCommits.unreachable")).toBe(false);
   });
+
+  // The 2026-11-23 report: a commit-graph written over a commit that is
+  // pruned afterwards makes plain `git fsck` exit 16, which used to replace
+  // the whole graph with the fsck stdout dump.
+  it("loads unreachable commits despite a stale commit-graph", async () => {
+    const staleRepo = makeRepo();
+    try {
+      const baseHead = cp
+        .execFileSync("git", ["rev-parse", "HEAD"], { cwd: staleRepo, encoding: "utf8" })
+        .trim();
+      fs.writeFileSync(path.join(staleRepo, "doomed"), "doomed");
+      git(["add", "."], staleRepo);
+      git(["commit", "-m", "doomed"], staleRepo);
+      git(["commit-graph", "write", "--reachable"], staleRepo);
+      git(["reset", "--hard", baseHead], staleRepo);
+      git(["reflog", "expire", "--expire=now", "--all"], staleRepo);
+      git(["prune", "--expire=now"], staleRepo);
+      const tree = cp
+        .execFileSync("git", ["write-tree"], { cwd: staleRepo, encoding: "utf8" })
+        .trim();
+      const danglingHash = cp
+        .execFileSync("git", ["commit-tree", tree, "-m", "dangling tip"], {
+          cwd: staleRepo,
+          encoding: "utf8"
+        })
+        .trim();
+
+      // The fixture's precondition, checked against Git itself: without
+      // the fix's flag, fsck fails on the stale commit-graph.
+      const plainFsck = cp.spawnSync(
+        "git",
+        ["fsck", "--unreachable", "--no-reflogs", "--no-progress", "--connectivity-only"],
+        { cwd: staleRepo, encoding: "utf8" }
+      );
+      expect(plainFsck.status).not.toBe(0);
+      expect(plainFsck.stderr).toContain("commit-graph");
+      expect(plainFsck.stdout).toContain(danglingHash);
+
+      const result = await loadCommits(simpleGit(staleRepo), {
+        branchName: "",
+        maxCommits: 300,
+        showRemoteBranches: false,
+        includeUnreachableCommits: true,
+        hard: false,
+        dateType: "Author Date",
+        showUncommittedChanges: false,
+        repo: staleRepo,
+        gitPath: "git"
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.commits.some((commit) => commit.hash === danglingHash)).toBe(true);
+    } finally {
+      fs.rmSync(staleRepo, { recursive: true, force: true });
+    }
+  }, 60000);
+
+  it("keeps the loaded page when the unreachable scan fails outright", async () => {
+    const records: GitCommandRecord[] = [];
+    const result = await loadCommits(simpleGit(repo), {
+      branchName: "",
+      maxCommits: 300,
+      showRemoteBranches: false,
+      includeUnreachableCommits: true,
+      hard: false,
+      dateType: "Author Date",
+      showUncommittedChanges: false,
+      repo,
+      gitPath: "/nonexistent/git-graph-libre-test-binary",
+      recordGitCommand: (record) => records.push(record)
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.commits.length).toBeGreaterThan(0);
+    const scan = records.find((record) => record.label === "loadCommits.unreachable");
+    expect(scan?.success).toBe(false);
+  });
+
+  it("feeds many unreachable hashes to git log through stdin, not argv", async () => {
+    const manyRepo = makeRepo();
+    try {
+      const tree = cp
+        .execFileSync("git", ["write-tree"], { cwd: manyRepo, encoding: "utf8" })
+        .trim();
+      const danglingHashes: string[] = [];
+      for (let i = 0; i < 110; i++) {
+        danglingHashes.push(
+          cp
+            .execFileSync("git", ["commit-tree", tree, "-m", `dangling ${i}`], {
+              cwd: manyRepo,
+              encoding: "utf8"
+            })
+            .trim()
+        );
+      }
+      const records: GitCommandRecord[] = [];
+      const result = await loadCommits(simpleGit(manyRepo), {
+        branchName: "",
+        maxCommits: 500,
+        showRemoteBranches: false,
+        includeUnreachableCommits: true,
+        hard: false,
+        dateType: "Author Date",
+        showUncommittedChanges: false,
+        repo: manyRepo,
+        gitPath: "git",
+        recordGitCommand: (record) => records.push(record)
+      });
+
+      expect(result.error).toBeNull();
+      const loaded = new Set(result.commits.map((commit) => commit.hash));
+      expect(danglingHashes.every((hash) => loaded.has(hash))).toBe(true);
+      const logRecord = records.find((record) => record.label === "loadCommits.log");
+      expect(logRecord?.args).toContain("--stdin");
+      expect(logRecord?.args).not.toContain(danglingHashes[0]);
+    } finally {
+      fs.rmSync(manyRepo, { recursive: true, force: true });
+    }
+  }, 60000);
 
   it("limits to maxCommits and sets moreCommitsAvailable: true", async () => {
     const result = await loadCommits(simpleGit(repo), {
