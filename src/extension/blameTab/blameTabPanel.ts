@@ -3,11 +3,14 @@ import path from "node:path";
 import * as vscode from "vscode";
 
 import { buildExtensionUri, getPathFromStr } from "@/backend/utils/path";
+import { abbrevCommit } from "@/backend/utils/string";
 import type {
+  BlameCommitPopoverMessage,
   BlameDataMessage,
   BlameDisplay,
   BlameLabels,
   BlameLoadingMessage,
+  BlameOpenCommitFileDiffMessage,
   BlameOpenTarget,
   BlamePayload,
   BlameRepoMeta,
@@ -16,14 +19,19 @@ import type {
   BlameWebviewMessage
 } from "@/blameTabTypes";
 import { config } from "@/config";
+import { encodeDiffDocUri } from "@/diffDocProvider";
+import type { DiffTabRequest } from "@/diffTabTypes";
 import { tabIconPaths } from "@/extension/tabIcon";
+import { copyToClipboard } from "@/extension/utils/clipboard";
 import * as l10n from "@/l10n";
 import { RepoFileWatcher } from "@/repoFileWatcher";
 import type { TelemetryReporter } from "@/telemetry";
 import { createTabOpenReporter, TAB_FEATURE_BLAME } from "@/telemetry/tabOpen";
+import type { IssueLinkingConfig } from "@/types";
 
 import { isBareCommonDir, worktreeGroupOf } from "../repoLayout";
-import { createBlameNavigator } from "./blameData";
+import { showCommitInGraph } from "../webviewPanel";
+import { createBlameNavigator, isBlameCommitHash, normalizeBlameTargetLine } from "./blameData";
 import { buildBlameTabHtml } from "./blameTabHtml";
 
 /** The file watcher's part the panel uses; tests substitute their own. */
@@ -45,6 +53,27 @@ export type BlameTabDeps = {
    * refreshes stay on the live buffer until the document is saved (BQ6).
    */
   readOpenDocument?: (fsPath: string) => { dirty: boolean; text: string } | null;
+  /** Reveals a commit in the graph (F4-06); defaults to `showCommitInGraph`. */
+  showInGraph?: (repo: string, commitHash: string) => void;
+  /** Opens the GGL Diff tab (F4-06); absent or unavailable falls back to `vscode.diff`. */
+  openDiffTab?: (request: DiffTabRequest) => void;
+  /** Whether the GGL Diff tab can be fed; defaults to true when `openDiffTab` is given. */
+  isDiffTabAvailable?: () => boolean;
+  /** Copies text to the clipboard (F4-06); defaults to the host clipboard helper. */
+  copyText?: (text: string) => Promise<boolean>;
+  /** The cached avatar data URI for an email, or null (F4-06); absent shows none. */
+  avatarFor?: (email: string) => Promise<string | null>;
+  /** The repository's issue-linking config the graph linkifies with (F4-06). */
+  issueLinkingFor?: (repo: string) => IssueLinkingConfig | null;
+  /** Opens a working-tree file at a 0-based line (F4-06); defaults to the editor. */
+  openFileAtLine?: (filePath: string, line: number) => Thenable<unknown>;
+  /** Opens a file at a revision at a 0-based line (F4-06); defaults to `DiffDocProvider`. */
+  openRevisionAtLine?: (
+    repo: string,
+    filePath: string,
+    rev: string,
+    line: number
+  ) => Thenable<unknown>;
 };
 
 // One tab at a time, reused like the GGL Diff tab and the Reflog tab.
@@ -119,6 +148,37 @@ function defaultCreateWatcher(onRefresh: () => void): BlameWatcher {
 async function defaultOpenFile(filePath: string): Promise<void> {
   const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
   await vscode.window.showTextDocument(document, { preview: false });
+}
+
+/** The graph reveal route (F1-06's): an open graph first, else open it and retry. */
+function defaultShowInGraph(repo: string, commitHash: string): void {
+  if (showCommitInGraph(repo, commitHash)) return;
+  void Promise.resolve(
+    vscode.commands.executeCommand("git-graph-libre.view", { rootUri: { fsPath: repo } })
+  ).then(() => {
+    showCommitInGraph(repo, commitHash);
+  });
+}
+
+async function defaultOpenFileAtLine(filePath: string, line: number): Promise<void> {
+  const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+  await vscode.window.showTextDocument(document, {
+    preview: false,
+    selection: new vscode.Range(line, 0, line, 0)
+  });
+}
+
+async function defaultOpenRevisionAtLine(
+  repo: string,
+  filePath: string,
+  rev: string,
+  line: number
+): Promise<void> {
+  const document = await vscode.workspace.openTextDocument(encodeDiffDocUri(repo, filePath, rev));
+  await vscode.window.showTextDocument(document, {
+    preview: true,
+    selection: new vscode.Range(line, 0, line, 0)
+  });
 }
 
 function defaultReadOpenDocument(fsPath: string): { dirty: boolean; text: string } | null {
@@ -288,6 +348,164 @@ function createBlameTab(deps: BlameTabDeps) {
     });
   };
 
+  const logActionFailure = (action: string, error: unknown): void => {
+    deps.outputChannel.appendLine(`[blameTab] ${action} failed: ${String(error)}`);
+  };
+
+  // The popover's details read (F4-06): the blame commit the webview
+  // already shows covers author and dates; this adds the full message,
+  // the cached avatar and the repo's issue-linking config.
+  const replyCommitPopover = async (requestId: number, commitHash: string): Promise<void> => {
+    const snap = navigator.snapshot();
+    const base: Omit<BlameCommitPopoverMessage, "details" | "avatar" | "error"> = {
+      command: "blameCommitPopover",
+      requestId,
+      commitHash,
+      issueLinking: deps.issueLinkingFor?.(snap.repo) ?? null
+    };
+    if (
+      !isBlameCommitHash(commitHash) ||
+      snap.repo === "" ||
+      source?.loadCommitPopover === undefined
+    ) {
+      if (!disposed) {
+        void panel.webview.postMessage({
+          ...base,
+          details: null,
+          avatar: null,
+          error: `Not a commit hash: ${commitHash}`
+        });
+      }
+      return;
+    }
+    const result = await source.loadCommitPopover(snap.repo, commitHash);
+    if (disposed) return;
+    const avatar =
+      result.details === null
+        ? null
+        : await (deps.avatarFor?.(result.details.authorMail) ?? Promise.resolve(null)).catch(
+            () => null
+          );
+    if (disposed) return;
+    void panel.webview.postMessage({ ...base, ...result, avatar });
+  };
+
+  const revealInGraph = (commitHash: string): void => {
+    const snap = navigator.snapshot();
+    if (snap.repo === "" || !isBlameCommitHash(commitHash)) return;
+    (deps.showInGraph ?? defaultShowInGraph)(snap.repo, commitHash);
+  };
+
+  // The diff title the commit details view uses for the same pair
+  // (`diffTitleFor` in the message handler): hashes at the graph's own
+  // length, "Added in …" when the commit created the file.
+  const commitDiffTitle = (message: BlameOpenCommitFileDiffMessage): string => {
+    const short = abbrevCommit(message.commitHash, config.shortHashLength());
+    const sides =
+      message.previousHash === null
+        ? l10n.t("diff.addedIn", short)
+        : `${abbrevCommit(message.previousHash, config.shortHashLength())} ↔ ${short}`;
+    return `${fileName(message.filePath)} (${sides})`;
+  };
+
+  const openVscodeDiff = async (message: BlameOpenCommitFileDiffMessage): Promise<void> => {
+    const snap = navigator.snapshot();
+    await vscode.commands.executeCommand(
+      "vscode.diff",
+      encodeDiffDocUri(
+        snap.repo,
+        message.previousPath ?? message.filePath,
+        message.previousHash ?? `${message.commitHash}^`
+      ),
+      encodeDiffDocUri(snap.repo, message.filePath, message.commitHash),
+      commitDiffTitle(message),
+      { preview: true }
+    );
+  };
+
+  const openCommitDiff = (message: BlameOpenCommitFileDiffMessage): void => {
+    const snap = navigator.snapshot();
+    if (
+      snap.repo === "" ||
+      !isBlameCommitHash(message.commitHash) ||
+      (message.previousHash !== null && !isBlameCommitHash(message.previousHash)) ||
+      resolveTargetFsPath(snap.repo, message.filePath) === null ||
+      (message.previousPath !== null &&
+        resolveTargetFsPath(snap.repo, message.previousPath) === null)
+    ) {
+      return;
+    }
+    const diffTabAvailable =
+      deps.openDiffTab !== undefined && (deps.isDiffTabAvailable?.() ?? true);
+    if (!diffTabAvailable) {
+      deps.outputChannel.appendLine("[blameTab] GGL Diff unavailable; falling back to vscode.diff");
+      void openVscodeDiff(message).catch((error: unknown) => {
+        logActionFailure("openCommitFileDiff", error);
+      });
+      return;
+    }
+    try {
+      deps.openDiffTab?.({
+        repo: snap.repo,
+        left:
+          message.previousHash === null
+            ? { kind: "empty" }
+            : {
+                kind: "revision",
+                ref: message.previousHash,
+                path: message.previousPath ?? message.filePath
+              },
+        right: { kind: "revision", ref: message.commitHash, path: message.filePath },
+        title: commitDiffTitle(message)
+      });
+    } catch (error: unknown) {
+      logActionFailure("openCommitFileDiff", error);
+    }
+  };
+
+  // Working-tree blames open the file on disk; a pinned revision opens
+  // that revision's document, so the line the user clicked is the line
+  // they land on either way (F4-06). Lines cross 1-based, open 0-based.
+  const openAtLine = (rawLine: number): void => {
+    const line = normalizeBlameTargetLine(rawLine);
+    if (line === null) return;
+    const snap = navigator.snapshot();
+    if (snap.repo === "" || snap.filePath === "") return;
+    if (snap.rev !== null) {
+      const opener = deps.openRevisionAtLine ?? defaultOpenRevisionAtLine;
+      void Promise.resolve(opener(snap.repo, snap.filePath, snap.rev, line - 1)).catch(
+        (error: unknown) => {
+          logActionFailure("openFileAtLine", error);
+        }
+      );
+      return;
+    }
+    if (repoMeta.bare) return;
+    const fsPath = resolveTargetFsPath(snap.repo, snap.filePath);
+    if (fsPath === null) return;
+    const opener = deps.openFileAtLine ?? defaultOpenFileAtLine;
+    void Promise.resolve(opener(fsPath, line - 1)).catch((error: unknown) => {
+      logActionFailure("openFileAtLine", error);
+    });
+  };
+
+  const copyCommitText = async (kind: "hash" | "message", commitHash: string): Promise<void> => {
+    const snap = navigator.snapshot();
+    if (snap.repo === "" || !isBlameCommitHash(commitHash)) return;
+    let text = commitHash;
+    if (kind === "message") {
+      if (source?.loadCommitPopover === undefined) return;
+      const result = await source.loadCommitPopover(snap.repo, commitHash);
+      if (result.details === null) {
+        logActionFailure("copyText", result.error ?? "no commit details");
+        return;
+      }
+      text = result.details.message;
+    }
+    const copied = await (deps.copyText ?? copyToClipboard)(text);
+    if (!copied) logActionFailure("copyText", "clipboard write refused");
+  };
+
   const handleMessage = (message: BlameWebviewMessage): void => {
     switch (message.command) {
       case "ready":
@@ -342,6 +560,21 @@ function createBlameTab(deps: BlameTabDeps) {
         return;
       case "clearIgnoredCommit":
         if (navigator.clearIgnoredCommit(message.commitHash, message.targetLine)) void load();
+        return;
+      case "loadCommitPopover":
+        void replyCommitPopover(message.requestId, message.commitHash);
+        return;
+      case "showCommitInGraph":
+        revealInGraph(message.commitHash);
+        return;
+      case "openCommitFileDiff":
+        openCommitDiff(message);
+        return;
+      case "openFileAtLine":
+        openAtLine(message.line);
+        return;
+      case "copyText":
+        void copyCommitText(message.kind, message.commitHash);
         return;
     }
   };
@@ -506,6 +739,23 @@ function readLabels(): BlameLabels {
     findCount: l10n.t("blame.findCount"),
     findPrev: l10n.t("blame.findPrev"),
     findNext: l10n.t("blame.findNext"),
-    findClose: l10n.t("blame.findClose")
+    findClose: l10n.t("blame.findClose"),
+    showCommitDetails: l10n.t("blame.showCommitDetails"),
+    popoverClose: l10n.t("blame.popoverClose"),
+    popoverLoadError: l10n.t("blame.popoverLoadError"),
+    showCommitInGraph: l10n.t("blame.showCommitInGraph"),
+    openInGglDiff: l10n.t("action.openInGglDiff"),
+    ignoreCommitSession: l10n.t("blame.ignoreCommitSession"),
+    copyCommitHash: l10n.t("action.copyCommitHash"),
+    copyCommitMessage: l10n.t("blame.copyCommitMessage"),
+    openFileAtLine: l10n.t("blame.openFileAtLine"),
+    viewBlameAtHead: l10n.t("blame.viewBlameAtHead"),
+    uncommittedExplanation: l10n.t("blame.uncommittedExplanation"),
+    detailCommit: l10n.t("detail.commit"),
+    detailAuthor: l10n.t("detail.author"),
+    detailAuthorDate: l10n.t("detail.authorDate"),
+    detailCommitter: l10n.t("detail.committer"),
+    detailCommitterDate: l10n.t("detail.committerDate"),
+    detailDate: l10n.t("detail.date")
   };
 }
