@@ -72,6 +72,7 @@ function failure(error: GitQueryError): GitRebaseRangeResult {
     upstream: null,
     alreadyUsedElsewhere: "unknown",
     tooLong: false,
+    autoSquash: null,
     preflight: evaluateRebasePreflight({
       commitCount: 0,
       dirty: false,
@@ -152,6 +153,18 @@ function readUpstream(read: Reader): Promise<string | null> {
     ["rev-parse", "--abbrev-ref", "@{upstream}"],
     "rebaseRange.upstream"
   );
+}
+
+/** Value of `rebase.autoSquash` from Git config, or null when unset. */
+async function readAutoSquashConfig(read: Reader): Promise<boolean | null> {
+  const value = await readTrimmedOrNull(
+    read,
+    ["config", "--bool", "--get", "rebase.autoSquash"],
+    "rebaseRange.autoSquash"
+  );
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return null;
 }
 
 /**
@@ -361,6 +374,7 @@ export async function loadRebaseRange(
     const commits =
       headHash === null ? [] : await readCommits(read, baseHash, headHash, unpublished);
     const alreadyUsedElsewhere = await readAlreadyUsedElsewhere(git, input, branch);
+    const autoSquash = await readAutoSquashConfig(read);
     return {
       commits,
       mergeCount: commits.filter((commit) => commit.isMerge).length,
@@ -373,6 +387,7 @@ export async function loadRebaseRange(
       upstream,
       alreadyUsedElsewhere,
       tooLong: commits.length > REBASE_RANGE_LENGTH_LIMIT,
+      autoSquash,
       preflight: evaluateRebasePreflight({
         commitCount: commits.length,
         dirty,

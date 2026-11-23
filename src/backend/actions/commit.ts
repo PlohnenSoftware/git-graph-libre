@@ -1,14 +1,33 @@
+import * as crypto from "node:crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
+
 import type { SimpleGit } from "simple-git";
 
 import { runInteractiveRebase } from "@/backend/actions/rebaseInteractive";
 import { loadRebaseRange } from "@/backend/queries/rebaseRange";
+import { uncommittedDetails } from "@/backend/queries/uncommittedDetails";
 import type { TodoEntry } from "@/backend/rebase/todo";
-import type { ActionPayload, GitRebaseRangeCommit, GitResetMode } from "@/backend/types";
-import { GitCommandError, type GitCommandRecorder, runGitRaw } from "@/backend/utils/gitRunner";
+import type {
+  ActionPayload,
+  GitFixupCommitKind,
+  GitFixupDialogInfoResult,
+  GitRebaseRangeCommit,
+  GitResetMode
+} from "@/backend/types";
+import { resolveGitDirs } from "@/backend/utils/gitDirs";
+import {
+  GitCommandError,
+  type GitCommandRecorder,
+  runGitRaw,
+  runGitWithEnv
+} from "@/backend/utils/gitRunner";
+import { toGitQueryError } from "@/backend/utils/queryError";
 
 type CommitActionPayloads = {
   checkoutCommit: ActionPayload<"checkoutCommit">;
   cherrypickCommit: ActionPayload<"cherrypickCommit">;
+  commitFixup: ActionPayload<"commitFixup">;
   dropCommit: ActionPayload<"dropCommit">;
   dropCommitSelection: ActionPayload<"dropCommitSelection">;
   editHeadCommitMessage: ActionPayload<"editHeadCommitMessage">;
@@ -442,4 +461,277 @@ export async function editHeadCommitMessage(
     repo: input.repo ?? null,
     record
   });
+}
+
+const FIXUP_KINDS: ReadonlySet<string> = new Set<GitFixupCommitKind>([
+  "fixup",
+  "squash",
+  "reword",
+  "amend"
+]);
+
+/**
+ * Editor command for `--fixup=reword:` and `--fixup=amend:`, which refuse `-m`
+ * and `-F` in Git (verified on Git 2.56.1). Follows the same env-var copy
+ * pattern as `SEQUENCE_EDITOR_COMMAND` in `rebaseInteractive.ts`.
+ */
+const COMMIT_MSG_EDITOR_COMMAND = 'cp -- "$GGL_COMMIT_MSG_FILE"';
+
+function requireFullCommitHash(hash: string): void {
+  if (!FULL_HASH.test(hash)) {
+    throw new Error(`"${hash}" is not a full commit hash.`);
+  }
+}
+
+function requireFixupKind(kind: string): asserts kind is GitFixupCommitKind {
+  if (!FIXUP_KINDS.has(kind)) {
+    throw new Error(`Fixup commit kind must be fixup, squash, reword, or amend.`);
+  }
+}
+
+async function readTargetSubject(
+  git: SimpleGit,
+  target: string,
+  repo: string,
+  record?: GitCommandRecorder
+): Promise<string> {
+  return (
+    await runGitRaw(git, {
+      label: "commit.fixup.subject",
+      kind: "action",
+      args: ["show", "-s", "--format=%s", target],
+      repo,
+      record
+    })
+  ).trim();
+}
+
+async function commitWithAmendEditor(
+  git: SimpleGit,
+  options: {
+    readonly repo: string;
+    readonly binary: string;
+    readonly target: string;
+    readonly mode: "reword" | "amend";
+    readonly message: string;
+    readonly allowEmpty: boolean;
+  },
+  record?: GitCommandRecorder
+): Promise<void> {
+  const subject = await readTargetSubject(git, options.target, options.repo, record);
+  const { gitDir } = resolveGitDirs(path.resolve(options.repo));
+  const msgFile = path.join(gitDir, `ggl-fixup-msg-${crypto.randomUUID()}`);
+  const fullText = `amend! ${subject}\n\n${options.message}\n`;
+  const args = ["commit"];
+  if (options.allowEmpty) args.push("--allow-empty");
+  args.push(`--fixup=${options.mode}:${options.target}`);
+
+  try {
+    fs.writeFileSync(msgFile, fullText, "utf8");
+    await runGitWithEnv(git, {
+      label: `commit.fixup.${options.mode}`,
+      kind: "action",
+      args,
+      repo: options.repo,
+      binary: options.binary,
+      env: {
+        GIT_EDITOR: COMMIT_MSG_EDITOR_COMMAND,
+        GGL_COMMIT_MSG_FILE: msgFile,
+        LC_ALL: "C",
+        GIT_TERMINAL_PROMPT: "0"
+      },
+      record
+    });
+  } finally {
+    fs.rmSync(msgFile, { force: true });
+  }
+}
+
+async function requireStagedChanges(
+  git: SimpleGit,
+  repo: string,
+  record?: GitCommandRecorder
+): Promise<void> {
+  const status = await uncommittedDetails(git, { repo, recordGitCommand: record });
+  if (status.error !== null) throw new Error(status.error.message);
+  if ((status.changes?.staged.length ?? 0) === 0) {
+    throw new Error("Staged changes are required before creating this commit.");
+  }
+}
+
+/**
+ * Creates a `fixup!`, `squash!`, or `amend!` (`reword`/`amend`) commit
+ * targeting `input.target` (F2-06).
+ *
+ * - `fixup`, `squash`, and `amend` require staged changes.
+ * - `reword` creates an empty `amend!` commit with `--allow-empty
+ *   --fixup=reword:<target>` and leaves any staged changes untouched.
+ * - Every `git commit` call runs through `runGitWithEnv` rather than
+ *   `simple-git.raw`, because `git commit` writes "nothing to commit" to
+ *   stdout with empty stderr and exit 1, which `simple-git` silently resolves.
+ * - `reword` and `amend` pass their replacement message via `GIT_EDITOR`
+ *   because Git refuses `-m` and `-F` with `--fixup=reword:` / `--fixup=amend:`.
+ */
+export async function commitFixup(
+  git: SimpleGit,
+  input: TodoCommitActionInput<"commitFixup">,
+  record?: GitCommandRecorder
+): Promise<void> {
+  requireFullCommitHash(input.target);
+  requireFixupKind(input.kind);
+  const repo = input.repo ?? "";
+  requireValue(repo, "Repository");
+  requireValue(input.binary, "Git binary");
+  const message = normalizeCommitMessage(input.message ?? "");
+  const hasMessage = message.trim() !== "";
+  const baseEnv = { LC_ALL: "C", GIT_TERMINAL_PROMPT: "0" };
+
+  if (input.kind === "reword") {
+    requireValue(message, "Commit message");
+    await commitWithAmendEditor(
+      git,
+      {
+        repo,
+        binary: input.binary,
+        target: input.target,
+        mode: "reword",
+        message,
+        allowEmpty: true
+      },
+      record
+    );
+    return;
+  }
+
+  await requireStagedChanges(git, repo, record);
+
+  if (input.kind === "fixup") {
+    const args = ["commit", "--fixup", input.target];
+    if (hasMessage) args.push("-m", message);
+    await runGitWithEnv(git, {
+      label: "commit.fixup",
+      kind: "action",
+      args,
+      repo,
+      binary: input.binary,
+      env: baseEnv,
+      record
+    });
+    return;
+  }
+
+  if (input.kind === "squash") {
+    const args = ["commit", "--squash", input.target];
+    if (hasMessage) args.push("-m", message);
+    else args.push("--no-edit");
+    await runGitWithEnv(git, {
+      label: "commit.fixup.squash",
+      kind: "action",
+      args,
+      repo,
+      binary: input.binary,
+      env: baseEnv,
+      record
+    });
+    return;
+  }
+
+  if (!hasMessage) {
+    await runGitWithEnv(git, {
+      label: "commit.fixup.amend",
+      kind: "action",
+      args: ["commit", `--fixup=amend:${input.target}`, "--no-edit"],
+      repo,
+      binary: input.binary,
+      env: baseEnv,
+      record
+    });
+    return;
+  }
+
+  await commitWithAmendEditor(
+    git,
+    {
+      repo,
+      binary: input.binary,
+      target: input.target,
+      mode: "amend",
+      message,
+      allowEmpty: false
+    },
+    record
+  );
+}
+
+/**
+ * Reads the current staged file count and target commit's subject/body for
+ * the Create Fixup / Squash / Reword dialog (F2-06). Read-only and avoids
+ * firing the staging-panel telemetry hook.
+ */
+export async function loadFixupDialogInfo(
+  git: SimpleGit,
+  input: {
+    readonly repo: string;
+    readonly target: string;
+    readonly recordGitCommand?: GitCommandRecorder;
+  }
+): Promise<GitFixupDialogInfoResult> {
+  if (!FULL_HASH.test(input.target)) {
+    return {
+      stagedCount: 0,
+      targetSubject: "",
+      targetMessage: "",
+      error: {
+        message: `"${input.target}" is not a full commit hash.`,
+        stderr: null,
+        exitCode: null,
+        task: null
+      }
+    };
+  }
+
+  try {
+    const status = await uncommittedDetails(git, {
+      repo: input.repo,
+      recordGitCommand: input.recordGitCommand
+    });
+    if (status.error !== null || status.changes === null) {
+      return {
+        stagedCount: 0,
+        targetSubject: "",
+        targetMessage: "",
+        error: status.error ?? {
+          message: "Unable to read staged changes.",
+          stderr: null,
+          exitCode: null,
+          task: null
+        }
+      };
+    }
+
+    const raw = await runGitRaw(git, {
+      label: "commit.fixup.targetInfo",
+      kind: "query",
+      args: ["show", "-s", "--format=%s%x1f%B", input.target],
+      repo: input.repo,
+      record: input.recordGitCommand
+    });
+    const sep = raw.indexOf("\u001f");
+    const targetSubject = (sep < 0 ? raw : raw.slice(0, sep)).trim();
+    const targetMessage = normalizeCommitMessage(sep < 0 ? targetSubject : raw.slice(sep + 1));
+
+    return {
+      stagedCount: status.changes.staged.length,
+      targetSubject,
+      targetMessage,
+      error: null
+    };
+  } catch (error: unknown) {
+    return {
+      stagedCount: 0,
+      targetSubject: "",
+      targetMessage: "",
+      error: toGitQueryError(error, "Unable to load fixup target details")
+    };
+  }
 }

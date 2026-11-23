@@ -238,6 +238,13 @@ type QueryPayloads = {
     /** `repo` comes back so an answer for a repository no longer shown is dropped. */
     response: { requestId: number; repo: string } & GitOperationStateResult;
   };
+  /** Staged file count and target commit message for the Create Fixup/Squash/Reword dialog (F2-06). */
+  fixupDialogInfo: {
+    request: { requestId: number; repo: string; target: string };
+    result: GitFixupDialogInfoResult;
+    /** `repo` comes back so an answer for a repository no longer shown is dropped. */
+    response: { requestId: number; repo: string } & GitFixupDialogInfoResult;
+  };
 };
 
 export type QueryRequest = {
@@ -531,7 +538,20 @@ export type GitRebaseRangeResult = {
   alreadyUsedElsewhere: boolean | "unknown";
   /** True when the range holds more than 500 commits. It prompts (F2-07); it never refuses. */
   tooLong: boolean;
+  /**
+   * Value of `git config --bool --get rebase.autoSquash` (`true`, `false`, or
+   * `null` when unset). Drives the editor's autosquash switch default (F2-06).
+   */
+  autoSquash?: boolean | null;
   preflight: GitRebasePreflight;
+  error: GitQueryError | null;
+};
+
+/** Staged count and target message read before opening a fixup/squash/reword dialog (F2-06). */
+export type GitFixupDialogInfoResult = {
+  stagedCount: number;
+  targetSubject: string;
+  targetMessage: string;
   error: GitQueryError | null;
 };
 

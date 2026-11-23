@@ -22,9 +22,11 @@ import {
 import {
   checkoutCommit,
   cherrypickCommit,
+  commitFixup,
   dropCommit,
   dropCommitSelection,
   editHeadCommitMessage,
+  loadFixupDialogInfo,
   resetToCommit,
   revertCommit,
   squashCommitSelection,
@@ -861,6 +863,9 @@ export function registerMessageHandlers(
   registerAction("cherrypickCommit", (msg) =>
     cherrypickCommit(gitClient.getInstance(), msg, recordGitCommand)
   );
+  registerAction("commitFixup", (msg) =>
+    commitFixup(gitClient.getInstance(), { ...msg, binary: config.gitPath() }, recordGitCommand)
+  );
   registerAction("dropCommit", (msg) =>
     dropCommit(gitClient.getInstance(), { ...msg, binary: config.gitPath() }, recordGitCommand)
   );
@@ -1354,6 +1359,19 @@ export function registerMessageHandlers(
       repo: msg.repo,
       ...(await loadOperationState(gitClient.getInstance(), {
         repo: msg.repo,
+        recordGitCommand
+      }))
+    });
+  });
+
+  bridge.onMessage("fixupDialogInfo", async (msg) => {
+    bridge.post({
+      command: "fixupDialogInfo",
+      requestId: msg.requestId,
+      repo: msg.repo,
+      ...(await loadFixupDialogInfo(gitClient.getInstance(), {
+        repo: msg.repo,
+        target: msg.target,
         recordGitCommand
       }))
     });
