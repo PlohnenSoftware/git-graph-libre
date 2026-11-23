@@ -139,7 +139,7 @@ worktrees under `/home/zam/Desktop/prog/_GGL/.ggl-wt/`.
 | F4-03 | Blame editor-tab panel and read-only view | F4-01, F4-02 | Sonnet | integrated `3e916dff` |
 | F4-04 | Hotspot OKLCH palette, heat rail, legend and hover highlight | F4-03 | Haiku | integrated `444b9703` |
 | F4-05 | Parent-blame rewind stack, options, ignore-revs and find | F4-04 | Sonnet | integrated `52c3f174` |
-| F4-06 | Commit popover, Show in Graph, GGL Diff and Open File at Line | F4-05 | Sonnet | ready |
+| F4-06 | Commit popover, Show in Graph, GGL Diff and Open File at Line | F4-05 | Sonnet | integrated `cb11d07c` |
 | F4-07 | Editor, Explorer, SCM and Commit Details entry points | F4-06 | Sonnet | integrated `f3a28214` |
 | F4-08 | Worktrees, bare repositories, unsaved buffers and watcher refresh | F4-07 | Sonnet | integrated `56cf6fc9` |
 | F4-09 | Optional: Rust engine blame read with parity tests | F4-01 | Muse Code | deferred (BQ8 profiling: `gix` slower) |
@@ -256,3 +256,18 @@ revision). Nothing is pushed without explicit instruction.
   skipped in the worktree) and webview 1,314 passed. `blame/F4-05` (squashed, so
   `git branch -d` refused it) was force-deleted on the maintainer's word the
   same day; squash merges are now forbidden. F4-06 is ready.
+- `2026-11-23`: F4-06 (Muse Code) integrated at `cb11d07c` by rebase (one
+  import-list conflict with Q1's tab icon in `blameTabPanel.ts`, both kept):
+  the commit popover (`src/webview/blameTab/popover.ts`, `role="dialog"`,
+  linkified subject and body with the repo's issue linking, full hash,
+  author and committer, cached avatar, Escape and outside click return
+  focus), the uncommitted variant, a hunk context menu, and the cross
+  actions Show Commit in Graph (F1-06's route), Open in GGL Diff (with the
+  `vscode.diff` fallback), Open File at Line, View blame prior to this
+  change (F4-05's rewind), Ignore Commit (This Session) (F4-05's
+  `ignoreCommit`), and copying the hash or message. No new telemetry. Renders
+  under `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-06/` (read by the
+  integrator: long subject and 64-character hash wrap, no overflow). Gates on
+  `cb11d07c`: strict Biome, typecheck, `l10n:check`, KB check, backend 1,594
+  passed (60 skipped in the worktree) and webview 1,341 passed. Every Blame
+  slice except the deferred F4-09 is integrated; S2b (Sonar) follows.

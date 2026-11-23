@@ -75,7 +75,7 @@ releases (Rules) applies, with the answers below.
 | T1 | Open-and-outcome telemetry for tabs and worktree buttons | — | Muse Code | integrated `70f2b583` |
 | P1 | Popup fixes V1–V10 | — | Muse Code → Gemini 4 Neon | integrated `9a61b9e9` |
 | P1b | Popup fix V11 (Create Worktree on a branch another worktree holds), answer (b) | — | Muse Code | ready |
-| L2 | zh-tw: one researched term for "repository" | — | Claude Haiku | ready |
+| L2 | zh-tw: one researched term for "repository" | — | Claude Haiku | integrated `31e17f63` |
 | T1b | Blame tab open-and-outcome telemetry (`tab.blame`) | T1, F4-03 | Claude Haiku | integrated `7ed42e61` |
 | Q1 | GGL icon on the Diff, Reflog and Blame tabs (maintainer test) | — | Claude Haiku | integrated `98bbf66a` |
 | Q2 | Reflog table column widths, no horizontal scroll (maintainer test) | — | Muse Code | ready |
@@ -243,3 +243,14 @@ anything unsolvable within reason be marked here while the rest continues.
   fails with 3 errors). Gates on `98bbf66a`: strict Biome on 9 files,
   typecheck, KB check, backend 1,594 passed (60 skipped in the worktree) and
   webview 1,317 passed. P1b and L2 dispatched.
+- `2026-11-23`: F4-06 integrated at `cb11d07c` (see the Blame view
+  register). L2 (Claude Haiku) integrated at `31e17f63`: zh-tw now says
+  存放庫 everywhere (38 values, 32 in `bundle.l10n.zh-tw.json` and 6 in
+  `package.nls.zh-tw.json`; one sentence that read 存放儲存庫 reworded).
+  Sources opened: VS Code's zh-hant language pack (`vscode-loc`,
+  `vscode.git` and `vscode.git-base`: 存放庫 in most strings, 儲存庫 in a
+  few), Git's `po/zh_TW.po` and the l10n-tw Git glossary (both 版本庫). VS
+  Code's majority term won because the extension lives inside VS Code; the
+  term is now a coding rule (Multi-agent releases). Gates on `31e17f63`:
+  strict Biome, typecheck, `l10n:check`, KB check, backend 1,594 passed and
+  webview 1,341 passed. A third Sonar scan runs next, before S2b.

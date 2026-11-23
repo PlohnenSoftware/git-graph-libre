@@ -126,6 +126,9 @@ These come from this knowledge base's rules and apply to every slice.
 - Every user-visible string goes through localization in every bundle, and the
   localization check must report complete. If you can't translate, copy the
   English and say so in the report.
+- Fixed terms: in zh-tw, "repository" is **存放庫** (VS Code's own zh-hant
+  term; maintainer-requested research, slice L2 of release 1.11.0), never
+  儲存庫 or 版本庫.
 - Size is a guide, not a limit. A slice's budget ("~N") is a hint, never a pass
   or fail. Don't stop or split because you went over, and don't game it. Judge
   by cognitive complexity and every other quality rule, speed, reliability,
