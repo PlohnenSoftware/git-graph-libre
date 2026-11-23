@@ -1,3 +1,6 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EngineAddon } from "@/backend/engine/addon";
@@ -74,5 +77,40 @@ describe("statsTabAvailable context key", () => {
 
   it("is false when no backend is given, as the Diff tab's key is", () => {
     expect(isStatsTabAvailable({ addonProvider: () => fullAddon() })).toBe(false);
+  });
+});
+
+type Manifest = {
+  contributes: {
+    commands: Array<{ command: string; title?: string; category?: string }>;
+    menus: Record<string, Array<{ command: string; when?: string; group?: string }>>;
+  };
+};
+
+function readManifest(): Manifest {
+  return JSON.parse(
+    fs.readFileSync(path.resolve(__dirname, "../../../package.json"), "utf8")
+  ) as Manifest;
+}
+
+describe("Statistics manifest when clauses", () => {
+  it("gates the Show Statistics command palette entry on statsTabAvailable", () => {
+    const manifest = readManifest();
+    const palette = manifest.contributes.menus.commandPalette ?? [];
+    expect(palette).toContainEqual({
+      command: "git-graph-libre.showStatistics",
+      when: STATS_TAB_AVAILABLE_CONTEXT
+    });
+  });
+
+  it("gates every menu entry for showStatistics on statsTabAvailable", () => {
+    const menus = readManifest().contributes.menus;
+    const statsEntries = Object.values(menus)
+      .flat()
+      .filter((entry) => entry.command === "git-graph-libre.showStatistics");
+    expect(statsEntries.length).toBeGreaterThan(0);
+    for (const entry of statsEntries) {
+      expect(entry.when).toContain(STATS_TAB_AVAILABLE_CONTEXT);
+    }
   });
 });
