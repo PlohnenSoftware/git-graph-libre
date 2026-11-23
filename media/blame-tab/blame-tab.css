@@ -1,0 +1,140 @@
+/* The Blame tab (F4-03): theme tokens first, `--ngg-*` OKLCH fallbacks
+   second, per the Webview UI Styling Guide. The heat colors themselves
+   arrive with F4-04; this sheet only lays out the grouped hunks the
+   `data-heat` hooks will color. */
+
+.ggl-blame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  background: var(--vscode-editor-background, oklch(20% 0 0));
+  color: var(--vscode-editor-foreground, oklch(88% 0 0));
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+/* The header never scrolls away with the file (Webview UI Styling
+   Guide): sticky, on an opaque editor background. */
+.ggl-blame .blame-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: none;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+  background: var(--vscode-editor-background, oklch(20% 0 0));
+}
+.ggl-blame .blame-repo { font-weight: 600; }
+.ggl-blame .blame-path {
+  font-family: var(--vscode-editor-font-family, monospace);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ggl-blame .blame-rev {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  background: var(--vscode-badge-background, var(--ngg-accent));
+  color: var(--vscode-badge-foreground, var(--ngg-accent-foreground));
+}
+.ggl-blame .blame-line-count { flex: none; color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.ggl-blame .blame-scroll { flex: 1; min-height: 0; overflow: auto; }
+/* One hunk is one band: the gutter's commit block once, beside every
+   line the commit owns, with a clean border to the next band. */
+.ggl-blame .blame-hunk {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.ggl-blame .blame-gutter {
+  position: relative;
+  flex: none;
+  width: var(--blame-gutter-width, 280px);
+  box-sizing: border-box;
+  padding: 6px 10px 6px 12px;
+  overflow: hidden;
+  border-right: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+  background: color-mix(in oklab, var(--vscode-sideBar-background, oklch(24% 0 0)) 55%, var(--ngg-transparent));
+}
+.ggl-blame .blame-body.resizing .blame-gutter { cursor: col-resize; }
+.ggl-blame .blame-gutter-resize {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  display: block;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+}
+.ggl-blame .blame-summary {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ggl-blame .blame-uncommitted { color: var(--ngg-uncommitted); font-weight: 600; }
+.ggl-blame .blame-meta {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+  overflow: hidden;
+  white-space: nowrap;
+}
+.ggl-blame .blame-author { overflow: hidden; text-overflow: ellipsis; }
+.ggl-blame .blame-hash { font-family: var(--vscode-editor-font-family, monospace); white-space: nowrap; }
+.ggl-blame .blame-date { white-space: nowrap; }
+/* The source column obeys the editor's typography, carried per load as
+   the two custom properties below plus the tab's `tab-size`. */
+.ggl-blame .blame-source {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: var(--blame-font-size, 14px);
+  line-height: var(--blame-line-height, 21px);
+}
+.ggl-blame .blame-line {
+  display: flex;
+  min-height: var(--blame-line-height, 21px);
+}
+.ggl-blame .blame-line:hover { background: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-subtle)); }
+.ggl-blame .blame-target-line {
+  background: color-mix(in oklab, var(--vscode-list-activeSelectionBackground, var(--ngg-accent)) 24%, var(--ngg-transparent));
+}
+.ggl-blame .blame-line-number {
+  flex: none;
+  width: 4ch;
+  padding-right: 12px;
+  box-sizing: content-box;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--vscode-editorLineNumber-foreground, oklch(60% 0 0));
+  user-select: none;
+}
+.ggl-blame .blame-line-text { white-space: pre; user-select: text; }
+.ggl-blame p.blame-message { margin: 0; padding: 16px 12px; }
+.ggl-blame p.blame-message.blame-error { color: var(--vscode-errorForeground, var(--ngg-error)); }
+.ggl-blame .blame-loading,
+.ggl-blame .blame-empty,
+.ggl-blame .blame-binary,
+.ggl-blame .blame-too-large,
+.ggl-blame .blame-untracked,
+.ggl-blame .blame-unborn { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.ggl-blame ::-webkit-scrollbar { width: 14px; height: 14px; background: var(--vscode-editor-background, oklch(20% 0 0)); }
+.ggl-blame ::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background, oklch(60% 0 0 / 0.4)); }
+.ggl-blame ::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground, oklch(60% 0 0 / 0.6)); }
+.ggl-blame ::-webkit-scrollbar-thumb:active { background: var(--vscode-scrollbarSlider-activeBackground, oklch(60% 0 0 / 0.8)); }
+@media (forced-colors: active) {
+  .ggl-blame .blame-rev { border: 1px solid currentColor; }
+  .ggl-blame .blame-target-line { outline: 1px solid currentColor; }
+  .ggl-blame .blame-gutter { border-right: 1px solid currentColor; }
+}
