@@ -6,13 +6,18 @@ summary: >-
   Root cause: a stale base commit-graph file makes `git fsck` exit `16`,
   `simple-git` prepends `stdout` before `stderr` in `GitError.message`, and
   `loadCommits` lets `unreachableResult.error` abort an otherwise successful
-  graph load. Open, with proposed fixes and adjacent risks (`F1-07`, Windows
-  argv limit).
+  graph load. Fixed for release 1.11.0 by slice U1 (Muse Code, integrated
+  `0a94f150`): `-c core.commitGraph=false`, a separated-stream `fsck` runner
+  shared with `F1-07`, graceful degradation, and `git log --stdin` above 100
+  extra tips.
 ---
 
 # Unreachable-commits scan breaks graph load on stale commit-graph (`2026-11-23`)
 
-**Status:** done — awaiting integration
+**Status:** fixed — slice U1 integrated `0a94f150` on `main` (`2026-11-23`), for
+release 1.11.0. Gates on `0a94f150`: strict Biome on the four touched files
+clean; `pnpm run typecheck` clean; `pnpm run test` backend 1,565 and webview
+1,096 passed. SonarQube runs at the release gate.
 
 Maintainer report (`2026-11-23`): in Git Graph Libre 1.10.0 on this
 repository, right-clicking the table headers and checking **Include

@@ -20,14 +20,12 @@ decisions `BQ1`–`BQ9`, and Git `2.56.1` porcelain/edge-case verification.
 `F4-01` is ready without a decision; `F4-03` onward wait on confirming
 `BQ1`–`BQ8`.
 
-**Also open (`2026-11-23`): unreachable-commits scan breaks graph load on a
-stale commit-graph.** Checking "Include unreachable commits" from the
-table-header menu on a repository with a stale commit-graph fails `git fsck`
-with exit `16`, dumps ~220 KB of `stdout` ahead of `stderr` via
-`simple-git`, and aborts the graph load even after `git log` succeeds.
-"Unreachable-commits scan breaks graph load on stale commit-graph" (Ongoing
-work) holds the verified root cause, adjacent risks (`F1-07`, Windows argv
-limit), workarounds, and proposed fix.
+**Fixed (`2026-11-23`): unreachable-commits scan broke graph load on a stale
+commit-graph.** Slice U1 (integrated `0a94f150`) runs the scan with
+`-c core.commitGraph=false` through a separated-stream runner, keeps a
+failed scan from replacing the graph, and feeds many extra tips to
+`git log --stdin`. The record is "Unreachable-commits scan breaks graph load
+on stale commit-graph" (History).
 
 **Also open (`2026-11-12`): popup defects to fix.** The maintainer asked for
 a visual review of every popup and context menu, the worktree ones first.
