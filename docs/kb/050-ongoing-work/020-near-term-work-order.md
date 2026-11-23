@@ -11,8 +11,17 @@ always_read: true
 
 # Near-Term Work Order
 
-**Prepared (`2026-11-23`): release 1.11.0 "Looking Back" — awaiting the
-maintainer's tag and push.** "Release 1.11.0 — Looking Back" (History) holds
+**Now (`2026-11-23`): `main` carries the Git Graph+ line.** The maintainer
+tagged and pushed `v1.11.0` (`bb6e4037`), reset local `main` to `gg-plus/next`
+(interactive rebase F2-01 to F2-08 and F2-10, statistics F3-01 to F3-05, File
+History F3-07) and merged `v1.11.0` into it; the integrator resolved the
+seventeen conflicts keeping both sides (`486600af`, not pushed) and
+fast-forwarded `gg-plus/next` to it. Open on that line: F3-08 (Timeline),
+the Statistics tab's open telemetry (`tab.statistics`), a guard for the graph
+layout's endless loop on unordered commits (found by F3-07), and F2-09
+(deferred, IQ8).
+
+**Done (`2026-11-23`): release 1.11.0 "Looking Back", tagged `v1.11.0`.** "Release 1.11.0 — Looking Back" (History) holds
 the scope (everything on `main` since v1.10.0, the finished Reflog tab and the
 finished Blame view, popup fixes optional), the maintainer's answers for a
 long autonomous run, and slices T1, P1 and R90. Interactive rebase and the
