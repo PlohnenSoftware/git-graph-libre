@@ -8,7 +8,7 @@ summary: >-
 
 # F2-07 — Dirty tree, published history and worktree protections
 
-Status: waiting
+Status: claimed by Gemini 4 Neon (agy) on 2026-11-23 17:33
 
 Needs: F2-04; decision IQ5 confirmed by the maintainer
 
