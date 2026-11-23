@@ -1,3 +1,4 @@
+import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -261,6 +262,48 @@ describe("readAuthorStats and readActivityHeatmap against the real addon", () =>
       value: [{ name: "T", email: "t@t.com", commits: 2 }]
     });
   });
+
+  it.skipIf(addon === null)(
+    "canonicalizes authors through the mailmap like git shortlog",
+    async () => {
+      const mailRepo = makeRepo();
+      tempDirs.push(mailRepo);
+      const commitAs = (author: string, message: string) =>
+        git(["commit", "--allow-empty", `--author=${author}`, "-m", message], mailRepo);
+      commitAs("Bob <bob@example.test>", "one");
+      commitAs("Robert <old@example.test>", "two");
+      commitAs("alice <alice@old.example.test>", "three");
+      fs.writeFileSync(
+        path.join(mailRepo, ".mailmap"),
+        "Robert Smith <bob@example.test> <old@example.test>\n" +
+          "Robert Smith <bob@example.test>\n" +
+          "<alice@example.test> <alice@old.example.test>\n"
+      );
+      const shortlog = cp
+        .execFileSync("git", ["shortlog", "-sne", "--all", "--no-merges"], {
+          cwd: mailRepo,
+          encoding: "utf-8"
+        })
+        .split("\n")
+        .filter((line) => line.trim() !== "")
+        .map((line) => {
+          const match = /^\s*(\d+)\t(.+) <(.+)>$/.exec(line);
+          if (match === null) throw new Error(`unparsable shortlog line: ${line}`);
+          return { name: match[2], email: match[3], commits: Number(match[1]) };
+        })
+        .sort((a, b) => a.email.localeCompare(b.email) || a.name.localeCompare(b.name));
+      const result = await readAuthorStats(mailRepo, {
+        backend: () => "auto",
+        isVerified: () => true
+      });
+      expect(result.state).toBe("ok");
+      if (result.state !== "ok") return;
+      const rows = [...result.value].sort(
+        (a, b) => a.email.localeCompare(b.email) || a.name.localeCompare(b.name)
+      );
+      expect(rows).toEqual(shortlog);
+    }
+  );
 
   it.skipIf(addon === null)("reads the activity grid of a temporary repository", async () => {
     const result = await readActivityHeatmap(repo ?? "", {
