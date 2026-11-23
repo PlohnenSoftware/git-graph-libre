@@ -10,7 +10,7 @@ summary: >-
 
 # S1 — SonarQube new-code fixes (early scan)
 
-Status: S1a done — awaiting integration · S1b claimed by Gemini 4 Argon (agy) on 2026-11-23 12:51 · S1c waiting (F1-06, F1-07)
+Status: S1a done — awaiting integration · S1b done — awaiting integration · S1c waiting (F1-06, F1-07)
 
 Needs: —
 
@@ -85,3 +85,22 @@ only where a replaced regex needs pinning), this file's Status and Report.
 - **Open questions / follow-ups:**
   - Once S1b is integrated, the blame.ts copy of `hasControlCharacter` could import the `string.ts` helper; that is a separate small follow-up, not done here.
   - The Sonar scan is not run by this agent (`Sonar: integrator`).
+## Report (S1b)
+- **Agent / date:** Gemini 4 Argon (`agy`), 2026-11-23 12:55
+- **Branch and commits:** `rel-1.11.0/S1b`
+  - `f3419ccb G docs(kb): claim slice S1b (S1b)`
+  - `aab76ea9 G refactor(blame): reduce cognitive complexity of parseBlamePorcelain and loadBlame (S1b)`
+- **Files changed:**
+  - `src/backend/queries/blame.ts` (+158/−93)
+  - `docs/kb/050-ongoing-work/140-release-1-11-0-looking-back/120-s1-sonar-fixes.md` (+26/−2)
+- **Tests added or changed:** None (behavior-preserving refactor; `tests/backend/queries/blame.test.ts` unchanged at 41/41 passing; full suite 1,579 backend passed + 60 skipped in linked worktree, 1,210 webview passed before and after)
+  - `npx biome check --config-path biome.strict.jsonc --error-on-warnings src/backend/queries/blame.ts`: clean (0 errors, 0 warnings)
+  - `pnpm run typecheck`: clean
+  - `npx vitest run --project backend tests/backend/queries/blame.test.ts`: 1 file, 41 passed
+  - `pnpm run test`: backend 118 files, 1,579 passed (60 skipped in worktree); webview 92 files, 1,210 passed
+  - `node ./docs/kb/housekeeping.mjs --check`: clean
+  - `parseBlamePorcelain` cognitive complexity ≤ 15 (Sonar S3776): met — estimated cognitive complexity reduced from **32** to **7** by extracting `stripTrailingCr` (complexity 1), `finishPendingLine` (complexity 2), `applyMetadataLine` (complexity 6), and `parseRecordLine` (complexity 3).
+  - `loadBlame` cognitive complexity ≤ 15 (Sonar S3776): met — estimated cognitive complexity reduced from **21** to **8** by extracting `prepareBlameRequest` (complexity 6), `resolveBlameTarget` (complexity 4), `runBlamePrecheck` (complexity 2), and `executeBlameCommand` (complexity 1).
+  - Behavior and existing tests unchanged, S1a lines in `groupHunks` (`src/backend/queries/blame.ts:246,259`) untouched: met — `tests/backend/queries/blame.test.ts` passes 41/41 without modification and `groupHunks` was not touched.
+- **Deviations from the slice:** none
+- **Open questions / follow-ups:** none
