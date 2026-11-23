@@ -77,7 +77,7 @@ numbers are from `ccc1aaee`. A suggested order is at the end.
   (Reference). A test that no `status.*` string of any bundle ends in dots
   or an ellipsis keeps it from coming back.
 
-### V2 — The Worktrees popup's rows
+### V2 — The Worktrees popup's rows — done (P1)
 
 - **Shows:** a linked worktree's row carries up to seven buttons of equal
   weight (Open in New Window, Open Here, Switch Graph, Copy Path, Lock,

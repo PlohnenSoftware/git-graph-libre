@@ -1,6 +1,6 @@
 import type { GitWorktree, WorktreeChangeStatus } from "@/backend/types";
 import type { LocalizedStrings } from "@/extension/webviewL10n";
-import { octicon } from "@/octicons";
+import { type OcticonName, octicon } from "@/octicons";
 import { worktreeFolderName } from "./utils/git";
 import { escapeHtml } from "./utils/html";
 
@@ -219,6 +219,32 @@ function branchLine(worktree: GitWorktree, labels: WorktreeListLabels, hashLengt
   return escapeHtml(labels.detachedAt.replace("{0}", () => head));
 }
 
+/**
+ * Upkeep actions shown as compact icon buttons at a row's top right (V2 / VQ1).
+ * Go-to actions (open, switch, repair, remove stale) stay text buttons on their
+ * own line underneath so every row shares one shape without wrapping into a
+ * wall of equal-weight buttons.
+ */
+const UPKEEP_ACTION_ICONS: Readonly<Partial<Record<WorktreeRowAction, OcticonName>>> = {
+  copyPath: "copy",
+  lock: "lock",
+  unlock: "unlock",
+  move: "file-moved",
+  remove: "trash"
+};
+
+function renderPrimaryButton(action: WorktreeRowAction, label: string): string {
+  return `<button type="button" class="worktreeAction" data-worktree-action="${action}">${escapeHtml(label)}</button>`;
+}
+
+function renderUpkeepButton(action: WorktreeRowAction, label: string): string {
+  const icon = UPKEEP_ACTION_ICONS[action];
+  if (icon === undefined) return "";
+  const escaped = escapeHtml(label);
+  const danger = action === "remove" ? " danger" : "";
+  return `<button type="button" class="worktreeIconAction${danger}" data-worktree-action="${action}" title="${escaped}" aria-label="${escaped}">${octicon(icon)}</button>`;
+}
+
 function renderRow(
   worktree: GitWorktree,
   index: number,
@@ -228,20 +254,35 @@ function renderRow(
 ): string {
   const name = escapeHtml(worktreeFolderName(worktree.path));
   const path = escapeHtml(worktree.path);
-  const buttons = worktreeRowActions(worktree)
-    .map(
-      (action) =>
-        `<button type="button" class="worktreeAction" data-worktree-action="${action}">${escapeHtml(labels.actions[action])}</button>`
-    )
+  const actions = worktreeRowActions(worktree);
+  const primary = actions
+    .filter((action) => UPKEEP_ACTION_ICONS[action] === undefined)
+    .map((action) => renderPrimaryButton(action, labels.actions[action]))
     .join("");
+  const upkeep = actions
+    .filter((action) => UPKEEP_ACTION_ICONS[action] !== undefined)
+    .map((action) => renderUpkeepButton(action, labels.actions[action]))
+    .join("");
+  const branchIcon = octicon(worktree.detached ? "git-commit" : "git-branch");
+  const upkeepBar =
+    upkeep === ""
+      ? ""
+      : `<div class="worktreeUpkeep" role="group" aria-label="${name}">${upkeep}</div>`;
+  const primaryBar =
+    primary === ""
+      ? ""
+      : `<div class="worktreeActions" role="group" aria-label="${name}">${primary}</div>`;
   return (
     `<li class="worktreeRow" data-worktree-index="${index}">` +
+    `<div class="worktreeRowHeader">` +
     `<div class="worktreeInfo">` +
     `<div class="worktreeTitle"><span class="worktreeName" title="${path}">${octicon("file-directory")}${name}</span>${stateBadges(worktree, labels)}${changesBadge(worktree, labels, changes)}</div>` +
-    `<div class="worktreeBranch">${octicon("git-branch")}<span>${branchLine(worktree, labels, hashLength)}</span></div>` +
+    `<div class="worktreeBranch">${branchIcon}<span>${branchLine(worktree, labels, hashLength)}</span></div>` +
     `<div class="worktreePath" title="${path}">${path}</div>` +
     `</div>` +
-    `<div class="worktreeActions" role="group" aria-label="${name}">${buttons}</div>` +
+    upkeepBar +
+    `</div>` +
+    primaryBar +
     `</li>`
   );
 }

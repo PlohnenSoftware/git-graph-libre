@@ -167,9 +167,82 @@ describe("renderWorktreeList", () => {
     expect(rows[1]?.querySelectorAll(".worktreeBadge")).toHaveLength(0);
   });
 
-  it("shows a detached HEAD by its short hash", () => {
+  it("shows a detached HEAD by its short hash with the git-commit icon", () => {
     const root = render([worktree({ branch: null, detached: true, head: "abcdef0123456789" })]);
-    expect(root.querySelector(".worktreeBranch")?.textContent).toBe("detached at abcdef0");
+    const branch = root.querySelector(".worktreeBranch");
+    expect(branch?.textContent).toBe("detached at abcdef0");
+    expect(branch?.querySelector("svg.octicon-git-commit")).not.toBeNull();
+    expect(branch?.querySelector("svg.octicon-git-branch")).toBeNull();
+
+    const attached = render([worktree({ branch: "main", detached: false })]);
+    expect(attached.querySelector(".worktreeBranch svg.octicon-git-branch")).not.toBeNull();
+  });
+
+  it("splits go-to text actions from compact top-right upkeep icon buttons (V2)", () => {
+    const root = render([
+      worktree({ path: "/work/repo", isMain: true, isCurrent: true }),
+      worktree({ path: "/work/repo.worktrees/side", branch: "side" }),
+      worktree({
+        path: "/work/repo.worktrees/locked",
+        branch: "locked",
+        locked: { reason: "usb" }
+      }),
+      worktree({
+        path: "/work/repo.worktrees/stale",
+        branch: "stale",
+        prunable: { reason: "gone" }
+      })
+    ]);
+    const rows = [...root.querySelectorAll(".worktreeRow")];
+    const groupActions = (row: Element | undefined, selector: string) =>
+      [
+        ...(row?.querySelectorAll<HTMLButtonElement>(`${selector} [data-worktree-action]`) ?? [])
+      ].map((button) => button.dataset.worktreeAction);
+
+    // Main/current row has only its upkeep copy button and no empty primary action bar.
+    expect(groupActions(rows[0], ".worktreeUpkeep")).toEqual(["copyPath"]);
+    expect(rows[0]?.querySelector(".worktreeActions")).toBeNull();
+
+    // Linked row keeps go-to actions as text buttons and upkeep actions as icon buttons.
+    expect(groupActions(rows[1], ".worktreeActions")).toEqual([
+      "openNewWindow",
+      "openHere",
+      "switchGraph"
+    ]);
+    expect(groupActions(rows[1], ".worktreeUpkeep")).toEqual([
+      "copyPath",
+      "lock",
+      "move",
+      "remove"
+    ]);
+
+    // Every upkeep button is a real <button> with its localized label as title and aria-label.
+    const upkeepButtons = [
+      ...(rows[1]?.querySelectorAll<HTMLButtonElement>(
+        ".worktreeUpkeep button.worktreeIconAction"
+      ) ?? [])
+    ];
+    expect(upkeepButtons).toHaveLength(4);
+    for (const button of upkeepButtons) {
+      const action = button.dataset.worktreeAction as WorktreeRowAction;
+      expect(button.type).toBe("button");
+      expect(button.getAttribute("title")).toBe(english.actions[action]);
+      expect(button.getAttribute("aria-label")).toBe(english.actions[action]);
+      expect(button.querySelector("svg.octicon")).not.toBeNull();
+      expect(button.textContent).toBe("");
+    }
+    expect(upkeepButtons[0]?.querySelector("svg.octicon-copy")).not.toBeNull();
+    expect(upkeepButtons[1]?.querySelector("svg.octicon-lock")).not.toBeNull();
+    expect(upkeepButtons[2]?.querySelector("svg.octicon-file-moved")).not.toBeNull();
+    expect(upkeepButtons[3]?.querySelector("svg.octicon-trash")).not.toBeNull();
+    expect(upkeepButtons[3]?.classList.contains("danger")).toBe(true);
+
+    // Locked row swaps lock for unlock icon; stale row keeps Repair / Remove Stale as text actions.
+    expect(
+      rows[2]?.querySelector('.worktreeUpkeep [data-worktree-action="unlock"] svg.octicon-unlock')
+    ).not.toBeNull();
+    expect(groupActions(rows[3], ".worktreeActions")).toEqual(["repair", "removeStale"]);
+    expect(groupActions(rows[3], ".worktreeUpkeep")).toEqual(["copyPath"]);
   });
 
   it("shows locked with and without a reason, and a missing folder", () => {

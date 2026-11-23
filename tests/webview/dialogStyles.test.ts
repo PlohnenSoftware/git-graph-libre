@@ -501,4 +501,25 @@ describe("dialog styles", () => {
     expect(valid).toContain("background: var(--ngg-signed-ref);");
     expect(valid).not.toContain("color-mix");
   });
+
+  it("gives every Worktrees popup row one shape with top-right upkeep icons and indented path (V2)", () => {
+    const row = ruleFor(css, ".worktreeRow");
+    expect(row).toContain("flex-direction: column;");
+    const header = ruleFor(css, ".worktreeRowHeader");
+    expect(header).toContain("align-items: flex-start;");
+    expect(header).toContain("justify-content: space-between;");
+    // Path and primary actions indent to the text column (16px icon + 6px gap).
+    expect(ruleFor(css, ".worktreePath")).toContain("padding-left: 22px;");
+    expect(ruleFor(css, ".worktreeActions")).toContain("padding-left: 22px;");
+    const iconAction = ruleFor(css, ".worktreeIconAction");
+    expect(iconAction).toContain("width: 26px;");
+    expect(iconAction).toContain("height: 26px;");
+    expect(iconAction).toContain("var(--vscode-button-secondaryBackground");
+    expect(ruleFor(css, ".worktreeIconAction.danger:hover")).toContain(
+      "var(--vscode-errorForeground"
+    );
+    expect(ruleFor(css, ".worktreeIconAction:focus-visible")).toContain(
+      "var(--vscode-focusBorder)"
+    );
+  });
 });
