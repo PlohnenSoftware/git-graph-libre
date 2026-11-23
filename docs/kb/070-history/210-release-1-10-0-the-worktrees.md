@@ -15,7 +15,7 @@ summary: >-
 
 # Release 1.10.0 — "The Worktrees"
 
-**Status: planned `2026-11-04`; in progress since `2026-11-05`** (wave A dispatched, see the Integration log). The maintainer asked for full
+**Status: released as v1.10.0 on `2026-11-08`; kept as the record.** Planned `2026-11-04`; in progress since `2026-11-05` (wave A dispatched, see the Integration log). The maintainer asked for full
 worktree support, with the engine's part analyzed and the open issues to
 tackle included. #40 and #42 are on hold in the backlog. Name and version are
 decision Y21. Only decision Y2 is answered. The slices that need no decision
@@ -90,46 +90,46 @@ run one after another, as the integrator procedure says.
 
 | ID | Slice | Kind | Needs | Wave | Status |
 | --- | --- | --- | --- | --- | --- |
-| W00 | [Finish release 1.9.0's housekeeping](050-release-1-10-0-the-worktrees/100-w00-finish-release-1-9-0-housekeeping.md) | docs | — (Y15 for step 3) | A | integrated `79e2ecc` |
-| W01 | [Refresh the engine's dependencies and gix](050-release-1-10-0-the-worktrees/110-w01-refresh-the-engine-dependencies-and-gix.md) | Rust | — (Y2 answered) | A | integrated `be1d870` |
-| W02 | [List worktrees on the CLI](050-release-1-10-0-the-worktrees/120-w02-list-worktrees-on-the-cli.md) | TS | — | A | integrated `ad43c13` |
-| W04 | [Refresh a graph when a worktree changes](050-release-1-10-0-the-worktrees/140-w04-refresh-a-graph-when-a-worktree-changes.md) | TS | — | A | integrated `62a171e` |
-| W04F | [Git dirs Sonar follow-up, and one worktree check](050-release-1-10-0-the-worktrees/145-w04f-git-dirs-sonar-follow-up-and-one-worktree-check.md) | TS | W04, W08 | A | integrated `7db994b` |
-| W05 | [Suggest the full branch name for a remote checkout](050-release-1-10-0-the-worktrees/150-w05-suggest-the-full-branch-name-for-a-remote-checkout.md) | webview | — | A | integrated `659d095` |
-| W06 | [Whole-row checkboxes in dialogs](050-release-1-10-0-the-worktrees/160-w06-whole-row-checkboxes-in-dialogs.md) | CSS | Y13 (ready under (a)) | A | integrated `af7ff04` |
-| W06F | [Whole-row checkboxes in every popup](050-release-1-10-0-the-worktrees/165-w06f-whole-row-checkboxes-in-every-popup.md) | CSS + webview | W06, Y13 | A | integrated `0c1437e` |
-| W07 | [Read a linked worktree's local config](050-release-1-10-0-the-worktrees/170-w07-read-a-linked-worktree-s-local-config.md) | Rust + TS | W01 | A | integrated `c9ce36c` |
-| W08 | [A nested worktree is not a submodule in telemetry](050-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | integrated `6b0e232` |
-| W25 | [Push dialog defaults that follow Git](050-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | integrated `decdf71` |
-| W26 | [Tags show the remotes that hold them (PR #47)](050-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | integrated `a93ddc7` (merge of `a109e9a`), PR update `dc1886c` merged at `d1bc642` |
-| W26F | [A setting for the tag remote check](050-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | integrated `43ac7e9` |
-| W26G | [Off, origin or all remotes for tag badges](050-release-1-10-0-the-worktrees/366-w26g-off-origin-or-all-remotes-for-tag-badges.md) | TS + webview + manifest + l10n | W26F, W26H, W26HF | A | integrated `697423e` |
-| W26H | [Harden the remote tag read](050-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | integrated `d607144` |
-| W26J | [No duplicate remote-tracking tag badges](050-release-1-10-0-the-worktrees/367-w26j-no-duplicate-remote-tracking-tag-badges.md) | Rust + TS | — | A | integrated `eedb048` |
-| W26HF | [Remote tag read Sonar follow-up](050-release-1-10-0-the-worktrees/369-w26hf-remote-tag-read-sonar-follow-up.md) | TS | W26H | A | integrated `8ff94dd` |
-| W03 | [List worktrees in the engine](050-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | integrated `f9e54a4` |
-| W40 | [Engine reads on linked worktrees, proven](050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | integrated `f1dcbb6` |
-| W41 | [Engine opens refuse untrusted repositories](050-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | integrated `a81b51a` |
-| W10 | [Carry worktrees to the webview](050-release-1-10-0-the-worktrees/200-w10-carry-worktrees-to-the-webview.md) | TS | W02 | C | integrated `2a619c4` |
-| W10F | [Read worktrees through the engine reader](050-release-1-10-0-the-worktrees/205-w10f-read-worktrees-through-the-engine-reader.md) | TS | W03, W10 | C | integrated `436e0b0` |
-| W11 | [Show where each branch is checked out](050-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | integrated `54065b5` |
-| W12 | [Other worktrees' detached HEADs in the graph](050-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | integrated `fbc0c22` |
-| W20 | [Branch actions that know about worktrees](050-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | integrated `83f5821` |
-| W21 | [Remove, prune and repair worktrees](050-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | integrated `88ed629` |
-| W22 | [Create a worktree](050-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | integrated `63cdd97` |
-| W22F | [Worktree path setting, browse, and persisted finish choice](050-release-1-10-0-the-worktrees/325-w22f-worktree-path-setting-browse-and-persisted-finish.md) | TS + webview + manifest | W22, Y7, Y8 | D | integrated `d1959f0` |
-| W24 | [Check out a remote branch whose local branch exists](050-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | integrated `65725f7` |
-| W31 | [Open a worktree or switch the graph to it](050-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | integrated `fcc76c4` |
-| W30 | [A worktree list](050-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | integrated `5cdfa9e` |
-| W23 | [Lock, unlock and move a worktree](050-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | integrated `6a33321` |
-| W32 | [Worktrees in the repository dropdown](050-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | integrated `426b789` |
-| W32F | [Worktree discovery Sonar follow-up](050-release-1-10-0-the-worktrees/425-w32f-worktree-discovery-sonar-follow-up.md) | TS | W32 | E | integrated `3b13162` |
-| W33 | [Bare repositories with worktrees](050-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | integrated `48f3ee3` |
-| W34 | [Share repository settings across worktrees](050-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | integrated `a9d58f2` (step 2, the Repository-tab note, left for W34F) |
-| W34F | [Repository-tab note for worktrees](050-release-1-10-0-the-worktrees/445-w34f-repository-tab-note-for-worktrees.md) | webview + l10n | W34 | E | integrated `1738001` |
-| W50 | [Worktree telemetry](050-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | integrated `5ff9385` |
-| W51 | [Local changes in other worktrees](050-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | integrated `2e37454` |
-| W90 | [Release 1.10.0](050-release-1-10-0-the-worktrees/900-w90-release-1-10-0.md) | release | every slice in scope | — | maintainer |
+| W00 | [Finish release 1.9.0's housekeeping](210-release-1-10-0-the-worktrees/100-w00-finish-release-1-9-0-housekeeping.md) | docs | — (Y15 for step 3) | A | integrated `79e2ecc` |
+| W01 | [Refresh the engine's dependencies and gix](210-release-1-10-0-the-worktrees/110-w01-refresh-the-engine-dependencies-and-gix.md) | Rust | — (Y2 answered) | A | integrated `be1d870` |
+| W02 | [List worktrees on the CLI](210-release-1-10-0-the-worktrees/120-w02-list-worktrees-on-the-cli.md) | TS | — | A | integrated `ad43c13` |
+| W04 | [Refresh a graph when a worktree changes](210-release-1-10-0-the-worktrees/140-w04-refresh-a-graph-when-a-worktree-changes.md) | TS | — | A | integrated `62a171e` |
+| W04F | [Git dirs Sonar follow-up, and one worktree check](210-release-1-10-0-the-worktrees/145-w04f-git-dirs-sonar-follow-up-and-one-worktree-check.md) | TS | W04, W08 | A | integrated `7db994b` |
+| W05 | [Suggest the full branch name for a remote checkout](210-release-1-10-0-the-worktrees/150-w05-suggest-the-full-branch-name-for-a-remote-checkout.md) | webview | — | A | integrated `659d095` |
+| W06 | [Whole-row checkboxes in dialogs](210-release-1-10-0-the-worktrees/160-w06-whole-row-checkboxes-in-dialogs.md) | CSS | Y13 (ready under (a)) | A | integrated `af7ff04` |
+| W06F | [Whole-row checkboxes in every popup](210-release-1-10-0-the-worktrees/165-w06f-whole-row-checkboxes-in-every-popup.md) | CSS + webview | W06, Y13 | A | integrated `0c1437e` |
+| W07 | [Read a linked worktree's local config](210-release-1-10-0-the-worktrees/170-w07-read-a-linked-worktree-s-local-config.md) | Rust + TS | W01 | A | integrated `c9ce36c` |
+| W08 | [A nested worktree is not a submodule in telemetry](210-release-1-10-0-the-worktrees/180-w08-a-nested-worktree-is-not-a-submodule-in-telemetry.md) | TS | — | A | integrated `6b0e232` |
+| W25 | [Push dialog defaults that follow Git](210-release-1-10-0-the-worktrees/350-w25-push-dialog-defaults-that-follow-git.md) | TS + webview | Y11 | A | integrated `decdf71` |
+| W26 | [Tags show the remotes that hold them (PR #47)](210-release-1-10-0-the-worktrees/360-w26-tags-show-the-remotes-that-hold-them.md) | review + land an outside PR | Y23, Y24 | A | integrated `a93ddc7` (merge of `a109e9a`), PR update `dc1886c` merged at `d1bc642` |
+| W26F | [A setting for the tag remote check](210-release-1-10-0-the-worktrees/365-w26f-a-setting-for-the-tag-remote-check.md) | TS + webview + manifest | W26 | A | integrated `43ac7e9` |
+| W26G | [Off, origin or all remotes for tag badges](210-release-1-10-0-the-worktrees/366-w26g-off-origin-or-all-remotes-for-tag-badges.md) | TS + webview + manifest + l10n | W26F, W26H, W26HF | A | integrated `697423e` |
+| W26H | [Harden the remote tag read](210-release-1-10-0-the-worktrees/368-w26h-harden-the-remote-tag-read.md) | TS | W26F | A | integrated `d607144` |
+| W26J | [No duplicate remote-tracking tag badges](210-release-1-10-0-the-worktrees/367-w26j-no-duplicate-remote-tracking-tag-badges.md) | Rust + TS | — | A | integrated `eedb048` |
+| W26HF | [Remote tag read Sonar follow-up](210-release-1-10-0-the-worktrees/369-w26hf-remote-tag-read-sonar-follow-up.md) | TS | W26H | A | integrated `8ff94dd` |
+| W03 | [List worktrees in the engine](210-release-1-10-0-the-worktrees/130-w03-list-worktrees-in-the-engine.md) | Rust + TS | W01, W02 | B | integrated `f9e54a4` |
+| W40 | [Engine reads on linked worktrees, proven](210-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md) | Rust + TS | W01, W07 | B | integrated `f1dcbb6` |
+| W41 | [Engine opens refuse untrusted repositories](210-release-1-10-0-the-worktrees/510-w41-engine-opens-refuse-untrusted-repositories.md) | Rust + TS | W01, Y12 | B | integrated `a81b51a` |
+| W10 | [Carry worktrees to the webview](210-release-1-10-0-the-worktrees/200-w10-carry-worktrees-to-the-webview.md) | TS | W02 | C | integrated `2a619c4` |
+| W10F | [Read worktrees through the engine reader](210-release-1-10-0-the-worktrees/205-w10f-read-worktrees-through-the-engine-reader.md) | TS | W03, W10 | C | integrated `436e0b0` |
+| W11 | [Show where each branch is checked out](210-release-1-10-0-the-worktrees/210-w11-show-where-each-branch-is-checked-out.md) | webview | W10, Y4 | C | integrated `54065b5` |
+| W12 | [Other worktrees' detached HEADs in the graph](210-release-1-10-0-the-worktrees/220-w12-other-worktrees-detached-heads-in-the-graph.md) | TS + Rust | W10, W03, Y22 | C | integrated `fbc0c22` |
+| W20 | [Branch actions that know about worktrees](210-release-1-10-0-the-worktrees/300-w20-branch-actions-that-know-about-worktrees.md) | webview + TS | W10, Y6 | D | integrated `83f5821` |
+| W21 | [Remove, prune and repair worktrees](210-release-1-10-0-the-worktrees/310-w21-remove-prune-and-repair-worktrees.md) | TS + webview | W10, W20, Y5 | D | integrated `88ed629` |
+| W22 | [Create a worktree](210-release-1-10-0-the-worktrees/320-w22-create-a-worktree.md) | TS + webview | W10, Y7, Y8 | D | integrated `63cdd97` |
+| W22F | [Worktree path setting, browse, and persisted finish choice](210-release-1-10-0-the-worktrees/325-w22f-worktree-path-setting-browse-and-persisted-finish.md) | TS + webview + manifest | W22, Y7, Y8 | D | integrated `d1959f0` |
+| W24 | [Check out a remote branch whose local branch exists](210-release-1-10-0-the-worktrees/340-w24-check-out-a-remote-branch-whose-local-branch-exists.md) | webview + TS | W05, W10, Y14 | D | integrated `65725f7` |
+| W31 | [Open a worktree or switch the graph to it](210-release-1-10-0-the-worktrees/410-w31-open-a-worktree-or-switch-the-graph-to-it.md) | TS + manifest | W10 | E | integrated `fcc76c4` |
+| W30 | [A worktree list](210-release-1-10-0-the-worktrees/400-w30-a-worktree-list.md) | webview | W10, W21, W31, Y3 | E | integrated `5cdfa9e` |
+| W23 | [Lock, unlock and move a worktree](210-release-1-10-0-the-worktrees/330-w23-lock-unlock-and-move-a-worktree.md) | TS + webview | W21, W30 | E | integrated `6a33321` |
+| W32 | [Worktrees in the repository dropdown](210-release-1-10-0-the-worktrees/420-w32-worktrees-in-the-repository-dropdown.md) | TS + webview | W02, W04, W10, Y9, Y10 | E | integrated `426b789` |
+| W32F | [Worktree discovery Sonar follow-up](210-release-1-10-0-the-worktrees/425-w32f-worktree-discovery-sonar-follow-up.md) | TS | W32 | E | integrated `3b13162` |
+| W33 | [Bare repositories with worktrees](210-release-1-10-0-the-worktrees/430-w33-bare-repositories-with-worktrees.md) | TS + webview | W32, Y17 | E | integrated `48f3ee3` |
+| W34 | [Share repository settings across worktrees](210-release-1-10-0-the-worktrees/440-w34-share-repository-settings-across-worktrees.md) | TS | W32, Y18 | E | integrated `a9d58f2` (step 2, the Repository-tab note, left for W34F) |
+| W34F | [Repository-tab note for worktrees](210-release-1-10-0-the-worktrees/445-w34f-repository-tab-note-for-worktrees.md) | webview + l10n | W34 | E | integrated `1738001` |
+| W50 | [Worktree telemetry](210-release-1-10-0-the-worktrees/600-w50-worktree-telemetry.md) | TS + docs | W11, W32, Y19 | F | integrated `5ff9385` |
+| W51 | [Local changes in other worktrees](210-release-1-10-0-the-worktrees/610-w51-local-changes-in-other-worktrees.md) | TS | W30, Y20 | F | integrated `2e37454` |
+| W90 | [Release 1.10.0](210-release-1-10-0-the-worktrees/900-w90-release-1-10-0.md) | release | every slice in scope | — | maintainer |
 
 **Order, if one agent does everything:**
 
