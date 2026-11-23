@@ -1,0 +1,151 @@
+/**
+ * Types shared by the extension host and the Blame tab webview (F4-03),
+ * mirroring the GGL Diff tab's split in `diffTabTypes.ts` and the Reflog
+ * tab's in `reflogTabTypes.ts`. The read itself is `loadBlame` in
+ * `src/backend/queries/blame.ts` (F4-01) and the heat is `scoreBlameHunks`
+ * in `src/blameHotspot.ts` (F4-02); these types only carry one blamed file
+ * across the webview boundary.
+ */
+
+import type { GitBlameCommit, GitBlameHunk, GitBlameState } from "./backend/types";
+import type { BlameHunkHeat } from "./blameHotspot";
+import type { DateFormat } from "./types";
+
+/** One blamed file to open: a repository, a path inside it, and where to land. */
+export type BlameOpenTarget = {
+  /** The repository root, as Git Graph Libre lists it. */
+  repo: string;
+  /** The file to blame, relative to the repository root (`src/app.ts`). */
+  filePath: string;
+  /**
+   * The revision to blame at, or null/absent for the working tree. F4-03
+   * opens working-tree blames; F4-05 rewinds through revisions.
+   */
+  rev?: string | null;
+  /** The 1-based line to highlight and scroll to, or null for none. */
+  targetLine?: number | null;
+};
+
+/** One hunk as the tab draws it: the F4-01 hunk with its F4-02 heat. */
+export type BlameHunkView = GitBlameHunk & {
+  heat: BlameHunkHeat;
+};
+
+/** One blamed file, as `loadBlame` returned it and the source scored it. */
+export type BlamePayload = {
+  /** `lines`, `empty`, `binary`, `tooLarge`, `untracked` or `unborn`; null exactly when `error` is set. */
+  state: GitBlameState | null;
+  /** Every commit the hunks name, by hash. Empty unless `state` is `lines`. */
+  commits: Record<string, GitBlameCommit>;
+  /** The file's lines grouped into hunks, top to bottom. */
+  hunks: BlameHunkView[];
+  /** The commit OID the revision resolved to, or null for a working-tree blame and on an error. */
+  resolvedRev: string | null;
+  /** The blamed line count, as F4-01 counts it. */
+  totalLines: number;
+  /** The read failure's message; null when the read worked. */
+  error: string | null;
+};
+
+/** Where the tab's blames come from; the extension host implements it. */
+export type BlameSource = {
+  load(repo: string, filePath: string, rev: string | null): Promise<BlamePayload>;
+};
+
+/**
+ * The graph's display settings, carried to this tab the way the graph's
+ * boot config carries them (`webviewHtml.ts`): read live through the
+ * `config` accessors on every load, so a settings change restyles both
+ * surfaces alike.
+ */
+export type BlameDisplay = {
+  /** The `shortHashLength` setting, already clamped by its accessor. */
+  shortHashLength: number;
+  /** The `dateFormat` setting: which shape the hunk dates take. */
+  dateFormat: DateFormat;
+  /** The bundle's `time.dateformat` pattern (`DD MM YYYY` in English). */
+  datePattern: string;
+  /** The bundle's `time.needFormatMonth`: true when `MM` is a month name. */
+  needMonthName: boolean;
+  /** The bundle's twelve `month.*` names, January first. */
+  months: string[];
+};
+
+/**
+ * The editor's typography for the source column, read live from
+ * `editor.fontSize`, `editor.lineHeight` and `editor.tabSize`, the way the
+ * GGL Diff tab reads them (`diffTabPanel.ts`).
+ */
+export type BlameTypography = {
+  /** `editor.fontSize`, in pixels. */
+  fontSize: number;
+  /** `editor.lineHeight` resolved to pixels (see `lineHeightInPixels` in the diff tab). */
+  lineHeight: number;
+  /** `editor.tabSize`. */
+  tabSize: number;
+};
+
+/** The tab's localized text; `loadError`, `lineCount` and `title` keep their `{0}`. */
+export type BlameLabels = {
+  title: string;
+  loading: string;
+  empty: string;
+  binary: string;
+  tooLarge: string;
+  untracked: string;
+  unborn: string;
+  loadError: string;
+  workingTree: string;
+  uncommitted: string;
+  lineCount: string;
+  resizeGutter: string;
+  /** The graph's own `ui.commit` word, shared with its Commit column. */
+  columnCommit: string;
+  /** The graph's own `ui.date` word, shared with its Date column. */
+  columnDate: string;
+};
+
+/** The target fields every host message echoes, so the webview knows what it shows. */
+type BlameTargetEcho = {
+  repo: string;
+  filePath: string;
+  /** The requested revision, or null for the working tree. */
+  rev: string | null;
+  /** The 1-based line to highlight, or null for none. */
+  targetLine: number | null;
+  /** The VS Code display language, for the webview's relative times. */
+  locale: string;
+  labels: BlameLabels;
+  /** The graph's display settings, read live for this load. */
+  display: BlameDisplay;
+  /** The editor typography, read live for this load. */
+  typography: BlameTypography;
+};
+
+/**
+ * Extension host to webview: one blamed file, with the text to draw it.
+ * Replies carry the `requestId` of the load that produced them, so the
+ * webview can drop a slow older reply instead of letting it overwrite a
+ * newer one.
+ */
+export type BlameDataMessage = BlameTargetEcho & {
+  command: "blameData";
+  requestId: number;
+  payload: BlamePayload;
+};
+
+/**
+ * Extension host to webview: a load has started. Carries the labels and
+ * locale on their own so the tab can say it is loading (in the user's
+ * language) before the first blame lands.
+ */
+export type BlameLoadingMessage = BlameTargetEcho & {
+  command: "blameLoading";
+  requestId: number;
+};
+
+/** Every message the extension host posts to the Blame tab. */
+export type BlameHostMessage = BlameDataMessage | BlameLoadingMessage;
+
+/** Webview to extension host. */
+export type BlameWebviewMessage = { command: "ready" } | { command: "refresh" };
