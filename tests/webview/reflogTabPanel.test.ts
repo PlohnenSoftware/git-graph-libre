@@ -557,4 +557,57 @@ describe("openReflogTab", () => {
     expect(second).not.toBe(firstPanel);
     expect(second.title).toBe("Reflog: two");
   });
+
+  it("closes with its repository when the manager removes it (F1-08)", async () => {
+    let removed: ((repo: string) => void) | null = null;
+    const deregister = vi.fn();
+    const releaseWorktrees = vi.fn();
+    const watcher = fakeWatcher();
+    openReflogTab(
+      "/repos/one",
+      { loadPage: async () => page(), releaseWorktrees },
+      {
+        extensionPath: EXTENSION,
+        outputChannel: log,
+        createWatcher: watcher.create,
+        locale: "en",
+        repoManager: {
+          registerRepoRemovedCallback: (cb) => {
+            removed = cb;
+          },
+          deregisterRepoRemovedCallback: deregister
+        }
+      }
+    );
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+
+    // Another repository leaving the list leaves this tab alone.
+    (removed as unknown as (repo: string) => void)("/repos/other");
+    expect(watcher.stops).toBe(0);
+
+    (removed as unknown as (repo: string) => void)("/repos/one");
+    expect(watcher.stops).toBe(1);
+    expect(releaseWorktrees).toHaveBeenCalledTimes(1);
+    expect(deregister).toHaveBeenCalledTimes(1);
+
+    // The singleton is gone with it: the next open builds a fresh panel.
+    mocks.panels.length = 0;
+    open("/repos/two");
+    expect(onlyPanel()).not.toBe(panel);
+  });
+
+  it("releases the old source's worktrees when it follows a switch (F1-08)", async () => {
+    const releaseWorktrees = vi.fn();
+    open("/repos/one", { loadPage: async () => page(), releaseWorktrees });
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    open("/repos/two");
+    expect(releaseWorktrees).toHaveBeenCalledTimes(1);
+    // A reveal of the same repository releases nothing.
+    open("/repos/two");
+    expect(releaseWorktrees).toHaveBeenCalledTimes(1);
+  });
 });

@@ -210,6 +210,28 @@ function messageBlock(className: string, text: string, role?: string): HTMLEleme
   return block;
 }
 
+function emptyBlock(state: ReflogViewState, labels: ReflogLabels): HTMLElement {
+  // A bare repository's missing `HEAD` reflog has its own story
+  // (F1-08): Git keeps none there by default, and the branches
+  // above are where its reflogs live. It is told only for that
+  // exact case — a bare `HEAD` that does keep entries, and every
+  // branch, read as anywhere else.
+  if (
+    state.bare &&
+    state.query.ref === "HEAD" &&
+    state.query.worktreePath === null &&
+    state.reflogState === "none"
+  ) {
+    return messageBlock("reflog-message reflog-empty reflog-bare-note", labels.bareHeadNote);
+  }
+  // A filter that matched nothing in a reflog that has entries is
+  // not the empty-reflog story; one for a ref with no reflog is.
+  if (isReflogFiltered(state.query) && state.reflogState !== "none") {
+    return messageBlock("reflog-message reflog-empty reflog-no-matches", labels.noMatches);
+  }
+  return messageBlock("reflog-message reflog-empty", labels.empty);
+}
+
 function badgeCell(row: ReflogRow, labels: ReflogLabels): HTMLTableCellElement {
   const cell = element("td", "reflog-cell reflog-state-cell");
   const badge = badgeFor(row, labels);
@@ -405,29 +427,7 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
           )
         );
       } else if (state.rows.length === 0) {
-        // A bare repository's missing `HEAD` reflog has its own story
-        // (F1-08): Git keeps none there by default, and the branches
-        // above are where its reflogs live. It is told only for that
-        // exact case — a bare `HEAD` that does keep entries, and every
-        // branch, read as anywhere else.
-        const bareHead =
-          state.bare &&
-          state.query.ref === "HEAD" &&
-          state.query.worktreePath === null &&
-          state.reflogState === "none";
-        // A filter that matched nothing in a reflog that has entries is
-        // not the empty-reflog story; one for a ref with no reflog is.
-        const filtered = isReflogFiltered(state.query) && state.reflogState !== "none";
-        children.push(
-          messageBlock(
-            bareHead
-              ? "reflog-message reflog-empty reflog-bare-note"
-              : filtered
-                ? "reflog-message reflog-empty reflog-no-matches"
-                : "reflog-message reflog-empty",
-            bareHead ? labels.bareHeadNote : filtered ? labels.noMatches : labels.empty
-          )
-        );
+        children.push(emptyBlock(state, labels));
       } else {
         children.push(table(state, labels, now, callbacks));
         if (state.error !== null) {

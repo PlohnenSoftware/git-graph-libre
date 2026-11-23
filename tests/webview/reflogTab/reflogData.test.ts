@@ -272,3 +272,149 @@ describe("createReflogSource search, filters and ref picker (F1-05, real Git)", 
     }
   });
 });
+
+describe("createReflogSource with worktrees and bare repositories (F1-08, real Git)", () => {
+  /** A linked worktree of `dir` under a fresh parent, cleaned up with the rest. */
+  function addWorktree(dir: string, name: string, branch: string): string {
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-reflog-wt-"));
+    dirs.push(parent);
+    const linked = path.join(parent, name);
+    git(["worktree", "add", "-q", "-b", branch, linked], dir);
+    return linked;
+  }
+
+  it("offers the other worktree's HEAD and reads its own HEAD reflog there", async () => {
+    const dir = repo();
+    const linked = addWorktree(dir, "linked", "linked-branch");
+    commit(dir, "main-only");
+    commit(linked, "linked-only");
+    const src = source();
+
+    const refs = await src.loadRefs?.(dir);
+    expect(refs?.bare).toBe(false);
+    const option = refs?.options.find((candidate) => candidate.worktreePath !== null);
+    expect(option).toMatchObject({
+      ref: "HEAD",
+      worktreeName: "linked",
+      locked: null,
+      prunable: null
+    });
+    const worktreePath = option?.worktreePath as string;
+
+    const mainPage = await src.loadPage(dir, 0, 200);
+    expect(mainPage.rows.map((entry) => entry.message)).toContain("commit: main-only");
+    expect(mainPage.rows.map((entry) => entry.message)).not.toContain("commit: linked-only");
+
+    const linkedPage = await src.loadPage(dir, 0, 200, query({ worktreePath }));
+    expect(linkedPage.error).toBeNull();
+    expect(linkedPage.ref).toBe("HEAD");
+    expect(linkedPage.rows.map((entry) => entry.message)).toContain("commit: linked-only");
+    expect(linkedPage.rows.map((entry) => entry.message)).not.toContain("commit: main-only");
+
+    // From the linked worktree, the main worktree's HEAD is the "other" one.
+    const fromLinked = await src.loadRefs?.(linked);
+    const mainOption = fromLinked?.options.find((candidate) => candidate.worktreePath !== null);
+    expect(mainOption?.worktreeName).toBe(path.basename(dir));
+    const mainFromLinked = await src.loadPage(
+      linked,
+      0,
+      200,
+      query({ worktreePath: mainOption?.worktreePath as string })
+    );
+    expect(mainFromLinked.rows.map((entry) => entry.message)).toContain("commit: main-only");
+  });
+
+  it("marks a locked worktree in the picker and still reads it", async () => {
+    const dir = repo();
+    const linked = addWorktree(dir, "locked-one", "locked-branch");
+    commit(linked, "locked-commit");
+    git(["worktree", "lock", "--reason", "on a stick", linked], dir);
+    const src = source();
+    const refs = await src.loadRefs?.(dir);
+    const option = refs?.options.find((candidate) => candidate.worktreePath !== null);
+    expect(option?.locked).toEqual({ reason: "on a stick" });
+    const page = await src.loadPage(
+      dir,
+      0,
+      200,
+      query({ worktreePath: option?.worktreePath as string })
+    );
+    expect(page.error).toBeNull();
+    expect(page.rows.map((entry) => entry.message)).toContain("commit: locked-commit");
+  });
+
+  it("marks a stale worktree prunable and answers its read with an error, never an empty page", async () => {
+    const dir = repo();
+    const gone = addWorktree(dir, "gone-one", "gone-branch");
+    fs.renameSync(gone, `${gone}-moved`);
+    const src = source();
+    const refs = await src.loadRefs?.(dir);
+    const option = refs?.options.find((candidate) => candidate.worktreePath !== null);
+    expect(option?.prunable).not.toBeNull();
+    const page = await src.loadPage(
+      dir,
+      0,
+      200,
+      query({ worktreePath: option?.worktreePath as string })
+    );
+    expect(page.error).toContain("is missing");
+    expect(page.state).toBeNull();
+    expect(page.rows).toEqual([]);
+  });
+
+  it("refuses a worktree path Git does not list, without reading there", async () => {
+    const dir = repo();
+    const stranger = repo();
+    const page = await source().loadPage(dir, 0, 200, query({ worktreePath: stranger }));
+    expect(page.error).toContain("is not a worktree of this repository");
+    expect(page.rows).toEqual([]);
+  });
+
+  it("releases only the other worktrees it read, once", async () => {
+    const dir = repo();
+    addWorktree(dir, "released-one", "released-branch");
+    const closed: string[] = [];
+    const src = createReflogSource({
+      createGit: (root) =>
+        simpleGit({ baseDir: root, binary: "git", maxConcurrentProcesses: 6, trimmed: false }),
+      gitPath: () => "git",
+      closeRepo: (closedRepo) => closed.push(closedRepo)
+    });
+    await src.loadPage(dir, 0, 200);
+    const refs = await src.loadRefs?.(dir);
+    const worktreePath = refs?.options.find((candidate) => candidate.worktreePath !== null)
+      ?.worktreePath as string;
+    await src.loadPage(dir, 0, 200, query({ worktreePath }));
+    src.releaseWorktrees?.();
+    expect(closed).toEqual([worktreePath]);
+    src.releaseWorktrees?.();
+    expect(closed).toEqual([worktreePath]);
+  });
+
+  it("calls a bare repository bare, keeps no HEAD reflog there, and reads its branches", async () => {
+    const seed = repo();
+    const bare = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-reflog-bare-"));
+    dirs.push(bare);
+    git(["clone", "-q", "--bare", seed, bare], seed);
+    const src = source();
+
+    const refs = await src.loadRefs?.(bare);
+    expect(refs?.bare).toBe(true);
+    expect(refs?.options.map((option) => option.ref)).toEqual(["HEAD", "refs/heads/main"]);
+    const head = await src.loadPage(bare, 0, 200);
+    expect(head.error).toBeNull();
+    expect(head.state).toBe("none");
+    expect(head.rows).toEqual([]);
+
+    // A bare repository that does keep branch reflogs shows them as usual.
+    git(["config", "core.logAllRefUpdates", "always"], bare);
+    git(["branch", "topic", "refs/heads/main"], bare);
+    const branch = await src.loadPage(bare, 0, 200, query({ ref: "refs/heads/topic" }));
+    expect(branch.error).toBeNull();
+    expect(branch.rows.map((entry) => entry.message)).toEqual([
+      "branch: Created from refs/heads/main"
+    ]);
+    const stillNone = await src.loadPage(bare, 0, 200);
+    expect(stillNone.state).toBe("none");
+  });
+});

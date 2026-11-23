@@ -98,7 +98,7 @@ export function createRepoManager(
     closeEngineRepository(repo);
     // A tab bound to the removed repository closes with it (F1-08). The
     // handle is already dropped above, so nothing the tab opened leaks.
-    if (repoRemovedCallback !== null) repoRemovedCallback(repo);
+    repoRemovedCallback?.(repo);
   }
 
   function registerViewCallback(cb: ViewCallback) {

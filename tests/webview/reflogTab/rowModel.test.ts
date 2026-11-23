@@ -232,6 +232,26 @@ describe("reflog row model", () => {
     });
   });
 
+  it("keeps a worktree path only beside HEAD (F1-08)", () => {
+    expect(normalizeReflogQuery({ ref: "HEAD", worktreePath: "/repos/linked" })).toEqual({
+      ref: "HEAD",
+      worktreePath: "/repos/linked",
+      search: "",
+      actions: [],
+      onlyInReflog: false
+    });
+    // Branch and stash reflogs are shared: a worktree beside them is dropped.
+    for (const ref of ["refs/heads/main", "refs/stash"]) {
+      expect(normalizeReflogQuery({ ref, worktreePath: "/repos/linked" }).worktreePath).toBeNull();
+    }
+    for (const worktreePath of ["", 42, "/repos/a\nb", null]) {
+      expect(
+        normalizeReflogQuery({ ref: "HEAD", worktreePath }).worktreePath,
+        String(worktreePath)
+      ).toBeNull();
+    }
+  });
+
   it("takes the display settings from each message, so a change restyles the tab", () => {
     const changed = { ...DISPLAY, shortHashLength: 12, dateFormat: "Relative" as const };
     const state = applyData(initialReflogState(), dataMessage({ display: changed }));

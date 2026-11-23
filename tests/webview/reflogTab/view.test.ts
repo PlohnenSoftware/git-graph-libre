@@ -8,7 +8,16 @@ import {
 } from "@/webview/reflogTab/rowModel";
 import { createReflogView } from "@/webview/reflogTab/view";
 
-import { DISPLAY, dataMessage, LABELS, loadingMessage, page, row } from "./fixtures";
+import {
+  DISPLAY,
+  dataMessage,
+  LABELS,
+  loadingMessage,
+  page,
+  REF_OPTIONS,
+  row,
+  worktreeOption
+} from "./fixtures";
 
 const NOW = new Date(1_700_000_000_000 + 5 * 60_000);
 
@@ -466,5 +475,119 @@ describe("reflog table column resizing (F1-04F)", () => {
     headRow.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
     expect(colWidths(root)).toEqual(["50px", "110px", "90px", "300px", "90px", "130px", "120px"]);
     expect(onColumnWidthsChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("reflog worktrees and bare repositories (F1-08)", () => {
+  it("names whose HEAD is shown and marks locked and missing worktrees in the picker", () => {
+    const { root, view, onQueryChange } = start();
+    const locked = worktreeOption({ locked: { reason: "on a stick" } });
+    const missing = worktreeOption({
+      worktreePath: "/repos/gone",
+      worktreeName: "gone",
+      prunable: { reason: "gitdir file points to non-existent location" }
+    });
+    const noReason = worktreeOption({
+      worktreePath: "/repos/plain",
+      worktreeName: "plain",
+      locked: { reason: "" }
+    });
+    view.render(
+      applyData(
+        initialReflogState(),
+        dataMessage({ refOptions: [...REF_OPTIONS, locked, missing, noReason] })
+      ),
+      NOW
+    );
+    // With linked worktrees to tell apart, even this worktree's HEAD is named.
+    expect(root.querySelector(".reflog-ref")?.textContent).toBe("HEAD of worktree one");
+    const refPicker = root.querySelector<HTMLSelectElement>(
+      "#reflogRefPicker"
+    ) as HTMLSelectElement;
+    expect([...refPicker.options].map((option) => option.textContent)).toEqual([
+      "HEAD",
+      "main",
+      "Stash (refs/stash)",
+      "HEAD of worktree linked, locked: on a stick",
+      "HEAD of worktree gone, missing (moved or deleted)",
+      "HEAD of worktree plain, locked"
+    ]);
+    expect([...refPicker.options].map((option) => option.title)).toContain("/repos/linked");
+
+    refPicker.value = "3";
+    refPicker.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(onQueryChange).toHaveBeenLastCalledWith(
+      {
+        ref: "HEAD",
+        worktreePath: "/repos/linked",
+        search: "",
+        actions: [],
+        onlyInReflog: false
+      },
+      "instant"
+    );
+  });
+
+  it("headers another worktree's HEAD with its folder and full path", () => {
+    const { root, view } = start();
+    view.render(
+      applyData(
+        initialReflogState(),
+        dataMessage({
+          query: {
+            ref: "HEAD",
+            worktreePath: "/repos/linked",
+            search: "",
+            actions: [],
+            onlyInReflog: false
+          },
+          refOptions: [...REF_OPTIONS, worktreeOption()]
+        })
+      ),
+      NOW
+    );
+    const ref = root.querySelector(".reflog-ref");
+    expect(ref?.textContent).toBe("HEAD of worktree linked");
+    expect(ref?.getAttribute("title")).toBe("/repos/linked");
+    const refPicker = root.querySelector<HTMLSelectElement>("#reflogRefPicker");
+    expect(refPicker?.value).toBe("3");
+  });
+
+  it("tells the bare story only for a bare HEAD with no reflog", () => {
+    const { root, view } = start();
+    view.render(
+      applyData(
+        initialReflogState(),
+        dataMessage({ bare: true, page: page({ rows: [], state: "none" }) })
+      ),
+      NOW
+    );
+    expect(root.querySelector(".reflog-bare-note")?.textContent).toBe(LABELS.bareHeadNote);
+
+    // A bare branch with no reflog keeps the ordinary empty wording.
+    view.render(
+      applyData(
+        initialReflogState(),
+        dataMessage({
+          bare: true,
+          query: {
+            ref: "refs/heads/main",
+            worktreePath: null,
+            search: "",
+            actions: [],
+            onlyInReflog: false
+          },
+          page: page({ rows: [], state: "none", ref: "refs/heads/main" })
+        })
+      ),
+      NOW
+    );
+    expect(root.querySelector(".reflog-bare-note")).toBeNull();
+    expect(root.querySelector(".reflog-empty")?.textContent).toBe(LABELS.empty);
+
+    // And a bare HEAD that does keep entries just shows them.
+    view.render(applyData(initialReflogState(), dataMessage({ bare: true })), NOW);
+    expect(root.querySelector(".reflog-bare-note")).toBeNull();
+    expect(root.querySelector("table")).not.toBeNull();
   });
 });
