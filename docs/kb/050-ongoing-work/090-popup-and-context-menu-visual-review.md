@@ -15,7 +15,7 @@ summary: >-
 
 # Popup and context-menu visual review (`2026-11-12`)
 
-Status: in progress. The context menus are done; V1–V11 below are open.
+Status: in progress. Context menus and V1–V10 are done; V11 awaits the maintainer's word.
 
 Maintainer request, `2026-11-12`: "please look on popups and context
 menus(especially connected with worktrees) and make them look good if u find

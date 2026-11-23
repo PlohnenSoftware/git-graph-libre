@@ -388,9 +388,7 @@ describe("checking out a remote branch whose local branch exists (W24)", () => {
     expect(dialog?.className).toContain("inputInvalid");
     expect(document.getElementById("dialogAction")?.title).toContain("already exists");
     // The reason also stands under the field, where it can be read.
-    expect(document.getElementById("dialogInputError0")?.textContent).toContain(
-      "already exists"
-    );
+    expect(document.getElementById("dialogInputError0")?.textContent).toContain("already exists");
     expect(document.getElementById("dialogInput0")?.getAttribute("aria-invalid")).toBe("true");
     const before = vscodeMock.sentMessages.length;
     submitDialog();
@@ -469,9 +467,7 @@ describe("checking out a remote branch with no local branch (unchanged, W24)", (
 
     expect(document.getElementById("dialog")?.className).toContain("inputInvalid");
     expect(document.getElementById("dialogAction")?.title).toContain("already exists");
-    expect(document.getElementById("dialogInputError0")?.textContent).toContain(
-      "already exists"
-    );
+    expect(document.getElementById("dialogInputError0")?.textContent).toContain("already exists");
 
     // Invalid characters get their own reason in the same line, and a free,
     // valid name clears it again.
