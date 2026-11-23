@@ -12,7 +12,7 @@ summary: >-
 
 # Unreachable-commits scan breaks graph load on stale commit-graph (`2026-11-23`)
 
-**Status:** open (diagnosed, unfixed).
+**Status:** claimed by Muse Code on 2026-11-23 01:54
 
 Maintainer report (`2026-11-23`): in Git Graph Libre 1.10.0 on this
 repository, right-clicking the table headers and checking **Include
