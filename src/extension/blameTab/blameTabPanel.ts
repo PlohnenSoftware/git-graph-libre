@@ -472,8 +472,8 @@ function createBlameTab(deps: BlameTabDeps) {
     const snap = navigator.snapshot();
     if (snap.repo === "" || snap.filePath === "") return;
     if (snap.rev !== null) {
-      const opener = deps.openRevisionAtLine ?? defaultOpenRevisionAtLine;
-      void Promise.resolve(opener(snap.repo, snap.filePath, snap.rev, line - 1)).catch(
+      const revisionOpener = deps.openRevisionAtLine ?? defaultOpenRevisionAtLine;
+      void Promise.resolve(revisionOpener(snap.repo, snap.filePath, snap.rev, line - 1)).catch(
         (error: unknown) => {
           logActionFailure("openFileAtLine", error);
         }
