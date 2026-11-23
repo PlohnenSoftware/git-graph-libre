@@ -499,6 +499,12 @@
   .ggl-blame .blame-line.is-find-match { outline: 1px dashed Highlight; }
   .ggl-blame .blame-line.is-find-active { outline: 2px solid Highlight; }
   .ggl-blame .blame-hunk.is-find-active-hunk .blame-gutter { outline: 2px solid Highlight; }
+  /* The commit popover and context menu (F4-06) keep a system border. */
+  .blame-popover,
+  .blame-context-menu { border: 1px solid CanvasText; }
+  .blame-popover-action,
+  .blame-popover-close { border: 1px solid CanvasText; }
+  .blame-context-menu-button:focus-visible { outline: 2px solid Highlight; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ggl-blame .blame-hunk::after { transition: none; }
@@ -676,11 +682,4 @@
 .blame-context-menu-button:focus-visible {
   background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground, var(--ngg-accent)));
   color: var(--vscode-menu-selectionForeground, var(--vscode-list-activeSelectionForeground, var(--ngg-accent-foreground)));
-}
-@media (forced-colors: active) {
-  .blame-popover,
-  .blame-context-menu { border: 1px solid CanvasText; }
-  .blame-popover-action,
-  .blame-popover-close { border: 1px solid CanvasText; }
-  .blame-context-menu-button:focus-visible { outline: 2px solid Highlight; }
 }
