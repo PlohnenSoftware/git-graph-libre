@@ -8,6 +8,13 @@
 
 - **Graph view**: See branches, tags, and uncommitted changes in one graph
 - **History recovery**: Keep detached HEAD visible and optionally discover unreachable commits
+- **Blame view**: **Show Blame for Current File** groups a file's lines by the
+  commit that last changed them, like GitHub's blame view, with each commit's
+  summary, author, hash and date. Hotspot coloring marks older and newer
+  commits, by age, calendar, churn or off. **Show Blame** is also in the
+  editor, Explorer and Source Control menus, and **Show Blame at Commit** and
+  **Show Blame Before Deletion** are in a commit's file menu. Hovering a
+  commit highlights its lines, and the tab follows the working tree and HEAD.
 - **Reflog tab**: **Show Reflog** lists the reflog page by page, with each
   entry's commit, date, action and message, and the actions colored by kind.
   Each entry says whether its commit is still on a branch or tag, is only in the
