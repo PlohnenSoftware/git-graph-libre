@@ -8,7 +8,7 @@ summary: >-
 
 # L2 — zh-tw: one researched term for "repository"
 
-Status: ready
+Status: claimed by Claude Haiku on 2026-11-23 17:40
 
 Needs: L1 (integrated)
 
