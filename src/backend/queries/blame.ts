@@ -13,6 +13,7 @@ import type {
 } from "@/backend/types";
 import { type GitCommandRecorder, runGitRaw, runGitWithInput } from "@/backend/utils/gitRunner";
 import { toGitQueryError } from "@/backend/utils/queryError";
+import { hasControlCharacter } from "@/backend/utils/string";
 
 /** The largest file one blame read accepts: 2 MiB of text. */
 export const MAX_BLAME_FILE_BYTES = 2 * 1024 * 1024;
@@ -69,14 +70,6 @@ function stateResult(
     ignoreRevsFileUsed,
     error: null
   };
-}
-
-function hasControlCharacter(value: string): boolean {
-  for (const char of value) {
-    const code = char.codePointAt(0) ?? 0;
-    if (code < 32 || code === 127) return true;
-  }
-  return false;
 }
 
 /** Why a revision must not reach Git, or null when it may. */
