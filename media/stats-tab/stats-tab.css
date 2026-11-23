@@ -1,0 +1,151 @@
+/* The Statistics tab (F3-02): theme tokens first, `--ngg-*` OKLCH
+   fallbacks second, per the Webview UI Styling Guide. The heat ramp
+   mixes one accent token toward the transparent token in oklab, so a
+   theme's chart color carries the whole scale. */
+
+.ggl-stats {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  background: var(--vscode-editor-background, oklch(20% 0 0));
+  color: var(--vscode-editor-foreground, oklch(88% 0 0));
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+.ggl-stats .stats-header {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+  background: var(--vscode-editor-background, oklch(20% 0 0));
+}
+.ggl-stats .stats-title { font-weight: 600; }
+.ggl-stats .stats-repo { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.ggl-stats .stats-refresh {
+  margin-left: auto;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--vscode-button-border, var(--ngg-neutral-border));
+  border-radius: 4px;
+  background: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-subtle));
+  color: var(--vscode-button-secondaryForeground, oklch(88% 0 0));
+  font: inherit;
+  cursor: pointer;
+}
+.ggl-stats .stats-refresh:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground, var(--ngg-neutral-overlay-muted));
+}
+.ggl-stats .stats-refresh:disabled { cursor: default; opacity: 0.6; }
+.ggl-stats .stats-refresh:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, oklch(70% 0.15 240));
+  outline-offset: 1px;
+}
+.ggl-stats .stats-main {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+.ggl-stats .stats-section { margin-bottom: 24px; }
+.ggl-stats .stats-heading {
+  margin: 0 0 8px;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+.ggl-stats .stats-activity-note {
+  margin: 0 0 8px;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+}
+.ggl-stats .stats-message { margin: 0; }
+.ggl-stats .stats-loading { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.ggl-stats .stats-unavailable { color: var(--vscode-errorForeground, var(--ngg-error)); }
+
+/* Contributors: name, a bar against the top author, count, share. */
+.ggl-stats .stats-authors {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 640px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ggl-stats .stats-author {
+  display: grid;
+  grid-template-columns: minmax(120px, 200px) 1fr 64px 56px;
+  gap: 8px;
+  align-items: center;
+}
+.ggl-stats .stats-author-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ggl-stats .stats-author-track {
+  height: 10px;
+  border-radius: 2px;
+  background: var(--ngg-neutral-overlay-subtle);
+}
+.ggl-stats .stats-author-bar {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--ngg-stats-accent);
+}
+.ggl-stats .stats-author-count,
+.ggl-stats .stats-author-share {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ggl-stats .stats-author-share { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+
+/* The heatmap: one 16px cell per weekday and hour. Level 0 is the
+   neutral empty cell; levels 1 to 4 mix the accent in oklab. */
+.ggl-stats .stats-heatmap { border-collapse: separate; border-spacing: 2px; }
+.ggl-stats .stats-heat-weekday {
+  padding-right: 6px;
+  text-align: right;
+  font-weight: 400;
+  white-space: nowrap;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+}
+.ggl-stats .stats-heat-hour {
+  font-weight: 400;
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+}
+.ggl-stats .stats-heat-cell {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 2px;
+}
+.ggl-stats .stats-heat-level-0 { background: var(--ngg-neutral-overlay-subtle); }
+.ggl-stats .stats-heat-level-1 { background: color-mix(in oklab, var(--ngg-stats-accent) 25%, var(--ngg-transparent)); }
+.ggl-stats .stats-heat-level-2 { background: color-mix(in oklab, var(--ngg-stats-accent) 50%, var(--ngg-transparent)); }
+.ggl-stats .stats-heat-level-3 { background: color-mix(in oklab, var(--ngg-stats-accent) 75%, var(--ngg-transparent)); }
+.ggl-stats .stats-heat-level-4 { background: var(--ngg-stats-accent); }
+.ggl-stats .stats-legend {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 8px;
+}
+.ggl-stats .stats-legend-label { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.ggl-stats .stats-legend-cell {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+}
+
+@media (forced-colors: active) {
+  .ggl-stats .stats-heat-cell,
+  .ggl-stats .stats-legend-cell { border: 1px solid currentColor; }
+  .ggl-stats .stats-author-bar { background: currentColor; }
+  .ggl-stats .stats-refresh { border: 1px solid currentColor; }
+}

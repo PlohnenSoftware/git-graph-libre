@@ -56,6 +56,10 @@
   --ngg-reflog-intent-abort: var(--vscode-errorForeground, var(--ngg-error));
   --ngg-reflog-intent-ref: oklch(72% 0.13 140);
   --ngg-reflog-intent-neutral: var(--ngg-neutral-icon);
+  /* Statistics tab (F3-02): the one accent the contributor bars and
+     the activity heat ramp are mixed from. The theme's chart blue
+     comes first; the OKLCH fallback darkens on light themes below. */
+  --ngg-stats-accent: var(--vscode-charts-blue, oklch(68% 0.14 250));
 }
 
 body.vscode-light {
@@ -75,4 +79,5 @@ body.vscode-light {
   --ngg-reflog-intent-combine: oklch(48% 0.1 190);
   --ngg-reflog-intent-advance: oklch(48% 0.13 245);
   --ngg-reflog-intent-ref: oklch(48% 0.13 140);
+  --ngg-stats-accent: var(--vscode-charts-blue, oklch(50% 0.14 250));
 }
