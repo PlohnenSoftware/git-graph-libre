@@ -1,5 +1,12 @@
 import { abbrevCommit } from "@/backend/utils/string";
-import type { ReflogLabels, ReflogRow } from "@/reflogTabTypes";
+import {
+  isReflogFiltered,
+  REFLOG_ACTION_KINDS,
+  REFLOG_SEARCH_CAP,
+  type ReflogLabels,
+  type ReflogQuery,
+  type ReflogRow
+} from "@/reflogTabTypes";
 
 import { kindClass, kindLabel, subIntentClass, subLabel } from "./actionStyle";
 import { MIN_COLUMN_WIDTH, resizeColumnWidths } from "./columnResize";
@@ -9,6 +16,11 @@ export type ReflogViewCallbacks = {
   onLoadMore: () => void;
   /** A column drag ended with these widths; the caller keeps them per repo. */
   onColumnWidthsChange?: (widths: number[]) => void;
+  /**
+   * A filter control changed the query. `search` is one keystroke in the
+   * search box (the caller debounces it); `instant` acts at once.
+   */
+  onQueryChange?: (query: ReflogQuery, mode: "search" | "instant") => void;
 };
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -28,10 +40,91 @@ function folderName(repo: string): string {
 
 function header(state: ReflogViewState): HTMLElement {
   const bar = element("header", "reflog-header");
-  bar.append(element("span", "reflog-ref", state.ref ?? "HEAD"));
+  bar.append(element("span", "reflog-ref", state.ref ?? state.query.ref));
   const repo = element("span", "reflog-repo", folderName(state.repo));
   repo.title = state.repo;
   bar.append(repo);
+  return bar;
+}
+
+/** How a picker ref reads: the branch's short name, the stash worded as the action. */
+function refLabel(ref: string, labels: ReflogLabels): string {
+  if (ref === "refs/stash") return `${labels.actions.stash ?? "Stash"} (refs/stash)`;
+  if (ref.startsWith("refs/heads/")) return ref.slice("refs/heads/".length);
+  return ref;
+}
+
+function option(value: string, text: string, title?: string): HTMLOptionElement {
+  const node = element("option", "", text);
+  node.value = value;
+  if (title !== undefined) node.title = title;
+  return node;
+}
+
+/**
+ * The filter row (F1-05): the ref picker, the message search, the
+ * action filter and the "only in the reflog" toggle. Every change
+ * rebuilds the query from the controls' live values, so the row can
+ * re-render under the user without a control reading stale state.
+ */
+function controls(
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  callbacks: ReflogViewCallbacks
+): HTMLElement {
+  const bar = element("div", "reflog-controls");
+
+  const refSelect = element("select", "reflog-control reflog-ref-picker");
+  refSelect.id = "reflogRefPicker";
+  refSelect.setAttribute("aria-label", labels.filterRef);
+  refSelect.title = labels.filterRef;
+  // The picked ref stays pickable even when a fresh listing lost it
+  // (its branch was deleted): its read then says so, honestly.
+  const refs = state.refs.includes(state.query.ref) ? state.refs : [...state.refs, state.query.ref];
+  for (const ref of refs) refSelect.append(option(ref, refLabel(ref, labels), ref));
+  refSelect.value = state.query.ref;
+
+  const search = element("input", "reflog-control reflog-search");
+  search.id = "reflogSearch";
+  search.type = "search";
+  search.value = state.query.search;
+  search.placeholder = labels.searchPlaceholder;
+  search.setAttribute("aria-label", labels.searchPlaceholder);
+
+  const actionSelect = element("select", "reflog-control reflog-action-filter");
+  actionSelect.id = "reflogActionFilter";
+  actionSelect.setAttribute("aria-label", labels.columnAction);
+  actionSelect.title = labels.columnAction;
+  actionSelect.append(option("", labels.filterAllActions));
+  for (const kind of REFLOG_ACTION_KINDS) {
+    actionSelect.append(option(kind, kindLabel(kind, labels), kind));
+  }
+  actionSelect.value = state.query.actions[0] ?? "";
+
+  const onlyLabel = element("label", "reflog-only-toggle");
+  const only = element("input", "reflog-only-checkbox");
+  only.id = "reflogOnlyFilter";
+  only.type = "checkbox";
+  only.checked = state.query.onlyInReflog;
+  onlyLabel.append(only, labels.onlyInReflog);
+
+  const current = (): ReflogQuery => ({
+    ref: refSelect.value,
+    search: search.value.trim(),
+    actions: actionSelect.value === "" ? [] : [actionSelect.value],
+    onlyInReflog: only.checked
+  });
+  refSelect.addEventListener("change", () => callbacks.onQueryChange?.(current(), "instant"));
+  actionSelect.addEventListener("change", () => callbacks.onQueryChange?.(current(), "instant"));
+  only.addEventListener("change", () => callbacks.onQueryChange?.(current(), "instant"));
+  search.addEventListener("input", () => callbacks.onQueryChange?.(current(), "search"));
+  search.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || search.value === "") return;
+    search.value = "";
+    callbacks.onQueryChange?.(current(), "instant");
+  });
+
+  bar.append(refSelect, search, actionSelect, onlyLabel);
   return bar;
 }
 
@@ -191,14 +284,40 @@ function table(
  */
 export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbacks) {
   root.classList.add("ggl-reflog");
+  // Rendering replaces the whole document, controls included, so the
+  // focused control (and a not-yet-sent search text) is carried across
+  // a render by its id, or typing would lose its place on every reply.
+  let lastRepo = "";
   return {
     render(state: ReflogViewState, now: Date = new Date()): void {
       const { labels } = state;
       if (labels === null) {
+        lastRepo = state.repo;
         root.replaceChildren();
         return;
       }
-      const children: HTMLElement[] = [header(state)];
+      const active = root.ownerDocument.activeElement;
+      const focused =
+        active instanceof HTMLElement && root.contains(active) && active.id !== ""
+          ? {
+              id: active.id,
+              value: active instanceof HTMLInputElement ? active.value : undefined,
+              selectionStart: active instanceof HTMLInputElement ? active.selectionStart : null,
+              selectionEnd: active instanceof HTMLInputElement ? active.selectionEnd : null
+            }
+          : null;
+      const sameRepo = state.repo === lastRepo;
+
+      const children: HTMLElement[] = [header(state), controls(state, labels, callbacks)];
+      if (state.searchCapped && !state.loading) {
+        children.push(
+          messageBlock(
+            "reflog-cap-note",
+            labels.searchCapped.replace("{0}", REFLOG_SEARCH_CAP.toLocaleString(state.locale)),
+            "status"
+          )
+        );
+      }
       if (state.loading) {
         children.push(messageBlock("reflog-message reflog-loading", labels.loading, "status"));
       } else if (state.error !== null && state.rows.length === 0) {
@@ -210,7 +329,17 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
           )
         );
       } else if (state.rows.length === 0) {
-        children.push(messageBlock("reflog-message reflog-empty", labels.empty));
+        // A filter that matched nothing in a reflog that has entries is
+        // not the empty-reflog story; one for a ref with no reflog is.
+        const filtered = isReflogFiltered(state.query) && state.reflogState !== "none";
+        children.push(
+          messageBlock(
+            filtered
+              ? "reflog-message reflog-empty reflog-no-matches"
+              : "reflog-message reflog-empty",
+            filtered ? labels.noMatches : labels.empty
+          )
+        );
       } else {
         children.push(table(state, labels, now, callbacks));
         if (state.error !== null) {
@@ -232,6 +361,34 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
         }
       }
       root.replaceChildren(...children);
+      lastRepo = state.repo;
+      if (focused !== null) {
+        const next = root.querySelector<HTMLElement>(`#${focused.id}`);
+        if (next !== null) {
+          // Text typed while a debounced search had not been sent yet
+          // is newer than the state this render answers; keep it (the
+          // pending search will ask for it), but only here, never
+          // across a repository change.
+          if (
+            sameRepo &&
+            focused.id === "reflogSearch" &&
+            focused.value !== undefined &&
+            next instanceof HTMLInputElement &&
+            focused.value.trim() !== state.query.search
+          ) {
+            next.value = focused.value;
+          }
+          next.focus();
+          if (next instanceof HTMLInputElement && focused.selectionStart !== null) {
+            try {
+              next.setSelectionRange(focused.selectionStart, focused.selectionEnd);
+            } catch {
+              // A search input has a selectable range; a control whose
+              // type cannot select ignores the carried range.
+            }
+          }
+        }
+      }
     }
   };
 }

@@ -40,7 +40,24 @@ function seedColumnWidths(next: ReflogViewState): ReflogViewState {
   return widths === undefined ? next : { ...next, columnWidths: [...widths] };
 }
 
+/** Keystrokes settle this long before a search is asked for. */
+const SEARCH_DEBOUNCE_MS = 250;
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
 const view = createReflogView(root, {
+  onQueryChange: (query, mode) => {
+    state = { ...state, query };
+    if (searchTimer !== undefined) clearTimeout(searchTimer);
+    if (mode === "search") {
+      searchTimer = setTimeout(() => {
+        searchTimer = undefined;
+        host.postMessage({ command: "query", query: state.query });
+      }, SEARCH_DEBOUNCE_MS);
+      return;
+    }
+    searchTimer = undefined;
+    host.postMessage({ command: "query", query });
+  },
   onLoadMore: () => {
     if (state.loadingMore || !state.hasMore) return;
     state = markLoadingMore(state);

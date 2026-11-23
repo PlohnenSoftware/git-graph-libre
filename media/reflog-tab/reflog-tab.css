@@ -29,6 +29,76 @@
   font-weight: 600;
 }
 .ggl-reflog .reflog-repo { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+/* The filter row (F1-05): the toolbar's 28px control metric, on the
+   input and dropdown tokens per the Webview UI Styling Guide. It never
+   scrolls away with the table. */
+.ggl-reflog .reflog-controls {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+  background: var(--vscode-editor-background, oklch(20% 0 0));
+}
+.ggl-reflog .reflog-control {
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid var(--vscode-input-border, var(--ngg-neutral-border));
+  border-radius: 4px;
+  background-color: var(--vscode-input-background, oklch(25% 0 0));
+  color: var(--vscode-input-foreground, oklch(88% 0 0));
+  font: inherit;
+}
+.ggl-reflog select.reflog-control {
+  border-color: var(--vscode-dropdown-border, var(--ngg-neutral-border));
+  background-color: var(--vscode-dropdown-background, oklch(25% 0 0));
+  color: var(--vscode-dropdown-foreground, oklch(88% 0 0));
+}
+.ggl-reflog .reflog-search { flex: 1 1 200px; max-width: 360px; min-width: 140px; }
+.ggl-reflog .reflog-search::placeholder { color: var(--vscode-input-placeholderForeground, oklch(65% 0 0)); }
+.ggl-reflog .reflog-control:focus { outline: 1px solid var(--vscode-focusBorder, oklch(70% 0.15 240)); outline-offset: 0; }
+.ggl-reflog .reflog-only-toggle {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+  white-space: nowrap;
+}
+/* The tab's one checkbox wears the shared box of media/checkbox.css:
+   neutral set or unset, the tick alone marking the state. */
+.ggl-reflog .reflog-only-checkbox {
+  appearance: none;
+  display: inline-block;
+  position: relative;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  background-color: var(--vscode-checkbox-background, var(--ngg-neutral-overlay-subtle));
+  border: 1px solid var(--vscode-checkbox-border, var(--ngg-neutral-border-strong));
+  border-radius: 3px;
+  cursor: pointer;
+}
+.ggl-reflog .reflog-only-checkbox:checked::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--vscode-checkbox-foreground, currentColor);
+  clip-path: polygon(41% 79%, 11% 51%, 20% 41%, 41% 61%, 80% 20%, 89% 30%);
+}
+.ggl-reflog .reflog-only-checkbox:focus-visible { outline: 1px solid var(--vscode-focusBorder, oklch(70% 0.15 240)); outline-offset: 2px; }
+.ggl-reflog .reflog-cap-note {
+  flex: none;
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+  background: var(--vscode-editor-background, oklch(20% 0 0));
+}
 .ggl-reflog .reflog-scroll { flex: 1; min-height: 0; overflow: auto; }
 .ggl-reflog .reflog-table { width: 100%; border-collapse: collapse; }
 /* Once the user drags a column, the header widths rule, as the
@@ -151,6 +221,8 @@
 .ggl-reflog ::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground, oklch(60% 0 0 / 0.6)); }
 .ggl-reflog ::-webkit-scrollbar-thumb:active { background: var(--vscode-scrollbarSlider-activeBackground, oklch(60% 0 0 / 0.8)); }
 @media (forced-colors: active) {
+  .ggl-reflog .reflog-only-checkbox { border-color: ButtonText; background-color: ButtonFace; }
+  .ggl-reflog .reflog-only-checkbox:checked::after { background-color: ButtonText; }
   .ggl-reflog .reflog-badge { border: 1px solid currentColor; }
   .ggl-reflog .reflog-sub-tag { border: 1px solid currentColor; }
   .ggl-reflog .reflog-kind-dot { border: 1px solid currentColor; }

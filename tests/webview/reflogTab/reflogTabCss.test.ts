@@ -73,6 +73,24 @@ describe("reflog tab styles", () => {
     expect(body).toContain(".ggl-reflog .reflog-kind-dot { border: 1px solid currentColor; }");
   });
 
+  it("styles the filter row on input and dropdown tokens at the toolbar metric (F1-05)", () => {
+    expect(body).toContain(".ggl-reflog .reflog-controls {");
+    expect(body).toContain("height: 28px;");
+    expect(body).toContain("var(--vscode-input-background");
+    expect(body).toContain("var(--vscode-dropdown-background");
+    expect(body).toContain("var(--vscode-input-placeholderForeground");
+    expect(body).toContain(".ggl-reflog .reflog-cap-note {");
+    // The toggle's box is the shared neutral checkbox: checkbox tokens,
+    // a percentage clip-path tick, and no accent button fill behind it.
+    const checkbox = /\.reflog-only-checkbox \{([^}]*)\}/.exec(body)?.[1] ?? "";
+    expect(checkbox).toContain("var(--vscode-checkbox-background");
+    expect(checkbox).toContain("var(--vscode-checkbox-border");
+    expect(checkbox).not.toContain("--vscode-button-");
+    expect(body).toContain(".reflog-only-checkbox:checked::after");
+    expect(body).toContain("clip-path: polygon(41% 79%");
+    expect(body).toContain(".ggl-reflog .reflog-only-checkbox { border-color: ButtonText;");
+  });
+
   it("carries the graph table's resize handles and fixed layout (F1-04F)", () => {
     expect(body).toContain(".ggl-reflog .reflog-table.fixedLayout { table-layout: fixed; }");
     expect(body).toContain(".ggl-reflog .resizeCol {");

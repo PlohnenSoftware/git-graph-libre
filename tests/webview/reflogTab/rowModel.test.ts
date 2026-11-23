@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { defaultReflogQuery, normalizeReflogQuery, REFLOG_SEARCH_CAP } from "@/reflogTabTypes";
 import {
   applyData,
   applyLoading,
@@ -144,6 +145,65 @@ describe("reflog row model", () => {
       "en"
     );
     expect(numeric.value).toMatch(/^2023-11-\d{1,2} \d{2}:\d{2}$/);
+  });
+
+  it("carries the query, the picker refs and the cap flag from each message (F1-05)", () => {
+    const query = { ref: "refs/stash", search: "needle", actions: ["stash"], onlyInReflog: true };
+    const state = applyData(
+      initialReflogState(),
+      dataMessage({ query, refs: ["HEAD", "refs/stash"], page: page({ searchCapped: true }) })
+    );
+    expect(state.query).toEqual(query);
+    expect(state.refs).toEqual(["HEAD", "refs/stash"]);
+    expect(state.searchCapped).toBe(true);
+    expect(REFLOG_SEARCH_CAP).toBe(5000);
+
+    // A reload of the same query keeps its rows; a changed query starts over.
+    const refreshing = applyLoading(state, loadingMessage({ requestId: 3, query }));
+    expect(refreshing.loading).toBe(false);
+    expect(refreshing.rows).toHaveLength(1);
+    const changed = applyLoading(
+      state,
+      loadingMessage({
+        requestId: 3,
+        query: { ...query, search: "other" }
+      })
+    );
+    expect(changed.loading).toBe(true);
+    expect(changed.rows).toEqual([]);
+    expect(changed.searchCapped).toBe(false);
+  });
+
+  it("normalizes a query from across the boundary field by field (F1-05)", () => {
+    expect(normalizeReflogQuery(null)).toEqual(defaultReflogQuery());
+    expect(normalizeReflogQuery("refs/heads/main")).toEqual(defaultReflogQuery());
+    expect(
+      normalizeReflogQuery({
+        ref: "refs/heads/feat/x",
+        search: "  needle  ",
+        actions: ["stash", "bogus", "commit", "stash"],
+        onlyInReflog: true
+      })
+    ).toEqual({
+      ref: "refs/heads/feat/x",
+      search: "needle",
+      actions: ["commit", "stash"],
+      onlyInReflog: true
+    });
+    for (const ref of [
+      "-n1",
+      "--upload-pack=touch /tmp/x",
+      "refs/remotes/origin/main",
+      "refs/tags/v1",
+      "refs/heads/",
+      "refs/heads/a\nb",
+      42
+    ]) {
+      expect(normalizeReflogQuery({ ref }).ref, String(ref)).toBe("HEAD");
+    }
+    expect(
+      normalizeReflogQuery({ ref: "refs/stash", search: 5, actions: "commit", onlyInReflog: "yes" })
+    ).toEqual({ ref: "refs/stash", search: "", actions: [], onlyInReflog: false });
   });
 
   it("takes the display settings from each message, so a change restyles the tab", () => {

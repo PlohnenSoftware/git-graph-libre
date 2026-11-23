@@ -30,6 +30,7 @@ function send(message: ReflogHostMessage, origin = window.location.origin) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
   document.body.replaceChildren();
 });
 
@@ -99,6 +100,38 @@ describe("reflog tab webview", () => {
     // Another repository has no saved widths of its own.
     send(dataMessage({ repo: "/repos/two" }));
     expect(second.root.querySelector("table")?.classList.contains("fixedLayout")).toBe(false);
+  });
+
+  it("debounces the search box and sends other filter changes at once (F1-05)", async () => {
+    const { posted, root } = await start();
+    send(dataMessage());
+    vi.useFakeTimers();
+    const search = root.querySelector<HTMLInputElement>("#reflogSearch") as HTMLInputElement;
+    search.value = "nee";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    search.value = "needle";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(posted.filter((message) => message.command === "query")).toEqual([]);
+    vi.advanceTimersByTime(250);
+    expect(posted.filter((message) => message.command === "query")).toEqual([
+      {
+        command: "query",
+        query: { ref: "HEAD", search: "needle", actions: [], onlyInReflog: false }
+      }
+    ]);
+    // An instant change after typing asks for the newest whole query now.
+    search.value = "other";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    const only = root.querySelector<HTMLInputElement>("#reflogOnlyFilter") as HTMLInputElement;
+    only.checked = true;
+    only.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(posted.filter((message) => message.command === "query")).toHaveLength(2);
+    expect(posted.at(-1)).toEqual({
+      command: "query",
+      query: { ref: "HEAD", search: "other", actions: [], onlyInReflog: true }
+    });
+    vi.advanceTimersByTime(500);
+    expect(posted.filter((message) => message.command === "query")).toHaveLength(2);
   });
 
   it("ignores messages from another origin", async () => {

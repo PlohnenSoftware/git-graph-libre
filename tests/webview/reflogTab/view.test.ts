@@ -17,8 +17,9 @@ function start() {
   const root = document.getElementById("reflogTab") as HTMLElement;
   const onLoadMore = vi.fn();
   const onColumnWidthsChange = vi.fn();
-  const view = createReflogView(root, { onLoadMore, onColumnWidthsChange });
-  return { root, view, onLoadMore, onColumnWidthsChange };
+  const onQueryChange = vi.fn();
+  const view = createReflogView(root, { onLoadMore, onColumnWidthsChange, onQueryChange });
+  return { root, view, onLoadMore, onColumnWidthsChange, onQueryChange };
 }
 
 afterEach(() => {
@@ -208,6 +209,145 @@ describe("reflog tab view", () => {
     expect(root.querySelector<HTMLButtonElement>(".reflog-load-more")?.disabled).toBe(true);
     view.render(applyData(initialReflogState(), dataMessage()), NOW);
     expect(root.querySelector(".reflog-load-more")).toBeNull();
+  });
+});
+
+describe("reflog search, filters and ref picker (F1-05)", () => {
+  const QUERY = {
+    ref: "refs/heads/main",
+    search: "needle",
+    actions: ["reset"],
+    onlyInReflog: true
+  };
+
+  it("renders the controls with the query's values and the picker's refs", () => {
+    const { root, view } = start();
+    view.render(
+      applyData(
+        initialReflogState(),
+        dataMessage({ query: QUERY, page: page({ ref: "refs/heads/main" }) })
+      ),
+      NOW
+    );
+    const refPicker = root.querySelector<HTMLSelectElement>("#reflogRefPicker");
+    expect(refPicker?.getAttribute("aria-label")).toBe("Ref");
+    expect([...(refPicker?.options ?? [])].map((o) => [o.value, o.textContent, o.title])).toEqual([
+      ["HEAD", "HEAD", "HEAD"],
+      ["refs/heads/main", "main", "refs/heads/main"],
+      ["refs/stash", "Stash (refs/stash)", "refs/stash"]
+    ]);
+    expect(refPicker?.value).toBe("refs/heads/main");
+    const search = root.querySelector<HTMLInputElement>("#reflogSearch");
+    expect(search?.value).toBe("needle");
+    expect(search?.placeholder).toBe("Search reflog messages…");
+    const actions = root.querySelector<HTMLSelectElement>("#reflogActionFilter");
+    expect(actions?.options[0]?.textContent).toBe("All actions");
+    expect(actions?.value).toBe("reset");
+    expect(actions?.querySelector('option[value="reset"]')?.textContent).toBe("Reset");
+    const only = root.querySelector<HTMLInputElement>("#reflogOnlyFilter");
+    expect(only?.checked).toBe(true);
+    expect(only?.closest("label")?.textContent).toContain("Only in the reflog");
+    expect(root.querySelector(".reflog-ref")?.textContent).toBe("refs/heads/main");
+  });
+
+  it("rebuilds the query from the controls' live values on every change", () => {
+    const { root, view, onQueryChange } = start();
+    view.render(applyData(initialReflogState(), dataMessage()), NOW);
+    const refPicker = root.querySelector<HTMLSelectElement>(
+      "#reflogRefPicker"
+    ) as HTMLSelectElement;
+    refPicker.value = "refs/stash";
+    refPicker.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(onQueryChange).toHaveBeenLastCalledWith(
+      { ref: "refs/stash", search: "", actions: [], onlyInReflog: false },
+      "instant"
+    );
+
+    const search = root.querySelector<HTMLInputElement>("#reflogSearch") as HTMLInputElement;
+    search.value = "  abc  ";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(onQueryChange).toHaveBeenLastCalledWith(
+      { ref: "refs/stash", search: "abc", actions: [], onlyInReflog: false },
+      "search"
+    );
+
+    const actions = root.querySelector<HTMLSelectElement>(
+      "#reflogActionFilter"
+    ) as HTMLSelectElement;
+    actions.value = "rebase";
+    actions.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(onQueryChange).toHaveBeenLastCalledWith(
+      { ref: "refs/stash", search: "abc", actions: ["rebase"], onlyInReflog: false },
+      "instant"
+    );
+
+    const only = root.querySelector<HTMLInputElement>("#reflogOnlyFilter") as HTMLInputElement;
+    only.checked = true;
+    only.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(onQueryChange).toHaveBeenLastCalledWith(
+      { ref: "refs/stash", search: "abc", actions: ["rebase"], onlyInReflog: true },
+      "instant"
+    );
+
+    search.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(search.value).toBe("");
+    expect(onQueryChange).toHaveBeenLastCalledWith(
+      { ref: "refs/stash", search: "", actions: ["rebase"], onlyInReflog: true },
+      "instant"
+    );
+  });
+
+  it("words a filter that matched nothing apart from an empty reflog", () => {
+    const { root, view } = start();
+    const filtered = dataMessage({
+      query: { ref: "HEAD", search: "nope", actions: [], onlyInReflog: false },
+      page: page({ rows: [], state: "entries" })
+    });
+    view.render(applyData(initialReflogState(), filtered), NOW);
+    expect(root.querySelector(".reflog-no-matches")?.textContent).toBe("No matching entries.");
+    // The controls stay, so the filter can be changed or cleared.
+    expect(root.querySelector("#reflogSearch")).not.toBeNull();
+
+    const noReflog = dataMessage({
+      query: { ref: "refs/heads/main", search: "nope", actions: [], onlyInReflog: false },
+      page: page({ rows: [], state: "none", ref: "refs/heads/main" })
+    });
+    view.render(applyData(initialReflogState(), noReflog), NOW);
+    expect(root.querySelector(".reflog-no-matches")).toBeNull();
+    expect(root.querySelector(".reflog-empty")?.textContent).toBe(LABELS.empty);
+  });
+
+  it("shows the search-cap note with the locale-formatted cap", () => {
+    const { root, view } = start();
+    view.render(
+      applyData(initialReflogState(), dataMessage({ page: page({ searchCapped: true }) })),
+      NOW
+    );
+    const note = root.querySelector(".reflog-cap-note");
+    expect(note?.textContent).toBe(
+      "The search limit of 5,000 entries was reached; older entries may not be shown."
+    );
+    expect(note?.getAttribute("role")).toBe("status");
+  });
+
+  it("keeps the focused search box, its pending text and its cursor across a render", () => {
+    const { root, view } = start();
+    const state = applyData(initialReflogState(), dataMessage());
+    view.render(state, NOW);
+    const search = root.querySelector<HTMLInputElement>("#reflogSearch") as HTMLInputElement;
+    search.focus();
+    search.value = "abc";
+    search.setSelectionRange(1, 1);
+    // A reply for the older (empty) search lands while "abc" is typed
+    // but not yet sent: the newer text and the focus survive it.
+    view.render(state, NOW);
+    const again = root.querySelector<HTMLInputElement>("#reflogSearch");
+    expect(document.activeElement).toBe(again);
+    expect(again?.value).toBe("abc");
+    expect(again?.selectionStart).toBe(1);
+    // A different repository starts its search from its own query.
+    view.render(applyData(initialReflogState(), dataMessage({ repo: "/repos/two" })), NOW);
+    expect(root.querySelector<HTMLInputElement>("#reflogSearch")?.value).toBe("");
   });
 });
 
