@@ -864,5 +864,19 @@
   "reflog.sub.wip": "W toku",
   "reflog.sub.named": "Nazwany",
   "command.showReflog.noRepo": "Nie ma repozytoriów Git, dla których można pokazać reflog.",
-  "command.showReflog.placeholder": "Wybierz repozytorium, aby pokazać jego reflog"
+  "command.showReflog.placeholder": "Wybierz repozytorium, aby pokazać jego reflog",
+  "blame.title": "Blame: {0}",
+  "blame.loading": "Ładowanie blame…",
+  "blame.empty": "Ten plik nie ma wierszy do blame.",
+  "blame.binary": "To jest plik binarny; nie ma blame do pokazania.",
+  "blame.tooLarge": "Ten plik jest zbyt duży, aby wykonać tu blame.",
+  "blame.untracked": "Ten plik nie jest jeszcze śledzony przez Git, więc nie ma historii blame.",
+  "blame.unborn": "To repozytorium nie ma jeszcze commitów, więc ten plik nie ma historii blame.",
+  "blame.loadError": "Nie można wczytać blame: {0}",
+  "blame.workingTree": "Drzewo robocze",
+  "blame.uncommitted": "Niezatwierdzone zmiany",
+  "blame.lineCount": "{0} wierszy",
+  "blame.resizeGutter": "Zmień szerokość guttera blame",
+  "command.showBlame.noEditor": "Najpierw otwórz plik w repozytorium Git, a następnie pokaż jego blame.",
+  "command.showBlame.noRepo": "Aktywny edytor nie znajduje się w repozytorium Git."
 }

@@ -864,5 +864,19 @@
   "reflog.sub.wip": "進行中",
   "reflog.sub.named": "已命名",
   "command.showReflog.noRepo": "沒有可顯示 reflog 的 Git 存放庫。",
-  "command.showReflog.placeholder": "選擇要顯示其 reflog 的存放庫"
+  "command.showReflog.placeholder": "選擇要顯示其 reflog 的存放庫",
+  "blame.title": "Blame: {0}",
+  "blame.loading": "正在載入 blame…",
+  "blame.empty": "此檔案沒有可 blame 的行。",
+  "blame.binary": "這是二進位檔案，沒有可顯示的 blame。",
+  "blame.tooLarge": "此檔案太大，無法在此進行 blame。",
+  "blame.untracked": "Git 尚未追蹤此檔案，因此它沒有 blame 歷史。",
+  "blame.unborn": "此儲存庫尚無提交，因此此檔案沒有 blame 歷史。",
+  "blame.loadError": "無法載入 blame: {0}",
+  "blame.workingTree": "工作區",
+  "blame.uncommitted": "未提交的變更",
+  "blame.lineCount": "{0} 行",
+  "blame.resizeGutter": "調整 blame 邊欄大小",
+  "command.showBlame.noEditor": "請先在 Git 儲存庫中開啟一個檔案，然後顯示其 blame。",
+  "command.showBlame.noRepo": "作用中的編輯器不在 Git 儲存庫中。"
 }

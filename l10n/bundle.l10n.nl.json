@@ -864,5 +864,19 @@
   "reflog.sub.wip": "Werk in uitvoering",
   "reflog.sub.named": "Met naam",
   "command.showReflog.noRepo": "Er zijn geen Git-repository's om een reflog voor weer te geven.",
-  "command.showReflog.placeholder": "Selecteer een repository om de reflog weer te geven"
+  "command.showReflog.placeholder": "Selecteer een repository om de reflog weer te geven",
+  "blame.title": "Blame: {0}",
+  "blame.loading": "Blame laden…",
+  "blame.empty": "Dit bestand heeft geen regels om te blamen.",
+  "blame.binary": "Dit is een binair bestand; er is geen blame om weer te geven.",
+  "blame.tooLarge": "Dit bestand is te groot om hier te blamen.",
+  "blame.untracked": "Dit bestand wordt nog niet door Git gevolgd, dus het heeft geen blamegeschiedenis.",
+  "blame.unborn": "Deze repository heeft nog geen commits, dus dit bestand heeft geen blamegeschiedenis.",
+  "blame.loadError": "Kan de blame niet laden: {0}",
+  "blame.workingTree": "Werkboom",
+  "blame.uncommitted": "Niet-vastgelegde wijzigingen",
+  "blame.lineCount": "{0} regels",
+  "blame.resizeGutter": "Blamegoot vergroten of verkleinen",
+  "command.showBlame.noEditor": "Open eerst een bestand in een Git-repository en geef daarna de blame weer.",
+  "command.showBlame.noRepo": "De actieve editor bevindt zich niet in een Git-repository."
 }

@@ -10,6 +10,7 @@ import { formatGitCommandRecord } from "@/backend/utils/gitCommandLog";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { runGitRaw } from "@/backend/utils/gitRunner";
 import { getPathFromStr } from "@/backend/utils/path";
+import type { BlameOpenTarget } from "@/blameTabTypes";
 import type { Config } from "@/config";
 import type { DiffTabRequest } from "@/diffTabTypes";
 import type { ExtensionState } from "@/extensionState";
@@ -17,6 +18,8 @@ import * as l10n from "@/l10n";
 import type { TelemetryReporter } from "@/telemetry";
 import { createTabOpenReporter, TAB_FEATURE_DIFF, TAB_FEATURE_REFLOG } from "@/telemetry/tabOpen";
 
+import { createBlameSource } from "./blameTab/blameData";
+import { openBlameTab as openBlamePanel } from "./blameTab/blameTabPanel";
 import { buildComponentStatus } from "./componentStatus";
 import {
   buildDiagnosticsReport,
@@ -40,6 +43,12 @@ type RepoQuickPickItem = vscode.QuickPickItem & {
 };
 type WindowApi = {
   getActiveTextEditorUri(): { fsPath: string } | undefined;
+  /**
+   * The active editor's 1-based cursor line, when one is open. Optional
+   * so window fakes written before the Blame command stay valid; the
+   * VS Code default below always provides it.
+   */
+  getActiveTextEditorLine?: () => number | undefined;
   showErrorMessage(message: string): Thenable<unknown>;
   showInformationMessage(message: string): Thenable<unknown>;
   showOpenDialog(
@@ -122,6 +131,12 @@ export type CommandManagerDeps = {
    * handler's route; tests replace it.
    */
   openReflogTab?: (repo: string) => void;
+  /**
+   * Opens the Blame tab for a file (F4-03). Defaults to the blame panel
+   * fed by the CLI blame source, assembled here like the reflog route;
+   * tests replace it.
+   */
+  openBlameTab?: (target: BlameOpenTarget) => void;
   /** Open the GGL Diff tab from Source Control (D46); wired in `extension.ts`. */
   openScmDiffTab?: (request: DiffTabRequest) => void;
   /**
@@ -222,6 +237,10 @@ function parseWorktreeRequest(value: unknown): WorktreeRequest {
 function createVsCodeWindowApi(): WindowApi {
   return {
     getActiveTextEditorUri: () => vscode.window.activeTextEditor?.document.uri,
+    getActiveTextEditorLine: () => {
+      const editor = vscode.window.activeTextEditor;
+      return editor === undefined ? undefined : editor.selection.active.line + 1;
+    },
     showErrorMessage: (message) => vscode.window.showErrorMessage(message),
     showInformationMessage: (message) => vscode.window.showInformationMessage(message),
     showOpenDialog: (options) => vscode.window.showOpenDialog(options),
@@ -638,6 +657,73 @@ export function createCommandManager(deps: CommandManagerDeps) {
     openReflog(repo);
   }
 
+  function openBlame(target: BlameOpenTarget) {
+    if (deps.openBlameTab !== undefined) {
+      deps.openBlameTab(target);
+      return;
+    }
+    openBlamePanel(
+      target,
+      createBlameSource({
+        createGit: (root) =>
+          simpleGit({
+            baseDir: root,
+            binary: deps.config.gitPath(),
+            maxConcurrentProcesses: 6,
+            trimmed: false
+          }),
+        gitPath: () => deps.config.gitPath(),
+        record: recordGitCommand
+      }),
+      {
+        extensionPath:
+          deps.extensionPath ??
+          vscode.extensions?.getExtension("PlohnenSoftware.git-graph-libre")?.extensionPath ??
+          process.cwd(),
+        outputChannel: deps.outputChannel
+        // `reportBlameOpened` stays unset: slice T1 wires the approved
+        // tab telemetry through it at integration.
+      }
+    );
+  }
+
+  /**
+   * "Show Blame for Current File": blame the active editor's file in its
+   * repository, resolved like `viewActiveEditorRepo` resolves it, and
+   * land on the editor's cursor line. With no editor, or a file Git does
+   * not own, there is only the word — nothing opens.
+   */
+  async function showBlame() {
+    const activeUri = windowApi.getActiveTextEditorUri();
+    if (!activeUri || activeUri.fsPath === "") {
+      await windowApi.showWarningMessage(l10n.t("command.showBlame.noEditor"));
+      return;
+    }
+
+    const activePath = getPathFromStr(activeUri.fsPath);
+    let repo = findKnownRepoForPath(deps.repoManager.getRepos(), activePath);
+    if (repo === null) {
+      const resolvedRepo = await resolveGitRoot(
+        path.dirname(activePath),
+        deps.config.gitPath(),
+        recordGitCommand
+      );
+      if (resolvedRepo === null) {
+        await windowApi.showWarningMessage(l10n.t("command.showBlame.noRepo"));
+        return;
+      }
+      deps.repoManager.addRepo(resolvedRepo);
+      repo = resolvedRepo;
+    }
+
+    const filePath = activePath.startsWith(`${repo}/`) ? activePath.slice(repo.length + 1) : "";
+    if (filePath === "") {
+      await windowApi.showWarningMessage(l10n.t("command.showBlame.noRepo"));
+      return;
+    }
+    openBlame({ repo, filePath, targetLine: windowApi.getActiveTextEditorLine?.() ?? null });
+  }
+
   function registerAll() {
     register("git-graph-libre.view", (sourceControl) => openSourceControlRepo(sourceControl));
     register("git-graph-libre.searchCommits", () => startHistorySearch());
@@ -661,6 +747,7 @@ export function createCommandManager(deps: CommandManagerDeps) {
     register("git-graph-libre.switchGraphToWorktree", (request) => switchGraphToWorktree(request));
     register("git-graph-libre.pruneStaleWorktrees", () => pruneStaleWorktrees());
     register("git-graph-libre.showReflog", (repo) => showReflog(repo));
+    register("git-graph-libre.showBlame", () => showBlame());
     for (const { id, handler } of createScmDiffTabHandlers({
       getRepos: () => deps.repoManager.getRepos(),
       openDiff: (request) => deps.openScmDiffTab?.(request),

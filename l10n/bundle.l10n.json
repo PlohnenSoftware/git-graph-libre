@@ -864,5 +864,19 @@
   "reflog.sub.wip": "Work in progress",
   "reflog.sub.named": "Named",
   "command.showReflog.noRepo": "There are no Git repositories to show a reflog for.",
-  "command.showReflog.placeholder": "Select a repository to show its reflog"
+  "command.showReflog.placeholder": "Select a repository to show its reflog",
+  "blame.title": "Blame: {0}",
+  "blame.loading": "Loading blame…",
+  "blame.empty": "This file has no lines to blame.",
+  "blame.binary": "This is a binary file; there is no blame to show.",
+  "blame.tooLarge": "This file is too large to blame here.",
+  "blame.untracked": "This file is not tracked by Git yet, so it has no blame history.",
+  "blame.unborn": "This repository has no commits yet, so this file has no blame history.",
+  "blame.loadError": "Unable to load the blame: {0}",
+  "blame.workingTree": "Working Tree",
+  "blame.uncommitted": "Uncommitted changes",
+  "blame.lineCount": "{0} lines",
+  "blame.resizeGutter": "Resize blame gutter",
+  "command.showBlame.noEditor": "Open a file inside a Git repository first, then show its blame.",
+  "command.showBlame.noRepo": "The active editor is not inside a Git repository."
 }
