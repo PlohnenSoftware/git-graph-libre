@@ -32,6 +32,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that own many separate hunks in the file and recent ones among them, and
   **Off** removes the heat. The chosen mode is kept when the tab reloads.
 
+- **Rewinding and options in the Blame view.** A hunk that has an earlier
+  version offers **View blame prior to this change**, which shows the file's
+  blame as it stood just before that change and follows renames; it is not
+  offered for uncommitted lines, and it is disabled on a file's first commit.
+  **Back**, **Forward** and **Latest** step through the revisions you have
+  viewed, and the tab title names the one you are on. The header has toggles
+  for **Ignore whitespace (-w)**, **Detect moved lines (-M)** and **Detect
+  copied lines (-C)**. When the repository has a `.git-blame-ignore-revs`
+  file, it is applied automatically, and a chip turns that off. Commits
+  ignored for the session appear as chips you can remove, with **Clear all**.
+  **Find in blame** (Ctrl+F, or Cmd+F on macOS) steps through the lines whose
+  text, author, summary or hash match what you type.
+
+- **A commit popover in the Blame view.** Clicking a hunk's commit opens its
+  details: the full message with issue links, the author and committer, the
+  full hash and date, and the avatar when one is already cached. The popover
+  and a hunk's right-click menu offer **Show Commit in Graph**, **Open in GGL
+  Diff**, **View blame prior to this change**, **Ignore Commit (This Session)**,
+  **Copy Commit Hash to Clipboard** and **Copy Commit Message to Clipboard**,
+  and a line number opens the file at that line with **Open File at Line**.
+
 - **A Reflog tab.** **Show Reflog**, from the Command Palette or the graph
   toolbar, opens a tab that lists the `HEAD` reflog page by page: each entry's
   index, commit, date, action and sub-action (such as a rebase's pick, squash
