@@ -9,7 +9,7 @@ summary: >-
 
 # Q2 — Reflog table column widths, no horizontal scroll
 
-Status: done — awaiting integration
+Status: ready — integrator follow-up below (narrow widths)
 
 Needs: —
 
@@ -117,3 +117,41 @@ commits; never push.
   - *Pure arithmetic stays in `columnResize.ts`, DOM in the view; complexity ≤ 15* — **met by construction** (all width rules are pure exported functions with the view holding two small helpers; Sonar confirms at integration).
 - **Deviations from the slice:** None outside Touch. Within it: `main.ts` needed no edit because saved widths are fitted in the view at draw time and a fit never writes back, so the saved-state format and flow are unchanged (widths saved by the old pair-trade code still normalize and are then fitted). One judgment inside the slice's rules: at about 700px the flexible rule leaves Message at its 40px minimum — its header ellipses to "Mes…" and long messages wrap very narrowly — while every fixed header, Index first, stays fully readable; the alternative (scaling fixed columns harder to feed Message) would ellipsize the Index header the slice names. The renders show both widths so the maintainer can judge.
 - **Open questions / follow-ups:** One stale comment outside Touch: `columnWidths` in `src/webview/reflogTab/rowModel.ts` still says "or null while the table still sizes itself" — null now means the defaults rule. Worth a one-line wording fix whenever that file is next touched. Nothing else.
+
+## Integrator follow-up (`2026-11-23`)
+
+Integration review of the renders: at 1,560 px the result is right (Index on
+one line, Message takes the slack, no horizontal scroll). At **700 px it is
+not acceptable**: `reflog-q2-dark-700.png` shows Message squeezed to about
+55 px with the message wrapping one word per line (rows many lines tall),
+while Action, Sub-action, Date and State keep their full defaults. 700 px is
+an ordinary split-editor width. The cause is the fit order: Message gives
+everything down to the 40 px `MIN_COLUMN_WIDTH` before any fixed column
+gives anything.
+
+Change the automatic fit (window/container narrowing, and fitting saved
+widths) to:
+
+1. Message shrinks first, but only down to a working minimum
+   `MESSAGE_MIN_WIDTH` of 200 px (an exported constant in
+   `columnResize.ts`).
+2. Then the fixed columns shrink, in proportion to their slack above
+   `MIN_COLUMN_WIDTH`, clipping with an ellipsis (headers included).
+3. Only when every fixed column is at `MIN_COLUMN_WIDTH` does Message go
+   below 200 px, down to `MIN_COLUMN_WIDTH`.
+4. Widening reverses it: fixed columns grow back towards their defaults (or
+   the user's saved widths) before Message grows past 200 px; beyond that
+   Message takes all extra width as now.
+
+A user's explicit drag may still take Message down to `MIN_COLUMN_WIDTH`
+(the user chose it); the 200 px floor is for the automatic fit only. The
+no-horizontal-scroll rule and everything else in this slice stay as they
+are.
+
+Acceptance: pure tests for the new fit order (all four steps, including
+growing back); a view test that at a 700 px container Message is at least
+200 px wide and no row wraps the message one word per line; new renders,
+dark and light, at 1,560, 700 and 480 px, replacing the old 700 px ones,
+listed in a new "## Report (follow-up)" below this section. Also fix the
+stale `columnWidths` comment in `src/webview/reflogTab/rowModel.ts` you
+reported (one line; added to Touch by the integrator).
