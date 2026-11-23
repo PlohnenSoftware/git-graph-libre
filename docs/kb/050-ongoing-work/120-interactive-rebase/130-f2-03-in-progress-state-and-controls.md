@@ -8,7 +8,7 @@ summary: >-
 
 # F2-03 — In-progress state and controls
 
-Status: ready
+Status: claimed by Muse Code on 2026-11-23 12:01
 
 Needs: none (F2-01b for the end-to-end checks)
 
