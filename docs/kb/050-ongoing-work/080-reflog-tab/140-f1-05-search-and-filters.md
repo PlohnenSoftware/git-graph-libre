@@ -7,7 +7,7 @@ summary: >-
 
 # F1-05 — Search, filters and ref picker
 
-Status: ready
+Status: claimed by Muse Code on 2026-11-23 01:59
 
 Needs: F1-04, F1-09
 
