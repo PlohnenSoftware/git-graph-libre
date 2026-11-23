@@ -56,57 +56,6 @@ function folderName(repo: string): string {
   return repo.split("/").at(-1) || repo;
 }
 
-/** The picked option, or null when a fresh listing no longer holds it. */
-function selectedOption(state: ReflogViewState): ReflogRefOption | null {
-  return (
-    state.refOptions.find((refOption) => refOptionMatchesQuery(refOption, state.query)) ?? null
-  );
-}
-
-/**
- * Whose `HEAD` the header names (F1-08): another worktree's `HEAD` always
- * names its worktree, and this worktree's does too once the repository
- * has linked worktrees to tell apart. Both take the graph's own
- * "HEAD of worktree {0}" words. A single-worktree repository's `HEAD`
- * and every branch or stash ref read as before.
- */
-function headerRefText(state: ReflogViewState, labels: ReflogLabels): string {
-  const { query } = state;
-  if (query.ref !== "HEAD") return state.ref ?? query.ref;
-  if (query.worktreePath !== null) {
-    const name = selectedOption(state)?.worktreeName ?? folderName(query.worktreePath);
-    return labels.worktreeHead.replace("{0}", () => name);
-  }
-  const hasOtherWorktrees = state.refOptions.some((refOption) => refOption.worktreePath !== null);
-  return hasOtherWorktrees
-    ? labels.worktreeHead.replace("{0}", () => folderName(state.repo))
-    : "HEAD";
-}
-
-function header(
-  state: ReflogViewState,
-  labels: ReflogLabels,
-  callbacks: ReflogViewCallbacks
-): HTMLElement {
-  const bar = element("header", "reflog-header");
-  const ref = element("span", "reflog-ref", headerRefText(state, labels));
-  // The full path settles which folder a worktree name means.
-  ref.title = state.query.worktreePath ?? state.ref ?? state.query.ref;
-  bar.append(ref);
-  const repo = element("span", "reflog-repo", folderName(state.repo));
-  repo.title = state.repo;
-  bar.append(repo);
-  const scanBtn = element("button", "reflog-scan-button", labels.lostCommits.scan);
-  scanBtn.id = "reflogLostScanBtn";
-  scanBtn.type = "button";
-  const scanning = state.lostCommits.status === "scanning";
-  scanBtn.disabled = scanning;
-  scanBtn.setAttribute("aria-busy", String(scanning));
-  scanBtn.addEventListener("click", () => callbacks.onScanLostCommits?.());
-  bar.append(scanBtn);
-  return bar;
-}
-
 /**
  * How a picker option reads. A branch is its short name and the stash is
  * worded as the action; another worktree's `HEAD` takes the graph's
@@ -141,6 +90,25 @@ function option(value: string, text: string, title?: string): HTMLOptionElement 
 }
 
 /**
+ * The opt-in lost-commit scan (F1-07), last in the filter bar and pushed
+ * to its right end by CSS. Disabled and marked busy while a scan runs.
+ */
+function scanButton(
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  callbacks: ReflogViewCallbacks
+): HTMLButtonElement {
+  const scanBtn = element("button", "reflog-scan-button", labels.lostCommits.scan);
+  scanBtn.id = "reflogLostScanBtn";
+  scanBtn.type = "button";
+  const scanning = state.lostCommits.status === "scanning";
+  scanBtn.disabled = scanning;
+  scanBtn.setAttribute("aria-busy", String(scanning));
+  scanBtn.addEventListener("click", () => callbacks.onScanLostCommits?.());
+  return scanBtn;
+}
+
+/**
  * The filter row (F1-05): the ref picker, the message search, the
  * action filter and the "only in the reflog" toggle. Every change
  * rebuilds the query from the controls' live values, so the row can
@@ -156,7 +124,8 @@ function controls(
   const refSelect = element("select", "reflog-control reflog-ref-picker");
   refSelect.id = "reflogRefPicker";
   refSelect.setAttribute("aria-label", labels.filterRef);
-  refSelect.title = labels.filterRef;
+  // The full path settles which folder a worktree name means (F1-08).
+  refSelect.title = state.query.worktreePath ?? labels.filterRef;
   // The picked option stays pickable even when a fresh listing lost it
   // (its branch was deleted, its worktree removed): its read then says
   // so, honestly. Values are indexes into this list, so two `HEAD`
@@ -229,7 +198,7 @@ function controls(
     callbacks.onQueryChange?.(current(), "instant");
   });
 
-  bar.append(refSelect, search, actionSelect, onlyLabel);
+  bar.append(refSelect, search, actionSelect, onlyLabel, scanButton(state, labels, callbacks));
   return bar;
 }
 
@@ -669,10 +638,7 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
         dialogs.hideDialog();
       }
 
-      const children: HTMLElement[] = [
-        header(state, labels, callbacks),
-        controls(state, labels, callbacks)
-      ];
+      const children: HTMLElement[] = [controls(state, labels, callbacks)];
       const lostSection = renderLostCommitsSection(state, labels, now, callbacks);
       if (lostSection !== null) {
         children.push(lostSection);

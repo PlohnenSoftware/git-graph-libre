@@ -15,26 +15,13 @@
   font-family: var(--vscode-font-family, sans-serif);
   font-size: var(--vscode-font-size, 13px);
 }
-.ggl-reflog .reflog-header {
-  flex: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
-  background: var(--vscode-editor-background, oklch(20% 0 0));
-}
-.ggl-reflog .reflog-ref {
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-weight: 600;
-}
-.ggl-reflog .reflog-repo { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
 .ggl-reflog .reflog-scan-button {
   margin-left: auto;
+  height: 28px;
+  box-sizing: border-box;
   border: 1px solid var(--vscode-button-border, var(--ngg-neutral-border));
   border-radius: 2px;
-  padding: 4px 10px;
+  padding: 0 10px;
   background: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-muted));
   color: var(--vscode-button-secondaryForeground, var(--vscode-editor-foreground, oklch(88% 0 0)));
   font: inherit;
@@ -46,9 +33,10 @@
 }
 .ggl-reflog .reflog-scan-button:disabled { opacity: 0.6; cursor: default; }
 .ggl-reflog .reflog-scan-button:focus-visible { outline: 1px solid var(--vscode-focusBorder, oklch(70% 0.15 240)); outline-offset: 2px; }
-/* The filter row (F1-05): the toolbar's 28px control metric, on the
-   input and dropdown tokens per the Webview UI Styling Guide. It never
-   scrolls away with the table. */
+/* The top bar (F1-05, Q4): the filter row, the toolbar's 28px control
+   metric on the input and dropdown tokens per the Webview UI Styling
+   Guide, ending with the lost-commit scan button. It never scrolls away
+   with the table. */
 .ggl-reflog .reflog-controls {
   flex: none;
   display: flex;
