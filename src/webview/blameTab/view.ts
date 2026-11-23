@@ -609,15 +609,15 @@ function rewindButton(
       previous.path !== state.filePath
         ? labels.rewindToPath.replace("{0}", shortPrev).replace("{1}", previous.path)
         : labels.rewindTo.replace("{0}", shortPrev);
-    const btn = element("button", "blame-rewind-btn");
-    btn.type = "button";
-    btn.title = tip;
-    btn.setAttribute("aria-label", tip);
-    btn.dataset.previousHash = previous.hash;
-    btn.dataset.previousPath = previous.path;
-    btn.dataset.origStartLine = String(hunk.origStartLine);
-    btn.innerHTML = octicon("versions");
-    btn.addEventListener("click", (event) => {
+    const rewindBtn = element("button", "blame-rewind-btn");
+    rewindBtn.type = "button";
+    rewindBtn.title = tip;
+    rewindBtn.setAttribute("aria-label", tip);
+    rewindBtn.dataset.previousHash = previous.hash;
+    rewindBtn.dataset.previousPath = previous.path;
+    rewindBtn.dataset.origStartLine = String(hunk.origStartLine);
+    rewindBtn.innerHTML = octicon("versions");
+    rewindBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       callbacks.onRewind?.({
         rev: previous.hash,
@@ -625,7 +625,7 @@ function rewindButton(
         targetLine: hunk.origStartLine
       });
     });
-    return btn;
+    return rewindBtn;
   }
   const btn = element("button", "blame-rewind-btn is-boundary");
   btn.type = "button";
@@ -1041,7 +1041,7 @@ export function createBlameView(root: HTMLElement, callbacks: BlameViewCallbacks
   };
 
   const contextFor = (band: HTMLElement, line: number): BlamePopoverContext | null => {
-    if (lastState === null || lastState.labels === null) return null;
+    if (lastState?.labels == null) return null;
     const hunk = lastState.hunks[Number(band.dataset.hunkIndex)];
     if (hunk === undefined) return null;
     return {
@@ -1102,8 +1102,8 @@ export function createBlameView(root: HTMLElement, callbacks: BlameViewCallbacks
     if (lastState !== null) updateFindState(transform(lastState));
   };
 
-  window.addEventListener("keydown", (event: KeyboardEvent) => {
-    if (!root.isConnected || lastState === null || lastState.blameState !== "lines") return;
+  globalThis.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (!root.isConnected || lastState?.blameState !== "lines") return;
     if (
       (event.ctrlKey || event.metaKey) &&
       !event.altKey &&
