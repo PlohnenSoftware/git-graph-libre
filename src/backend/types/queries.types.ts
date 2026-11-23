@@ -235,6 +235,30 @@ type QueryPayloads = {
     /** `repo` comes back so an answer for a repository no longer shown is dropped. */
     response: { requestId: number; repo: string } & GitFileHistoryResult;
   };
+  rebasePrediction: {
+    request: {
+      requestId: number;
+      repo: string;
+      base: string | null;
+      entries: GitRebasePredictionEntry[];
+    };
+    result: GitRebasePredictionResult;
+    /** `repo` comes back so an answer for a repository no longer shown is dropped. */
+    response: { requestId: number; repo: string } & GitRebasePredictionResult;
+  };
+  operationState: {
+    request: { requestId: number; repo: string };
+    result: GitOperationStateResult;
+    /** `repo` comes back so an answer for a repository no longer shown is dropped. */
+    response: { requestId: number; repo: string } & GitOperationStateResult;
+  };
+  /** Staged file count and target commit message for the Create Fixup/Squash/Reword dialog (F2-06). */
+  fixupDialogInfo: {
+    request: { requestId: number; repo: string; target: string };
+    result: GitFixupDialogInfoResult;
+    /** `repo` comes back so an answer for a repository no longer shown is dropped. */
+    response: { requestId: number; repo: string } & GitFixupDialogInfoResult;
+  };
 };
 
 export type QueryRequest = {
@@ -528,6 +552,11 @@ export type GitRebaseRangeResult = {
   alreadyUsedElsewhere: boolean | "unknown";
   /** True when the range holds more than 500 commits. It prompts (F2-07); it never refuses. */
   tooLong: boolean;
+  /**
+   * Value of `git config --bool --get rebase.autoSquash` (`true`, `false`, or
+   * `null` when unset). Drives the editor's autosquash switch default (F2-06).
+   */
+  autoSquash?: boolean | null;
   preflight: GitRebasePreflight;
   error: GitQueryError | null;
 };
@@ -575,5 +604,104 @@ export type GitFileHistoryResult = {
   hasMore: boolean;
   /** Normalized repository-relative path that was read, or null on a validation error. */
   filePath: string | null;
+  error: GitQueryError | null;
+};
+
+/** Staged count and target message read before opening a fixup/squash/reword dialog (F2-06). */
+export type GitFixupDialogInfoResult = {
+  stagedCount: number;
+  targetSubject: string;
+  targetMessage: string;
+  error: GitQueryError | null;
+};
+
+/**
+ * Why a rebase stopped, read from its state files and the unmerged paths:
+ * unmerged paths are a conflict; the merge backend's `amend` file marks an
+ * `edit` stop; anything else (a failed `exec` line, a todo Git refused, a
+ * conflict since resolved) is `"other"` rather than a guess.
+ */
+export type GitRebaseStopReason = "edit" | "conflict" | "other";
+
+/** Where an in-progress rebase stopped, as Git's per-worktree state files record it. */
+export type GitRebaseState = {
+  /** Which state directory holds the rebase: `rebase-merge` or `rebase-apply`. */
+  backend: "merge" | "apply";
+  /** Full hash of the commit the rebase stopped on; null when Git recorded none. */
+  stoppedHash: string | null;
+  /** Subject of the stopped commit; null when it names none or could not be read. */
+  subject: string | null;
+  /** The stopped step's 1-based position in the todo; null when unknown. */
+  current: number | null;
+  /** The todo's step count; null when unknown. */
+  total: number | null;
+  /** The branch being rebased, short name; null for a detached HEAD. */
+  branch: string | null;
+  /** Full hash the rebase is onto; null when Git recorded none. */
+  onto: string | null;
+  stopReason: GitRebaseStopReason;
+};
+
+/**
+ * Present when a rebase completed (its state directory is gone) but reapplying
+ * its autostash conflicted: unmerged paths remain and Git kept the autostash
+ * entry in `refs/stash` (F2-07). Detected from the stash ref and unmerged
+ * paths, never by parsing Git's message text.
+ */
+export type GitAutostashConflict = {
+  /** The stash selector Git kept, typically `stash@{0}`. */
+  stashSelector: string;
+  /** Full hash of the kept autostash commit. */
+  stashHash: string;
+};
+
+/**
+ * The operation in progress in one worktree, read from the state files in its
+ * own git directory (F2-03). `rebase` is non-null exactly when `kind` is
+ * `"rebase"`. `conflictFiles` are the unmerged paths while a rebase is in
+ * progress or an autostash pop conflicted, empty otherwise. `REBASE_HEAD` is
+ * never evidence: it lingers after a successful rebase, so only the state
+ * directories say one is under way.
+ */
+export type GitOperationStateResult = {
+  kind: GitRebaseOperation | null;
+  rebase: GitRebaseState | null;
+  conflictFiles: string[];
+  /** Present when an autostash pop conflicted after a completed rebase (F2-07). */
+  autostashConflict?: GitAutostashConflict;
+  error: GitQueryError | null;
+};
+
+/** One planned todo entry sent to conflict prediction (F2-08). */
+export type GitRebasePredictionEntry = {
+  readonly action: "pick" | "reword" | "edit" | "squash" | "fixup" | "drop";
+  readonly hash: string;
+};
+
+/**
+ * Outcome of simulating a planned todo with `git merge-tree --write-tree` (F2-08).
+ * - `"clean"`: every non-dropped step merged cleanly within the probe limit.
+ * - `"capped"`: every probed step up to `probeLimit` merged cleanly, with more
+ *   steps left unprobed.
+ * - `"conflict"`: first conflicting step (`conflictHash`) and conflicted paths
+ *   (`conflictFiles`).
+ * - `"unavailable"`: Git is older than 2.40 (lacks `--write-tree` with
+ *   `--merge-base`).
+ * - `"error"`: invalid input or an unexpected Git failure (`error` is set).
+ */
+export type GitRebasePredictionStatus = "clean" | "capped" | "conflict" | "unavailable" | "error";
+
+export type GitRebasePredictionResult = {
+  status: GitRebasePredictionStatus;
+  /** Full hash of the first conflicting commit when `status === "conflict"`; null otherwise. */
+  conflictHash: string | null;
+  /** Conflicted paths from `merge-tree -z` when `status === "conflict"`; empty otherwise. */
+  conflictFiles: string[];
+  /** Number of non-dropped steps simulated before finishing, conflicting, or hitting the cap. */
+  probedCount: number;
+  /** Total number of non-dropped steps in the todo. */
+  totalSteps: number;
+  /** Probe limit applied to this prediction run. */
+  probeLimit: number;
   error: GitQueryError | null;
 };

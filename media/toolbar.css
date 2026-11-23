@@ -147,6 +147,9 @@
   color: var(--vscode-button-secondaryForeground);
   cursor: pointer;
 }
+.toolbarIconButton[hidden] {
+  display: none;
+}
 .toolbarIconButton:hover {
   background-color: var(--vscode-button-secondaryHoverBackground);
 }

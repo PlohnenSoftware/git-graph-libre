@@ -98,6 +98,14 @@ describe("buildWebviewToolbar", () => {
     expect(reflog?.getAttribute("title")).toBe("Show Reflog");
     expect(reflog?.querySelector("svg.octicon-history")).not.toBeNull();
 
+    const statistics = document.getElementById("statisticsBtn") as HTMLButtonElement | null;
+    expect(statistics?.tagName).toBe("BUTTON");
+    expect(statistics?.type).toBe("button");
+    expect(statistics?.hidden).toBe(false);
+    expect(statistics?.getAttribute("aria-label")).toBe("Show Statistics");
+    expect(statistics?.getAttribute("title")).toBe("Show Statistics");
+    expect(statistics?.querySelector("svg.octicon-graph")).not.toBeNull();
+
     expect(document.getElementById("terminalBtn")).toBeNull();
 
     const settings = document.getElementById("settingsBtn") as HTMLButtonElement | null;
@@ -123,6 +131,15 @@ describe("buildWebviewToolbar", () => {
     expect(document.getElementById("authorControl")?.getAttribute("title")).toBe("Authors");
     expect(document.getElementById("tagControl")?.getAttribute("title")).toBe("Tags");
     expect(document.querySelectorAll("#controls .toolbarGroup")).toHaveLength(4);
+  });
+
+  it("hides the Statistics button when the engine-only tab is unavailable (F3-03)", () => {
+    document.body.innerHTML = buildWebviewToolbar(getWebviewLocalizedStrings(), {
+      statsTabAvailable: false
+    });
+    const statistics = document.getElementById("statisticsBtn") as HTMLButtonElement | null;
+    expect(statistics?.hidden).toBe(true);
+    expect((document.getElementById("reflogBtn") as HTMLButtonElement | null)?.hidden).toBe(false);
   });
 
   it("escapes localized labels before embedding them in toolbar markup", () => {

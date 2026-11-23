@@ -7,8 +7,10 @@ import type {
   GitCommitSignature,
   GitFileChange,
   GitFileHistoryEntry,
+  GitOperationStateResult,
   GitPushBranchMode,
   GitQueryError,
+  GitRebaseRangeResult,
   GitRemote,
   GitRepoConfig,
   GitRepoInfo,
@@ -42,6 +44,14 @@ import { Dropdown, type DropdownOption } from "./dropdown";
 import { createFailureScreenReporter } from "./failureScreen";
 import { Graph, parentsBeyondPage } from "./graph";
 import { resolveGlobalShortcut } from "./keyboardShortcuts";
+import { renderRebaseBanner } from "./rebaseBanner";
+import {
+  createRebaseEditorState,
+  evaluateInteractiveRebaseMenuState,
+  findOtherWorktreeForBranch,
+  openRebaseEditorDialog,
+  type RebaseEditorController
+} from "./rebaseEditor";
 import { groupCommitRefs, parseRemoteBranchName } from "./refLabels";
 import { buildRepoOptions } from "./repoOptions";
 import {
@@ -504,6 +514,14 @@ class GitGraphView {
   private remoteTagsRequestId: number | null = null;
   /** A hard refresh keeps the shown snapshot and asks again; the reply replaces it. */
   private remoteTagsRevalidate = false;
+  /** The last operation-state answer, for `operationStateRepo` only; not persisted. */
+  private operationState: GitOperationStateResult | null = null;
+  private operationStateRepo = "";
+  private operationStateRequestId: number | null = null;
+  /** The banner rendering last published, so an unchanged answer skips the DOM. */
+  private rebaseBannerKey = "";
+  /** A banner control is running; its buttons stay disabled until it answers. */
+  private rebaseControlBusy = false;
   private gitStashes: GitStash[] = [];
   private gitConfig: GitRepoConfig = createEmptyGitConfig();
   private commits: GitCommitNode[] = [];
@@ -573,6 +591,7 @@ class GitGraphView {
   private readonly findSearchHistoryBtn: HTMLButtonElement;
   private readonly fetchBtn: HTMLButtonElement;
   private readonly pushTagsBtn: HTMLButtonElement;
+  private readonly statisticsBtn: HTMLButtonElement | null;
   private readonly branchControlElem: HTMLElement;
   private readonly authorControlElem: HTMLElement;
   private readonly tagControlElem: HTMLElement;
@@ -607,6 +626,28 @@ class GitGraphView {
     hash: string;
     ref: string;
     baseLabel?: string;
+  } | null = null;
+  /** The interactive rebase editor range request awaiting its `rebaseRange` reply. */
+  private pendingRebaseRange: {
+    requestId: number;
+    repo: string;
+    base: string | null;
+    baseLabel: string;
+    sourceElem: HTMLElement | null;
+  } | null = null;
+  /** The interactive rebase editor's latest conflict prediction request awaiting its reply. */
+  private pendingRebasePrediction: {
+    requestId: number;
+    seq: number;
+    repo: string;
+  } | null = null;
+  /** The Create Fixup / Squash / Reword dialog awaiting staged count and target message (F2-06). */
+  private pendingFixupDialog: {
+    requestId: number;
+    repo: string;
+    target: string;
+    kind: "fixup" | "squash" | "reword";
+    sourceElem: HTMLElement | null;
   } | null = null;
   /** The folder of the worktree being created, for the finish step (Y8) once Git answers. */
   private pendingCreatedWorktree: string | null = null;
@@ -747,6 +788,7 @@ class GitGraphView {
     this.findSearchHistoryBtn = requireElement<HTMLButtonElement>("findSearchHistoryBtn");
     this.fetchBtn = requireElement<HTMLButtonElement>("fetchBtn");
     this.pushTagsBtn = requireElement<HTMLButtonElement>("pushTagsBtn");
+    this.statisticsBtn = document.getElementById("statisticsBtn") as HTMLButtonElement | null;
     this.branchControlElem = requireElement("branchControl");
     this.authorControlElem = requireElement("authorControl");
     this.tagControlElem = requireElement("tagControl");
@@ -802,11 +844,21 @@ class GitGraphView {
         sendMessage({ command: "showReflog", repo: this.currentRepo });
       }
     });
-    document.getElementById("statisticsBtn")?.addEventListener("click", () => {
-      if (this.currentRepo !== "") {
-        sendMessage({ command: "showStatistics", repo: this.currentRepo });
-      }
-    });
+    if (this.statisticsBtn !== null) {
+      const stripEngine = document.getElementById("statusStrip")?.dataset.engine;
+      const available =
+        !this.statisticsBtn.hidden && (stripEngine === undefined || stripEngine === "active");
+      this.setStatisticsAvailable(available);
+      this.statisticsBtn.addEventListener("click", () => {
+        if (
+          this.currentRepo !== "" &&
+          !this.statisticsBtn?.hidden &&
+          !this.statisticsBtn?.disabled
+        ) {
+          sendMessage({ command: "showStatistics", repo: this.currentRepo });
+        }
+      });
+    }
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
       this.forgetSignatures();
       this.refresh(true);
@@ -1004,6 +1056,12 @@ class GitGraphView {
     this.fetchBtn.disabled = !hasRemotes;
     this.pushTagsBtn.hidden = !hasRemotes;
     this.pushTagsBtn.disabled = !hasRemotes;
+  }
+
+  public setStatisticsAvailable(available: boolean) {
+    if (this.statisticsBtn === null) return;
+    this.statisticsBtn.hidden = !available;
+    this.statisticsBtn.disabled = !available;
   }
 
   private updateNoCommitsControls() {
@@ -1260,6 +1318,84 @@ class GitGraphView {
     this.remoteTagsRevalidate = false;
     sendMessage({ command: "remoteTags", requestId, repo: this.currentRepo });
   }
+  /**
+   * Asks where an in-progress rebase in the shown repository stopped, on
+   * every refresh: the refreshes the watcher raises for the state directory
+   * itself are what shows and clears the banner for a rebase begun anywhere.
+   */
+  private requestOperationState() {
+    if (this.operationStateRepo !== this.currentRepo) {
+      this.operationStateRepo = this.currentRepo;
+      this.operationState = null;
+      this.operationStateRequestId = null;
+      this.rebaseControlBusy = false;
+      this.updateRebaseBanner();
+    }
+    if (this.currentRepo === "") return;
+    const requestId = this.createRequestId();
+    this.operationStateRequestId = requestId;
+    sendMessage({ command: "operationState", requestId, repo: this.currentRepo });
+  }
+  public loadOperationState(msg: Extract<GGL.ResponseMessage, { command: "operationState" }>) {
+    if (msg.repo !== this.currentRepo || msg.requestId !== this.operationStateRequestId) return;
+    this.operationStateRequestId = null;
+    this.operationState = {
+      kind: msg.kind,
+      rebase: msg.rebase,
+      conflictFiles: msg.conflictFiles,
+      ...(msg.autostashConflict === undefined ? {} : { autostashConflict: msg.autostashConflict }),
+      error: msg.error
+    };
+    this.updateRebaseBanner();
+  }
+  private updateRebaseBanner() {
+    const slot = document.getElementById("rebaseBannerSlot");
+    if (slot === null) return;
+    const state = this.currentRepo === "" ? null : this.operationState;
+    // An unchanged answer leaves the DOM alone, so a refresh neither moves
+    // focus off a banner button nor re-announces the band.
+    const key = JSON.stringify([state, this.rebaseControlBusy, this.config.shortHashLength]);
+    if (key === this.rebaseBannerKey) return;
+    this.rebaseBannerKey = key;
+    renderRebaseBanner(
+      slot,
+      state,
+      { shortHashLength: this.config.shortHashLength, busy: this.rebaseControlBusy },
+      {
+        onContinue: () => this.runRebaseControl("continueRebase"),
+        onSkip: () => this.runRebaseControl("skipRebase"),
+        onAbort: () =>
+          showConfirmationDialog(
+            l10n.rebaseAbortConfirm,
+            () => this.runRebaseControl("abortRebase"),
+            slot
+          ),
+        onOpenFile: (filePath) =>
+          sendMessage({ command: "openFile", repo: this.currentRepo, filePath })
+      }
+    );
+    // The slot sits inside #topBar, whose height the sticky table header
+    // offsets itself by; publish it in this frame, as the stash list does.
+    this.publishTopBarHeight();
+  }
+  private runRebaseControl(command: "continueRebase" | "skipRebase" | "abortRebase") {
+    if (this.currentRepo === "" || this.rebaseControlBusy) return;
+    this.rebaseControlBusy = true;
+    this.updateRebaseBanner();
+    sendMessage({ command, repo: this.currentRepo });
+  }
+  /** A banner control answered: success refreshes (and re-reads the state); failure re-arms the banner. */
+  public finishRebaseControl(status: GitCommandStatus, errorLabel: string) {
+    this.rebaseControlBusy = false;
+    if (status === null) {
+      this.refresh(true);
+      return;
+    }
+    setStatusStrip("error", errorLabel);
+    showErrorDialog(errorLabel, status, null);
+    this.updateRebaseBanner();
+    this.requestOperationState();
+  }
   public loadRemoteTags(msg: Extract<GGL.ResponseMessage, { command: "remoteTags" }>) {
     if (this.config.showTagRemotes === "off") return;
     if (msg.repo !== this.currentRepo || msg.requestId !== this.remoteTagsRequestId) return;
@@ -1458,6 +1594,7 @@ class GitGraphView {
 
   /* Refresh */
   public refresh(hard: boolean) {
+    this.requestOperationState();
     if (hard) {
       this.revalidateRemoteTags();
       if (this.expandedCommit !== null) {
@@ -3688,10 +3825,10 @@ class GitGraphView {
     const commitIndex = this.commitLookup[hash];
     const commit = typeof commitIndex === "number" ? this.commits[commitIndex] : null;
     const isHeadCommit = hash === this.commitHead;
-    // Drop runs `git rebase --onto <hash>^ <hash>`, so the commit must have a
-    // parent: `<root>^` is not a valid revision. Root commits are therefore
-    // excluded from Drop, and merges are excluded because rebase replays both
-    // merged sides linearized.
+    // Drop runs one interactive rebase with a `drop` line for this commit
+    // (F2-10). Root commits stay excluded, because the rebase needs a parent
+    // to start after, and merges stay excluded rather than being flattened
+    // without the editor's notice.
     const canDropCommit = commit !== null && commit.parentHashes.length === 1;
     const menu = this.buildCommitCreateMenuItems(hash, sourceElem);
     const compareWithHeadItem = this.buildCompareWithHeadMenuItem(hash, sourceElem);
@@ -3793,6 +3930,47 @@ class GitGraphView {
     }
     if (items.length > 0) menu.push(null, ...items);
   }
+  private buildInteractiveRebaseMenuItems(
+    group: "commit" | "branch",
+    onClick: () => void
+  ): ContextMenuElement[] {
+    if (!this.isContextMenuActionVisible(group, "interactiveRebase")) return [];
+    const menuState = evaluateInteractiveRebaseMenuState({
+      operationState: this.operationState,
+      currentBranch: this.gitBranchHead,
+      worktrees: this.gitWorktrees
+    });
+    if (!menuState.disabled) {
+      return [{ title: l10n.interactiveRebase + ELLIPSIS, onClick }];
+    }
+    const disabledItem: ContextMenuItem = {
+      title: l10n.interactiveRebase + ELLIPSIS,
+      disabled: true,
+      reason: menuState.reason,
+      onClick: () => undefined
+    };
+    if (menuState.kind === "worktree" && this.gitBranchHead !== null) {
+      return [disabledItem, this.buildOpenWorktreeMenuItem(this.gitBranchHead)];
+    }
+    return [disabledItem];
+  }
+  private buildCommitFixupMenuItems(hash: string, sourceElem: HTMLElement): ContextMenuElement[] {
+    if (!this.isHeadAncestor(hash)) return [];
+    return [
+      this.visibleContextMenuItem("commit", "createFixup", {
+        title: l10n.rebaseCreateFixup + ELLIPSIS,
+        onClick: () => this.requestFixupCommitDialog(hash, "fixup", sourceElem)
+      }),
+      this.visibleContextMenuItem("commit", "createSquash", {
+        title: l10n.rebaseCreateSquash + ELLIPSIS,
+        onClick: () => this.requestFixupCommitDialog(hash, "squash", sourceElem)
+      }),
+      this.visibleContextMenuItem("commit", "createReword", {
+        title: l10n.rebaseCreateReword + ELLIPSIS,
+        onClick: () => this.requestFixupCommitDialog(hash, "reword", sourceElem)
+      })
+    ];
+  }
   private buildCommitIntegrationMenuItems(
     hash: string,
     sourceElem: HTMLElement
@@ -3807,6 +3985,12 @@ class GitGraphView {
         title: l10n.rebase + ELLIPSIS,
         onClick: () => this.showRebaseDialog(hash, this.displayHash(hash), "commit", sourceElem)
       }),
+      ...(this.isStrictHeadAncestor(hash)
+        ? this.buildInteractiveRebaseMenuItems("commit", () =>
+            this.requestInteractiveRebaseRange(hash, this.displayHash(hash), sourceElem)
+          )
+        : []),
+      ...this.buildCommitFixupMenuItems(hash, sourceElem),
       this.visibleContextMenuItem("commit", "reset", {
         title: l10n.reset + ELLIPSIS,
         onClick: () => this.showResetCommitDialog(hash, sourceElem)
@@ -3846,16 +4030,20 @@ class GitGraphView {
         })
       );
     }
-    if (selectedCommits.length < 2 || !this.selectedCommitsAreLoadedHeadChain(selectedCommits)) {
+    if (selectedCommits.length < 2) {
       return menu;
     }
 
+    // Drop and squash run through the interactive todo (F2-10), so the
+    // selection no longer has to end at HEAD: dropping works for any
+    // HEAD-history selection, squashing for one unbroken chain in it. The
+    // backend checks both again against the real range before Git runs.
+    const headAncestors = this.loadedHeadAncestors();
     const oldestHash = selectedCommits.at(-1);
     const oldestCommit =
       oldestHash === undefined ? undefined : this.commits[this.commitLookup[oldestHash]];
     if (
-      oldestCommit !== undefined &&
-      oldestCommit.parentHashes.length > 0 &&
+      this.selectedCommitsAreLoadedChain(selectedCommits, headAncestors) &&
       this.isContextMenuActionVisible("commit", "squashSelection")
     ) {
       menu.push({
@@ -3863,11 +4051,23 @@ class GitGraphView {
         onClick: () => this.showSquashSelectedCommitsDialog(selectedCommits, sourceElem)
       });
     }
-    if (this.isContextMenuActionVisible("commit", "dropSelection")) {
+    if (
+      this.selectedCommitsCanDrop(selectedCommits, headAncestors) &&
+      this.isContextMenuActionVisible("commit", "dropSelection")
+    ) {
       menu.push({
         title: l10n.dropSelection + ELLIPSIS,
         onClick: () => this.showDropSelectedCommitsDialog(selectedCommits, sourceElem)
       });
+    }
+    if (oldestCommit !== undefined && this.selectedCommitsAreLoadedHeadChain(selectedCommits)) {
+      const parentHash = oldestCommit.parentHashes[0] ?? null;
+      const baseLabel = parentHash === null ? l10n.rebaseEditorRoot : this.displayHash(parentHash);
+      menu.push(
+        ...this.buildInteractiveRebaseMenuItems("commit", () =>
+          this.requestInteractiveRebaseRange(parentHash, baseLabel, sourceElem)
+        )
+      );
     }
     return menu;
   }
@@ -3896,6 +4096,43 @@ class GitGraphView {
       }
     }
     return true;
+  }
+  /**
+   * Whether the selection is one unbroken first-parent chain in HEAD's
+   * loaded history, wherever in that history it sits: the squash gate
+   * since F2-10. Every link needs exactly one parent, because a merge in
+   * the run cannot meld as a `fixup`; the backend refuses it too.
+   */
+  private selectedCommitsAreLoadedChain(
+    selectedCommits: readonly string[],
+    headAncestors: ReadonlySet<string>
+  ) {
+    if (selectedCommits.length < 2 || !headAncestors.has(selectedCommits[0])) return false;
+    for (let i = 0; i < selectedCommits.length; i++) {
+      const currentCommit = this.commits[this.commitLookup[selectedCommits[i]]];
+      if (currentCommit?.parentHashes.length !== 1) return false;
+      if (
+        i < selectedCommits.length - 1 &&
+        currentCommit.parentHashes[0] !== selectedCommits[i + 1]
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+  /**
+   * Whether every selected commit can be dropped: loaded, in HEAD's
+   * history, and — the single Drop menu's standing exclusion — with
+   * exactly one parent, so roots and merges stay excluded (F2-10).
+   */
+  private selectedCommitsCanDrop(
+    selectedCommits: readonly string[],
+    headAncestors: ReadonlySet<string>
+  ) {
+    return selectedCommits.every((hash) => {
+      if (!headAncestors.has(hash)) return false;
+      return this.commits[this.commitLookup[hash]]?.parentHashes.length === 1;
+    });
   }
   private setCommitSelected(hash: string, selected: boolean, row?: HTMLElement | null) {
     const rowElem = row ?? this.findCommitRow(hash);
@@ -4168,6 +4405,265 @@ class GitGraphView {
       sourceElem
     );
   }
+  private requestInteractiveRebaseRange(
+    base: string | null,
+    baseLabel: string,
+    sourceElem: HTMLElement | null
+  ) {
+    if (this.currentRepo === "") return;
+    const requestId = this.createRequestId();
+    this.pendingRebaseRange = {
+      requestId,
+      repo: this.currentRepo,
+      base,
+      baseLabel,
+      sourceElem
+    };
+    sendMessage({
+      command: "rebaseRange",
+      requestId,
+      repo: this.currentRepo,
+      base
+    });
+    showActionRunningDialog(l10n.statusLoadingRebaseRange);
+  }
+  public loadRebaseRange(msg: Extract<GGL.ResponseMessage, { command: "rebaseRange" }>) {
+    const pending = this.pendingRebaseRange;
+    if (pending === null || pending.requestId !== msg.requestId || pending.repo !== msg.repo) {
+      return;
+    }
+    this.pendingRebaseRange = null;
+    if (msg.error !== null) {
+      setStatusStrip("error", l10n.unableToLoadRebaseRange);
+      showErrorDialog(
+        l10n.unableToLoadRebaseRange,
+        formatQueryError(msg.error),
+        pending.sourceElem
+      );
+      return;
+    }
+    setStatusStrip("ready", l10n.statusReady);
+    this.showRebaseEditorDialog(msg, pending.base, pending.baseLabel, pending.sourceElem);
+  }
+  public loadRebasePrediction(msg: Extract<GGL.ResponseMessage, { command: "rebasePrediction" }>) {
+    const pending = this.pendingRebasePrediction;
+    if (pending === null || pending.requestId !== msg.requestId || pending.repo !== msg.repo) {
+      return;
+    }
+    this.pendingRebasePrediction = null;
+    activeRebaseEditor?.applyPrediction(pending.seq, msg);
+  }
+  private requestFixupCommitDialog(
+    target: string,
+    kind: "fixup" | "squash" | "reword",
+    sourceElem: HTMLElement | null
+  ) {
+    if (this.currentRepo === "") return;
+    const requestId = this.createRequestId();
+    this.pendingFixupDialog = {
+      requestId,
+      repo: this.currentRepo,
+      target,
+      kind,
+      sourceElem
+    };
+    sendMessage({
+      command: "fixupDialogInfo",
+      requestId,
+      repo: this.currentRepo,
+      target
+    });
+    showActionRunningDialog(l10n.statusLoadingFixupInfo);
+  }
+  public loadFixupDialogInfo(msg: Extract<GGL.ResponseMessage, { command: "fixupDialogInfo" }>) {
+    const pending = this.pendingFixupDialog;
+    if (pending === null || pending.requestId !== msg.requestId || pending.repo !== msg.repo) {
+      return;
+    }
+    this.pendingFixupDialog = null;
+    if (msg.error !== null) {
+      setStatusStrip("error", l10n.unableToLoadFixupInfo);
+      showErrorDialog(l10n.unableToLoadFixupInfo, formatQueryError(msg.error), pending.sourceElem);
+      return;
+    }
+    setStatusStrip("ready", l10n.statusReady);
+    this.showCreateFixupDialog(pending.target, pending.kind, msg, pending.sourceElem);
+  }
+  private fixupStagedCountNote(kind: "fixup" | "squash" | "reword", stagedCount: number): string {
+    if (kind === "reword") {
+      if (stagedCount === 0) return l10n.rebaseRewordEmptyNote;
+      if (stagedCount === 1) return l10n.rebaseRewordStagedUntouchedOne;
+      return l10n.rebaseRewordStagedUntouchedMany.replace("{0}", String(stagedCount));
+    }
+    if (stagedCount === 0) return l10n.rebaseFixupNoStagedChanges;
+    if (stagedCount === 1) return l10n.rebaseFixupStagedCountOne;
+    return l10n.rebaseFixupStagedCountMany.replace("{0}", String(stagedCount));
+  }
+  private fixupDialogStrings(kind: "fixup" | "squash" | "reword") {
+    if (kind === "squash") {
+      return {
+        titleTemplate: l10n.rebaseSquashDialogTitle,
+        submitLabel: l10n.rebaseCreateSquash,
+        runningLabel: l10n.statusCreatingSquashCommit,
+        prefix: "squash! "
+      };
+    }
+    if (kind === "reword") {
+      return {
+        titleTemplate: l10n.rebaseRewordDialogTitle,
+        submitLabel: l10n.rebaseCreateReword,
+        runningLabel: l10n.statusCreatingRewordCommit,
+        prefix: "amend! "
+      };
+    }
+    return {
+      titleTemplate: l10n.rebaseFixupDialogTitle,
+      submitLabel: l10n.rebaseCreateFixup,
+      runningLabel: l10n.statusCreatingFixupCommit,
+      prefix: "fixup! "
+    };
+  }
+  private showCreateFixupDialog(
+    target: string,
+    kind: "fixup" | "squash" | "reword",
+    info: { stagedCount: number; targetSubject: string; targetMessage: string },
+    sourceElem: HTMLElement | null
+  ) {
+    const copy = this.fixupDialogStrings(kind);
+    const title = copy.titleTemplate.replace(
+      "{0}",
+      () => `<b><i>${this.displayHash(target)}</i></b>`
+    );
+    const stagedNote = this.fixupStagedCountNote(kind, info.stagedCount);
+    const previewNote = l10n.rebaseFixupMessagePreview.replace(
+      "{0}",
+      () => `${copy.prefix}${info.targetSubject}`
+    );
+    const needsStaged = kind !== "reword";
+    const blockedByEmptyIndex = needsStaged && info.stagedCount === 0;
+    const inputs: DialogInput[] = [
+      { type: "note", text: stagedNote },
+      { type: "note", text: previewNote }
+    ];
+    if (kind === "squash" && !blockedByEmptyIndex) {
+      inputs.push({
+        type: "textarea",
+        name: l10n.rebaseFixupExtraMessage,
+        default: "",
+        placeholder: null
+      });
+    } else if (kind === "reword") {
+      inputs.push({
+        type: "textarea",
+        name: l10n.rebaseRewordNewMessage,
+        default: info.targetMessage,
+        placeholder: null,
+        required: true
+      });
+    }
+
+    showFormDialog(
+      title,
+      inputs,
+      copy.submitLabel,
+      (values) => {
+        const rawMessage = values[2] ?? "";
+        const message = this.normalizeCommitMessage(rawMessage);
+        if (kind === "reword" && message.trim() === "") {
+          showErrorDialog(l10n.rebaseRewordEmptyMessage, null, sourceElem);
+          return;
+        }
+        sendMessage({
+          command: "commitFixup",
+          repo: this.currentRepo,
+          target,
+          kind,
+          ...(message.trim() === "" ? {} : { message })
+        });
+        showActionRunningDialog(copy.runningLabel);
+      },
+      sourceElem
+    );
+
+    if (blockedByEmptyIndex) {
+      dialog.className = "active noInput";
+      document.getElementById("dialogAction")?.setAttribute("aria-disabled", "true");
+    }
+  }
+  private showRebaseEditorDialog(
+    range: GitRebaseRangeResult,
+    base: string | null,
+    baseLabel: string,
+    sourceElem: HTMLElement | null
+  ) {
+    destroyActiveRebaseEditor();
+    this.pendingRebasePrediction = null;
+    const otherWorktree = findOtherWorktreeForBranch(this.gitWorktrees, range.branch);
+    const initialState = createRebaseEditorState(range, {
+      base,
+      baseLabel,
+      otherWorktreePath: otherWorktree?.path ?? null
+    });
+    dialogMenuSource = sourceElem;
+    if (dialogMenuSource !== null) dialogMenuSource.classList.add("dialogActive");
+    activeRebaseEditor = openRebaseEditorDialog(
+      dialog,
+      dialogBacking,
+      initialState,
+      { shortHashLength: this.config.shortHashLength },
+      {
+        onStart: (payload) => {
+          destroyActiveRebaseEditor();
+          this.pendingRebasePrediction = null;
+          this.clearCommitSelection();
+          sendMessage({
+            command: "interactiveRebase",
+            repo: this.currentRepo,
+            base: payload.base,
+            entries: payload.entries,
+            rangeHashes: payload.rangeHashes,
+            ...(payload.autostash === undefined ? {} : { autostash: payload.autostash })
+          });
+          showActionRunningDialog(l10n.statusStartingInteractiveRebase);
+        },
+        onCancel: () => {
+          this.pendingRebasePrediction = null;
+          hideDialog();
+        },
+        onOpenWorktree: (worktreePath) => {
+          destroyActiveRebaseEditor();
+          this.pendingRebasePrediction = null;
+          hideDialog();
+          if (range.branch !== null && this.otherWorktreePath(range.branch) !== null) {
+            this.openWorktreeAction(range.branch);
+            return;
+          }
+          sendMessage({
+            command: "openWorktree",
+            repo: this.currentRepo,
+            path: worktreePath,
+            newWindow: true
+          });
+        },
+        onPredict: (request) => {
+          if (this.currentRepo === "") return;
+          const requestId = this.createRequestId();
+          this.pendingRebasePrediction = {
+            requestId,
+            seq: request.seq,
+            repo: this.currentRepo
+          };
+          sendMessage({
+            command: "rebasePrediction",
+            requestId,
+            repo: this.currentRepo,
+            base: request.base,
+            entries: request.entries
+          });
+        }
+      }
+    );
+  }
   private showDropCommitDialog(hash: string, sourceElem: HTMLElement) {
     showConfirmationDialog(
       l10n.dialogDropCommitConfirm.replace("{0}", `<b><i>${this.displayHash(hash)}</i></b>`),
@@ -4191,14 +4687,15 @@ class GitGraphView {
       l10n.dialogSquashSelectionConfirm
         .replace("{0}", String(selectedCommits.length))
         .replace("{1}", this.selectedCommitListHtml(selectedCommits)),
+      // No "bypass hooks" checkbox: the squash runs as a real rebase
+      // (F2-10), which runs hooks like the editor's runs do (F2-05's rule).
       [
         {
           type: "textarea",
           name: l10n.dialogSquashSelectionMessage,
           default: newestCommit?.message ?? "",
           placeholder: null
-        },
-        { type: "checkbox", name: l10n.dialogBypassGitHooks, value: false }
+        }
       ],
       l10n.dialogSquashSelectionSubmit,
       (values) => {
@@ -4211,8 +4708,7 @@ class GitGraphView {
           command: "squashCommitSelection",
           repo: this.currentRepo,
           commitHashes: [...selectedCommits],
-          message,
-          noVerify: values[1] === "checked"
+          message
         });
         this.clearCommitSelection();
         showActionRunningDialog(l10n.statusSquashingSelection);
@@ -4904,6 +5400,7 @@ class GitGraphView {
   ) {
     if (this.gitBranchHead === refName) return;
 
+    const branchHash = this.getCommitHashForElement(sourceElem);
     menu.push(
       this.visibleContextMenuItem("branch", "delete", {
         title: l10n.deleteBranch + ELLIPSIS,
@@ -4918,6 +5415,15 @@ class GitGraphView {
         onClick: () => this.showRebaseDialog(refName, refName, "branch", sourceElem)
       })
     );
+    if (branchHash !== null && this.isStrictHeadAncestor(branchHash)) {
+      menu.push(
+        ...this.buildInteractiveRebaseMenuItems("branch", () =>
+          // The base is the branch tip's hash, not its name, so the range
+          // stays the one that was read even if the branch later moves.
+          this.requestInteractiveRebaseRange(branchHash, refName, sourceElem)
+        )
+      );
+    }
   }
   private appendBranchArchiveItem(menu: ContextMenuElement[], refName: string) {
     if (!this.isContextMenuActionVisible("branch", "createArchive")) return;
@@ -6252,12 +6758,11 @@ class GitGraphView {
     if (activeFindCommitIndex === index) rowClasses.push("findMatchActive");
     return `class="${rowClasses.join(" ")}" tabindex="0" aria-selected="${selectedAttribute}"${currentAttribute} data-hash="${commit.hash}"`;
   }
-  private mutedCommitHashesNotInHeadAncestry() {
-    const muted = new Set<string>();
-    if (!this.config.muteCommitsNotAncestorsOfHead || this.commitHead === null) return muted;
-    if (typeof this.commitLookup[this.commitHead] !== "number") return muted;
-
+  private loadedHeadAncestors(): Set<string> {
     const ancestors = new Set<string>();
+    if (this.commitHead === null) return ancestors;
+    if (typeof this.commitLookup[this.commitHead] !== "number") return ancestors;
+
     const stack = [this.commitHead];
     while (stack.length > 0) {
       const hash = stack.pop();
@@ -6271,7 +6776,22 @@ class GitGraphView {
         )
       );
     }
+    return ancestors;
+  }
+  private isHeadAncestor(hash: string): boolean {
+    if (hash === "*" || this.commitHead === null) return false;
+    return this.loadedHeadAncestors().has(hash);
+  }
+  private isStrictHeadAncestor(hash: string): boolean {
+    if (hash === "*" || this.commitHead === null || hash === this.commitHead) return false;
+    return this.loadedHeadAncestors().has(hash);
+  }
+  private mutedCommitHashesNotInHeadAncestry() {
+    const muted = new Set<string>();
+    if (!this.config.muteCommitsNotAncestorsOfHead || this.commitHead === null) return muted;
+    if (typeof this.commitLookup[this.commitHead] !== "number") return muted;
 
+    const ancestors = this.loadedHeadAncestors();
     for (const commit of this.commits) {
       if (commit.hash !== "*" && !ancestors.has(commit.hash)) muted.add(commit.hash);
     }
@@ -8335,6 +8855,8 @@ const actionErrorLabels = {
   stageFiles: l10n.unableToStageFiles,
   resetToCommit: l10n.unableToReset,
   rebaseCurrentBranch: l10n.unableToRebase,
+  interactiveRebase: l10n.unableToStartInteractiveRebase,
+  commitFixup: l10n.unableToCreateFixup,
   revertCommit: l10n.unableToRevert,
   squashCommitSelection: l10n.unableToSquashSelection,
   undoLastCommit: l10n.unableToUndoLastCommit,
@@ -8389,6 +8911,13 @@ type ResponseHandlerMap = {
 };
 
 const responseHandlers: ResponseHandlerMap = {
+  operationState: (msg) => gitGraph.loadOperationState(msg),
+  rebaseRange: (msg) => gitGraph.loadRebaseRange(msg),
+  rebasePrediction: (msg) => gitGraph.loadRebasePrediction(msg),
+  fixupDialogInfo: (msg) => gitGraph.loadFixupDialogInfo(msg),
+  continueRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToContinueRebase),
+  skipRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToSkipRebase),
+  abortRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToAbortRebase),
   remoteTags: (msg) => gitGraph.loadRemoteTags(msg),
   worktreeChanges: (msg) => gitGraph.loadWorktreeChanges(msg),
   worktreeStatus: (msg) => gitGraph.loadWorktreeStatus(msg),
@@ -8406,7 +8935,10 @@ const responseHandlers: ResponseHandlerMap = {
       msg.signatures,
       msg.error === null ? null : formatQueryError(msg.error)
     ),
-  componentStatus: (msg) => applyComponentStatus(msg.components),
+  componentStatus: (msg) => {
+    applyComponentStatus(msg.components);
+    gitGraph.setStatisticsAvailable(msg.components.engine.state === "active");
+  },
   copyToClipboard: handleCopyToClipboardResponse,
   createArchive: handleCreateArchiveResponse,
   fetchAvatar: (msg) => gitGraph.loadAvatar(msg.email, msg.image),
@@ -8657,15 +9189,24 @@ function renderContextMenuHeader(header: ContextMenuHeader | undefined): string 
 
 function renderContextMenuItem(item: ContextMenuItem, index: number): string {
   const isCheckbox = item.checked !== undefined;
+  const isDisabled = item.disabled === true;
   const checkboxClass = isCheckbox ? " contextMenuItemCheckbox" : "";
+  const disabledClass = isDisabled ? " contextMenuItemDisabled" : "";
   const checkboxAttributes = isCheckbox
     ? ` role="menuitemcheckbox" aria-checked="${item.checked === true}"`
     : ' role="menuitem"';
+  const disabledAttributes = isDisabled ? ' aria-disabled="true"' : "";
+  const indexAttribute = isDisabled ? "" : ` data-index="${index}"`;
+  const titleAttribute = item.reason === undefined ? "" : ` title="${escapeHtml(item.reason)}"`;
   const checkmark = item.checked === true ? "✓" : "";
   const checkbox = isCheckbox
     ? `<span class="contextMenuCheck" aria-hidden="true">${checkmark}</span>`
     : "";
-  return `<li class="contextMenuItem${checkboxClass}" data-index="${index}"${checkboxAttributes}>${checkbox}${item.title}</li>`;
+  const reasonHtml =
+    item.reason === undefined
+      ? ""
+      : `<span class="contextMenuItemReason">${escapeHtml(item.reason)}</span>`;
+  return `<li class="contextMenuItem${checkboxClass}${disabledClass}"${indexAttribute}${checkboxAttributes}${disabledAttributes}${titleAttribute}>${checkbox}${item.title}${reasonHtml}</li>`;
 }
 
 function renderContextMenuItems(visibleItems: ContextMenuRow[]): string {
@@ -8712,13 +9253,13 @@ function showContextMenu(
 
   addListenerToClass("contextMenuItem", "click", (ev) => {
     ev.stopPropagation();
-    hideContextMenu();
     if (
       !(ev.currentTarget instanceof HTMLElement) ||
       ev.currentTarget.dataset.index === undefined
     ) {
       return;
     }
+    hideContextMenu();
     visibleItems[Number.parseInt(ev.currentTarget.dataset.index, 10)]?.onClick();
   });
 
@@ -9253,6 +9794,13 @@ function showActionRunningDialog(command: string) {
     null
   );
 }
+let activeRebaseEditor: RebaseEditorController | null = null;
+function destroyActiveRebaseEditor() {
+  if (activeRebaseEditor === null) return;
+  activeRebaseEditor.destroy();
+  activeRebaseEditor = null;
+}
+
 function showDialog(
   html: string,
   actionName: string | null,
@@ -9260,6 +9808,7 @@ function showDialog(
   actioned: (() => void) | null,
   sourceElem: HTMLElement | null
 ) {
+  destroyActiveRebaseEditor();
   dialogBacking.className = "active";
   dialog.className = "active";
   const dismissClass = actionName === null ? "dialogBtn dialogBtnPrimary" : "dialogBtn";
@@ -9279,6 +9828,7 @@ function showDialog(
   if (dialogMenuSource !== null) dialogMenuSource.classList.add("dialogActive");
 }
 function hideDialog() {
+  destroyActiveRebaseEditor();
   dialogBacking.className = "";
   dialog.className = "";
   dialog.innerHTML = "";
@@ -9304,6 +9854,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   if (e.isComposing || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
   if (!dialog.classList.contains("active")) return;
+  if (dialog.classList.contains("rebaseEditorDialog")) return;
   // Textareas keep Enter for line breaks; selects and buttons already
   // consume Enter natively, so confirming here would double-trigger.
   if (

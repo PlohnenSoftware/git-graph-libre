@@ -11,6 +11,7 @@ import { resolveBundleLanguage } from "@/telemetry/language";
 import type { EngineComponentStatus, GitGraphViewState } from "@/types";
 
 import type { RepoManager } from "./repoManager";
+import { isStatsTabAvailable } from "./statsTab/availability";
 import { buildTelemetryConsentScreen } from "./webviewConsentScreen";
 import { getWebviewLocalizedStrings } from "./webviewL10n";
 import { createBundleTranslator, listWebviewLanguages } from "./webviewLanguages";
@@ -119,11 +120,13 @@ export function buildWebviewHtml(opts: {
     body = buildTelemetryConsentScreen(l10nStrings, nonce, styleVars);
   } else if (numRepos > 0) {
     engine = engineComponentStatus(config.backend());
+    const statsTabAvailable = isStatsTabAvailable({ backend: config.backend });
     body = `<body style="${styleVars}">
 		<div id="topBar">
 		${buildWebviewStatusStrip(l10nStrings, extensionVersion, engine.state)}
 		<div id="stashListSlot"></div>
-		${buildWebviewToolbar(l10nStrings)}
+		${buildWebviewToolbar(l10nStrings, { statsTabAvailable })}
+		<div id="rebaseBannerSlot"></div>
 		</div>
 		<div id="settingsWidgetBacking" hidden></div>
 		<aside id="settingsWidget" role="dialog" aria-modal="true" tabindex="-1" aria-label="${l10nStrings.settings}" hidden></aside>
@@ -164,6 +167,8 @@ export function buildWebviewHtml(opts: {
 			<link rel="stylesheet" type="text/css" href="${mediaUri("settings.css")}">
 			<link rel="stylesheet" type="text/css" href="${mediaUri("dialogs.css")}">
 			<link rel="stylesheet" type="text/css" href="${mediaUri("dropdown.css")}">
+			<link rel="stylesheet" type="text/css" href="${mediaUri("rebase-banner.css")}">
+			<link rel="stylesheet" type="text/css" href="${mediaUri("rebase-editor.css")}">
 			<title>${l10n.t("outputChannel.text")}</title>
 			<style>${colorParams}"</style>
 		</head>

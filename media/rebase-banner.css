@@ -1,0 +1,145 @@
+/* Rebase in progress banner (F2-03): a band inside #topBar, below the
+   toolbar, shown while the repository the graph displays has a rebase in
+   progress. Unlike the stash list it does not fold away on scroll — its
+   controls finish an operation Git has already started, so they stay
+   reachable at every scroll position. An empty slot collapses completely,
+   like #stashListSlot, because #topBar is measured into --ngg-sticky-top. */
+
+#rebaseBannerSlot:empty {
+  display: none;
+}
+
+.rebaseBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  border-left: 3px solid var(--vscode-editorWarning-foreground, var(--ngg-warning));
+  background-color: var(--vscode-banner-background, var(--ngg-neutral-overlay-subtle));
+  color: var(--vscode-banner-foreground, var(--vscode-foreground));
+  font-size: var(--git-graph-font-size, 13px);
+  /* A long subject or path has no break point of its own; break it inside
+     the banner rather than scrolling the band sideways. */
+  overflow-wrap: anywhere;
+}
+
+.rebaseBannerMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+.rebaseBannerIcon {
+  align-self: center;
+  color: var(--vscode-banner-iconForeground, var(--vscode-editorWarning-foreground, var(--ngg-warning)));
+  line-height: 0;
+}
+
+.rebaseBannerText {
+  font-weight: 600;
+}
+
+.rebaseBannerHint {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+
+.rebaseConflictFiles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+  flex-basis: 100%;
+}
+
+.rebaseConflictLabel {
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+
+.rebaseConflictFile {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--vscode-textLink-foreground, var(--ngg-accent));
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.rebaseConflictFile:hover {
+  color: var(--vscode-textLink-activeForeground, var(--ngg-accent));
+  text-decoration: underline;
+}
+
+.rebaseConflictFile:focus-visible,
+.rebaseBannerBtn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 2px;
+}
+
+.rebaseBannerActions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.rebaseBannerBtn {
+  padding: 4px 12px;
+  border: 1px solid var(--vscode-button-border, var(--ngg-transparent));
+  border-radius: 2px;
+  background-color: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-muted));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.rebaseBannerBtn:hover:not(:disabled) {
+  background-color: var(--vscode-button-secondaryHoverBackground, var(--ngg-neutral-overlay-medium));
+}
+
+.rebaseBannerBtnPrimary {
+  background-color: var(--vscode-button-background, var(--ngg-accent));
+  color: var(--vscode-button-foreground, var(--ngg-accent-foreground));
+}
+
+.rebaseBannerBtnPrimary:hover:not(:disabled) {
+  background-color: var(--vscode-button-hoverBackground, var(--ngg-accent));
+}
+
+.rebaseBannerBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+@media (forced-colors: active) {
+  .rebaseBanner {
+    border-bottom-color: CanvasText;
+    border-left-color: CanvasText;
+    background-color: Canvas;
+    color: CanvasText;
+  }
+  .rebaseBannerIcon,
+  .rebaseBannerHint,
+  .rebaseConflictLabel {
+    color: CanvasText;
+  }
+  .rebaseConflictFile {
+    color: LinkText;
+  }
+  .rebaseBannerBtn {
+    border-color: ButtonText;
+    background-color: ButtonFace;
+    color: ButtonText;
+  }
+  .rebaseBannerBtn:disabled {
+    color: GrayText;
+    border-color: GrayText;
+  }
+}

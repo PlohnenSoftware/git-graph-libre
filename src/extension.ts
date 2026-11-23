@@ -21,6 +21,7 @@ import { registerMessageHandlers } from "./extension/messageHandler";
 import { createRepoManager } from "./extension/repoManager";
 import { createGitTrustCommand } from "./extension/repositoryRecovery";
 import { logSessionHeader } from "./extension/sessionHeader";
+import { setStatsTabAvailableContext } from "./extension/statsTab/availability";
 import { createLogger } from "./extension/utils/logger";
 import { type WebviewBridge, webviewBridgeFactory } from "./extension/webviewBridge";
 import { createWebviewPanel, type WebviewPanel } from "./extension/webviewPanel";
@@ -59,6 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
     logger.log
   );
   setDiffTabAvailableContext({ backend: config.backend });
+  setStatsTabAvailableContext({ backend: config.backend });
   // The universal VSIX carries every platform's engine binary; drop the ones
   // this host can never load. Production installs only — a development host
   // runs from the repository, whose built binaries are the developer's own.
@@ -269,6 +271,7 @@ export function activate(context: vscode.ExtensionContext) {
         // Readers take the preference live, so only the status indicator
         // has to be told: it would otherwise keep the old engine state.
         setDiffTabAvailableContext({ backend: config.backend });
+        setStatsTabAvailableContext({ backend: config.backend });
         void currentPanel?.refreshComponentStatus();
       } else if (e.affectsConfiguration("git-graph-libre.telemetry.enabled")) {
         // Answering the prompt writes this setting, so this is what swaps the

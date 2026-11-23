@@ -6,6 +6,8 @@ export const GIT_PUSH_BRANCH_MODES = ["normal", "force-with-lease", "force"] as 
 export type GitPushBranchMode = (typeof GIT_PUSH_BRANCH_MODES)[number];
 export const GIT_CONFIG_SCOPES = ["local", "global"] as const;
 export type GitConfigScope = (typeof GIT_CONFIG_SCOPES)[number];
+export const GIT_FIXUP_COMMIT_KINDS = ["fixup", "squash", "reword", "amend"] as const;
+export type GitFixupCommitKind = (typeof GIT_FIXUP_COMMIT_KINDS)[number];
 
 type ActionPayloads = {
   addRemote: { name: string; fetchUrl: string; pushUrl: string | null; fetch: boolean };
@@ -25,6 +27,8 @@ type ActionPayloads = {
   checkoutAndFastForward: { branchName: string; target: string };
   checkoutCommit: { commitHash: string };
   cherrypickCommit: { commitHash: string; parentIndex: number; noCommit: boolean };
+  /** Creates a `fixup!`, `squash!`, or `amend!` commit targeting an ancestor of HEAD (F2-06). */
+  commitFixup: { target: string; kind: GitFixupCommitKind; message?: string };
   cleanUntrackedFiles: { includeDirectories: boolean };
   createArchive: { ref: string };
   createBranch: { commitHash: string; branchName: string; checkout?: boolean };
@@ -131,10 +135,22 @@ type ActionPayloads = {
     base: string | null;
     entries: TodoEntry[];
     rangeHashes: string[];
+    /**
+     * `true` passes `--autostash` to stash and reapply local changes;
+     * `false` passes `--no-autostash` so Git refuses a dirty tree even when
+     * `rebase.autoStash` is configured; omitted leaves Git's default.
+     */
+    autostash?: boolean;
   };
+  /** `git rebase --continue` for the repository's in-progress rebase (F2-03). No payload. */
+  continueRebase: unknown;
+  /** `git rebase --skip` for the repository's in-progress rebase (F2-03). No payload. */
+  skipRebase: unknown;
+  /** `git rebase --abort` for the repository's in-progress rebase (F2-03). No payload. */
+  abortRebase: unknown;
   updateBranchFromUpstream: { branchName: string; force: boolean };
   revertCommit: { commitHash: string; parentIndex: number; noCommit: boolean };
-  squashCommitSelection: { commitHashes: string[]; message: string; noVerify: boolean };
+  squashCommitSelection: { commitHashes: string[]; message: string };
   stageFiles: { filePaths: string[] };
   unstageFiles: { filePaths: string[] };
   undoLastCommit: unknown;

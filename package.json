@@ -350,6 +350,10 @@
         {
           "command": "git-graph-libre.switchGraphToWorktree",
           "when": "false"
+        },
+        {
+          "command": "git-graph-libre.showStatistics",
+          "when": "git-graph-libre.statsTabAvailable"
         }
       ]
     },

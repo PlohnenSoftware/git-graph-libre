@@ -1,5 +1,10 @@
-import type { SimpleGit } from "simple-git";
-import { describe, expect, it, vi } from "vitest";
+import * as cp from "node:child_process";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+
+import { type SimpleGit, simpleGit } from "simple-git";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
   dropCommit,
@@ -14,74 +19,135 @@ function gitWithRaw(raw: (args: string[]) => Promise<string>): SimpleGit {
   return { raw: vi.fn(raw) } as unknown as SimpleGit;
 }
 
+const tempDirs: string[] = [];
+const savedEnv: Record<string, string | undefined> = {};
+const isolatedEnv: Record<string, string> = {};
+
+function tempDir(prefix: string): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  tempDirs.push(dir);
+  return dir;
+}
+
+function runGit(args: string[], cwd: string): string {
+  return cp.execFileSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, ...isolatedEnv }
+  });
+}
+
+function makeLinearRepo(names: readonly string[]): { dir: string; hashes: string[] } {
+  const dir = tempDir("ggl-commit-advanced-");
+  runGit(["init", "-q", "-b", "main"], dir);
+  runGit(["config", "user.name", "Fixture"], dir);
+  runGit(["config", "user.email", "fixture@example.test"], dir);
+  runGit(["config", "commit.gpgsign", "false"], dir);
+  for (const name of names) {
+    fs.writeFileSync(path.join(dir, `${name}.txt`), `${name}\n`);
+    runGit(["add", `${name}.txt`], dir);
+    runGit(["commit", "-q", "-m", name], dir);
+  }
+  const hashes = runGit(["rev-list", "--reverse", "HEAD"], dir).trim().split("\n");
+  return { dir, hashes };
+}
+
+function subjects(dir: string): string[] {
+  return runGit(["log", "--reverse", "--format=%s", "HEAD"], dir).trim().split("\n");
+}
+
+beforeAll(() => {
+  const home = tempDir("ggl-commit-advanced-home-");
+  const globalConfig = path.join(home, "gitconfig");
+  fs.writeFileSync(globalConfig, "");
+  Object.assign(isolatedEnv, {
+    GIT_CONFIG_GLOBAL: globalConfig,
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_AUTHOR_NAME: "Author",
+    GIT_AUTHOR_EMAIL: "author@example.test",
+    GIT_COMMITTER_NAME: "Committer",
+    GIT_COMMITTER_EMAIL: "committer@example.test"
+  });
+  for (const key of ["GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM"]) {
+    savedEnv[key] = process.env[key];
+    process.env[key] = isolatedEnv[key];
+  }
+});
+
+afterAll(() => {
+  for (const [key, value] of Object.entries(savedEnv)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+  for (const dir of tempDirs) fs.rmSync(dir, { recursive: true, force: true });
+});
+
 describe("advanced commit actions", () => {
-  it("drops a commit by rebasing around it", async () => {
+  it("drops a commit through one interactive rebase todo", async () => {
+    const fixture = makeLinearRepo(["base", "first", "second"]);
     const records: GitCommandRecord[] = [];
-    const git = gitWithRaw(async () => "");
 
     await dropCommit(
-      git,
+      simpleGit(fixture.dir),
       {
-        repo: "/repo",
-        commitHash: "abc123"
+        repo: fixture.dir,
+        binary: "git",
+        commitHash: fixture.hashes[1] as string
       },
       (record) => records.push(record)
     );
 
-    expect(git.raw).toHaveBeenCalledWith(["rebase", "--onto", "abc123^", "abc123"]);
-    expect(records[0]).toMatchObject({
-      label: "commit.drop",
-      kind: "action",
-      repo: "/repo",
-      args: ["rebase", "--onto", "abc123^", "abc123"],
-      success: true
-    });
+    expect(subjects(fixture.dir)).toEqual(["base", "second"]);
+    expect(records.filter((record) => record.label === "rebase.interactive")).toHaveLength(1);
   });
 
-  it("drops selected commits in the supplied order", async () => {
+  it("drops selected commits in one interactive rebase", async () => {
+    const fixture = makeLinearRepo(["base", "oldest", "middle", "newest"]);
     const records: GitCommandRecord[] = [];
-    const git = gitWithRaw(async () => "");
 
     await dropCommitSelection(
-      git,
+      simpleGit(fixture.dir),
       {
-        repo: "/repo",
-        commitHashes: ["newest", "middle", "oldest"]
+        repo: fixture.dir,
+        binary: "git",
+        commitHashes: [
+          fixture.hashes[3] as string,
+          fixture.hashes[2] as string,
+          fixture.hashes[1] as string
+        ]
       },
       (record) => records.push(record)
     );
 
-    expect(git.raw).toHaveBeenNthCalledWith(1, ["rebase", "--onto", "newest^", "newest"]);
-    expect(git.raw).toHaveBeenNthCalledWith(2, ["rebase", "--onto", "middle^", "middle"]);
-    expect(git.raw).toHaveBeenNthCalledWith(3, ["rebase", "--onto", "oldest^", "oldest"]);
-    expect(records.map((record) => record.label)).toEqual([
-      "commit.drop",
-      "commit.drop",
-      "commit.drop"
-    ]);
+    expect(subjects(fixture.dir)).toEqual(["base"]);
+    expect(records.filter((record) => record.label === "rebase.interactive")).toHaveLength(1);
   });
 
-  it("squashes a selected commit chain with git hooks bypassed", async () => {
+  it("squashes a selected commit chain through the interactive todo", async () => {
+    const fixture = makeLinearRepo(["base", "oldest", "middle", "newest"]);
     const records: GitCommandRecord[] = [];
-    const git = gitWithRaw(async () => "");
 
     await squashCommitSelection(
-      git,
+      simpleGit(fixture.dir),
       {
-        repo: "/repo",
-        commitHashes: ["newest", "middle", "oldest"],
-        message: "combined message",
-        noVerify: true
+        repo: fixture.dir,
+        binary: "git",
+        commitHashes: [
+          fixture.hashes[3] as string,
+          fixture.hashes[2] as string,
+          fixture.hashes[1] as string
+        ],
+        message: "combined message"
       },
       (record) => records.push(record)
     );
 
-    expect(git.raw).toHaveBeenNthCalledWith(1, ["reset", "--soft", "oldest^"]);
-    expect(git.raw).toHaveBeenNthCalledWith(2, ["commit", "-m", "combined message", "--no-verify"]);
-    expect(records.map((record) => record.label)).toEqual([
-      "commit.squash.reset",
-      "commit.squash.commit"
-    ]);
+    expect(subjects(fixture.dir)).toEqual(["base", "combined message"]);
+    expect(fs.existsSync(path.join(fixture.dir, "oldest.txt"))).toBe(true);
+    expect(fs.existsSync(path.join(fixture.dir, "middle.txt"))).toBe(true);
+    expect(fs.existsSync(path.join(fixture.dir, "newest.txt"))).toBe(true);
+    expect(records.filter((record) => record.label === "rebase.interactive")).toHaveLength(1);
   });
 
   it("undoes the last commit with a soft reset", async () => {

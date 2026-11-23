@@ -3521,18 +3521,16 @@ describe("webview rendering", () => {
     secondRow?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
     clickContextMenuItem("Squash Selection");
     const message = document.getElementById("dialogInput0") as HTMLTextAreaElement | null;
-    const bypassHooks = document.getElementById("dialogInput1") as HTMLInputElement | null;
+    // Bypass hooks is not offered on the interactive-rebase squash path (F2-10).
+    expect(document.getElementById("dialogInput1")).toBeNull();
     expect(message).not.toBeNull();
-    expect(bypassHooks).not.toBeNull();
     if (message !== null) message.value = "Combined selection";
-    if (bypassHooks !== null) bypassHooks.checked = true;
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
     expect(vscodeMock.sentMessages[vscodeMock.sentMessages.length - 1]).toEqual({
       command: "squashCommitSelection",
       repo: REPO,
       commitHashes: ["abc123", "def456"],
-      message: "Combined selection",
-      noVerify: true
+      message: "Combined selection"
     });
 
     findRow("abc123")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
@@ -3545,6 +3543,147 @@ describe("webview rendering", () => {
       repo: REPO,
       commitHashes: ["abc123", "def456"]
     });
+
+    receiveLoadedCommits(twoCommits, "abc123");
+  });
+
+  it("offers drop and squash selection on non-HEAD ranges and drop-only on non-contiguous selections (F2-10)", () => {
+    const fourCommitChain: GitCommitNode[] = [
+      {
+        hash: "h444",
+        parentHashes: ["h333"],
+        author: "Ada",
+        email: "ada@example.com",
+        date: 1_700_000_400,
+        message: "Commit 4",
+        refs: [{ hash: "h444", name: "main", type: "head" }]
+      },
+      {
+        hash: "h333",
+        parentHashes: ["h222"],
+        author: "Ada",
+        email: "ada@example.com",
+        date: 1_700_000_300,
+        message: "Commit 3",
+        refs: []
+      },
+      {
+        hash: "h222",
+        parentHashes: ["h111"],
+        author: "Ada",
+        email: "ada@example.com",
+        date: 1_700_000_200,
+        message: "Commit 2",
+        refs: []
+      },
+      {
+        hash: "side1",
+        parentHashes: ["h111"],
+        author: "Drew",
+        email: "drew@example.com",
+        date: 1_700_000_150,
+        message: "Side branch",
+        refs: []
+      },
+      {
+        hash: "h111",
+        parentHashes: [],
+        author: "Ada",
+        email: "ada@example.com",
+        date: 1_700_000_100,
+        message: "Root commit",
+        refs: []
+      }
+    ];
+    receiveLoadedCommits(fourCommitChain, "h444");
+
+    // Contiguous non-HEAD chain (h333 -> h222): both Squash and Drop are offered;
+    // Interactive Rebase stays gated on a HEAD-ending chain.
+    findRow("h333")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    findRow("h222")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    findRow("h222")?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(contextMenuItem("Squash Selection")).toBeDefined();
+    expect(contextMenuItem("Drop Selection")).toBeDefined();
+    expect(contextMenuItem("Interactive Rebase")).toBeUndefined();
+
+    // Non-contiguous selection in HEAD history (h444 and h222): Drop only, no Squash.
+    findRow("h333")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    findRow("h444")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    findRow("h222")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    findRow("h222")?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(contextMenuItem("Squash Selection")).toBeUndefined();
+    expect(contextMenuItem("Drop Selection")).toBeDefined();
+
+    // Selection including the root commit (h222 and h111): neither Squash nor Drop.
+    findRow("h444")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    findRow("h222")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    findRow("h111")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    findRow("h111")?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(contextMenuItem("Squash Selection")).toBeUndefined();
+    expect(contextMenuItem("Drop Selection")).toBeUndefined();
+
+    // Selection including a commit outside HEAD ancestry (h333 and side1): neither Squash nor Drop.
+    findRow("h444")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    findRow("h333")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    findRow("side1")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    findRow("side1")?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(contextMenuItem("Squash Selection")).toBeUndefined();
+    expect(contextMenuItem("Drop Selection")).toBeUndefined();
+
+    // Selection including a merge commit: neither Squash nor Drop.
+    const mergeChain: GitCommitNode[] = [
+      {
+        hash: "mhead",
+        parentHashes: ["mmerge"],
+        author: "Ada",
+        email: "ada@example.com",
+        date: 1_700_000_500,
+        message: "After merge",
+        refs: [{ hash: "mhead", name: "main", type: "head" }]
+      },
+      {
+        hash: "mmerge",
+        parentHashes: ["mleft", "mright"],
+        author: "Ada",
+        email: "ada@example.com",
+        date: 1_700_000_400,
+        message: "Merge commit",
+        refs: []
+      },
+      {
+        hash: "mleft",
+        parentHashes: ["mroot"],
+        author: "Ada",
+        email: "ada@example.com",
+        date: 1_700_000_300,
+        message: "Left commit",
+        refs: []
+      },
+      {
+        hash: "mright",
+        parentHashes: ["mroot"],
+        author: "Drew",
+        email: "drew@example.com",
+        date: 1_700_000_200,
+        message: "Right commit",
+        refs: []
+      },
+      {
+        hash: "mroot",
+        parentHashes: [],
+        author: "Ada",
+        email: "ada@example.com",
+        date: 1_700_000_100,
+        message: "Root commit",
+        refs: []
+      }
+    ];
+    receiveLoadedCommits(mergeChain, "mhead");
+    findRow("mhead")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    findRow("mmerge")?.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    findRow("mmerge")?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(contextMenuItem("Squash Selection")).toBeUndefined();
+    expect(contextMenuItem("Drop Selection")).toBeUndefined();
 
     receiveLoadedCommits(twoCommits, "abc123");
   });

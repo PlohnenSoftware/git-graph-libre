@@ -22,9 +22,11 @@ import {
 import {
   checkoutCommit,
   cherrypickCommit,
+  commitFixup,
   dropCommit,
   dropCommitSelection,
   editHeadCommitMessage,
+  loadFixupDialogInfo,
   resetToCommit,
   revertCommit,
   squashCommitSelection,
@@ -33,7 +35,12 @@ import {
 import { openExternalDirDiff } from "@/backend/actions/externalDiff";
 import { resetFileToRevision } from "@/backend/actions/file";
 import { mergeBranch, mergeCommit } from "@/backend/actions/merge";
-import { rebaseCurrentBranch } from "@/backend/actions/rebase";
+import {
+  abortRebase,
+  continueRebase,
+  rebaseCurrentBranch,
+  skipRebase
+} from "@/backend/actions/rebase";
 import { runInteractiveRebase } from "@/backend/actions/rebaseInteractive";
 import {
   addRemote,
@@ -79,6 +86,8 @@ import { branchPushDefaults } from "@/backend/queries/branchPushDefaults";
 import { commitSignatures } from "@/backend/queries/commitSignatures";
 import { loadFileHistory } from "@/backend/queries/fileHistory";
 import { loadBranches } from "@/backend/queries/loadBranches";
+import { loadOperationState } from "@/backend/queries/operationState";
+import { predictRebaseConflicts } from "@/backend/queries/rebasePrediction";
 import { loadRebaseRange } from "@/backend/queries/rebaseRange";
 import { remoteTags } from "@/backend/queries/remoteTags";
 import { resolveRef } from "@/backend/queries/resolveRef";
@@ -119,6 +128,7 @@ import { createReflogSource } from "./reflogTab/reflogData";
 import { openReflogTab as openGglReflogTab } from "./reflogTab/reflogTabPanel";
 import { exportRepoConfigFile, importRepoConfigFile } from "./repoConfigFile";
 import type { RepoManager } from "./repoManager";
+import { isStatsTabAvailable } from "./statsTab/availability";
 import { createStatsSource } from "./statsTab/statsData";
 import { openStatsTab as openGglStatsTab } from "./statsTab/statsTabPanel";
 import type { WebviewBridge } from "./webviewBridge";
@@ -553,6 +563,8 @@ export function registerMessageHandlers(
     openStatsTab?: (repo: string) => void;
     /** Whether the tab can be fed (D45); defaults to the engine check. */
     isDiffTabAvailable?: () => boolean;
+    /** Whether the engine-only Statistics tab can be offered (F3-03); defaults to the engine check. */
+    isStatsTabAvailable?: () => boolean;
   }
 ) {
   const {
@@ -629,6 +641,8 @@ export function registerMessageHandlers(
     });
   const diffTabAvailable =
     deps.isDiffTabAvailable ?? ((): boolean => isDiffTabAvailable({ backend: config.backend }));
+  const statsTabAvailable =
+    deps.isStatsTabAvailable ?? ((): boolean => isStatsTabAvailable({ backend: config.backend }));
 
   /**
    * Every repository read starts here. The preference is read live, so
@@ -850,9 +864,18 @@ export function registerMessageHandlers(
   registerAction("cherrypickCommit", (msg) =>
     cherrypickCommit(gitClient.getInstance(), msg, recordGitCommand)
   );
-  registerAction("dropCommit", (msg) => dropCommit(gitClient.getInstance(), msg, recordGitCommand));
+  registerAction("commitFixup", (msg) =>
+    commitFixup(gitClient.getInstance(), { ...msg, binary: config.gitPath() }, recordGitCommand)
+  );
+  registerAction("dropCommit", (msg) =>
+    dropCommit(gitClient.getInstance(), { ...msg, binary: config.gitPath() }, recordGitCommand)
+  );
   registerAction("dropCommitSelection", (msg) =>
-    dropCommitSelection(gitClient.getInstance(), msg, recordGitCommand)
+    dropCommitSelection(
+      gitClient.getInstance(),
+      { ...msg, binary: config.gitPath() },
+      recordGitCommand
+    )
   );
   registerAction("editHeadCommitMessage", (msg) =>
     editHeadCommitMessage(gitClient.getInstance(), msg, recordGitCommand)
@@ -893,8 +916,33 @@ export function registerMessageHandlers(
       );
     }
   });
+  registerAction("continueRebase", (msg) =>
+    continueRebase(
+      gitClient.getInstance(),
+      { repo: msg.repo, binary: config.gitPath() },
+      recordGitCommand
+    )
+  );
+  registerAction("skipRebase", (msg) =>
+    skipRebase(
+      gitClient.getInstance(),
+      { repo: msg.repo, binary: config.gitPath() },
+      recordGitCommand
+    )
+  );
+  registerAction("abortRebase", (msg) =>
+    abortRebase(
+      gitClient.getInstance(),
+      { repo: msg.repo, binary: config.gitPath() },
+      recordGitCommand
+    )
+  );
   registerAction("squashCommitSelection", (msg) =>
-    squashCommitSelection(gitClient.getInstance(), msg, recordGitCommand)
+    squashCommitSelection(
+      gitClient.getInstance(),
+      { ...msg, binary: config.gitPath() },
+      recordGitCommand
+    )
   );
   registerAction("undoLastCommit", (msg) =>
     undoLastCommit(gitClient.getInstance(), msg, recordGitCommand)
@@ -1319,6 +1367,46 @@ export function registerMessageHandlers(
     });
   });
 
+  bridge.onMessage("rebasePrediction", async (msg) => {
+    bridge.post({
+      command: "rebasePrediction",
+      requestId: msg.requestId,
+      repo: msg.repo,
+      ...(await predictRebaseConflicts(gitClient.getInstance(), {
+        repo: msg.repo,
+        base: msg.base,
+        entries: msg.entries,
+        binary: config.gitPath(),
+        recordGitCommand
+      }))
+    });
+  });
+
+  bridge.onMessage("operationState", async (msg) => {
+    bridge.post({
+      command: "operationState",
+      requestId: msg.requestId,
+      repo: msg.repo,
+      ...(await loadOperationState(gitClient.getInstance(), {
+        repo: msg.repo,
+        recordGitCommand
+      }))
+    });
+  });
+
+  bridge.onMessage("fixupDialogInfo", async (msg) => {
+    bridge.post({
+      command: "fixupDialogInfo",
+      requestId: msg.requestId,
+      repo: msg.repo,
+      ...(await loadFixupDialogInfo(gitClient.getInstance(), {
+        repo: msg.repo,
+        target: msg.target,
+        recordGitCommand
+      }))
+    });
+  });
+
   // A folder field's Browse button: the folder the user picks fills its
   // field. The title names the asking dialog; the button stays "Choose
   // Folder" for both, because picking alone creates and moves nothing.
@@ -1488,8 +1576,12 @@ export function registerMessageHandlers(
     if (Object.hasOwn(repoManager.getRepos(), msg.repo)) openReflog(msg.repo);
   });
 
-  // The graph toolbar's Statistics button, on the same terms as Reflog.
+  // The graph toolbar's Statistics button, gated on engine availability (F3-03).
   bridge.onMessage("showStatistics", (msg) => {
+    if (!statsTabAvailable()) {
+      outputChannel?.appendLine("[statsTab] unavailable; refusing showStatistics");
+      return;
+    }
     if (Object.hasOwn(repoManager.getRepos(), msg.repo)) openStatistics(msg.repo);
   });
 

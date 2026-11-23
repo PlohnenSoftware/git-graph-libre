@@ -5,6 +5,14 @@ import { getPathFromStr, getPathFromUri } from "./backend/utils/path";
 
 // Files in the git dir that holds this worktree's own HEAD and index.
 const watchedGitDirFiles = new Set(["HEAD", "index"]);
+// In-progress operation markers in the same per-worktree git dir (F2-03):
+// a rebase starting, stopping or ending must refresh the graph and its
+// banner. The state directories count with everything below them — Git
+// rewrites their progress files as it goes — and the existing debounce
+// folds that burst of writes into one refresh at the stop.
+const watchedOperationFiles = new Set(["MERGE_HEAD", "REBASE_HEAD"]);
+const watchedOperationDirs = new Set(["rebase-merge", "rebase-apply"]);
+const watchedOperationDirPrefixes = ["rebase-merge/", "rebase-apply/"];
 // Files and ref folders in the common dir, shared by every worktree.
 const watchedCommonFiles = new Set(["config", "packed-refs", "refs/stash"]);
 const watchedCommonRefPrefixes = ["refs/heads/", "refs/remotes/", "refs/tags/"];
@@ -55,10 +63,29 @@ function shouldRefreshCommonPath(relativePath: string) {
   );
 }
 
+function isOperationStatePath(relativePath: string) {
+  return (
+    watchedOperationFiles.has(relativePath) ||
+    watchedOperationDirs.has(relativePath) ||
+    watchedOperationDirPrefixes.some((prefix) => relativePath.startsWith(prefix))
+  );
+}
+
 function shouldRefreshGitPath(kind: Exclude<WatcherKind, "repo">, relativePath: string) {
-  if (kind === "gitDir") return watchedGitDirFiles.has(relativePath);
+  // Operation state lives in the per-worktree git dir, so it counts for the
+  // `gitDir` and `sharedDir` watchers. In a linked worktree the main
+  // worktree's state sits in the common dir but belongs to that worktree's
+  // own graph, which watches it through its `sharedDir` — not through this
+  // worktree's `commonDir`.
+  if (kind === "gitDir") {
+    return watchedGitDirFiles.has(relativePath) || isOperationStatePath(relativePath);
+  }
   if (kind === "commonDir") return shouldRefreshCommonPath(relativePath);
-  return watchedGitDirFiles.has(relativePath) || shouldRefreshCommonPath(relativePath);
+  return (
+    watchedGitDirFiles.has(relativePath) ||
+    isOperationStatePath(relativePath) ||
+    shouldRefreshCommonPath(relativePath)
+  );
 }
 
 export class RepoFileWatcher {

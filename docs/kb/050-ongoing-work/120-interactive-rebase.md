@@ -108,14 +108,14 @@ the graph layout, outside this work; no slice reads it.
 | F2-01a | Todo model (pure) | — | Haiku | integrated `9f7d0865` |
 | F2-01b | Git handoff and spike | F2-01a | Muse Code | integrated `3d39ecaf` |
 | F2-02 | Range read and preflight | — | Muse Code | integrated `16b65eb2` |
-| F2-03 | In-progress state and controls | — | Muse Code | in progress |
-| F2-04 | Editor dialog: open, list, pick/drop/reorder, start | F2-01b, F2-02, F2-03 | Muse Code | waiting |
-| F2-05 | Reword, squash, fixup and edit with messages | F2-04 | Muse Code | waiting |
-| F2-06 | Autosquash and fixup creation | F2-04, F2-05 | Muse Code | waiting |
-| F2-07 | Dirty tree, published history and worktree protections | F2-04 | Muse Code | waiting |
-| F2-08 | Conflict prediction for the planned todo | F2-04, F2-05 | Muse Code | waiting |
-| F2-09 | Plain-rebase prediction and drag-to-rebase | F2-07, F2-08 | Muse Code | waiting |
-| F2-10 | Route drop and squash through the todo | F2-05 | Muse Code | waiting |
+| F2-03 | In-progress state and controls | — | Muse Code | integrated `40fbf8f4` |
+| F2-04 | Editor dialog: open, list, pick/drop/reorder, start | F2-01b, F2-02, F2-03 | Muse Code | integrated `48be134c` |
+| F2-05 | Reword, squash, fixup and edit with messages | F2-04 | Muse Code | integrated `4c62b924` |
+| F2-06 | Autosquash and fixup creation | F2-04, F2-05 | Gemini 4 Neon | integrated `94db854d` |
+| F2-07 | Dirty tree, published history and worktree protections | F2-04 | Gemini 4 Neon | integrated `7257f2cf` (merge) |
+| F2-08 | Conflict prediction for the planned todo | F2-04, F2-05 | Gemini 4 Neon | integrated `9e04c8e5` |
+| F2-09 | Plain-rebase prediction and drag-to-rebase | F2-07, F2-08 | Muse Code | deferred (IQ8: not now, after the core ships) |
+| F2-10 | Route drop and squash through the todo | F2-05 | Muse Code → Gemini 4 Neon | integrated `32217651` (merge) |
 
 F2-01 is split for the agent choice: F2-01a is pure, with no Git and no UI, so
 Haiku can take it. F2-01b holds the Git handoff and the IQ3/IQ4 spike.
@@ -171,3 +171,90 @@ pushed, and nothing is tagged without the maintainer.
 - `2026-11-23`: maintainer accepted all recommended IQ defaults; `gg-plus/next`
   rebased onto `main` (`7db1d290`) so the Git Graph+ work sees release 1.11.0's
   KB and code; F2-03 dispatched to Muse Code.
+- `2026-11-23`: F2-03 integrated into `gg-plus/next` at `40fbf8f4` (first run
+  Muse Code, cut off by its quota; finished by Gemini 4 Argon through `agy`):
+  the in-progress state read from the per-worktree git dir, a banner above
+  the graph for `edit` and conflict stops with progress, Continue (blocked
+  while unmerged paths remain, IQ9; no silent `add -A`), Skip and Abort
+  (confirmed first), removing `<gitdir>/ggl-rebase/` when the rebase ends,
+  and a watcher on the rebase state. Integrator conflict resolution: the
+  `rebase.*` and `stats.*` l10n blocks were both placed before the first
+  `reflog.` key; both kept (`prompts/resolve-l10n.py`, 912 keys). Renders
+  under `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F2-03/`. Gates on
+  `40fbf8f4`: strict Biome on 20 files, typecheck, `l10n:check`, KB check,
+  backend 1,697 passed (60 skipped) and webview 1,165 passed. F2-04 is ready.
+- `2026-11-23`: F2-04 (Muse Code; first run cut off by its quota, finished by
+  a second Muse Code run) integrated into `gg-plus/next` at `48be134c`: the
+  editor dialog from the commit menu "Interactive Rebase...", the todo list
+  with pick and drop, keyboard and drag reordering, Start through the F2-01b
+  handoff, and a per-group visibility toggle for the menu item. Multi-select
+  reuses the loaded first-parent `HEAD` chain rule, so a selection ending at
+  a non-`HEAD` branch tip is not offered. F2-07's published-commit
+  acknowledgement exists only as the model hook `requirePublishedAck`
+  (default off, no checkbox yet). 35 `rebase.*` keys, agent-translated.
+  Renders under `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F2-04/` (dark,
+  light; forced colors pinned by a CSS guard test, not rendered). Gates on
+  `48be134c`: strict Biome on 17 files, typecheck, `l10n:check`, KB check,
+  backend 1,709 passed (60 skipped) and webview 1,190 passed. F2-05 and F2-07
+  are ready and run in parallel (overlap allowed; the integrator resolves).
+- `2026-11-23`: F2-05 (Muse Code) integrated into `gg-plus/next` at
+  `4c62b924`: reword, squash, fixup and edit in the editor with message
+  editing, squash groups (`findSquashGroups`, which F2-06 builds on), and the
+  `exec` amend that applies edited messages (hooks and signing run again per
+  reworded commit or edited group, measured in F2-01b as Git's own reword
+  cost). Agent-translated strings in the `rebase.` block. Gates on
+  `4c62b924`: strict Biome on 17 files, typecheck, `l10n:check`, KB check,
+  backend 1,725 passed (60 skipped) and webview 1,203 passed. F2-06, F2-08
+  and F2-10 are ready; F2-06 and F2-10 start now beside F2-07, and F2-08
+  follows one of them so the editor model does not get a fourth parallel
+  writer.
+- `2026-11-23`: F2-07 (Gemini 4 Neon, `agy`) integrated into `gg-plus/next` at
+  `7257f2cf`, the first integration by **merge** under the new no-squash
+  rule: F2-07 ran beside F2-05, so a rebase conflicted; Neon merged
+  `gg-plus/next` into `rebase/F2-07` (one signed merge commit; `model.ts`
+  keeps F2-05's `guardSquashRows` with F2-07's `longRangeConfirmPending`,
+  also cleared on a message edit; `view.ts` combines F2-07's protection
+  notices with F2-05's message notices and keeps F2-05's chrome/interactive
+  split), and the integrator fast-forwarded. F2-07 adds the dirty-tree,
+  published-history (the IQ5 acknowledgement checkbox gating Start) and
+  worktree protections. Gates on `7257f2cf`: strict Biome on 17 files,
+  typecheck, `l10n:check`, KB check, backend 1,734 passed (60 skipped) and
+  webview 1,216 passed. F2-06 and F2-10 were cut off by Muse Code's quota
+  at about 16:50 UTC and are queued to continue at 21:03 UTC; F2-08 goes to
+  Gemini 4 Neon now. F2-09 waits for F2-08.
+- `2026-11-23`: F2-08 (Gemini 4 Neon, `agy`) integrated into `gg-plus/next` at
+  `9e04c8e5` (it started from the tip, so no rebase was needed): conflict
+  prediction for the planned todo. Gates on `9e04c8e5`: typecheck,
+  `l10n:check`, KB check, backend 1,754 passed (60 skipped) and webview
+  1,221 passed (`integrate.sh` failed only at its last line because the
+  integrator edited the script mid-run; the fast-forward was done by hand
+  after the gate had passed). F2-09 stays deferred: IQ8's answer is "not
+  now, re-evaluate after the core ships". Open: F2-06 and F2-10 (queued for
+  Muse Code at 21:03 UTC), then the 1.11.0 sync merge of `main`.
+- `2026-11-23`: F2-10 integrated into `gg-plus/next` at `32217651` by merge.
+  Muse Code started it and was cut off by its quota with the work
+  uncommitted; Gemini 4 Neon finished it (its own `rendering.test.ts` run
+  hung at 100 % CPU for 40 minutes and was stopped by the integrator; the
+  finished slice passes that suite, 112 tests, within a time limit) and then
+  merged `gg-plus/next` into `rebase/F2-10` (only `src/webview/main.ts`
+  conflicted: `buildSelectedCommitContextMenu` keeps F2-10's loaded
+  `HEAD`-chain rule with F2-07's and F2-08's additions). Drop and squash of a
+  selection now go through the interactive todo, the `HEAD`-chain gate is
+  lifted, and the hook bypass (`noVerify`) on selection actions is gone, so
+  hooks run as Git runs them. IQ10 asks for its own release note: the
+  proposed text is in F2-10's Report, for the Git Graph+ release notes.
+  Gates on `32217651`: strict Biome on 28 files, typecheck, `l10n:check`,
+  KB check, backend 1,765 passed (60 skipped) and webview 1,222 passed.
+  Open on this track: F2-06 (Muse Code, 21:03 UTC); F2-09 deferred (IQ8).
+- `2026-11-23`: F2-06 (Gemini 4 Neon, `agy`; Muse Code's run had only
+  claimed it before its quota ran out, and the claim was rebased onto the
+  tip) integrated into `gg-plus/next` at `94db854d`: an autosquash switch
+  that follows `rebase.autoSquash`, fixup creation from the commit menu
+  (`commitFixup`, with `fixup -C` / `amend!` support) and a pure autosquash
+  arrangement for the editor. IQ11's spike ran `git rebase -i --autosquash`
+  with a failing sequence editor on real Git 2.56.1: clean on a clean tree,
+  but not on a dirty one, so the editor arranges the todo itself, with
+  real-Git parity tests (subject and hash-prefix matches, chains, `amend!`,
+  markers outside the range). Gates on `94db854d`: typecheck, `l10n:check`,
+  KB check, backend 1,785 passed (60 skipped) and webview 1,229 passed. The
+  interactive rebase track is integrated except F2-09 (deferred, IQ8).

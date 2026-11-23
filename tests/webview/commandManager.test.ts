@@ -36,6 +36,8 @@ type LogOptions = {
   workspaceFolders?: string[];
   /** Whether adding a workspace folder succeeds; defaults to true. */
   addFolderOk?: boolean;
+  /** Whether the engine-only Statistics tab is available; defaults to true. */
+  statsTabAvailable?: boolean;
 };
 
 function makeHarness(
@@ -149,6 +151,7 @@ function makeHarness(
     openScmDiffTab,
     openReflogTab,
     openStatsTab,
+    isStatsTabAvailable: () => logOptions.statsTabAvailable ?? true,
     getCurrentPanel: () =>
       (logOptions.noPanel ? undefined : currentPanel) as unknown as WebviewPanel,
     telemetry: {
@@ -983,6 +986,15 @@ describe("command manager", () => {
         expect(none.windowApi.showInformationMessage).toHaveBeenCalledWith(
           expect.stringContaining("no Git repositories")
         );
+      });
+
+      it("refuses to open or prompt when the engine is unavailable (F3-03)", async () => {
+        const harness = makeHarness(two, null, { statsTabAvailable: false });
+        await harness.run("git-graph-libre.showStatistics", "/repos/one");
+        expect(harness.openStatsTab).not.toHaveBeenCalled();
+        expect(harness.windowApi.showQuickPick).not.toHaveBeenCalled();
+        expect(harness.windowApi.showInformationMessage).not.toHaveBeenCalled();
+        expect(harness.outputLines).toContain("[statsTab] unavailable; refusing showStatistics");
       });
     });
 

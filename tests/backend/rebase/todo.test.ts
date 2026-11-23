@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { serializeTodo, type TodoEntry, validateTodo } from "@/backend/rebase/todo";
+import {
+  findSquashGroups,
+  isSquashGroupTarget,
+  serializeTodo,
+  type TodoEntry,
+  validateTodo
+} from "@/backend/rebase/todo";
 
 const A = "a".repeat(40);
 const B = "b".repeat(40);
@@ -258,6 +264,62 @@ describe("validateTodo", () => {
     validateTodo(entries, range, BASE);
     expect(JSON.stringify({ entries, range })).toBe(before);
   });
+
+  describe("squash without a target (F2-05)", () => {
+    it("rejects a squash that follows only a drop", () => {
+      const entries: TodoEntry[] = [
+        { action: "drop", hash: A },
+        { action: "squash", hash: B },
+        { action: "pick", hash: C }
+      ];
+      expect(rejectionOf(entries, [A, B, C])).toEqual({
+        reason: "squash-without-target",
+        hash: B
+      });
+    });
+
+    it("allows a member after a drop when a target precedes the drop", () => {
+      const entries: TodoEntry[] = [
+        { action: "pick", hash: A },
+        { action: "drop", hash: B },
+        { action: "fixup", hash: C }
+      ];
+      expect(check(entries, [A, B, C])).toEqual({ ok: true });
+    });
+
+    it("still reports a first-entry squash before the target rule", () => {
+      const entries: TodoEntry[] = [
+        { action: "squash", hash: A },
+        { action: "pick", hash: B }
+      ];
+      expect(rejectionOf(entries, [A, B])).toEqual({
+        reason: "first-entry-squash",
+        action: "squash"
+      });
+    });
+  });
+
+  describe("empty message (F2-05)", () => {
+    it("rejects an empty reword message", () => {
+      const entries: TodoEntry[] = [{ action: "reword", hash: A, message: "" }];
+      expect(rejectionOf(entries, [A])).toEqual({ reason: "empty-message", hash: A });
+    });
+
+    it("rejects a whitespace-only group message", () => {
+      const entries: TodoEntry[] = [
+        { action: "pick", hash: A, message: "  \n\t " },
+        { action: "squash", hash: B }
+      ];
+      expect(rejectionOf(entries, [A, B])).toEqual({ reason: "empty-message", hash: A });
+    });
+
+    it("accepts a message with text, and an unchanged reword without one", () => {
+      expect(check([{ action: "reword", hash: A, message: "New subject" }], [A])).toEqual({
+        ok: true
+      });
+      expect(check([{ action: "reword", hash: A }], [A])).toEqual({ ok: true });
+    });
+  });
 });
 
 describe("serializeTodo", () => {
@@ -314,10 +376,58 @@ describe("serializeTodo", () => {
     expect(serializeTodo([])).toBe("");
   });
 
+  it("serializes fixup with fixupFlag -C as fixup -C <hash>", () => {
+    expect(serializeTodo([{ action: "fixup", hash: A.toUpperCase(), fixupFlag: "-C" }])).toBe(
+      `fixup -C ${A}\n`
+    );
+  });
+
   it("does not mutate its input", () => {
     const entries: TodoEntry[] = [{ action: "reword", hash: A, message: "m" }];
     const before = JSON.stringify(entries);
     serializeTodo(entries);
     expect(JSON.stringify(entries)).toBe(before);
+  });
+});
+
+describe("findSquashGroups (F2-05)", () => {
+  it("names the actions that open a group", () => {
+    expect(isSquashGroupTarget("pick")).toBe(true);
+    expect(isSquashGroupTarget("reword")).toBe(true);
+    expect(isSquashGroupTarget("edit")).toBe(true);
+    expect(isSquashGroupTarget("squash")).toBe(false);
+    expect(isSquashGroupTarget("fixup")).toBe(false);
+    expect(isSquashGroupTarget("drop")).toBe(false);
+  });
+
+  it("groups members under their target, one group per target", () => {
+    const entries: TodoEntry[] = [
+      { action: "pick", hash: A },
+      { action: "squash", hash: B },
+      { action: "fixup", hash: C },
+      { action: "pick", hash: WIDE }
+    ];
+    expect(findSquashGroups(entries)).toEqual([
+      { targetIndex: 0, memberIndices: [1, 2] },
+      { targetIndex: 3, memberIndices: [] }
+    ]);
+  });
+
+  it("keeps the group open across a drop, as Git skips it", () => {
+    const entries: TodoEntry[] = [
+      { action: "pick", hash: A },
+      { action: "drop", hash: B },
+      { action: "squash", hash: C }
+    ];
+    expect(findSquashGroups(entries)).toEqual([{ targetIndex: 0, memberIndices: [2] }]);
+  });
+
+  it("leaves a member before any target in no group", () => {
+    const entries: TodoEntry[] = [
+      { action: "drop", hash: A },
+      { action: "squash", hash: B },
+      { action: "pick", hash: C }
+    ];
+    expect(findSquashGroups(entries)).toEqual([{ targetIndex: 2, memberIndices: [] }]);
   });
 });

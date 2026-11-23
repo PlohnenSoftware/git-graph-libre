@@ -1,0 +1,714 @@
+/* Interactive rebase editor dialog (F2-04): VS Code theme tokens with OKLCH fallbacks. */
+
+#dialog.active.rebaseEditorDialog {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 92vw);
+  min-width: min(520px, 92vw);
+  max-width: min(760px, 92vw);
+  max-height: min(82vh, 720px);
+  padding: 16px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+#dialog.rebaseEditorDialog .rebaseEditorContent {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 10px;
+}
+
+#dialog.rebaseEditorDialog .rebaseEditorHeader {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#dialog.rebaseEditorDialog .rebaseEditorTitle {
+  margin-bottom: 0;
+}
+
+.rebaseEditorSubheader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+
+.rebaseEditorTarget {
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
+}
+
+.rebaseEditorCount {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background-color: var(--vscode-badge-background, var(--ngg-neutral-overlay-medium));
+  color: var(--vscode-badge-foreground, var(--vscode-editor-foreground));
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.rebaseEditorShortcutHint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+
+.rebaseEditorAutosquashBar {
+  margin-top: 4px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  background-color: var(--ngg-neutral-overlay-subtle);
+}
+
+.rebaseEditorAutosquashRow {
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
+}
+
+.rebaseEditorNotices {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rebaseEditorNotices:empty {
+  display: none;
+}
+
+.rebaseEditorNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  background-color: var(--ngg-neutral-overlay-subtle);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.rebaseEditorNoticeIcon {
+  flex: none;
+  display: inline-flex;
+  margin-top: 1px;
+}
+
+#dialog .rebaseEditorNoticeIcon svg {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  fill: currentColor;
+}
+
+.rebaseEditorNoticeText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rebaseEditorNoticeBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 6px;
+}
+
+.rebaseEditorCheckRow {
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 17px;
+  white-space: normal;
+}
+
+.rebaseEditorCheckbox[type="checkbox"] {
+  margin: 0;
+}
+
+.rebaseEditorPublishedList {
+  margin: 0;
+  padding-left: 16px;
+  max-height: 96px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11.5px;
+  line-height: 16px;
+}
+
+.rebaseEditorPublishedItem,
+.rebaseEditorPublishedMore {
+  overflow-wrap: anywhere;
+}
+
+.rebaseEditorPublishedMore {
+  list-style: none;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+
+.rebaseEditorInlineActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rebaseEditorInlineBtn {
+  min-width: 0;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.rebaseEditorLongRangeSlot:empty {
+  display: none;
+}
+
+.rebaseEditorLongRangePrompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid
+    color-mix(
+      in oklab,
+      var(--vscode-editorWarning-foreground, var(--ngg-warning)) 45%,
+      var(--vscode-panel-border, var(--ngg-neutral-border))
+    );
+  background-color: color-mix(
+    in oklab,
+    var(--vscode-editorWarning-foreground, var(--ngg-warning)) 12%,
+    var(--vscode-editorWidget-background, var(--vscode-editor-background))
+  );
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.rebaseEditorLongRangePrompt .rebaseEditorNoticeIcon {
+  color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
+}
+
+.rebaseEditorLongRangeActions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.rebaseEditorNotice-warning {
+  border-color: color-mix(
+    in oklab,
+    var(--vscode-editorWarning-foreground, var(--ngg-warning)) 45%,
+    var(--vscode-panel-border, var(--ngg-neutral-border))
+  );
+  background-color: color-mix(
+    in oklab,
+    var(--vscode-editorWarning-foreground, var(--ngg-warning)) 12%,
+    var(--vscode-editorWidget-background, var(--vscode-editor-background))
+  );
+}
+
+.rebaseEditorNotice-warning .rebaseEditorNoticeIcon {
+  color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
+}
+
+.rebaseEditorNotice-error {
+  border-color: color-mix(
+    in oklab,
+    var(--vscode-errorForeground, var(--ngg-error)) 50%,
+    var(--vscode-panel-border, var(--ngg-neutral-border))
+  );
+  background-color: color-mix(
+    in oklab,
+    var(--vscode-errorForeground, var(--ngg-error)) 12%,
+    var(--vscode-editorWidget-background, var(--vscode-editor-background))
+  );
+}
+
+.rebaseEditorNotice-error .rebaseEditorNoticeIcon {
+  color: var(--vscode-errorForeground, var(--ngg-error));
+}
+
+.rebaseEditorNotice-info,
+.rebaseEditorNotice-drop,
+.rebaseEditorNotice-squash,
+.rebaseEditorNotice-edit {
+  border-color: var(--vscode-panel-border, var(--ngg-neutral-border));
+  background-color: var(--ngg-neutral-overlay-subtle);
+}
+
+.rebaseEditorNotice-info .rebaseEditorNoticeIcon,
+.rebaseEditorNotice-drop .rebaseEditorNoticeIcon,
+.rebaseEditorNotice-squash .rebaseEditorNoticeIcon,
+.rebaseEditorNotice-edit .rebaseEditorNoticeIcon {
+  color: var(--vscode-editorInfo-foreground, var(--vscode-descriptionForeground));
+}
+
+.rebaseEditorBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  border-radius: 4px;
+  background-color: var(--vscode-editor-background, var(--vscode-editorWidget-background));
+}
+
+.rebaseEditorTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+.rebaseEditorTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 11.5px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  background-color: var(--vscode-editorWidget-background, var(--vscode-menu-background));
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  white-space: nowrap;
+}
+
+.rebaseEditorColAction {
+  width: 92px;
+}
+
+.rebaseEditorColHash {
+  width: 86px;
+}
+
+.rebaseEditorColAuthor {
+  width: 124px;
+}
+
+.rebaseEditorColOrder {
+  width: 68px;
+  text-align: right;
+}
+
+.rebaseEditorRow {
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+  outline: none;
+}
+
+.rebaseEditorRow:last-child {
+  border-bottom: none;
+}
+
+.rebaseEditorRow:hover {
+  background-color: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-subtle));
+}
+
+.rebaseEditorRow.selected {
+  background-color: color-mix(
+    in oklab,
+    var(--vscode-list-activeSelectionBackground, var(--ngg-accent)) 22%,
+    var(--ngg-transparent)
+  );
+}
+
+.rebaseEditorRow:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.rebaseEditorRow td {
+  padding: 5px 8px;
+  vertical-align: middle;
+}
+
+.rebaseEditorActionSelect {
+  box-sizing: border-box;
+  width: 100%;
+  height: 26px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-dropdown-border, var(--ngg-neutral-border));
+  background-color: var(--vscode-dropdown-background, var(--vscode-input-background));
+  color: var(--vscode-dropdown-foreground, var(--vscode-input-foreground));
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.rebaseEditorActionSelect:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.rebaseEditorHash {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground, var(--vscode-editor-foreground));
+  white-space: nowrap;
+}
+
+.rebaseEditorSubjectCell {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rebaseEditorSubject {
+  margin-right: 6px;
+}
+
+.rebaseEditorRow.isDropped .rebaseEditorSubject,
+.rebaseEditorRow.isDropped .rebaseEditorHash,
+.rebaseEditorRow.isDropped .rebaseEditorAuthor {
+  opacity: 0.58;
+  text-decoration: line-through;
+}
+
+.rebaseEditorRow.isGroupMember .rebaseEditorActionCell {
+  box-shadow: inset 3px 0 0 var(--vscode-panel-border, var(--ngg-neutral-border));
+}
+
+.rebaseEditorRow.isGroupMember .rebaseEditorSubject {
+  margin-left: 14px;
+}
+
+.rebaseEditorMessageRow {
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+
+.rebaseEditorMessageCell {
+  padding: 8px;
+  background-color: var(--ngg-neutral-overlay-subtle);
+}
+
+.rebaseEditorMessageLabel {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+
+.rebaseEditorMessageInput {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, var(--ngg-neutral-border));
+  background-color: var(--vscode-input-background, var(--vscode-editor-background));
+  color: var(--vscode-input-foreground, var(--vscode-editor-foreground));
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.rebaseEditorMessageInput:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.rebaseEditorMessageInput.isEmpty {
+  border-color: var(--vscode-inputValidation-errorBorder, var(--ngg-error));
+  background-color: var(--vscode-inputValidation-errorBackground, var(--vscode-input-background));
+}
+
+.rebaseEditorMessageHint {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+
+.rebaseEditorBadge {
+  display: inline-block;
+  padding: 0 5px;
+  margin-right: 4px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  line-height: 15px;
+  vertical-align: baseline;
+  white-space: nowrap;
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  background-color: var(--ngg-neutral-overlay-subtle);
+  color: var(--vscode-descriptionForeground, var(--vscode-editor-foreground));
+}
+
+.rebaseEditorBadge-published {
+  border-color: color-mix(
+    in oklab,
+    var(--vscode-editorWarning-foreground, var(--ngg-warning)) 50%,
+    var(--vscode-panel-border, var(--ngg-neutral-border))
+  );
+  color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
+}
+
+.rebaseEditorBadge-amend {
+  border-color: color-mix(
+    in oklab,
+    var(--vscode-editorInfo-foreground, var(--ngg-accent)) 50%,
+    var(--vscode-panel-border, var(--ngg-neutral-border))
+  );
+  color: var(--vscode-editorInfo-foreground, var(--vscode-editor-foreground));
+}
+
+.rebaseEditorAuthorCell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+}
+
+.rebaseEditorOrderCell {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.rebaseEditorMoveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin-left: 2px;
+  border-radius: 3px;
+  border: 1px solid var(--ngg-transparent);
+  background-color: var(--ngg-transparent);
+  color: var(--vscode-icon-foreground, var(--vscode-editor-foreground));
+  cursor: pointer;
+}
+
+.rebaseEditorMoveBtn:hover:not(:disabled) {
+  background-color: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-medium));
+}
+
+.rebaseEditorMoveBtn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.rebaseEditorMoveBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+#dialog .rebaseEditorMoveBtn svg {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  fill: currentColor;
+}
+
+#dialog.rebaseEditorDialog .rebaseEditorActions {
+  flex: none;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--vscode-editorWidget-border, var(--ngg-neutral-border));
+}
+
+#rebaseEditorReset {
+  margin-right: auto;
+}
+
+#rebaseEditorReset:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.rebaseEditorPredictionSlot {
+  flex: none;
+}
+
+.rebaseEditorPredictionSlot:empty {
+  display: none;
+}
+
+.rebasePredictionStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+  background-color: var(--ngg-neutral-overlay-subtle);
+  color: var(--vscode-descriptionForeground, var(--vscode-editor-foreground));
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.rebasePredictionIcon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+#dialog .rebasePredictionIcon svg {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  fill: currentColor;
+}
+
+.rebasePredictionText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rebasePredictionStatus-clean {
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
+}
+
+.rebasePredictionStatus-clean .rebasePredictionIcon {
+  color: var(--vscode-testing-iconPassed, var(--vscode-charts-green, var(--ngg-success)));
+}
+
+.rebasePredictionStatus-capped .rebasePredictionIcon {
+  color: var(--vscode-editorInfo-foreground, var(--vscode-descriptionForeground));
+}
+
+.rebasePredictionStatus-conflict {
+  border-color: color-mix(
+    in oklab,
+    var(--vscode-editorWarning-foreground, var(--ngg-warning)) 45%,
+    var(--vscode-panel-border, var(--ngg-neutral-border))
+  );
+  background-color: color-mix(
+    in oklab,
+    var(--vscode-editorWarning-foreground, var(--ngg-warning)) 12%,
+    var(--vscode-editorWidget-background, var(--vscode-editor-background))
+  );
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
+}
+
+.rebasePredictionStatus-conflict .rebasePredictionIcon {
+  color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
+}
+
+.rebasePredictionTrigger {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  border: 0;
+  border-radius: 3px;
+  background-color: var(--ngg-transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.rebasePredictionTrigger:hover {
+  text-decoration-style: solid;
+  background-color: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle));
+}
+
+.rebasePredictionTrigger:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.rebasePredictionPopover {
+  position: fixed;
+  z-index: 410;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(460px, calc(100vw - 16px));
+  max-height: min(240px, 40vh);
+  overflow-y: auto;
+  padding: 8px 10px;
+  background-color: var(
+    --vscode-editorHoverWidget-background,
+    var(
+      --vscode-menu-background,
+      var(--vscode-editorWidget-background, var(--vscode-editor-background))
+    )
+  );
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-menu-foreground));
+  border: 1px solid var(--vscode-editorHoverWidget-border, var(--ngg-neutral-border-strong));
+  border-radius: 4px;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+  cursor: default;
+}
+
+.rebasePredictionPopover[hidden] {
+  display: none;
+}
+
+.rebasePredictionPopoverTitle {
+  margin-bottom: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground, var(--vscode-editorHoverWidget-foreground));
+}
+
+.rebasePredictionFileList {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rebasePredictionFileItem {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11.5px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+@keyframes rebasePredictionSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rebasePredictionStatus-checking .rebasePredictionIcon svg {
+    animation: rebasePredictionSpin 1.1s linear infinite;
+  }
+}
+
+@media (forced-colors: active) {
+  .rebaseEditorAutosquashBar,
+  .rebaseEditorNotice,
+  .rebaseEditorLongRangePrompt,
+  .rebaseEditorBody,
+  .rebaseEditorBadge,
+  .rebaseEditorMessageInput,
+  .rebaseEditorMoveBtn:not(:disabled),
+  .rebasePredictionStatus,
+  .rebasePredictionPopover {
+    border-color: CanvasText;
+  }
+
+  .rebaseEditorRow.selected {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+
+  .rebasePredictionTrigger:focus-visible {
+    outline: 1px solid Highlight;
+  }
+}
