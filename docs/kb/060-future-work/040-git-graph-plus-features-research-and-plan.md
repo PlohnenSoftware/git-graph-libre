@@ -11,7 +11,7 @@ summary: >-
 # Git Graph+ features and next-release additions: research and slice plan (`2026-11-08`, updated `2026-11-23`)
 
 Status: research done. On `2026-11-09` the maintainer ordered the reflog
-slices F1-01 to F1-09, now in implementation as "Reflog tab" (Ongoing work);
+slices F1-01 to F1-09, now done as "Reflog tab" (History);
 interactive rebase and the timeline wait for later releases. On `2026-11-23`
 the maintainer added Feature 4 beside these phases: a **Blame view** inspired
 by GitHub's blame view with **hotspot coloring** for the next release (design

@@ -148,7 +148,7 @@ locks the user out of the table header:
 ## Adjacent risks found while investigating
 
 1. **Upcoming Reflog tab slice `F1-07`:** `F1-07 — Lost-commit scan
-   (opt-in)` (`docs/kb/050-ongoing-work/080-reflog-tab/160-f1-07-lost-commit-scan.md`)
+   (opt-in)` (`docs/kb/070-history/230-reflog-tab/160-f1-07-lost-commit-scan.md`)
    plans to run the exact same
    `git fsck --unreachable --no-reflogs --no-progress --connectivity-only`
    command. It will hit the same stale-commit-graph failure and

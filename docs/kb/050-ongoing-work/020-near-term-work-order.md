@@ -1,6 +1,6 @@
 ---
 summary: >-
-  Next (`2026-11-04`): release 1.10.0 "The Worktrees" under Ongoing work.
+  Next (`2026-11-04`): release 1.10.0 "The Worktrees", released as v1.10.0 (`2026-11-08`) and now under History.
   It brings full Git worktree support, the to-tackle issues (#36, #37, #38,
   #41, #45, and #46 through `rbalet`'s PR #47, added `2026-11-05`) and the
   gix and Cargo refresh, in 28 slices. Their decisions Y1, Y3–Y24 are open;
@@ -43,7 +43,7 @@ icon buttons in the Worktrees popup).
 
 **Now (`2026-11-08`).** Two threads, both waiting for the maintainer:
 
-- The Engine upstream integration (Ongoing work) brought R01–R09 to `main`
+- The Engine upstream integration (History) brought R01–R09 to `main`
   as engine `1.0.32`, gated `OK` and unpushed; every planned slice and its
   follow-ups are integrated. Its "Follow-ups and notes for the maintainer"
   hold what is left for later slices: a faster bounded walk for exact
@@ -51,14 +51,14 @@ icon buttons in the Worktrees popup).
   pre-existing divergences.
 - "Git Graph+ features: research and slice plan" (Future work) researched
   the Reflog tab, interactive rebase and a timeline. On `2026-11-09` the
-  maintainer ordered the reflog slices; they are in progress as "Reflog tab"
-  (Ongoing work). Rebase and the timeline wait for later releases.
+  maintainer ordered the reflog slices; they are done as "Reflog tab"
+  (History). Rebase and the timeline wait for later releases.
 
 **Next (`2026-11-04`): release 1.10.0 "The Worktrees".** The maintainer made
 worktrees the next release: "full worktree support", not only what the
 issues ask. It is to analyze the engine's part, include the to-tackle
 issues, and refresh the Cargo dependencies, including gix from GitHub. The
-plan is the section Release 1.10.0 — "The Worktrees" under Ongoing work:
+plan is the section Release 1.10.0 — "The Worktrees" under History (released as v1.10.0):
 - 28 slices in six waves, each with its facts, steps, files and acceptance,
   plus the release slice W90;
 - its agent protocol and integrator procedure;

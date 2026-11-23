@@ -15,7 +15,7 @@ Model: Claude Haiku (cheapest first; escalate one step on failure)
 
 Read first: `AGENTS.md`; `docs/kb/README.md` in full and every *always read*
 section; Multi-agent releases (Rules); the Reflog tab overview
-(`050-ongoing-work/080-reflog-tab.md`) for the decisions in force; "Git Graph+ features: research and slice plan" (Future work), subsection "Reflog tab" (`010-reflog-tab.md`), section 5
+(`070-history/230-reflog-tab.md`) for the decisions in force; "Git Graph+ features: research and slice plan" (Future work), subsection "Reflog tab" (`010-reflog-tab.md`), section 5
 for this slice's detailed design and the facts it marks [verify]; the Webview
 UI Styling Guide (Reference) when the slice touches the webview; the Phase 16
 invariants and non-goals when it touches the engine.

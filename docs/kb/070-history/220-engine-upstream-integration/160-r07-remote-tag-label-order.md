@@ -100,7 +100,7 @@ never push. Report Sonar: integrator.
     - `5131007 G test(engine): reproduce the remote-tag label order divergence (R07)`
       (this branch's HEAD fails one test on purpose; see the blocker below)
   - **Files changed (`git diff --stat 51908ec..HEAD`):**
-    - `docs/kb/050-ongoing-work/070-engine-upstream-integration/160-r07-remote-tag-label-order.md`: +1 −1 (claim, then this report)
+    - `docs/kb/070-history/220-engine-upstream-integration/160-r07-remote-tag-label-order.md`: +1 −1 (claim, then this report)
     - `tests/backend/engine/remoteTagParity.test.ts`: +80 −8 (88 lines in the diff)
     - `src/backend/engine/commits.ts`: unchanged. `tests/backend/engine/commits.test.ts`: unchanged.
   - **Tests added or changed:**

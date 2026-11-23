@@ -17,7 +17,7 @@ indicator popup; the upstream review's candidates 1–4 and 8 landed the same
 day, as did signatures leaving the graph load, the Hidden menu's one-off
 CLI reload and engine-failure telemetry. `1.9.0` shipped type changes,
 numstat parity, the gix `0a49d46` upgrade, staged-file export and diff-read
-route logging. On `2026-11-08` the Engine upstream integration (Ongoing
+route logging. On `2026-11-08` the Engine upstream integration (History
 work) brought topo seeding with the topo decline lifted, encoding-aware
 commit text, the `/changes/` remote-ref fix, bounded reads, gitlink content
 and ref-error reporting to `main` as engine `1.0.32`, unreleased. The

@@ -15,7 +15,7 @@ Model: Claude Sonnet (cheapest first; escalate one step on failure)
 
 Read first: `AGENTS.md`; `docs/kb/README.md` in full and every *always read*
 section; Multi-agent releases (Rules); the Reflog tab overview
-(`050-ongoing-work/080-reflog-tab.md`) for the decisions in force; "Git Graph+ features: research and slice plan" (Future work), subsection "Reflog tab" (`010-reflog-tab.md`), section 5
+(`070-history/230-reflog-tab.md`) for the decisions in force; "Git Graph+ features: research and slice plan" (Future work), subsection "Reflog tab" (`010-reflog-tab.md`), section 5
 for this slice's detailed design and the facts it marks [verify]; the Webview
 UI Styling Guide (Reference) when the slice touches the webview; the Phase 16
 invariants and non-goals when it touches the engine.
@@ -86,7 +86,7 @@ commits; never push.
   - `tests/webview/reflogTab/view.test.ts` (+134/−2)
   - `tests/webview/reflogTab/main.test.ts` (+20/−1)
   - `tests/webview/reflogTab/reflogTabCss.test.ts` (+16)
-  - `docs/kb/050-ongoing-work/080-reflog-tab/160-f1-07-lost-commit-scan.md` (Status and Report)
+  - `docs/kb/070-history/230-reflog-tab/160-f1-07-lost-commit-scan.md` (Status and Report)
 - **Tests added or changed:** 24 new tests (11 backend, 13 webview/extension):
   - `tests/backend/queries/lostCommits.test.ts` (+11): `parseLostCommitRecords` sorting/dedup/malformed records; real-Git dropped stash + abandoned commit discovery without `.git/lost-found`; empty clean repo; U1 non-zero `fsck` exit tolerance; genuine `fsck` failure (`stderr` only); missing `gitPath`; pre-aborted and in-flight cancel; timeout; real child process cancel and timeout via `runBoundedGitProcess`.
   - `tests/webview/reflogTab/reflogData.test.ts` (+2): real-Git `scanLostCommits` + `createBranch` recovery without moving `HEAD` + rescan excludes recovered commit; invalid hash / dash-led branch name rejection.

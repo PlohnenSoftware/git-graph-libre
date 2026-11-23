@@ -41,4 +41,4 @@ surface); a slice that adds a second form of an existing concept is a
 defect even when each form is fine alone. A deliberate divergence is
 possible, but it is recorded in the slice's Report with its reason, the
 way F1-03 recorded this one — and the maintainer's answer then was to
-unify (slice F1-04F under Reflog tab, Ongoing work).
+unify (slice F1-04F under Reflog tab, History).
