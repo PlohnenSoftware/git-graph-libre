@@ -1,5 +1,7 @@
+import { effectiveRebasePreflight } from "@/backend/rebase/preflight";
 import type { TodoAction, TodoEntry } from "@/backend/rebase/todo";
 import type {
+  GitRebaseOperation,
   GitRebasePreflight,
   GitRebaseRangeCommit,
   GitRebaseRangeResult
@@ -31,26 +33,37 @@ export type RebaseEditorState = {
   readonly branch: string | null;
   readonly detached: boolean;
   readonly upstream: string | null;
+  readonly dirty: boolean;
+  readonly inProgressKind: GitRebaseOperation | null;
+  readonly tooLong: boolean;
   readonly preflight: GitRebasePreflight;
   readonly initialCommits: readonly GitRebaseRangeCommit[];
   readonly initialHashes: readonly string[];
   readonly rows: readonly RebaseEditorRow[];
   readonly selectedIndex: number;
-  /** Hook for F2-07 published-commit acknowledgement checkbox (decision IQ5). */
+  /** Published-commit acknowledgement checkbox gate (decision IQ5, F2-07). */
   readonly requirePublishedAck: boolean;
   readonly publishedAcked: boolean;
+  /** Opt-in `--autostash` for a dirty working tree (F2-07). */
+  readonly autostash: boolean;
+  /** Path of another worktree holding the current branch, when known (F2-07). */
+  readonly otherWorktreePath: string | null;
+  /** Waiting for user confirmation before starting a very long range (F2-07). */
+  readonly longRangeConfirmPending: boolean;
 };
 
 export type CreateRebaseEditorStateOptions = {
   readonly base: string | null;
   readonly baseLabel: string;
   readonly requirePublishedAck?: boolean;
+  readonly otherWorktreePath?: string | null;
 };
 
 export type InteractiveRebaseStartPayload = {
   readonly base: string | null;
   readonly entries: TodoEntry[];
   readonly rangeHashes: string[];
+  readonly autostash?: boolean;
 };
 
 export function canActionBeFirstEntry(action: TodoAction): boolean {
@@ -103,13 +116,19 @@ export function createRebaseEditorState(
     branch: range.branch,
     detached: range.detached,
     upstream: range.upstream,
+    dirty: range.dirty,
+    inProgressKind: range.inProgressKind,
+    tooLong: range.tooLong,
     preflight: range.preflight,
     initialCommits: [...range.commits],
     initialHashes: range.commits.map((commit) => commit.hash),
     rows,
     selectedIndex: rows.length > 0 ? 0 : -1,
-    requirePublishedAck: options.requirePublishedAck ?? false,
-    publishedAcked: false
+    requirePublishedAck: options.requirePublishedAck ?? true,
+    publishedAcked: false,
+    autostash: false,
+    otherWorktreePath: options.otherWorktreePath ?? null,
+    longRangeConfirmPending: false
   };
 }
 
@@ -139,7 +158,8 @@ export function setRebaseRowAction(
   return {
     ...state,
     rows: guardFirstEntryRows(nextRows),
-    selectedIndex: index
+    selectedIndex: index,
+    longRangeConfirmPending: false
   };
 }
 
@@ -161,7 +181,8 @@ export function moveRebaseRow(
   return {
     ...state,
     rows: guardFirstEntryRows(nextRows),
-    selectedIndex: toIndex
+    selectedIndex: toIndex,
+    longRangeConfirmPending: false
   };
 }
 
@@ -179,7 +200,9 @@ export function resetRebaseEditorState(state: RebaseEditorState): RebaseEditorSt
     ...state,
     rows,
     selectedIndex: rows.length > 0 ? 0 : -1,
-    publishedAcked: false
+    publishedAcked: false,
+    autostash: false,
+    longRangeConfirmPending: false
   };
 }
 
@@ -187,7 +210,28 @@ export function setPublishedAcked(state: RebaseEditorState, acked: boolean): Reb
   if (state.publishedAcked === acked) return state;
   return {
     ...state,
-    publishedAcked: acked
+    publishedAcked: acked,
+    longRangeConfirmPending: false
+  };
+}
+
+export function setAutostash(state: RebaseEditorState, autostash: boolean): RebaseEditorState {
+  if (state.autostash === autostash) return state;
+  return {
+    ...state,
+    autostash,
+    longRangeConfirmPending: false
+  };
+}
+
+export function setLongRangeConfirmPending(
+  state: RebaseEditorState,
+  pending: boolean
+): RebaseEditorState {
+  if (state.longRangeConfirmPending === pending) return state;
+  return {
+    ...state,
+    longRangeConfirmPending: pending
   };
 }
 
@@ -219,7 +263,8 @@ export function getPublishedCommits(state: RebaseEditorState): readonly RebaseEd
 }
 
 export function canStartInteractiveRebase(state: RebaseEditorState): boolean {
-  if (!state.preflight.canStart) return false;
+  const preflight = effectiveRebasePreflight(state.preflight, { autostash: state.autostash });
+  if (!preflight.canStart) return false;
   if (state.rows.length === 0) return false;
   if (!canActionBeFirstEntry(state.rows[0].action)) return false;
   if (!isRebaseStateModified(state)) return false;
@@ -239,6 +284,7 @@ export function toInteractiveRebasePayload(
       hash: row.hash,
       ...(row.message === undefined ? {} : { message: row.message })
     })),
-    rangeHashes: [...state.initialHashes]
+    rangeHashes: [...state.initialHashes],
+    ...(state.autostash ? { autostash: true } : {})
   };
 }

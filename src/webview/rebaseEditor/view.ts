@@ -1,5 +1,4 @@
 import type { TodoAction } from "@/backend/rebase/todo";
-import type { RebasePreflightReason } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
 import { octicon } from "@/octicons";
 import { escapeHtml } from "@/webview/utils/html";
@@ -8,9 +7,6 @@ import { applyRebaseKeyCommand, interpretRebaseEditorKey, trapFocusInContainer }
 import {
   allowedActionsForRow,
   canStartInteractiveRebase,
-  countDroppedCommits,
-  getMergeCommits,
-  getPublishedCommits,
   type InteractiveRebaseStartPayload,
   isRebaseStateModified,
   moveRebaseRowBy,
@@ -18,14 +14,20 @@ import {
   type RebaseEditorState,
   resetRebaseEditorState,
   selectRebaseRow,
+  setAutostash,
+  setLongRangeConfirmPending,
+  setPublishedAcked,
   setRebaseRowAction,
   toInteractiveRebasePayload
 } from "./model";
+import { renderLongRangeConfirmHtml, renderProtectionNoticesHtml } from "./protections";
 
 export type RebaseEditorCallbacks = {
   readonly onStart: (payload: InteractiveRebaseStartPayload) => void;
   readonly onCancel: () => void;
   readonly onStateChange?: (state: RebaseEditorState) => void;
+  /** Opens the worktree holding the current branch (W31), when available. */
+  readonly onOpenWorktree?: (worktreePath: string) => void;
 };
 
 export type RebaseEditorViewOptions = {
@@ -40,25 +42,6 @@ export type RebaseEditorController = {
 function actionLabel(action: TodoAction): string {
   if (action === "drop") return l10n.rebaseActionDrop;
   return l10n.rebaseActionPick;
-}
-
-function preflightReasonMessage(reason: RebasePreflightReason): string {
-  switch (reason) {
-    case "inProgress":
-      return l10n.rebasePreflightInProgress;
-    case "dirty":
-      return l10n.rebasePreflightDirty;
-    case "alreadyUsedElsewhere":
-      return l10n.rebasePreflightUsedElsewhere;
-    case "emptyRange":
-      return l10n.rebasePreflightEmpty;
-    case "readFailed":
-      return l10n.unableToLoadRebaseRange;
-  }
-}
-
-function formatHashList(rows: readonly RebaseEditorRow[], shortHashLength: number): string {
-  return rows.map((row) => abbrevCommit(row.hash, shortHashLength)).join(", ");
 }
 
 function renderSubheaderHtml(state: RebaseEditorState): string {
@@ -87,69 +70,12 @@ function renderSubheaderHtml(state: RebaseEditorState): string {
   );
 }
 
-function renderNoticesHtml(state: RebaseEditorState, shortHashLength: number): string {
-  const notices: string[] = [];
-
-  if (!state.preflight.canStart) {
-    for (const reason of state.preflight.reasons) {
-      notices.push(
-        '<div class="rebaseEditorNotice rebaseEditorNotice-error" role="alert">' +
-          `<span class="rebaseEditorNoticeIcon">${octicon("alert")}</span>` +
-          `<span class="rebaseEditorNoticeText">${escapeHtml(preflightReasonMessage(reason))}</span>` +
-          "</div>"
-      );
-    }
-  }
-
-  const published = getPublishedCommits(state);
-  if (published.length > 0) {
-    const hashes = formatHashList(published, shortHashLength);
-    const text =
-      published.length === 1
-        ? l10n.rebasePublishedWarningOne.replace("{0}", () => hashes)
-        : l10n.rebasePublishedWarningMany
-            .replace("{0}", String(published.length))
-            .replace("{1}", () => hashes);
-    notices.push(
-      '<div class="rebaseEditorNotice rebaseEditorNotice-warning" role="status">' +
-        `<span class="rebaseEditorNoticeIcon">${octicon("alert")}</span>` +
-        `<span class="rebaseEditorNoticeText">${escapeHtml(text)}</span>` +
-        "</div>"
-    );
-  }
-
-  const merges = getMergeCommits(state);
-  if (merges.length > 0) {
-    const hashes = formatHashList(merges, shortHashLength);
-    const text =
-      merges.length === 1
-        ? l10n.rebaseMergeNoticeOne.replace("{0}", () => hashes)
-        : l10n.rebaseMergeNoticeMany
-            .replace("{0}", String(merges.length))
-            .replace("{1}", () => hashes);
-    notices.push(
-      '<div class="rebaseEditorNotice rebaseEditorNotice-info" role="status">' +
-        `<span class="rebaseEditorNoticeIcon">${octicon("info")}</span>` +
-        `<span class="rebaseEditorNoticeText">${escapeHtml(text)}</span>` +
-        "</div>"
-    );
-  }
-
-  const dropped = countDroppedCommits(state);
-  if (dropped > 0) {
-    const text =
-      dropped === 1
-        ? l10n.rebaseDropNoticeOne
-        : l10n.rebaseDropNoticeMany.replace("{0}", String(dropped));
-    notices.push(
-      '<div class="rebaseEditorNotice rebaseEditorNotice-drop" role="status">' +
-        `<span class="rebaseEditorNoticeIcon">${octicon("info")}</span>` +
-        `<span class="rebaseEditorNoticeText">${escapeHtml(text)}</span>` +
-        "</div>"
-    );
-  }
-
-  return notices.join("");
+function renderNoticesHtml(
+  state: RebaseEditorState,
+  shortHashLength: number,
+  canOpenWorktree: boolean
+): string {
+  return renderProtectionNoticesHtml(state, shortHashLength, { canOpenWorktree });
 }
 
 function renderRowHtml(
@@ -216,7 +142,11 @@ function renderTableRowsHtml(state: RebaseEditorState, shortHashLength: number):
     .join("");
 }
 
-function renderDialogShellHtml(state: RebaseEditorState, shortHashLength: number): string {
+function renderDialogShellHtml(
+  state: RebaseEditorState,
+  shortHashLength: number,
+  canOpenWorktree: boolean
+): string {
   const canStart = canStartInteractiveRebase(state);
   const modified = isRebaseStateModified(state);
   const startDisabledAttr = canStart ? "" : ' disabled aria-disabled="true"';
@@ -228,7 +158,7 @@ function renderDialogShellHtml(state: RebaseEditorState, shortHashLength: number
     `<div class="dialogTitle rebaseEditorTitle">${escapeHtml(l10n.rebaseEditorTitle)}</div>` +
     renderSubheaderHtml(state) +
     "</div>" +
-    `<div class="rebaseEditorNotices" id="rebaseEditorNotices" aria-live="polite">${renderNoticesHtml(state, shortHashLength)}</div>` +
+    `<div class="rebaseEditorNotices" id="rebaseEditorNotices" aria-live="polite">${renderNoticesHtml(state, shortHashLength, canOpenWorktree)}</div>` +
     '<div class="rebaseEditorBody" id="rebaseEditorBody">' +
     `<table class="rebaseEditorTable" aria-label="${escapeHtml(l10n.rebaseEditorTitle)}">` +
     "<thead><tr>" +
@@ -241,6 +171,7 @@ function renderDialogShellHtml(state: RebaseEditorState, shortHashLength: number
     `<tbody id="rebaseEditorTbody">${renderTableRowsHtml(state, shortHashLength)}</tbody>` +
     "</table>" +
     "</div>" +
+    `<div class="rebaseEditorLongRangeSlot" id="rebaseEditorLongRangeSlot">${renderLongRangeConfirmHtml(state)}</div>` +
     "</div>" +
     '<div class="dialogActions rebaseEditorActions">' +
     `<button type="button" id="rebaseEditorReset" class="dialogBtn"${resetDisabledAttr}>${escapeHtml(l10n.rebaseReset)}</button>` +
@@ -253,7 +184,8 @@ function renderDialogShellHtml(state: RebaseEditorState, shortHashLength: number
 function syncDialogInteractiveState(
   dialog: HTMLElement,
   state: RebaseEditorState,
-  shortHashLength: number
+  shortHashLength: number,
+  canOpenWorktree: boolean
 ) {
   const canStart = canStartInteractiveRebase(state);
   const modified = isRebaseStateModified(state);
@@ -261,7 +193,12 @@ function syncDialogInteractiveState(
 
   const notices = dialog.querySelector<HTMLElement>("#rebaseEditorNotices");
   if (notices !== null) {
-    notices.innerHTML = renderNoticesHtml(state, shortHashLength);
+    notices.innerHTML = renderNoticesHtml(state, shortHashLength, canOpenWorktree);
+  }
+
+  const longRangeSlot = dialog.querySelector<HTMLElement>("#rebaseEditorLongRangeSlot");
+  if (longRangeSlot !== null) {
+    longRangeSlot.innerHTML = renderLongRangeConfirmHtml(state);
   }
 
   const tbody = dialog.querySelector<HTMLElement>("#rebaseEditorTbody");
@@ -287,18 +224,31 @@ function syncDialogInteractiveState(
   }
 }
 
-function focusSelectedRow(
+type EditorFocusTarget = "row" | "select" | "autostash" | "publishedAck" | "longRangeConfirm";
+
+function focusEditorTarget(
   dialog: HTMLElement,
   selectedIndex: number,
-  focusTarget: "row" | "select" = "row"
+  focusTarget: EditorFocusTarget = "row"
 ) {
+  if (focusTarget === "autostash") {
+    dialog.querySelector<HTMLElement>("#rebaseEditorAutostash")?.focus();
+    return;
+  }
+  if (focusTarget === "publishedAck") {
+    dialog.querySelector<HTMLElement>("#rebaseEditorPublishedAck")?.focus();
+    return;
+  }
+  if (focusTarget === "longRangeConfirm") {
+    dialog.querySelector<HTMLElement>("#rebaseEditorConfirmLongRange")?.focus();
+    return;
+  }
   if (selectedIndex < 0) return;
   const selector =
     focusTarget === "select"
       ? `.rebaseEditorActionSelect[data-index="${selectedIndex}"]`
       : `.rebaseEditorRow[data-index="${selectedIndex}"]`;
-  const elem = dialog.querySelector<HTMLElement>(selector);
-  elem?.focus();
+  dialog.querySelector<HTMLElement>(selector)?.focus();
 }
 
 export function openRebaseEditorDialog(
@@ -309,39 +259,75 @@ export function openRebaseEditorDialog(
   callbacks: RebaseEditorCallbacks
 ): RebaseEditorController {
   let state = initialState;
+  const canOpenWorktree = callbacks.onOpenWorktree !== undefined;
 
   dialogBacking.className = "active";
   dialog.className = canStartInteractiveRebase(state)
     ? "active rebaseEditorDialog"
     : "active rebaseEditorDialog noInput";
-  dialog.innerHTML = renderDialogShellHtml(state, options.shortHashLength);
+  dialog.innerHTML = renderDialogShellHtml(state, options.shortHashLength, canOpenWorktree);
 
-  const updateState = (nextState: RebaseEditorState, focusTarget?: "row" | "select") => {
+  const updateState = (nextState: RebaseEditorState, focusTarget?: EditorFocusTarget) => {
     if (nextState === state) return;
     state = nextState;
-    syncDialogInteractiveState(dialog, state, options.shortHashLength);
+    syncDialogInteractiveState(dialog, state, options.shortHashLength, canOpenWorktree);
     callbacks.onStateChange?.(state);
     if (focusTarget !== undefined) {
-      focusSelectedRow(dialog, state.selectedIndex, focusTarget);
+      focusEditorTarget(dialog, state.selectedIndex, focusTarget);
     }
   };
 
   const triggerStart = () => {
     if (!canStartInteractiveRebase(state)) return;
+    if (state.tooLong && !state.longRangeConfirmPending) {
+      updateState(setLongRangeConfirmPending(state, true), "longRangeConfirm");
+      return;
+    }
     callbacks.onStart(toInteractiveRebasePayload(state));
   };
 
   const onChange = (event: Event) => {
     const target = event.target;
+    if (target instanceof HTMLInputElement && target.type === "checkbox") {
+      if (target.id === "rebaseEditorAutostash") {
+        updateState(setAutostash(state, target.checked), "autostash");
+        return;
+      }
+      if (target.id === "rebaseEditorPublishedAck") {
+        updateState(setPublishedAcked(state, target.checked), "publishedAck");
+        return;
+      }
+    }
     if (!(target instanceof HTMLSelectElement)) return;
     if (!target.classList.contains("rebaseEditorActionSelect")) return;
     const index = Number.parseInt(target.dataset.index ?? "-1", 10);
     updateState(setRebaseRowAction(state, index, target.value as TodoAction), "select");
   };
 
+  const handleProtectionClick = (target: Element): boolean => {
+    if (target.closest("#rebaseEditorOpenWorktree") !== null) {
+      if (state.otherWorktreePath !== null) {
+        callbacks.onOpenWorktree?.(state.otherWorktreePath);
+      }
+      return true;
+    }
+    if (target.closest("#rebaseEditorConfirmLongRange") !== null) {
+      if (canStartInteractiveRebase(state)) {
+        callbacks.onStart(toInteractiveRebasePayload(state));
+      }
+      return true;
+    }
+    if (target.closest("#rebaseEditorCancelLongRange") !== null) {
+      updateState(setLongRangeConfirmPending(state, false), "row");
+      return true;
+    }
+    return false;
+  };
+
   const onClick = (event: Event) => {
     const target = event.target instanceof Element ? event.target : null;
     if (target === null) return;
+    if (handleProtectionClick(target)) return;
 
     const moveUpBtn = target.closest<HTMLButtonElement>(".rebaseEditorMoveUp");
     if (moveUpBtn !== null && !moveUpBtn.disabled) {
@@ -420,7 +406,7 @@ export function openRebaseEditorDialog(
   dialog.addEventListener("click", onClick);
   dialog.addEventListener("keydown", onKeyDown);
 
-  focusSelectedRow(dialog, state.selectedIndex, "row");
+  focusEditorTarget(dialog, state.selectedIndex, "row");
 
   return {
     getState: () => state,
