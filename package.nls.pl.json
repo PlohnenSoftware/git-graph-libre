@@ -132,5 +132,6 @@
   "config.uncommittedChanges.fileViewMode.tree": "Grupuj niezatwierdzone zmiany według folderów",
   "config.uncommittedChanges.fileViewMode.list": "Pokaż niezatwierdzone zmiany jako płaską listę ścieżek",
   "command.showReflog": "Pokaż reflog",
-  "command.showStatistics": "Pokaż statystyki"
+  "command.showStatistics": "Pokaż statystyki",
+  "command.showFileHistory": "Pokaż historię pliku"
 }

@@ -132,5 +132,6 @@
   "config.uncommittedChanges.fileViewMode.tree": "Show uncommitted changes grouped by folder",
   "config.uncommittedChanges.fileViewMode.list": "Show uncommitted changes as a flat path list",
   "command.showReflog": "Show Reflog",
-  "command.showStatistics": "Show Statistics"
+  "command.showStatistics": "Show Statistics",
+  "command.showFileHistory": "Show File History"
 }

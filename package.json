@@ -181,6 +181,11 @@
       },
       {
         "category": "Git Graph Libre",
+        "command": "git-graph-libre.showFileHistory",
+        "title": "%command.showFileHistory%"
+      },
+      {
+        "category": "Git Graph Libre",
         "command": "git-graph-libre.viewActiveEditorRepo",
         "title": "%command.viewActiveEditorRepo%"
       },
@@ -264,6 +269,20 @@
       }
     ],
     "menus": {
+      "explorer/context": [
+        {
+          "command": "git-graph-libre.showFileHistory",
+          "group": "7_modification",
+          "when": "!explorerResourceIsFolder && resourceScheme == file"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "git-graph-libre.showFileHistory",
+          "group": "7_modification",
+          "when": "resourceScheme == file"
+        }
+      ],
       "scm/title": [
         {
           "command": "git-graph-libre.view",
