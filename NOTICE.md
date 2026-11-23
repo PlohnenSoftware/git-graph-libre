@@ -34,6 +34,7 @@ rosters in [LICENSE.mit](LICENSE.mit) instead):
   Kristjan ESPERANTO                               2026-08-22
   Arezimt (Arezim)                                 2026-09-22
   Thomas KT Chan (cktgh)                           2026-10-15
+  Raphaël Balet (rbalet)                           2026-11-05
 
 Deliberately **not** recorded in [LICENSE.mit](LICENSE.mit): that file
 preserves the MIT notices and the rosters of the MIT-licensed material this

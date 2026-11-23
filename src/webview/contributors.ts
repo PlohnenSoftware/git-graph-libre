@@ -28,7 +28,8 @@ export const CONTRIBUTOR_ERAS: readonly ContributorEra[] = [
       "Krzysztof Zabłocki (Zamkorus, PlohnenSoftware)",
       "Kristjan ESPERANTO",
       "Arezimt (Arezim)",
-      "Thomas KT Chan (cktgh)"
+      "Thomas KT Chan (cktgh)",
+      "Raphaël Balet (rbalet)"
     ]
   },
   {
