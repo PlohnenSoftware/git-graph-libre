@@ -117,6 +117,10 @@
   white-space: normal;
 }
 
+.rebaseEditorCheckbox[type="checkbox"] {
+  margin: 0;
+}
+
 .rebaseEditorPublishedList {
   margin: 0;
   padding-left: 16px;
