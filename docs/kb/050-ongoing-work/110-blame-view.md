@@ -137,7 +137,11 @@ revision). Nothing is pushed without explicit instruction.
 ## Integration log
 
 - `2026-11-23`: Blame view design (`040-blame-view.md`) and execution overview
-  (`110-blame-view.md`) written beside the Git Graph+ phases; Git `2.56.1`
-  porcelain, rename `previous`, binary/empty/untracked/bare/worktree,
+  (`110-blame-view.md`) written beside the Git Graph+ phases (`dc000485`); Git
+  `2.56.1` porcelain, rename `previous`, binary/empty/untracked/bare/worktree,
   `--contents -`, `--ignore-rev`, broken `blame.ignoreRevsFile`, and
   `--end-of-options` behaviors verified in temporary repositories.
+- `2026-11-23`: Tailored subagent slice files `100-f4-01-blame-cli-query.md`
+  through `180-f4-09-engine-blame-read.md` written under `110-blame-view/` for
+  later execution (`F4-01` ready; `F4-02`–`F4-09` waiting on dependencies and
+  maintainer confirmation of `BQ1`–`BQ9`).
