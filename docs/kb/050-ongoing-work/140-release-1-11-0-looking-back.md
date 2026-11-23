@@ -69,7 +69,7 @@ releases (Rules) applies, with the answers below.
 
 | ID | Work | Needs | Agent | Status |
 | --- | --- | --- | --- | --- |
-| T1 | Open-and-outcome telemetry for tabs and worktree buttons | — | Muse Code | ready |
+| T1 | Open-and-outcome telemetry for tabs and worktree buttons | — | Muse Code | integrated `70f2b583` |
 | P1 | Popup fixes V1–V11 | — | Muse Code | ready |
 | R90 | Release 1.11.0 | every `main` track | orchestrator | waiting |
 
@@ -79,3 +79,19 @@ releases (Rules) applies, with the answers below.
   `main`: U1 (`0a94f150`), F4-01 (`1aac24df`), F1-05 (`f0a51986`). On
   `gg-plus/next`: F2-00, F2-01a, F2-01b, F2-02, F3-00, F3-01. 63 integrated
   local branches deleted under the new branch rule.
+- `2026-11-23`: T1 (Muse Code) integrated at `70f2b583` by fast-forward:
+  `src/telemetry/tabOpen.ts` (`createTabOpenReporter`, feature ids
+  `tab.reflog` and `tab.diff`): one `feature` event per open attempt with
+  only `ok`, sent when the open's first load settles, and `ok: false` from
+  routes that never reach a panel (no repository, a refused toolbar open, a
+  GGL Diff fallback). The worktree Copy Path button now reports
+  `copyWorktreePath` with its outcome; every other worktree button already
+  reported once with its outcome through `registerAction()`. The ingest
+  validates feature ids by pattern only, so nothing changes there.
+  `telemetry.json` and the README's Telemetry section are updated. Open:
+  Open in New Window / Open Here / Switch Graph / Add to Workspace / Reveal
+  report twice per click (action plus delegated command), as before this
+  slice. The Blame tab (F4-03 onward) and the Statistics tab (F3-02, on
+  `gg-plus/next`) add `tab.blame` / `tab.statistics` the same way. Gates on
+  `70f2b583`: strict Biome on 16 files, typecheck, KB check, backend 1,575 passed
+  (60 skipped in the worktree) and webview 1,130 passed.
