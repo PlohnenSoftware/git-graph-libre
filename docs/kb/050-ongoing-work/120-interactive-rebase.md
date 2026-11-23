@@ -115,7 +115,7 @@ the graph layout, outside this work; no slice reads it.
 | F2-07 | Dirty tree, published history and worktree protections | F2-04 | Gemini 4 Neon | integrated `7257f2cf` (merge) |
 | F2-08 | Conflict prediction for the planned todo | F2-04, F2-05 | Gemini 4 Neon | integrated `9e04c8e5` |
 | F2-09 | Plain-rebase prediction and drag-to-rebase | F2-07, F2-08 | Muse Code | deferred (IQ8: not now, after the core ships) |
-| F2-10 | Route drop and squash through the todo | F2-05 | Muse Code | ready |
+| F2-10 | Route drop and squash through the todo | F2-05 | Muse Code → Gemini 4 Neon | integrated `32217651` (merge) |
 
 F2-01 is split for the agent choice: F2-01a is pure, with no Git and no UI, so
 Haiku can take it. F2-01b holds the Git handoff and the IQ3/IQ4 spike.
@@ -231,3 +231,18 @@ pushed, and nothing is tagged without the maintainer.
   after the gate had passed). F2-09 stays deferred: IQ8's answer is "not
   now, re-evaluate after the core ships". Open: F2-06 and F2-10 (queued for
   Muse Code at 21:03 UTC), then the 1.11.0 sync merge of `main`.
+- `2026-11-23`: F2-10 integrated into `gg-plus/next` at `32217651` by merge.
+  Muse Code started it and was cut off by its quota with the work
+  uncommitted; Gemini 4 Neon finished it (its own `rendering.test.ts` run
+  hung at 100 % CPU for 40 minutes and was stopped by the integrator; the
+  finished slice passes that suite, 112 tests, within a time limit) and then
+  merged `gg-plus/next` into `rebase/F2-10` (only `src/webview/main.ts`
+  conflicted: `buildSelectedCommitContextMenu` keeps F2-10's loaded
+  `HEAD`-chain rule with F2-07's and F2-08's additions). Drop and squash of a
+  selection now go through the interactive todo, the `HEAD`-chain gate is
+  lifted, and the hook bypass (`noVerify`) on selection actions is gone, so
+  hooks run as Git runs them. IQ10 asks for its own release note: the
+  proposed text is in F2-10's Report, for the Git Graph+ release notes.
+  Gates on `32217651`: strict Biome on 28 files, typecheck, `l10n:check`,
+  KB check, backend 1,765 passed (60 skipped) and webview 1,222 passed.
+  Open on this track: F2-06 (Muse Code, 21:03 UTC); F2-09 deferred (IQ8).
