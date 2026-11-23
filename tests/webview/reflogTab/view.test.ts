@@ -539,6 +539,31 @@ describe("reflog table column resizing (F1-04F, Q2)", () => {
     expect(renderedTableWidth(root)).toBe(1202);
   });
 
+  it("refits when the container itself narrows, as a new scrollbar takes its width (Q2)", () => {
+    const callbacks: Array<() => void> = [];
+    class StubResizeObserver {
+      constructor(callback: () => void) {
+        callbacks.push(callback);
+      }
+      observe(): void {}
+      disconnect(): void {}
+    }
+    vi.stubGlobal("ResizeObserver", StubResizeObserver);
+    try {
+      const { root, onColumnWidthsChange } = renderWith([...WIDTHS]);
+      expect(callbacks).toHaveLength(1);
+      // The vertical scrollbar lands after the first fit: the
+      // container is 14px narrower and only the observer sees it.
+      stubContainerWidth(root, 688);
+      callbacks[0]?.();
+      expect(colWidths(root)).toEqual(["48px", "99px", "82px", "41px", "82px", "116px", "108px"]);
+      expect(renderedTableWidth(root)).toBe(688);
+      expect(onColumnWidthsChange).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("never exceeds the container after a drag at a fitted width (Q2)", () => {
     const { root, onColumnWidthsChange } = renderWith([...WIDTHS]);
     stubContainerWidth(root, 702);

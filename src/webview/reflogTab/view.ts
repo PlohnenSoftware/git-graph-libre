@@ -406,6 +406,22 @@ function attachColumnResizing(
   headRow.addEventListener("mousemove", moveResizing);
   headRow.addEventListener("mouseup", stopResizing);
   headRow.addEventListener("mouseleave", stopResizing);
+  // The container also narrows by a scrollbar's width when the rows
+  // outgrow it — no window resize announces that — so watch the
+  // container itself, the way the graph watches its top bar. A
+  // render replaces this table; its observer disconnects itself the
+  // first time it fires for a table no longer in the document.
+  let observer: ResizeObserver | null = null;
+  if (typeof ResizeObserver === "function") {
+    observer = new ResizeObserver(() => {
+      if (!scroll.isConnected) {
+        observer?.disconnect();
+        return;
+      }
+      fitToContainer();
+    });
+    observer.observe(scroll);
+  }
   return fitToContainer;
 }
 
