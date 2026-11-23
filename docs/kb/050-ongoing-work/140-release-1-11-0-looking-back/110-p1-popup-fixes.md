@@ -8,7 +8,7 @@ summary: >-
 
 # P1 — Popup fixes V1–V11
 
-Status: blocked — V11 awaits maintainer decision (leave Create Worktree… out of a held branch's menu vs open Create Worktree with new-branch and detached-HEAD modes; neither recommended); V1–V10 are complete, tested and rendered
+Status: done — awaiting integration (V1–V10). V11 split off by the integrator as slice P1b, blocked on a maintainer decision (`2026-11-23`).
 
 Needs: —
 
