@@ -83,7 +83,7 @@ releases (Rules) applies, with the answers below.
 | N1 | Release notes: Blame F4-05/F4-06, Q1, L2, P1 | those slices | Claude Haiku | integrated `d25ed146` |
 | R90 | Release 1.11.0 | every `main` track | orchestrator | done `74ff94fe` (not tagged, not pushed) |
 | KB2 | Move the finished sections to History; roadmap and work order | R90 | Claude Haiku | integrated `b2c476e3` |
-| Q3 | Reflog columns resize like the graph's; State resizable and narrower (maintainer test) | Q2 | Claude Haiku | ready |
+| Q3 | Reflog columns resize like the graph's; State resizable and narrower (maintainer test) | Q2 | Claude Haiku | integrated `a059ef64` |
 | Q4 | Reflog: drop the redundant header; Scan button into the filter bar (maintainer test) | Q2 | Claude Haiku | ready |
 
 ## Blocked — waiting for the maintainer
@@ -332,3 +332,17 @@ anything unsolvable within reason be marked here while the rest continues.
   `pnpm run package`, `l10n:check` and the KB check pass, and the first
   analysis at `1.11.0` (task `13737842`) is gate OK with 0 new issues. Tag
   `v1.11.0` on `main`'s tip; everything after `74ff94fe` is credits and KB.
+- `2026-11-23`: Q3 (Claude Haiku) integrated at `a059ef64`: the Reflog
+  table's columns resize as the graph's do. Message is the flexible column
+  (no stored width; the fit derives it); Index|Action, Action|Sub-action,
+  Commit|Date and Date|State trade only with each other; Sub-action|Message
+  changes only Sub-action and Message|Commit only Commit; minimums 40 px
+  (fixed) and 64 px (Message) during a drag; State resizes from its left
+  edge against Date. The view keeps the chosen widths apart from the shown
+  ones, so widening grows the fixed columns back. State's default is 133 px
+  of content, measured from the "Object no longer exists" pill (132.64 px);
+  saved widths are six fixed entries, Q2's seven-entry form read by
+  dropping Message. Renders `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/Q3/`
+  (read by the integrator). Gates on `a059ef64`: strict Biome, typecheck,
+  KB check, backend 1,594 passed (60 skipped in the worktree) and webview
+  1,368 passed. Q4 (header into the filter bar) follows.
