@@ -43,7 +43,9 @@ function folderName(repo: string): string {
 
 /** The picked option, or null when a fresh listing no longer holds it. */
 function selectedOption(state: ReflogViewState): ReflogRefOption | null {
-  return state.refOptions.find((option) => refOptionMatchesQuery(option, state.query)) ?? null;
+  return (
+    state.refOptions.find((refOption) => refOptionMatchesQuery(refOption, state.query)) ?? null
+  );
 }
 
 /**
@@ -60,7 +62,7 @@ function headerRefText(state: ReflogViewState, labels: ReflogLabels): string {
     const name = selectedOption(state)?.worktreeName ?? folderName(query.worktreePath);
     return labels.worktreeHead.replace("{0}", () => name);
   }
-  const hasOtherWorktrees = state.refOptions.some((option) => option.worktreePath !== null);
+  const hasOtherWorktrees = state.refOptions.some((refOption) => refOption.worktreePath !== null);
   return hasOtherWorktrees
     ? labels.worktreeHead.replace("{0}", () => folderName(state.repo))
     : "HEAD";
@@ -84,24 +86,24 @@ function header(state: ReflogViewState, labels: ReflogLabels): HTMLElement {
  * words, with a locked or missing worktree marked in them too, joined
  * the way the graph joins a worktree checkout's parts.
  */
-function refLabel(option: ReflogRefOption, labels: ReflogLabels): string {
-  if (option.worktreePath !== null) {
-    const name = option.worktreeName ?? folderName(option.worktreePath);
+function refLabel(refOption: ReflogRefOption, labels: ReflogLabels): string {
+  if (refOption.worktreePath !== null) {
+    const name = refOption.worktreeName ?? folderName(refOption.worktreePath);
     const parts = [labels.worktreeHead.replace("{0}", () => name)];
-    if (option.locked !== null) {
-      const { reason } = option.locked;
+    if (refOption.locked !== null) {
+      const { reason } = refOption.locked;
       parts.push(
         reason === ""
           ? labels.worktreeLockedNoReason
           : labels.worktreeLocked.replace("{0}", () => reason)
       );
     }
-    if (option.prunable !== null) parts.push(labels.worktreeMissing);
+    if (refOption.prunable !== null) parts.push(labels.worktreeMissing);
     return parts.join(", ");
   }
-  if (option.ref === "refs/stash") return `${labels.actions.stash ?? "Stash"} (refs/stash)`;
-  if (option.ref.startsWith("refs/heads/")) return option.ref.slice("refs/heads/".length);
-  return option.ref;
+  if (refOption.ref === "refs/stash") return `${labels.actions.stash ?? "Stash"} (refs/stash)`;
+  if (refOption.ref.startsWith("refs/heads/")) return refOption.ref.slice("refs/heads/".length);
+  return refOption.ref;
 }
 
 function option(value: string, text: string, title?: string): HTMLOptionElement {

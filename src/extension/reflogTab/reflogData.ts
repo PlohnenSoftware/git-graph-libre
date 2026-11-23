@@ -264,11 +264,11 @@ export function createReflogSource(deps: ReflogSourceDeps): ReflogSource {
     if (query.onlyInReflog) {
       states = await statesFor(git, repo, candidates);
       matching = candidates.filter((item) => states[item.entry.hash] === "reflogOnly");
-      const shown = matching.slice(offset, offset + limit);
+      const onlyReflogShown = matching.slice(offset, offset + limit);
       return {
-        rows: shown.map((item) => toRow(item, states)),
+        rows: onlyReflogShown.map((item) => toRow(item, states)),
         state,
-        hasMore: matching.length > offset + shown.length,
+        hasMore: matching.length > offset + onlyReflogShown.length,
         ref: fullRef,
         error: null,
         searchCapped

@@ -612,7 +612,7 @@ export function registerMessageHandlers(
           gitPath: config.gitPath,
           record: recordGitCommand,
           backend: config.backend,
-          isVerified: (repo) => deps.repoSearch?.isVerified(repo) ?? false
+          isVerified: (repoPath) => deps.repoSearch?.isVerified(repoPath) ?? false
         }),
         {
           extensionPath,
