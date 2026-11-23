@@ -202,7 +202,7 @@ Fix: the icon in its own column. The message has to be wrapped in one
 element first: a title that is a flex container would otherwise turn every
 `<b>` or `<span>` of the message into a column of its own.
 
-### V9 — Remove Worktree confirms with "Yes"
+### V9 — Remove Worktree confirms with "Yes" — done (P1)
 
 `confirmRemoveWorktree()` (`:5530`) uses `showConfirmationDialog()`, whose
 button is "Yes". Every other worktree dialog names its action (Lock

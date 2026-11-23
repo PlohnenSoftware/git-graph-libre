@@ -5533,8 +5533,12 @@ class GitGraphView {
       "{0}",
       () => `<b><i>${escapeHtml(worktree.path)}</i></b>`
     );
-    showConfirmationDialog(
+    // A form dialog without inputs, so the button names its action like
+    // every other worktree dialog instead of a bare "Yes".
+    showFormDialog(
       `${message} ${this.removeLockedNote(worktree)}`.trim(),
+      [],
+      l10n.worktreeRemove,
       () => this.removeWorktreeAction(worktree),
       null
     );
