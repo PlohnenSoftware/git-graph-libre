@@ -635,7 +635,7 @@ describe("registerMessageHandlers", () => {
       command: "fileHistory",
       requestId: 11,
       repo,
-      filePath: "a",
+      filePath: "f",
       maxResults: 10
     });
 
@@ -644,7 +644,7 @@ describe("registerMessageHandlers", () => {
       command: "fileHistory",
       requestId: 11,
       repo,
-      filePath: "a",
+      filePath: "f",
       hasMore: false,
       commits: [expect.objectContaining({ message: "init", loadCount: 1 })],
       error: null
