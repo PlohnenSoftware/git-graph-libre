@@ -74,7 +74,7 @@ releases (Rules) applies, with the answers below.
 | --- | --- | --- | --- | --- |
 | T1 | Open-and-outcome telemetry for tabs and worktree buttons | — | Muse Code | integrated `70f2b583` |
 | P1 | Popup fixes V1–V10 | — | Muse Code → Gemini 4 Neon | integrated `9a61b9e9` |
-| P1b | Popup fix V11 (Create Worktree on a branch another worktree holds), answer (b) | — | Muse Code | ready |
+| P1b | Popup fix V11 (Create Worktree on a branch another worktree holds), answer (b) | — | Muse Code | integrated `32863a1d` |
 | L2 | zh-tw: one researched term for "repository" | — | Claude Haiku | integrated `31e17f63` |
 | T1b | Blame tab open-and-outcome telemetry (`tab.blame`) | T1, F4-03 | Claude Haiku | integrated `7ed42e61` |
 | Q1 | GGL icon on the Diff, Reflog and Blame tabs (maintainer test) | — | Claude Haiku | integrated `98bbf66a` |
@@ -270,3 +270,13 @@ anything unsolvable within reason be marked here while the rest continues.
   passed (60 skipped in the worktree) and webview 1,341 passed. Q2 went back
   to Muse Code for a narrow-width follow-up (its 700 px render squeezed
   Message to one word per line).
+- `2026-11-23`: P1b (Muse Code) integrated at `32863a1d`: on a branch another
+  worktree holds, "Create Worktree…" opens Create Worktree with only "New
+  branch from <branch>" (the default) and a detached `HEAD` at its tip; the
+  mode that would check out the held branch is hidden, as the dialog already
+  omits modes that cannot apply. No host or string change was needed (the
+  `addWorktree` request already carries the mode). V11 is marked done in the
+  popup review. Renders `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/P1b/`
+  (read by the integrator). Gates on `32863a1d`: strict Biome, typecheck,
+  KB check, backend 1,594 passed (60 skipped in the worktree) and webview
+  1,344 passed. N1 (release notes) must add a line for it.
