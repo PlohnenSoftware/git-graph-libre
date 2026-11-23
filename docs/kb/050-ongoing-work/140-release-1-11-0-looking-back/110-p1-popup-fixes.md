@@ -8,7 +8,7 @@ summary: >-
 
 # P1 — Popup fixes V1–V11
 
-Status: ready
+Status: claimed by Muse Code on 2026-11-23 12:01
 
 Needs: —
 
