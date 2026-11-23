@@ -359,3 +359,12 @@ anything unsolvable within reason be marked here while the rest continues.
   agent's amend was blocked by a hook and the integrator accepted it as is.
   Gates on `00a1fd9b`: strict Biome, typecheck, KB check, backend 1,594
   passed (60 skipped in the worktree) and webview 1,369 passed.
+- `2026-11-23`: **final 1.11.0 tree `d88e20e3`** (after Q3 and Q4, both from
+  the maintainer's test): backend 1,654 and webview 1,369 passed in the main
+  checkout, `pnpm run package`, `l10n:check` and the KB check pass; SonarQube
+  task `fa3be804-35b7-4e49-950b-a8c4a4a6e052` at `1.11.0`: gate **OK**, new
+  issues 0, hotspots 0, new coverage 86.8 % (Q3 and Q4 are the new code of
+  the `1.11.0` window), duplication 0.0 %. Renders of the final Reflog tab:
+  `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/R90/reflog/reflog-final-*.png`
+  (no horizontal scroll at 1,560, 700 and 480 px). Tag `v1.11.0` on `main`'s
+  tip; not tagged and not pushed here.

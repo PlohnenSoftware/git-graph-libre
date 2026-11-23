@@ -267,7 +267,10 @@ The extension is already split into clean layers:
   analysis at `1.11.0`, on the final release tree `e4c13e7c` (after two
   credit fixes, `0dc1e243` and `e4c13e7c`), is task
   `13737842-e3a8-4d1b-aec3-63835446250a`: quality gate **`OK`**,
-  `new_violations` 0, no hotspots, new duplication 0.0 %.
+  `new_violations` 0, no hotspots, new duplication 0.0 %. After the Reflog
+  fixes Q3 and Q4, the final tree `d88e20e3` is task
+  `fa3be804-35b7-4e49-950b-a8c4a4a6e052`: gate **`OK`**, 0 new issues, new
+  coverage 86.8 %.
 - The project uses the maintainer's `ZAM` quality gate, and **not all of its
   conditions are scoped to new code**. As of `2026-07-29` it has six conditions:
   `new_duplicated_lines_density` at most `1` and `new_violations` at most `3` on
