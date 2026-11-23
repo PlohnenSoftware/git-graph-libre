@@ -71,7 +71,7 @@ export type ReflogViewState = {
   hasMore: boolean;
   /**
    * The user's column widths for this repository, or null while the
-   * table still sizes itself. Kept per repository by the tab's saved
+   * table still uses its defaults. Kept per repository by the tab's saved
    * webview state, the way the graph keeps its `columnWidths`.
    */
   columnWidths: number[] | null;
