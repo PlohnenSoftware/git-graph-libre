@@ -799,6 +799,11 @@ class GitGraphView {
         sendMessage({ command: "showReflog", repo: this.currentRepo });
       }
     });
+    document.getElementById("statisticsBtn")?.addEventListener("click", () => {
+      if (this.currentRepo !== "") {
+        sendMessage({ command: "showStatistics", repo: this.currentRepo });
+      }
+    });
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
       this.forgetSignatures();
       this.refresh(true);

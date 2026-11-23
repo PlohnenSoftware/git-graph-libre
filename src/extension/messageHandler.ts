@@ -118,6 +118,8 @@ import { createReflogSource } from "./reflogTab/reflogData";
 import { openReflogTab as openGglReflogTab } from "./reflogTab/reflogTabPanel";
 import { exportRepoConfigFile, importRepoConfigFile } from "./repoConfigFile";
 import type { RepoManager } from "./repoManager";
+import { createStatsSource } from "./statsTab/statsData";
+import { openStatsTab as openGglStatsTab } from "./statsTab/statsTabPanel";
 import type { WebviewBridge } from "./webviewBridge";
 import type { RepoSearch } from "./workspaceSearch";
 
@@ -542,6 +544,12 @@ export function registerMessageHandlers(
      * switch cannot redirect the retained tab's reads.
      */
     openReflogTab?: (repo: string) => void;
+    /**
+     * Opens the Statistics tab for a repository (F3-02). Defaults to the
+     * statistics panel fed by F3-01's engine-only source, assembled from
+     * this handler's live deps like the reflog route above.
+     */
+    openStatsTab?: (repo: string) => void;
     /** Whether the tab can be fed (D45); defaults to the engine check. */
     isDiffTabAvailable?: () => boolean;
   }
@@ -602,6 +610,18 @@ export function registerMessageHandlers(
           record: recordGitCommand,
           backend: config.backend,
           isVerified: (repo) => deps.repoSearch?.isVerified(repo) ?? false
+        }),
+        { extensionPath, outputChannel: outputChannel ?? { appendLine: () => undefined } }
+      );
+    });
+  const openStatistics =
+    deps.openStatsTab ??
+    ((repo: string): void => {
+      openGglStatsTab(
+        repo,
+        createStatsSource({
+          backend: config.backend,
+          isVerified: (candidate) => deps.repoSearch?.isVerified(candidate) ?? false
         }),
         { extensionPath, outputChannel: outputChannel ?? { appendLine: () => undefined } }
       );
@@ -1436,6 +1456,11 @@ export function registerMessageHandlers(
   // own, and anything else is refused rather than opened.
   bridge.onMessage("showReflog", (msg) => {
     if (Object.hasOwn(repoManager.getRepos(), msg.repo)) openReflog(msg.repo);
+  });
+
+  // The graph toolbar's Statistics button, on the same terms as Reflog.
+  bridge.onMessage("showStatistics", (msg) => {
+    if (Object.hasOwn(repoManager.getRepos(), msg.repo)) openStatistics(msg.repo);
   });
 
   bridge.onMessage("viewFileAtRevision", async (msg) => {

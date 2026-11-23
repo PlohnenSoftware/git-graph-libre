@@ -17,6 +17,7 @@ export type OcticonName =
   | "gear"
   | "git-branch"
   | "git-commit"
+  | "graph"
   | "history"
   | "inbox"
   | "info"
@@ -88,6 +89,10 @@ const octicons: Readonly<Record<OcticonName, { width: number; path: string }>> =
   "git-commit": {
     width: 16,
     path: '<path d="M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0 0 1 0-1.5h3.32a4.002 4.002 0 0 1 7.86 0h3.32a.75.75 0 0 1 0 1.5Zm-1.43-.75a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"></path>'
+  },
+  graph: {
+    width: 16,
+    path: '<path d="M1.5 1.75V13.5h13.75a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1-.75-.75V1.75a.75.75 0 0 1 1.5 0Zm14.28 2.53-5.25 5.25a.75.75 0 0 1-1.06 0L7 7.06 4.28 9.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.25-3.25a.75.75 0 0 1 1.06 0L10 7.94l4.72-4.72a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z"></path>'
   },
   history: {
     width: 16,

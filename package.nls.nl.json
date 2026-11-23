@@ -131,5 +131,6 @@
   "config.uncommittedChanges.fileViewMode.title": "Weergavemodus voor niet-vastgelegde wijzigingen",
   "config.uncommittedChanges.fileViewMode.tree": "Niet-vastgelegde wijzigingen per map groeperen",
   "config.uncommittedChanges.fileViewMode.list": "Niet-vastgelegde wijzigingen als platte padlijst weergeven",
-  "command.showReflog": "Reflog weergeven"
+  "command.showReflog": "Reflog weergeven",
+  "command.showStatistics": "Statistieken weergeven"
 }

@@ -29,6 +29,8 @@ import { createScmDiffTabHandlers } from "./diffTab/scmCommands";
 import { createReflogSource } from "./reflogTab/reflogData";
 import { openReflogTab as openReflogPanel } from "./reflogTab/reflogTabPanel";
 import type { RepoManager } from "./repoManager";
+import { createStatsSource } from "./statsTab/statsData";
+import { openStatsTab as openStatsPanel } from "./statsTab/statsTabPanel";
 import { copyToClipboard } from "./utils/clipboard";
 import type { Logger } from "./utils/logger";
 import type { WebviewPanel } from "./webviewPanel";
@@ -121,6 +123,11 @@ export type CommandManagerDeps = {
    * handler's route; tests replace it.
    */
   openReflogTab?: (repo: string) => void;
+  /**
+   * Opens the Statistics tab for a repository (F3-02). Defaults to the
+   * statistics panel fed by F3-01's engine-only source; tests replace it.
+   */
+  openStatsTab?: (repo: string) => void;
   /** Open the GGL Diff tab from Source Control (D46); wired in `extension.ts`. */
   openScmDiffTab?: (request: DiffTabRequest) => void;
   /**
@@ -599,17 +606,41 @@ export function createCommandManager(deps: CommandManagerDeps) {
     );
   }
 
+  function openStatistics(repo: string) {
+    if (deps.openStatsTab !== undefined) {
+      deps.openStatsTab(repo);
+      return;
+    }
+    openStatsPanel(
+      repo,
+      createStatsSource({ backend: deps.config.backend, isVerified: deps.isVerified }),
+      {
+        extensionPath:
+          deps.extensionPath ??
+          vscode.extensions?.getExtension("PlohnenSoftware.git-graph-libre")?.extensionPath ??
+          process.cwd(),
+        outputChannel: deps.outputChannel
+      }
+    );
+  }
+
   /**
-   * "Show Reflog" for the selected repository: the one named by the caller,
-   * else the graph's last active one, else the only known one; with several
-   * and no selection the user picks, and with none there is only the word.
+   * The repository a tab command ("Show Reflog", "Show Statistics")
+   * acts on: the one named by the caller, else the graph's last active
+   * one, else the only known one; with several and no selection the
+   * user picks, and with none there is only the word. Undefined means
+   * the command is done (the word was shown, or the pick dismissed).
    */
-  async function showReflog(requested?: unknown) {
+  async function pickRepoForTab(
+    requested: unknown,
+    noRepoKey: string,
+    placeholderKey: string
+  ): Promise<string | undefined> {
     const repos = deps.repoManager.getRepos();
     const repoPaths = Object.keys(repos);
     if (repoPaths.length === 0) {
-      await windowApi.showInformationMessage(l10n.t("command.showReflog.noRepo"));
-      return;
+      await windowApi.showInformationMessage(l10n.t(noRepoKey));
+      return undefined;
     }
     let repo: string | undefined;
     if (typeof requested === "string" && Object.hasOwn(repos, requested)) repo = requested;
@@ -621,12 +652,30 @@ export function createCommandManager(deps: CommandManagerDeps) {
     if (repo === undefined) {
       const selected = await windowApi.showQuickPick(formatRepoQuickPickItems(repos), {
         canPickMany: false,
-        placeHolder: l10n.t("command.showReflog.placeholder")
+        placeHolder: l10n.t(placeholderKey)
       });
-      if (!selected) return;
+      if (!selected) return undefined;
       repo = selected.repo;
     }
-    openReflog(repo);
+    return repo;
+  }
+
+  async function showReflog(requested?: unknown) {
+    const repo = await pickRepoForTab(
+      requested,
+      "command.showReflog.noRepo",
+      "command.showReflog.placeholder"
+    );
+    if (repo !== undefined) openReflog(repo);
+  }
+
+  async function showStatistics(requested?: unknown) {
+    const repo = await pickRepoForTab(
+      requested,
+      "command.showStatistics.noRepo",
+      "command.showStatistics.placeholder"
+    );
+    if (repo !== undefined) openStatistics(repo);
   }
 
   function registerAll() {
@@ -652,6 +701,7 @@ export function createCommandManager(deps: CommandManagerDeps) {
     register("git-graph-libre.switchGraphToWorktree", (request) => switchGraphToWorktree(request));
     register("git-graph-libre.pruneStaleWorktrees", () => pruneStaleWorktrees());
     register("git-graph-libre.showReflog", (repo) => showReflog(repo));
+    register("git-graph-libre.showStatistics", (repo) => showStatistics(repo));
     for (const { id, handler } of createScmDiffTabHandlers({
       getRepos: () => deps.repoManager.getRepos(),
       openDiff: (request) => deps.openScmDiffTab?.(request),

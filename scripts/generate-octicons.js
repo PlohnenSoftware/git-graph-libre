@@ -21,6 +21,7 @@ const ICON_NAMES = [
   "gear",
   "git-branch",
   "git-commit",
+  "graph",
   "history",
   "inbox",
   "info",

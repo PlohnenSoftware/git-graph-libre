@@ -131,5 +131,6 @@
   "config.uncommittedChanges.fileViewMode.title": "未提交變更檔案檢視模式",
   "config.uncommittedChanges.fileViewMode.tree": "依資料夾分組顯示未提交變更",
   "config.uncommittedChanges.fileViewMode.list": "以平面路徑清單顯示未提交變更",
-  "command.showReflog": "顯示 reflog"
+  "command.showReflog": "顯示 reflog",
+  "command.showStatistics": "顯示統計資訊"
 }

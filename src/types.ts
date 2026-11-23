@@ -449,6 +449,11 @@ export type RequestShowReflog = {
   repo: string;
 };
 
+export type RequestShowStatistics = {
+  command: "showStatistics";
+  repo: string;
+};
+
 export type RequestViewFileAtRevision = {
   command: "viewFileAtRevision";
   repo: string;
@@ -665,6 +670,7 @@ export type RequestMessage =
   | RequestViewDiff
   | RequestOpenDiffTab
   | RequestShowReflog
+  | RequestShowStatistics
   | RequestViewFileAtRevision
   | RequestCompareFileWithWorkingTree
   | RequestOpenFile
