@@ -78,9 +78,9 @@ releases (Rules) applies, with the answers below.
 | L2 | zh-tw: one researched term for "repository" | — | Claude Haiku | integrated `31e17f63` |
 | T1b | Blame tab open-and-outcome telemetry (`tab.blame`) | T1, F4-03 | Claude Haiku | integrated `7ed42e61` |
 | Q1 | GGL icon on the Diff, Reflog and Blame tabs (maintainer test) | — | Claude Haiku | integrated `98bbf66a` |
-| Q2 | Reflog table column widths, no horizontal scroll (maintainer test) | — | Muse Code | ready |
+| Q2 | Reflog table column widths, no horizontal scroll (maintainer test) | — | Muse Code → Claude Haiku | integrated `53954365` |
 | N1 | Release notes: Blame F4-05/F4-06, Q1, L2, P1 | those slices | Claude Haiku | integrated `d25ed146` |
-| R90 | Release 1.11.0 | every `main` track | orchestrator | waiting |
+| R90 | Release 1.11.0 | every `main` track | orchestrator | claimed |
 
 ## Blocked — waiting for the maintainer
 
@@ -288,3 +288,16 @@ anything unsolvable within reason be marked here while the rest continues.
   for P1b (V11) and Q2, and "the Blame tab" in the telemetry entry (N1's
   note). Gates on `d25ed146`: KB check, backend 1,594 passed and webview
   1,344 passed.
+- `2026-11-23`: Q2 integrated at `53954365`. Muse Code's first run met the
+  slice; the integrator's render review sent it back because at 700 px
+  Message was squeezed to one word per line; the follow-up (Muse Code, cut
+  off by its quota at 16:5x UTC, finished by Claude Haiku from the
+  uncommitted work) keeps Message at 200 px in the automatic fit before the
+  fixed columns shrink (to 40 px, ellipsis), then lets Message go lower;
+  widening reverses it, and a drag may still take Message to 40 px. Renders
+  at 1,560, 700 and 480 px under `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/Q2/`
+  (read by the integrator: readable at 700, cramped but scroll-free at 480).
+  Gates on `53954365`: strict Biome, typecheck, KB check, backend 1,594
+  passed (60 skipped in the worktree) and webview 1,360 passed. Every `main`
+  slice is integrated; R90 claimed by the orchestrator. Muse Code's quota is
+  out until 21:02 UTC; F2-06 and F2-10 are queued for it.
