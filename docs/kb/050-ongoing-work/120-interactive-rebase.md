@@ -3,14 +3,16 @@ summary: >-
   The interactive rebase execution register, started on `2026-11-23` from the
   Git Graph+ research: not in release 1.11.0, worked on the `gg-plus/next`
   integration branch. Status, the clean-room rules, the agent choice, the
-  provisional decisions IQ1 to IQ12, the slice table (F2-01 split into a
+  decisions IQ1 to IQ12 (answered by the maintainer on `2026-11-23`, every
+  recommended default accepted), the slice table (F2-01 split into a
   Haiku-sized model slice and a Git handoff slice, F2-02 to F2-10), the
   integration acceptance and the integration log.
 ---
 
 # Interactive rebase (`2026-11-23`)
 
-Status: started `2026-11-23`, not in release 1.11.0.
+Status: started `2026-11-23`, not in release 1.11.0. The maintainer answered
+IQ1 to IQ12 on `2026-11-23`, so the UI slices (F2-03 onward) may proceed.
 
 Maintainer, `2026-11-23`: "we can go with reflog+blame this release but please
 start work on interactive rebase and history; it may not end up shipped; start
@@ -33,21 +35,24 @@ the agent and date.
 
 ## Decisions
 
-Provisional default (recommended), to be confirmed by the maintainer before any
-slice that ships UI (F2-04 onward). Until then the slices that need one stay
-`waiting`.
+Answered by the maintainer on `2026-11-23`: every recommended default accepted.
+The UI slices (F2-03 onward) may proceed.
 
-- **IQ1. Editor surface.** A large dialog in the graph webview, with the model
+- **IQ1. Editor surface.** **Answered by the maintainer on `2026-11-23`: every
+  recommended default accepted.** A large dialog in the graph webview, with the model
   in its own module so it could move to a tab later.
-- **IQ2. In-progress controls.** A banner in the graph webview now; status bar
+- **IQ2. In-progress controls.** **Answered by the maintainer on `2026-11-23`:
+  every recommended default accepted.** A banner in the graph webview now; status bar
   commands later.
-- **IQ3. Terminal mode.** Keep the existing "Interactive" checkbox, which opens
-  a terminal, and add the new editor as a second entry. Converge later on a
-  `ui` or `classic` setting. Never drop the terminal path. Settled by the
-  F2-01b spike, not by a vote in advance.
-- **IQ4. Reworded and squashed messages.** `exec git commit --amend -F <file>`
-  lines, with message files under the per-worktree git dir. Settled by the
-  F2-01b spike, which spikes both options before locking.
+- **IQ3. Terminal mode.** **Answered by the maintainer on `2026-11-23`: every
+  recommended default accepted.** Keep the existing "Interactive" checkbox,
+  which opens a terminal, and add the new editor as a second entry. Converge
+  later on a `ui` or `classic` setting. Never drop the terminal path. Settled
+  by the F2-01b spike, not by a vote in advance.
+- **IQ4. Reworded and squashed messages.** **Answered by the maintainer on
+  `2026-11-23`: every recommended default accepted.** `exec git commit --amend
+  -F <file>` lines, with message files under the per-worktree git dir. Settled
+  by the F2-01b spike, which spikes both options before locking.
   **Settled by the F2-01b spike (`2026-11-23`): option (a).** simple-git
   refuses `GIT_SEQUENCE_EDITOR`/`GIT_EDITOR` in `env` without
   `allowUnsafeEditor`, so the runner uses its own spawn (`runGitWithEnv`);
@@ -55,25 +60,33 @@ slice that ships UI (F2-04 onward). Until then the slices that need one stay
   route (a)'s prepared message, while route (b)'s was lost. Message files
   live under `<gitdir>/ggl-rebase/`. IQ3 is option (a): the terminal entry
   stays and the editor is added. Windows is not yet verified.
-- **IQ5. Pushed commits.** Warn and require an acknowledgement checkbox, with
+- **IQ5. Pushed commits.** **Answered by the maintainer on `2026-11-23`: every
+  recommended default accepted.** Warn and require an acknowledgement checkbox, with
   the published commits listed. No automatic force push.
-- **IQ6. Merge commits in the range.** Allow the rebase, flatten the merges
+- **IQ6. Merge commits in the range.** **Answered by the maintainer on
+  `2026-11-23`: every recommended default accepted.** Allow the rebase, flatten the merges
   like Git's default, and say so in a notice. `--rebase-merges` is a later,
   separate slice.
-- **IQ7. Conflict prediction.** Ship the editor first; F2-08 is a follow-up
+- **IQ7. Conflict prediction.** **Answered by the maintainer on `2026-11-23`:
+  every recommended default accepted.** Ship the editor first; F2-08 is a follow-up
   release. It needs Git 2.40 or later and is labeled a prediction.
-- **IQ8. Drag-to-rebase.** Not now. Re-evaluate after the core ships.
-- **IQ9. Continue after a conflict.** Continue only when no unmerged paths
+- **IQ8. Drag-to-rebase.** **Answered by the maintainer on `2026-11-23`: every
+  recommended default accepted.** Not now. Re-evaluate after the core ships.
+- **IQ9. Continue after a conflict.** **Answered by the maintainer on
+  `2026-11-23`: every recommended default accepted.** Continue only when no unmerged paths
   remain, and tell the user to stage the resolved files in the SCM view. Offer
   "stage resolved files and continue" later as polish. No silent `add -A`.
-- **IQ10. Squash and drop of a selection.** Move them onto the new machinery
+- **IQ10. Squash and drop of a selection.** **Answered by the maintainer on
+  `2026-11-23`: every recommended default accepted.** Move them onto the new machinery
   (F2-10) after F2-05, with a release note of its own, because it changes two
   shipped actions.
-- **IQ11. Autosquash preview.** Ask Git for the arrangement if the spike works,
+- **IQ11. Autosquash preview.** **Answered by the maintainer on `2026-11-23`:
+  every recommended default accepted.** Ask Git for the arrangement if the spike works,
   otherwise reimplement the documented rule with a parity test against real
   Git. Either way the toggle defaults from `rebase.autoSquash`. Settled by the
   F2-06 spike, not by a vote in advance.
-- **IQ12. Visibility settings.** New menu items join the existing per-item
+- **IQ12. Visibility settings.** **Answered by the maintainer on `2026-11-23`:
+  every recommended default accepted.** New menu items join the existing per-item
   visibility settings as `interactiveRebase`, `createFixup` and so on, default
   on.
 
@@ -95,7 +108,7 @@ the graph layout, outside this work; no slice reads it.
 | F2-01a | Todo model (pure) | — | Haiku | integrated `9f7d0865` |
 | F2-01b | Git handoff and spike | F2-01a | Muse Code | integrated `3d39ecaf` |
 | F2-02 | Range read and preflight | — | Muse Code | integrated `16b65eb2` |
-| F2-03 | In-progress state and controls | — | Muse Code | ready |
+| F2-03 | In-progress state and controls | — | Muse Code | in progress |
 | F2-04 | Editor dialog: open, list, pick/drop/reorder, start | F2-01b, F2-02, F2-03 | Muse Code | waiting |
 | F2-05 | Reword, squash, fixup and edit with messages | F2-04 | Muse Code | waiting |
 | F2-06 | Autosquash and fixup creation | F2-04, F2-05 | Muse Code | waiting |
@@ -155,3 +168,6 @@ pushed, and nothing is tagged without the maintainer.
   touched files clean; typecheck clean; backend 1,627 passed (60 skipped, as
   in every linked worktree) and webview 1,096 passed; KB check clean.
   F2-03 is ready.
+- `2026-11-23`: maintainer accepted all recommended IQ defaults; `gg-plus/next`
+  rebased onto `main` (`7db1d290`) so the Git Graph+ work sees release 1.11.0's
+  KB and code; F2-03 dispatched to Muse Code.

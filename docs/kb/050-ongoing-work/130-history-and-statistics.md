@@ -4,8 +4,8 @@ summary: >-
   research and not in release 1.11.0: slices F3-01 to F3-08 for a Statistics
   view (engine bridge, tab, engine-only availability, l10n, mailmap parity,
   date range) and the later File History and VS Code Timeline options.
-  Decisions TQ1 to TQ7 with provisional defaults, the agent choice, the slice
-  table and the integration log.
+  Decisions TQ1 to TQ7, answered by the maintainer on `2026-11-23`, the agent
+  choice, the slice table and the integration log.
 ---
 
 # History and statistics view (`2026-11-23`)
@@ -27,50 +27,58 @@ a slice file here differs from that note, the slice file wins.
 
 ## Decisions
 
-Each decision below is the research's recommendation, marked as a provisional
-default. The maintainer confirms each one before any slice that ships UI
-(F3-02 onward) is dispatched. F3-01 ships no UI and may run first.
+Each decision below was the research's recommendation. The maintainer answered
+all seven on `2026-11-23`, as recorded under each one. F3-01 ships no UI and
+ran first.
 
-- **TQ1: what "timeline" means.** Provisional default: candidate (a), the
-  Statistics view (contributors and activity over time). It is the only
-  time-ordered view in Git Graph+, and GGL already plans this tab and has the
-  engine reads. Candidate (b), File History (F3-07), stays in the table as a
-  later option the maintainer may pick instead. A VS Code Timeline provider
-  (F3-08) needs F3-07 first.
-- **TQ2: engine only.** Provisional default: the Statistics tab reads the
-  engine only, and is not offered when the engine is unavailable (the KB 170
-  exception). It does not work on the `git-cli` backend. Confirm before F3-02.
-- **TQ3: clean-room boundary for Git Graph+ (Apache-2.0).** Provisional
-  default: implement from Git's documentation and this project's patterns
-  only. No slice reads Git Graph+ code while implementing it. The KB has no
-  verdict on Git Graph+ yet; the maintainer records one before any slice that
-  takes ideas beyond the research starts.
-- **TQ4: scope of "all refs".** Provisional default: keep `--all`, as the
-  engine already does, including the stash and the other worktrees' HEADs.
-- **TQ5: mailmap.** Provisional default: apply mailmap in `author_stats`, to
-  match `git shortlog` (F3-05). Until then the table can differ from shortlog
-  on repositories with a `.mailmap`.
-- **TQ6: history size.** Provisional default: no cap for the first release of
-  the tab. Keep the engine walk, and measure on a large repository before
-  adding a cap, caching or a loading state.
-- **TQ7: refresh.** Provisional default: reload on each tab open, as Git Graph+
-  does, and refresh when the repository changes.
+- **TQ1: what "timeline" means.** **Answer (`2026-11-23`): both, in order: the
+  Statistics view first, then file history (F3-07, then F3-08).** Options as
+  researched: candidate (a), the Statistics view (contributors and activity
+  over time). It is the only time-ordered view in Git Graph+, and GGL already
+  plans this tab and has the engine reads. Candidate (b), File History
+  (F3-07), is also taken, after the Statistics view. A VS Code Timeline
+  provider (F3-08) needs F3-07 first.
+- **TQ2: engine only.** **Answer (`2026-11-23`): confirmed.** The Statistics
+  tab reads the engine only, and is hidden when the engine is unavailable (the
+  KB 170 exception). It does not work on the `git-cli` backend.
+- **TQ3: clean-room boundary for Git Graph+ (Apache-2.0).** **Answer
+  (`2026-11-23`): clean room, per the standing Git Graph+ licensing verdict**
+  (decision G0 answered yes; the verdict is being written as a Licensing
+  section). Options as researched: implement from Git's documentation and this
+  project's patterns only. No slice reads Git Graph+ code while implementing
+  it.
+- **TQ4: scope of "all refs".** **Answer (`2026-11-23`): all refs, including
+  the stash and the other worktrees' HEADs.** Keep `--all`, as the engine
+  already does.
+- **TQ5: mailmap.** **Answer (`2026-11-23`): apply `.mailmap`, to match
+  `git shortlog -sne`** (F3-05). Options as researched: apply mailmap in
+  `author_stats`. Until F3-05 lands, the table can differ from shortlog on
+  repositories with a `.mailmap`.
+- **TQ6: history size.** **Answer (`2026-11-23`): no hard cap, but a loading
+  state and a result cache per ref set.** Options as researched: keep the
+  engine walk, and measure on a large repository before adding a cap, caching
+  or a loading state.
+- **TQ7: refresh.** **Answer (`2026-11-23`): refresh on repository change, not
+  on every tab open.** Options as researched: reload on each tab open, as Git
+  Graph+ does, and refresh when the repository changes.
 
 ## Slices
 
 | ID | Work | Needs | Model | Status |
 | --- | --- | --- | --- | --- |
 | F3-01 | Engine bridge: typed wrappers for `authorStats` and `activityHeatmap` | — | Claude Haiku | integrated `4ebc50c5` |
-| F3-02 | Statistics tab, webview (contributors and 7 x 24 heatmap) | F3-01, TQ1, TQ2 confirmed | Muse Code, Haiku fallback | waiting |
+| F3-02 | Statistics tab, webview (contributors and 7 x 24 heatmap) | F3-01 (TQ1, TQ2 answered) | Muse Code, Haiku fallback | in progress |
 | F3-03 | Engine-only availability (tab hidden without the engine) | F3-01, F3-02 | Haiku | waiting |
 | F3-04 | l10n for the Statistics tab in all five bundles | F3-02 | Claude Haiku | waiting |
-| F3-05 | Mailmap parity in `author_stats` (decision TQ5) | F3-01, TQ5 confirmed | Muse Code | waiting |
-| F3-06 | Date-range filter (only if TQ1 picks the scrubber reading) | F3-02, TQ1 | Muse Code | waiting |
-| F3-07 | File History: engine path-scoped log (only if TQ1 picks File History) | TQ1 | Muse Code | waiting |
-| F3-08 | VS Code Timeline provider over F3-07 (only if TQ1 picks Timeline) | F3-07, TQ1 | Muse Code | waiting |
+| F3-05 | Mailmap parity in `author_stats` (decision TQ5) | F3-01 (TQ5 answered) | Muse Code | in progress |
+| F3-06 | Date-range filter (only if TQ1 picks the scrubber reading) | F3-02, TQ1 | Muse Code | not selected |
+| F3-07 | File History: engine path-scoped log (TQ1 answered: taken) | F3-02 (TQ1 answered) | Muse Code | waiting on F3-02 |
+| F3-08 | VS Code Timeline provider over F3-07 (only if TQ1 picks Timeline) | F3-07 (TQ1 answered: taken) | Muse Code | waiting on F3-07 |
 
 F3-05 to F3-08 depend on decisions and are decision-dependent as the research
-marks them. F3-06 to F3-08 exist only when TQ1 selects them.
+marks them. TQ1 selected File History (F3-07) and the Timeline provider
+(F3-08), so both are scheduled after the Statistics view; F3-06 (the scrubber
+reading) was not selected and stays unscheduled.
 
 Slice files: `130-history-and-statistics/`, one per slice (`100-f3-01-...`
 to `170-f3-08-...`).
@@ -106,3 +114,5 @@ both themes. Nothing is pushed.
   backend suite 1,569 passed (60 skipped, as in every linked worktree), KB
   check clean. Follow-up from the report: a broader author/heatmap parity
   check belongs with F3-02.
+- `2026-11-23`: maintainer answered TQ1–TQ7 (as above); `gg-plus/next` rebased
+  onto `main`; F3-02 and F3-05 dispatched to Muse Code.
