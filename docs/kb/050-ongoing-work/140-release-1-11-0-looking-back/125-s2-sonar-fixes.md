@@ -9,7 +9,7 @@ summary: >-
 
 # S2 — SonarQube new-code fixes (second scan)
 
-Status: S2a integrated `5773e36c` · S2b done — awaiting integration
+Status: S2a integrated `5773e36c` · S2b integrated `5fa0147f`
 
 Needs: —
 

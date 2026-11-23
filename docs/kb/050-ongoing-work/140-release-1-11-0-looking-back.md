@@ -260,3 +260,12 @@ anything unsolvable within reason be marked here while the rest continues.
   one complexity 19 in `blameTabPanel.ts`); new coverage 89.7 %,
   duplication 0.16 %, no hotspots. S2b re-scoped to those six and dispatched
   to Claude Haiku.
+- `2026-11-23`: S2b (Claude Haiku) integrated at `5fa0147f`: the six Blame
+  findings of the third scan (two renames, two optional chains, `globalThis`,
+  and `handleMessage` in `blameTabPanel.ts` down from complexity 19 by two
+  reload helpers). Behavior unchanged, no test changed. One commit body
+  (`caba133a` before the rebase) overstates when Biome ran; left as is.
+  Gates on `5fa0147f`: strict Biome, typecheck, KB check, backend 1,594
+  passed (60 skipped in the worktree) and webview 1,341 passed. Q2 went back
+  to Muse Code for a narrow-width follow-up (its 700 px render squeezed
+  Message to one word per line).
