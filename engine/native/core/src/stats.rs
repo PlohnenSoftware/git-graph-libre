@@ -208,13 +208,11 @@ impl Mailmap {
 /// bytes shortlog would print raw in a non-UTF-8 encoding, and this read only serves
 /// repositories that print UTF-8.
 fn mailmap_text(bytes: &[u8], what: &str) -> Result<String> {
-    std::str::from_utf8(bytes)
-        .map(str::to_owned)
-        .map_err(|_| {
-            Error::unsupported(format!(
-                "The mailmap maps an author to a {what} that is not UTF-8"
-            ))
-        })
+    std::str::from_utf8(bytes).map(str::to_owned).map_err(|_| {
+        Error::unsupported(format!(
+            "The mailmap maps an author to a {what} that is not UTF-8"
+        ))
+    })
 }
 
 /// The working tree's `.mailmap`, read without following symlinks: Git refuses a symlinked

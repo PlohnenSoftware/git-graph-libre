@@ -356,7 +356,10 @@ fn mailmap_file_and_blob_precedence_matches_shortlog() {
     assert_shortlog_parity(&repo);
 
     let blob = repo
-        .git_stdin(&["hash-object", "-w", "--stdin"], "FromBlob <bob@example.com>\n")
+        .git_stdin(
+            &["hash-object", "-w", "--stdin"],
+            "FromBlob <bob@example.com>\n",
+        )
         .trim()
         .to_string();
     repo.git(&["config", "mailmap.blob", &blob]);
