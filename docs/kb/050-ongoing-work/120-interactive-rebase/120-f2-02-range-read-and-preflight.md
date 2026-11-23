@@ -7,7 +7,7 @@ summary: >-
 
 # F2-02 — Range read and preflight
 
-Status: claimed by Muse Code on 2026-11-23 02:08
+Status: done — awaiting integration
 
 Needs: none
 
@@ -86,4 +86,85 @@ pnpm exec vitest run tests/backend/queries/rebaseRange.test.ts tests/backend/reb
 
 ## Report
 
-Not started.
+- **Agent / date:** Muse Code (muse-wonder-full-1.0), 2026-11-23 02:14
+- **Branch and commits:** `rebase/F2-02` —
+  - `1769af6a G docs(rebase): claim slice F2-02 (F2-02)`
+  - `e7cec4e9 G feat(rebase): add range types and the preflight answer (F2-02)`
+  - `5bd6f070 G feat(backend): read the rebase range and its preflight facts (F2-02)`
+  - `de6adb74 G feat(extension): register the rebaseRange query handler (F2-02)`
+  - `1e186d8f G test(backend): cover every in-progress kind in the range read (F2-02)`
+  - (plus this report commit)
+- **Files changed:** `src/backend/queries/rebaseRange.ts` (+389, new),
+  `src/backend/rebase/preflight.ts` (+38, new),
+  `src/backend/types/queries.types.ts` (+86),
+  `src/extension/messageHandler.ts` (+14),
+  `tests/backend/queries/rebaseRange.test.ts` (+540, new),
+  `tests/backend/rebase/preflight.test.ts` (+82, new), this slice file.
+- **Tests added or changed:** 37 new (29 in `rebaseRange.test.ts`, 8 in
+  `preflight.test.ts`); backend suite 1505 passed before (derived), 1542
+  passed after. Real Git in temporary directories only, no global config.
+- **Gates:** strict Biome (`biome.strict.jsonc --error-on-warnings`) on all
+  6 touched code/test files: clean. `pnpm run typecheck`: pass. Slice
+  tests (`npx vitest run --project backend` on the two new files): 37
+  passed. Full suite (`pnpm run test`): backend 116 files, 1542 passed |
+  60 skipped; webview 85 files, 1096 passed. `pnpm run kb:check`: pass.
+  `pnpm run l10n:check`: complete (no strings added, verified anyway).
+  Sonar: integrator. No visuals: this slice has no visible change, so no
+  headless renders.
+- **Acceptance:**
+  - Range read (`--topo-order --reverse`, `--root` for a null base,
+    NUL-delimited explicit format with hash, parents, author, subject,
+    body; oldest first): met — linear, root and parent-chain tests.
+  - `branch` / `detached`: met — attached, detached and unborn tests.
+  - `dirty` from `git status --porcelain`, untracked apart: met — staged,
+    unstaged and untracked-only tests (`dirty` = tracked changes;
+    `hasUntracked` separate).
+  - `inProgress` from `rebase-merge/`, `rebase-apply/`, `MERGE_HEAD`,
+    `CHERRY_PICK_HEAD`, `REVERT_HEAD` in the per-worktree git dir, never
+    `REBASE_HEAD` alone: met — one real-Git fixture per kind, plus the
+    stale-`REBASE_HEAD` test after a successful `rebase -i`.
+  - `upstream` and per-commit `isPublished` from one `rev-list`
+    `<upstream>..HEAD`; nothing published without an upstream: met —
+    bare-remote split test (`[true, false, false]`).
+  - `isMerge` / `mergeCount`: met — merge fixture (`mergeCount` 1).
+  - `alreadyUsedElsewhere` from worktree data, `"unknown"` when missing:
+    met — caller-held data honored, the query lists worktrees itself
+    otherwise, a failed listing reads `"unknown"`.
+  - `tooLong` past 500 without refusing: met — `git fast-import` fixtures
+    at 500 (`false`) and 501 (`true`).
+  - Result shape and preflight answer (`canStart` plus reason codes as
+    data, no message text): met — `GitRebaseRangeResult` carries the named
+    shape plus the additions under Deviations; `evaluateRebasePreflight`
+    is pure with 8 unit tests.
+  - Linked worktree through its own git dir: met — conflict state in the
+    main worktree is invisible from the linked one.
+  - Clean room: implemented from Git's documentation and this project's
+    patterns; the Git Graph+ research was read for behavior only, no code
+    copied.
+- **Deviations from the slice:**
+  - `src/types.ts` untouched: the new `rebaseRange` payload already flows
+    to the webview types through the existing `QueryRequest` /
+    `QueryResponse` imports (typecheck and the webview suite pass), so no
+    type was needed there.
+  - The result carries a few fields past the named shape: `author` /
+    `email` per commit (the format clause names author), `hasUntracked`
+    (the "reported separately" clause), `inProgressKind`, the computed
+    `preflight`, and `error` (the project query convention).
+  - The branch read uses the prescribed `rev-parse --abbrev-ref HEAD`,
+    with a `symbolic-ref` fallback that tells an unborn branch (where
+    `rev-parse` fails, verified on Git 2.56.1) from a detached HEAD.
+  - The base and the upstream are resolved to full hashes before ranging,
+    so caller text never reaches Git as an option and one read sees one
+    fixed pair of commits.
+- **Open questions / follow-ups:**
+  - A range always ends at `HEAD`, whose branch Git allows in only one
+    worktree, so `alreadyUsedElsewhere: true` is reachable today mainly
+    with caller-supplied data; F2-07's entries for other branches still
+    need their own check.
+  - The handler lets the query list worktrees on the CLI; routing that
+    list through the engine-backed reader (the W10F shape) is a natural
+    follow-up when F2-04 wires the UI.
+  - The range is the literal `base..HEAD` the slice prescribes;
+    `git rebase -i <base>` replays `merge-base..HEAD` for a non-ancestor
+    base, so F2-04's entry points should offer ancestors (or accept the
+    difference knowingly).
