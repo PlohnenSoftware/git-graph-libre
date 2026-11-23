@@ -537,7 +537,8 @@ describe("rebase-editor prediction CSS guards", () => {
   it("styles the prediction status and popover with theme tokens, OKLCH fallbacks, and forced-colors", () => {
     expect(css).toContain(".rebasePredictionStatus");
     expect(css).toContain(".rebasePredictionPopover");
-    expect(css).toContain("var(--vscode-editorHoverWidget-background");
+    expect(css).toContain("--vscode-editorHoverWidget-background");
+    expect(css).toContain("--vscode-editorWidget-background");
     expect(css).toContain("var(--vscode-editorHoverWidget-border");
     expect(css).toContain("z-index: 410;");
     expect(css).toContain("overflow-wrap: anywhere;");
