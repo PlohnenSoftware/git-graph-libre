@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A Reflog tab.** **Show Reflog**, from the Command Palette or the graph
+  toolbar, opens a tab that lists the `HEAD` reflog page by page: each
+  entry's index, commit, date, action and sub-action (such as a rebase's
+  pick, squash or abort) and message, as Git recorded it. Actions are
+  colored by kind, and each entry says whether its commit is still on a
+  branch or tag, is only in the reflog, or no longer exists, so lost work is
+  easy to spot. The tab uses the graph's hash length, date format and words, its
+  columns can be resized and keep their widths per repository, it refreshes
+  when the repository changes, and with the Rust engine it reads the reflog
+  without starting Git.
+
 ### Changed
 
 - **A shorter menu header for a branch checked out in another worktree.** Its
