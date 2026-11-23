@@ -138,7 +138,8 @@ another.
 - **G0.** Make the preliminary licensing verdict above a standing section
   under Licensing? Recommended: yes, worded as for `vscode-git-graph-rs`,
   with the SourceGit file named as out of bounds unless its MIT notice is
-  carried.
+  carried. **Answered `2026-11-23`:** yes, a standing verdict, now in
+  `030-licensing/010-licensing/040-git-graph-plus-licensing-verdict.md`.
 - **G1.** Release placement and IDs: one themed release (for example
   1.11.0) or one per feature; final slice IDs replace F1/F2/F3/F4 when a
   release is planned. Recommended: complete the Reflog tab (`F1`) and ship the

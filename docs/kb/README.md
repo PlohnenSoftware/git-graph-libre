@@ -38,9 +38,10 @@ it, so a query about code also finds the sections that discuss it.
 10. [`vscode-git-graph-rs` licensing verdict (`2026-09-22`)](030-licensing/010-licensing/010-vscode-git-graph-rs-licensing-verdict.md)
 11. [License review of the graph and stash UI slices (`2026-09-09`)](030-licensing/010-licensing/020-license-review-of-the-graph-and-stash-ui-slices.md)
 12. [VS Code diff-algorithm licensing verdict (`2026-10-19`)](030-licensing/010-licensing/030-vs-code-diff-algorithm-licensing-verdict.md)
-13. [Graphify Map](040-reference/010-graphify-map.md)
-14. [Near-Term Work Order](050-ongoing-work/020-near-term-work-order.md)
-15. [Implementation Roadmap](050-ongoing-work/030-implementation-roadmap.md)
+13. [Git Graph+ licensing verdict (`2026-11-23`)](030-licensing/010-licensing/040-git-graph-plus-licensing-verdict.md)
+14. [Graphify Map](040-reference/010-graphify-map.md)
+15. [Near-Term Work Order](050-ongoing-work/020-near-term-work-order.md)
+16. [Implementation Roadmap](050-ongoing-work/030-implementation-roadmap.md)
 
 **Mission**: why the project exists, and the license rule everything else follows.
 
@@ -63,6 +64,7 @@ it, so a query about code also finds the sections that discuss it.
   - [`vscode-git-graph-rs` licensing verdict (`2026-09-22`)](030-licensing/010-licensing/010-vscode-git-graph-rs-licensing-verdict.md) (*always read*) — Standing verdict: the `src/` and `web/` layers of `vscode-git-graph-rs` forbid redistribution, so never read or copy them; `native/` is MIT and usable except `native/core/src/gerrit.rs`; any future sync is a manual license audit.
   - [License review of the graph and stash UI slices (`2026-09-09`)](030-licensing/010-licensing/020-license-review-of-the-graph-and-stash-ui-slices.md) (*always read*) — Clean-room review (`2026-09-09`): a borrowed stash-node shape removed and identifiers renamed. Standing rules: derive constants from this project's own geometry; pair token scans with an identifier census.
   - [VS Code diff-algorithm licensing verdict (`2026-10-19`)](030-licensing/010-licensing/030-vs-code-diff-algorithm-licensing-verdict.md) (*always read*) — Standing verdict (`2026-10-19`): VS Code's MIT `advanced` diff algorithm may be translated into the engine under AGPL-3.0-or-later with Microsoft's MIT notices (D1), internal only (D2); exact development oracle `@vscode/diff` `0.0.2-87` (D3), excluded from the VSIX.
+  - [Git Graph+ licensing verdict (`2026-11-23`)](030-licensing/010-licensing/040-git-graph-plus-licensing-verdict.md) (*always read*) — Standing verdict (maintainer, `2026-11-23`, decision G0): Git Graph+ is Apache-2.0 and may be read for its behavior, for research only; no code is copied, and implementation comes from Git's documentation, VS Code APIs and this project's own patterns. The SourceGit-derived graph-layout file is out of bounds unless its MIT notice is carried. Applies to the Reflog tab, interactive rebase, the history and statistics work, and any future Git Graph+-inspired work.
 
 **Reference**: standing guidance to read when a task touches its area.
 
