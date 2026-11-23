@@ -221,6 +221,12 @@ type QueryPayloads = {
     /** `repo` comes back so an answer for a repository no longer shown is dropped. */
     response: { requestId: number; repo: string } & GitRebaseRangeResult;
   };
+  operationState: {
+    request: { requestId: number; repo: string };
+    result: GitOperationStateResult;
+    /** `repo` comes back so an answer for a repository no longer shown is dropped. */
+    response: { requestId: number; repo: string } & GitOperationStateResult;
+  };
 };
 
 export type QueryRequest = {
@@ -515,5 +521,47 @@ export type GitRebaseRangeResult = {
   /** True when the range holds more than 500 commits. It prompts (F2-07); it never refuses. */
   tooLong: boolean;
   preflight: GitRebasePreflight;
+  error: GitQueryError | null;
+};
+
+/**
+ * Why a rebase stopped, read from its state files and the unmerged paths:
+ * unmerged paths are a conflict; the merge backend's `amend` file marks an
+ * `edit` stop; anything else (a failed `exec` line, a todo Git refused, a
+ * conflict since resolved) is `"other"` rather than a guess.
+ */
+export type GitRebaseStopReason = "edit" | "conflict" | "other";
+
+/** Where an in-progress rebase stopped, as Git's per-worktree state files record it. */
+export type GitRebaseState = {
+  /** Which state directory holds the rebase: `rebase-merge` or `rebase-apply`. */
+  backend: "merge" | "apply";
+  /** Full hash of the commit the rebase stopped on; null when Git recorded none. */
+  stoppedHash: string | null;
+  /** Subject of the stopped commit; null when it names none or could not be read. */
+  subject: string | null;
+  /** The stopped step's 1-based position in the todo; null when unknown. */
+  current: number | null;
+  /** The todo's step count; null when unknown. */
+  total: number | null;
+  /** The branch being rebased, short name; null for a detached HEAD. */
+  branch: string | null;
+  /** Full hash the rebase is onto; null when Git recorded none. */
+  onto: string | null;
+  stopReason: GitRebaseStopReason;
+};
+
+/**
+ * The operation in progress in one worktree, read from the state files in its
+ * own git directory (F2-03). `rebase` is non-null exactly when `kind` is
+ * `"rebase"`. `conflictFiles` are the unmerged paths while a rebase is in
+ * progress, empty otherwise. `REBASE_HEAD` is never evidence: it lingers
+ * after a successful rebase, so only the state directories say one is under
+ * way.
+ */
+export type GitOperationStateResult = {
+  kind: GitRebaseOperation | null;
+  rebase: GitRebaseState | null;
+  conflictFiles: string[];
   error: GitQueryError | null;
 };
