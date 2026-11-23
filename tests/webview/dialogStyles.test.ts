@@ -93,6 +93,20 @@ describe("dialog styles", () => {
     expect(note).toContain("var(--vscode-descriptionForeground, var(--ngg-neutral-icon))");
   });
 
+  it("gives a dialog list its own capped, scrolling block at body size", () => {
+    const list = ruleFor(css, "#dialog .dialogList");
+    const cell = ruleFor(css, "#dialog table.dialogForm td.dialogFormListCell");
+    const note = ruleFor(css, "#dialog .dialogListNote");
+
+    // The list replaced markup inside the title: it scrolls alone, so the
+    // dialog's buttons stay put whatever its length.
+    expect(list).toContain("max-height: 180px;");
+    expect(list).toContain("overflow-y: auto;");
+    expect(list).toContain("font-size: 13px;");
+    expect(cell).toContain("white-space: normal;");
+    expect(note).toContain("var(--vscode-descriptionForeground");
+  });
+
   it("marks dialog errors with error tokens and a readable reason block", () => {
     expect(css).toContain("--ngg-error: oklch(");
     expect(ruleFor(css, "#dialog .dialogErrorIcon svg")).toContain("var(--vscode-errorForeground");

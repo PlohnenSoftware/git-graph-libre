@@ -5478,13 +5478,14 @@ class GitGraphView {
       return;
     }
     hideDialog();
-    const files = msg.files.map((file) => `<li>${escapeHtml(file)}</li>`).join("");
-    const more = msg.truncated ? `<p>${l10n.dialogRemoveWorktreeMoreFiles}</p>` : "";
     const target = `<b><i>${escapeHtml(msg.path)}</i></b>`;
     const question = l10n.dialogRemoveWorktreeForce.replace("{0}", () => target);
+    const list: DialogInput = msg.truncated
+      ? { type: "list", items: msg.files, note: l10n.dialogRemoveWorktreeMoreFiles }
+      : { type: "list", items: msg.files };
     showFormDialog(
-      `${question}<ul>${files}</ul>${more}`,
-      [],
+      question,
+      [list],
       l10n.dialogRemoveWorktreeForceSubmit,
       () => this.sendRemoveWorktree({ ...pending.request, force: true }),
       null
@@ -5690,10 +5691,9 @@ class GitGraphView {
     const stale = this.staleWorktrees();
     if (stale.length === 0) return;
 
-    const entries = stale.map((worktree) => `<li>${escapeHtml(worktree.path)}</li>`).join("");
     showFormDialog(
-      `${l10n.dialogPruneWorktreesMessage}<ul>${entries}</ul>`,
-      [],
+      l10n.dialogPruneWorktreesMessage,
+      [{ type: "list", items: stale.map((worktree) => worktree.path) }],
       l10n.dialogPruneWorktreesSubmit,
       () => {
         sendMessage({ command: "pruneWorktrees", repo: this.currentRepo });
@@ -8914,6 +8914,10 @@ function bindLockedDialogInputs(inputs: DialogInput[]) {
   }
 }
 function renderDialogForm(message: string, inputs: DialogInput[]) {
+  // No inputs, no table: an empty form still counted as content after the
+  // title, so `.dialogTitle:not(:last-child)` added its gap and the buttons
+  // sat well below the text of a message-only form dialog.
+  if (inputs.length === 0) return { html: dialogTitleHtml(message), textRefInput: -1 };
   const multiElementForm = inputs.length > 1;
   let textRefInput = -1;
   let html = `${dialogTitleHtml(message)}<table class="dialogForm ${multiElementForm ? "multi" : "single"}">`;
@@ -8936,6 +8940,14 @@ function renderDialogInputRow(
   if (input.type === "group") {
     return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2" class="dialogFormGroupCell"><span class="dialogFormGroup">${escapeHtml(input.name)}</span></td></tr>`;
   }
+  if (input.type === "list") {
+    const items = input.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+    const note =
+      input.note === undefined
+        ? ""
+        : `<span class="dialogListNote">${escapeHtml(input.note)}</span>`;
+    return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2" class="dialogFormListCell"><ul class="dialogList">${items}</ul>${note}</td></tr>`;
+  }
   // A checkbox names itself: its text belongs in the <label> beside the box,
   // never in the form's label column. Splitting them puts the words far from
   // the control and leaves the label column to be squeezed by the input
@@ -8948,7 +8960,7 @@ function renderDialogInputRow(
 }
 function renderDialogInput(
   // Value-less rows are rendered by renderDialogInputRow and never reach here.
-  input: Exclude<DialogInput, { type: "note" | "group" }>,
+  input: Exclude<DialogInput, { type: "note" | "group" | "list" }>,
   index: number,
   multiElementForm: boolean
 ) {
@@ -9034,7 +9046,7 @@ function getDialogInputFallbackValue(input: DialogInput) {
   // so pre-render checks (e.g. initial dependent-row visibility) read the
   // configured default instead of a live element.
   if (input.type === "checkbox") return input.value ? "checked" : "unchecked";
-  if (input.type === "note" || input.type === "group") return "";
+  if (input.type === "note" || input.type === "group" || input.type === "list") return "";
   return input.default;
 }
 function isDialogInputVisible(inputs: DialogInput[], input: DialogInput) {

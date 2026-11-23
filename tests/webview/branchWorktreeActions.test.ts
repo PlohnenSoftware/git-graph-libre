@@ -250,6 +250,8 @@ describe("a local branch checked out in another worktree", () => {
 
     expect(dialogText()).toContain(OTHER_WORKTREE);
     expect(dialogText()).toContain("feature/menu");
+    // A form dialog without inputs renders no empty form table after its title.
+    expect(document.querySelector("#dialog table.dialogForm")).toBeNull();
     submitDialog();
 
     expect(vscodeMock.sentMessages.at(-1)).toEqual({
@@ -422,6 +424,12 @@ describe("removing the worktree that holds a branch (W21)", () => {
     expect(dialogText()).toContain("notes é.txt");
     expect(dialogText()).toContain("src/edited.ts");
     expect(dialogText()).toContain("more files");
+    // The files sit in the dialog's list block under the title, not in it.
+    expect(document.querySelector(".dialogTitle ul")).toBeNull();
+    expect(
+      [...document.querySelectorAll(".dialogList li")].map((item) => item.textContent)
+    ).toEqual(["notes é.txt", "src/edited.ts"]);
+    expect(document.querySelector(".dialogListNote")?.textContent).toContain("more files");
     submitDialog();
 
     expect(latestRequest(vscodeMock.sentMessages, "removeWorktree")).toMatchObject({
@@ -568,6 +576,11 @@ describe("stale and moved worktrees (W21)", () => {
     expect(dialogText()).toContain(OTHER_WORKTREE);
     expect(dialogText()).toContain(STALE);
     expect(dialogText()).not.toContain(LOCKED_STALE);
+    // The preview is the dialog's list block, outside the title.
+    expect(document.querySelector(".dialogTitle ul")).toBeNull();
+    expect(
+      [...document.querySelectorAll(".dialogList li")].map((item) => item.textContent)
+    ).toEqual([OTHER_WORKTREE, STALE]);
     expect(vscodeMock.sentMessages.some((msg) => msg.command === "pruneWorktrees")).toBe(false);
     submitDialog();
 

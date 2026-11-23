@@ -146,6 +146,19 @@ declare global {
     type: "group";
     name: string;
   }
+  /**
+   * A plain list shown under the dialog's title, carrying no value: the
+   * entries prune removes, the files a forced removal deletes. It renders
+   * at body size in its own capped, scrolling block rather than as markup
+   * inside the title, where it took the title's size and scrolled the
+   * whole dialog, buttons included.
+   */
+  interface DialogListInput {
+    type: "list";
+    items: string[];
+    /** A quiet line under the list, for example that more files are not shown. */
+    note?: string;
+  }
   interface DialogInputDependency {
     /** Index of the `select` input that controls this input's visibility. */
     input: number;
@@ -161,6 +174,7 @@ declare global {
     | DialogCheckboxInput
     | DialogNoteInput
     | DialogGroupInput
+    | DialogListInput
   ) & {
     /** Hides this input's row while the controlling select holds another value. */
     dependsOn?: DialogInputDependency;

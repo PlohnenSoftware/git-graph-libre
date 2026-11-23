@@ -157,7 +157,7 @@ numbers are from `ccc1aaee`. A suggested order is at the end.
   it). A value-less row shifts the input indexes, so read the values by
   type, never by position (Webview UI Styling Guide).
 
-### V6 — Dialogs without inputs, and the lists in them
+### V6 — Dialogs without inputs, and the lists in them — done (P1)
 
 - **Extra gap.** `showFormDialog(message, [], …)` still renders an empty
   `table.dialogForm` after the title, so `.dialogTitle:not(:last-child)`

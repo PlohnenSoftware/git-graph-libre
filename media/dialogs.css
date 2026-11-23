@@ -414,6 +414,28 @@ dl.tagDetailsFields dd {
   font-size: 12px;
   line-height: 16px;
 }
+/* One list block for dialogs: body size, its own height cap and scroll, so a
+   long list never scrolls the dialog's buttons away with it. It replaced
+   lists pasted into the title, which took the title's size and the browser's
+   default list margins. */
+#dialog table.dialogForm td.dialogFormListCell {
+  white-space: normal;
+}
+#dialog .dialogList {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 18px;
+}
+#dialog .dialogListNote {
+  display: block;
+  margin-top: 6px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-size: 12px;
+  line-height: 16px;
+}
 /* Locked control: a setting the git command behind this dialog does not let
    the user choose. It is the ordinary checkbox in its forced state — enabled,
    focusable, full contrast — because greying it out would hide the very value
