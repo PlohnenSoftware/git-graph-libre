@@ -8,7 +8,7 @@ summary: >-
 
 # F4-08 — Worktrees, bare repositories, unsaved buffers and watcher refresh
 
-Status: waiting
+Status: ready
 
 Needs: F4-07 (and maintainer confirmation of BQ6)
 

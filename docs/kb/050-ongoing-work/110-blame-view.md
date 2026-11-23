@@ -140,8 +140,8 @@ worktrees under `/home/zam/Desktop/prog/_GGL/.ggl-wt/`.
 | F4-04 | Hotspot OKLCH palette, heat rail, legend and hover highlight | F4-03 | Haiku | integrated `444b9703` |
 | F4-05 | Parent-blame rewind stack, options, ignore-revs and find | F4-04 | Sonnet | ready |
 | F4-06 | Commit popover, Show in Graph, GGL Diff and Open File at Line | F4-05 | Sonnet | waiting |
-| F4-07 | Editor, Explorer, SCM and Commit Details entry points | F4-06 | Sonnet | in progress (pulled forward) |
-| F4-08 | Worktrees, bare repositories, unsaved buffers and watcher refresh | F4-07 | Sonnet | waiting |
+| F4-07 | Editor, Explorer, SCM and Commit Details entry points | F4-06 | Sonnet | integrated `f3a28214` |
+| F4-08 | Worktrees, bare repositories, unsaved buffers and watcher refresh | F4-07 | Sonnet | ready |
 | F4-09 | Optional: Rust engine blame read with parity tests | F4-01 | Muse Code | deferred (BQ8 profiling: `gix` slower) |
 
 ## Integration acceptance
@@ -219,3 +219,18 @@ revision). Nothing is pushed without explicit instruction.
   strict Biome on 14 files, typecheck, `l10n:check`, KB check, backend 1,579
   passed (60 skipped in the worktree) and webview 1,232 passed. F4-05 is
   ready.
+- `2026-11-23`: F4-07 (Gemini 4 Neon, `agy`; pulled forward) integrated at
+  `f3a28214`: "Show Blame" in the editor, Explorer and Source Control
+  (working tree and index) context menus — no editor title-bar item, per the
+  maintainer — with one `showBlame` command taking a `Uri` or a resource
+  state, a `shortTitle` for the menus, and the Graph's Commit Details file
+  menu entries "Show Blame at Commit" / "Show Blame Before Deletion" behind
+  the new `contextMenuActionsVisibility.commitDetailsViewFile.showBlame`
+  setting (default on); the bridge route validates the repository and path
+  and reports `tab.blame` failures. Integrator note: the first rebase
+  committed conflict markers into the l10n bundles (a masked resolver
+  refusal); the branch was reset to the agent's tip `2c019377` and rebased
+  again, and `integrate.sh` now scans every rebased commit for markers.
+  Gates on `f3a28214`: typecheck, `l10n:check`, KB check, strict Biome,
+  backend 1,581 passed (60 skipped in the worktree) and webview 1,243
+  passed. F4-08 is ready.
