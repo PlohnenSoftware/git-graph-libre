@@ -93,6 +93,22 @@ export class AvatarManager {
     this.extensionState.clearAvatarCache();
   }
 
+  /**
+   * The cached avatar for `email` as a data URI, or null when none is
+   * cached (F4-06's blame popover). Read-only: it never queues a fetch,
+   * so a surface that only shows what is already here stays offline.
+   */
+  public async cachedAvatarImage(email: string): Promise<string | null> {
+    const image = this.avatars[email]?.image;
+    if (image === undefined || image === "") return null;
+    try {
+      const data = await fs.promises.readFile(`${this.avatarStorageFolder}/${image}`);
+      return `data:image/${image.split(".")[1]};base64,${data.toString("base64")}`;
+    } catch {
+      return null;
+    }
+  }
+
   private async fetchAvatarsInterval() {
     if (this.queue.hasItems()) {
       const avatarRequest = this.queue.takeItem();

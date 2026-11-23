@@ -656,7 +656,15 @@ export function registerMessageHandlers(
         {
           extensionPath,
           outputChannel: outputChannel ?? { appendLine: () => undefined },
-          telemetry
+          telemetry,
+          // The popover's cross-links (F4-06), assembled like the commit
+          // details diff route above; the avatar only what is already
+          // cached and only while avatar fetching is on.
+          openDiffTab: openCommitDiffTab,
+          isDiffTabAvailable: () => diffTabAvailable(),
+          avatarFor: (email) =>
+            config.fetchAvatars() ? avatarManager.cachedAvatarImage(email) : Promise.resolve(null),
+          issueLinkingFor: (repo) => repoManager.getRepos()[repo]?.issueLinking ?? null
         }
       );
     });

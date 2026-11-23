@@ -34,6 +34,7 @@ import {
   readProcessFacts,
   readRepoRemotes
 } from "./diagnosticsReport";
+import { isDiffTabAvailable } from "./diffTab/engineSource";
 import { createScmDiffTabHandlers } from "./diffTab/scmCommands";
 import { createReflogSource } from "./reflogTab/reflogData";
 import { openReflogTab as openReflogPanel } from "./reflogTab/reflogTabPanel";
@@ -128,6 +129,8 @@ export type CommandManagerDeps = {
   repoManager: RepoManager;
   avatarManager: {
     clearCache(): void;
+    /** The blame popover's cached avatar read (F4-06); optional for older fakes. */
+    cachedAvatarImage?: (email: string) => Promise<string | null>;
   };
   openGraphView(targetRepo?: string): void;
   getCurrentPanel(): WebviewPanel | undefined;
@@ -731,7 +734,17 @@ export function createCommandManager(deps: CommandManagerDeps) {
           vscode.extensions?.getExtension("PlohnenSoftware.git-graph-libre")?.extensionPath ??
           process.cwd(),
         outputChannel: deps.outputChannel,
-        telemetry: deps.telemetry
+        telemetry: deps.telemetry,
+        // The popover's cross-links (F4-06): the GGL Diff tab rides the
+        // Source Control route, the avatar only what is already cached
+        // and only while avatar fetching is on.
+        openDiffTab: deps.openScmDiffTab,
+        isDiffTabAvailable: () => isDiffTabAvailable({ backend: deps.config.backend }),
+        avatarFor: (email) =>
+          deps.config.fetchAvatars()
+            ? (deps.avatarManager.cachedAvatarImage?.(email) ?? Promise.resolve(null))
+            : Promise.resolve(null),
+        issueLinkingFor: (repo) => deps.repoManager.getRepos()[repo]?.issueLinking ?? null
       }
     );
   }
