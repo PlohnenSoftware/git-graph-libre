@@ -418,6 +418,12 @@ export type WorktreeCheckoutStrings = {
   worktreeMissing: string;
 };
 
+/** A worktree named in a dialog's text by its folder; the full path shows on hover. */
+function worktreeNameHtml(worktreePath: string): string {
+  const name = escapeHtml(worktreeFolderName(worktreePath));
+  return `<span title="${escapeHtml(worktreePath)}">${name}</span>`;
+}
+
 /**
  * "Checked out in worktree <folder> (<path>)", plus the locked or missing
  * state when Git reports one (W11). Shared by the badge tooltip and the
@@ -787,6 +793,11 @@ class GitGraphView {
     });
     this.settingsWidgetBackingElem.addEventListener("click", () => {
       this.closeSettingsWidget();
+    });
+    document.getElementById("reflogBtn")?.addEventListener("click", () => {
+      if (this.currentRepo !== "") {
+        sendMessage({ command: "showReflog", repo: this.currentRepo });
+      }
     });
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
       this.forgetSignatures();
@@ -3427,7 +3438,9 @@ class GitGraphView {
     action: string,
     item: ContextMenuItem
   ): ContextMenuElement {
-    return this.isContextMenuActionVisible(group, action) ? item : null;
+    // Hidden is `undefined`, which the menu leaves out; `null` is a divider,
+    // and a hidden item written as one drew a divider in its place.
+    return this.isContextMenuActionVisible(group, action) ? item : undefined;
   }
   private buildUncommittedChangesContextMenu(sourceElem: HTMLElement): ContextMenuElement[] {
     return [
@@ -4427,31 +4440,31 @@ class GitGraphView {
             title: l10n.viewTagDetails + ELLIPSIS,
             onClick: () => this.loadTagDetails(refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("tag", "delete")
         ? {
             title: l10n.deleteTag + ELLIPSIS,
             onClick: () => this.showDeleteTagDialog(refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("tag", "push")
         ? {
             title: l10n.pushTag + ELLIPSIS,
             onClick: () => this.showPushTagDialog(refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("tag", "fetchTags")
         ? {
             title: l10n.fetchTags + ELLIPSIS,
             onClick: () => this.showFetchTagsDialog()
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("tag", "createArchive")
         ? {
             title: l10n.createArchive,
             onClick: () => this.createArchiveAction(refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("tag", "createWorktree")
         ? {
             title: l10n.createWorktree + ELLIPSIS,
@@ -4468,7 +4481,7 @@ class GitGraphView {
                 null
               )
           }
-        : null
+        : undefined
     ];
   }
   private loadTagDetails(refName: string) {
@@ -4484,7 +4497,10 @@ class GitGraphView {
       return this.buildDetachedBranchContextMenu(sourceElem, refName);
     }
 
-    const menu: ContextMenuElement[] = [];
+    // A branch another worktree has checked out opens with that worktree's own
+    // actions, grouped under the header that says so; the branch's follow.
+    const worktreeItems = this.branchWorktreeItems(refName);
+    const menu: ContextMenuElement[] = worktreeItems.length > 0 ? [...worktreeItems, null] : [];
     this.appendBranchCheckoutItem(menu, sourceElem, refName);
     menu.push(
       this.visibleContextMenuItem("branch", "createWorktree", {
@@ -4508,8 +4524,12 @@ class GitGraphView {
     );
     this.appendBranchRemoteItems(menu, refName);
     this.appendBranchMutationItems(menu, sourceElem, refName);
-    this.appendWorktreeMaintenanceItems(menu, refName);
-    this.appendWorktreeLifecycleItems(menu, refName);
+    // Prune Stale Worktrees is repository-wide, so any branch offers it; the
+    // worktree group above already carries it when it is shown. It is a group
+    // of its own: without the closing divider it headed the archive and
+    // compare items, which have nothing to do with worktrees.
+    const maintenance = worktreeItems.length > 0 ? [] : this.worktreeMaintenanceItems(refName);
+    if (maintenance.length > 0) menu.push(null, ...maintenance, null);
     this.appendBranchArchiveItem(menu, refName);
     this.appendBranchPullRequestItem(menu, refName, sourceElem);
     return menu;
@@ -4532,17 +4552,31 @@ class GitGraphView {
   ) {
     if (this.gitBranchHead === refName) return;
     if (!this.isContextMenuActionVisible("branch", "checkout")) return;
+    // Git refuses to switch to a branch another worktree has checked out; the
+    // worktree group (`branchWorktreeItems`) offers Open Worktree instead.
+    if (this.otherWorktreePath(refName) !== null) return;
 
-    // Git refuses to switch to a branch another worktree has checked out, so
-    // the way to work on it is that worktree.
-    if (this.otherWorktreePath(refName) !== null) {
-      menu.push(this.buildOpenWorktreeMenuItem(refName));
-      return;
-    }
     menu.push({
       title: l10n.checkoutBranch,
       onClick: () => this.checkoutBranchAction(sourceElem, refName)
     });
+  }
+  /**
+   * The actions of the worktree that has this branch checked out, one group at
+   * the top of the menu: open it; lock, unlock or move it, or remove or repair
+   * it when its folder is gone; and prune stale entries. Empty when no other
+   * worktree has the branch.
+   */
+  private branchWorktreeItems(refName: string): ContextMenuItem[] {
+    if (this.otherWorktreePath(refName) === null) return [];
+    const open = this.isContextMenuActionVisible("branch", "checkout")
+      ? [this.buildOpenWorktreeMenuItem(refName)]
+      : [];
+    return [
+      ...open,
+      ...this.worktreeLifecycleItems(refName),
+      ...this.worktreeMaintenanceItems(refName)
+    ];
   }
   /** The branch's other worktree, or null when no other worktree has it checked out. */
   private otherWorktreePath(branchName: string): string | null {
@@ -4710,22 +4744,19 @@ class GitGraphView {
   }
   /**
    * Locked menu items are not supported, so the actions Git refuses for a branch
-   * another worktree has checked out are left out, and this header says why.
+   * another worktree has checked out are left out, and this header's title says
+   * why. It names no worktree: where the branch is checked out is on its badge's
+   * tooltip and in the Worktrees list (maintainer, 2026-11-08).
    */
   private branchWorktreeMenuHeader(
     sourceElem: HTMLElement,
     refName: string
   ): ContextMenuHeader | undefined {
     const branchName = this.localBranchOfRef(sourceElem, refName);
-    const holders =
-      branchName === null ? [] : otherWorktreesHoldingBranch(this.gitWorktrees, branchName);
-    if (holders.length === 0) return undefined;
-
-    const where = holders.map((worktree) => describeWorktreeCheckout(worktree, l10n)).join("; ");
-    return {
-      title: l10n.branchInWorktreeTitle,
-      caption: l10n.branchInWorktreeCaption.replace("{0}", () => where)
-    };
+    if (branchName === null) return undefined;
+    return otherWorktreesHoldingBranch(this.gitWorktrees, branchName).length > 0
+      ? { title: l10n.branchInWorktreeTitle }
+      : undefined;
   }
   /** The local branch a branch or remote-branch label stands for; null for tags, stashes and detached labels. */
   private localBranchOfRef(sourceElem: HTMLElement, refName: string): string | null {
@@ -4753,16 +4784,19 @@ class GitGraphView {
       this.visibleContextMenuItem("branch", "push", {
         title: l10n.pushBranch + ELLIPSIS,
         onClick: () => this.showPushBranchDialog(refName)
-      }),
-      // Updating from upstream fetches into the branch, which Git refuses while
-      // another worktree has it checked out.
-      this.otherWorktreePath(refName) === null
-        ? this.visibleContextMenuItem("branch", "pull", {
-            title: l10n.pullBranch + ELLIPSIS,
-            onClick: () => this.showUpdateBranchFromUpstreamDialog(refName)
-          })
-        : null
+      })
     );
+    // Updating from upstream fetches into the branch, which Git refuses while
+    // another worktree has it checked out. It is left out, not pushed as null,
+    // which would draw a divider in its place.
+    if (this.otherWorktreePath(refName) === null) {
+      menu.push(
+        this.visibleContextMenuItem("branch", "pull", {
+          title: l10n.pullBranch + ELLIPSIS,
+          onClick: () => this.showUpdateBranchFromUpstreamDialog(refName)
+        })
+      );
+    }
   }
   private appendBranchMutationItems(
     menu: ContextMenuElement[],
@@ -4813,6 +4847,9 @@ class GitGraphView {
     if (remoteBranch === null) return menu;
 
     const { remote, branchName } = remoteBranch;
+    // Under the worktree header, the holding worktree's action is a group of
+    // its own, as in the local branch's menu; the remote branch's follow.
+    if (this.otherWorktreePath(branchName) !== null) menu.push(null);
     const remoteActions: ContextMenuElement[] = [
       ...this.buildIssueContextMenuItems(refName, sourceElem),
       this.isContextMenuActionVisible("remoteBranch", "delete")
@@ -4820,13 +4857,13 @@ class GitGraphView {
             title: l10n.deleteRemoteBranch + ELLIPSIS,
             onClick: () => this.showDeleteRemoteBranchDialog(remote, branchName, refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("remoteBranch", "merge")
         ? {
             title: l10n.merge + ELLIPSIS,
             onClick: () => this.showMergeBranchDialog(refName)
           }
-        : null,
+        : undefined,
       ...(this.hasLocalBranch(branchName) &&
       this.gitBranchHead !== branchName &&
       this.otherWorktreePath(branchName) === null &&
@@ -4843,13 +4880,13 @@ class GitGraphView {
             title: l10n.pullBranch + ELLIPSIS,
             onClick: () => this.showPullBranchDialog(remote, branchName, refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("remoteBranch", "createArchive")
         ? {
             title: l10n.createArchive,
             onClick: () => this.createArchiveAction(refName)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("remoteBranch", "createWorktree")
         ? {
             title: l10n.createWorktree + ELLIPSIS,
@@ -4872,7 +4909,7 @@ class GitGraphView {
                 sourceElem
               )
           }
-        : null
+        : undefined
     ];
     menu.push(...remoteActions);
     const pullRequestItem = this.buildCreatePullRequestMenuItem(branchName, remote, sourceElem);
@@ -4887,7 +4924,7 @@ class GitGraphView {
     refName: string,
     localName: string | null
   ): ContextMenuElement {
-    if (!this.isContextMenuActionVisible("remoteBranch", "checkout")) return null;
+    if (!this.isContextMenuActionVisible("remoteBranch", "checkout")) return undefined;
     if (localName !== null && this.otherWorktreePath(localName) !== null) {
       return this.buildOpenWorktreeMenuItem(localName);
     }
@@ -5306,8 +5343,8 @@ class GitGraphView {
       // switches to another one.
       showErrorDialog(
         l10n.dialogDeleteBranchInWorktree
-          .replace("{0}", escapeHtml(refName))
-          .replace("{1}", escapeHtml(worktreePath)),
+          .replace("{0}", () => escapeHtml(refName))
+          .replace("{1}", () => worktreeNameHtml(worktreePath)),
         null,
         null
       );
@@ -5376,14 +5413,13 @@ class GitGraphView {
   private worktreeHoldsBranchMessage(refName: string, holder: GitWorktree): string {
     const notes = [
       l10n.dialogDeleteBranchRemovable
-        .replace("{0}", escapeHtml(refName))
-        .replace("{1}", escapeHtml(holder.path))
+        .replace("{0}", () => escapeHtml(refName))
+        .replace("{1}", () => worktreeNameHtml(holder.path))
     ];
     if (holder.prunable !== null) notes.push(l10n.dialogDeleteBranchStaleNote);
     if (holder.locked !== null) {
-      notes.push(
-        l10n.dialogDeleteBranchLockedNote.replace("{0}", escapeHtml(holder.locked.reason))
-      );
+      const reason = escapeHtml(holder.locked.reason);
+      notes.push(l10n.dialogDeleteBranchLockedNote.replace("{0}", () => reason));
     }
     return notes.join(" ");
   }
@@ -5556,11 +5592,15 @@ class GitGraphView {
       ),
       [
         {
-          type: "text",
+          // Browse picks the folder to move into and keeps this folder's
+          // name, because the move target must not exist yet; the field
+          // stays editable, so a move can still rename.
+          type: "folder",
           name: l10n.dialogMoveWorktreeFolder,
           default: "",
-          placeholder: null,
-          required: true
+          required: true,
+          pickPurpose: "moveWorktree",
+          keepFolderName: worktreeFolderName(worktree.path)
         }
       ],
       l10n.dialogMoveWorktreeSubmit,
@@ -5593,16 +5633,16 @@ class GitGraphView {
     );
   }
   /** The branch's worktree gets the Lock, Unlock and Move items the popup's row offers (W23). */
-  private appendWorktreeLifecycleItems(menu: ContextMenuElement[], refName: string) {
+  /** Lock or Unlock, and Move, for the worktree that has the branch, when its folder exists. */
+  private worktreeLifecycleItems(refName: string): ContextMenuItem[] {
     const holder = this.worktreePathsFor(refName)
       .map((path) => this.worktreeAtPath(path))
       .find((worktree): worktree is GitWorktree => worktree !== null && worktree.prunable === null);
-    if (holder === undefined) return;
-    const items = lifecycleRowActions(holder).map((action) => ({
+    if (holder === undefined) return [];
+    return lifecycleRowActions(holder).map((action) => ({
       title: this.worktreeLifecycleTitle(action),
       onClick: () => this.handleWorktreeRowAction(action, holder)
     }));
-    menu.push(null, ...items);
   }
   private worktreeLifecycleTitle(action: WorktreeRowAction): string {
     if (action === "lock") return l10n.worktreeLock + ELLIPSIS;
@@ -5663,11 +5703,11 @@ class GitGraphView {
     );
   }
   /** Stale worktree actions for a branch, and Prune Stale Worktrees when any entry is stale. */
-  private appendWorktreeMaintenanceItems(menu: ContextMenuElement[], refName: string) {
+  private worktreeMaintenanceItems(refName: string): ContextMenuItem[] {
     const holder = this.worktreePathsFor(refName)
       .map((path) => this.worktreeAtPath(path))
       .find((worktree) => worktree?.prunable != null);
-    const items: ContextMenuElement[] = [];
+    const items: ContextMenuItem[] = [];
     if (holder !== undefined && holder !== null) {
       items.push(
         {
@@ -5693,7 +5733,7 @@ class GitGraphView {
         onClick: () => this.showPruneWorktreesDialog()
       });
     }
-    if (items.length > 0) menu.push(null, ...items);
+    return items;
   }
   private showPushBranchDialog(refName: string) {
     const remoteNames = this.getRemoteNames();
@@ -6355,25 +6395,25 @@ class GitGraphView {
             title: l10n.applyStash + ELLIPSIS,
             onClick: () => this.showApplyStashDialog(selector, sourceElem)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("stash", "createBranch")
         ? {
             title: l10n.branchFromStash + ELLIPSIS,
             onClick: () => this.showBranchFromStashDialog(selector, sourceElem)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("stash", "pop")
         ? {
             title: l10n.popStash + ELLIPSIS,
             onClick: () => this.showPopStashDialog(selector, sourceElem)
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("stash", "drop")
         ? {
             title: l10n.dropStash + ELLIPSIS,
             onClick: () => this.showDropStashDialog(selector, sourceElem)
           }
-        : null,
+        : undefined,
       null,
       this.isContextMenuActionVisible("stash", "copyName")
         ? {
@@ -6382,7 +6422,7 @@ class GitGraphView {
               sendMessage({ command: "copyToClipboard", type: "Stash Name", data: selector });
             }
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("stash", "copyHash")
         ? {
             title: l10n.copyStashHash,
@@ -6390,7 +6430,7 @@ class GitGraphView {
               sendMessage({ command: "copyToClipboard", type: "Stash Hash", data: hash });
             }
           }
-        : null
+        : undefined
     ];
   }
   private showApplyStashDialog(selector: string, sourceElem: HTMLElement) {
@@ -6841,12 +6881,17 @@ class GitGraphView {
       "author-date": l10n.orderAuthorDate,
       topo: l10n.orderTopological
     };
+    // Checked items, not a "✓ " typed into the title: the menu's check slot
+    // keeps a shown column, a hidden one and the toggle below in one text
+    // column, where a typed mark indented only the checked titles.
     const columnItems: ContextMenuElement[] = HIDEABLE_COLUMNS.map((column) => ({
-      title: `${this.hiddenColumns.has(column) ? "" : "✓ "}${labels[column]}`,
+      title: labels[column],
+      checked: !this.hiddenColumns.has(column),
       onClick: () => this.toggleColumnVisibility(column)
     }));
     const orderingItems: ContextMenuElement[] = COMMIT_ORDERINGS.map((ordering) => ({
-      title: `${commitOrdering === ordering ? "✓ " : ""}${orderingLabels[ordering]}`,
+      title: orderingLabels[ordering],
+      checked: commitOrdering === ordering,
       onClick: () => this.setCommitOrdering(ordering)
     }));
     return [
@@ -7690,13 +7735,13 @@ class GitGraphView {
               title: l10n.viewFileAtRevision,
               onClick: () => this.viewGitFileAtRevision(fileChange)
             }
-          : null,
+          : undefined,
         this.isContextMenuActionVisible("commitDetailsViewFile", "compareWithWorkingTree")
           ? {
               title: l10n.compareFileWithWorkingTree,
               onClick: () => this.compareGitFileWithWorkingTree(fileChange)
             }
-          : null
+          : undefined
       );
     }
 
@@ -7728,13 +7773,13 @@ class GitGraphView {
             onClick: () =>
               this.copyFilePathToClipboard(this.absoluteFilePathForRepo(fileChange.newFilePath))
           }
-        : null,
+        : undefined,
       this.isContextMenuActionVisible("commitDetailsViewFile", "copyRelativeFilePath")
         ? {
             title: l10n.copyRelativeFilePath,
             onClick: () => this.copyFilePathToClipboard(fileChange.newFilePath)
           }
-        : null
+        : undefined
     );
 
     return menu;
@@ -8513,7 +8558,7 @@ function renderContextMenuItem(item: ContextMenuItem, index: number): string {
   return `<li class="contextMenuItem${checkboxClass}" data-index="${index}"${checkboxAttributes}>${checkbox}${item.title}</li>`;
 }
 
-function renderContextMenuItems(visibleItems: ContextMenuElement[]): string {
+function renderContextMenuItems(visibleItems: ContextMenuRow[]): string {
   return visibleItems
     .map((item, index) =>
       item === null
@@ -8570,11 +8615,17 @@ function showContextMenu(
   contextMenuSource = sourceElem;
   contextMenuSource.classList.add("contextMenuActive");
 }
-function normalizeContextMenuItems(items: ContextMenuElement[]) {
-  const visibleItems: ContextMenuElement[] = [];
+/**
+ * The rows a menu draws from the entries its builder wrote: hidden entries
+ * (`undefined`) are left out, and dividers (`null`) are kept only between
+ * two items, so a group that ends up empty leaves no stray line.
+ */
+function normalizeContextMenuItems(items: ContextMenuElement[]): ContextMenuRow[] {
+  const visibleItems: ContextMenuRow[] = [];
   let dividerPending = false;
 
   for (const item of items) {
+    if (item === undefined) continue;
     if (item === null) {
       dividerPending = visibleItems.length > 0;
       continue;
@@ -8773,7 +8824,11 @@ function showFormDialog(
   bindFolderDialogInputs(inputs);
 }
 /** The folder field a Browse click is filling, until the picker answers (W22F). */
-let pendingFolderPick: { requestId: number; field: HTMLInputElement } | null = null;
+let pendingFolderPick: {
+  requestId: number;
+  field: HTMLInputElement;
+  keepFolderName: string | null;
+} | null = null;
 let folderPickRequests = 0;
 /** Wires each folder field's Browse button to the folder picker (W22F). */
 function bindFolderDialogInputs(inputs: DialogInput[]) {
@@ -8781,15 +8836,37 @@ function bindFolderDialogInputs(inputs: DialogInput[]) {
     if (input.type !== "folder") continue;
     document
       .getElementById(`dialogBrowse${index}`)
-      ?.addEventListener("click", () => requestFolderPick(index));
+      ?.addEventListener("click", () => requestFolderPick(index, input));
   }
 }
-function requestFolderPick(index: number) {
+function requestFolderPick(index: number, input: Extract<DialogInput, { type: "folder" }>) {
   const field = document.getElementById(`dialogInput${index}`) as HTMLInputElement | null;
   if (field === null) return;
   folderPickRequests += 1;
-  pendingFolderPick = { requestId: folderPickRequests, field };
-  sendMessage({ command: "pickFolder", requestId: folderPickRequests });
+  pendingFolderPick = {
+    requestId: folderPickRequests,
+    field,
+    keepFolderName: input.keepFolderName ?? null
+  };
+  sendMessage({
+    command: "pickFolder",
+    requestId: folderPickRequests,
+    purpose: input.pickPurpose ?? "createWorktree"
+  });
+}
+/**
+ * The value a picked folder gives its field: the folder itself, or, for a
+ * field that keeps a folder name, that name inside the picked folder. The
+ * separator follows the picked path's own, as `defaultWorktreePath` does.
+ */
+function folderPickValue(picked: string, keepFolderName: string | null): string {
+  if (keepFolderName === null) return picked;
+  const separator = picked.includes("\\") ? "\\" : "/";
+  // No trailing-separator regex: a quantifier before the anchor is the
+  // super-linear shape S8786 bans, so trim as worktreeFolderName does.
+  let end = picked.length;
+  while (end > 0 && (picked[end - 1] === "/" || picked[end - 1] === "\\")) end -= 1;
+  return `${picked.slice(0, end)}${separator}${keepFolderName}`;
 }
 /** The picker's answer: a picked folder fills the field, and a cancelled picker changes nothing. */
 function finishFolderPick(msg: Extract<GGL.ResponseMessage, { command: "pickFolder" }>) {
@@ -8797,7 +8874,7 @@ function finishFolderPick(msg: Extract<GGL.ResponseMessage, { command: "pickFold
   if (pending?.requestId !== msg.requestId) return;
   pendingFolderPick = null;
   if (msg.path === null || !pending.field.isConnected) return;
-  pending.field.value = msg.path;
+  pending.field.value = folderPickValue(msg.path, pending.keepFolderName);
   // An input event re-runs the dialog's own check, which unblocks the action.
   pending.field.dispatchEvent(new Event("input"));
 }

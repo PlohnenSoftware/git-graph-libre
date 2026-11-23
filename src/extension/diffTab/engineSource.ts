@@ -22,7 +22,14 @@ import {
   type LineRange,
   type LinesDiff
 } from "@/backend/engine/diffTexts";
-import { readStagedFile } from "@/backend/engine/stagedFile";
+import {
+  isEngineTooLargeError,
+  isMaxBufferError,
+  MAX_FILE_READ_BYTES,
+  readRevisionGitlink,
+  readStagedFile,
+  startsLikeCommitHeader
+} from "@/backend/engine/stagedFile";
 import { runGitCommand } from "@/backend/utils/gitRunner";
 import { logBackendRoute } from "@/backend/utils/operationLog";
 import type {
@@ -59,8 +66,13 @@ export const DIFF_TAB_AVAILABLE_CONTEXT = "git-graph-libre.diffTabAvailable";
 /** How far into a blob git looks before deciding it is binary (`blob.rs`). */
 const BINARY_SNIFF_LEN = 8000;
 const BYTES_PER_MEBIBYTE = 1024 * 1024;
+const READ_CHUNK_BYTES = BYTES_PER_MEBIBYTE;
 
-type SideText = { text: string } | { binary: true } | { error: string; reason: string };
+type SideText =
+  | { text: string }
+  | { binary: true }
+  | { tooLarge: true }
+  | { error: string; reason: string };
 
 /** The tab's engine-backed source; wire it with the extension's live deps. */
 export function createEngineDiffTabSource(deps: EngineDiffTabSourceDeps = {}): DiffTabSource {
@@ -80,6 +92,10 @@ async function loadDiffTab(
     const readMs = elapsedMs(started);
     if ("error" in left) return failurePayload(left, readMs);
     if ("error" in right) return failurePayload(right, readMs);
+    if ("tooLarge" in left || "tooLarge" in right) {
+      logBackendRoute("diffTab", `backend=engine read=${readMs} diff=0 lines=0 result=tooLarge`);
+      return { kind: "tooLarge" };
+    }
     if ("binary" in left || "binary" in right) {
       logBackendRoute("diffTab", `backend=engine read=${readMs} diff=0 lines=0 result=binary`);
       return { kind: "binary" };
@@ -197,6 +213,7 @@ async function readIndexSide(
     isVerified: deps.isVerified
   });
   if ("binary" in staged) return { binary: true };
+  if ("tooLarge" in staged) return { tooLarge: true };
   if ("missing" in staged) return { text: "" };
   return { text: staged.text };
 }
@@ -225,8 +242,28 @@ async function readRevisionSide(
         args: ["show", object]
       }
     );
-  } catch {
-    return { text: "" };
+  } catch (error) {
+    if (isMaxBufferError(error)) return { tooLarge: true };
+    // A failed show may be a gitlink: show the diff-display line the engine
+    // returns for it (not what `git show` prints), else the path is missing.
+    const gitlink = await readRevisionGitlink(
+      repo,
+      ref,
+      filePath,
+      (deps.gitPath ?? (() => "git"))()
+    );
+    return { text: gitlink ?? "" };
+  }
+  // A gitlink whose commit exists here makes `git show` succeed with that commit;
+  // only commit-header-like output pays for the gitlink check.
+  if (startsLikeCommitHeader(bytes)) {
+    const gitlink = await readRevisionGitlink(
+      repo,
+      ref,
+      filePath,
+      (deps.gitPath ?? (() => "git"))()
+    );
+    if (gitlink !== null) return { text: gitlink };
   }
   return decodeBytes(bytes);
 }
@@ -260,7 +297,12 @@ async function readRevisionFromEngine(
       return { binary: true };
     }
     return viaCli("malformedPayload");
-  } catch {
+  } catch (error) {
+    // Too large is the engine's answer, not a failure to retry on the CLI.
+    if (isEngineTooLargeError(error)) {
+      logBackendRoute("loadCommitFile", "backend=engine result=tooLarge");
+      return { tooLarge: true };
+    }
     return viaCli("engineThrew");
   }
 }
@@ -273,7 +315,9 @@ async function readWorkingTreeSide(repo: string, filePath: string): Promise<Side
   }
   let bytes: Buffer;
   try {
-    bytes = await fs.readFile(absolutePath);
+    const read = await readBounded(absolutePath, MAX_FILE_READ_BYTES);
+    if (read === null) return { tooLarge: true };
+    bytes = read;
   } catch (error) {
     const code = (error as { code?: unknown } | null)?.code;
     if (code === "ENOENT" || code === "ENOTDIR") return { text: "" };
@@ -281,6 +325,31 @@ async function readWorkingTreeSide(repo: string, filePath: string): Promise<Side
     return { error: message, reason: "readFailed" };
   }
   return decodeBytes(bytes);
+}
+
+/**
+ * The file's bytes, or null when it is above `limit`. The read itself is
+ * bounded (it stops after `limit + 1` bytes), so a file that grows after the
+ * size check is still bounded; the size check only skips the read when the
+ * file is already too large.
+ */
+export async function readBounded(absolutePath: string, limit: number): Promise<Buffer | null> {
+  const handle = await fs.open(absolutePath, "r");
+  try {
+    if ((await handle.stat()).size > limit) return null;
+    const chunks: Buffer[] = [];
+    let total = 0;
+    while (total <= limit) {
+      const chunk = Buffer.allocUnsafe(Math.min(READ_CHUNK_BYTES, limit + 1 - total));
+      const { bytesRead } = await handle.read(chunk, 0, chunk.length, null);
+      if (bytesRead === 0) break;
+      chunks.push(chunk.subarray(0, bytesRead));
+      total += bytesRead;
+    }
+    return total > limit ? null : Buffer.concat(chunks, total);
+  } finally {
+    await handle.close();
+  }
 }
 
 /** Same rule as `resolveRepoFilePath` in `messageHandler.ts`. */
@@ -310,7 +379,7 @@ function showGitObject(gitPath: string, repo: string, object: string): Promise<B
     execFile(
       gitPath,
       ["show", object],
-      { cwd: repo, encoding: "buffer", maxBuffer: 1024 * 1024 * 64 },
+      { cwd: repo, encoding: "buffer", maxBuffer: MAX_FILE_READ_BYTES },
       (error, stdout) => {
         if (error instanceof Error) reject(error);
         else resolve(stdout);

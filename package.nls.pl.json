@@ -130,5 +130,6 @@
   "config.uncommittedChanges.fileViewMode": "Określa sposób wyświetlania niezatwierdzonych zmian w panelu przygotowania.",
   "config.uncommittedChanges.fileViewMode.title": "Tryb widoku niezatwierdzonych zmian",
   "config.uncommittedChanges.fileViewMode.tree": "Grupuj niezatwierdzone zmiany według folderów",
-  "config.uncommittedChanges.fileViewMode.list": "Pokaż niezatwierdzone zmiany jako płaską listę ścieżek"
+  "config.uncommittedChanges.fileViewMode.list": "Pokaż niezatwierdzone zmiany jako płaską listę ścieżek",
+  "command.showReflog": "Pokaż reflog"
 }

@@ -51,7 +51,8 @@ async function main() {
     entryPoints: {
       "web.min": "src/webview/main.ts",
       "startup.min": "src/webview/startup.ts",
-      "diffTab.min": "src/webview/diffTab/main.ts"
+      "diffTab.min": "src/webview/diffTab/main.ts",
+      "reflogTab.min": "src/webview/reflogTab/main.ts"
     },
     bundle: true,
     format: "iife",

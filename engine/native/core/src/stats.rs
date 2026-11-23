@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use crate::error::{Result, ResultExt};
 use crate::log::every_tip;
 use crate::repository::Repo;
+use crate::text::{self, CommitText};
 use crate::types::{GitActivityCell, GitAuthorStat};
 
 /// Commit counts per author, across all refs, merge commits excluded - what
@@ -20,6 +21,7 @@ use crate::types::{GitActivityCell, GitAuthorStat};
 pub fn author_stats(repo: &Repo) -> Result<Vec<GitAuthorStat>> {
     let tips = every_tip(repo)?;
     let git = repo.borrow();
+    text::ensure_utf8_output(&git)?;
 
     let mut counts: HashMap<(String, String), usize> = HashMap::new();
     for info in git
@@ -41,8 +43,13 @@ pub fn author_stats(repo: &Repo) -> Result<Vec<GitAuthorStat>> {
         let Ok(author) = commit.author() else {
             continue;
         };
+        // A commit this read cannot show as Git does fails the whole read, never one name.
+        let text = CommitText::of(&commit)?;
         *counts
-            .entry((author.name.to_string(), author.email.to_string()))
+            .entry((
+                text.decode(author.name)?.into_owned(),
+                text.decode(author.email)?.into_owned(),
+            ))
             .or_insert(0) += 1;
     }
 

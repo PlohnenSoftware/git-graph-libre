@@ -283,7 +283,6 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     checkoutBranch: translate("action.checkoutBranch"),
     openWorktree: translate("action.openWorktree"),
     branchInWorktreeTitle: translate("ui.branchInWorktreeTitle"),
-    branchInWorktreeCaption: translate("ui.branchInWorktreeCaption"),
     worktreeHead: translate("ui.worktreeHead"),
     checkedOutInWorktree: translate("ui.checkedOutInWorktree"),
     worktreeLocked: translate("ui.worktreeLocked"),
@@ -355,6 +354,7 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     dialogWorktreeCreatedNothing: translate("dialog.worktreeCreated.nothing"),
     dialogWorktreeCreatedSubmit: translate("dialog.worktreeCreated.submit"),
     worktrees: translate("ui.worktrees"),
+    showReflog: translate("reflog.show"),
     worktreesClose: translate("ui.worktreesClose"),
     worktreeBadgeMain: translate("ui.worktreeBadgeMain"),
     worktreeBadgeCurrent: translate("ui.worktreeBadgeCurrent"),
@@ -767,7 +767,6 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     componentStatusRouteUnverified: translate("componentStatus.route.unverified"),
     componentStatusRouteUnavailable: translate("componentStatus.route.unavailable"),
     componentStatusRouteHandedBack: translate("componentStatus.route.handedBack"),
-    componentStatusRouteTopoOrdering: translate("componentStatus.route.topoOrdering"),
     componentStatusRouteReflog: translate("componentStatus.route.reflog"),
     componentStatusRouteUnreachableCommits: translate("componentStatus.route.unreachableCommits"),
     componentStatusRouteGlobPattern: translate("componentStatus.route.globPattern")

@@ -1,15 +1,20 @@
 //! Reading the references a view load needs, in one pass.
 //!
-//! Refs dominate the cost of opening the view on a large repository — particularly one whose
-//! remote carries a `changes/` tree of tens of thousands of code-review refs. Two things keep
-//! this affordable, and both are about *not* doing work:
+//! Refs dominate the cost of opening the view on a large repository. Two things keep this
+//! affordable, and both are about *not* doing work:
 //!
-//! 1. **Names are filtered before any object is read.** A ref the view is not showing costs the
-//!    price of a string comparison and nothing more.
+//! 1. **Names are filtered before any object is read.** A ref the view is not showing, such as one
+//!    on a hidden remote or a `/HEAD` alias when those are off, costs the price of a string
+//!    comparison and nothing more.
 //! 2. **Remote-tracking refs are never peeled.** Peeling means an object lookup per ref, several
 //!    times the cost of the scan itself. Only tags — local ones, and the rare
 //!    `refs/remotes/<remote>/tags/*` created by an explicit fetch refspec — are peeled, because
 //!    only tags can point at something other than a commit.
+//!
+//! Every `refs/remotes/<remote>/…` entry is a remote branch, as the CLI shows it, with one
+//! exception: a `refs/remotes/<remote>/…/tags/<tag>` entry is a tag, displayed as `<remote>/<tag>`
+//! and mirrored under its bare `<tag>` (see `remote_tag_name`). That is what a fetch refspec such as
+//! `+refs/tags/*:refs/remotes/<remote>/tags/*` creates, and both backends show it as a tag.
 
 use std::collections::HashMap;
 
@@ -94,6 +99,7 @@ pub fn read_refs(repo: &Repo, options: &RefReadOptions) -> Result<RefSnapshot> {
         ref_data.tags.push(GitTagRef {
             hash: hash.clone(),
             name: name.clone(),
+            ref_name: format!("refs/tags/{name}"),
             annotated: false,
             signed,
         });
@@ -105,6 +111,7 @@ pub fn read_refs(repo: &Repo, options: &RefReadOptions) -> Result<RefSnapshot> {
             if peeled != hash {
                 ref_data.tags.push(GitTagRef {
                     hash: peeled,
+                    ref_name: format!("refs/tags/{name}"),
                     name,
                     annotated: true,
                     signed,
@@ -165,20 +172,16 @@ fn read_remote_refs(
             continue;
         };
 
-        if options
-            .hide_remotes
-            .iter()
-            .any(|remote| remote_ref.starts_with(&format!("{remote}/")))
-        {
+        // A hidden remote is one whose name is followed by `/` in the ref. Comparing without
+        // formatting `<remote>/` per ref keeps this check allocation-free.
+        if options.hide_remotes.iter().any(|remote| {
+            remote_ref
+                .strip_prefix(remote.as_str())
+                .is_some_and(|rest| rest.starts_with('/'))
+        }) {
             continue;
         }
         if !options.show_remote_heads && remote_ref.ends_with("/HEAD") {
-            continue;
-        }
-        // Code-review change refs — the `refs/remotes/<remote>/changes/**` layout Gerrit fetches
-        // into. A repository using them can hold tens of thousands, which would swamp both the
-        // graph and the Branches dropdown, so they are skipped by name before any object is read.
-        if remote_ref.contains("/changes/") {
             continue;
         }
         // `refs/remotes/<remote>/HEAD` is symbolic, and `for-each-ref %(objectname)` reports the
@@ -204,6 +207,7 @@ fn read_remote_refs(
             ref_data.tags.push(GitTagRef {
                 hash,
                 name,
+                ref_name: full_name.clone(),
                 annotated: false,
                 signed: false,
             });
@@ -230,12 +234,14 @@ fn read_remote_refs(
         let peeled = peeled.detach().to_string();
         if peeled != ref_data.tags[index].hash {
             let name = ref_data.tags[index].name.clone();
+            let ref_name = ref_data.tags[index].ref_name.clone();
             // Recorded on the unpeeled record too, so both records of one tag agree.
             let signed = tag_object.is_some_and(|id| tag_signature_present(git, id));
             ref_data.tags[index].signed = signed;
             ref_data.tags.push(GitTagRef {
                 hash: peeled,
                 name,
+                ref_name,
                 annotated: true,
                 signed,
             });

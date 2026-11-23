@@ -197,6 +197,7 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         { extensionPath: context.extensionPath, outputChannel: logger }
       ),
+    isVerified: (repo) => repoSearch.isVerified(repo),
     telemetry
   });
 

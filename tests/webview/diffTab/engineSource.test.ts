@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -12,6 +13,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { loadEngineAddon } from "@/backend/engine/addon";
 import type { LinesDiff } from "@/backend/engine/diffTexts";
+import { MAX_FILE_READ_BYTES } from "@/backend/engine/stagedFile";
 import { setOperationLog } from "@/backend/utils/operationLog";
 import type { DiffTabRequest, DiffTabSide } from "@/diffTabTypes";
 import {
@@ -20,6 +22,7 @@ import {
   type EngineDiffTabSourceDeps,
   isDiffTabAvailable,
   mapDiffTabChanges,
+  readBounded,
   setDiffTabAvailableContext
 } from "@/extension/diffTab/engineSource";
 
@@ -330,6 +333,50 @@ describe("createEngineDiffTabSource limits and failures", () => {
     expect(fake.diffTextsFn).toHaveBeenCalledTimes(1);
   });
 
+  it("answers tooLarge for the engine's TooLarge error on a revision and a staged side, with no CLI retry", async () => {
+    const dir = newRepo();
+    const tooLarge = async (): Promise<string> => {
+      throw new Error("TooLarge: the blob is 70000000 bytes and is above the limit");
+    };
+    const fake = fakeAddon({ loadCommitFile: tooLarge, loadIndexFile: tooLarge });
+    const source = createEngineDiffTabSource(engineDeps(fake.addon));
+
+    expect(
+      await source.load(
+        request(dir, { kind: "revision", ref: "HEAD", path: "a.txt" }, { kind: "empty" })
+      )
+    ).toEqual({ kind: "tooLarge" });
+    expect(
+      await source.load(request(dir, { kind: "empty" }, { kind: "index", path: "a.txt" }))
+    ).toEqual({ kind: "tooLarge" });
+    expect(fake.diffTextsFn).not.toHaveBeenCalled();
+  });
+
+  it("bounds the working-tree read at 64 MiB, at the limit and one byte over", async () => {
+    const dir = newRepo();
+    const limit = MAX_FILE_READ_BYTES;
+    const atLimit = path.join(dir, "at.txt");
+    const overLimit = path.join(dir, "over.txt");
+    fs.writeFileSync(atLimit, "");
+    fs.truncateSync(atLimit, limit);
+    fs.writeFileSync(overLimit, "");
+    fs.truncateSync(overLimit, limit + 1);
+
+    expect((await readBounded(atLimit, limit))?.length).toBe(limit);
+    expect(await readBounded(overLimit, limit)).toBeNull();
+    // A tiny limit exercises the read loop itself, not only the size check.
+    fs.writeFileSync(path.join(dir, "small.txt"), "0123456789");
+    expect((await readBounded(path.join(dir, "small.txt"), 10))?.toString()).toBe("0123456789");
+    expect(await readBounded(path.join(dir, "small.txt"), 9)).toBeNull();
+
+    const fake = fakeAddon();
+    const source = createEngineDiffTabSource(engineDeps(fake.addon));
+    expect(
+      await source.load(request(dir, { kind: "empty" }, { kind: "workingTree", path: "over.txt" }))
+    ).toEqual({ kind: "tooLarge" });
+    expect(fake.diffTextsFn).not.toHaveBeenCalled();
+  });
+
   it("passes the user's diff settings to the seam, with moves off", async () => {
     const dir = newRepo();
     const fake = fakeAddon();
@@ -531,4 +578,103 @@ describe("fixture acceptance through the real engine", () => {
       expect(payload.changes).toEqual(tsMappedChanges(original.split("\n"), modified.split("\n")));
     });
   }
+});
+
+describe("createEngineDiffTabSource gitlinks", () => {
+  const SUBMODULE_COMMIT = "1234567890abcdef1234567890abcdef12345678";
+
+  /** A repo whose HEAD tree and index hold a gitlink whose commit is not in the repo. */
+  function repoWithGitlink(): string {
+    const dir = newRepo();
+    git(["update-index", "--add", "--cacheinfo", `160000,${SUBMODULE_COMMIT},sub`], dir);
+    git(["commit", "-m", "add a gitlink"], dir);
+    return dir;
+  }
+
+  function throwingReaders() {
+    const fail = async (): Promise<string> => {
+      throw new Error("Git: unavailable");
+    };
+    return fakeAddon({ loadCommitFile: fail, loadIndexFile: fail });
+  }
+
+  it("shows the Subproject commit line for a revision and the index on the CLI route", async () => {
+    const dir = repoWithGitlink();
+    const cli: EngineDiffTabSourceDeps = {
+      gitPath: () => "git",
+      backend: () => "auto",
+      // The diff itself always runs in the addon. This one's file readers throw,
+      // so both reads land on the CLI route under test.
+      addonProvider: () => throwingReaders().addon,
+      isVerified: () => true
+    };
+
+    const payload = await createEngineDiffTabSource(cli).load(
+      request(dir, { kind: "revision", ref: "HEAD", path: "sub" }, { kind: "index", path: "sub" })
+    );
+
+    // The diff-display text, not `git show` output: both sides read the same line.
+    expect(payload).toMatchObject({
+      kind: "diff",
+      originalLines: [`Subproject commit ${SUBMODULE_COMMIT}`, ""],
+      modifiedLines: [`Subproject commit ${SUBMODULE_COMMIT}`, ""]
+    });
+  });
+
+  it("shows the same lines through the engine when an addon is built", async (context) => {
+    const addon = loadEngineAddon();
+    if (typeof addon?.diffTexts !== "function") {
+      context.skip("Engine addon with diffTexts not built — run pnpm run engine:build.");
+      return;
+    }
+    const dir = repoWithGitlink();
+
+    const payload = await createEngineDiffTabSource(engineDeps(addon)).load(
+      request(dir, { kind: "revision", ref: "HEAD", path: "sub" }, { kind: "index", path: "sub" })
+    );
+
+    expect(payload).toMatchObject({
+      kind: "diff",
+      originalLines: [`Subproject commit ${SUBMODULE_COMMIT}`, ""],
+      modifiedLines: [`Subproject commit ${SUBMODULE_COMMIT}`, ""]
+    });
+  });
+
+  it("still reads a missing revision path as empty on the CLI route", async () => {
+    const dir = repoWithGitlink();
+    const cli: EngineDiffTabSourceDeps = {
+      gitPath: () => "git",
+      backend: () => "auto",
+      // The diff itself always runs in the addon. This one's file readers throw,
+      // so both reads land on the CLI route under test.
+      addonProvider: () => throwingReaders().addon,
+      isVerified: () => true
+    };
+    const payload = await createEngineDiffTabSource(cli).load(
+      request(dir, { kind: "revision", ref: "HEAD", path: "no-such" }, { kind: "empty" })
+    );
+    expect(payload).toMatchObject({ kind: "diff", originalLines: [""], modifiedLines: [""] });
+  });
+
+  it("shows the Subproject line on the CLI route when the pointed-at commit exists here", async () => {
+    const dir = newRepo();
+    const target = execFileSync("git", ["rev-parse", "HEAD"], { cwd: dir }).toString().trim();
+    git(["update-index", "--add", "--cacheinfo", `160000,${target},sub`], dir);
+    git(["commit", "-m", "gitlink to an existing commit"], dir);
+    const cli: EngineDiffTabSourceDeps = {
+      gitPath: () => "git",
+      backend: () => "auto",
+      addonProvider: () => throwingReaders().addon,
+      isVerified: () => true
+    };
+
+    const payload = await createEngineDiffTabSource(cli).load(
+      request(dir, { kind: "revision", ref: "HEAD", path: "sub" }, { kind: "empty" })
+    );
+
+    expect(payload).toMatchObject({
+      kind: "diff",
+      originalLines: [`Subproject commit ${target}`, ""]
+    });
+  });
 });

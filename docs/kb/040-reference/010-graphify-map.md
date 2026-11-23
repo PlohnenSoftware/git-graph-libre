@@ -1,6 +1,6 @@
 ---
 summary: >-
-  The graphify graph of code and knowledge base, regenerated `2026-11-07` with
+  The graphify graph of code and knowledge base, regenerated `2026-11-09` with
   `pnpm run kb:graph` (`graphify update`, the knowledge base's own `contains`
   and `mentions` edges, re-clustering, `graphify tree`); the `graphify-out/`
   artifacts, how the knowledge base sits in the graph, and query examples.
@@ -9,7 +9,12 @@ always_read: true
 
 # Graphify Map
 
-Regenerated on `2026-11-07` with `pnpm run kb:graph` on top of `219a32e`
+Regenerated on `2026-11-09` with `pnpm run kb:graph` on top of `c9ce85b`
+(the Engine upstream integration closed with R01–R09): 7,396 nodes, 19,048
+edges, and 353 communities, of which 2,784 edges are the knowledge base's
+own (158 `contains`, 2,626 `mentions`). Before that, on `2026-11-08` on top
+of `354b34a`: 7,365 nodes, 18,929 edges, 347 communities. Previously, on
+`2026-11-07`, on top of `219a32e`
 (the existing-branch dialog redesign on `main`): 7,011 nodes, 17,944 edges,
 and 329 communities before the final verification notes. Previously, on
 `2026-11-06` on top of `6f815c5`

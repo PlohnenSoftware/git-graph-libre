@@ -89,6 +89,15 @@ describe("buildWebviewToolbar", () => {
     expect(pushTags?.querySelector("svg.octicon-upload")).not.toBeNull();
     expect(fetch?.nextElementSibling?.id).toBe("pushTagsBtn");
 
+    // "Show Reflog" opens the Reflog tab for the graph's repository (F1-03).
+    const reflog = document.getElementById("reflogBtn") as HTMLButtonElement | null;
+    expect(reflog?.tagName).toBe("BUTTON");
+    expect(reflog?.type).toBe("button");
+    expect(reflog?.hidden).toBe(false);
+    expect(reflog?.getAttribute("aria-label")).toBe("Show Reflog");
+    expect(reflog?.getAttribute("title")).toBe("Show Reflog");
+    expect(reflog?.querySelector("svg.octicon-history")).not.toBeNull();
+
     expect(document.getElementById("terminalBtn")).toBeNull();
 
     const settings = document.getElementById("settingsBtn") as HTMLButtonElement | null;
@@ -133,6 +142,7 @@ describe("buildWebviewToolbar", () => {
       searchHistory: "Search <history>",
       fetch: 'Fetch "remote"',
       pushAllTags: "Push All <tags>",
+      showReflog: "Show <Reflog>",
       locateHead: "Locate <HEAD>",
       refresh: 'Refresh "now"'
     });
@@ -159,6 +169,7 @@ describe("buildWebviewToolbar", () => {
     );
     expect(document.getElementById("fetchBtn")?.getAttribute("title")).toBe('Fetch "remote"');
     expect(document.getElementById("pushTagsBtn")?.getAttribute("title")).toBe("Push All <tags>");
+    expect(document.getElementById("reflogBtn")?.getAttribute("title")).toBe("Show <Reflog>");
     expect(document.getElementById("blinkHeadBtn")?.getAttribute("aria-label")).toBe(
       "Locate <HEAD>"
     );

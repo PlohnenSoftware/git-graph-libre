@@ -535,8 +535,26 @@ describe("engine/CLI parity: loadCommits", () => {
     for (const commitOrdering of ["date", "author-date"] as const) {
       await expectCommitsParity(branchy, `ordering=${commitOrdering}`, { commitOrdering }, true);
     }
-    // Topo stays on the CLI (tie-breaks differ visibly) — still identical.
-    await expectCommitsParity(branchy, "ordering=topo", { commitOrdering: "topo" }, false);
+    // Topo is served by the engine and identical to `git log --topo-order`.
+    await expectCommitsParity(branchy, "ordering=topo", { commitOrdering: "topo" }, true);
+    await expectCommitsParity(
+      branchy,
+      "ordering=topo branches",
+      { commitOrdering: "topo", branches: ["feature"] },
+      true
+    );
+    await expectCommitsParity(
+      branchy,
+      "ordering=topo authors",
+      { commitOrdering: "topo", authors: ["Ada"] },
+      true
+    );
+    await expectCommitsParity(
+      branchy,
+      "ordering=topo maxCommits",
+      { commitOrdering: "topo", maxCommits: 3 },
+      true
+    );
     await expectCommitsParity(branchy, "showStashes", { showStashes: true }, true);
     await expectCommitsParity(branchy, "maxCommits", { maxCommits: 1 }, true);
     await expectCommitsParity(branchy, "maxCommits", { maxCommits: 3 }, true);
@@ -581,6 +599,33 @@ describe("engine/CLI parity: loadCommits", () => {
     );
   }, 120000);
 
+  it("agrees on refs with changes segments, and on a hidden remote", async (context) => {
+    if (loadEngineAddon() === null) {
+      context.skip("Engine addon not built — run pnpm run engine:build for the engine half.");
+      return;
+    }
+    // A `changes` segment is an ordinary remote branch on both backends, and the hidden remote
+    // `dev` shows nothing. No remote tag is in this fixture: a tag mirror that shares a commit
+    // with a remote branch hits a label-order difference that predates this case (handed over as
+    // R07), and remoteTagParity covers the tag mirror on its own commits.
+    const dir = initBare();
+    commitAt(dir, "a.txt", "1", "first", EPOCH);
+    commitAt(dir, "b.txt", "2", "second", EPOCH + 60);
+    const revParse = (revision: string): string =>
+      cp.execFileSync("git", ["rev-parse", revision], { cwd: dir, encoding: "utf8" }).trim();
+    const head = revParse("HEAD");
+    const first = revParse("HEAD~1");
+    git(["remote", "add", "origin", "https://example.invalid/repo.git"], dir);
+    git(["remote", "add", "dev", "https://example.invalid/dev.git"], dir);
+    git(["update-ref", "refs/remotes/origin/main", head], dir);
+    git(["update-ref", "refs/remotes/origin/changes/foo", first], dir);
+    git(["update-ref", "refs/remotes/origin/feature/changes", head], dir);
+    git(["update-ref", "refs/remotes/dev/changes/x", first], dir);
+    const fixture: CommitsFixture = { name: "changes segments", dir };
+    await expectCommitsParity(fixture, "case", {}, true);
+    await expectCommitsParity(fixture, "hiddenRemotes", { hiddenRemotes: ["dev"] }, true);
+  }, 120000);
+
   it("keeps HEAD visible and honors unborn on the CLI", async (context) => {
     if (loadEngineAddon() === null) {
       context.skip("Engine addon not built — run pnpm run engine:build for the engine half.");
@@ -607,7 +652,14 @@ describe("engine/CLI parity: loadCommits", () => {
         true
       );
     }
-    await expectCommitsParity(fixtures.roomy, "ordering=topo", { commitOrdering: "topo" }, false);
+    await expectCommitsParity(fixtures.roomy, "ordering=topo", { commitOrdering: "topo" }, true);
+    await expectCommitsParity(
+      fixtures.roomy,
+      "ordering=topo authors",
+      { commitOrdering: "topo", authors: ["Bob"] },
+      true,
+      true
+    );
     await expectCommitsParity(fixtures.roomy, "maxCommits", { maxCommits: 15 }, true);
     await expectCommitsParity(fixtures.roomy, "authors", { authors: ["Bob"] }, true, true);
   }, 180000);
@@ -628,7 +680,7 @@ describe("engine/CLI parity: loadCommits", () => {
     expect(await cliDates("Author Date")).not.toEqual(await cliDates("Commit Date"));
 
     for (const dateType of ["Author Date", "Commit Date"] as const) {
-      for (const commitOrdering of ["date", "author-date"] as const) {
+      for (const commitOrdering of ["date", "author-date", "topo"] as const) {
         await expectCommitsParity(
           skewed,
           `${dateType} ordering=${commitOrdering}`,

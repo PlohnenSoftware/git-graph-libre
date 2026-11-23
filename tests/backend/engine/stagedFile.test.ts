@@ -84,6 +84,26 @@ describe("readStagedFile", () => {
     expect(lines).toContainEqual(expect.stringContaining("operation=loadIndexFile backend=engine"));
   });
 
+  it("answers tooLarge for the engine's TooLarge error, without retrying on the CLI", async () => {
+    const dir = repoWithStagedFile();
+    const addon = indexFileAddon(new Error("TooLarge: the blob is 70000000 bytes and is above it"));
+
+    const { result, lines } = await readWithLog(dir, engineDeps(addon.provider));
+
+    expect(result).toEqual({ tooLarge: true });
+    expect(lines).toContainEqual(expect.stringContaining("backend=engine result=tooLarge"));
+    expect(lines.some((line) => line.includes("operation=stagedFile.show"))).toBe(false);
+  });
+
+  it("still goes to the CLI for any other engine error", async () => {
+    const dir = repoWithStagedFile();
+    const addon = indexFileAddon(new Error("Git: could not read the blob"));
+
+    const { result } = await readWithLog(dir, engineDeps(addon.provider));
+
+    expect(result).toEqual({ text: "staged text\n" });
+  });
+
   it("goes to the CLI when the addon has no loadIndexFile", async () => {
     const dir = repoWithStagedFile();
 
@@ -182,5 +202,19 @@ describe("readStagedFile", () => {
     expect(await readStagedFile(dir, "f", cli)).toEqual({ text: "staged text\n" });
     expect(await readStagedFile(dir, "blob.bin", cli)).toEqual({ binary: true });
     expect(await readStagedFile(dir, "no-such.txt", cli)).toEqual({ missing: true });
+  });
+
+  it("reads a staged gitlink as the Subproject commit display line through the CLI", async () => {
+    const dir = repoWithStagedFile();
+    const commit = "1234567890abcdef1234567890abcdef12345678";
+    git(["update-index", "--add", "--cacheinfo", `160000,${commit},sub`], dir);
+    const cli: StagedFileDeps = { gitPath: "git", backend: () => "git-cli" };
+
+    // Display text, not `git show :sub` output (that fails: the commit is not here).
+    expect(await readStagedFile(dir, "sub", cli)).toEqual({
+      text: `Subproject commit ${commit}\n`
+    });
+    // Only the failure path asks Git about gitlinks: ordinary files take one call.
+    expect(await readStagedFile(dir, "f", cli)).toEqual({ text: "staged text\n" });
   });
 });

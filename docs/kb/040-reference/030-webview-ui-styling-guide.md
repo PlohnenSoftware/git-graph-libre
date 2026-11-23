@@ -139,7 +139,47 @@ may not define the token):
   VS Code buttons.
 - Context menus: `--vscode-menu-*` (`-background`, `-foreground`, `-border`,
   `-selectionBackground/-selectionForeground`, `-separatorBackground`), 5px
-  menu radius, 3px item radius, 4px menu padding.
+  menu radius, 3px item radius, 4px menu padding. The items set a menu's
+  width, never its header (`2026-11-08`): `.contextMenuHeader` has
+  `contain: inline-size`, so a long caption wraps, and a menu with a header
+  is at least 280px wide so its title stays on one line. Before that, a
+  worktree's path and state stretched the branch menu across the window.
+  That header now keeps only its title, "Checked out in another worktree"
+  (maintainer, `2026-11-08`). The caption naming the worktree's folder, path
+  and state is gone, reversing that part of W11. Where the branch is checked
+  out is on its badge's worktree marker tooltip and in the Worktrees list.
+  Under that header the holding worktree's own actions form one group at the
+  top: Open Worktree…, then Lock or Unlock and Move, or Remove Stale Worktree
+  Entry and Repair for a missing folder, then Prune Stale Worktrees…. The
+  branch's actions follow after a divider (maintainer, `2026-11-08`;
+  `branchWorktreeItems`). Before, all but Open Worktree came after Delete,
+  Merge and Rebase.
+- A `null` in a menu's item list is a divider. A hidden item is
+  `undefined` (`ContextMenuElement`), which `normalizeContextMenuItems`
+  leaves out; a hidden item written as `null` draws a divider in its place.
+  The hidden Pull of a branch in another worktree did that between Push and
+  Delete.
+- **One text column per menu.** A checkable item carries `checked`, which
+  draws its mark in the menu's check slot (`role="menuitemcheckbox"`,
+  `aria-checked`); never type `✓ ` into a title, which indents only the
+  checked titles. Where any item can be checked, plain items and the
+  header reserve the same slot, so every title starts at the same place.
+  The header lines up with what it heads: its rule is inset as far as a
+  divider, and its title starts where the items' text starts.
+- **No popup may grow wider than its cap, or scroll sideways, for a word it
+  cannot break** (`2026-11-08`). A path, ref name or Git message has no break
+  point of its own, so inside a width cap it scrolled the dialog sideways.
+  `#dialog.active`, `#worktreeList` and `.contextMenuHeaderCaption` carry
+  `overflow-wrap: anywhere`, which is inherited by everything in them and
+  breaks a word only where nothing else fits. Use `anywhere` rather than
+  `break-word`, because only `anywhere` also lets a table cell shrink. A new
+  popup takes the same rule on its container, and `dialogStyles.test.ts`
+  checks the three. Nowrap cells, such as the dialog label column, are
+  unaffected. They must hold only short text.
+- Paths in running text: a dialog sentence names a worktree by its folder
+  (`worktreeFolderName`), with the full path in a `title` on hover. The full
+  path stays where it is the subject, such as the option that removes that
+  worktree (`2026-11-08`, the Delete Branch dialog).
 - Dropdown widget: control on `--vscode-dropdown-*`, option list on
   `--vscode-dropdown-listBackground` plus `--vscode-list-*` hover/selection
   tokens, filter input on the input tokens above. The open menu is a flex

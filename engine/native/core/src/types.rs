@@ -32,6 +32,10 @@ pub struct GitCommit {
 #[serde(rename_all = "camelCase")]
 pub struct GitCommitTag {
     pub name: String,
+    /// The full ref name the tag was read from: `refs/tags/<tag>` for a local tag, or
+    /// `refs/remotes/<remote>/…/tags/<tag>` for a mirrored remote one. `name` alone cannot tell a
+    /// local tag called `<remote>/<tag>` from that mirror, and `for-each-ref` orders by this name.
+    pub ref_name: String,
     pub annotated: bool,
     /// True when the tag object carries a signature. Only an annotated tag has a tag object, so a
     /// lightweight tag is never signed — not even over a signed commit, which `for-each-ref`'s
@@ -81,6 +85,8 @@ pub struct GitRef {
 pub struct GitTagRef {
     pub hash: String,
     pub name: String,
+    /// The full ref name, as `GitCommitTag::ref_name`. Both records of an annotated tag share it.
+    pub ref_name: String,
     /// True for the peeled record of an annotated tag, which points at the commit rather than at
     /// the tag object.
     pub annotated: bool,

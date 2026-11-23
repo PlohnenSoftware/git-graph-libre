@@ -1,5 +1,6 @@
 import * as path from "node:path";
 
+import { simpleGit } from "simple-git";
 import * as vscode from "vscode";
 
 import type { AvatarManager } from "@/avatarManager";
@@ -111,6 +112,8 @@ import { createEngineDiffTabSource, isDiffTabAvailable } from "./diffTab/engineS
 import { loadExtensionSettings, updateExtensionSetting } from "./extensionSettings";
 import { exportExtensionSettingsFile, importExtensionSettingsFile } from "./extensionSettingsFile";
 import { buildPullRequestUrl } from "./pullRequest";
+import { createReflogSource } from "./reflogTab/reflogData";
+import { openReflogTab as openGglReflogTab } from "./reflogTab/reflogTabPanel";
 import { exportRepoConfigFile, importRepoConfigFile } from "./repoConfigFile";
 import type { RepoManager } from "./repoManager";
 import type { WebviewBridge } from "./webviewBridge";
@@ -529,6 +532,14 @@ export function registerMessageHandlers(
      * here rather than hoisted into one shared place.
      */
     openDiffTab?: (request: DiffTabRequest) => void;
+    /**
+     * Opens the Reflog tab for a repository (F1-03). Defaults to the reflog
+     * panel fed by the engine-first source, assembled from this handler's
+     * live deps like the diff route above; each page reads through a Git
+     * instance rooted at the tab's own repository, so a later graph repo
+     * switch cannot redirect the retained tab's reads.
+     */
+    openReflogTab?: (repo: string) => void;
     /** Whether the tab can be fed (D45); defaults to the engine check. */
     isDiffTabAvailable?: () => boolean;
   }
@@ -566,6 +577,27 @@ export function registerMessageHandlers(
         request,
         createEngineDiffTabSource({
           gitPath: config.gitPath,
+          backend: config.backend,
+          isVerified: (repo) => deps.repoSearch?.isVerified(repo) ?? false
+        }),
+        { extensionPath, outputChannel: outputChannel ?? { appendLine: () => undefined } }
+      );
+    });
+  const openReflog =
+    deps.openReflogTab ??
+    ((repo: string): void => {
+      openGglReflogTab(
+        repo,
+        createReflogSource({
+          createGit: (root) =>
+            simpleGit({
+              baseDir: root,
+              binary: config.gitPath(),
+              maxConcurrentProcesses: 6,
+              trimmed: false
+            }),
+          gitPath: config.gitPath,
+          record: recordGitCommand,
           backend: config.backend,
           isVerified: (repo) => deps.repoSearch?.isVerified(repo) ?? false
         }),
@@ -1208,15 +1240,18 @@ export function registerMessageHandlers(
     });
   });
 
-  // The Create Worktree dialog's Browse button: the folder the user picks fills its field.
+  // A folder field's Browse button: the folder the user picks fills its
+  // field. The title names the asking dialog; the button stays "Choose
+  // Folder" for both, because picking alone creates and moves nothing.
   bridge.onMessage("pickFolder", async (msg) => {
+    const title =
+      msg.purpose === "moveWorktree"
+        ? l10n.t("dialog.moveWorktree.pickFolder")
+        : l10n.t("dialog.createWorktree.pickFolder");
     bridge.post({
       command: "pickFolder",
       requestId: msg.requestId,
-      path: await pickFolder(
-        l10n.t("dialog.createWorktree.pickFolder"),
-        l10n.t("dialog.createWorktree.pickFolderLabel")
-      )
+      path: await pickFolder(title, l10n.t("dialog.createWorktree.pickFolderLabel"))
     });
   });
 
@@ -1365,6 +1400,13 @@ export function registerMessageHandlers(
         () => outputChannel?.appendLine("[diffTab] unavailable; falling back to vscode.diff")
       )
     });
+  });
+
+  // The graph toolbar's Reflog button: open the tab for the repository the
+  // graph shows. Only a known repository is read — the webview names its
+  // own, and anything else is refused rather than opened.
+  bridge.onMessage("showReflog", (msg) => {
+    if (Object.hasOwn(repoManager.getRepos(), msg.repo)) openReflog(msg.repo);
   });
 
   bridge.onMessage("viewFileAtRevision", async (msg) => {

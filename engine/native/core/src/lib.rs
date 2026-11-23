@@ -16,14 +16,17 @@ pub mod config;
 pub mod details;
 pub mod diff;
 pub mod error;
+pub mod file_read;
 pub mod graph;
 pub mod log;
+pub mod reflog;
 pub mod refs;
 pub mod repository;
 pub mod search;
 pub mod stash;
 pub mod stats;
 pub mod status;
+pub mod text;
 pub mod types;
 pub mod worktrees;
 

@@ -130,5 +130,6 @@
   "config.uncommittedChanges.fileViewMode": "指定暂存面板中未提交更改的显示方式。",
   "config.uncommittedChanges.fileViewMode.title": "未提交更改文件视图模式",
   "config.uncommittedChanges.fileViewMode.tree": "按文件夹分组显示未提交更改",
-  "config.uncommittedChanges.fileViewMode.list": "以平铺路径列表显示未提交更改"
+  "config.uncommittedChanges.fileViewMode.list": "以平铺路径列表显示未提交更改",
+  "command.showReflog": "显示 reflog"
 }

@@ -6,19 +6,26 @@
 //! one of its children, and within that constraint the ready commits are ranked by commit date,
 //! author date, or by staying on the current line of history.
 //!
-//! gix's traversal offers a commit-time priority queue but no topological guarantee, so the
-//! ordering is done here instead: the traversal collects a **window** of commits, and the window is
-//! then re-ordered by a Kahn-style topological sort whose ready set is ranked according to the
-//! requested ordering. The window is a multiple of the requested page rather than the whole
-//! history, which is what makes the first screen of a million-commit repository affordable —
-//! ordering is exact within the window, and commits beyond it are not considered.
+//! The ordering is done in [`ranked`], which has git's shape: a traversal by committer date, then
+//! a Kahn-style topological sort whose ready set is ranked according to the requested ordering.
+//! Topological and author-date pages read the whole reachable history's headers, because neither
+//! can be decided from a date-ordered prefix (see `walk_ranked`). A committer-date page reads a
+//! **window**, a multiple of the requested page, which is what makes the first screen of a
+//! million-commit repository affordable: ordering is exact within the window, and commits beyond
+//! it are not considered.
 
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use gix::ObjectId;
 
+mod authors;
+mod ranked;
+
+use authors::AuthorPatterns;
+
 use crate::error::{Error, Result, ResultExt};
 use crate::repository::{Repo, Shallow};
+use crate::text::{self, CommitText};
 use crate::types::{CommitOrdering, CommitRecord, GitAuthor};
 
 /// How many commits are read for every commit displayed, so that the topological re-ordering has
@@ -52,13 +59,127 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
         return Ok(Vec::new());
     }
     let git = repo.borrow();
+    text::ensure_utf8_output(&git)?;
     let filtering = !options.filter_paths.is_empty();
     // An author filter has the same problem as a path filter: matches can be sparse, so a fixed
     // window can run dry and silently return fewer commits than asked for (and hide "Load More"
     // even though more matches exist deeper in history) instead of searching until the page is
     // full, the way `git log --author` does.
     let searching = filtering || options.authors.is_some();
+    let shallow = Shallow::of(&git);
 
+    // While filtering, the parents of every commit the walk *reads* are kept, not just of the
+    // ones it keeps: re-parenting a shown commit means tracing through the hidden commits
+    // between it and its nearest shown ancestor, which requires their parents too.
+    let mut visited_parents: Vec<(String, Vec<String>)> = Vec::new();
+    // The author patterns are prepared once for the whole walk, not per commit judged.
+    let patterns = options.authors.as_deref().map(AuthorPatterns::new);
+
+    let records = if uses_ranked_walk(options.ordering, searching) {
+        walk_ranked(
+            &git,
+            tips,
+            options,
+            &shallow,
+            patterns.as_ref(),
+            &mut visited_parents,
+        )?
+    } else {
+        let window = window_size(options.limit, searching);
+        collect_window(
+            &git,
+            tips,
+            options,
+            &shallow,
+            patterns.as_ref(),
+            window,
+            &mut visited_parents,
+        )?
+    };
+
+    let mut records = records;
+    if filtering {
+        // History simplification: a commit whose parent was filtered out is re-parented onto its
+        // nearest shown ancestor, so the graph stays connected instead of breaking into fragments.
+        rewrite_parents(&mut records, &visited_parents);
+    }
+    Ok(records)
+}
+
+/// Does `ordering` go through the git-shaped traversal in [`ranked`]?
+///
+/// Only the committer-date ordering of a filtered walk does not: it reads commits in commit-time
+/// order only as far as the page needs, which is what keeps a sparse filter from paying for the
+/// whole history. Topological and author-date order cannot be cut short that way (see
+/// [`walk_ranked`]), so every walk in those orderings, filtered or not, is ranked.
+fn uses_ranked_walk(ordering: CommitOrdering, searching: bool) -> bool {
+    match ordering {
+        CommitOrdering::Date => !searching,
+        CommitOrdering::Topo | CommitOrdering::AuthorDate => true,
+    }
+}
+
+/// Visit a window of the history the way git does, rank it, and read the page's commits.
+fn walk_ranked(
+    git: &gix::Repository,
+    tips: &[ObjectId],
+    options: &WalkOptions,
+    shallow: &Shallow,
+    patterns: Option<&AuthorPatterns>,
+    visited_parents: &mut Vec<(String, Vec<String>)>,
+) -> Result<Vec<CommitRecord>> {
+    let searching = !options.filter_paths.is_empty() || patterns.is_some();
+    // Topological and author-date order have no safe window.
+    //
+    // Topological order starts from every tip, newest first, and takes the most recently readied
+    // commit next, so a tip with an old date surfaces as soon as the line above it ends, and the
+    // commits that follow it are old too.
+    //
+    // Author-date order ranks the ready commits by author date while the traversal reads them by
+    // committer date, so a commit authored recently but committed long ago (a rebase, an import)
+    // belongs at the top of the page and is far from the top of a committer-date window. Which
+    // commits are ready at all depends on every child having been counted.
+    //
+    // A window cut by date would drop exactly those commits, so the whole reachable history is
+    // visited, as `git log --topo-order` and `--author-date-order` do. Only headers are read for
+    // that; full records are read for the page.
+    let window = match options.ordering {
+        CommitOrdering::Topo | CommitOrdering::AuthorDate => None,
+        CommitOrdering::Date => Some(window_size(options.limit, searching)),
+    };
+    let graph = ranked::discover(git, shallow, tips, options.first_parent_only, window);
+    let mut records: Vec<CommitRecord> = Vec::new();
+    for (judged, index) in graph.ranked(options.ordering).enumerate() {
+        // A walk that searches gives up on filling its page after the same number of commits the
+        // unranked search does, so a filter nothing matches cannot judge a huge history in full.
+        if searching && judged >= FILTERED_WALK_LIMIT {
+            break;
+        }
+        let Ok(commit) = git.find_commit(graph.id(index)) else {
+            continue;
+        };
+        if !passes_filters(git, &commit, shallow, options, patterns, visited_parents)? {
+            continue;
+        }
+        records.push(read_commit(&commit, shallow)?);
+        if records.len() >= options.limit {
+            break;
+        }
+    }
+    Ok(records)
+}
+
+/// Read up to `window` commits in commit-time order, keeping the ones that pass the filters.
+fn collect_window(
+    git: &gix::Repository,
+    tips: &[ObjectId],
+    options: &WalkOptions,
+    shallow: &Shallow,
+    patterns: Option<&AuthorPatterns>,
+    window: usize,
+    visited_parents: &mut Vec<(String, Vec<String>)>,
+) -> Result<Vec<CommitRecord>> {
+    let searching = !options.filter_paths.is_empty() || patterns.is_some();
     let mut platform =
         git.rev_walk(tips.iter().copied())
             .sorting(gix::revision::walk::Sorting::ByCommitTime(
@@ -68,37 +189,24 @@ pub fn walk(repo: &Repo, tips: &[ObjectId], options: &WalkOptions) -> Result<Vec
         platform = platform.first_parent_only();
     }
     let walk = platform.all().git_ctx("Could not walk the commit graph")?;
-    let shallow = Shallow::of(&git);
 
     let mut records: Vec<CommitRecord> = Vec::new();
-    // While filtering, the parents of every commit the walk *reads* are kept, not just of the
-    // ones it keeps: re-parenting a shown commit means tracing through the hidden commits
-    // between it and its nearest shown ancestor, which requires their parents too.
-    let mut visited_parents: Vec<(String, Vec<String>)> = Vec::new();
-    for info in walk.take(window_size(options.limit, searching)) {
+    for info in walk.take(window) {
         // A missing object (a shallow clone's boundary, or a corrupt pack) truncates the walk
         // rather than failing the whole view.
         let Ok(info) = info else { break };
         let Ok(commit) = git.find_commit(info.id) else {
             continue;
         };
-        if !passes_filters(&git, &commit, &shallow, options, &mut visited_parents)? {
+        if !passes_filters(git, &commit, shallow, options, patterns, visited_parents)? {
             continue;
         }
-        records.push(read_commit(&commit, &shallow)?);
+        records.push(read_commit(&commit, shallow)?);
         if searching && records.len() >= options.limit {
             break;
         }
     }
-
-    if filtering {
-        // History simplification: a commit whose parent was filtered out is re-parented onto its
-        // nearest shown ancestor, so the graph stays connected instead of breaking into fragments.
-        rewrite_parents(&mut records, &visited_parents);
-        return Ok(records);
-    }
-
-    Ok(order(records, options.ordering, options.limit))
+    Ok(records)
 }
 
 /// How many commits a walk may read for a page of `limit`.
@@ -125,11 +233,12 @@ fn passes_filters(
     commit: &gix::Commit<'_>,
     shallow: &Shallow,
     options: &WalkOptions,
+    patterns: Option<&AuthorPatterns>,
     visited_parents: &mut Vec<(String, Vec<String>)>,
 ) -> Result<bool> {
     let filtering = !options.filter_paths.is_empty();
-    let author_ok = match &options.authors {
-        Some(authors) => commit_matches_author(commit, authors)?,
+    let author_ok = match patterns {
+        Some(patterns) => patterns.matches(commit)?,
         None => true,
     };
     if filtering {
@@ -146,7 +255,13 @@ fn passes_filters(
         return Ok(false);
     }
     if filtering {
-        return touches_paths(git, commit, shallow, &options.filter_paths);
+        return touches_paths(
+            git,
+            commit,
+            shallow,
+            &options.filter_paths,
+            options.first_parent_only,
+        );
     }
     Ok(true)
 }
@@ -162,9 +277,7 @@ pub fn read_commit(commit: &gix::Commit<'_>, shallow: &Shallow) -> Result<Commit
     let committer = commit
         .committer()
         .git_ctx("Could not decode the commit committer")?;
-    let message = commit
-        .message()
-        .git_ctx("Could not decode the commit message")?;
+    let text = CommitText::of(commit)?;
 
     Ok(CommitRecord {
         hash: commit.id().detach().to_string(),
@@ -173,29 +286,22 @@ pub fn read_commit(commit: &gix::Commit<'_>, shallow: &Shallow) -> Result<Commit
             .iter()
             .map(ToString::to_string)
             .collect(),
-        author: author.name.to_string(),
-        email: author.email.to_string(),
+        author: text.decode(author.name)?.into_owned(),
+        email: text.decode(author.email)?.into_owned(),
         // The graph's date column follows git's default and shows the *committer* date, unless
         // the view asks for the author date (`LogOptions::use_author_date`).
         date: committer.time().map(|time| time.seconds).unwrap_or(0),
         author_date: author.time().map(|time| time.seconds).unwrap_or(0),
-        message: message.summary().to_string(),
+        message: text.subject(commit)?,
     })
 }
 
-/// `git log --author=<name>` runs as `--author=<name> <`, so the CLI backend matches a literal
-/// "Name <" prefix of "Name <email>" rather than "Name" as a free-floating substring — without the
-/// trailing "<", a name that is a textual prefix of another author's name (e.g. "Bob" inside
-/// "Bobby <bobby@x.com>") would match commits it should not. This mirrors that exactly, case-
-/// insensitively (case sensitivity is the one place this still deviates from a bare `git log`).
+/// Does `commit` match one of `authors`, as `git log --author` matches? See [`AuthorPatterns`].
+///
+/// This prepares the patterns on every call; a walk that matches many commits builds them once
+/// with [`AuthorPatterns::new`] instead.
 pub(crate) fn commit_matches_author(commit: &gix::Commit<'_>, authors: &[String]) -> Result<bool> {
-    let author = commit
-        .author()
-        .git_ctx("Could not decode the commit author")?;
-    let haystack = format!("{} <{}>", author.name, author.email).to_lowercase();
-    Ok(authors
-        .iter()
-        .any(|author| haystack.contains(&format!("{} <", author.to_lowercase()))))
+    AuthorPatterns::new(authors).matches(commit)
 }
 
 /// Did this commit change anything below one of `paths`?
@@ -203,7 +309,10 @@ pub(crate) fn commit_matches_author(commit: &gix::Commit<'_>, authors: &[String]
 /// `git log -- <paths>` default history simplification judges a commit by the *filtered* tree: it
 /// is shown only when it is not treesame to **any** parent. A merge that merely carries a branch's
 /// changes in is treesame against that branch's side and stays out of the log, which is why the
-/// comparison here runs against every parent rather than just the first.
+/// comparison here runs against every parent rather than just the first — except under
+/// `first_parent_only`, where the walk never follows the other parents and git judges the commit
+/// against the first one alone (a merge that kept the second parent's version of a filtered path
+/// still shows when its first parent changed it).
 ///
 /// A root commit is compared against the empty tree, which is what makes the commit that first
 /// added a file show up in its filtered history.
@@ -212,11 +321,15 @@ fn touches_paths(
     commit: &gix::Commit<'_>,
     shallow: &Shallow,
     paths: &[String],
+    first_parent_only: bool,
 ) -> Result<bool> {
     let tree = commit.tree().git_ctx("Could not read the commit tree")?;
-    let parents = shallow.parents(commit);
+    let mut parents = shallow.parents(commit);
     if parents.is_empty() {
         return changes_paths(git, None, &tree, paths);
+    }
+    if first_parent_only {
+        parents.truncate(1);
     }
     for parent in parents {
         let parent_tree = git.find_commit(parent).ok().and_then(|c| c.tree().ok());
@@ -351,104 +464,6 @@ fn rewrite_parents(records: &mut [CommitRecord], visited: &[(String, Vec<String>
             record.parents = parents.clone();
         }
     }
-}
-
-/// Ranking key for the ready set, matching what each of git's orderings prioritises.
-#[derive(PartialEq, Eq)]
-struct Ready {
-    /// The date the ordering ranks by; unused (and zero) for topological order.
-    date: i64,
-    /// Position in the traversal, used to break ties and to drive topological order.
-    sequence: usize,
-    index: usize,
-    ordering: CommitOrdering,
-}
-
-impl Ord for Ready {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match self.ordering {
-            // Newest first, ties broken by the order the traversal found them.
-            CommitOrdering::Date | CommitOrdering::AuthorDate => self
-                .date
-                .cmp(&other.date)
-                .then_with(|| other.sequence.cmp(&self.sequence)),
-            // Topological order keeps walking down the line of history it is already on, rather
-            // than intermixing branches: the most recently readied commit wins.
-            CommitOrdering::Topo => self.sequence.cmp(&other.sequence),
-        }
-    }
-}
-
-impl PartialOrd for Ready {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-/// Topologically sort `records`, ranking the commits that are ready to be shown by `ordering`.
-fn order(records: Vec<CommitRecord>, ordering: CommitOrdering, limit: usize) -> Vec<CommitRecord> {
-    let index_of: HashMap<&str, usize> = records
-        .iter()
-        .enumerate()
-        .map(|(index, record)| (record.hash.as_str(), index))
-        .collect();
-
-    // How many children inside the window each commit is still waiting for.
-    let mut pending = vec![0usize; records.len()];
-    for record in &records {
-        for parent in &record.parents {
-            if let Some(&parent_index) = index_of.get(parent.as_str()) {
-                pending[parent_index] += 1;
-            }
-        }
-    }
-
-    let key = |record: &CommitRecord| match ordering {
-        CommitOrdering::Date => record.date,
-        CommitOrdering::AuthorDate => record.author_date,
-        CommitOrdering::Topo => 0,
-    };
-
-    let mut sequence = 0usize;
-    let mut ready: BinaryHeap<Ready> = BinaryHeap::new();
-    for (index, record) in records.iter().enumerate() {
-        if pending[index] == 0 {
-            ready.push(Ready {
-                date: key(record),
-                sequence,
-                index,
-                ordering,
-            });
-            sequence += 1;
-        }
-    }
-
-    let mut ordered: Vec<CommitRecord> = Vec::with_capacity(limit.min(records.len()));
-    let mut taken = vec![false; records.len()];
-    while let Some(next) = ready.pop() {
-        if ordered.len() == limit {
-            break;
-        }
-        taken[next.index] = true;
-        for parent in &records[next.index].parents {
-            let Some(&parent_index) = index_of.get(parent.as_str()) else {
-                continue;
-            };
-            pending[parent_index] -= 1;
-            if pending[parent_index] == 0 {
-                ready.push(Ready {
-                    date: key(&records[parent_index]),
-                    sequence,
-                    index: parent_index,
-                    ordering,
-                });
-                sequence += 1;
-            }
-        }
-        ordered.push(records[next.index].clone());
-    }
-
-    ordered
 }
 
 /// Resolve the revisions a view load starts its walk from.
@@ -690,6 +705,7 @@ pub fn authors(repo: &Repo) -> Result<Vec<GitAuthor>> {
     let tips = every_tip(repo)?;
 
     let git = repo.borrow();
+    text::ensure_utf8_output(&git)?;
     let mut counts: HashMap<(String, String), usize> = HashMap::new();
     for info in git
         .rev_walk(tips.iter().copied())
@@ -706,8 +722,13 @@ pub fn authors(repo: &Repo) -> Result<Vec<GitAuthor>> {
         let Ok(author) = commit.author() else {
             continue;
         };
+        // A commit this read cannot show as Git does fails the whole read, never one name.
+        let text = CommitText::of(&commit)?;
         *counts
-            .entry((author.name.to_string(), author.email.to_string()))
+            .entry((
+                text.decode(author.name)?.into_owned(),
+                text.decode(author.email)?.into_owned(),
+            ))
             .or_insert(0) += 1;
     }
 

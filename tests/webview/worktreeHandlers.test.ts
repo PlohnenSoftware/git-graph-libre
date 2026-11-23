@@ -6,7 +6,8 @@ import { git, makeRepo } from "@tests/backend/helpers";
 import {
   executedCommands,
   openDialogResults,
-  resetVscodeMock
+  resetVscodeMock,
+  shownOpenDialogs
 } from "@tests/webview/__mocks__/vscode";
 import { simpleGit } from "simple-git";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -287,12 +288,42 @@ describe("worktree handlers", () => {
     const { posts, handlers } = setup();
 
     openDialogResults.push([{ fsPath: "/picked/folder" } as never]);
-    await handlers.get("pickFolder")?.({ command: "pickFolder", requestId: 7 });
+    await handlers.get("pickFolder")?.({
+      command: "pickFolder",
+      requestId: 7,
+      purpose: "createWorktree"
+    });
     expect(posts.at(-1)).toEqual({ command: "pickFolder", requestId: 7, path: "/picked/folder" });
+    expect(shownOpenDialogs.at(-1)).toMatchObject({
+      title: "Choose the folder for the new worktree",
+      openLabel: "Choose Folder"
+    });
 
     openDialogResults.push(undefined);
-    await handlers.get("pickFolder")?.({ command: "pickFolder", requestId: 8 });
+    await handlers.get("pickFolder")?.({
+      command: "pickFolder",
+      requestId: 8,
+      purpose: "createWorktree"
+    });
     expect(posts.at(-1)).toEqual({ command: "pickFolder", requestId: 8, path: null });
+  });
+
+  it("titles the folder picker for the Move Worktree dialog that asked", async () => {
+    const { posts, handlers } = setup();
+
+    openDialogResults.push([{ fsPath: "/picked/parent" } as never]);
+    await handlers.get("pickFolder")?.({
+      command: "pickFolder",
+      requestId: 9,
+      purpose: "moveWorktree"
+    });
+    expect(posts.at(-1)).toEqual({ command: "pickFolder", requestId: 9, path: "/picked/parent" });
+    // Picking only fills the dialog's field, so the button chooses a folder;
+    // it does not promise the move itself.
+    expect(shownOpenDialogs.at(-1)).toMatchObject({
+      title: "Choose the folder to move the worktree into",
+      openLabel: "Choose Folder"
+    });
   });
 
   it("forwards each open message to its hidden command, which re-lists first (W31)", async () => {

@@ -1,9 +1,9 @@
 ---
 summary: >-
   Standing rules: release by fast-forwarding `main` to `AI-dev`; session-start
-  reading order; workflow (rebase not merge, signing, strict Biome, OKLCH,
-  American English, gate order up to SonarQube `OK`, Rust arm on `engine/**`);
-  handoff rules.
+  reading order; workflow (direct requests in the local checkout, never a new
+  worktree; rebase not merge, signing, strict Biome, OKLCH, American English,
+  gate order up to SonarQube `OK`, Rust arm on `engine/**`); handoff rules.
 always_read: true
 ---
 
@@ -43,6 +43,19 @@ At the start of every agent session:
 
 Workflow rules:
 
+- **A direct request is worked in the local checkout (maintainer,
+  `2026-11-08`).** When the maintainer asks an agent to do something itself,
+  not as the integrator of a multi-agent release, the agent works in the main
+  checkout on the branch checked out there, and commits there. It creates no
+  new branch and no new `git worktree` for it. When the task belongs on
+  another existing branch, such as a pull request's, it checks that branch
+  out in the main checkout. New branches and worktrees are for multi-agent
+  releases, which the integrator prepares (Multi-agent releases), or for when
+  the maintainer asks for one. If the checkout is busy, with another session
+  mid-merge or mid-rebase or with changes the agent did not make, the agent
+  stops and asks rather than falling back to a worktree. The rule was written
+  after three direct tasks went to new branches in new worktrees; the
+  maintainer wants to see and use the result in their own checkout.
 - Work through the documented phases and slices unless the maintainer changes
   priority.
 - Treat slices as the unit of progress. Plan remaining microsteps before coding,

@@ -86,6 +86,7 @@ describe("registerMessageHandlers", () => {
     const telemetryEvents: Array<{ feature: string; ok: boolean }> = [];
     const consentPrompts: number[] = [];
     const openedDiffTabs: DiffTabRequest[] = [];
+    const openedReflogTabs: string[] = [];
     const handlers = new Map<
       RequestMessage["command"],
       (msg: RequestMessage) => void | Promise<void>
@@ -164,6 +165,9 @@ describe("registerMessageHandlers", () => {
       openDiffTab: (request: DiffTabRequest) => {
         openedDiffTabs.push(request);
       },
+      openReflogTab: (repoPath: string) => {
+        openedReflogTabs.push(repoPath);
+      },
       isDiffTabAvailable: () => options.diffTabAvailable ?? true
     });
 
@@ -176,7 +180,8 @@ describe("registerMessageHandlers", () => {
       repoFileWatcher,
       telemetryEvents,
       consentPrompts,
-      openedDiffTabs
+      openedDiffTabs,
+      openedReflogTabs
     };
   }
 
@@ -1694,5 +1699,21 @@ describe("registerMessageHandlers", () => {
       shown: true,
       sentText: ["git rebase --interactive 'feature/topic'"]
     });
+  });
+
+  it("opens the reflog tab for the graph's known repository (F1-03)", async () => {
+    const { handlers, openedReflogTabs, telemetryEvents } = registerHandlersForTest();
+    const handler = handlers.get("showReflog");
+    expect(handler).toBeDefined();
+    await handler?.({ command: "showReflog", repo });
+    expect(openedReflogTabs).toEqual([repo]);
+    // The bridge route is not an action: like openDiffTab it counts nothing.
+    expect(telemetryEvents).toEqual([]);
+  });
+
+  it("refuses a reflog for a repository the extension does not know (F1-03)", async () => {
+    const { handlers, openedReflogTabs } = registerHandlersForTest();
+    await handlers.get("showReflog")?.({ command: "showReflog", repo: "/elsewhere" });
+    expect(openedReflogTabs).toEqual([]);
   });
 });

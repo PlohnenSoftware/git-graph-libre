@@ -221,3 +221,79 @@ export type QueryResponse = {
 }[keyof QueryPayloads];
 
 export type QueryResult<T extends keyof QueryPayloads> = QueryPayloads[T]["result"];
+
+/** One reflog entry: the move a ref made, as Git recorded it. */
+export type GitReflogEntry = {
+  /** The commit the ref pointed at after the move. */
+  hash: string;
+  /** The `N` of `<ref>@{N}`. Git skips some entries when it numbers them, so these can have gaps. */
+  index: number;
+  /** When the entry was written, in Unix seconds. This is not the commit's own date. */
+  time: number;
+  /** Who made the entry (the committer identity Git used at the time). */
+  name: string;
+  email: string;
+  /** The message exactly as Git wrote it, for example `commit: fix typo`. */
+  message: string;
+};
+
+/**
+ * What a reflog holds: `entries` (the page has entries, or lies past the end
+ * of a reflog that has some), `empty` (a reflog exists but holds nothing) or
+ * `none` (the ref keeps no reflog).
+ */
+export type GitReflogState = "entries" | "empty" | "none";
+
+export type GitReflogResult = {
+  /** The requested page, newest first. Empty on an error. */
+  entries: GitReflogEntry[];
+  /** Null exactly when `error` is set. */
+  state: GitReflogState | null;
+  /** True when older entries exist beyond this page. */
+  hasMore: boolean;
+  /** The ref's full name, such as `refs/heads/main`, or `HEAD`. Null on an error. */
+  ref: string | null;
+  error: GitQueryError | null;
+};
+
+/**
+ * Whether the commit a reflog entry points at can still be reached without
+ * the reflog: `reachable` from a branch, tag or remote-tracking ref,
+ * `reflogOnly` when the object exists but only reflogs reach it, or
+ * `missing` when the object no longer exists.
+ */
+export type GitReflogEntryState = "reachable" | "reflogOnly" | "missing";
+
+export type GitReflogEntryStatesResult = {
+  /**
+   * The known state of each requested commit, by hash. A hash with no entry
+   * is unknown: the read failed, or the name was not a commit's full hash.
+   * Empty whenever `error` is set.
+   */
+  states: Record<string, GitReflogEntryState>;
+  error: GitQueryError | null;
+};
+
+/** The kinds `classifyReflogMessage` knows. The set is open: treat any other value as `other`. */
+export type GitReflogMessageKind =
+  | "commit"
+  | "checkout"
+  | "reset"
+  | "rebase"
+  | "merge"
+  | "pull"
+  | "fetch"
+  | "cherry-pick"
+  | "revert"
+  | "branch"
+  | "stash"
+  | "clone"
+  | "other";
+
+export type GitReflogMessageClass = {
+  kind: GitReflogMessageKind;
+  /** The detail, such as `pick` for `rebase (pick)` or `amend` for `commit (amend)`; null when none. */
+  sub: string | null;
+  /** The message, unchanged. */
+  raw: string;
+};

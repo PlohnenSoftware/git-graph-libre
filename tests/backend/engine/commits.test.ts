@@ -54,8 +54,8 @@ describe("loadCommitsDecline", () => {
     expect(loadCommitsDecline({ ...BASE, dateType: "Author Date" })).toBeNull();
   });
 
-  it("declines topo ordering, whose tie-breaks differ visibly from git", () => {
-    expect(loadCommitsDecline({ ...BASE, commitOrdering: "topo" })).toBe("topoOrdering");
+  it("serves every commit ordering, topo included, which matches git byte for byte", () => {
+    expect(loadCommitsDecline({ ...BASE, commitOrdering: "topo" })).toBeNull();
     expect(loadCommitsDecline({ ...BASE, commitOrdering: "date" })).toBeNull();
     expect(loadCommitsDecline({ ...BASE, commitOrdering: "author-date" })).toBeNull();
   });
@@ -83,9 +83,9 @@ describe("loadCommitsDecline", () => {
 
   it("names the first decline that holds when several apply", () => {
     // The order is the predicate's: the reason shown is the first that holds.
-    expect(loadCommitsDecline({ ...BASE, commitOrdering: "topo", includeReflog: true })).toBe(
-      "topoOrdering"
-    );
+    expect(
+      loadCommitsDecline({ ...BASE, branches: ["--glob=feature/*"], includeReflog: true })
+    ).toBe("globPattern");
   });
 });
 
@@ -169,7 +169,7 @@ const COMMIT: EngineCommit = {
   date: 1790090408,
   message: "second",
   heads: ["main"],
-  tags: [{ name: "v1.0.0", annotated: false, signed: false }],
+  tags: [{ name: "v1.0.0", refName: "refs/tags/v1.0.0", annotated: false, signed: false }],
   remotes: [{ name: "origin/main", remote: "origin" }],
   stash: null
 };
@@ -264,8 +264,8 @@ describe("mapEngineCommitData", () => {
             ...COMMIT,
             heads: ["zebra", "alpha"],
             tags: [
-              { name: "v1.0.0", annotated: false, signed: false },
-              { name: "a-tag", annotated: true, signed: false }
+              { name: "v1.0.0", refName: "refs/tags/v1.0.0", annotated: false, signed: false },
+              { name: "a-tag", refName: "refs/tags/a-tag", annotated: true, signed: false }
             ],
             remotes: [
               { name: "origin/main", remote: "origin" },
@@ -284,6 +284,57 @@ describe("mapEngineCommitData", () => {
       "tag:a-tag",
       "tag:v1.0.0"
     ]);
+  });
+
+  it("orders a mirrored remote tag by its real ref name, apart from a local tag of the same name", () => {
+    const tag = (name: string, refName: string) => ({
+      name,
+      refName,
+      annotated: false,
+      signed: false
+    });
+    const labels = (tags: ReturnType<typeof tag>[]) =>
+      mapEngineCommitData(
+        {
+          ...PAGE,
+          commits: [
+            {
+              ...COMMIT,
+              heads: [],
+              remotes: [{ name: "origin/changes/foo", remote: "origin" }],
+              tags
+            }
+          ]
+        },
+        true
+      )[0]?.refs.map((ref) => `${ref.type}:${ref.name}`);
+    // The mirror of `refs/remotes/dev/tags/t` sorts before `refs/remotes/origin/…`.
+    expect(labels([tag("dev/t", "refs/remotes/dev/tags/t"), tag("u", "refs/tags/u")])).toEqual([
+      "tag:dev/t",
+      "remote:origin/changes/foo",
+      "tag:u"
+    ]);
+    // A local tag literally named `dev/t` is the same wire name but sorts after the remotes.
+    expect(labels([tag("dev/t", "refs/tags/dev/t")])).toEqual([
+      "remote:origin/changes/foo",
+      "tag:dev/t"
+    ]);
+    // A remote name with a slash and a mirror after a remote branch of an earlier remote.
+    expect(labels([tag("team/fork/x", "refs/remotes/team/fork/tags/x")])).toEqual([
+      "remote:origin/changes/foo",
+      "tag:team/fork/x"
+    ]);
+  });
+
+  it("rejects a tag payload without a ref name", () => {
+    const bad = JSON.stringify({
+      commits: [{ ...COMMIT, tags: [{ name: "v1", annotated: false, signed: false }] }],
+      head: null,
+      tags: [],
+      moreCommitsAvailable: false,
+      error: null
+    });
+    expect(parseEngineCommitData(bad)).toBeNull();
   });
 
   it('mirrors the CLI root wart: no parents parses to [""]', () => {

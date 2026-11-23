@@ -31,7 +31,9 @@ pub fn repo_info(
     ref_options: &RefReadOptions,
     show_stashes: bool,
 ) -> Result<GitRepoInfo> {
-    let snapshot = read_refs(repo, ref_options).unwrap_or_default();
+    // A failed ref scan is an error, not an empty repository. An unborn HEAD resolves to no
+    // commit inside `read_refs` and is not a failure, and a missing stash is handled below.
+    let snapshot = read_refs(repo, ref_options)?;
     let stashes = if show_stashes {
         read_stashes(repo).unwrap_or_default()
     } else {
@@ -79,7 +81,8 @@ pub fn load_commits(repo: &Repo, options: &LogOptions) -> Result<GitCommitData> 
         show_remote_heads: options.show_remote_heads,
         hide_remotes: options.hide_remotes.clone(),
     };
-    let snapshot = read_refs(repo, &ref_options).unwrap_or_default();
+    // A failed ref scan is an error, not an empty graph (see `repo_info`).
+    let snapshot = read_refs(repo, &ref_options)?;
     let stashes = read_stashes(repo).unwrap_or_default();
 
     let tips = resolve_tips(repo, options, &snapshot.ref_data, &stashes)?;
@@ -312,15 +315,12 @@ fn insert_stashes(stashes: &[GitStash], commits: &mut Vec<GitCommit>) {
 
 /// Hang the branch, tag and remote labels on the commits they point at.
 fn annotate_refs(ref_data: &GitRefData, options: &LogOptions, commits: &mut [GitCommit]) {
-    let lookup: HashMap<&str, usize> = commits
+    // One lookup, owning its keys: the loops below borrow `commits` mutably, which a map borrowing
+    // the hashes from `commits` would forbid.
+    let lookup: HashMap<String, usize> = commits
         .iter()
         .enumerate()
-        .map(|(index, commit)| (commit.hash.as_str(), index))
-        .collect();
-    // Cloned up front because the loops below borrow `commits` mutably.
-    let lookup: HashMap<String, usize> = lookup
-        .into_iter()
-        .map(|(hash, index)| (hash.to_string(), index))
+        .map(|(index, commit)| (commit.hash.clone(), index))
         .collect();
 
     for head in &ref_data.heads {
@@ -334,6 +334,7 @@ fn annotate_refs(ref_data: &GitRefData, options: &LogOptions, commits: &mut [Git
             if let Some(&index) = lookup.get(&tag.hash) {
                 commits[index].tags.push(GitCommitTag {
                     name: tag.name.clone(),
+                    ref_name: tag.ref_name.clone(),
                     annotated: tag.annotated,
                     signed: tag.signed,
                 });
@@ -345,10 +346,16 @@ fn annotate_refs(ref_data: &GitRefData, options: &LogOptions, commits: &mut [Git
         if let Some(&index) = lookup.get(&remote.hash) {
             // The ref name starts with the remote it belongs to, unless that remote has since been
             // removed and only its tracking refs are left behind.
+            // Compared without formatting `<name>/` per ref, as the hidden-remote check does.
             let owner = options
                 .remotes
                 .iter()
-                .find(|name| remote.name.starts_with(&format!("{name}/")))
+                .find(|name| {
+                    remote
+                        .name
+                        .strip_prefix(name.as_str())
+                        .is_some_and(|rest| rest.starts_with('/'))
+                })
                 .cloned();
             commits[index].remotes.push(GitCommitRemote {
                 name: remote.name.clone(),

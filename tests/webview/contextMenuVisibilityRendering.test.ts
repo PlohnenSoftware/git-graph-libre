@@ -145,6 +145,13 @@ function contextMenuItems() {
   );
 }
 
+/** The menu as drawn: each item's text, and "—" for a divider. */
+function contextMenuLayout() {
+  return Array.from(document.querySelectorAll<HTMLElement>("#contextMenu li")).map((item) =>
+    item.classList.contains("contextMenuDivider") ? "—" : (item.textContent ?? "")
+  );
+}
+
 describe("context menu visibility rendering", () => {
   it("uses the permanent signature default and restores a temporary header override", async () => {
     const viewState = { ...defaultViewState, showSignatureColumn: true };
@@ -161,7 +168,7 @@ describe("context menu visibility rendering", () => {
     const signatureItem = Array.from(
       document.querySelectorAll<HTMLElement>("#contextMenu .contextMenuItem")
     ).find((item) => item.textContent?.includes("Signature"));
-    expect(signatureItem?.textContent).toBe("✓ Signature");
+    expect(signatureItem?.getAttribute("aria-checked")).toBe("true");
     signatureItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     const savedState = vscodeMock.getState();
@@ -215,6 +222,40 @@ describe("context menu visibility rendering", () => {
 
     expect(contextMenuItems()).toEqual(["Create Archive"]);
     expect(dividers).toHaveLength(0);
+  });
+
+  it("leaves a hidden action out without drawing a divider in its place", async () => {
+    await bootWebview(
+      withVisibility({
+        commit: {
+          ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.commit,
+          createBranch: false,
+          cherryPick: false
+        },
+        tag: { ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.tag, push: false }
+      })
+    );
+
+    document
+      .querySelector<HTMLElement>('tr.commit[data-hash="abc123"]')
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    // Create Branch sat between these two; a divider there would split one group.
+    expect(contextMenuLayout().slice(0, 2)).toEqual(["Add Tag…", "Create Worktree…"]);
+    const checkout = contextMenuLayout().indexOf("Checkout…");
+    expect(contextMenuLayout().slice(checkout - 1, checkout + 2)).toEqual([
+      "—",
+      "Checkout…",
+      "Revert…"
+    ]);
+
+    document
+      .querySelector<HTMLElement>(".gitRef.tag")
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(contextMenuLayout().slice(0, 3)).toEqual([
+      "View Tag Details…",
+      "Delete Tag…",
+      "Fetch Tags…"
+    ]);
   });
 
   it("hides all disabled commit actions", async () => {

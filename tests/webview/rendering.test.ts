@@ -2279,7 +2279,11 @@ describe("webview rendering", () => {
 
     const loadsBeforeDateToggle = sentLoadCommitsCount();
     const dateItem = headerMenuItem("Date");
-    expect(dateItem?.textContent).toBe("✓ Date");
+    // A shown column is a checked item: its mark sits in the menu's check
+    // slot, never typed into the title, so every title starts in one column.
+    expect(dateItem?.getAttribute("role")).toBe("menuitemcheckbox");
+    expect(dateItem?.getAttribute("aria-checked")).toBe("true");
+    expect(dateItem?.textContent).toBe("✓Date");
     dateItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(document.getElementById("commitTable")?.classList.contains("hideDateCol")).toBe(true);
@@ -2287,6 +2291,7 @@ describe("webview rendering", () => {
     expect(sentLoadCommitsCount()).toBe(loadsBeforeDateToggle);
 
     const hiddenDateItem = headerMenuItem("Date");
+    expect(hiddenDateItem?.getAttribute("aria-checked")).toBe("false");
     expect(hiddenDateItem?.textContent).toBe("Date");
     hiddenDateItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
@@ -2300,13 +2305,13 @@ describe("webview rendering", () => {
       ["Commit", "commit", "hideCommitCol"]
     ] as const) {
       const visibleItem = headerMenuItem(label);
-      expect(visibleItem?.textContent).toBe(`✓ ${label}`);
+      expect(visibleItem?.getAttribute("aria-checked")).toBe("true");
       visibleItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       expect(document.getElementById("commitTable")?.classList.contains(className)).toBe(true);
       expect(vscodeMock.getState()?.hiddenColumns).toEqual(["signature", column]);
 
       const hiddenItem = headerMenuItem(label);
-      expect(hiddenItem?.textContent).toBe(label);
+      expect(hiddenItem?.getAttribute("aria-checked")).toBe("false");
       hiddenItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       expect(document.getElementById("commitTable")?.classList.contains(className)).toBe(false);
       expect(vscodeMock.getState()?.hiddenColumns).toEqual(["signature"]);
@@ -2314,7 +2319,7 @@ describe("webview rendering", () => {
     expect(sentLoadCommitsCount()).toBe(loadsBeforeDateToggle);
 
     const signatureItem = headerMenuItem("Signature");
-    expect(signatureItem?.textContent).toBe("Signature");
+    expect(signatureItem?.getAttribute("aria-checked")).toBe("false");
     signatureItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(document.getElementById("commitTable")?.classList.contains("hideSignatureCol")).toBe(
@@ -2361,7 +2366,7 @@ describe("webview rendering", () => {
 
     const loadsBeforeHide = sentLoadCommitsCount();
     const shownSignatureItem = headerMenuItem("Signature");
-    expect(shownSignatureItem?.textContent).toBe("✓ Signature");
+    expect(shownSignatureItem?.getAttribute("aria-checked")).toBe("true");
     shownSignatureItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(document.getElementById("commitTable")?.classList.contains("hideSignatureCol")).toBe(
       true
@@ -2451,7 +2456,7 @@ describe("webview rendering", () => {
     }
 
     const topoItem = headerMenuItem("Topological Order");
-    expect(topoItem?.textContent).toBe("Topological Order");
+    expect(topoItem?.getAttribute("aria-checked")).toBe("false");
     topoItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(vscodeMock.getState()?.gitRepos[REPO].commitOrdering).toBe("topo");
@@ -2478,9 +2483,9 @@ describe("webview rendering", () => {
       error: null
     });
 
-    expect(headerMenuItem("Topological Order")?.textContent).toBe("✓ Topological Order");
+    expect(headerMenuItem("Topological Order")?.getAttribute("aria-checked")).toBe("true");
     const dateItem = headerMenuItem("Commit Date Order");
-    expect(dateItem?.textContent).toBe("Commit Date Order");
+    expect(dateItem?.getAttribute("aria-checked")).toBe("false");
     dateItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(vscodeMock.getState()?.gitRepos[REPO].commitOrdering).toBe("date");

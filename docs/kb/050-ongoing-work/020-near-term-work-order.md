@@ -11,6 +11,35 @@ always_read: true
 
 # Near-Term Work Order
 
+**Also open (`2026-11-23`): unreachable-commits scan breaks graph load on a
+stale commit-graph.** Checking "Include unreachable commits" from the
+table-header menu on a repository with a stale commit-graph fails `git fsck`
+with exit `16`, dumps ~220 KB of `stdout` ahead of `stderr` via
+`simple-git`, and aborts the graph load even after `git log` succeeds.
+"Unreachable-commits scan breaks graph load on stale commit-graph" (Ongoing
+work) holds the verified root cause, adjacent risks (`F1-07`, Windows argv
+limit), workarounds, and proposed fix.
+
+**Also open (`2026-11-12`): popup defects to fix.** The maintainer asked for
+a visual review of every popup and context menu, the worktree ones first.
+The context menus are fixed. "Popup and context-menu visual review"
+(Ongoing work) lists what is left, V1–V11, with the cause and the proposed
+fix of each, a suggested order, and one question for the maintainer (VQ1,
+icon buttons in the Worktrees popup).
+
+**Now (`2026-11-08`).** Two threads, both waiting for the maintainer:
+
+- The Engine upstream integration (Ongoing work) brought R01–R09 to `main`
+  as engine `1.0.32`, gated `OK` and unpushed; every planned slice and its
+  follow-ups are integrated. Its "Follow-ups and notes for the maintainer"
+  hold what is left for later slices: a faster bounded walk for exact
+  author-date and topo orderings, per-byte encoding declines, and two
+  pre-existing divergences.
+- "Git Graph+ features: research and slice plan" (Future work) researched
+  the Reflog tab, interactive rebase and a timeline. On `2026-11-09` the
+  maintainer ordered the reflog slices; they are in progress as "Reflog tab"
+  (Ongoing work). Rebase and the timeline wait for later releases.
+
 **Next (`2026-11-04`): release 1.10.0 "The Worktrees".** The maintainer made
 worktrees the next release: "full worktree support", not only what the
 issues ask. It is to analyze the engine's part, include the to-tackle

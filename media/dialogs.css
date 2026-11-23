@@ -38,6 +38,13 @@
   margin-right: 4px;
   justify-content: center;
 }
+/* One text column per menu. Where any item of a menu can be checked, the
+   items that cannot still reserve the check slot (6px + 16px + 4px), so a
+   checked item, an unchecked one and a plain action all start their text at
+   the same place. Without it a menu mixing the two had two ragged columns. */
+#contextMenu:has(> .contextMenuItemCheckbox) > li.contextMenuItem:not(.contextMenuItemCheckbox) {
+  padding-left: 26px;
+}
 #contextMenu li.contextMenuItem:hover {
   background-color: var(--vscode-menu-selectionBackground);
   color: var(--vscode-menu-selectionForeground);
@@ -75,6 +82,12 @@
   z-index: 401;
   box-shadow: 0 4px 16px var(--vscode-widget-shadow);
   overflow-y: auto;
+  /* A path, a ref name or a Git message has no break point of its own, so
+     inside the width cap it scrolled the panel sideways instead (worktree
+     paths, 2026-11-08). Breaking such a word only where nothing else fits
+     keeps every popup's text, labels and notes within the panel; `anywhere`
+     rather than `break-word` because it also lets a table cell shrink. */
+  overflow-wrap: anywhere;
 }
 #dialog .dialogContent {
   line-height: 20px;
@@ -645,15 +658,36 @@ dl.tagDetailsFields dd {
   user-select: none;
 }
 
-/* Context menu header: presentational, never hoverable or clickable. */
+/* Context menu header: presentational, never hoverable or clickable.
+   Its inline-size containment keeps its caption out of the menu's width:
+   the menu, sized to its content, is as wide as its items, and a long
+   caption (a worktree's path and state) wraps inside that width rather
+   than stretching the menu across the window.
+
+   The header lines up with what it heads: its rule is inset as far as a
+   divider (6px), and its title starts where the items' text starts (6px of
+   margin plus 10px of padding is the items' 16px). At 9px with a full-width
+   rule the title sat 7px left of every item, under a line wider than the
+   dividers below it. */
 .contextMenuHeader {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 5px 9px 6px;
-  margin-bottom: 3px;
+  margin: 0 6px 4px;
+  padding: 5px 10px 6px;
   border-bottom: 1px solid var(--vscode-menu-separatorBackground, var(--ngg-neutral-border-subtle));
   cursor: default;
+  contain: inline-size;
+}
+/* In a menu with a check slot the items' text starts at 26px, and so does
+   the title (6px + 20px). */
+#contextMenu:has(> .contextMenuItemCheckbox) > .contextMenuHeader {
+  padding-left: 20px;
+}
+/* Since the header wraps rather than widening its menu, a menu with one gets
+   enough width for the title to stay on one line. */
+#contextMenu:has(> .contextMenuHeader) {
+  min-width: 280px;
 }
 .contextMenuHeaderTitle {
   font-weight: 600;
@@ -663,4 +697,5 @@ dl.tagDetailsFields dd {
   font-size: 11px;
   opacity: 0.75;
   color: var(--vscode-descriptionForeground);
+  overflow-wrap: anywhere;
 }

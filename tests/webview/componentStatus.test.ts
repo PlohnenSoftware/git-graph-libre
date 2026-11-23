@@ -287,7 +287,6 @@ describe("componentRows", () => {
     ["forced", "Git CLI (reloaded once from the Hidden menu)"],
     ["unverified", "Git CLI (Git has not confirmed this repository yet)"],
     ["handedBack", "Git CLI (handed back by the Rust engine)"],
-    ["topoOrdering", "Git CLI (topological order is selected)"],
     ["reflog", "Git CLI (reflog commits are included)"],
     ["unreachableCommits", "Git CLI (unreachable commits are included)"],
     ["globPattern", "Git CLI (a branch glob pattern is selected)"]

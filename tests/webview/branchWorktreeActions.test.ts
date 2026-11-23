@@ -214,8 +214,8 @@ describe("a local branch checked out in another worktree", () => {
     expect(items).toEqual(
       expect.arrayContaining(["Rename Branch…", "Delete Branch…", "Merge into current branch…"])
     );
-    expect(contextMenuHeader()).toContain("Checked out in another worktree");
-    expect(contextMenuHeader()).toContain(OTHER_WORKTREE);
+    // The header's title says why; where it is checked out is on the badge's tooltip.
+    expect(contextMenuHeader()).toBe("Checked out in another worktree");
   });
 
   it("keeps Checkout and Pull, with no header, when no other worktree has the branch", async () => {
@@ -271,7 +271,11 @@ describe("a local branch checked out in another worktree", () => {
     openRefContextMenu("head");
     clickContextMenuItem("Delete Branch…");
 
-    expect(dialogText()).toContain(REPO);
+    // The worktree is named by its folder, with its full path on hover.
+    expect(dialogText()).toContain(
+      "checked out in worktree branch-worktree-actions. Switch that worktree to another branch first."
+    );
+    expect(document.querySelector<HTMLElement>("#dialog span[title]")?.title).toBe(REPO);
     expect(document.getElementById("dialogAction")).toBeNull();
     expect(vscodeMock.sentMessages).toHaveLength(before);
   });
@@ -314,7 +318,7 @@ describe("a remote branch whose local branch is checked out in another worktree"
     expect(items).not.toContain("Fetch into local branch…");
     // Pulling the remote branch merges it into the current branch, which Git allows.
     expect(items).toContain("Pull Branch…");
-    expect(contextMenuHeader()).toContain(OTHER_WORKTREE);
+    expect(contextMenuHeader()).toBe("Checked out in another worktree");
   });
 
   it("keeps Checkout and Fetch into local branch when no worktree holds the local branch", async () => {
@@ -367,6 +371,20 @@ describe("removing the worktree that holds a branch (W21)", () => {
     submitDialog();
 
     expect(vscodeMock.sentMessages).toHaveLength(before);
+  });
+
+  it("names the worktree by its folder in a short message, with its path on hover", async () => {
+    await bootWebview(WORKTREES_WITH_FEATURE);
+    openRefContextMenu("head");
+    clickContextMenuItem("Delete Branch…");
+
+    expect(dialogText()).toContain(
+      "Branch feature/menu is checked out in worktree feature menu é. To delete it, remove that worktree too."
+    );
+    const name = Array.from(document.querySelectorAll<HTMLElement>("#dialog span[title]")).find(
+      (span) => span.title === OTHER_WORKTREE
+    );
+    expect(name?.textContent).toBe("feature menu é");
   });
 
   it("removes a clean worktree with plain remove, then the branch", async () => {
@@ -467,7 +485,7 @@ describe("removing the worktree that holds a branch (W21)", () => {
     openRefContextMenu("head");
     clickContextMenuItem("Delete Branch…");
 
-    expect(dialogText()).toContain("nothing on disk is deleted");
+    expect(dialogText()).toContain("Its folder is already gone, so only Git's record is removed.");
     tickDialogCheckbox(0);
     submitDialog();
 
@@ -584,5 +602,98 @@ describe("stale and moved worktrees (W21)", () => {
     expect(items).not.toContain("Remove Stale Worktree Entry");
     expect(items).not.toContain("Repair Worktree…");
     expect(items).not.toContain("Prune Stale Worktrees…");
+  });
+});
+
+/** The menu below its header: each item's text, and "—" for a divider. */
+function contextMenuLayout() {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>("#contextMenu li:not(.contextMenuHeader)")
+  ).map((item) => (item.classList.contains("contextMenuDivider") ? "—" : (item.textContent ?? "")));
+}
+
+describe("the worktree group in a branch's menu", () => {
+  it("puts the holding worktree's actions together at the top, then the branch's", async () => {
+    await bootWebview(WORKTREES_WITH_FEATURE);
+    openRefContextMenu("head");
+
+    const layout = contextMenuLayout();
+    expect(layout.slice(0, 4)).toEqual(["Open Worktree…", "Lock Worktree…", "Move Worktree…", "—"]);
+    // Pull is left out without drawing a divider in its place.
+    expect(layout.slice(4, 8)).toEqual([
+      "Create Worktree…",
+      "Rename Branch…",
+      "Push Branch…",
+      "Delete Branch…"
+    ]);
+    expect(layout.filter((item) => item.includes("Worktree"))).toHaveLength(4);
+  });
+
+  it("separates Open Worktree from the actions of a remote branch whose local branch is held", async () => {
+    await bootWebview(WORKTREES_WITH_FEATURE);
+    openRefContextMenu("remote");
+
+    // The worktree's action is a group of its own under the header, as in the
+    // local branch's menu; the remote branch's actions follow the divider.
+    expect(contextMenuLayout().slice(0, 3)).toEqual([
+      "Open Worktree…",
+      "—",
+      "Delete Remote Branch…"
+    ]);
+  });
+
+  it("gives Prune Stale Worktrees a group of its own in the menu of a branch no worktree holds", async () => {
+    await bootWebview([
+      worktree({}),
+      worktree({
+        path: OTHER_WORKTREE,
+        branch: "gone",
+        isMain: false,
+        isCurrent: false,
+        prunable: { reason: "gitdir file points to non-existent location" }
+      })
+    ]);
+    openRefContextMenu("head");
+
+    const layout = contextMenuLayout();
+    const prune = layout.indexOf("Prune Stale Worktrees…");
+    // Without the closing divider it headed the archive and compare items.
+    expect(layout.slice(prune - 1, prune + 3)).toEqual([
+      "—",
+      "Prune Stale Worktrees…",
+      "—",
+      "Create Archive"
+    ]);
+  });
+
+  it("groups a missing worktree's Remove, Repair and Prune with Open Worktree", async () => {
+    await bootWebview([
+      worktree({}),
+      worktree({
+        path: OTHER_WORKTREE,
+        branch: "feature/menu",
+        isMain: false,
+        isCurrent: false,
+        prunable: { reason: "gitdir file points to non-existent location" }
+      })
+    ]);
+    openRefContextMenu("head");
+
+    expect(contextMenuLayout().slice(0, 5)).toEqual([
+      "Open Worktree…",
+      "Remove Stale Worktree Entry",
+      "Repair Worktree…",
+      "Prune Stale Worktrees…",
+      "—"
+    ]);
+  });
+
+  it("leaves a branch no other worktree has with its usual menu", async () => {
+    await bootWebview([worktree({})]);
+    openRefContextMenu("head");
+
+    const layout = contextMenuLayout();
+    expect(layout.slice(0, 2)).toEqual(["Checkout Branch", "Create Worktree…"]);
+    expect(layout).not.toContain("Open Worktree…");
   });
 });

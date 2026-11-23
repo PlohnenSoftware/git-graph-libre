@@ -34,8 +34,13 @@ import type { EngineComponentStatus, EngineUnavailableReason } from "@/types";
  * `1.0.31` walks a show-all `load_commits` from the other worktrees' HEADs
  * too, so a sibling worktree's detached HEAD commit is drawn; a `1.0.29`
  * binary omits it where the CLI now includes it.
+ * `1.0.32` refuses single-file reads above 64 MiB with its own `TooLarge`
+ * error kind, reads a gitlink as its `Subproject commit` line, serves topo
+ * order as Git does, and decodes commit text in its declared encoding; a
+ * `1.0.31` binary reads large files whole, reports gitlinks missing, orders
+ * topo loads differently and garbles text that is not UTF-8.
  */
-export const EXPECTED_ENGINE_VERSION = "1.0.31";
+export const EXPECTED_ENGINE_VERSION = "1.0.32";
 
 /**
  * The napi surface slice 16.3 uses. Extended read by read in later slices —
@@ -123,6 +128,17 @@ export type EngineAddon = {
    * worktree, a missing `gitdir` file).
    */
   listWorktrees?(repoPath: string): Promise<string>;
+  /**
+   * `load_reflog` encoded as JSON: one page of a ref's reflog as
+   * `git log -g` reports it, `limit` shown entries after `offset` shown
+   * ones. Optional and deliberately absent from the shape check below, like
+   * `listWorktrees`: binaries built before it still load and the reader
+   * falls back to the CLI query — no engine version bump. It rejects with
+   * an `Unsupported` error wherever Git's answer could differ (a malformed
+   * reflog line, a missing or non-commit target, a symbolic ref, a missing
+   * or empty `HEAD` log with its branch fallback).
+   */
+  loadReflog?(repoPath: string, ref: string, limit: number, offset: number): Promise<string>;
   /**
    * `diff_texts` encoded as JSON: VS Code's `LinesDiff` for two texts,
    * computed by the Phase 17 port, with UTF-16 columns. Options are the

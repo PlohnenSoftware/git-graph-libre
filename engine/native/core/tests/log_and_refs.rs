@@ -485,8 +485,10 @@ fn reads_remote_tracking_branches_and_honours_the_view_options() {
     assert!(!names.contains(&"upstream/main"));
 }
 
+// Deliberate behavior change (R06, integrator decision): the `/changes/` filter is removed, so these
+// refs are remote branches as the CLI shows them. The former test asserted the filter.
 #[test]
-fn never_shows_code_review_change_refs() {
+fn lists_code_review_change_refs_as_remote_branches_like_git() {
     require_git!();
     let mut repo = TestRepo::new();
     let head = repo.commit_file("a.txt", "1", "first");
@@ -496,22 +498,25 @@ fn never_shows_code_review_change_refs() {
 
     let engine = open(&repo);
 
-    // A repository fetching code-review change refs can hold tens of thousands of them, so they
-    // stay out of the graph and out of the Branches dropdown.
+    // A `changes/` segment is an ordinary branch name: the ref is listed as a remote branch, in the
+    // graph and in the Branches dropdown, exactly as `git for-each-ref refs/remotes` lists it.
     let options = RefReadOptions {
         show_remote_branches: true,
         ..Default::default()
     };
     let snapshot = read_refs(&engine, &options).unwrap();
-    assert!(snapshot
-        .ref_data
-        .remotes
-        .iter()
-        .all(|r| !r.name.contains("changes/")));
-    assert!(snapshot
-        .branches
-        .iter()
-        .all(|branch| !branch.contains("changes/")));
+    let listed = repo.git(&["for-each-ref", "--format=%(refname)", "refs/remotes"]);
+    for name in ["origin/changes/45/12345/1", "origin/changes/45/12345/meta"] {
+        assert!(listed.contains(&format!("refs/remotes/{name}")));
+        let entry = snapshot
+            .ref_data
+            .remotes
+            .iter()
+            .find(|r| r.name == name)
+            .unwrap_or_else(|| panic!("{name} was dropped"));
+        assert_eq!(entry.hash, head);
+        assert!(snapshot.branches.contains(&format!("remotes/{name}")));
+    }
 }
 
 #[test]

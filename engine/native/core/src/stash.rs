@@ -10,6 +10,7 @@
 
 use crate::error::Result;
 use crate::repository::Repo;
+use crate::text::{self, CommitText};
 use crate::types::GitStash;
 
 /// Read every stash entry, newest first.
@@ -18,6 +19,7 @@ use crate::types::GitStash;
 /// empty list, and the view simply shows no stash rows.
 pub fn read_stashes(repo: &Repo) -> Result<Vec<GitStash>> {
     let git = repo.borrow();
+    text::ensure_utf8_output(&git)?;
     let Ok(Some(reference)) = git.try_find_reference("refs/stash") else {
         return Ok(Vec::new());
     };
@@ -47,9 +49,7 @@ pub fn read_stashes(repo: &Repo) -> Result<Vec<GitStash>> {
         let Ok(committer) = commit.committer() else {
             continue;
         };
-        let Ok(message) = commit.message() else {
-            continue;
-        };
+        let text = CommitText::of(&commit)?;
 
         stashes.push(GitStash {
             hash: hash.to_string(),
@@ -57,10 +57,10 @@ pub fn read_stashes(repo: &Repo) -> Result<Vec<GitStash>> {
             // Only a stash taken with `--include-untracked` has the third parent.
             untracked_files_hash: parents.get(2).map(ToString::to_string),
             selector: format!("refs/stash@{{{index}}}"),
-            author: author.name.to_string(),
-            email: author.email.to_string(),
+            author: text.decode(author.name)?.into_owned(),
+            email: text.decode(author.email)?.into_owned(),
             date: committer.time().map(|time| time.seconds).unwrap_or(0),
-            message: message.summary().to_string(),
+            message: text.subject(&commit)?,
         });
     }
 

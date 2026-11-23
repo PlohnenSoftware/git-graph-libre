@@ -5,6 +5,68 @@ All notable changes to this extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **A shorter menu header for a branch checked out in another worktree.** Its
+  context menu still opens with "Checked out in another worktree", but no
+  longer lists that worktree's path and state below it. The branch badge's
+  worktree marker shows where the branch is checked out when you hover it,
+  and the Worktrees list names every location.
+- **That menu groups the worktree's actions.** Open Worktree, Lock or Unlock,
+  Move, and for a missing folder Remove Stale Worktree Entry and Repair, plus
+  Prune Stale Worktrees, now sit together at the top under its header,
+  followed by the branch's own actions. A stray divider between Push Branch
+  and Delete Branch is gone too.
+- **The Topological commit ordering runs on the Rust engine.** It always went
+  through Git before, because the engine ordered some histories differently;
+  it now matches `git log --topo-order` exactly.
+- **Moving a worktree can pick its new home with the folder selector.** The
+  Move Worktree dialog had only a text field. Its Browse button now opens
+  the same folder selector as Create Worktree: choose the folder to move
+  into and the worktree keeps its folder name there, because the new folder
+  must not exist yet. The path stays editable, so a move can still rename
+  the folder, and nothing moves until you confirm.
+
+### Fixed
+
+- **Context menus line up.** A menu's header now starts where its items'
+  text starts, its rule matches the dividers below it, and check marks sit
+  in their own slot, so checked, unchecked and plain items share one text
+  column. An action hidden by the context-menu settings no longer leaves a
+  stray divider behind, and the worktree actions of a remote branch whose
+  local branch is checked out in another worktree form their own group, as
+  they already did for a local branch.
+- **Popups no longer overflow on long paths.** A worktree path, branch name or
+  Git message too long for a popup scrolled it sideways, for example after
+  creating a worktree. It now wraps inside the popup, in every dialog, the
+  Worktrees list and menu headers. The Delete Branch dialog for a branch held
+  by another worktree is also shorter. It names the worktree by its folder,
+  with the full path on hover and in the option that removes it.
+- **Commit text in other encodings.** With the Rust engine, a commit recorded
+  in another encoding (`i18n.commitEncoding`, for example ISO-8859-1) showed
+  garbled names and messages, and a subject after blank lines was lost. The
+  engine now decodes it as Git prints it, and hands encodings it cannot
+  match exactly to Git.
+- **Author Date ordering shows the right first page.** With the Author Date
+  commit ordering, a commit authored recently but committed long ago could
+  be missing from the first page. The engine now ranks the whole history, as
+  Git does, which takes longer on very large repositories.
+- **The GGL Diff tab and large files.** A file above 64 MiB is reported as
+  too large instead of being read whole, or shown empty when read through
+  Git.
+- **Submodules in the GGL Diff tab** show the `Subproject commit` line `git
+  diff` shows, instead of an empty side.
+- **A repository whose refs cannot be read** shows Git's error instead of an
+  empty graph.
+- **Remote branches under `changes/`** are shown with the Rust engine too, as
+  Git always showed them.
+
+The Rust engine is now `1.0.32`. Its fixes adapt parts of upstream commits
+`f007528`, `634ca6c` and `ff4aafe` of `neophack/vscode-git-graph-rs`; see
+`engine/NOTICE.md`.
+
 ## [1.10.0] - 2026-11-08
 
 "The Worktrees": every Git worktree of a repository, seen and managed from
@@ -1251,7 +1313,9 @@ system. Includes everything prepared for 1.5.1, which was never released.
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.9.0...v1.10.0
+[1.9.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.2...v1.8.0
 [1.6.2]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.6.1...v1.6.2

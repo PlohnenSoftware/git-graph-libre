@@ -280,7 +280,7 @@ export type GitComponentStatus =
  * The pre-call declines: graph loads whose shape the engine cannot serve, so
  * they go straight to the Git command line by design.
  */
-export type GraphLoadDecline = "topoOrdering" | "reflog" | "unreachableCommits" | "globPattern";
+export type GraphLoadDecline = "reflog" | "unreachableCommits" | "globPattern";
 
 /**
  * Which backend answered the most recent graph load, and why the command line
@@ -442,6 +442,11 @@ export type RequestOpenDiffTab = {
 export type ResponseOpenDiffTab = {
   command: "openDiffTab";
   success: boolean;
+};
+
+export type RequestShowReflog = {
+  command: "showReflog";
+  repo: string;
 };
 
 export type RequestViewFileAtRevision = {
@@ -619,10 +624,15 @@ export type ResponseResolveRef = {
   error: GitQueryError | null;
 };
 
-/** Asks the extension for a folder with VS Code's folder picker (the Create Worktree dialog's Browse, W22F). */
+/**
+ * Asks the extension for a folder with VS Code's folder picker: the Browse
+ * button of the Create Worktree dialog (W22F) and of the Move Worktree
+ * dialog. The purpose titles the picker for the dialog that asked.
+ */
 export type RequestPickFolder = {
   command: "pickFolder";
   requestId: number;
+  purpose: "createWorktree" | "moveWorktree";
 };
 export type ResponsePickFolder = {
   command: "pickFolder";
@@ -654,6 +664,7 @@ export type RequestMessage =
   | RequestCopyToClipboard
   | RequestViewDiff
   | RequestOpenDiffTab
+  | RequestShowReflog
   | RequestViewFileAtRevision
   | RequestCompareFileWithWorkingTree
   | RequestOpenFile
