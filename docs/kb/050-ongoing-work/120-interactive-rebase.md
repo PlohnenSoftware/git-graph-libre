@@ -113,8 +113,8 @@ the graph layout, outside this work; no slice reads it.
 | F2-05 | Reword, squash, fixup and edit with messages | F2-04 | Muse Code | integrated `4c62b924` |
 | F2-06 | Autosquash and fixup creation | F2-04, F2-05 | Muse Code | ready |
 | F2-07 | Dirty tree, published history and worktree protections | F2-04 | Gemini 4 Neon | integrated `7257f2cf` (merge) |
-| F2-08 | Conflict prediction for the planned todo | F2-04, F2-05 | Muse Code | ready |
-| F2-09 | Plain-rebase prediction and drag-to-rebase | F2-07, F2-08 | Muse Code | waiting |
+| F2-08 | Conflict prediction for the planned todo | F2-04, F2-05 | Gemini 4 Neon | integrated `9e04c8e5` |
+| F2-09 | Plain-rebase prediction and drag-to-rebase | F2-07, F2-08 | Muse Code | deferred (IQ8: not now, after the core ships) |
 | F2-10 | Route drop and squash through the todo | F2-05 | Muse Code | ready |
 
 F2-01 is split for the agent choice: F2-01a is pure, with no Git and no UI, so
@@ -222,3 +222,12 @@ pushed, and nothing is tagged without the maintainer.
   webview 1,216 passed. F2-06 and F2-10 were cut off by Muse Code's quota
   at about 16:50 UTC and are queued to continue at 21:03 UTC; F2-08 goes to
   Gemini 4 Neon now. F2-09 waits for F2-08.
+- `2026-11-23`: F2-08 (Gemini 4 Neon, `agy`) integrated into `gg-plus/next` at
+  `9e04c8e5` (it started from the tip, so no rebase was needed): conflict
+  prediction for the planned todo. Gates on `9e04c8e5`: typecheck,
+  `l10n:check`, KB check, backend 1,754 passed (60 skipped) and webview
+  1,221 passed (`integrate.sh` failed only at its last line because the
+  integrator edited the script mid-run; the fast-forward was done by hand
+  after the gate had passed). F2-09 stays deferred: IQ8's answer is "not
+  now, re-evaluate after the core ships". Open: F2-06 and F2-10 (queued for
+  Muse Code at 21:03 UTC), then the 1.11.0 sync merge of `main`.
