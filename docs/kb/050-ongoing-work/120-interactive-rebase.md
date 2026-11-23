@@ -109,10 +109,10 @@ the graph layout, outside this work; no slice reads it.
 | F2-01b | Git handoff and spike | F2-01a | Muse Code | integrated `3d39ecaf` |
 | F2-02 | Range read and preflight | — | Muse Code | integrated `16b65eb2` |
 | F2-03 | In-progress state and controls | — | Muse Code | integrated `40fbf8f4` |
-| F2-04 | Editor dialog: open, list, pick/drop/reorder, start | F2-01b, F2-02, F2-03 | Muse Code | ready |
-| F2-05 | Reword, squash, fixup and edit with messages | F2-04 | Muse Code | waiting |
+| F2-04 | Editor dialog: open, list, pick/drop/reorder, start | F2-01b, F2-02, F2-03 | Muse Code | integrated `48be134c` |
+| F2-05 | Reword, squash, fixup and edit with messages | F2-04 | Muse Code | ready |
 | F2-06 | Autosquash and fixup creation | F2-04, F2-05 | Muse Code | waiting |
-| F2-07 | Dirty tree, published history and worktree protections | F2-04 | Muse Code | waiting |
+| F2-07 | Dirty tree, published history and worktree protections | F2-04 | Muse Code | ready |
 | F2-08 | Conflict prediction for the planned todo | F2-04, F2-05 | Muse Code | waiting |
 | F2-09 | Plain-rebase prediction and drag-to-rebase | F2-07, F2-08 | Muse Code | waiting |
 | F2-10 | Route drop and squash through the todo | F2-05 | Muse Code | waiting |
@@ -183,3 +183,17 @@ pushed, and nothing is tagged without the maintainer.
   under `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F2-03/`. Gates on
   `40fbf8f4`: strict Biome on 20 files, typecheck, `l10n:check`, KB check,
   backend 1,697 passed (60 skipped) and webview 1,165 passed. F2-04 is ready.
+- `2026-11-23`: F2-04 (Muse Code; first run cut off by its quota, finished by
+  a second Muse Code run) integrated into `gg-plus/next` at `48be134c`: the
+  editor dialog from the commit menu "Interactive Rebase...", the todo list
+  with pick and drop, keyboard and drag reordering, Start through the F2-01b
+  handoff, and a per-group visibility toggle for the menu item. Multi-select
+  reuses the loaded first-parent `HEAD` chain rule, so a selection ending at
+  a non-`HEAD` branch tip is not offered. F2-07's published-commit
+  acknowledgement exists only as the model hook `requirePublishedAck`
+  (default off, no checkbox yet). 35 `rebase.*` keys, agent-translated.
+  Renders under `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F2-04/` (dark,
+  light; forced colors pinned by a CSS guard test, not rendered). Gates on
+  `48be134c`: strict Biome on 17 files, typecheck, `l10n:check`, KB check,
+  backend 1,709 passed (60 skipped) and webview 1,190 passed. F2-05 and F2-07
+  are ready and run in parallel (overlap allowed; the integrator resolves).
