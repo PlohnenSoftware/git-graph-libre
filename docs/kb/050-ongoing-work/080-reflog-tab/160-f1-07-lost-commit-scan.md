@@ -7,7 +7,7 @@ summary: >-
 
 # F1-07 — Lost-commit scan (opt-in)
 
-Status: ready (pulled forward by the integrator, `2026-11-23`)
+Status: claimed by Gemini 4 Neon (agy) on 2026-11-23 12:47
 
 Needs: F1-06
 
