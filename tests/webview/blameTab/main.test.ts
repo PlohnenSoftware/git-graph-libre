@@ -153,4 +153,71 @@ describe("blame tab webview", () => {
       { command: "clearIgnoredCommit", commitHash: null, targetLine: 3 }
     ]);
   });
+
+  it("posts the popover and cross-link messages and fills the popover on reply (F4-06)", async () => {
+    const { posted, root } = await start();
+    send(dataMessage());
+    root.querySelector<HTMLButtonElement>(".blame-summary.blame-popover-trigger")?.click();
+    expect(posted.at(-1)).toEqual({
+      command: "loadCommitPopover",
+      commitHash: OLD_HASH,
+      requestId: 1
+    });
+    send({
+      command: "blameCommitPopover",
+      requestId: 1,
+      commitHash: OLD_HASH,
+      details: {
+        hash: OLD_HASH,
+        parents: [],
+        author: "Ada",
+        authorMail: "ada@example.test",
+        authorTime: 1_700_000_000,
+        committer: "Ada",
+        committerMail: "ada@example.test",
+        committerTime: 1_700_000_000,
+        subject: "Add the first lines",
+        message: "Add the first lines\n\nFilled by the host."
+      },
+      avatar: null,
+      issueLinking: null,
+      error: null
+    });
+    expect(document.querySelector(".blame-popover-body")?.textContent).toBe("Filled by the host.");
+
+    const clickAction = (id: string) => {
+      // The header toggles the popover, so only click it while it is closed.
+      if (document.querySelector<HTMLElement>(".blame-popover")?.hidden !== false) {
+        root.querySelector<HTMLButtonElement>(".blame-summary.blame-popover-trigger")?.click();
+      }
+      document
+        .querySelector<HTMLButtonElement>(`.blame-popover-action[data-action="${id}"]`)
+        ?.click();
+    };
+    clickAction("showCommitInGraph");
+    expect(posted.at(-1)).toEqual({ command: "showCommitInGraph", commitHash: OLD_HASH });
+    clickAction("openDiff");
+    expect(posted.at(-1)).toEqual({
+      command: "openCommitFileDiff",
+      commitHash: OLD_HASH,
+      filePath: "src/file.ts",
+      previousHash: null,
+      previousPath: null
+    });
+    clickAction("ignoreCommit");
+    expect(posted.at(-1)).toEqual({
+      command: "ignoreCommit",
+      commitHash: OLD_HASH,
+      targetLine: null
+    });
+    clickAction("copyHash");
+    expect(posted.at(-1)).toEqual({ command: "copyText", kind: "hash", commitHash: OLD_HASH });
+    clickAction("copyMessage");
+    expect(posted.at(-1)).toEqual({ command: "copyText", kind: "message", commitHash: OLD_HASH });
+    clickAction("openFileAtLine");
+    expect(posted.at(-1)).toEqual({ command: "openFileAtLine", line: 1 });
+
+    root.querySelectorAll<HTMLButtonElement>(".blame-line-number")[3]?.click();
+    expect(posted.at(-1)).toEqual({ command: "openFileAtLine", line: 4 });
+  });
 });

@@ -459,3 +459,51 @@ describe("createBlameNavigator", () => {
     expect(nav.clearIgnoredCommit(null)).toBe(false);
   });
 });
+
+describe("loadCommitPopover (real Git, F4-06)", () => {
+  it("reads the full message, parents and identities behind one commit", async () => {
+    const dir = repo();
+    commitFile(
+      dir,
+      "src/file.ts",
+      "one\n",
+      "first subject\n\nFirst body line.",
+      "2020-01-01T00:00:00Z"
+    );
+    const first = headOid(dir);
+    commitFile(dir, "src/file.ts", "one\ntwo\n", "second subject", "2024-01-01T00:00:00Z");
+    const second = headOid(dir);
+
+    const result = await source().loadCommitPopover?.(dir, second);
+    expect(result?.error).toBeNull();
+    expect(result?.details?.hash).toBe(second);
+    expect(result?.details?.parents).toEqual([first]);
+    expect(result?.details?.subject).toBe("second subject");
+    expect(result?.details?.message).toBe("second subject");
+    expect(result?.details?.author).not.toBe("");
+    expect(result?.details?.authorTime).toBeGreaterThan(0);
+
+    const root = await source().loadCommitPopover?.(dir, first);
+    expect(root?.details?.subject).toBe("first subject");
+    expect(root?.details?.message).toBe("first subject\n\nFirst body line.");
+    // The repository's true root (makeRepo's own initial commit) has no parents.
+    const rootOid = cp
+      .execFileSync("git", ["rev-list", "--max-parents=0", "HEAD"], {
+        cwd: dir,
+        encoding: "utf8"
+      })
+      .trim();
+    expect((await source().loadCommitPopover?.(dir, rootOid))?.details?.parents).toEqual([]);
+  });
+
+  it("refuses the zero OID and a non-hash, and reports an unknown commit as an error", async () => {
+    const dir = repo();
+    commitFile(dir, "a.txt", "x\n", "init", "2020-01-01T00:00:00Z");
+    const src = source();
+    expect((await src.loadCommitPopover?.(dir, "0".repeat(40)))?.details).toBeNull();
+    expect((await src.loadCommitPopover?.(dir, "--upload-pack=x"))?.details).toBeNull();
+    const missing = await src.loadCommitPopover?.(dir, "f".repeat(40));
+    expect(missing?.details).toBeNull();
+    expect(missing?.error).not.toBeNull();
+  });
+});

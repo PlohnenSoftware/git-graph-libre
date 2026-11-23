@@ -74,4 +74,18 @@ describe("blame tab styles", () => {
     expect(body).toContain(".ggl-blame .blame-line.is-find-active");
     expect(body).toContain(".ggl-blame .blame-rename-notice");
   });
+
+  it("styles the commit popover and context menu on the widget and menu tokens (F4-06)", () => {
+    expect(body).toContain(".blame-popover {");
+    expect(body).toContain("position: fixed;");
+    expect(body).toContain("var(--vscode-editorWidget-background");
+    expect(body).toContain("var(--vscode-widget-shadow");
+    expect(body).toContain(".blame-popover-hash");
+    expect(body).toContain(".blame-popover-action");
+    expect(body).toContain(".blame-context-menu {");
+    expect(body).toContain("var(--vscode-menu-background");
+    expect(body).toContain("var(--vscode-menu-selectionBackground");
+    expect(body).toContain(".ggl-blame .blame-popover-trigger");
+    expect(body).toContain(".ggl-blame button.blame-line-number");
+  });
 });

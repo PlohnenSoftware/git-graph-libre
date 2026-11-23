@@ -727,4 +727,71 @@ describe("blame tab view", () => {
       Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
     }
   });
+
+  it("opens the commit popover from the hunk header and asks for its details (F4-06)", () => {
+    const onLoadCommitPopover = vi.fn();
+    const { root, view } = start({ onLoadCommitPopover });
+    view.render(applyData(initialBlameState(), dataMessage()), NOW);
+    root.querySelector<HTMLButtonElement>(".blame-summary.blame-popover-trigger")?.click();
+    const popover = document.querySelector<HTMLElement>(".blame-popover");
+    expect(popover?.hidden).toBe(false);
+    expect(popover?.querySelector(".blame-popover-hash")?.textContent).toBe(OLD_HASH);
+    expect(onLoadCommitPopover).toHaveBeenCalledWith(OLD_HASH, 1);
+    view.applyCommitPopover({
+      command: "blameCommitPopover",
+      requestId: 1,
+      commitHash: OLD_HASH,
+      details: {
+        hash: OLD_HASH,
+        parents: [],
+        author: "Ada",
+        authorMail: "ada@example.test",
+        authorTime: 1_700_000_000,
+        committer: "Ada",
+        committerMail: "ada@example.test",
+        committerTime: 1_700_000_000,
+        subject: "Add the first lines",
+        message: "Add the first lines\n\nThe body of the first commit."
+      },
+      avatar: null,
+      issueLinking: null,
+      error: null
+    });
+    expect(popover?.querySelector(".blame-popover-body")?.textContent).toBe(
+      "The body of the first commit."
+    );
+  });
+
+  it("opens the file at the clicked line number (F4-06)", () => {
+    const onOpenFileAtLine = vi.fn();
+    const { root, view } = start({ onOpenFileAtLine });
+    view.render(applyData(initialBlameState(), dataMessage()), NOW);
+    const numbers = root.querySelectorAll<HTMLButtonElement>(".blame-line-number");
+    numbers[2]?.click();
+    expect(onOpenFileAtLine).toHaveBeenCalledWith(3);
+  });
+
+  it("opens the hunk context menu on right-click and forwards its actions (F4-06)", () => {
+    const onShowCommitInGraph = vi.fn();
+    const { root, view } = start({ onShowCommitInGraph });
+    view.render(applyData(initialBlameState(), dataMessage()), NOW);
+    const band = root.querySelector<HTMLElement>(".blame-hunk");
+    band?.dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 5, clientY: 5 })
+    );
+    const menu = document.querySelector<HTMLElement>(".blame-context-menu");
+    expect(menu?.hidden).toBe(false);
+    menu?.querySelector<HTMLButtonElement>('[data-action="showCommitInGraph"]')?.click();
+    expect(onShowCommitInGraph).toHaveBeenCalledWith(OLD_HASH);
+  });
+
+  it("closes the popover when the blamed file changes (F4-06)", () => {
+    const { root, view } = start();
+    const first = applyData(initialBlameState(), dataMessage());
+    view.render(first, NOW);
+    root.querySelector<HTMLButtonElement>(".blame-summary.blame-popover-trigger")?.click();
+    expect(document.querySelector<HTMLElement>(".blame-popover")?.hidden).toBe(false);
+    view.render(applyData(first, dataMessage({ requestId: 2, filePath: "src/other.ts" })), NOW);
+    expect(document.querySelector<HTMLElement>(".blame-popover")?.hidden).toBe(true);
+  });
 });

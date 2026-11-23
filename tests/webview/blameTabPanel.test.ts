@@ -11,9 +11,10 @@ import type {
   BlamePayload,
   BlameSource
 } from "@/blameTabTypes";
+import type { DiffTabRequest } from "@/diffTabTypes";
 import { type BlameWatcher, openBlameTab } from "@/extension/blameTab/blameTabPanel";
 
-import { resetVscodeMock, setConfigurationValue } from "./__mocks__/vscode";
+import { executedCommands, resetVscodeMock, setConfigurationValue } from "./__mocks__/vscode";
 import { OLD_HASH, payload } from "./blameTab/fixtures";
 
 type FakePanel = ReturnType<typeof createFakePanel>;
@@ -167,6 +168,19 @@ function open(
     watcher?: ReturnType<typeof fakeWatcher>;
     openFile?: (filePath: string) => Thenable<unknown>;
     readOpenDocument?: (fsPath: string) => { dirty: boolean; text: string } | null;
+    showInGraph?: (repo: string, commitHash: string) => void;
+    openDiffTab?: (request: DiffTabRequest) => void;
+    isDiffTabAvailable?: () => boolean;
+    copyText?: (text: string) => Promise<boolean>;
+    avatarFor?: (email: string) => Promise<string | null>;
+    issueLinkingFor?: (repo: string) => { pattern: string; urlTemplate: string } | null;
+    openFileAtLine?: (filePath: string, line: number) => Thenable<unknown>;
+    openRevisionAtLine?: (
+      repo: string,
+      filePath: string,
+      rev: string,
+      line: number
+    ) => Thenable<unknown>;
   } = {}
 ) {
   const watcher = extra.watcher ?? fakeWatcher();
@@ -177,7 +191,15 @@ function open(
     telemetry,
     createWatcher: (onRefresh) => watcher.create(onRefresh),
     openFile: extra.openFile,
-    readOpenDocument: extra.readOpenDocument
+    readOpenDocument: extra.readOpenDocument,
+    showInGraph: extra.showInGraph,
+    openDiffTab: extra.openDiffTab,
+    isDiffTabAvailable: extra.isDiffTabAvailable,
+    copyText: extra.copyText,
+    avatarFor: extra.avatarFor,
+    issueLinkingFor: extra.issueLinkingFor,
+    openFileAtLine: extra.openFileAtLine,
+    openRevisionAtLine: extra.openRevisionAtLine
   });
   return watcher;
 }
@@ -804,5 +826,187 @@ describe("openBlameTab", () => {
       ignoreRevs: [hashA, hashB]
     });
     expect(spy.sent).toEqual([{ feature: "tab.blame", ok: true }]);
+  });
+
+  it("answers loadCommitPopover with details, avatar and issue linking, without a tab open (F4-06)", async () => {
+    const spy = telemetrySpy();
+    const source: BlameSource = {
+      load: async () => payload(),
+      loadCommitPopover: async () => ({
+        details: {
+          hash: OLD_HASH,
+          parents: [],
+          author: "Ada",
+          authorMail: "ada@example.test",
+          authorTime: 1_700_000_000,
+          committer: "Ada",
+          committerMail: "ada@example.test",
+          committerTime: 1_700_000_000,
+          subject: "Add the first lines",
+          message: "Add the first lines\n\nBody."
+        },
+        error: null
+      })
+    };
+    open(undefined, source, spy.telemetry, {
+      avatarFor: async () => "data:image/png;base64,AAAA",
+      issueLinkingFor: () => ({ pattern: "#(\\d+)", urlTemplate: "https://example.test/$1" })
+    });
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    panel.send({ command: "loadCommitPopover", requestId: 7, commitHash: OLD_HASH });
+    await flush();
+    const reply = panel.posted.at(-1) as Extract<
+      BlameHostMessage,
+      { command: "blameCommitPopover" }
+    >;
+    expect(reply.requestId).toBe(7);
+    expect(reply.details?.subject).toBe("Add the first lines");
+    expect(reply.avatar).toBe("data:image/png;base64,AAAA");
+    expect(reply.issueLinking).toEqual({
+      pattern: "#(\\d+)",
+      urlTemplate: "https://example.test/$1"
+    });
+    // A popover read is not a tab open: only the open itself was reported.
+    expect(spy.sent).toEqual([{ feature: "tab.blame", ok: true }]);
+  });
+
+  it("reveals the commit in the graph and refuses a non-hash (F4-06)", async () => {
+    const showInGraph = vi.fn();
+    open(undefined, resolved(), undefined, { showInGraph });
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    panel.send({ command: "showCommitInGraph", commitHash: OLD_HASH });
+    expect(showInGraph).toHaveBeenCalledWith("/repos/one", OLD_HASH);
+    panel.send({ command: "showCommitInGraph", commitHash: "0".repeat(40) });
+    panel.send({ command: "showCommitInGraph", commitHash: "--upload-pack=x" });
+    expect(showInGraph).toHaveBeenCalledOnce();
+  });
+
+  it("opens the commit file diff in the GGL Diff tab when available (F4-06)", async () => {
+    const openDiffTab = vi.fn();
+    open(undefined, resolved(), undefined, {
+      openDiffTab,
+      isDiffTabAvailable: () => true
+    });
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    panel.send({
+      command: "openCommitFileDiff",
+      commitHash: OLD_HASH,
+      filePath: "src/file.ts",
+      previousHash: "b".repeat(40),
+      previousPath: "src/old.ts"
+    });
+    expect(openDiffTab).toHaveBeenCalledWith({
+      repo: "/repos/one",
+      left: { kind: "revision", ref: "b".repeat(40), path: "src/old.ts" },
+      right: { kind: "revision", ref: OLD_HASH, path: "src/file.ts" },
+      title: "file.ts (bbbbbbbb ↔ aaaaaaaa)"
+    });
+    panel.send({
+      command: "openCommitFileDiff",
+      commitHash: OLD_HASH,
+      filePath: "src/file.ts",
+      previousHash: null,
+      previousPath: null
+    });
+    expect(openDiffTab).toHaveBeenLastCalledWith(
+      expect.objectContaining({ left: { kind: "empty" } })
+    );
+    // A path outside the repository is refused, never diffed.
+    panel.send({
+      command: "openCommitFileDiff",
+      commitHash: OLD_HASH,
+      filePath: "../outside.ts",
+      previousHash: null,
+      previousPath: null
+    });
+    expect(openDiffTab).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to vscode.diff when the GGL Diff tab is unavailable (F4-06)", async () => {
+    const openDiffTab = vi.fn();
+    open(undefined, resolved(), undefined, {
+      openDiffTab,
+      isDiffTabAvailable: () => false
+    });
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    panel.send({
+      command: "openCommitFileDiff",
+      commitHash: OLD_HASH,
+      filePath: "src/file.ts",
+      previousHash: "b".repeat(40),
+      previousPath: "src/old.ts"
+    });
+    await flush();
+    expect(openDiffTab).not.toHaveBeenCalled();
+    const diffCall = executedCommands.find((args) => args[0] === "vscode.diff");
+    expect(diffCall).toBeDefined();
+    expect(String(diffCall?.[1])).toContain(encodeURIComponent("b".repeat(40)));
+    expect(String(diffCall?.[2])).toContain(encodeURIComponent(OLD_HASH));
+    expect(diffCall?.[3]).toBe("file.ts (bbbbbbbb ↔ aaaaaaaa)");
+  });
+
+  it("opens the working file and the pinned revision at the exact 0-based line (F4-06)", async () => {
+    const openFileAtLine = vi.fn(async () => undefined);
+    const openRevisionAtLine = vi.fn(async () => undefined);
+    open(undefined, resolved(), undefined, { openFileAtLine, openRevisionAtLine });
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    panel.send({ command: "openFileAtLine", line: 4 });
+    await flush();
+    expect(openFileAtLine).toHaveBeenCalledWith(path.resolve("/repos/one", "src/file.ts"), 3);
+    expect(openRevisionAtLine).not.toHaveBeenCalled();
+
+    open({ repo: "/repos/one", filePath: "src/file.ts", rev: OLD_HASH }, resolved(), undefined, {
+      openFileAtLine,
+      openRevisionAtLine
+    });
+    await flush();
+    panel.send({ command: "openFileAtLine", line: 2 });
+    await flush();
+    expect(openRevisionAtLine).toHaveBeenCalledWith("/repos/one", "src/file.ts", OLD_HASH, 1);
+    panel.send({ command: "openFileAtLine", line: 0 });
+    await flush();
+    expect(openRevisionAtLine).toHaveBeenCalledOnce();
+  });
+
+  it("copies the hash directly and the full message through the source (F4-06)", async () => {
+    const copyText = vi.fn(async () => true);
+    const source: BlameSource = {
+      load: async () => payload(),
+      loadCommitPopover: async () => ({
+        details: {
+          hash: OLD_HASH,
+          parents: [],
+          author: "Ada",
+          authorMail: "ada@example.test",
+          authorTime: 1_700_000_000,
+          committer: "Ada",
+          committerMail: "ada@example.test",
+          committerTime: 1_700_000_000,
+          subject: "Add the first lines",
+          message: "Add the first lines\n\nBody."
+        },
+        error: null
+      })
+    };
+    open(undefined, source, undefined, { copyText });
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    panel.send({ command: "copyText", kind: "hash", commitHash: OLD_HASH });
+    await flush();
+    expect(copyText).toHaveBeenCalledWith(OLD_HASH);
+    panel.send({ command: "copyText", kind: "message", commitHash: OLD_HASH });
+    await flush();
+    expect(copyText).toHaveBeenCalledWith("Add the first lines\n\nBody.");
   });
 });

@@ -64,7 +64,24 @@ export const LABELS: BlameLabels = {
   findCount: "{0} / {1}",
   findPrev: "Previous match",
   findNext: "Next match",
-  findClose: "Close find"
+  findClose: "Close find",
+  showCommitDetails: "Show commit details",
+  popoverClose: "Close commit details",
+  popoverLoadError: "Unable to load the commit details: {0}",
+  showCommitInGraph: "Show Commit in Graph",
+  openInGglDiff: "Open in GGL Diff",
+  ignoreCommitSession: "Ignore Commit (This Session)",
+  copyCommitHash: "Copy Commit Hash to Clipboard",
+  copyCommitMessage: "Copy Commit Message to Clipboard",
+  openFileAtLine: "Open File at Line",
+  viewBlameAtHead: "View Blame at HEAD",
+  uncommittedExplanation: "These lines contain local changes that have not been committed yet.",
+  detailCommit: "Commit: ",
+  detailAuthor: "Author: ",
+  detailAuthorDate: "Author Date: ",
+  detailCommitter: "Committer: ",
+  detailCommitterDate: "Committer Date: ",
+  detailDate: "Date: "
 };
 
 /** The graph display settings at their English defaults. */
