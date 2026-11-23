@@ -184,12 +184,12 @@ third-party analytics provider.
   That includes every button of the Worktrees list and the branch menus —
   open, switch, copy path, create, lock, unlock, move, remove, repair and
   prune — each as its name and outcome only, never which worktree it was.
-- Each time the Reflog tab or the GGL Diff tab is opened, from its toolbar
-  button, a context menu or a command, and whether that went without
-  errors: the tab appeared and its first content loaded. An open that could
-  not happen — no repository to show, the tab unavailable, or its first
-  load failing — is recorded as a failed open. Nothing about what a tab
-  showed is sent: no repository, file, entries, search text or options.
+- Each time the Reflog tab, the GGL Diff tab or the Blame tab is opened, from
+  its toolbar button, a context menu or a command, and whether that went
+  without errors: the tab appeared and its first content loaded. An open that
+  could not happen — no repository or file to show, the tab unavailable, or
+  its first load failing — is recorded as a failed open. Nothing about what a
+  tab showed is sent: no repository, file, entries, search text or options.
 - Once per session: whether a feature that works by *showing* something was
   actually in effect — recovered history (reflog-only or unreachable commits)
   appearing in the graph, a signed tag being there to badge, a discovered Git
