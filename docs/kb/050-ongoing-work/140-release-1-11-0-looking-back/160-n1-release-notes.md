@@ -8,7 +8,7 @@ summary: >-
 
 # N1 — Release notes for 1.11.0 "Looking Back"
 
-Status: ready
+Status: claimed by Claude Haiku on 2026-11-23 17:52
 
 Needs: F4-05, F4-06, Q1, L2, P1 (all integrated)
 
