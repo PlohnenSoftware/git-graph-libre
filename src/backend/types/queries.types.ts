@@ -210,6 +210,17 @@ type QueryPayloads = {
     result: UncommittedDetailsResult;
     response: UncommittedDetailsResult;
   };
+  rebaseRange: {
+    /**
+     * `base` is the exclusive start of the range (`base..HEAD`); `null` asks
+     * for the whole history up to `HEAD`, root commit included (the read
+     * behind `git rebase -i --root`).
+     */
+    request: { requestId: number; repo: string; base: string | null };
+    result: GitRebaseRangeResult;
+    /** `repo` comes back so an answer for a repository no longer shown is dropped. */
+    response: { requestId: number; repo: string } & GitRebaseRangeResult;
+  };
 };
 
 export type QueryRequest = {
@@ -429,5 +440,80 @@ export type GitBlameResult = {
   totalLines: number;
   /** The `--ignore-revs-file` the blame ran with, or null when it ran without one. */
   ignoreRevsFileUsed: string | null;
+  error: GitQueryError | null;
+};
+
+/** One commit in the range an interactive rebase would rewrite. Ranges list these oldest first. */
+export type GitRebaseRangeCommit = {
+  /** Full hash. */
+  hash: string;
+  /** Full parent hashes, in Git's order; empty for a root commit. */
+  parents: string[];
+  author: string;
+  email: string;
+  subject: string;
+  /** The message body after the subject, with trailing newlines trimmed; "" when there is none. */
+  body: string;
+  /** True when the commit has more than one parent. */
+  isMerge: boolean;
+  /**
+   * True when the branch's upstream already reaches this commit. With no
+   * upstream nothing is published (F2-07 decides how to show that).
+   */
+  isPublished: boolean;
+};
+
+/** An operation Git has in progress in the per-worktree git directory. */
+export type GitRebaseOperation = "rebase" | "merge" | "cherry-pick" | "revert";
+
+/**
+ * Why an interactive rebase cannot start, as data. No message text travels
+ * here; the surface that shows a reason words it (and localizes it) itself.
+ */
+export type RebasePreflightReason =
+  | "inProgress"
+  | "emptyRange"
+  | "dirty"
+  | "alreadyUsedElsewhere"
+  | "readFailed";
+
+/** The "can start?" answer for one range read: every reason that applies, in a stable order. */
+export type GitRebasePreflight = {
+  canStart: boolean;
+  reasons: RebasePreflightReason[];
+};
+
+/**
+ * Everything the interactive rebase editor needs before it opens: the commits
+ * of `base..HEAD` (or the whole history for the root case) oldest first, the
+ * facts Git itself would refuse on, and the preflight answer over them. On an
+ * error the facts are at their empty values and `preflight` says `readFailed`.
+ */
+export type GitRebaseRangeResult = {
+  commits: GitRebaseRangeCommit[];
+  mergeCount: number;
+  /**
+   * Tracked changes Git refuses to rebase over: anything staged or unstaged.
+   * Untracked files alone do not refuse a rebase, so they are not `dirty`.
+   */
+  dirty: boolean;
+  /** True when untracked files are present, dirty or not. */
+  hasUntracked: boolean;
+  inProgress: boolean;
+  /** Which operation is in progress; null exactly when `inProgress` is false. */
+  inProgressKind: GitRebaseOperation | null;
+  detached: boolean;
+  /** The checked-out branch's short name; null when detached. */
+  branch: string | null;
+  /** The branch's upstream in short form (for example `origin/main`); null when it tracks nothing. */
+  upstream: string | null;
+  /**
+   * Whether the checked-out branch is also checked out in another worktree.
+   * `"unknown"` when the worktree list could not be read: never shown as false.
+   */
+  alreadyUsedElsewhere: boolean | "unknown";
+  /** True when the range holds more than 500 commits. It prompts (F2-07); it never refuses. */
+  tooLong: boolean;
+  preflight: GitRebasePreflight;
   error: GitQueryError | null;
 };
