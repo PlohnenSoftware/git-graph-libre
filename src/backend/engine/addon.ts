@@ -39,8 +39,11 @@ import type { EngineComponentStatus, EngineUnavailableReason } from "@/types";
  * order as Git does, and decodes commit text in its declared encoding; a
  * `1.0.31` binary reads large files whole, reports gitlinks missing, orders
  * topo loads differently and garbles text that is not UTF-8.
+ * `1.0.33` canonicalizes `author_stats` authors through the repository's
+ * mailmap, as `git shortlog` does; a `1.0.32` binary counts the identities
+ * commits record, so one person under two addresses shows twice.
  */
-export const EXPECTED_ENGINE_VERSION = "1.0.32";
+export const EXPECTED_ENGINE_VERSION = "1.0.33";
 
 /**
  * The napi surface slice 16.3 uses. Extended read by read in later slices —

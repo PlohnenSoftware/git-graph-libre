@@ -374,7 +374,7 @@ dependencies = [
 
 [[package]]
 name = "git-graph-core"
-version = "1.0.32"
+version = "1.0.33"
 dependencies = [
  "bstr",
  "encoding_rs",
@@ -387,14 +387,14 @@ dependencies = [
 
 [[package]]
 name = "git-graph-diff"
-version = "1.0.32"
+version = "1.0.33"
 dependencies = [
  "wasm-bindgen",
 ]
 
 [[package]]
 name = "git-graph-node"
-version = "1.0.32"
+version = "1.0.33"
 dependencies = [
  "git-graph-core",
  "git-graph-diff",
