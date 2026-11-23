@@ -55,10 +55,11 @@ export const COAUTHOR_AGENTS: readonly CoauthorAgent[] = [
   {
     name: "Claude",
     maker: "Anthropic",
-    variants: ["Opus 5", "Opus 5.5", "Sonnet 5", "Sonnet 5.5", "Haiku 5.5"]
+    variants: ["Opus 5", "Opus 5.5", "Sonnet 5", "Sonnet 5.5", "Haiku 5.5", "Fable 5.2"]
   },
   { name: "Codex", maker: "OpenAI", variants: [] },
-  { name: "Muse Code", maker: "Meta", variants: ["Muse Spark"] },
+  { name: "Muse Code", maker: "Meta", variants: ["Muse Spark", "muse-wonder-full-1.0"] },
+  { name: "Antigravity", maker: "Google", variants: ["Gemini 4 Neon", "Gemini 4 Argon"] },
   { name: "GitHub Copilot", maker: "GitHub", variants: ["Copilot coding agent"] },
   { name: "ZCode", maker: "Z.ai", variants: [] },
   { name: "Kilo", variants: [] }
