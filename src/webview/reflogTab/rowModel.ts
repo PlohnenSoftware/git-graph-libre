@@ -124,6 +124,10 @@ export function applyData(state: ReflogViewState, message: ReflogDataMessage): R
   if (message.requestId < state.requestId) return state;
   if (message.requestId === state.requestId && message.append && !state.loading) return state;
   const { page } = message;
+  // A failed "Load more" keeps the rows on screen; only its error is new.
+  let nextRows = page.rows;
+  if (message.append && page.error !== null) nextRows = state.rows;
+  else if (message.append) nextRows = [...state.rows, ...page.rows];
   return {
     loading: false,
     loadingMore: false,
@@ -138,13 +142,7 @@ export function applyData(state: ReflogViewState, message: ReflogDataMessage): R
     locale: message.locale,
     labels: message.labels,
     display: message.display,
-    // A failed "Load more" keeps the rows on screen; only its error is new.
-    rows:
-      message.append && page.error !== null
-        ? state.rows
-        : message.append
-          ? [...state.rows, ...page.rows]
-          : page.rows,
+    rows: nextRows,
     reflogState: page.state ?? state.reflogState,
     error: page.error,
     hasMore: page.error === null ? page.hasMore : state.hasMore,
