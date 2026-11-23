@@ -133,6 +133,16 @@ afterEach(() => {
 });
 
 describe("openDiffTab", () => {
+  it("shows the GGL tab icon, following tabIconColorTheme", () => {
+    setConfigurationValue("git-graph-libre", "tabIconColorTheme", "grey");
+    open("a.ts");
+    const panel = onlyPanel() as unknown as { iconPath?: unknown };
+    expect(panel.iconPath).toEqual({
+      light: { fsPath: `${EXTENSION}/resources/webview-icon-grey-light.svg` },
+      dark: { fsPath: `${EXTENSION}/resources/webview-icon-grey-dark.svg` }
+    });
+  });
+
   it("creates one retained panel in the active column, with media and out as roots", () => {
     open("a.ts");
     const panel = onlyPanel();

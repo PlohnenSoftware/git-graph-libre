@@ -4,6 +4,7 @@ import { DEFAULT_REFLOG_PAGE_SIZE, MAX_REFLOG_PAGE_SIZE } from "@/backend/querie
 import { buildExtensionUri } from "@/backend/utils/path";
 import { config } from "@/config";
 import type { RepoManager } from "@/extension/repoManager";
+import { tabIconPaths } from "@/extension/tabIcon";
 import { copyToClipboard } from "@/extension/utils/clipboard";
 import { showCommitInGraph } from "@/extension/webviewPanel";
 import * as l10n from "@/l10n";
@@ -107,6 +108,7 @@ function createReflogTab(deps: ReflogTabDeps) {
       ]
     }
   );
+  panel.iconPath = tabIconPaths(deps.extensionPath, config.tabIconColorTheme());
   panel.webview.html = buildReflogTabHtml(panel.webview, deps.extensionPath);
   const reportOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_REFLOG);
 

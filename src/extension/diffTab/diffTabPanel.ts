@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 
 import { buildExtensionUri } from "@/backend/utils/path";
+import { config } from "@/config";
 import type {
   DiffTabLabels,
   DiffTabPayload,
@@ -9,6 +10,7 @@ import type {
   DiffTabSource,
   DiffTabWebviewMessage
 } from "@/diffTabTypes";
+import { tabIconPaths } from "@/extension/tabIcon";
 import * as l10n from "@/l10n";
 import type { TelemetryReporter } from "@/telemetry";
 import { createTabOpenReporter, TAB_FEATURE_DIFF } from "@/telemetry/tabOpen";
@@ -61,6 +63,7 @@ function createDiffTab(title: string, deps: DiffTabDeps) {
       ]
     }
   );
+  panel.iconPath = tabIconPaths(deps.extensionPath, config.tabIconColorTheme());
   panel.webview.html = buildDiffTabHtml(panel.webview, deps.extensionPath);
   const reportOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_DIFF);
   let ready = false;

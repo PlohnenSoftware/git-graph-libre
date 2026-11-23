@@ -196,6 +196,16 @@ afterEach(() => {
 });
 
 describe("openBlameTab", () => {
+  it("shows the GGL tab icon, following tabIconColorTheme", () => {
+    setConfigurationValue("git-graph-libre", "tabIconColorTheme", "grey");
+    open();
+    const panel = onlyPanel() as unknown as { iconPath?: unknown };
+    expect(panel.iconPath).toEqual({
+      light: { fsPath: `${EXTENSION}/resources/webview-icon-grey-light.svg` },
+      dark: { fsPath: `${EXTENSION}/resources/webview-icon-grey-dark.svg` }
+    });
+  });
+
   it("creates one retained panel, titled for the file", () => {
     open();
     const panel = onlyPanel();

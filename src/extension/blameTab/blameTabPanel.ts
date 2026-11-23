@@ -16,6 +16,7 @@ import type {
   BlameWebviewMessage
 } from "@/blameTabTypes";
 import { config } from "@/config";
+import { tabIconPaths } from "@/extension/tabIcon";
 import * as l10n from "@/l10n";
 import { RepoFileWatcher } from "@/repoFileWatcher";
 import type { TelemetryReporter } from "@/telemetry";
@@ -146,6 +147,7 @@ function createBlameTab(deps: BlameTabDeps) {
       ]
     }
   );
+  panel.iconPath = tabIconPaths(deps.extensionPath, config.tabIconColorTheme());
   panel.webview.html = buildBlameTabHtml(panel.webview, deps.extensionPath);
   const reportOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_BLAME);
   const readOpenDocument = deps.readOpenDocument ?? defaultReadOpenDocument;
