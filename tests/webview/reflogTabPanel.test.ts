@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { openReflogTab, type ReflogWatcher } from "@/extension/reflogTab/reflogTabPanel";
 import type { ReflogHostMessage, ReflogPage, ReflogSource } from "@/reflogTabTypes";
+import { TAB_FEATURE_REFLOG } from "@/telemetry/tabOpen";
 import { resetVscodeMock, setConfigurationValue } from "./__mocks__/vscode";
 import { page, row } from "./reflogTab/fixtures";
 
@@ -121,6 +122,35 @@ function open(repo = "/repos/one", source: ReflogSource = resolved(), watcher = 
     outputChannel: log,
     createWatcher: watcher.create,
     locale: "en"
+  });
+  return watcher;
+}
+
+/** Records what reached the telemetry reporter, in order. */
+function createTelemetrySpy() {
+  const sent: Array<{ feature: string; ok: boolean }> = [];
+  return {
+    sent,
+    telemetry: {
+      logFeature: (feature: string, ok: boolean) => sent.push({ feature, ok })
+    }
+  };
+}
+
+type TelemetrySpy = ReturnType<typeof createTelemetrySpy>;
+
+function openMeasured(
+  spy: TelemetrySpy,
+  repo = "/repos/one",
+  source: ReflogSource = resolved(),
+  watcher = fakeWatcher()
+) {
+  openReflogTab(repo, source, {
+    extensionPath: EXTENSION,
+    outputChannel: log,
+    createWatcher: watcher.create,
+    locale: "en",
+    telemetry: spy.telemetry
   });
   return watcher;
 }
@@ -428,6 +458,63 @@ describe("openReflogTab", () => {
     );
     await flush();
     expect(seen.at(-1)).toEqual({ ref: "HEAD", search: "", actions: [], onlyInReflog: false });
+  });
+
+  // T1: whether the tab was opened and whether that went without errors.
+  // Only the fixed id and the outcome are sent — never the repository, the
+  // rows, the search text or the picked ref.
+  describe("tab-open telemetry (T1)", () => {
+    it("reports a successful open once, carrying nothing about the repository", async () => {
+      const spy = createTelemetrySpy();
+      openMeasured(spy, "/repos/secret-client");
+      onlyPanel().send({ command: "ready" });
+      await flush();
+
+      expect(spy.sent).toEqual([{ feature: TAB_FEATURE_REFLOG, ok: true }]);
+      expect(JSON.stringify(spy.sent)).not.toContain("secret-client");
+    });
+
+    it("reports a failed open when the first page fails to load", async () => {
+      const spy = createTelemetrySpy();
+      openMeasured(spy, "/repos/one", resolved(page({ error: "not a git repository" })));
+      onlyPanel().send({ command: "ready" });
+      await flush();
+
+      expect(spy.sent).toEqual([{ feature: TAB_FEATURE_REFLOG, ok: false }]);
+    });
+
+    it("does not report refreshes, paging or query changes after the open", async () => {
+      const spy = createTelemetrySpy();
+      const watcher = openMeasured(spy);
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+      watcher.fire();
+      await flush();
+      panel.send({ command: "loadMore" });
+      await flush();
+      panel.send({
+        command: "query",
+        query: { ref: "HEAD", search: "secret text", actions: [], onlyInReflog: false }
+      });
+      await flush();
+
+      expect(spy.sent).toEqual([{ feature: TAB_FEATURE_REFLOG, ok: true }]);
+      expect(JSON.stringify(spy.sent)).not.toContain("secret text");
+    });
+
+    it("reports again when the tab is opened for another repository", async () => {
+      const spy = createTelemetrySpy();
+      openMeasured(spy, "/repos/one");
+      await flush();
+      openMeasured(spy, "/repos/two", resolved(page({ error: "gone" })));
+      await flush();
+
+      expect(spy.sent).toEqual([
+        { feature: TAB_FEATURE_REFLOG, ok: true },
+        { feature: TAB_FEATURE_REFLOG, ok: false }
+      ]);
+    });
   });
 
   it("stops watching on dispose and opens a fresh panel next time", async () => {

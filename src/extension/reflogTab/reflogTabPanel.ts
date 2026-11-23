@@ -20,6 +20,8 @@ import {
   reflogQueriesEqual
 } from "@/reflogTabTypes";
 import { RepoFileWatcher } from "@/repoFileWatcher";
+import type { TelemetryReporter } from "@/telemetry";
+import { createTabOpenReporter, TAB_FEATURE_REFLOG } from "@/telemetry/tabOpen";
 
 import { buildReflogTabHtml } from "./reflogTabHtml";
 
@@ -29,6 +31,8 @@ export type ReflogWatcher = Pick<RepoFileWatcher, "start" | "stop">;
 export type ReflogTabDeps = {
   extensionPath: string;
   outputChannel: Pick<vscode.OutputChannel, "appendLine">;
+  /** Reports each open's outcome, once (T1); see `src/telemetry/tabOpen.ts`. */
+  telemetry?: Pick<TelemetryReporter, "logFeature">;
   /** Creates the repository watcher; defaults to the graph's `RepoFileWatcher`. */
   createWatcher?: (onRefresh: () => void) => ReflogWatcher;
   /** Display language for the webview's relative times; defaults to the editor's. */
@@ -80,8 +84,10 @@ function createReflogTab(deps: ReflogTabDeps) {
     }
   );
   panel.webview.html = buildReflogTabHtml(panel.webview, deps.extensionPath);
+  const reportOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_REFLOG);
 
   let ready = false;
+  let openPending = false;
   let disposed = false;
   let last: ReflogDataMessage | undefined;
   let pending: ReflogLoadingMessage | undefined;
@@ -131,6 +137,14 @@ function createReflogTab(deps: ReflogTabDeps) {
     // one: its reply is dropped here, and the webview drops by request id
     // anything that still slips through.
     if (disposed || requestId !== latestRequest) return;
+    // The open's first settled load is the open's outcome (T1). Refreshes,
+    // paging and query changes afterwards are use, not opening, and report
+    // nothing; a load superseded before settling leaves the report to the
+    // load that replaced it, which is what the open ends up showing.
+    if (openPending && !append) {
+      openPending = false;
+      reportOpen(page.error === null);
+    }
     pending = undefined;
     if (freshRefs !== null && freshRefs.length > 0) refsList = freshRefs;
     if (page.error === null) {
@@ -170,6 +184,7 @@ function createReflogTab(deps: ReflogTabDeps) {
     panel.title = l10n.t("reflog.title", folderName(repo));
     panel.reveal(vscode.ViewColumn.Active);
     watcher.start(repo);
+    openPending = true;
     void load(false);
   };
 

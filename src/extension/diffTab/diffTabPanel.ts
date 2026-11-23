@@ -10,12 +10,16 @@ import type {
   DiffTabWebviewMessage
 } from "@/diffTabTypes";
 import * as l10n from "@/l10n";
+import type { TelemetryReporter } from "@/telemetry";
+import { createTabOpenReporter, TAB_FEATURE_DIFF } from "@/telemetry/tabOpen";
 
 import { buildDiffTabHtml } from "./diffTabHtml";
 
 export type DiffTabDeps = {
   extensionPath: string;
   outputChannel: Pick<vscode.OutputChannel, "appendLine">;
+  /** Reports each open's outcome, once (T1); see `src/telemetry/tabOpen.ts`. */
+  telemetry?: Pick<TelemetryReporter, "logFeature">;
 };
 
 // One tab at a time, reused like the diff editor's preview tab.
@@ -58,6 +62,7 @@ function createDiffTab(title: string, deps: DiffTabDeps) {
     }
   );
   panel.webview.html = buildDiffTabHtml(panel.webview, deps.extensionPath);
+  const reportOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_DIFF);
   let ready = false;
   let last: DiffTabShowMessage | undefined;
   let latestOpen = 0;
@@ -67,6 +72,10 @@ function createDiffTab(title: string, deps: DiffTabDeps) {
     panel.reveal(vscode.ViewColumn.Active);
     void loading.then((payload) => {
       if (open !== latestOpen || current !== show) return;
+      // The settled payload is the open's outcome (T1): an error payload is
+      // a failed open; a diff, binary or too-large answer opened fine. A
+      // load a later open superseded reports nothing — the later open does.
+      reportOpen(payload.kind !== "error");
       last = { command: "show", payload, ...readViewSettings(), labels: readLabels() };
       if (ready) void panel.webview.postMessage(last);
     });
