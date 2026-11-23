@@ -632,6 +632,12 @@ class GitGraphView {
     baseLabel: string;
     sourceElem: HTMLElement | null;
   } | null = null;
+  /** The interactive rebase editor's latest conflict prediction request awaiting its reply. */
+  private pendingRebasePrediction: {
+    requestId: number;
+    seq: number;
+    repo: string;
+  } | null = null;
   /** The folder of the worktree being created, for the finish step (Y8) once Git answers. */
   private pendingCreatedWorktree: string | null = null;
   /**
@@ -4275,6 +4281,14 @@ class GitGraphView {
     setStatusStrip("ready", l10n.statusReady);
     this.showRebaseEditorDialog(msg, pending.base, pending.baseLabel, pending.sourceElem);
   }
+  public loadRebasePrediction(msg: Extract<GGL.ResponseMessage, { command: "rebasePrediction" }>) {
+    const pending = this.pendingRebasePrediction;
+    if (pending === null || pending.requestId !== msg.requestId || pending.repo !== msg.repo) {
+      return;
+    }
+    this.pendingRebasePrediction = null;
+    activeRebaseEditor?.applyPrediction(pending.seq, msg);
+  }
   private showRebaseEditorDialog(
     range: GitRebaseRangeResult,
     base: string | null,
@@ -4282,6 +4296,7 @@ class GitGraphView {
     sourceElem: HTMLElement | null
   ) {
     destroyActiveRebaseEditor();
+    this.pendingRebasePrediction = null;
     const otherWorktree = findOtherWorktreeForBranch(this.gitWorktrees, range.branch);
     const initialState = createRebaseEditorState(range, {
       base,
@@ -4298,6 +4313,7 @@ class GitGraphView {
       {
         onStart: (payload) => {
           destroyActiveRebaseEditor();
+          this.pendingRebasePrediction = null;
           this.clearCommitSelection();
           sendMessage({
             command: "interactiveRebase",
@@ -4310,10 +4326,12 @@ class GitGraphView {
           showActionRunningDialog(l10n.statusStartingInteractiveRebase);
         },
         onCancel: () => {
+          this.pendingRebasePrediction = null;
           hideDialog();
         },
         onOpenWorktree: (worktreePath) => {
           destroyActiveRebaseEditor();
+          this.pendingRebasePrediction = null;
           hideDialog();
           if (range.branch !== null && this.otherWorktreePath(range.branch) !== null) {
             this.openWorktreeAction(range.branch);
@@ -4324,6 +4342,22 @@ class GitGraphView {
             repo: this.currentRepo,
             path: worktreePath,
             newWindow: true
+          });
+        },
+        onPredict: (request) => {
+          if (this.currentRepo === "") return;
+          const requestId = this.createRequestId();
+          this.pendingRebasePrediction = {
+            requestId,
+            seq: request.seq,
+            repo: this.currentRepo
+          };
+          sendMessage({
+            command: "rebasePrediction",
+            requestId,
+            repo: this.currentRepo,
+            base: request.base,
+            entries: request.entries
           });
         }
       }
@@ -8573,6 +8607,7 @@ type ResponseHandlerMap = {
 const responseHandlers: ResponseHandlerMap = {
   operationState: (msg) => gitGraph.loadOperationState(msg),
   rebaseRange: (msg) => gitGraph.loadRebaseRange(msg),
+  rebasePrediction: (msg) => gitGraph.loadRebasePrediction(msg),
   continueRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToContinueRebase),
   skipRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToSkipRebase),
   abortRebase: (msg) => gitGraph.finishRebaseControl(msg.status, l10n.unableToAbortRebase),

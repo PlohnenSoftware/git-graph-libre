@@ -1,4 +1,5 @@
 import type { TodoAction } from "@/backend/rebase/todo";
+import type { GitRebasePredictionResult } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
 import { octicon } from "@/octicons";
 import { escapeHtml } from "@/webview/utils/html";
@@ -27,6 +28,7 @@ import {
   setRebaseRowMessage,
   toInteractiveRebasePayload
 } from "./model";
+import { createRebasePredictionController, type RebasePredictionRequest } from "./prediction";
 import { renderLongRangeConfirmHtml, renderProtectionNoticesHtml } from "./protections";
 
 export type RebaseEditorCallbacks = {
@@ -35,14 +37,19 @@ export type RebaseEditorCallbacks = {
   readonly onStateChange?: (state: RebaseEditorState) => void;
   /** Opens the worktree holding the current branch (W31), when available. */
   readonly onOpenWorktree?: (worktreePath: string) => void;
+  /** Requests a debounced conflict prediction for the planned todo (F2-08). */
+  readonly onPredict?: (request: RebasePredictionRequest) => void;
 };
 
 export type RebaseEditorViewOptions = {
   readonly shortHashLength: number;
+  /** Override for the conflict-prediction debounce delay, mainly for tests. */
+  readonly predictionDebounceMs?: number;
 };
 
 export type RebaseEditorController = {
   getState: () => RebaseEditorState;
+  applyPrediction: (seq: number, result: GitRebasePredictionResult) => void;
   destroy: () => void;
 };
 
@@ -286,6 +293,7 @@ function renderDialogShellHtml(
     `<tbody id="rebaseEditorTbody">${renderTableRowsHtml(state, shortHashLength)}</tbody>` +
     "</table>" +
     "</div>" +
+    '<div class="rebaseEditorPredictionSlot" id="rebaseEditorPredictionSlot" aria-live="polite"></div>' +
     `<div class="rebaseEditorLongRangeSlot" id="rebaseEditorLongRangeSlot">${renderLongRangeConfirmHtml(state)}</div>` +
     "</div>" +
     '<div class="dialogActions rebaseEditorActions">' +
@@ -397,10 +405,23 @@ export function openRebaseEditorDialog(
     : "active rebaseEditorDialog noInput";
   dialog.innerHTML = renderDialogShellHtml(state, options.shortHashLength, canOpenWorktree);
 
+  const predictionSlot = dialog.querySelector<HTMLElement>("#rebaseEditorPredictionSlot");
+  const prediction =
+    predictionSlot === null
+      ? null
+      : createRebasePredictionController({
+          slot: predictionSlot,
+          shortHashLength: options.shortHashLength,
+          onPredict: callbacks.onPredict,
+          debounceMs: options.predictionDebounceMs
+        });
+  prediction?.notifyState(state);
+
   const updateState = (nextState: RebaseEditorState, focusTarget?: EditorFocusTarget) => {
     if (nextState === state) return;
     state = nextState;
     syncDialogInteractiveState(dialog, state, options.shortHashLength, canOpenWorktree);
+    prediction?.notifyState(state);
     callbacks.onStateChange?.(state);
     if (focusTarget !== undefined) {
       focusEditorTarget(dialog, state.selectedIndex, focusTarget);
@@ -544,6 +565,7 @@ export function openRebaseEditorDialog(
   };
 
   const destroy = () => {
+    prediction?.destroy();
     dialog.removeEventListener("change", onChange);
     dialog.removeEventListener("input", onInput);
     dialog.removeEventListener("click", onClick);
@@ -559,6 +581,7 @@ export function openRebaseEditorDialog(
 
   return {
     getState: () => state,
+    applyPrediction: (seq, result) => prediction?.applyResult(seq, result),
     destroy
   };
 }
