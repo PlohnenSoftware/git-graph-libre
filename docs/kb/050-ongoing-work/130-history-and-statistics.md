@@ -72,8 +72,8 @@ ran first.
 | F3-04 | l10n for the Statistics tab in all five bundles | F3-02 | Claude Haiku | integrated `3265b84f` |
 | F3-05 | Mailmap parity in `author_stats` (decision TQ5) | F3-01 (TQ5 answered) | Muse Code | integrated `d094045d` |
 | F3-06 | Date-range filter (only if TQ1 picks the scrubber reading) | F3-02, TQ1 | Muse Code | not selected |
-| F3-07 | File History: engine path-scoped log (TQ1 answered: taken) | F3-02 (TQ1 answered) | Muse Code | ready |
-| F3-08 | VS Code Timeline provider over F3-07 (only if TQ1 picks Timeline) | F3-07 (TQ1 answered: taken) | Muse Code | waiting on F3-07 |
+| F3-07 | File History: engine path-scoped log (TQ1 answered: taken) | F3-02 (TQ1 answered) | Muse Code → Gemini 4 Neon | integrated `7ab4df18` (merge) |
+| F3-08 | VS Code Timeline provider over F3-07 (only if TQ1 picks Timeline) | F3-07 (TQ1 answered: taken) | Muse Code | ready |
 
 F3-05 to F3-08 depend on decisions and are decision-dependent as the research
 marks them. TQ1 selected File History (F3-07) and the Timeline provider
@@ -159,3 +159,20 @@ both themes. Nothing is pushed.
   `rebaseBannerSlot` and F3-03's toolbar option. Gates on `549d27fb`: strict
   Biome on 17 files, typecheck, KB check, backend 1,706 passed (60 skipped)
   and webview 1,174 passed.
+- `2026-11-23`: F3-07 integrated into `gg-plus/next` at `7ab4df18` by merge.
+  Muse Code built it (the bounded `loadFileHistory` query with renames,
+  worktrees and validation, Show File History in the menus and the search
+  results dialog) and was cut off by its quota; two of its test runs hung at
+  100 % CPU (86 and 27 minutes) and were stopped by the integrator. Gemini 4
+  Neon found the cause: the new file-history reveal test in
+  `tests/webview/rendering.test.ts` listed commits out of topological
+  parent order, which sends the graph layout into an endless loop; the
+  fixture was fixed (`rendering.test.ts`, 113 passed in about a second).
+  **Follow-up worth a slice:** the graph layout can loop forever on a commit
+  list that is not in parent order; real reads are always ordered, but a
+  guard (or a bounded loop that reports the bad input) would turn a hang
+  into an error. Neon then merged `gg-plus/next` into `stats/F3-07` (l10n,
+  `main.ts`, `messageHandler.ts`, types), and the integrator fast-forwarded.
+  Gates on `7ab4df18`: strict Biome on 75 files, typecheck, `l10n:check`,
+  KB check, backend 1,821 passed (60 skipped) and webview 1,237 passed.
+  F3-08 (Timeline) is ready.
