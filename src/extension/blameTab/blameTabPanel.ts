@@ -506,6 +506,18 @@ function createBlameTab(deps: BlameTabDeps) {
     if (!copied) logActionFailure("copyText", "clipboard write refused");
   };
 
+  // The navigator reports whether a command changed the view. These helpers
+  // hold that test once, so each case in handleMessage stays a single call.
+  const reloadWhenChanged = (changed: boolean): void => {
+    if (changed) void load();
+  };
+  const syncAndReloadWhenChanged = (changed: boolean): void => {
+    if (changed) {
+      syncContentsForCurrent();
+      void load();
+    }
+  };
+
   const handleMessage = (message: BlameWebviewMessage): void => {
     switch (message.command) {
       case "ready":
@@ -541,25 +553,19 @@ function createBlameTab(deps: BlameTabDeps) {
         openTargetFile();
         return;
       case "rewind":
-        if (navigator.rewind(message)) {
-          syncContentsForCurrent();
-          void load();
-        }
+        syncAndReloadWhenChanged(navigator.rewind(message));
         return;
       case "navigate":
-        if (navigator.navigate(message.direction)) {
-          syncContentsForCurrent();
-          void load();
-        }
+        syncAndReloadWhenChanged(navigator.navigate(message.direction));
         return;
       case "setOptions":
-        if (navigator.setOptions(message.options, message.targetLine)) void load();
+        reloadWhenChanged(navigator.setOptions(message.options, message.targetLine));
         return;
       case "ignoreCommit":
-        if (navigator.ignoreCommit(message.commitHash, message.targetLine)) void load();
+        reloadWhenChanged(navigator.ignoreCommit(message.commitHash, message.targetLine));
         return;
       case "clearIgnoredCommit":
-        if (navigator.clearIgnoredCommit(message.commitHash, message.targetLine)) void load();
+        reloadWhenChanged(navigator.clearIgnoredCommit(message.commitHash, message.targetLine));
         return;
       case "loadCommitPopover":
         void replyCommitPopover(message.requestId, message.commitHash);
