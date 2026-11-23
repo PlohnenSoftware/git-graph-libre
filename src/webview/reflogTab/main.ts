@@ -4,6 +4,7 @@ import { normalizeColumnWidths } from "./columnResize";
 import {
   applyData,
   applyLoading,
+  applyLostCommits,
   initialReflogState,
   markLoadingMore,
   type ReflogViewState
@@ -68,6 +69,18 @@ const view = createReflogView(root, {
     state = { ...state, columnWidths };
     widthsByRepo.set(state.repo, columnWidths);
     host.setState({ columnWidthsByRepo: Object.fromEntries(widthsByRepo) });
+  },
+  onScanLostCommits: () => {
+    host.postMessage({ command: "scanLostCommits" });
+  },
+  onCancelLostCommitsScan: () => {
+    host.postMessage({ command: "cancelLostCommitsScan" });
+  },
+  onCloseLostCommits: () => {
+    host.postMessage({ command: "closeLostCommits" });
+  },
+  onCreateLostCommitBranch: (hash) => {
+    host.postMessage({ command: "createLostCommitBranch", hash });
   }
 });
 
@@ -82,6 +95,12 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
   } else if (message?.command === "reflogData") {
     state = seedColumnWidths(
       applyData(state, message as Extract<ReflogHostMessage, { command: "reflogData" }>)
+    );
+    view.render(state);
+  } else if (message?.command === "reflogLostCommits") {
+    state = applyLostCommits(
+      state,
+      message as Extract<ReflogHostMessage, { command: "reflogLostCommits" }>
     );
     view.render(state);
   }

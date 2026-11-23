@@ -1,8 +1,10 @@
 import type { SimpleGit } from "simple-git";
 
+import { createBranch as createGitBranch } from "@/backend/actions/branch";
 import { closeEngineRepository } from "@/backend/engine/index";
 import { readReflog } from "@/backend/engine/reflog";
 import { readWorktrees } from "@/backend/engine/worktrees";
+import { loadLostCommits } from "@/backend/queries/lostCommits";
 import {
   classifyReflogMessage,
   DEFAULT_REFLOG_PAGE_SIZE,
@@ -17,6 +19,7 @@ import {
   defaultReflogQuery,
   isReflogFiltered,
   REFLOG_SEARCH_CAP,
+  type ReflogLostCommitsResult,
   type ReflogPage,
   type ReflogQuery,
   type ReflogRefs,
@@ -25,6 +28,28 @@ import {
   repoRefOption
 } from "@/reflogTabTypes";
 import type { EngineBackend } from "@/types";
+
+const commitHashPattern = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/i;
+
+/** True when `value` is a full 40- or 64-character hex Git object hash. */
+export function isValidCommitHash(value: string): boolean {
+  return commitHashPattern.test(value);
+}
+
+/**
+ * Basic safety check on a branch name before handing it to `git branch`:
+ * non-empty, never dash-led (so it cannot turn into an option), and free of
+ * whitespace or control characters. Git itself checks the full ref-format rules.
+ */
+export function isValidRecoveryBranchName(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed === "" || trimmed.startsWith("-")) return false;
+  for (const char of trimmed) {
+    const code = char.charCodeAt(0);
+    if (code <= 0x20 || code === 0x7f) return false;
+  }
+  return true;
+}
 
 export type ReflogSourceDeps = {
   /** A Git instance rooted at the repository being read. */
@@ -60,6 +85,8 @@ export type ReflogSourceDeps = {
    * `closeEngineRepository`. Tests record it instead of loading the addon.
    */
   closeRepo?: (repo: string) => void;
+  /** Optional wall-clock timeout override for the lost-commit scan (F1-07). */
+  lostCommitsTimeoutMs?: number;
 };
 
 /** A worktree's folder name, as `worktreeFolderName` in the graph webview trims it. */
@@ -316,6 +343,42 @@ export function createReflogSource(deps: ReflogSourceDeps): ReflogSource {
       const close = deps.closeRepo ?? closeEngineRepository;
       for (const worktree of openedWorktrees) close(worktree);
       openedWorktrees.clear();
+    },
+
+    async scanLostCommits(repo: string, signal?: AbortSignal): Promise<ReflogLostCommitsResult> {
+      const result = await loadLostCommits({
+        repo,
+        gitPath: deps.gitPath(),
+        record: deps.record,
+        signal,
+        timeoutMs: deps.lostCommitsTimeoutMs
+      });
+      return {
+        commits: result.commits,
+        canceled: result.canceled,
+        timedOut: result.timedOut,
+        error: result.error?.message ?? null
+      };
+    },
+
+    async createBranch(
+      repo: string,
+      commitHash: string,
+      branchName: string
+    ): Promise<string | null> {
+      const trimmed = branchName.trim();
+      if (!isValidCommitHash(commitHash)) return "Invalid commit hash.";
+      if (!isValidRecoveryBranchName(trimmed)) return "Invalid branch name.";
+      try {
+        await createGitBranch(
+          deps.createGit(repo),
+          { repo, commitHash, branchName: trimmed, checkout: false },
+          deps.record
+        );
+        return null;
+      } catch (error: unknown) {
+        return error instanceof Error ? error.message : String(error);
+      }
     }
   };
 }

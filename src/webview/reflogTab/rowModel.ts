@@ -6,12 +6,37 @@ import {
   type ReflogDisplay,
   type ReflogLabels,
   type ReflogLoadingMessage,
+  type ReflogLostCommit,
+  type ReflogLostCommitsFeedback,
+  type ReflogLostCommitsMessage,
+  type ReflogLostCommitsStatus,
   type ReflogQuery,
   type ReflogRefOption,
   type ReflogRow,
   reflogQueriesEqual
 } from "@/reflogTabTypes";
 import { formatRelativeDate, pad2 } from "@/webview/utils/date";
+
+/** State of the opt-in lost-commit scan panel (F1-07). */
+export type ReflogLostCommitsState = {
+  scanId: number;
+  status: ReflogLostCommitsStatus;
+  commits: ReflogLostCommit[];
+  error: string | null;
+  busyHash: string | null;
+  feedback: ReflogLostCommitsFeedback | null;
+};
+
+export function initialLostCommitsState(): ReflogLostCommitsState {
+  return {
+    scanId: 0,
+    status: "idle",
+    commits: [],
+    error: null,
+    busyHash: null,
+    feedback: null
+  };
+}
 
 /**
  * Everything the Reflog tab draws, as one value the messages update. The
@@ -50,6 +75,8 @@ export type ReflogViewState = {
    * webview state, the way the graph keeps its `columnWidths`.
    */
   columnWidths: number[] | null;
+  /** Opt-in lost-commit scan state for the current repository (F1-07). */
+  lostCommits: ReflogLostCommitsState;
 };
 
 /**
@@ -85,7 +112,8 @@ export function initialReflogState(): ReflogViewState {
     reflogState: null,
     error: null,
     hasMore: false,
-    columnWidths: null
+    columnWidths: null,
+    lostCommits: initialLostCommitsState()
   };
 }
 
@@ -112,6 +140,7 @@ export function applyLoading(
     hasMore: keepRows ? state.hasMore : false,
     // Widths are per repository: a new one starts from its own saved set.
     columnWidths: sameRepo ? state.columnWidths : null,
+    lostCommits: sameRepo ? state.lostCommits : initialLostCommitsState(),
     locale: message.locale,
     labels: message.labels,
     display: message.display,
@@ -128,6 +157,7 @@ export function applyData(state: ReflogViewState, message: ReflogDataMessage): R
   let nextRows = page.rows;
   if (message.append && page.error !== null) nextRows = state.rows;
   else if (message.append) nextRows = [...state.rows, ...page.rows];
+  const sameRepo = message.repo === state.repo;
   return {
     loading: false,
     loadingMore: false,
@@ -148,7 +178,28 @@ export function applyData(state: ReflogViewState, message: ReflogDataMessage): R
     hasMore: page.error === null ? page.hasMore : state.hasMore,
     // Same per-repository rule as a load start, for a page that lands
     // without one (a replayed page after a document rebuild).
-    columnWidths: message.repo === state.repo ? state.columnWidths : null
+    columnWidths: sameRepo ? state.columnWidths : null,
+    lostCommits: sameRepo ? state.lostCommits : initialLostCommitsState()
+  };
+}
+
+/** Applies one lost-commit scan update, dropping stale scan ids or foreign repos (F1-07). */
+export function applyLostCommits(
+  state: ReflogViewState,
+  message: ReflogLostCommitsMessage
+): ReflogViewState {
+  if (state.repo !== "" && message.repo !== state.repo) return state;
+  if (message.scanId < state.lostCommits.scanId) return state;
+  return {
+    ...state,
+    lostCommits: {
+      scanId: message.scanId,
+      status: message.status,
+      commits: message.commits,
+      error: message.error,
+      busyHash: message.busyHash,
+      feedback: message.feedback
+    }
   };
 }
 
@@ -186,7 +237,7 @@ export function relativeTime(row: ReflogRow, now: Date, locale: string): string 
  * shared date utilities, never a private `Intl` shape of this tab's.
  */
 export function entryDate(
-  row: ReflogRow,
+  row: Pick<ReflogRow, "time">,
   display: ReflogDisplay,
   now: Date,
   locale: string

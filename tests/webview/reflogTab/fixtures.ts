@@ -4,6 +4,8 @@ import {
   type ReflogDisplay,
   type ReflogLabels,
   type ReflogLoadingMessage,
+  type ReflogLostCommit,
+  type ReflogLostCommitsMessage,
   type ReflogPage,
   type ReflogRefOption,
   type ReflogRow,
@@ -71,6 +73,22 @@ export const LABELS: ReflogLabels = {
     copied: "Copied",
     wip: "Work in progress",
     named: "Named"
+  },
+  lostCommits: {
+    scan: "Scan for Lost Commits…",
+    rescan: "Scan Again",
+    close: "Close",
+    cancel: "Cancel",
+    title: "Lost Commits",
+    scanning: "Scanning repository for lost commits…",
+    gcNote:
+      "These commits are not reached by any branch, tag, or reflog and will disappear permanently when Git runs garbage collection.",
+    empty: "No lost commits found. Unreachable commits disappear when Git runs garbage collection.",
+    canceled: "Lost-commit scan canceled.",
+    timedOut:
+      "Lost-commit scan timed out. For very large repositories, run git fsck in a terminal.",
+    error: "Unable to scan for lost commits: {0}",
+    createBranch: "Create Branch Here…"
   }
 };
 
@@ -157,6 +175,31 @@ export function loadingMessage(
     locale: "en",
     labels: LABELS,
     display: DISPLAY,
+    ...overrides
+  };
+}
+
+export function lostCommit(overrides: Partial<ReflogLostCommit> = {}): ReflogLostCommit {
+  return {
+    hash: "0123456789abcdef0123456789abcdef01234567",
+    time: 1_700_000_000,
+    subject: "abandoned work",
+    ...overrides
+  };
+}
+
+export function lostCommitsMessage(
+  overrides: Partial<ReflogLostCommitsMessage> = {}
+): ReflogLostCommitsMessage {
+  return {
+    command: "reflogLostCommits",
+    scanId: 1,
+    repo: "/repos/one",
+    status: "done",
+    commits: [lostCommit()],
+    error: null,
+    busyHash: null,
+    feedback: null,
     ...overrides
   };
 }

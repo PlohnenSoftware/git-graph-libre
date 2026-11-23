@@ -26,6 +26,7 @@ import { RepoFileWatcher } from "@/repoFileWatcher";
 import type { TelemetryReporter } from "@/telemetry";
 import { createTabOpenReporter, TAB_FEATURE_REFLOG } from "@/telemetry/tabOpen";
 
+import { createLostCommitsController } from "./lostCommitsController";
 import { buildReflogTabHtml } from "./reflogTabHtml";
 
 /** The file watcher's part the panel uses; tests substitute their own. */
@@ -46,6 +47,8 @@ export type ReflogTabDeps = {
    * repositories; the tab then simply outlives the removal.
    */
   repoManager?: Pick<RepoManager, "registerRepoRemovedCallback" | "deregisterRepoRemovedCallback">;
+  /** Prompts for a branch name when recovering a lost commit (F1-07); defaults to `vscode.window.showInputBox`. */
+  promptBranchName?: (options: vscode.InputBoxOptions) => Thenable<string | undefined>;
 };
 
 // One tab at a time, reused like the GGL Diff tab.
@@ -188,12 +191,24 @@ function createReflogTab(deps: ReflogTabDeps) {
     void load(false, refreshLimit());
   });
 
+  const lostCommits = createLostCommitsController({
+    post: (message) => {
+      if (ready) void panel.webview.postMessage(message);
+    },
+    promptBranchName: deps.promptBranchName,
+    onBranchCreated: () => {
+      void load(false, refreshLimit());
+    }
+  });
+
   const show = (nextRepo: string, nextSource: ReflogSource): void => {
     // A kept query could name a branch the new repository does not have.
     if (nextRepo !== repo) {
       // The tab follows the switch: the old source lets go of any other
-      // worktree it read (F1-08), and the query starts over.
+      // worktree it read (F1-08), any in-flight lost-commit scan stops
+      // (F1-07), and the query starts over.
       source?.releaseWorktrees?.();
+      lostCommits.reset(nextRepo);
       query = defaultReflogQuery();
       refOptions = defaultRefOptions();
       bareRepo = false;
@@ -214,6 +229,7 @@ function createReflogTab(deps: ReflogTabDeps) {
       ready = true;
       if (last !== undefined) void panel.webview.postMessage(last);
       else if (pending !== undefined) void panel.webview.postMessage(pending);
+      lostCommits.postCurrent();
     } else if (message.command === "loadMore") {
       void load(true);
     } else if (message.command === "refresh") {
@@ -226,6 +242,14 @@ function createReflogTab(deps: ReflogTabDeps) {
       query = next;
       loadedCount = 0;
       void load(false);
+    } else if (message.command === "scanLostCommits") {
+      void lostCommits.startScan(repo, source);
+    } else if (message.command === "cancelLostCommitsScan") {
+      lostCommits.cancelScan(repo);
+    } else if (message.command === "closeLostCommits") {
+      lostCommits.close(repo);
+    } else if (message.command === "createLostCommitBranch") {
+      void lostCommits.createBranchHere(repo, source, message.hash);
     }
   });
   // The tab follows the graph's two display settings live: a change
@@ -247,6 +271,7 @@ function createReflogTab(deps: ReflogTabDeps) {
   });
   panel.onDidDispose(() => {
     disposed = true;
+    lostCommits.dispose();
     received.dispose();
     settings.dispose();
     watcher.stop();
@@ -316,6 +341,20 @@ function readLabels(): ReflogLabels {
     ),
     subActions: Object.fromEntries(
       REFLOG_SUB_ACTIONS.map((sub) => [sub, l10n.t(`reflog.sub.${sub}`)])
-    )
+    ),
+    lostCommits: {
+      scan: l10n.t("reflog.lostCommits.scan"),
+      rescan: l10n.t("reflog.lostCommits.rescan"),
+      close: l10n.t("reflog.lostCommits.close"),
+      cancel: l10n.t("dialog.cancel"),
+      title: l10n.t("reflog.lostCommits.title"),
+      scanning: l10n.t("reflog.lostCommits.scanning"),
+      gcNote: l10n.t("reflog.lostCommits.gcNote"),
+      empty: l10n.t("reflog.lostCommits.empty"),
+      canceled: l10n.t("reflog.lostCommits.canceled"),
+      timedOut: l10n.t("reflog.lostCommits.timedOut"),
+      error: l10n.t("reflog.lostCommits.error"),
+      createBranch: l10n.t("reflog.lostCommits.createBranch")
+    }
   };
 }

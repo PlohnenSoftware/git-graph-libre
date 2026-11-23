@@ -13,9 +13,10 @@ import {
 
 import { kindClass, kindLabel, subIntentClass, subLabel } from "./actionStyle";
 import { MIN_COLUMN_WIDTH, resizeColumnWidths } from "./columnResize";
+import { type LostCommitsViewCallbacks, renderLostCommitsSection } from "./lostCommitsView";
 import { badgeFor, entryDate, type ReflogViewState, selectorFor } from "./rowModel";
 
-export type ReflogViewCallbacks = {
+export type ReflogViewCallbacks = LostCommitsViewCallbacks & {
   onLoadMore: () => void;
   /** A column drag ended with these widths; the caller keeps them per repo. */
   onColumnWidthsChange?: (widths: number[]) => void;
@@ -68,7 +69,11 @@ function headerRefText(state: ReflogViewState, labels: ReflogLabels): string {
     : "HEAD";
 }
 
-function header(state: ReflogViewState, labels: ReflogLabels): HTMLElement {
+function header(
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  callbacks: ReflogViewCallbacks
+): HTMLElement {
   const bar = element("header", "reflog-header");
   const ref = element("span", "reflog-ref", headerRefText(state, labels));
   // The full path settles which folder a worktree name means.
@@ -77,6 +82,14 @@ function header(state: ReflogViewState, labels: ReflogLabels): HTMLElement {
   const repo = element("span", "reflog-repo", folderName(state.repo));
   repo.title = state.repo;
   bar.append(repo);
+  const scanBtn = element("button", "reflog-scan-button", labels.lostCommits.scan);
+  scanBtn.id = "reflogLostScanBtn";
+  scanBtn.type = "button";
+  const scanning = state.lostCommits.status === "scanning";
+  scanBtn.disabled = scanning;
+  scanBtn.setAttribute("aria-busy", String(scanning));
+  scanBtn.addEventListener("click", () => callbacks.onScanLostCommits?.());
+  bar.append(scanBtn);
   return bar;
 }
 
@@ -408,7 +421,14 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
           : null;
       const sameRepo = state.repo === lastRepo;
 
-      const children: HTMLElement[] = [header(state, labels), controls(state, labels, callbacks)];
+      const children: HTMLElement[] = [
+        header(state, labels, callbacks),
+        controls(state, labels, callbacks)
+      ];
+      const lostSection = renderLostCommitsSection(state, labels, now, callbacks);
+      if (lostSection !== null) {
+        children.push(lostSection);
+      }
       if (state.searchCapped && !state.loading) {
         children.push(
           messageBlock(

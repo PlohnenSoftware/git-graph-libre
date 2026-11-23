@@ -270,6 +270,54 @@ export type ReflogLabels = {
   actions: Readonly<Record<string, string>>;
   /** Localized label per known sub-action, keyed by {@link REFLOG_SUB_ACTIONS}. */
   subActions: Readonly<Record<string, string>>;
+  /** Localized text for the opt-in lost-commit scan (F1-07). */
+  lostCommits: {
+    scan: string;
+    rescan: string;
+    close: string;
+    cancel: string;
+    title: string;
+    scanning: string;
+    gcNote: string;
+    empty: string;
+    canceled: string;
+    timedOut: string;
+    error: string;
+    createBranch: string;
+  };
+};
+
+/** One unreachable commit discovered by the opt-in lost-commit scan (F1-07). */
+export type ReflogLostCommit = {
+  /** Full commit hash. */
+  hash: string;
+  /** Committer timestamp in Unix seconds. */
+  time: number;
+  /** First line of the commit message. */
+  subject: string;
+};
+
+/** Outcome of one opt-in lost-commit scan (F1-07). */
+export type ReflogLostCommitsResult = {
+  commits: ReflogLostCommit[];
+  canceled: boolean;
+  timedOut: boolean;
+  error: string | null;
+};
+
+/** Lifecycle state of the lost-commit scan section in the Reflog tab (F1-07). */
+export type ReflogLostCommitsStatus =
+  | "idle"
+  | "scanning"
+  | "done"
+  | "canceled"
+  | "timedOut"
+  | "error";
+
+/** Inline feedback from creating a branch on a lost commit (F1-07). */
+export type ReflogLostCommitsFeedback = {
+  kind: "success" | "error";
+  message: string;
 };
 
 /** One page of the reflog, newest first, as `loadReflog` returned it. */
@@ -308,6 +356,10 @@ export type ReflogSource = {
    * tab's own repository stays the repository manager's to close.
    */
   releaseWorktrees?(): void;
+  /** Opt-in read-only scan for commits reached by no ref and no reflog (F1-07). */
+  scanLostCommits?(repo: string, signal?: AbortSignal): Promise<ReflogLostCommitsResult>;
+  /** Creates a branch at `commitHash` without moving HEAD; returns null or an error message (F1-07). */
+  createBranch?(repo: string, commitHash: string, branchName: string): Promise<string | null>;
 };
 
 /**
@@ -354,12 +406,33 @@ export type ReflogLoadingMessage = {
   display: ReflogDisplay;
 };
 
+/**
+ * Extension host to webview: the lost-commit scan's current state (F1-07).
+ * Carries `scanId` so a slow older scan reply can never overwrite a newer
+ * scan or a repository switch.
+ */
+export type ReflogLostCommitsMessage = {
+  command: "reflogLostCommits";
+  scanId: number;
+  repo: string;
+  status: ReflogLostCommitsStatus;
+  commits: ReflogLostCommit[];
+  error: string | null;
+  /** Commit hash currently creating a branch, or null. */
+  busyHash: string | null;
+  feedback: ReflogLostCommitsFeedback | null;
+};
+
 /** Every message the extension host posts to the Reflog tab. */
-export type ReflogHostMessage = ReflogDataMessage | ReflogLoadingMessage;
+export type ReflogHostMessage = ReflogDataMessage | ReflogLoadingMessage | ReflogLostCommitsMessage;
 
 /** Webview to extension host. */
 export type ReflogWebviewMessage =
   | { command: "ready" }
   | { command: "loadMore" }
   | { command: "refresh" }
-  | { command: "query"; query: ReflogQuery };
+  | { command: "query"; query: ReflogQuery }
+  | { command: "scanLostCommits" }
+  | { command: "cancelLostCommitsScan" }
+  | { command: "closeLostCommits" }
+  | { command: "createLostCommitBranch"; hash: string };
