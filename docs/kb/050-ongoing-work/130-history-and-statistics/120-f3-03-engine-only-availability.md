@@ -7,7 +7,7 @@ summary: >-
 
 # F3-03 — Engine-only availability
 
-Status: ready
+Status: claimed by Claude Haiku on 2026-11-23 12:18
 
 Needs: F3-01 and F3-02 integrated; TQ2 confirmed
 
