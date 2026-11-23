@@ -15,7 +15,7 @@ summary: >-
 
 # Popup and context-menu visual review (`2026-11-12`)
 
-Status: in progress. Context menus and V1–V10 are done; V11 answered (b) by the maintainer on `2026-11-23` and dispatched as slice P1b.
+Status: done. Context menus and V1–V11 are done (V1–V10 in P1, V11 in P1b under the maintainer's answer (b) of `2026-11-23`).
 
 Maintainer request, `2026-11-12`: "please look on popups and context
 menus(especially connected with worktrees) and make them look good if u find
@@ -217,7 +217,7 @@ centered against the two lines (`.dialogFormCheckbox > .checkRow` has
 `align-items: center`). Fix: `flex-start`; the box and a line are both 16px
 tall, so a label of one line does not move.
 
-### V11 — Create Worktree on a branch another worktree holds
+### V11 — Create Worktree on a branch another worktree holds — done (P1b)
 
 In that branch's menu, "Create Worktree…" opens the Open Worktree dialog
 (`showCreateWorktreeDialog()`, `:4623`), which the menu's own "Open
