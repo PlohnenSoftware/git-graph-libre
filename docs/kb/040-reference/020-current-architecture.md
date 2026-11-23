@@ -3,7 +3,7 @@ summary: >-
   Layer map (`extension.ts`, `gitClient.ts`, queries, actions,
   `messageHandler.ts`, webview); Biome and SonarQube setup (`pnpm run
   sonar:scan`, no empty `SONAR_TOKEN=`); dated `sonar.projectVersion` advances
-  up to `1.10.0`; `ZAM` gate conditions; feature route.
+  up to `1.11.0`; `ZAM` gate conditions; feature route.
 ---
 
 # Current Architecture
@@ -255,6 +255,15 @@ The extension is already split into clean layers:
   `d7b4bea1-fe45-407c-b3ec-3021387ab3b0`, quality gate **`OK`**, with
   `new_violations` 0, reliability and security issues 0, and new coverage
   100%.
+- On `2026-11-23` `package.json` and `sonar.projectVersion` advanced
+  together `1.10.0` → `1.11.0` in the release commit of 1.11.0 "Looking
+  Back" (R90), after the last analysis at `1.10.0` came back clean: main
+  `b13e4787`, task `5e30cf54-d809-47f4-afc2-096f18fa7880`, quality gate
+  **`OK`**, `new_violations` 0, high-severity, reliability and security
+  issues 0, no hotspots to review, new coverage 89.8 %, new duplication
+  0.15 %. Every 1.11.0 integration analysis (three scans and their fix
+  slices S1 and S2) ran at `1.10.0`, so all of the release's code was new
+  code when it was judged; the advance opens the next window.
 - The project uses the maintainer's `ZAM` quality gate, and **not all of its
   conditions are scoped to new code**. As of `2026-07-29` it has six conditions:
   `new_duplicated_lines_density` at most `1` and `new_violations` at most `3` on

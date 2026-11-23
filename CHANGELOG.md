@@ -5,7 +5,12 @@ All notable changes to this extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.11.0] - 2026-11-23
+
+"Looking Back": a Blame view that shows who last changed each line of a file
+and steps back through its history, and a Reflog tab that shows where `HEAD`
+and each branch have been and recovers commits that nothing else holds any
+more.
 
 ### Added
 
@@ -1438,7 +1443,8 @@ system. Includes everything prepared for 1.5.1, which was never released.
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.0...v1.8.1
