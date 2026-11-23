@@ -7,7 +7,8 @@ type PackageManifest = {
   activationEvents: string[];
   capabilities?: { untrustedWorkspaces?: { supported: boolean | "limited" } };
   contributes: {
-    commands: Array<{ command: string }>;
+    commands: Array<{ command: string; title?: string; shortTitle?: string }>;
+    menus?: Record<string, Array<{ command: string; group?: string; when?: string }>>;
     configuration: {
       properties: Record<
         string,
@@ -18,6 +19,13 @@ type PackageManifest = {
           enumDescriptions?: string[];
           pattern?: string;
           items?: { pattern?: string; properties?: Record<string, { type: string }> };
+          properties?: Record<
+            string,
+            {
+              type?: string;
+              properties?: Record<string, { type?: string; default?: unknown }>;
+            }
+          >;
           minimum?: number;
           maximum?: number;
           tags?: string[];
@@ -301,5 +309,48 @@ describe("extension manifest", () => {
     expect("#0085d9").toMatch(pattern);
     expect("rgb(0, 133, 217)").toMatch(pattern);
     expect("blue").not.toMatch(pattern);
+  });
+
+  // Maintainer override (2026-11-23, release 1.11.0): Blame is wired from the
+  // Command Palette and the editor, Explorer, SCM and Commit Details context
+  // menus, never from an editor/title bar icon.
+  it("contributes Blame context menus without an editor/title icon and declares showBlame visibility", () => {
+    const manifest = readManifest();
+    const showBlameCmd = manifest.contributes.commands.find(
+      (entry) => entry.command === "git-graph-libre.showBlame"
+    );
+    expect(showBlameCmd).toMatchObject({
+      command: "git-graph-libre.showBlame",
+      title: "%command.showBlame%",
+      shortTitle: "%command.showBlame.shortTitle%"
+    });
+
+    const menus = manifest.contributes.menus ?? {};
+    expect(menus["editor/title"]).toBeUndefined();
+    expect(menus["editor/context"]).toContainEqual(
+      expect.objectContaining({
+        command: "git-graph-libre.showBlame",
+        when: "resourceScheme == file"
+      })
+    );
+    expect(menus["explorer/context"]).toContainEqual(
+      expect.objectContaining({
+        command: "git-graph-libre.showBlame",
+        when: "!explorerResourceIsFolder && resourceScheme == file"
+      })
+    );
+    expect(menus["scm/resourceState/context"]).toContainEqual(
+      expect.objectContaining({
+        command: "git-graph-libre.showBlame",
+        when: "scmProvider == git && (scmResourceGroup == workingTree || scmResourceGroup == index)"
+      })
+    );
+
+    const visibilitySchema =
+      manifest.contributes.configuration.properties["git-graph-libre.contextMenuActionsVisibility"];
+    expect(visibilitySchema.properties?.commitDetailsViewFile?.properties?.showBlame).toEqual({
+      type: "boolean",
+      default: true
+    });
   });
 });

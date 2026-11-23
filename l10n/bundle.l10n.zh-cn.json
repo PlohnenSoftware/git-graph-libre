@@ -888,5 +888,6 @@
   "blame.heatAge": "年龄",
   "blame.heatCalendar": "日历",
   "blame.heatChurn": "变动频率",
-  "blame.heatOff": "关闭"
+  "blame.heatOff": "关闭",
+  "command.showBlame.fileNoRepo": "此文件不在 Git 仓库中。"
 }

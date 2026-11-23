@@ -1048,6 +1048,103 @@ describe("command manager", () => {
           fs.rmSync(dir, { recursive: true, force: true });
         }
       });
+
+      it("uses the active cursor line when an Editor context Uri matches the active editor (F4-07)", async () => {
+        const harness = makeHarness({ "/workspace/project": { columnWidths: null } });
+        harness.setActiveTextEditorPath("/workspace/project/src/app.ts", 18);
+
+        await harness.run("git-graph-libre.showBlame", {
+          fsPath: "/workspace/project/src/app.ts",
+          scheme: "file"
+        });
+
+        expect(harness.openBlameTab).toHaveBeenCalledExactlyOnceWith({
+          repo: "/workspace/project",
+          filePath: "src/app.ts",
+          targetLine: 18
+        });
+        expect(harness.telemetryEvents).toEqual([
+          { feature: "git-graph-libre.showBlame", ok: true }
+        ]);
+      });
+
+      it("blames an Explorer Uri without reusing another file's cursor line (F4-07)", async () => {
+        const harness = makeHarness({
+          "/workspace/project": { columnWidths: null },
+          "/workspace/project/packages/app": { columnWidths: null }
+        });
+        harness.setActiveTextEditorPath("/workspace/project/packages/app/src/other.ts", 99);
+
+        await harness.run(
+          "git-graph-libre.showBlame",
+          { fsPath: "/workspace/project/packages/app/src/clicked.ts", scheme: "file" },
+          [{ fsPath: "/workspace/project/packages/app/src/clicked.ts", scheme: "file" }]
+        );
+
+        expect(harness.openBlameTab).toHaveBeenCalledExactlyOnceWith({
+          repo: "/workspace/project/packages/app",
+          filePath: "src/clicked.ts",
+          targetLine: null
+        });
+      });
+
+      it("blames a Source Control SourceControlResourceState via resourceUri (F4-07)", async () => {
+        const harness = makeHarness({ "/workspace/project": { columnWidths: null } });
+        harness.setActiveTextEditorPath("/workspace/project/src/staged.ts", 27);
+
+        await harness.run("git-graph-libre.showBlame", {
+          resourceUri: { fsPath: "/workspace/project/src/staged.ts", scheme: "file" }
+        });
+
+        expect(harness.openBlameTab).toHaveBeenCalledExactlyOnceWith({
+          repo: "/workspace/project",
+          filePath: "src/staged.ts",
+          targetLine: 27
+        });
+        expect(harness.telemetryEvents).toEqual([
+          { feature: "git-graph-libre.showBlame", ok: true }
+        ]);
+      });
+
+      it("rejects non-file schemes and reports a failed open (F4-07)", async () => {
+        const harness = makeHarness({ "/workspace/project": { columnWidths: null } });
+
+        await harness.run("git-graph-libre.showBlame", {
+          fsPath: "Untitled-1",
+          scheme: "untitled"
+        });
+
+        expect(harness.openBlameTab).not.toHaveBeenCalled();
+        expect(harness.windowApi.showWarningMessage).toHaveBeenCalledWith(
+          "Open a file inside a Git repository first, then show its blame."
+        );
+        expect(harness.telemetryEvents).toEqual([
+          { feature: "tab.blame", ok: false },
+          { feature: "git-graph-libre.showBlame", ok: true }
+        ]);
+      });
+
+      it("warns and reports a failed open when an explicit Explorer file is outside Git (F4-07)", async () => {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-blame-explorer-"));
+        const filePath = path.join(dir, "notes.txt");
+        fs.writeFileSync(filePath, "hello\n");
+        try {
+          const harness = makeHarness();
+
+          await harness.run("git-graph-libre.showBlame", { fsPath: filePath, scheme: "file" });
+
+          expect(harness.openBlameTab).not.toHaveBeenCalled();
+          expect(harness.windowApi.showWarningMessage).toHaveBeenCalledWith(
+            "This file is not inside a Git repository."
+          );
+          expect(harness.telemetryEvents).toEqual([
+            { feature: "tab.blame", ok: false },
+            { feature: "git-graph-libre.showBlame", ok: true }
+          ]);
+        } finally {
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
+      });
     });
   });
 });

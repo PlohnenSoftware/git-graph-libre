@@ -177,7 +177,8 @@
       {
         "category": "Git Graph Libre",
         "command": "git-graph-libre.showBlame",
-        "title": "%command.showBlame%"
+        "title": "%command.showBlame%",
+        "shortTitle": "%command.showBlame.shortTitle%"
       },
       {
         "category": "Git Graph Libre",
@@ -264,6 +265,20 @@
       }
     ],
     "menus": {
+      "editor/context": [
+        {
+          "command": "git-graph-libre.showBlame",
+          "group": "7_git-graph-libre",
+          "when": "resourceScheme == file"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "git-graph-libre.showBlame",
+          "group": "7_git-graph-libre",
+          "when": "!explorerResourceIsFolder && resourceScheme == file"
+        }
+      ],
       "scm/title": [
         {
           "command": "git-graph-libre.view",
@@ -301,6 +316,11 @@
           "command": "git-graph-libre.openDiffTab.untracked",
           "group": "navigation",
           "when": "scmProvider == git && scmResourceGroup == untracked && git-graph-libre.diffTabAvailable"
+        },
+        {
+          "command": "git-graph-libre.showBlame",
+          "group": "navigation",
+          "when": "scmProvider == git && (scmResourceGroup == workingTree || scmResourceGroup == index)"
         }
       ],
       "commandPalette": [
@@ -454,6 +474,12 @@
             },
             "commitDetailsViewFile": {
               "type": "object",
+              "properties": {
+                "showBlame": {
+                  "type": "boolean",
+                  "default": true
+                }
+              },
               "additionalProperties": {
                 "type": "boolean"
               }

@@ -888,5 +888,6 @@
   "blame.heatAge": "Leeftijd",
   "blame.heatCalendar": "Kalender",
   "blame.heatChurn": "Frequentie",
-  "blame.heatOff": "Uit"
+  "blame.heatOff": "Uit",
+  "command.showBlame.fileNoRepo": "Dit bestand bevindt zich niet in een Git-repository."
 }

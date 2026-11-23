@@ -888,5 +888,6 @@
   "blame.heatAge": "年齡",
   "blame.heatCalendar": "日曆",
   "blame.heatChurn": "變動頻率",
-  "blame.heatOff": "關閉"
+  "blame.heatOff": "關閉",
+  "command.showBlame.fileNoRepo": "此檔案不在 Git 儲存庫中。"
 }

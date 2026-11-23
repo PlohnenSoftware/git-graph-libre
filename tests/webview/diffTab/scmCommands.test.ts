@@ -78,7 +78,9 @@ describe("SCM manifest contributions", () => {
         { command: `git-graph-libre.openDiffTab.${group}`, group: "navigation", when }
       ]);
     }
-    expect(entries).toHaveLength(6);
+    expect(
+      entries.filter((entry) => entry.command.startsWith("git-graph-libre.openDiffTab."))
+    ).toHaveLength(6);
   });
 
   it("hides each command from the command palette", () => {

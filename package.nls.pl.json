@@ -132,5 +132,6 @@
   "config.uncommittedChanges.fileViewMode.tree": "Grupuj niezatwierdzone zmiany według folderów",
   "config.uncommittedChanges.fileViewMode.list": "Pokaż niezatwierdzone zmiany jako płaską listę ścieżek",
   "command.showReflog": "Pokaż reflog",
-  "command.showBlame": "Pokaż blame dla bieżącego pliku"
+  "command.showBlame": "Pokaż blame dla bieżącego pliku",
+  "command.showBlame.shortTitle": "Pokaż blame"
 }

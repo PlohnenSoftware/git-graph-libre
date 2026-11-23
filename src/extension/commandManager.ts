@@ -47,7 +47,7 @@ type RepoQuickPickItem = vscode.QuickPickItem & {
   repo: string;
 };
 type WindowApi = {
-  getActiveTextEditorUri(): { fsPath: string } | undefined;
+  getActiveTextEditorUri(): { fsPath: string; scheme?: string } | undefined;
   /**
    * The active editor's 1-based cursor line, when one is open. Optional
    * so window fakes written before the Blame command stay valid; the
@@ -228,6 +228,29 @@ function createVsCodeFolderApi(): WorktreeFolderApi {
     revealInOS: (folderPath) =>
       vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(folderPath))
   };
+}
+
+type BlameTargetUri = { fsPath: string; scheme?: string };
+
+function extractUriLike(value: unknown): BlameTargetUri | null {
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as { fsPath?: unknown; scheme?: unknown };
+  if (typeof record.fsPath !== "string" || record.fsPath === "") return null;
+  if (record.scheme !== undefined && typeof record.scheme !== "string") return null;
+  return { fsPath: record.fsPath, scheme: record.scheme };
+}
+
+function isFileScheme(uri: BlameTargetUri): boolean {
+  return uri.scheme === undefined || uri.scheme === "file";
+}
+
+function extractBlameArgUri(arg: unknown): BlameTargetUri | null {
+  if (typeof arg !== "object" || arg === null) return null;
+  // SourceControlResourceState carries the clicked file on `resourceUri`.
+  if ("resourceUri" in arg) {
+    return extractUriLike((arg as { resourceUri?: unknown }).resourceUri);
+  }
+  return extractUriLike(arg);
 }
 
 /** Reads the `{ repo, path, newWindow }` a worktree command is sent, refusing any other shape. */
@@ -693,44 +716,59 @@ export function createCommandManager(deps: CommandManagerDeps) {
   }
 
   /**
-   * "Show Blame for Current File": blame the active editor's file in its
-   * repository, resolved like `viewActiveEditorRepo` resolves it, and
-   * land on the editor's cursor line. With no editor, or a file Git does
-   * not own, there is only the word — nothing opens.
+   * "Show Blame" from the Command Palette, Editor context menu (`Uri`),
+   * Explorer context menu (`Uri`), or Source Control context menu
+   * (`SourceControlResourceState`). Resolves the repository like
+   * `viewActiveEditorRepo` (longest known root, with `resolveGitRoot`
+   * fallback), and lands on the active editor's cursor line whenever the
+   * blamed file matches the active editor.
    */
-  async function showBlame() {
+  async function showBlame(target?: unknown) {
+    const hasExplicitTarget = target !== undefined && target !== null;
     const activeUri = windowApi.getActiveTextEditorUri();
-    if (!activeUri || activeUri.fsPath === "") {
+    const resolvedUri = hasExplicitTarget ? extractBlameArgUri(target) : extractUriLike(activeUri);
+    if (resolvedUri === null || !isFileScheme(resolvedUri)) {
       // A failed open: no file to blame, so the tab never reaches its panel (T1b).
       reportBlameOpen(false);
       await windowApi.showWarningMessage(l10n.t("command.showBlame.noEditor"));
       return;
     }
 
-    const activePath = getPathFromStr(activeUri.fsPath);
-    let repo = findKnownRepoForPath(deps.repoManager.getRepos(), activePath);
+    const noRepoKey = hasExplicitTarget
+      ? "command.showBlame.fileNoRepo"
+      : "command.showBlame.noRepo";
+    const targetPath = getPathFromStr(resolvedUri.fsPath);
+    let repo = findKnownRepoForPath(deps.repoManager.getRepos(), targetPath);
     if (repo === null) {
       const resolvedRepo = await resolveGitRoot(
-        path.dirname(activePath),
+        path.dirname(targetPath),
         deps.config.gitPath(),
         recordGitCommand
       );
       if (resolvedRepo === null) {
         reportBlameOpen(false);
-        await windowApi.showWarningMessage(l10n.t("command.showBlame.noRepo"));
+        await windowApi.showWarningMessage(l10n.t(noRepoKey));
         return;
       }
       deps.repoManager.addRepo(resolvedRepo);
       repo = resolvedRepo;
     }
 
-    const filePath = activePath.startsWith(`${repo}/`) ? activePath.slice(repo.length + 1) : "";
+    const filePath = targetPath.startsWith(`${repo}/`) ? targetPath.slice(repo.length + 1) : "";
     if (filePath === "") {
       reportBlameOpen(false);
-      await windowApi.showWarningMessage(l10n.t("command.showBlame.noRepo"));
+      await windowApi.showWarningMessage(l10n.t(noRepoKey));
       return;
     }
-    openBlame({ repo, filePath, targetLine: windowApi.getActiveTextEditorLine?.() ?? null });
+
+    const activeTarget = extractUriLike(activeUri);
+    const matchesActiveEditor =
+      !hasExplicitTarget ||
+      (activeTarget !== null &&
+        isFileScheme(activeTarget) &&
+        getPathFromStr(activeTarget.fsPath) === targetPath);
+    const targetLine = matchesActiveEditor ? (windowApi.getActiveTextEditorLine?.() ?? null) : null;
+    openBlame({ repo, filePath, targetLine });
   }
 
   function registerAll() {
@@ -756,7 +794,7 @@ export function createCommandManager(deps: CommandManagerDeps) {
     register("git-graph-libre.switchGraphToWorktree", (request) => switchGraphToWorktree(request));
     register("git-graph-libre.pruneStaleWorktrees", () => pruneStaleWorktrees());
     register("git-graph-libre.showReflog", (repo) => showReflog(repo));
-    register("git-graph-libre.showBlame", () => showBlame());
+    register("git-graph-libre.showBlame", (target) => showBlame(target));
     for (const { id, handler } of createScmDiffTabHandlers({
       getRepos: () => deps.repoManager.getRepos(),
       openDiff: (request) => deps.openScmDiffTab?.(request),

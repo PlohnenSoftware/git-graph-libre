@@ -888,5 +888,6 @@
   "blame.heatAge": "Wiek",
   "blame.heatCalendar": "Kalendarz",
   "blame.heatChurn": "Częstotliwość",
-  "blame.heatOff": "Wyłączone"
+  "blame.heatOff": "Wyłączone",
+  "command.showBlame.fileNoRepo": "Ten plik nie znajduje się w repozytorium Git."
 }

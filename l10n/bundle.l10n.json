@@ -888,5 +888,6 @@
   "blame.heatAge": "Age",
   "blame.heatCalendar": "Calendar",
   "blame.heatChurn": "Churn",
-  "blame.heatOff": "Off"
+  "blame.heatOff": "Off",
+  "command.showBlame.fileNoRepo": "This file is not inside a Git repository."
 }
