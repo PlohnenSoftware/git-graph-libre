@@ -163,6 +163,21 @@ export type EngineAddon = {
     optionsJson: string
   ): Promise<string>;
   /**
+   * `author_stats` encoded as JSON: the commit count per author across every
+   * ref, merges excluded, as `GitAuthorStat` rows. Optional and deliberately
+   * absent from the shape check below, like `loadReflog`: binaries built
+   * before it still load and the Statistics reader answers "unavailable" —
+   * no engine version bump. The engine is the only backend for this read, so
+   * there is no CLI fallback to land on.
+   */
+  authorStats?(repoPath: string): Promise<string>;
+  /**
+   * `activity_heatmap` encoded as JSON: the non-zero commit counts per
+   * author-local weekday (0 is Sunday) and hour, merges excluded. Optional,
+   * for the same reason as `authorStats` above.
+   */
+  activityHeatmap?(repoPath: string): Promise<string>;
+  /**
    * `config_list` encoded as JSON: the entries of one location (local or
    * global), last value per key. A file carrying `include`/`includeIf`
    * directives declines, so the CLI resolves them.
