@@ -8,7 +8,7 @@ summary: >-
 
 # P1b — V11: Create Worktree on a branch another worktree holds
 
-Status: ready
+Status: claimed by Muse Code on 2026-11-23 17:41
 
 Needs: P1 (integrated)
 
