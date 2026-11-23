@@ -11,13 +11,21 @@ import type {
   GitStash,
   QueryResult
 } from "@/backend/types";
-import { type GitCommandRecorder, runGitCommand, runGitRaw } from "@/backend/utils/gitRunner";
+import {
+  type GitCommandRecorder,
+  runGitCommand,
+  runGitRaw,
+  runGitWithInput
+} from "@/backend/utils/gitRunner";
 import { authorArgs, selectedLogRefs } from "@/backend/utils/logFilters";
 import { toGitQueryError } from "@/backend/utils/queryError";
 import { isHiddenRemoteRef, remoteExcludeArgs } from "@/backend/utils/remoteRefs";
 
 import { loadStashes } from "./stashes";
+import { discoverUnreachableCommitHashes } from "./unreachableCommits";
 import { loadWorktrees } from "./worktrees";
+
+export { parseUnreachableCommitHashes } from "./unreachableCommits";
 
 const eolRegex = /\r\n|\r|\n/g;
 const gitLogFormatFieldSeparator = "%x00";
@@ -60,7 +68,17 @@ type LoadCommitsInput = {
 type GitQueryContext = {
   repo: string | null;
   record?: GitCommandRecorder;
+  /** Resolved git binary path for the spawns simple-git cannot drive (fsck, log --stdin). */
+  gitPath?: string;
 };
+
+/**
+ * Extra log tips (unreachable hashes, other worktrees' detached HEADs) ride
+ * on the `git log` command line up to this many; past it they go through
+ * `--stdin` instead, so a repository with hundreds of unreachable commits
+ * stays well under Windows' ~32 KB command-line limit.
+ */
+export const LOG_STDIN_REF_THRESHOLD = 100;
 
 type GitLogOptions = {
   label: string;
@@ -242,19 +260,22 @@ function buildLogFormat(dateType: DateType): string {
   return formatFields.join(gitLogFormatFieldSeparator);
 }
 
-function buildLogArgs({
-  refs,
-  authors,
-  maxCommits,
-  showRemoteBranches,
-  hiddenRemotes,
-  showTags,
-  includeReflog,
-  additionalRefs,
-  onlyFollowFirstParent,
-  dateType,
-  commitOrdering
-}: GitLogOptions): string[] {
+function buildLogArgs(
+  {
+    refs,
+    authors,
+    maxCommits,
+    showRemoteBranches,
+    hiddenRemotes,
+    showTags,
+    includeReflog,
+    additionalRefs,
+    onlyFollowFirstParent,
+    dateType,
+    commitOrdering
+  }: GitLogOptions,
+  feedAdditionalRefsViaStdin: boolean
+): string[] {
   const args = [
     "log",
     "-z",
@@ -268,26 +289,13 @@ function buildLogArgs({
     args.push(...refs);
     return args;
   }
+  if (feedAdditionalRefsViaStdin) args.push("--stdin");
   args.push("--ignore-missing", "HEAD", "--branches");
   if (showTags) args.push("--tags");
   if (includeReflog) args.push("--reflog");
   if (showRemoteBranches) args.push(...remoteExcludeArgs(hiddenRemotes), "--remotes");
-  args.push(...additionalRefs);
+  if (!feedAdditionalRefsViaStdin) args.push(...additionalRefs);
   return args;
-}
-
-export function parseUnreachableCommitHashes(stdout: string): string[] {
-  const hashes = new Set<string>();
-  for (const line of stdout.split(eolRegex)) {
-    const fields = line.trim().split(" ");
-    const isUnreachableCommit = fields[0] === "unreachable" && fields[1] === "commit";
-    const isDanglingCommit = fields[0] === "dangling" && fields[1] === "commit";
-    const hash = fields[2];
-    if ((isUnreachableCommit || isDanglingCommit) && hash !== undefined) {
-      hashes.add(hash);
-    }
-  }
-  return [...hashes];
 }
 
 /**
@@ -321,28 +329,27 @@ async function getOtherWorktreeHeadTips(
   return [...heads];
 }
 
+/**
+ * The unreachable commit hashes to seed a show-all load with, from the
+ * hardened `fsck` scan in `unreachableCommits`. Like
+ * {@link getOtherWorktreeHeadTips} and the stash rows below, a failed scan
+ * resolves to no hashes rather than a failed graph: the scan only adds
+ * rows to an otherwise valid page, and its failure is already in the
+ * command log through the recorded `loadCommits.unreachable` call.
+ */
 async function getUnreachableCommitHashes(
-  git: SimpleGit,
   enabled: boolean,
   refs: string[] | null,
   context: GitQueryContext
-): Promise<QueryValue<string[]>> {
-  if (!enabled || refs !== null) return { value: [], error: null };
+): Promise<string[]> {
+  if (!enabled || refs !== null) return [];
 
-  try {
-    const stdout = await runGitRaw(git, {
-      label: "loadCommits.unreachable",
-      args: ["fsck", "--unreachable", "--no-reflogs", "--no-progress", "--connectivity-only"],
-      repo: context.repo,
-      record: context.record
-    });
-    return { value: parseUnreachableCommitHashes(stdout), error: null };
-  } catch (error: unknown) {
-    return {
-      value: [],
-      error: toGitQueryError(error, "Unable to discover unreachable commits")
-    };
-  }
+  const scan = await discoverUnreachableCommitHashes({
+    repo: context.repo,
+    gitPath: context.gitPath,
+    record: context.record
+  });
+  return scan.hashes;
 }
 
 function parseLogEntries(stdout: string): GitLogEntry[] {
@@ -364,12 +371,33 @@ function parseLogEntries(stdout: string): GitLogEntry[] {
 
 async function getLog(git: SimpleGit, options: GitLogOptions): Promise<QueryValue<GitLogEntry[]>> {
   try {
-    const stdout = await runGitRaw(git, {
-      label: options.label,
-      args: [...buildLogArgs(options), "--"],
-      repo: options.context.repo,
-      record: options.context.record
-    });
+    // Past the threshold the extra tips travel on stdin (`--stdin` reads
+    // revisions in addition to the command-line ones), which needs the
+    // resolved binary and repository the dedicated spawn runs with; the
+    // production caller always threads both. Without them the tips stay
+    // on the command line, as before.
+    const binary = options.context.gitPath ?? "";
+    const feedViaStdin =
+      options.refs === null &&
+      options.additionalRefs.length > LOG_STDIN_REF_THRESHOLD &&
+      binary !== "" &&
+      options.context.repo !== null;
+    const args = [...buildLogArgs(options, feedViaStdin), "--"];
+    const stdout = feedViaStdin
+      ? await runGitWithInput(git, {
+          label: options.label,
+          args,
+          input: `${options.additionalRefs.join("\n")}\n`,
+          binary,
+          repo: options.context.repo,
+          record: options.context.record
+        })
+      : await runGitRaw(git, {
+          label: options.label,
+          args,
+          repo: options.context.repo,
+          record: options.context.record
+        });
     return { value: parseLogEntries(stdout), error: null };
   } catch (error: unknown) {
     return { value: [], error: toGitQueryError(error, "Unable to load commits") };
@@ -469,7 +497,11 @@ export async function loadCommits(
   const includeUnreachableCommits = input.includeUnreachableCommits === true;
   const onlyFollowFirstParent = input.onlyFollowFirstParent === true;
   const commitOrdering = input.commitOrdering ?? "date";
-  const context = { repo: input.repo ?? null, record: input.recordGitCommand };
+  const context: GitQueryContext = {
+    repo: input.repo ?? null,
+    record: input.recordGitCommand,
+    gitPath: input.gitPath
+  };
 
   const refsPromise = getRefs(
     git,
@@ -478,8 +510,8 @@ export async function loadCommits(
     showTags || selectedTags !== null,
     context
   );
-  const [unreachableResult, worktreeHeadTips] = await Promise.all([
-    getUnreachableCommitHashes(git, includeUnreachableCommits, refs, context),
+  const [unreachableHashes, worktreeHeadTips] = await Promise.all([
+    getUnreachableCommitHashes(includeUnreachableCommits, refs, context),
     getOtherWorktreeHeadTips(git, refs, context)
   ]);
   const sharedLogOptions = {
@@ -499,7 +531,7 @@ export async function loadCommits(
       label: "loadCommits.log",
       refs,
       maxCommits: maxCommits + 1,
-      additionalRefs: [...unreachableResult.value, ...worktreeHeadTips]
+      additionalRefs: [...unreachableHashes, ...worktreeHeadTips]
     }),
     refsPromise
   ]);
@@ -521,7 +553,10 @@ export async function loadCommits(
     }
     rawCommits = moveHeadIntoPage(rawCommits, refData.head, maxCommits);
   }
-  const error = logResult.error ?? refsResult.error ?? unreachableResult.error ?? detachedHeadError;
+  // The unreachable scan is not part of this error: it is optional
+  // enrichment whose failure resolves to no extra rows (see
+  // getUnreachableCommitHashes), never a discarded page.
+  const error = logResult.error ?? refsResult.error ?? detachedHeadError;
 
   let commits = rawCommits;
   const moreCommitsAvailable = commits.length > maxCommits;
