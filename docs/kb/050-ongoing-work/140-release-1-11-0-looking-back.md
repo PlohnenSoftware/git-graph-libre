@@ -254,3 +254,9 @@ anything unsolvable within reason be marked here while the rest continues.
   term is now a coding rule (Multi-agent releases). Gates on `31e17f63`:
   strict Biome, typecheck, `l10n:check`, KB check, backend 1,594 passed and
   webview 1,341 passed. A third Sonar scan runs next, before S2b.
+- `2026-11-23`: third Sonar scan on `3fa23e5e` (version 1.10.0): gate ERROR on
+  `new_software_quality_high_issues` 1 and `new_violations` 6 (> 5), all six
+  in the Blame code (two shadowed names, two optional chains, `globalThis`,
+  one complexity 19 in `blameTabPanel.ts`); new coverage 89.7 %,
+  duplication 0.16 %, no hotspots. S2b re-scoped to those six and dispatched
+  to Claude Haiku.

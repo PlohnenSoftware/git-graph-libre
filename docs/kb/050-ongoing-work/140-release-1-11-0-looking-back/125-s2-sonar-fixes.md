@@ -9,11 +9,11 @@ summary: >-
 
 # S2 — SonarQube new-code fixes (second scan)
 
-Status: S2a integrated `5773e36c` · S2b waiting on the third scan (F4-05 and F4-06 integrated)
+Status: S2a integrated `5773e36c` · S2b ready (third scan, below)
 
 Needs: —
 
-Agent: S2a Claude Haiku; S2b later
+Agent: S2a Claude Haiku; S2b Claude Haiku
 
 ## The findings (analysis `2026-11-23T12:38:17Z`, version 1.10.0)
 
@@ -31,6 +31,24 @@ duplication 0.18 %, no security issues, no hotspots to review.
 | S6582 | `src/extension/reflogTab/lostCommitsController.ts:149` | optional chain | S2a |
 | S7758 | `src/extension/reflogTab/reflogData.ts:53` | `charCodeAt` → `codePointAt` (reliability); or reuse `hasControlCharacter` from `src/backend/utils/string.ts` if that is what it checks | S2a |
 | S3776 | `src/webview/blameTab/view.ts:461` (21) | cognitive complexity → ≤ 15, after F4-05/F4-06 | S2b |
+
+## The findings for S2b (third scan, `2026-11-23`, main `3fa23e5e`, version 1.10.0)
+
+The second scan's `view.ts:461` complexity finding is gone after F4-05 and
+F4-06 reshaped that code. Gate ERROR: `new_software_quality_high_issues`
+1 > 0, `new_violations` 6 > 5. OK: new coverage 89.7 %, duplication 0.16 %,
+reliability and security 0, no hotspots to review.
+
+| Rule | Where | What |
+| --- | --- | --- |
+| S1117 | `src/extension/blameTab/blameTabPanel.ts:475` | `opener` shadows line 486 — rename |
+| S3776 | `src/extension/blameTab/blameTabPanel.ts:509` | cognitive complexity 19 → ≤ 15: extract helpers, behavior unchanged |
+| S1117 | `src/webview/blameTab/view.ts:612` | `btn` shadows line 630 — rename |
+| S6582 | `src/webview/blameTab/view.ts:1044` | optional chain |
+| S7764 | `src/webview/blameTab/view.ts:1105` | `globalThis` instead of `window` |
+| S6582 | `src/webview/blameTab/view.ts:1106` | optional chain |
+
+Line numbers are from `3fa23e5e`; find each by its content if lines moved.
 
 ## Touch
 
