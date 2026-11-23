@@ -56,6 +56,21 @@
   --ngg-reflog-intent-abort: var(--vscode-errorForeground, var(--ngg-error));
   --ngg-reflog-intent-ref: oklch(72% 0.13 140);
   --ngg-reflog-intent-neutral: var(--ngg-neutral-icon);
+  /* Blame hotspot heat (F4-04): ten steps from coldest (0, oldest) to
+     hottest (9, newest). Lightness rises and chroma grows along the
+     ramp, and the hue slides from a cool slate through near-neutral to
+     amber. The hottest steps stay clear of error red (hue 25). These are
+     the dark-theme defaults; body.vscode-light lists the light ones. */
+  --ngg-blame-heat-0: oklch(46% 0.02 255);
+  --ngg-blame-heat-1: oklch(53% 0.025 240);
+  --ngg-blame-heat-2: oklch(60% 0.03 215);
+  --ngg-blame-heat-3: oklch(66% 0.04 180);
+  --ngg-blame-heat-4: oklch(72% 0.06 110);
+  --ngg-blame-heat-5: oklch(76% 0.09 95);
+  --ngg-blame-heat-6: oklch(79% 0.12 80);
+  --ngg-blame-heat-7: oklch(82% 0.14 70);
+  --ngg-blame-heat-8: oklch(85% 0.155 62);
+  --ngg-blame-heat-9: oklch(88% 0.17 55);
 }
 
 body.vscode-light {
@@ -75,4 +90,17 @@ body.vscode-light {
   --ngg-reflog-intent-combine: oklch(48% 0.1 190);
   --ngg-reflog-intent-advance: oklch(48% 0.13 245);
   --ngg-reflog-intent-ref: oklch(48% 0.13 140);
+  /* Blame heat on a white editor background (F4-04): the same ramp
+     darkened so the cold steps stay visible and the hot ones keep their
+     warmth without washing out source text. */
+  --ngg-blame-heat-0: oklch(56% 0.02 255);
+  --ngg-blame-heat-1: oklch(58% 0.03 240);
+  --ngg-blame-heat-2: oklch(60% 0.035 215);
+  --ngg-blame-heat-3: oklch(63% 0.045 180);
+  --ngg-blame-heat-4: oklch(62% 0.06 130);
+  --ngg-blame-heat-5: oklch(61% 0.09 95);
+  --ngg-blame-heat-6: oklch(61% 0.12 80);
+  --ngg-blame-heat-7: oklch(62% 0.14 70);
+  --ngg-blame-heat-8: oklch(63% 0.155 62);
+  --ngg-blame-heat-9: oklch(62% 0.17 55);
 }

@@ -1,7 +1,7 @@
-/* The Blame tab (F4-03): theme tokens first, `--ngg-*` OKLCH fallbacks
-   second, per the Webview UI Styling Guide. The heat colors themselves
-   arrive with F4-04; this sheet only lays out the grouped hunks the
-   `data-heat` hooks will color. */
+/* The Blame tab (F4-03, heat in F4-04): theme tokens first, `--ngg-*`
+   OKLCH fallbacks second, per the Webview UI Styling Guide. The heat
+   levels are the `--ngg-blame-heat-0`..`9` tokens (media/tokens.css),
+   chosen per hunk by its `data-heat` hook. */
 
 .ggl-blame {
   display: flex;
@@ -25,6 +25,7 @@
   display: flex;
   gap: 8px;
   align-items: baseline;
+  flex-wrap: wrap;
   padding: 8px 12px;
   border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
   background: var(--vscode-editor-background, oklch(20% 0 0));
@@ -51,10 +52,55 @@
 /* One hunk is one band: the gutter's commit block once, beside every
    line the commit owns, with a clean border to the next band. */
 .ggl-blame .blame-hunk {
+  position: relative;
   display: flex;
   align-items: stretch;
   border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
 }
+/* The heat rail: a 4px bar on the hunk's left edge, one color per hunk.
+   `--blame-heat` is set per level below; with no level (Off) the rail is
+   a neutral line, and an uncommitted hunk takes the neutral token. */
+.ggl-blame .blame-hunk::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  width: 4px;
+  pointer-events: none;
+  background: var(--blame-heat, var(--ngg-neutral-border-medium));
+}
+/* The same-commit highlight: a translucent wash over the whole hunk. */
+.ggl-blame .blame-hunk::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+  background: color-mix(in oklab, var(--vscode-list-activeSelectionBackground, var(--ngg-accent)) 16%, var(--ngg-transparent));
+}
+.ggl-blame .blame-hunk.is-same-commit::after { opacity: 1; }
+.ggl-blame .blame-hunk:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: -1px;
+}
+.ggl-blame .blame-hunk[data-heat="0"] { --blame-heat: var(--ngg-blame-heat-0); }
+.ggl-blame .blame-hunk[data-heat="1"] { --blame-heat: var(--ngg-blame-heat-1); }
+.ggl-blame .blame-hunk[data-heat="2"] { --blame-heat: var(--ngg-blame-heat-2); }
+.ggl-blame .blame-hunk[data-heat="3"] { --blame-heat: var(--ngg-blame-heat-3); }
+.ggl-blame .blame-hunk[data-heat="4"] { --blame-heat: var(--ngg-blame-heat-4); }
+.ggl-blame .blame-hunk[data-heat="5"] { --blame-heat: var(--ngg-blame-heat-5); }
+.ggl-blame .blame-hunk[data-heat="6"] { --blame-heat: var(--ngg-blame-heat-6); }
+.ggl-blame .blame-hunk[data-heat="7"] { --blame-heat: var(--ngg-blame-heat-7); }
+.ggl-blame .blame-hunk[data-heat="8"] { --blame-heat: var(--ngg-blame-heat-8); }
+.ggl-blame .blame-hunk[data-heat="9"] { --blame-heat: var(--ngg-blame-heat-9); }
+.ggl-blame .blame-hunk[data-heat="uncommitted"] { --blame-heat: var(--ngg-uncommitted); }
 .ggl-blame .blame-gutter {
   position: relative;
   flex: none;
@@ -63,7 +109,10 @@
   padding: 6px 10px 6px 12px;
   overflow: hidden;
   border-right: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
-  background: color-mix(in oklab, var(--vscode-sideBar-background, oklch(24% 0 0)) 55%, var(--ngg-transparent));
+  /* A subtle wash of the hunk's heat over the gutter's own background. */
+  background:
+    color-mix(in oklab, var(--blame-heat, var(--ngg-transparent)) 14%, var(--ngg-transparent)),
+    color-mix(in oklab, var(--vscode-sideBar-background, oklch(24% 0 0)) 55%, var(--ngg-transparent));
 }
 .ggl-blame .blame-body.resizing .blame-gutter { cursor: col-resize; }
 .ggl-blame .blame-gutter-resize {
@@ -137,4 +186,59 @@
   .ggl-blame .blame-rev { border: 1px solid currentColor; }
   .ggl-blame .blame-target-line { outline: 1px solid currentColor; }
   .ggl-blame .blame-gutter { border-right: 1px solid currentColor; }
+}
+/* Heat legend and mode selector, in the sticky header. */
+.ggl-blame .blame-heat {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+}
+.ggl-blame .blame-heat-scale { display: inline-flex; gap: 1px; }
+.ggl-blame .blame-heat-swatch {
+  display: block;
+  width: 10px;
+  height: 8px;
+  border-radius: 2px;
+}
+.ggl-blame .blame-heat-swatch-0 { background: var(--ngg-blame-heat-0); }
+.ggl-blame .blame-heat-swatch-1 { background: var(--ngg-blame-heat-1); }
+.ggl-blame .blame-heat-swatch-2 { background: var(--ngg-blame-heat-2); }
+.ggl-blame .blame-heat-swatch-3 { background: var(--ngg-blame-heat-3); }
+.ggl-blame .blame-heat-swatch-4 { background: var(--ngg-blame-heat-4); }
+.ggl-blame .blame-heat-swatch-5 { background: var(--ngg-blame-heat-5); }
+.ggl-blame .blame-heat-swatch-6 { background: var(--ngg-blame-heat-6); }
+.ggl-blame .blame-heat-swatch-7 { background: var(--ngg-blame-heat-7); }
+.ggl-blame .blame-heat-swatch-8 { background: var(--ngg-blame-heat-8); }
+.ggl-blame .blame-heat-swatch-9 { background: var(--ngg-blame-heat-9); }
+.ggl-blame .blame-heat-select {
+  font: inherit;
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: var(--vscode-dropdown-foreground, var(--vscode-foreground, oklch(88% 0 0)));
+  background: var(--vscode-dropdown-background, var(--ngg-transparent));
+  border: 1px solid var(--vscode-dropdown-border, var(--ngg-neutral-border));
+}
+.ggl-blame .blame-heat-select:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
+@media (forced-colors: active) {
+  /* Forced colors drop the heat tints: the rail becomes a system line,
+     the same-commit wash a system outline, and the legend swatches keep a
+     visible border so the scale still reads. */
+  .ggl-blame .blame-hunk::before { background: CanvasText; }
+  .ggl-blame .blame-hunk[data-heat="uncommitted"]::before { background: GrayText; }
+  .ggl-blame .blame-hunk::after { background: transparent; }
+  .ggl-blame .blame-hunk.is-same-commit::after { outline: 2px solid Highlight; outline-offset: -2px; }
+  .ggl-blame .blame-hunk:focus-visible { outline: 2px solid Highlight; }
+  .ggl-blame .blame-heat-swatch { border: 1px solid CanvasText; }
+  .ggl-blame .blame-heat-select { border: 1px solid CanvasText; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ggl-blame .blame-hunk::after { transition: none; }
 }
