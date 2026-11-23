@@ -8,7 +8,7 @@ summary: >-
 
 # F4-01 — Blame CLI read query and porcelain parser
 
-Status: ready
+Status: claimed by Muse Code on 2026-11-23 02:00
 
 Needs: —
 
