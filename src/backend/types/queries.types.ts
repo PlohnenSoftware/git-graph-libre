@@ -297,3 +297,137 @@ export type GitReflogMessageClass = {
   /** The message, unchanged. */
   raw: string;
 };
+
+/**
+ * One blame read: a repository-relative file, blamed at `rev` (a branch, tag,
+ * hash or revision expression such as `HEAD~2`), in the working tree when
+ * `rev` is null or absent, or against the unsaved editor text in `contents`.
+ * Read by `loadBlame` in `src/backend/queries/blame.ts`.
+ */
+export type GitBlameRequest = {
+  /** The file to blame, relative to the repository root (`src/app.ts`). */
+  filePath: string;
+  /**
+   * The revision to blame at. Null or absent blames the working tree — or,
+   * when `contents` is given, the buffer against `HEAD`.
+   */
+  rev?: string | null;
+  /**
+   * Unsaved editor text, blamed through `git blame --contents -` so line
+   * numbers match the editor. Needs `binary` (the resolved Git path).
+   */
+  contents?: string;
+  /** Pass `-w`: ignore whitespace when comparing parent and child. */
+  ignoreWhitespace?: boolean;
+  /** Pass `-M`: detect lines moved or copied within the same file. */
+  detectMoves?: boolean;
+  /** Pass `-C`: like `detectMoves`, plus files changed in the same commit. */
+  detectCopies?: boolean;
+  /**
+   * A `--ignore-revs-file` path (repository-relative or absolute), or null to
+   * pass no file. Absent likewise passes none; Git's own
+   * `blame.ignoreRevsFile` configuration then still applies.
+   */
+  ignoreRevsFile?: string | null;
+  /** Revisions to skip, one `--ignore-rev` each. */
+  ignoreRevs?: string[];
+  /** The resolved Git binary path, required when `contents` is given. */
+  binary?: string;
+};
+
+/** One commit blame attributes lines to, keyed by `hash` in the result. */
+export type GitBlameCommit = {
+  /** The full 40/64-hex commit hash; all zeros for uncommitted lines. */
+  hash: string;
+  author: string;
+  /** The author email, without the angle brackets porcelain wraps it in. */
+  authorMail: string;
+  /** When the change was authored, in Unix seconds. */
+  authorTime: number;
+  /** The author's time zone as Git wrote it, such as `+0200`. */
+  authorTz: string;
+  committer: string;
+  /** The committer email, without angle brackets. */
+  committerMail: string;
+  /** When the commit was made, in Unix seconds. */
+  committerTime: number;
+  committerTz: string;
+  /** The commit subject (the first line of its message). */
+  summary: string;
+  /** True for a root commit (porcelain `boundary`): blame cannot go earlier. */
+  boundary: boolean;
+  /** True for the all-zero OID Git blames working-tree and buffer lines on. */
+  uncommitted: boolean;
+  /**
+   * Where this commit's lines lived just before it: the parent commit to
+   * re-blame and the file's path there (porcelain `previous`). Null on a
+   * boundary commit. First seen wins; each hunk carries its own `previous`,
+   * which is the one to follow when they differ.
+   */
+  previous: { hash: string; path: string } | null;
+  /**
+   * The path this commit's lines came from (porcelain `filename`), which an
+   * earlier rename or a `-C` copy can make differ from the blamed file.
+   * First seen wins, as with `previous`.
+   */
+  filename: string;
+};
+
+/** One blamed line of the file. */
+export type GitBlameLine = {
+  /** The 1-based line number in the blamed file. */
+  finalLine: number;
+  /** The 1-based line number in the file the line originated in. */
+  origLine: number;
+  /** The line's text, without its line ending. */
+  content: string;
+};
+
+/**
+ * A run of consecutive lines from one commit and one origin file — the band
+ * a blame view draws as one block. `lines` always covers `startLine` to
+ * `startLine + lineCount - 1`, and `origStartLine` likewise, with no gaps.
+ */
+export type GitBlameHunk = {
+  commitHash: string;
+  /** The 1-based first line in the blamed file. */
+  startLine: number;
+  lineCount: number;
+  /** The 1-based first line in the origin file. */
+  origStartLine: number;
+  /** The origin file these lines came from; see `GitBlameCommit.filename`. */
+  filename: string;
+  /** The parent blame target for this hunk; see `GitBlameCommit.previous`. */
+  previous: { hash: string; path: string } | null;
+  lines: GitBlameLine[];
+};
+
+/**
+ * What a blame read found: `lines` (the file was blamed), `empty` (it has no
+ * lines), `binary` or `tooLarge` (refused before blaming), `untracked` (the
+ * file is not in `HEAD` yet) or `unborn` (the repository has no commit yet).
+ */
+export type GitBlameState = "lines" | "empty" | "binary" | "tooLarge" | "untracked" | "unborn";
+
+export type GitBlameResult = {
+  /** Null exactly when `error` is set. */
+  state: GitBlameState | null;
+  /** Every commit the hunks name, by hash. Empty unless `state` is `lines`. */
+  commits: Record<string, GitBlameCommit>;
+  /** The file's lines grouped into hunks, top to bottom. */
+  hunks: GitBlameHunk[];
+  /**
+   * The commit OID `rev` resolved to, or null for a working-tree blame and
+   * on any error.
+   */
+  resolvedRev: string | null;
+  /**
+   * The blamed line count. Exact for `lines` and `empty`; for `binary` and
+   * `tooLarge` it is the count the pre-check computed, or 0 when the size
+   * limit refused the file before its lines could be counted.
+   */
+  totalLines: number;
+  /** The `--ignore-revs-file` the blame ran with, or null when it ran without one. */
+  ignoreRevsFileUsed: string | null;
+  error: GitQueryError | null;
+};
