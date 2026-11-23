@@ -7,7 +7,7 @@ summary: >-
 
 # F3-03 — Engine-only availability
 
-Status: waiting on F3-01 and F3-02 integration, and on TQ2 confirmed
+Status: ready
 
 Needs: F3-01 and F3-02 integrated; TQ2 confirmed
 

@@ -7,7 +7,7 @@ summary: >-
 
 # F3-07 — File History
 
-Status: waiting on TQ1 selecting File History; the maintainer records the `--follow` and limit decisions before dispatch
+Status: ready
 
 Needs: TQ1 selects File History; `--follow` and the result limit decided
 

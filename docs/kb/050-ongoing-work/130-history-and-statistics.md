@@ -67,12 +67,12 @@ ran first.
 | ID | Work | Needs | Model | Status |
 | --- | --- | --- | --- | --- |
 | F3-01 | Engine bridge: typed wrappers for `authorStats` and `activityHeatmap` | — | Claude Haiku | integrated `4ebc50c5` |
-| F3-02 | Statistics tab, webview (contributors and 7 x 24 heatmap) | F3-01 (TQ1, TQ2 answered) | Muse Code, Haiku fallback | in progress |
-| F3-03 | Engine-only availability (tab hidden without the engine) | F3-01, F3-02 | Haiku | waiting |
-| F3-04 | l10n for the Statistics tab in all five bundles | F3-02 | Claude Haiku | waiting |
+| F3-02 | Statistics tab, webview (contributors and 7 x 24 heatmap) | F3-01 (TQ1, TQ2 answered) | Muse Code, Haiku fallback | integrated `8991c7eb` |
+| F3-03 | Engine-only availability (tab hidden without the engine) | F3-01, F3-02 | Haiku | ready |
+| F3-04 | l10n for the Statistics tab in all five bundles | F3-02 | Claude Haiku | ready |
 | F3-05 | Mailmap parity in `author_stats` (decision TQ5) | F3-01 (TQ5 answered) | Muse Code | in progress |
 | F3-06 | Date-range filter (only if TQ1 picks the scrubber reading) | F3-02, TQ1 | Muse Code | not selected |
-| F3-07 | File History: engine path-scoped log (TQ1 answered: taken) | F3-02 (TQ1 answered) | Muse Code | waiting on F3-02 |
+| F3-07 | File History: engine path-scoped log (TQ1 answered: taken) | F3-02 (TQ1 answered) | Muse Code | ready |
 | F3-08 | VS Code Timeline provider over F3-07 (only if TQ1 picks Timeline) | F3-07 (TQ1 answered: taken) | Muse Code | waiting on F3-07 |
 
 F3-05 to F3-08 depend on decisions and are decision-dependent as the research
@@ -116,3 +116,15 @@ both themes. Nothing is pushed.
   check belongs with F3-02.
 - `2026-11-23`: maintainer answered TQ1–TQ7 (as above); `gg-plus/next` rebased
   onto `main`; F3-02 and F3-05 dispatched to Muse Code.
+- `2026-11-23`: F3-02 (Muse Code) integrated into `gg-plus/next` at `8991c7eb`: the
+  Statistics tab (`src/extension/statsTab/`, `src/webview/statsTab/`,
+  `src/statsTabTypes.ts`, bundle `statsTab.min`), the `showStatistics`
+  command and graph toolbar button, contributors with bars and shares, the
+  7 × 24 heatmap with a legend, four unavailable states, and an engine
+  parity test against Git. Strings translated in all five languages
+  (maintainer: agents translate), so F3-04 shrinks to a review. Renders:
+  `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F3-02/stats-tab-dark.png` and
+  `stats-tab-light.png`. Telemetry hook point recorded in its report for
+  T1. Gates on `8991c7eb`: strict Biome on 35 files, typecheck, `l10n:check`, KB
+  check, backend 1,678 passed (60 skipped) and webview 1,152 passed.
+  F3-03, F3-04 and F3-07 (file history) are ready.
