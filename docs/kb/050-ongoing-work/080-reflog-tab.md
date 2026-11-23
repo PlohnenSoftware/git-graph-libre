@@ -81,7 +81,7 @@ that note, the slice file wins.
 | F1-04F | Unify the Reflog tab with the graph | F1-04, F1-09 | Haiku | integrated `29594fde` |
 | F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | integrated `f0a51986` |
 | F1-08 | Worktrees and bare repositories | F1-05 | Sonnet | integrated `d8f56cb7` |
-| F1-06 | Recovery actions that cannot lose data | F1-08 | Sonnet | ready |
+| F1-06 | Recovery actions that cannot lose data | F1-08 | Sonnet | integrated `953d4f55` |
 | F1-07 | Lost-commit scan (opt-in) | F1-06 | Sonnet | integrated `ebf4855e` |
 
 ## Integration acceptance
@@ -239,3 +239,19 @@ headless render of the tab in both themes. Nothing is pushed.
   agent-translated. Gates on `ebf4855e`: typecheck, `l10n:check`, KB check,
   strict Biome, backend 1,592 passed (60 skipped in the worktree) and webview
   1,256 passed.
+- `2026-11-23`: F1-06 integrated at `953d4f55` as one squash commit (Gemini 4
+  Argon, then Gemini 4 Neon after Argon's quota ran out): recovery from a
+  reflog entry — Create Branch Here first, Create Tag Here (lightweight or
+  annotated), Check Out (Detached), Copy Hash, Show in Graph (asking before
+  it turns on Include reflog), and Reset Current Branch to Here through the
+  existing reset dialog (mixed by default, hard only behind its
+  confirmation); a missing object disables them with the reason; entries of
+  another worktree run there. It overlapped F1-07 in 16 files, so the
+  integrator squash-merged it onto `main` and a Gemini 4 Neon integration
+  assistant resolved the conflicts keeping both features; the original
+  commits (`2a34c3e1` … `65da5796`) stay on branch `reflog/F1-06`, which
+  `git branch -d` cannot delete because it was squashed, not merged — the
+  maintainer may delete it. Gates on `953d4f55`: typecheck, `l10n:check`,
+  KB check, strict Biome, backend 1,592 passed (60 skipped in the worktree)
+  and webview 1,297 passed. **Every Reflog slice planned for release 1.11.0
+  is now integrated** (F1-01 to F1-09F); S1c refactors `view.ts` next.
