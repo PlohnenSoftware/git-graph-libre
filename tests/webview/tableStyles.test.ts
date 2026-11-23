@@ -68,6 +68,7 @@ describe("commit table styles", () => {
     expect(find).toContain("flex: 0 0 100%;");
     expect(find).toContain("max-width: 100%;");
     expect(find).toContain("justify-content: flex-end;");
+    expect(css).toMatch(/^\.toolbarIconButton\[hidden\] \{\s*display: none;/m);
   });
 
   it("keeps revealed commit rows clear of the sticky overlay", () => {

@@ -29,7 +29,15 @@ function buildToolbarDropdownGroup(opts: { id: string; label: string; selectId: 
     </span>`;
 }
 
-export function buildWebviewToolbar(l10n: LocalizedStrings): string {
+export type WebviewToolbarOptions = {
+  /** Whether the engine-only Statistics tab can be offered (F3-03). Defaults to true. */
+  statsTabAvailable?: boolean;
+};
+
+export function buildWebviewToolbar(
+  l10n: LocalizedStrings,
+  options: WebviewToolbarOptions = {}
+): string {
   const showRemoteBranches = escapeAttribute(l10n.showRemoteBranches);
   const toolbar = escapeAttribute(l10n.toolbar);
   const findCommits = escapeAttribute(l10n.findCommits);
@@ -58,7 +66,7 @@ export function buildWebviewToolbar(l10n: LocalizedStrings): string {
       ${buildToolbarButton({ id: "fetchBtn", label: l10n.fetch, icon: octicon("download"), hidden: true })}
       ${buildToolbarButton({ id: "pushTagsBtn", label: l10n.pushAllTags, icon: octicon("upload"), hidden: true })}
       ${buildToolbarButton({ id: "reflogBtn", label: l10n.showReflog, icon: octicon("history") })}
-      ${buildToolbarButton({ id: "statisticsBtn", label: l10n.showStatistics, icon: octicon("graph") })}
+      ${buildToolbarButton({ id: "statisticsBtn", label: l10n.showStatistics, icon: octicon("graph"), hidden: options.statsTabAvailable === false })}
       ${buildToolbarButton({ id: "worktreesBtn", label: l10n.worktrees, icon: octicon("file-directory") })}
       ${buildToolbarButton({ id: "settingsBtn", label: l10n.settings, icon: octicon("gear") })}
       ${buildToolbarButton({ id: "refreshBtn", label: l10n.refresh, icon: octicon("sync") })}

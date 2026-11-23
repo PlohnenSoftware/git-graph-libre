@@ -3,6 +3,7 @@ import type * as vscode from "vscode";
 import type { Config } from "@/config";
 import { DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY } from "@/contextMenuVisibility";
 import type { RepoManager } from "@/extension/repoManager";
+import { isStatsTabAvailable } from "@/extension/statsTab/availability";
 import { buildWebviewHtml } from "@/extension/webviewHtml";
 import type { ExtensionState } from "@/extensionState";
 import type { GitGraphViewState } from "@/types";
@@ -175,5 +176,48 @@ describe("webview HTML", () => {
     );
     // The old placeholder guessed at both causes at once.
     expect(result.html).not.toContain("Either the current workspace");
+  });
+
+  it("hides the Statistics toolbar button in HTML when the backend is git-cli (F3-03)", () => {
+    const cliResult = buildWebviewHtml({
+      webview: {
+        cspSource: "vscode-webview:",
+        asWebviewUri: (uri: vscode.Uri) => `webview://${uri.fsPath}` as unknown as vscode.Uri
+      } as unknown as vscode.Webview,
+      config: { ...makeConfig(), backend: () => "git-cli" },
+      extensionPath: "/extension",
+      extensionState: {
+        isAvatarStorageAvailable: () => true,
+        getLastActiveRepo: () => "/repo"
+      } as ExtensionState,
+      repoManager: {
+        getRepos: () => ({ "/repo": { columnWidths: null } }),
+        getLayout: () => ({ worktrees: {}, outside: [] })
+      } as unknown as RepoManager,
+      extensionVersion: "1.2.0"
+    });
+    const cliBtn = cliResult.html.match(/<button id="statisticsBtn"[^>]*>/)?.[0] ?? "";
+    expect(cliBtn).toContain(" hidden>");
+
+    const autoResult = buildWebviewHtml({
+      webview: {
+        cspSource: "vscode-webview:",
+        asWebviewUri: (uri: vscode.Uri) => `webview://${uri.fsPath}` as unknown as vscode.Uri
+      } as unknown as vscode.Webview,
+      config: makeConfig(),
+      extensionPath: "/extension",
+      extensionState: {
+        isAvatarStorageAvailable: () => true,
+        getLastActiveRepo: () => "/repo"
+      } as ExtensionState,
+      repoManager: {
+        getRepos: () => ({ "/repo": { columnWidths: null } }),
+        getLayout: () => ({ worktrees: {}, outside: [] })
+      } as unknown as RepoManager,
+      extensionVersion: "1.2.0"
+    });
+    const autoBtn = autoResult.html.match(/<button id="statisticsBtn"[^>]*>/)?.[0] ?? "";
+    const expectedAvailable = isStatsTabAvailable({ backend: () => "auto" });
+    expect(autoBtn.includes(" hidden>")).toBe(!expectedAvailable);
   });
 });

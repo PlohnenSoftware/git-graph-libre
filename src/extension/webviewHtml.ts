@@ -11,6 +11,7 @@ import { resolveBundleLanguage } from "@/telemetry/language";
 import type { EngineComponentStatus, GitGraphViewState } from "@/types";
 
 import type { RepoManager } from "./repoManager";
+import { isStatsTabAvailable } from "./statsTab/availability";
 import { buildTelemetryConsentScreen } from "./webviewConsentScreen";
 import { getWebviewLocalizedStrings } from "./webviewL10n";
 import { createBundleTranslator, listWebviewLanguages } from "./webviewLanguages";
@@ -119,11 +120,12 @@ export function buildWebviewHtml(opts: {
     body = buildTelemetryConsentScreen(l10nStrings, nonce, styleVars);
   } else if (numRepos > 0) {
     engine = engineComponentStatus(config.backend());
+    const statsTabAvailable = isStatsTabAvailable({ backend: config.backend });
     body = `<body style="${styleVars}">
 		<div id="topBar">
 		${buildWebviewStatusStrip(l10nStrings, extensionVersion, engine.state)}
 		<div id="stashListSlot"></div>
-		${buildWebviewToolbar(l10nStrings)}
+		${buildWebviewToolbar(l10nStrings, { statsTabAvailable })}
 		<div id="rebaseBannerSlot"></div>
 		</div>
 		<div id="settingsWidgetBacking" hidden></div>

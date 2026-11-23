@@ -582,6 +582,7 @@ class GitGraphView {
   private readonly findSearchHistoryBtn: HTMLButtonElement;
   private readonly fetchBtn: HTMLButtonElement;
   private readonly pushTagsBtn: HTMLButtonElement;
+  private readonly statisticsBtn: HTMLButtonElement | null;
   private readonly branchControlElem: HTMLElement;
   private readonly authorControlElem: HTMLElement;
   private readonly tagControlElem: HTMLElement;
@@ -754,6 +755,7 @@ class GitGraphView {
     this.findSearchHistoryBtn = requireElement<HTMLButtonElement>("findSearchHistoryBtn");
     this.fetchBtn = requireElement<HTMLButtonElement>("fetchBtn");
     this.pushTagsBtn = requireElement<HTMLButtonElement>("pushTagsBtn");
+    this.statisticsBtn = document.getElementById("statisticsBtn") as HTMLButtonElement | null;
     this.branchControlElem = requireElement("branchControl");
     this.authorControlElem = requireElement("authorControl");
     this.tagControlElem = requireElement("tagControl");
@@ -809,11 +811,21 @@ class GitGraphView {
         sendMessage({ command: "showReflog", repo: this.currentRepo });
       }
     });
-    document.getElementById("statisticsBtn")?.addEventListener("click", () => {
-      if (this.currentRepo !== "") {
-        sendMessage({ command: "showStatistics", repo: this.currentRepo });
-      }
-    });
+    if (this.statisticsBtn !== null) {
+      const stripEngine = document.getElementById("statusStrip")?.dataset.engine;
+      const available =
+        !this.statisticsBtn.hidden && (stripEngine === undefined || stripEngine === "active");
+      this.setStatisticsAvailable(available);
+      this.statisticsBtn.addEventListener("click", () => {
+        if (
+          this.currentRepo !== "" &&
+          !this.statisticsBtn?.hidden &&
+          !this.statisticsBtn?.disabled
+        ) {
+          sendMessage({ command: "showStatistics", repo: this.currentRepo });
+        }
+      });
+    }
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
       this.forgetSignatures();
       this.refresh(true);
@@ -1011,6 +1023,12 @@ class GitGraphView {
     this.fetchBtn.disabled = !hasRemotes;
     this.pushTagsBtn.hidden = !hasRemotes;
     this.pushTagsBtn.disabled = !hasRemotes;
+  }
+
+  public setStatisticsAvailable(available: boolean) {
+    if (this.statisticsBtn === null) return;
+    this.statisticsBtn.hidden = !available;
+    this.statisticsBtn.disabled = !available;
   }
 
   private updateNoCommitsControls() {
@@ -8404,7 +8422,10 @@ const responseHandlers: ResponseHandlerMap = {
       msg.signatures,
       msg.error === null ? null : formatQueryError(msg.error)
     ),
-  componentStatus: (msg) => applyComponentStatus(msg.components),
+  componentStatus: (msg) => {
+    applyComponentStatus(msg.components);
+    gitGraph.setStatisticsAvailable(msg.components.engine.state === "active");
+  },
   copyToClipboard: handleCopyToClipboardResponse,
   createArchive: handleCreateArchiveResponse,
   fetchAvatar: (msg) => gitGraph.loadAvatar(msg.email, msg.image),
