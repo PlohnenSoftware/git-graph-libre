@@ -3,9 +3,11 @@ import * as path from "node:path";
 import type { SimpleGit } from "simple-git";
 
 import { loadBlame } from "@/backend/queries/blame";
+import { fetchCommitInfo } from "@/backend/queries/commitInfo";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { type BlameHotspotMode, scoreBlameHunks } from "@/blameHotspot";
 import type {
+  BlameCommitPopoverResult,
   BlameHistoryEntry,
   BlameLoadOptions,
   BlameNavigateDirection,
@@ -75,6 +77,17 @@ function isIgnorableCommitHash(value: string): boolean {
     if (code <= 32 || code === 127) return false;
   }
   return true;
+}
+
+const commitHashShape = /^[0-9a-f]{4,64}$/i;
+
+/**
+ * A hash the tab may act on (F4-06): hex only, never the all-zero OID Git
+ * blames uncommitted lines on — the same boundary the Reflog tab checks
+ * before revealing a commit in the graph.
+ */
+export function isBlameCommitHash(value: unknown): value is string {
+  return typeof value === "string" && commitHashShape.test(value) && !zeroRevision.test(value);
 }
 
 /**
@@ -166,6 +179,43 @@ export function createBlameSource(deps: BlameSourceDeps): BlameSource {
         hasIgnoreRevsFile,
         ignoreRevsFileUsed: result.ignoreRevsFileUsed
       };
+    },
+
+    /**
+     * The commit popover's read (F4-06): the full message and identities
+     * behind one hunk, through the same `fetchCommitInfo` the CLI commit
+     * details read uses, so the popover and the graph never disagree.
+     */
+    async loadCommitPopover(
+      repo: string,
+      commitHash: string
+    ): Promise<BlameCommitPopoverResult> {
+      if (!isBlameCommitHash(commitHash)) {
+        return { details: null, error: `Not a commit hash: ${commitHash}` };
+      }
+      try {
+        const info = await fetchCommitInfo(deps.createGit(repo), commitHash, repo, deps.record);
+        return {
+          details: {
+            hash: info.hash,
+            parents: info.parents,
+            author: info.author,
+            authorMail: info.email,
+            authorTime: info.authorDate,
+            committer: info.committer,
+            committerMail: info.committerEmail,
+            committerTime: info.committerDate,
+            subject: info.body.split("\n", 1)[0] ?? "",
+            message: info.body
+          },
+          error: null
+        };
+      } catch (error: unknown) {
+        return {
+          details: null,
+          error: error instanceof Error ? error.message : String(error)
+        };
+      }
     }
   };
 }
