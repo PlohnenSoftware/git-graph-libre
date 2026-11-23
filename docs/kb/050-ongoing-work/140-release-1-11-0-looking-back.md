@@ -200,3 +200,12 @@ anything unsolvable within reason be marked here while the rest continues.
   `prompts/muse-queue-at-reset.sh`, queue `/home/zam/Desktop/prog/_GGL/.ggl-wt/muse-queue.txt`)
   with the continuation note. Gemini 4 Neon still answers; 1.11.0 slices get
   it first, Git Graph+ slices wait for Muse Code.
+- `2026-11-23`: L1 (Claude Haiku) integrated at `98abaffb`: a review of the 114
+  strings added or changed since v1.10.0 in nl, pl, zh-cn and zh-tw; 14 values
+  fixed (the bundles' own terms for fetch and working tree, "bare" not
+  "empty" in Polish, full-width colons, a clearer zh "new branch from {0}"),
+  the rest unchanged. Notes for a native speaker are in its record
+  (`140-release-1-11-0-looking-back/130-l1-translation-review.md`); the zh-tw
+  repository word stays the maintainer's choice. Gates on `98abaffb`:
+  `l10n:check` complete, strict Biome on the bundles, KB check, backend
+  1,592 passed (60 skipped in the worktree) and webview 1,276 passed.
