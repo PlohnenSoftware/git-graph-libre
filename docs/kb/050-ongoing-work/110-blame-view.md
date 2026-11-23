@@ -138,8 +138,8 @@ worktrees under `/home/zam/Desktop/prog/_GGL/.ggl-wt/`.
 | F4-02 | Hotspot age-heat and churn scoring model | F4-01 | Haiku | integrated `c06c041c` |
 | F4-03 | Blame editor-tab panel and read-only view | F4-01, F4-02 | Sonnet | integrated `3e916dff` |
 | F4-04 | Hotspot OKLCH palette, heat rail, legend and hover highlight | F4-03 | Haiku | integrated `444b9703` |
-| F4-05 | Parent-blame rewind stack, options, ignore-revs and find | F4-04 | Sonnet | ready |
-| F4-06 | Commit popover, Show in Graph, GGL Diff and Open File at Line | F4-05 | Sonnet | waiting |
+| F4-05 | Parent-blame rewind stack, options, ignore-revs and find | F4-04 | Sonnet | integrated `52c3f174` |
+| F4-06 | Commit popover, Show in Graph, GGL Diff and Open File at Line | F4-05 | Sonnet | ready |
 | F4-07 | Editor, Explorer, SCM and Commit Details entry points | F4-06 | Sonnet | integrated `f3a28214` |
 | F4-08 | Worktrees, bare repositories, unsaved buffers and watcher refresh | F4-07 | Sonnet | integrated `56cf6fc9` |
 | F4-09 | Optional: Rust engine blame read with parity tests | F4-01 | Muse Code | deferred (BQ8 profiling: `gix` slower) |
