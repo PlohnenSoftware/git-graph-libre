@@ -83,6 +83,7 @@ releases (Rules) applies, with the answers below.
 | N1 | Release notes: Blame F4-05/F4-06, Q1, L2, P1 | those slices | Claude Haiku | integrated `d25ed146` |
 | R90 | Release 1.11.0 | every `main` track | orchestrator | done `74ff94fe` (not tagged, not pushed) |
 | KB2 | Move the finished sections to History; roadmap and work order | R90 | Claude Haiku | integrated `b2c476e3` |
+| Q3 | Reflog columns resize like the graph's; State resizable and narrower (maintainer test) | Q2 | Claude Haiku | ready |
 
 ## Blocked — waiting for the maintainer
 
