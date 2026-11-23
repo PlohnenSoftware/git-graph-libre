@@ -5381,24 +5381,36 @@ class GitGraphView {
     const confirm = l10n.dialogDeleteConfirm
       .replace("{0}", l10n.labelBranch)
       .replace("{1}", `<b><i>${escapeHtml(refName)}</i></b>`);
+    const inputs = this.deleteBranchInputs(refName, holder, deleteOnRemotes);
     showFormDialog(
-      holder === null
-        ? confirm
-        : `${this.worktreeHoldsBranchMessage(refName, holder)}<br><br>${confirm}`,
-      this.deleteBranchInputs(holder, deleteOnRemotes),
+      confirm,
+      inputs,
       l10n.deleteBranch,
-      (values) => this.submitDeleteBranch(refName, holder, deleteOnRemotes, values),
+      (values) => this.submitDeleteBranch(refName, holder, deleteOnRemotes, inputs, values),
       null
     );
   }
-  /** The dialog's checkboxes: the worktree removal first, when a worktree holds the branch. */
-  private deleteBranchInputs(holder: GitWorktree | null, deleteOnRemotes: string[]): DialogInput[] {
+  /**
+   * The dialog's rows: why Git keeps the branch as a note when a worktree
+   * holds it, then the checkboxes, the worktree removal first. The question
+   * stays the title on its own, as Rename Branch does for its worktree remark.
+   */
+  private deleteBranchInputs(
+    refName: string,
+    holder: GitWorktree | null,
+    deleteOnRemotes: string[]
+  ): DialogInput[] {
     const inputs: DialogInput[] = [];
     if (holder !== null) {
+      inputs.push({ type: "note", html: this.worktreeHoldsBranchMessage(refName, holder) });
       inputs.push({
         type: "checkbox",
         name: l10n.dialogDeleteBranchRemoveWorktree.replace("{0}", escapeHtml(holder.path)),
-        value: false
+        value: false,
+        // Until this is ticked there is nothing the action can do, so it
+        // stays blocked like a required field left empty instead of closing
+        // the dialog and sending nothing.
+        required: true
       });
     }
     inputs.push({ type: "checkbox", name: l10n.dialogDeleteForceDelete, value: false });
@@ -5415,28 +5427,41 @@ class GitGraphView {
     refName: string,
     holder: GitWorktree | null,
     deleteOnRemotes: string[],
+    inputs: DialogInput[],
     values: string[]
   ) {
-    const forceIndex = holder === null ? 0 : 1;
+    // Read the checkboxes by type, in their order among themselves: the
+    // value-less note row shifts every absolute position, as a group heading
+    // would, and a position counted by hand would read the wrong box.
+    const checked = inputs.flatMap((input, index) =>
+      input.type === "checkbox" ? [values[index] === "checked"] : []
+    );
+    const offset = holder === null ? 0 : 1;
     const deleteBranch: DeleteBranchPart = {
       branchName: refName,
-      forceDelete: values[forceIndex] === "checked"
+      forceDelete: checked[offset] === true
     };
-    if (deleteOnRemotes.length > 0 && values[forceIndex + 1] === "checked") {
+    if (deleteOnRemotes.length > 0 && checked[offset + 1] === true) {
       deleteBranch.deleteOnRemotes = deleteOnRemotes;
     }
     if (holder === null) {
       sendMessage({ command: "deleteBranch", repo: this.currentRepo, ...deleteBranch });
       showActionRunningDialog(l10n.statusDeletingBranch);
-    } else if (values[0] === "checked") {
-      // Left unticked, the dialog only explained, and nothing is sent.
+    } else if (checked[0] === true) {
+      // The required checkbox keeps the action blocked until it is ticked,
+      // so reaching here unticked sends nothing, as before.
       this.removeWorktreeAction(holder, deleteBranch);
     }
   }
   private worktreeAtPath(path: string): GitWorktree | null {
     return this.gitWorktrees.find((worktree) => worktree.path === path) ?? null;
   }
-  /** Why Git keeps the branch, and what removing the worktree does, for each kind of worktree. */
+  /**
+   * Why Git keeps the branch, and what removing the worktree does, for each
+   * kind of worktree. Pre-escaped HTML for the dialog's note row: the
+   * sentence names the worktree by its folder with the full path on hover,
+   * and the full path stays visible in the option that removes it.
+   */
   private worktreeHoldsBranchMessage(refName: string, holder: GitWorktree): string {
     const notes = [
       l10n.dialogDeleteBranchRemovable
@@ -8981,7 +9006,8 @@ function renderDialogInputRow(
 ) {
   const hidden = isDialogInputVisible(inputs, input) ? "" : " hidden";
   if (input.type === "note") {
-    return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2" class="dialogFormNoteCell"><span class="dialogFormNote">${escapeHtml(input.text)}</span></td></tr>`;
+    const content = "html" in input ? input.html : escapeHtml(input.text);
+    return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2" class="dialogFormNoteCell"><span class="dialogFormNote">${content}</span></td></tr>`;
   }
   if (input.type === "group") {
     return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2" class="dialogFormGroupCell"><span class="dialogFormGroup">${escapeHtml(input.name)}</span></td></tr>`;
@@ -9127,7 +9153,10 @@ function isDialogInputVisible(inputs: DialogInput[], input: DialogInput) {
 }
 function isRequiredDialogInput(input: DialogInput) {
   return (
-    (input.type === "text" || input.type === "textarea" || input.type === "folder") &&
+    (input.type === "text" ||
+      input.type === "textarea" ||
+      input.type === "folder" ||
+      input.type === "checkbox") &&
     input.required === true
   );
 }
@@ -9141,7 +9170,10 @@ function getFormDialogInputState(inputs: DialogInput[]) {
     if (input.type === "text-ref") {
       if (value === "") noInput = true;
       else if (refInvalid.exec(value) !== null) invalidInput = true;
-    } else if (isRequiredDialogInput(input) && value.trim() === "") {
+    } else if (
+      isRequiredDialogInput(input) &&
+      (input.type === "checkbox" ? value !== "checked" : value.trim() === "")
+    ) {
       noInput = true;
     }
   }
@@ -9181,6 +9213,8 @@ function bindFormDialogInputs(inputs: DialogInput[], textRefInput: number, actio
     // Picking a <datalist> suggestion or pasting with the mouse fires
     // `input` without any key, and must unblock the action the same way.
     elem?.addEventListener("input", refreshActionState);
+    // A required checkbox unblocks on its change, as a field does on input.
+    elem?.addEventListener("change", refreshActionState);
   }
   refreshActionState();
 }

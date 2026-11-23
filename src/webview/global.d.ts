@@ -132,10 +132,20 @@ declare global {
      */
     grouped?: boolean;
   }
-  interface DialogNoteInput {
-    type: "note";
-    text: string;
-  }
+  type DialogNoteInput =
+    | {
+        type: "note";
+        text: string;
+      }
+    | {
+        type: "note";
+        /**
+         * Pre-escaped HTML for notes that carry inline semantics (such as a
+         * worktree folder span with its full path in `title`). Callers escape
+         * every dynamic value before passing it here.
+         */
+        html: string;
+      };
   /**
    * A heading over the rows that follow, carrying no value. It exists so a
    * run of related checkboxes reads as one thing — the push dialogs use it to
@@ -181,7 +191,12 @@ declare global {
   ) & {
     /** Hides this input's row while the controlling input holds another value. */
     dependsOn?: DialogInputDependency;
-    /** Rejects submission while this text/textarea input is empty (and visible). */
+    /**
+     * Rejects submission while this input is unfilled (and visible): a
+     * text, textarea or folder input left empty, or a checkbox left
+     * unticked. The blocked action is drawn like a required field left
+     * empty.
+     */
     required?: boolean;
   };
   type DialogInputValue = string | boolean;

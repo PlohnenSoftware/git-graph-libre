@@ -139,7 +139,7 @@ numbers are from `ccc1aaee`. A suggested order is at the end.
   while doing it: whether "do nothing" stays a choice beside the dialog's
   Cancel.
 
-### V5 — Delete Branch when another worktree holds the branch
+### V5 — Delete Branch when another worktree holds the branch — done (P1)
 
 - **Shows:** the explanation ("Branch … is checked out in worktree …. To
   delete it, remove that worktree too.") and the question, both in the
