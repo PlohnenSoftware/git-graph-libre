@@ -6,6 +6,7 @@ import type {
   GitCommitSearchResult,
   GitCommitSignature,
   GitFileChange,
+  GitFileHistoryEntry,
   GitPushBranchMode,
   GitQueryError,
   GitRemote,
@@ -588,6 +589,8 @@ class GitGraphView {
   private activeFindMatchIndex = -1;
   private activeSearchCommitsRequestId: number | null = null;
   private activeSearchQuery: string | null = null;
+  private activeFileHistoryRequestId: number | null = null;
+  private activeFileHistoryTarget: { repo: string; filePath: string } | null = null;
   private pendingFocusCommitHash: string | null = null;
 
   private loadBranchesCallback: ((changes: boolean, isRepo: boolean) => void) | null = null;
@@ -1756,8 +1759,91 @@ class GitGraphView {
       return;
     }
 
-    showSelectDialog(
+    this.showCommitResultsDialog(
       l10n.dialogSearchHistoryResults.replace("{0}", `<b>${escapeHtml(query)}</b>`),
+      results
+    );
+  }
+  public showFileHistory(repo: string, filePath: string) {
+    const trimmedPath = filePath.trim();
+    const targetRepo = repo !== "" ? repo : this.currentRepo;
+    if (trimmedPath === "" || targetRepo === "") return;
+    if (
+      this.activeFileHistoryRequestId !== null &&
+      this.activeFileHistoryTarget?.repo === targetRepo &&
+      this.activeFileHistoryTarget.filePath === trimmedPath
+    ) {
+      return;
+    }
+
+    if (this.currentRepo !== targetRepo && Object.hasOwn(this.gitRepos, targetRepo)) {
+      this.currentRepo = targetRepo;
+      this.saveState();
+      this.renderRepoDropdown();
+      sendMessage({ command: "selectRepo", repo: targetRepo });
+    }
+
+    const requestId = this.createRequestId();
+    this.activeFileHistoryRequestId = requestId;
+    this.activeFileHistoryTarget = { repo: targetRepo, filePath: trimmedPath };
+    setStatusStrip("loading", l10n.historyLoading);
+    sendMessage({
+      command: "fileHistory",
+      requestId,
+      repo: targetRepo,
+      filePath: trimmedPath,
+      maxResults: searchHistoryMaxResults
+    });
+  }
+  public loadFileHistoryResults(
+    requestId: number,
+    repo: string,
+    filePath: string | null,
+    commits: GitFileHistoryEntry[],
+    hasMore: boolean,
+    errorReason: string | null
+  ) {
+    if (this.activeFileHistoryRequestId !== requestId) return;
+    const target = this.activeFileHistoryTarget;
+    this.activeFileHistoryRequestId = null;
+    this.activeFileHistoryTarget = null;
+    if (repo !== "" && this.currentRepo !== "" && repo !== this.currentRepo) return;
+
+    setStatusStrip("ready", l10n.statusReady);
+    const displayPath = filePath ?? target?.filePath ?? "";
+    if (errorReason !== null) {
+      showErrorDialog(l10n.historyUnableToLoad, errorReason, null);
+      return;
+    }
+    if (commits.length === 0) {
+      showErrorDialog(
+        l10n.historyNoResults.replace("{0}", `<b>${escapeHtml(displayPath)}</b>`),
+        null,
+        null
+      );
+      return;
+    }
+
+    const escapedPath = `<b>${escapeHtml(displayPath)}</b>`;
+    const heading = hasMore
+      ? l10n.historyResultsLimited
+          .replace("{0}", escapedPath)
+          .replace("{1}", String(commits.length))
+      : l10n.historyResults.replace("{0}", escapedPath);
+    this.showCommitResultsDialog(heading, commits, true);
+  }
+  private showCommitResultsDialog(
+    headingHtml: string,
+    results: ReadonlyArray<{
+      hash: string;
+      message: string;
+      author: string;
+      loadCount: number | null;
+    }>,
+    clearAllFilters = false
+  ) {
+    showSelectDialog(
+      headingHtml,
       results[0].hash,
       results.map((result) => ({
         name: `${this.displayHash(result.hash)} - ${result.message} (${result.author})`,
@@ -1766,7 +1852,9 @@ class GitGraphView {
       l10n.dialogSearchHistoryOpen,
       (hash) => {
         const selected = results.find((result) => result.hash === hash);
-        if (selected !== undefined) this.revealSearchResult(selected);
+        if (selected !== undefined) {
+          this.revealSearchResult(selected.hash, selected.loadCount, clearAllFilters);
+        }
       },
       null
     );
@@ -1779,14 +1867,20 @@ class GitGraphView {
     this.updateFindUi();
     return query;
   }
-  private revealSearchResult(result: GitCommitSearchResult) {
-    if (this.revealCommit(result.hash)) return;
+  private revealSearchResult(hash: string, loadCount: number | null, clearAllFilters = false) {
+    if (this.revealCommit(hash)) return;
 
-    this.pendingFocusCommitHash = result.hash;
+    this.pendingFocusCommitHash = hash;
     this.currentBranch = FILTER_SHOW_ALL_VALUE;
     this.currentBranches = null;
+    if (clearAllFilters) {
+      this.currentAuthors = null;
+      this.currentTags = null;
+    }
     this.updateFilterDropdowns();
-    this.maxCommits = Math.max(this.maxCommits, result.loadCount);
+    if (loadCount !== null) {
+      this.maxCommits = Math.max(this.maxCommits, loadCount);
+    }
     this.hideCommitDetails();
     this.saveState();
     this.renderShowLoading();
@@ -8350,8 +8444,18 @@ const responseHandlers: ResponseHandlerMap = {
   pickFolder: (msg) => finishFolderPick(msg),
   resolveRef: (msg) =>
     gitGraph.loadResolvedComparison(msg.requestId, msg.hash, formatQueryError(msg.error)),
+  fileHistory: (msg) =>
+    gitGraph.loadFileHistoryResults(
+      msg.requestId,
+      msg.repo,
+      msg.filePath,
+      msg.commits,
+      msg.hasMore,
+      formatQueryError(msg.error)
+    ),
   searchCommits: (msg) =>
     gitGraph.loadSearchCommitResults(msg.requestId, msg.results, formatQueryError(msg.error)),
+  showFileHistory: (msg) => gitGraph.showFileHistory(msg.repo, msg.filePath),
   startHistorySearch: () => gitGraph.startHistorySearch(),
   showPruneWorktrees: () => gitGraph.showPruneWorktrees(),
   tagDetails: handleTagDetailsResponse,
@@ -8363,6 +8467,7 @@ const responseHandlers: ResponseHandlerMap = {
 
 window.addEventListener("message", handleMessageEvent);
 initComponentStatus(() => sendMessage({ command: "componentStatus" }));
+sendMessage({ command: "graphReady" });
 
 function handleMessageEvent(event: MessageEvent) {
   if (event.origin !== globalThis.location.origin) return;

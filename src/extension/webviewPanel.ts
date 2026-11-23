@@ -69,6 +69,8 @@ export function createWebviewPanel(opts: {
   let isPanelVisible = panel.visible;
   let hadRepositories = Object.keys(repoManager.getRepos()).length > 0;
   let disposed = false;
+  let webviewReady = false;
+  let pendingFileHistory: { repo: string; filePath: string } | null = null;
   const recovery = opts.repoSearch
     ? registerRepositoryRecovery(bridge, {
         config,
@@ -107,6 +109,7 @@ export function createWebviewPanel(opts: {
       outputChannel?.appendLine(`[engine] ${describeEngineStatus(result.engine)}`);
     }
     panel.webview.html = result.html;
+    webviewReady = false;
     // Recovery is the startup screen giving way to the graph. A graph rebuilt
     // in place (a language switch) recovered from nothing, so a failure still
     // on screen must not count as a new appearance.
@@ -144,6 +147,7 @@ export function createWebviewPanel(opts: {
   function dispose() {
     if (disposed) return;
     disposed = true;
+    pendingFileHistory = null;
     onDispose();
     recovery?.dispose();
     panel.dispose();
@@ -155,6 +159,14 @@ export function createWebviewPanel(opts: {
       if (x) x.dispose();
     }
   }
+
+  bridge.onMessage("graphReady", () => {
+    webviewReady = true;
+    if (pendingFileHistory === null) return;
+    const next = pendingFileHistory;
+    pendingFileHistory = null;
+    bridge.post({ command: "showFileHistory", ...next });
+  });
 
   bridge.onMessage("setTemporaryLanguage", (msg) => {
     if (!listWebviewLanguages(extensionPath).some((entry) => entry.id === msg.language)) return;
@@ -212,6 +224,13 @@ export function createWebviewPanel(opts: {
     },
     startHistorySearch() {
       bridge.post({ command: "startHistorySearch" });
+    },
+    /** Opens file history for one repository-relative path in the graph's search results list. */
+    showFileHistory(repo: string, filePath: string) {
+      if (!webviewReady) {
+        pendingFileHistory = { repo, filePath };
+      }
+      bridge.post({ command: "showFileHistory", repo, filePath });
     },
     /** Opens the Prune Stale Worktrees preview for the repository the graph shows. */
     showPruneWorktrees() {

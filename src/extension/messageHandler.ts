@@ -77,6 +77,7 @@ import { readWorktrees as readWorktreeList } from "@/backend/engine/worktrees";
 import type { GitClient } from "@/backend/gitClient";
 import { branchPushDefaults } from "@/backend/queries/branchPushDefaults";
 import { commitSignatures } from "@/backend/queries/commitSignatures";
+import { loadFileHistory } from "@/backend/queries/fileHistory";
 import { loadBranches } from "@/backend/queries/loadBranches";
 import { loadRebaseRange } from "@/backend/queries/rebaseRange";
 import { remoteTags } from "@/backend/queries/remoteTags";
@@ -1171,6 +1172,35 @@ export function registerMessageHandlers(
         dateType: config.dateType(),
         recordGitCommand
       }))
+    });
+  });
+
+  bridge.onMessage("fileHistory", async (msg) => {
+    const git =
+      currentRepo !== null && currentRepo !== msg.repo
+        ? simpleGit({
+            baseDir: msg.repo,
+            binary: config.gitPath(),
+            maxConcurrentProcesses: 2,
+            trimmed: false
+          })
+        : gitClient.getInstance();
+    bridge.post({
+      command: "fileHistory",
+      requestId: msg.requestId,
+      repo: msg.repo,
+      ...(await loadFileHistory(
+        git,
+        msg.repo,
+        {
+          filePath: msg.filePath,
+          limit: msg.maxResults,
+          follow: msg.follow,
+          dateType: config.dateType(),
+          includeLoadCount: true
+        },
+        recordGitCommand
+      ))
     });
   });
 

@@ -39,8 +39,9 @@ type CommandApi = Pick<typeof vscode.commands, "registerCommand">;
 type RepoQuickPickItem = vscode.QuickPickItem & {
   repo: string;
 };
+type FileUriLike = { fsPath: string; scheme?: string };
 type WindowApi = {
-  getActiveTextEditorUri(): { fsPath: string } | undefined;
+  getActiveTextEditorUri(): FileUriLike | undefined;
   showErrorMessage(message: string): Thenable<unknown>;
   showInformationMessage(message: string): Thenable<unknown>;
   showOpenDialog(
@@ -146,6 +147,35 @@ function findKnownRepoForPath(repos: Record<string, unknown>, filePath: string):
     if (normalizedPath === repoPath || normalizedPath.startsWith(`${repoPath}/`)) return repoPath;
   }
   return null;
+}
+
+function asFileUri(value: unknown): FileUriLike | null {
+  if (typeof value !== "object" || value === null) return null;
+  const candidate = value as { fsPath?: unknown; scheme?: unknown };
+  if (typeof candidate.fsPath !== "string" || candidate.fsPath === "") return null;
+  return typeof candidate.scheme === "string"
+    ? { fsPath: candidate.fsPath, scheme: candidate.scheme }
+    : { fsPath: candidate.fsPath };
+}
+
+function extractTargetFileUri(target: unknown): FileUriLike | null {
+  const direct = asFileUri(target);
+  if (direct !== null) return direct;
+  if (typeof target !== "object" || target === null) return null;
+  return asFileUri((target as { resourceUri?: unknown }).resourceUri);
+}
+
+function toRepoRelativeFilePath(repo: string, filePath: string): string | null {
+  const relative = path.posix.relative(repo, filePath);
+  if (
+    relative === "" ||
+    relative === ".." ||
+    relative.startsWith("../") ||
+    path.posix.isAbsolute(relative)
+  ) {
+    return null;
+  }
+  return relative;
 }
 
 async function resolveGitRoot(
@@ -500,6 +530,38 @@ export function createCommandManager(deps: CommandManagerDeps) {
     deps.getCurrentPanel()?.startHistorySearch();
   }
 
+  async function showFileHistory(target?: unknown) {
+    const uri = extractTargetFileUri(target) ?? windowApi.getActiveTextEditorUri();
+    if (!uri) {
+      await windowApi.showWarningMessage(l10n.t("command.activeEditorRepo.noEditor"));
+      return;
+    }
+    if (uri.scheme !== undefined && uri.scheme !== "file") {
+      await windowApi.showWarningMessage(l10n.t("history.noRepo"));
+      return;
+    }
+
+    const filePath = getPathFromStr(uri.fsPath);
+    let repo = findKnownRepoForPath(deps.repoManager.getRepos(), filePath);
+    if (repo === null) {
+      repo = await resolveGitRoot(path.dirname(filePath), deps.config.gitPath(), recordGitCommand);
+      if (repo === null) {
+        await windowApi.showWarningMessage(l10n.t("history.noRepo"));
+        return;
+      }
+      deps.repoManager.addRepo(repo);
+    }
+
+    const relativePath = toRepoRelativeFilePath(repo, filePath);
+    if (relativePath === null) {
+      await windowApi.showWarningMessage(l10n.t("history.notAFile"));
+      return;
+    }
+
+    focusRepo(repo);
+    deps.getCurrentPanel()?.showFileHistory(repo, relativePath);
+  }
+
   /**
    * The worktree a request names, as Git lists it now. A path Git no longer
    * lists is refused, and so is a stale entry: its folder is gone, so Repair
@@ -702,6 +764,7 @@ export function createCommandManager(deps: CommandManagerDeps) {
     register("git-graph-libre.pruneStaleWorktrees", () => pruneStaleWorktrees());
     register("git-graph-libre.showReflog", (repo) => showReflog(repo));
     register("git-graph-libre.showStatistics", (repo) => showStatistics(repo));
+    register("git-graph-libre.showFileHistory", (target) => showFileHistory(target));
     for (const { id, handler } of createScmDiffTabHandlers({
       getRepos: () => deps.repoManager.getRepos(),
       openDiff: (request) => deps.openScmDiffTab?.(request),

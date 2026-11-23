@@ -572,6 +572,25 @@ export type ResponseStartHistorySearch = {
 };
 
 /**
+ * Sent once by the graph webview after its message listener is attached so the
+ * host can flush any action queued while a freshly opened panel was booting.
+ */
+export type RequestGraphReady = {
+  command: "graphReady";
+};
+
+/**
+ * Posted when the user invokes Show File History from the Explorer, Editor or
+ * Command Palette. The webview queries the file's history and opens the
+ * commits in the existing search results dialog.
+ */
+export type ResponseShowFileHistory = {
+  command: "showFileHistory";
+  repo: string;
+  filePath: string;
+};
+
+/**
  * Posted when the Command Palette runs Prune Stale Worktrees. The graph opens
  * the same preview its branch menu opens, for the repository it is showing.
  */
@@ -686,7 +705,8 @@ export type RequestMessage =
   | RequestResolveRef
   | RequestSetTemporaryLanguage
   | RequestShowTelemetryConsent
-  | RequestPickFolder;
+  | RequestPickFolder
+  | RequestGraphReady;
 
 export type ResponseMessage =
   | ResponseRepositoryStatus
@@ -713,5 +733,6 @@ export type ResponseMessage =
   | ResponseRefresh
   | ResponseResolveRef
   | ResponseStartHistorySearch
+  | ResponseShowFileHistory
   | ResponseShowPruneWorktrees
   | ResponsePickFolder;
