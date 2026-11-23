@@ -8,7 +8,7 @@ summary: >-
 
 # F4-01 — Blame CLI read query and porcelain parser
 
-Status: claimed by Muse Code on 2026-11-23 02:00
+Status: done — awaiting integration
 
 Needs: —
 
@@ -129,4 +129,105 @@ result. Claim and changes are separate signed commits; never push.
 
 ## Report
 
-Not started.
+- **Agent / date:** Muse Code (muse-wonder-full-1.0), 2026-11-23 02:09
+- **Branch and commits:** `blame/F4-01` —
+  - `6bfefb03 G docs(blame): claim slice F4-01 (F4-01)`
+  - `a91384f6 G feat(blame): add blame query types (F4-01)`
+  - `bdd2d0dc G feat(blame): add the CLI blame read query and porcelain parser (F4-01)`
+  - `ea953c71 G feat(blame): export the blame query from the queries index (F4-01)`
+  - `de83d6a8 G test(blame): cover the blame parser and query against real Git (F4-01)`
+  - plus this Report commit. Every commit verified `G` with
+    `git log --format='%h %G? %s' 1fe8b472..HEAD`.
+- **Files changed:** `src/backend/queries/blame.ts` (new, +656),
+  `src/backend/types/queries.types.ts` (+134 blame types),
+  `src/backend/queries/index.ts` (new, +1),
+  `tests/backend/queries/blame.test.ts` (new, +804), this slice file
+  (Status + Report). Nothing outside the Touch list.
+- **Tests added or changed:** new `tests/backend/queries/blame.test.ts`,
+  41 tests (9 parser unit, 32 real-Git). Full suite after: backend
+  114 files / 1531 passed + 60 skipped, webview 85 files / 1096 passed;
+  the new file accounts for exactly 1 file / 41 tests of the backend
+  count and no other test file was touched.
+- **Gates:** `npx biome check --config-path biome.strict.jsonc
+  --error-on-warnings` on all four touched code/test files — clean (after
+  formatter-only `--write` passes); `pnpm run typecheck` — clean;
+  `npx vitest run --project backend tests/backend/queries/blame.test.ts`
+  — 1 file, 41 passed; `pnpm run test` — backend 114/1531 passed +
+  60 skipped, webview 85/1096 passed, no failures;
+  `node ./docs/kb/housekeeping.mjs --check` — exit 0;
+  `pnpm run l10n:check` — complete (no user-visible strings added; backend
+  only). Sonar: integrator. No Rust touched, so no engine arm. No visual
+  surface, so no renders.
+- **Acceptance:**
+  - Query contract: met. `loadBlame(git, repo, request, record?)` returns
+    `state`/`commits`/`hunks`/`resolvedRev`/`totalLines`/
+    `ignoreRevsFileUsed`/`error` exactly as specified, including
+    `state: null` exactly on error; hunks group by commit + origin
+    `filename`/`previous`. Evidence: "blames HEAD with hunks, identities,
+    boundary and previous" and the recorder test.
+  - Safe option handling: met. No `--end-of-options` reaches blame; empty,
+    dash-led and control-bearing `rev`/`ignoreRevs` are refused before any
+    Git call; every revision is resolved through
+    `git rev-parse --verify --end-of-options <rev>^{commit}` and only the
+    OID is passed; `-c core.quotePath=false` and `--` always used; empty,
+    NUL-bearing, absolute and traversing paths refused. Evidence: the two
+    input-validation tests (including `rev: "--ignore-revs-file=/etc/passwd"`).
+  - Pre-checks: met. NUL in the first 8,000 bytes → `binary`; over
+    `MAX_BLAME_FILE_BYTES` (2 MiB) or `MAX_BLAME_LINES` (25,000) →
+    `tooLarge`; judged from the buffer, a bounded disk read, or
+    `ls-tree -l` size plus `cat-file blob` at a revision. Evidence: the
+    binary/tooLarge tests in all three modes.
+  - Porcelain parser: met. Pure `parseBlamePorcelain`, CRLF/LF tolerant,
+    keeps tabs/UTF-8/empty content. Verification the slice asked for:
+    on Git 2.56.1 `--porcelain` DOES re-emit `filename` when a later group
+    of the same commit comes from another origin file (scratch `-C`
+    fixture: one commit, `host.txt` then `donor.txt` then `host.txt`
+    groups), so `--porcelain` suffices and `--line-porcelain` is not
+    needed; the parser tracks per-group `filename`/`previous` and the
+    real-Git `-C` test pins it.
+  - Edge-case mapping: met. Empty → `empty`; untracked → `untracked`;
+    unborn → `unborn`; broken `blame.ignoreRevsFile` config → Git's own
+    error (message names the missing file), never an empty blame; bare
+    with a revision works, bare working tree returns a clear error.
+    Evidence: the file-states and bare/worktree suites. One verified fact
+    behind the bare rule: Git 2.56.1 silently blames `HEAD` for
+    `git blame -- <path>` in a bare repository (exit 0), so the refusal is
+    an explicit `--is-bare-repository` probe in this query.
+  - Tests: met, every fixture the slice lists (root `boundary`, rename +
+    parent-blame follow-up through `previous`, working-tree and staged
+    uncommitted lines, `--contents -`, `-w`, `-M`, `-C`, `--ignore-rev`,
+    `--ignore-revs-file` valid/comment-only/missing, empty, binary,
+    oversized by lines and by bytes, untracked, unborn, bare
+    revision/working-tree/buffer, linked worktree, non-ASCII path with
+    spaces, rejected dash/control revisions). Fixtures use temporary
+    directories and an isolated empty global Git config only.
+- **Deviations from the slice:** none in outcomes. Choices where the slice
+  left room, recorded for the integrator:
+  - `src/backend/queries/index.ts` did not exist (queries are imported by
+    direct path everywhere); created it as the minimal barrel the Touch
+    list names, re-exporting `./blame` only. `src/backend/types/index.ts`
+    already re-exports `queries.types.ts`, so no edit was needed there
+    (verified as the slice suggested).
+  - `untracked`/`unborn` are decided by structural probes (does `HEAD`
+    resolve, does its tree hold the path) instead of matching Git's
+    English `fatal:` text, so a localized Git cannot break the mapping;
+    the resulting states match the slice's table in every tested case. A
+    consequence: an explicit `rev: "HEAD"` (or a buffer, which defaults
+    to `HEAD`) for a path missing from `HEAD` also answers `untracked`,
+    while any other revision answers an error.
+  - A `contents` buffer is a revision blame (it always passes a resolved
+    OID), so bare repositories serve it; only the true working-tree mode
+    is refused there. Verified against Git 2.56.1 and pinned by test.
+  - OID-shaped revisions are also resolved through `rev-parse` (the slice
+    requires it for non-OID values), which additionally rejects
+    non-commit OIDs up front.
+  - Hunk grouping also requires consecutive final/origin line numbers, so
+    `origStartLine + lineCount` never claims lines the hunk does not hold.
+  - `authorMail`/`committerMail` drop porcelain's angle brackets.
+  - `MAX_BLAME_FILE_BYTES` reads the slice's "2 MB" as 2 MiB
+    (`2 * 1024 * 1024`), matching the codebase's byte constants.
+- **Open questions / follow-ups:** none blocking. For F4-02/F4-03: heat
+  input is `GitBlameCommit.authorTime` (with `committerTime` alongside);
+  `previous` on the hunk (not the commit record, which is first-seen) is
+  the rewind target. The request field for the Git binary path is named
+  `binary`, as the slice and `runGitWithInput` name it.
