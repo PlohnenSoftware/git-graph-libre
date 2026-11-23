@@ -243,8 +243,7 @@ function groupHunks(lines: BlamedLine[]): GitBlameHunk[] {
     const last = group?.at(-1);
     if (
       group !== undefined &&
-      last !== undefined &&
-      last.commitHash === blamed.commitHash &&
+      last?.commitHash === blamed.commitHash &&
       last.filename === blamed.filename &&
       samePrevious(last.previous, blamed.previous) &&
       last.line.finalLine + 1 === blamed.line.finalLine &&
@@ -256,7 +255,7 @@ function groupHunks(lines: BlamedLine[]): GitBlameHunk[] {
     }
   }
   return groups.map((group) => {
-    const first = group[0] as BlamedLine;
+    const first = group[0];
     return {
       commitHash: first.commitHash,
       startLine: first.line.finalLine,
