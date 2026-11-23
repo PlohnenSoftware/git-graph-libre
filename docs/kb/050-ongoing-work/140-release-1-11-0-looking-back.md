@@ -209,3 +209,9 @@ anything unsolvable within reason be marked here while the rest continues.
   repository word stays the maintainer's choice. Gates on `98abaffb`:
   `l10n:check` complete, strict Biome on the bundles, KB check, backend
   1,592 passed (60 skipped in the worktree) and webview 1,276 passed.
+- `2026-11-23 ~12:10Z`: **Gemini 4 Neon quota exhausted** too (resets in about
+  four hours). The F4-05 squash merge (F4-05 overlapped F4-08 in 18 files;
+  same treatment as F1-06) stopped mid-resolution and is queued first for
+  Muse Code at its reset (`16:01:30Z`), then F2-04. Until then only Claude
+  Haiku runs, on easy work. Reflog: complete (F1-06 squash `953d4f55`); its
+  release notes are in `CHANGELOG.md` and `README.md` (`0c4b4b41`).
