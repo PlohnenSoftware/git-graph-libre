@@ -8,12 +8,15 @@
 
 - **Graph view**: See branches, tags, and uncommitted changes in one graph
 - **History recovery**: Keep detached HEAD visible and optionally discover unreachable commits
-- **Reflog tab**: **Show Reflog** lists the reflog page by page, with each entry's
-  commit, date, action and message, and the actions colored by kind. Each entry
-  says whether its commit is still on a branch or tag, is only in the reflog, or
-  no longer exists. Search the reflog messages, filter by action, choose HEAD, a
-  local branch or the stash, or show only the entries whose commit is only in the
-  reflog. Columns can be resized and keep their widths per repository
+- **Reflog tab**: **Show Reflog** lists the reflog page by page, with each
+  entry's commit, date, action and message, and the actions colored by kind.
+  Each entry says whether its commit is still on a branch or tag, is only in the
+  reflog, or no longer exists. Search the reflog messages, filter by action,
+  choose HEAD, a local branch, the stash or another worktree's HEAD, or show
+  only the entries whose commit is only in the reflog. Columns can be resized
+  and keep their widths per repository. Recover an entry by creating a branch or
+  tag there, checking it out, or resetting the current branch to it, and find
+  commits that nothing reaches with **Scan for Lost Commits…**.
 - **Commit details**: Click a commit to see message, files, and diffs
 - **Compare anything**: Ctrl/Cmd-click two commits and choose **Compare
   Selected Commits**, or use **Compare With…** on a commit, branch or tag to
