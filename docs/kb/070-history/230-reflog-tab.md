@@ -249,9 +249,10 @@ headless render of the tab in both themes. Nothing is pushed.
   another worktree run there. It overlapped F1-07 in 16 files, so the
   integrator squash-merged it onto `main` and a Gemini 4 Neon integration
   assistant resolved the conflicts keeping both features; the original
-  commits (`2a34c3e1` … `65da5796`) stay on branch `reflog/F1-06`, which
-  `git branch -d` cannot delete because it was squashed, not merged — the
-  maintainer may delete it. Gates on `953d4f55`: typecheck, `l10n:check`,
+  commits (`2a34c3e1` … `65da5796`) stayed on branch `reflog/F1-06`, which
+  `git branch -d` cannot delete because it was squashed, not merged; it was
+  force-deleted on the maintainer's word on `2026-11-23`, and squash merges
+  are now forbidden (Multi-agent releases, *Integrating a slice*). Gates on `953d4f55`: typecheck, `l10n:check`,
   KB check, strict Biome, backend 1,592 passed (60 skipped in the worktree)
   and webview 1,297 passed. **Every Reflog slice planned for release 1.11.0
   is now integrated** (F1-01 to F1-09F); S1c refactors `view.ts` next.

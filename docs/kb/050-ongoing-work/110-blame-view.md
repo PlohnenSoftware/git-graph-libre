@@ -253,5 +253,6 @@ revision). Nothing is pushed without explicit instruction.
   chips with the ignore-revs file and session list, and find; one `tab.blame`
   event per open, none for rewinds or option changes). Gates on `52c3f174`:
   strict Biome, typecheck, `l10n:check`, KB check, backend 1,592 passed (60
-  skipped in the worktree) and webview 1,314 passed. `blame/F4-05` is kept for
-  the maintainer (squashed, so `git branch -d` refuses it). F4-06 is ready.
+  skipped in the worktree) and webview 1,314 passed. `blame/F4-05` (squashed, so
+  `git branch -d` refused it) was force-deleted on the maintainer's word the
+  same day; squash merges are now forbidden. F4-06 is ready.

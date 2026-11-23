@@ -52,6 +52,9 @@ releases (Rules) applies, with the answers below.
 | Renders | **Local files only**: headless PNGs on disk, paths listed in reports and the final summary. |
 | Stop rule | **Keep going**: prepare 1.11.0, then keep advancing `gg-plus/next` until nothing workable is left or a decision is truly blocked; summarize at the end. |
 | Branches | The integrator deletes integrated local branches (standing rule, Multi-agent releases). |
+| Squash merges | **Never** (`2026-11-23`, after `reflog/F1-06` and `blame/F4-05` were squash-merged and had to be force-deleted): integration rebases, or merges the integration branch into the slice branch; now a standing rule in Multi-agent releases. |
+| V11 (P1b) | **(b)** (`2026-11-23`): on a branch held by another worktree, "Create Worktree…" stays and opens Create Worktree with only the two modes Git allows there, a new branch from it or a detached `HEAD`. |
+| zh-tw "repository" | **Research, then one term** (`2026-11-23`): an agent checks how other Traditional Chinese localizations (VS Code, Git tools, Microsoft terminology) say "repository", picks the most accurate term, and uses it in every zh-tw string (slice L2). |
 
 ## Tracks
 
@@ -71,7 +74,8 @@ releases (Rules) applies, with the answers below.
 | --- | --- | --- | --- | --- |
 | T1 | Open-and-outcome telemetry for tabs and worktree buttons | — | Muse Code | integrated `70f2b583` |
 | P1 | Popup fixes V1–V10 | — | Muse Code → Gemini 4 Neon | integrated `9a61b9e9` |
-| P1b | Popup fix V11 (Create Worktree on a branch another worktree holds) | maintainer decision | — | **blocked** (see below) |
+| P1b | Popup fix V11 (Create Worktree on a branch another worktree holds), answer (b) | — | Muse Code | ready |
+| L2 | zh-tw: one researched term for "repository" | — | Claude Haiku | ready |
 | T1b | Blame tab open-and-outcome telemetry (`tab.blame`) | T1, F4-03 | Claude Haiku | integrated `7ed42e61` |
 | Q1 | GGL icon on the Diff, Reflog and Blame tabs (maintainer test) | — | Claude Haiku | ready |
 | Q2 | Reflog table column widths, no horizontal scroll (maintainer test) | — | Muse Code | ready |
@@ -82,13 +86,8 @@ releases (Rules) applies, with the answers below.
 The maintainer is away (`2026-11-23`, from about 12:40 local) and asked that
 anything unsolvable within reason be marked here while the rest continues.
 
-- **P1b — popup fix V11.** In the menu of a branch held by another worktree,
-  "Create Worktree…" opens the Open Worktree dialog that "Open Worktree…" two
-  rows above already offers. The review leaves the choice to the maintainer:
-  (a) drop the item from that menu, or (b) open Create Worktree with the two
-  modes Git still allows there (a new branch from it, a detached HEAD).
-  Behavior, not appearance; no recommendation was recorded, so no agent
-  picks. Not needed for 1.11.0 (V1–V10 shipped without it).
+- Nothing is blocked. (P1b, popup fix V11, was blocked until the maintainer
+  answered (b) on `2026-11-23`; see the answers table.)
 
 ## Integration log
 

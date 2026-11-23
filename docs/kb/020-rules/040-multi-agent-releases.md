@@ -282,6 +282,19 @@ For each slice marked `done — awaiting integration`, in dependency order:
 2. **Rebase it** onto the integration branch:
    `git -C ../ggl-<ID> rebase <integration-branch>`. Resolve conflicts only
    where both sides belong to slices. Never re-sign someone else's commit.
+   When a rebase conflicts in too many commits to resolve one by one, **merge
+   instead**: in the slice worktree, `git merge <integration-branch>` (one
+   signed merge commit that resolves the conflicts once, an agent may do it),
+   then fast-forward the integration branch to the slice branch as in step 3.
+   **Never squash-merge** (standing rule, maintainer, `2026-11-23`): no
+   `git merge --squash`, no `git cherry-pick` of a branch's work onto the
+   integration branch, no new branch rebuilt from a slice's tree. Each of
+   those puts the slice's work on the integration branch as new commits, so
+   the slice branch's own commits never become ancestors of it:
+   `git branch -d` then refuses the branch, the graph keeps showing it, and
+   the per-commit history (and its signatures) is lost. Every commit an
+   agent made must reach the integration branch as itself, through a rebase
+   or a merge.
 3. **Fast-forward** the integration branch to it, and rerun every gate from the
    agent protocol on the result.
 4. **Record it.** Set the overview's row to `integrated <hash>`, and the slice's
@@ -307,7 +320,10 @@ before this rule, more than sixty `wt-1.10.0/*`, `engine-review/*` and
   pull-request branches and finished experiments, not only slice branches.
 - **How:** `git branch -d <branch>` only. It refuses a branch that is not
   merged, which is the safety check; never `-D`, never `--force`. A branch
-  `-d` refuses is reported to the maintainer, not forced.
+  `-d` refuses is reported to the maintainer, not forced. (It refuses
+  squash-merged branches too, which is one reason squash merges are
+  forbidden: on `2026-11-23` the squash-merged `reflog/F1-06` and
+  `blame/F4-05` had to be force-deleted by the maintainer's word.)
 - **Keep:** `main`, `AI-dev`, every active integration branch (for example
   `gg-plus/next`), and any branch the maintainer names.
 - **Remote branches are not the integrator's to delete.** Deleting one on
@@ -344,6 +360,8 @@ commits.
 
 ### Never
 
+- squash-merge a slice, or rebuild its work as new commits on another branch
+  (see *Integrating a slice*, step 2): rebase or merge it;
 - push or publish without the maintainer, or tag a release before the
   maintainer says so;
 - integrate a slice whose decision is still open, or whose report is not
