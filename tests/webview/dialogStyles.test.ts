@@ -93,6 +93,18 @@ describe("dialog styles", () => {
     expect(note).toContain("var(--vscode-descriptionForeground, var(--ngg-neutral-icon))");
   });
 
+  it("widens a dialog with a folder field and spans every select across its form", () => {
+    expect(ruleFor(css, "#dialog.active:has(.dialogFormFolder)")).toContain(
+      "max-width: min(560px, 90vw);"
+    );
+    // One width rule for selects in every form, not only single-row ones.
+    expect(css).not.toContain("table.dialogForm.single select");
+    const selectRules = [...css.matchAll(/^#dialog table\.dialogForm select\s*\{[^}]+\}/gm)].map(
+      (match) => match[0]
+    );
+    expect(selectRules.some((rule) => rule.includes("width: 100%;"))).toBe(true);
+  });
+
   it("gives a dialog list its own capped, scrolling block at body size", () => {
     const list = ruleFor(css, "#dialog .dialogList");
     const cell = ruleFor(css, "#dialog table.dialogForm td.dialogFormListCell");

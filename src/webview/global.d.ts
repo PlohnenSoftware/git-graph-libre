@@ -160,9 +160,12 @@ declare global {
     note?: string;
   }
   interface DialogInputDependency {
-    /** Index of the `select` input that controls this input's visibility. */
+    /** Index of the `select` or `checkbox` input that controls this input's visibility. */
     input: number;
-    /** This input is visible only while the controlling select holds this value. */
+    /**
+     * This input is visible only while the controlling input holds this
+     * value: a select's option value, or `"checked"` for a checkbox.
+     */
     value: string;
   }
   type DialogInput = (
@@ -176,7 +179,7 @@ declare global {
     | DialogGroupInput
     | DialogListInput
   ) & {
-    /** Hides this input's row while the controlling select holds another value. */
+    /** Hides this input's row while the controlling input holds another value. */
     dependsOn?: DialogInputDependency;
     /** Rejects submission while this text/textarea input is empty (and visible). */
     required?: boolean;

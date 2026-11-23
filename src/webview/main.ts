@@ -4677,7 +4677,8 @@ class GitGraphView {
           type: "text",
           name: l10n.dialogCreateWorktreeLockReason,
           default: "",
-          placeholder: l10n.dialogAddTagOptional
+          placeholder: l10n.dialogAddTagOptional,
+          dependsOn: { input: 3, value: "checked" }
         }
       ],
       l10n.dialogCreateWorktreeSubmit,
@@ -8834,6 +8835,11 @@ let pendingFolderPick: {
   keepFolderName: string | null;
 } | null = null;
 let folderPickRequests = 0;
+/** Shows a folder field's end and keeps its full value as its title. */
+function showFolderFieldEnd(field: HTMLInputElement) {
+  field.title = field.value;
+  field.scrollLeft = field.scrollWidth;
+}
 /** Wires each folder field's Browse button to the folder picker (W22F). */
 function bindFolderDialogInputs(inputs: DialogInput[]) {
   for (const [index, input] of inputs.entries()) {
@@ -8841,6 +8847,11 @@ function bindFolderDialogInputs(inputs: DialogInput[]) {
     document
       .getElementById(`dialogBrowse${index}`)
       ?.addEventListener("click", () => requestFolderPick(index, input));
+    const field = document.getElementById(`dialogInput${index}`) as HTMLInputElement | null;
+    if (field !== null) {
+      showFolderFieldEnd(field);
+      field.addEventListener("input", () => showFolderFieldEnd(field));
+    }
   }
 }
 function requestFolderPick(index: number, input: Extract<DialogInput, { type: "folder" }>) {
@@ -8976,7 +8987,10 @@ function renderDialogInput(
 }
 /** A folder field with its Browse button beside it; the picker's answer fills the field (W22F). */
 function renderDialogFolderInput(input: Extract<DialogInput, { type: "folder" }>, index: number) {
-  return `<span class="dialogFormFolder"><input id="dialogInput${index}" type="text" value="${escapeHtml(input.default)}"/><button id="dialogBrowse${index}" class="dialogBtn" type="button">${escapeHtml(l10n.dialogCreateWorktreeBrowse)}</button></span>`;
+  // The full path is the field's title: a default longer than the field hides
+  // the folder being created, and the end of the path is the part that matters.
+  const value = escapeHtml(input.default);
+  return `<span class="dialogFormFolder"><input id="dialogInput${index}" type="text" value="${value}" title="${value}"/><button id="dialogBrowse${index}" class="dialogBtn" type="button">${escapeHtml(l10n.dialogCreateWorktreeBrowse)}</button></span>`;
 }
 function renderDialogSelectInput(input: Extract<DialogInput, { type: "select" }>, index: number) {
   let html = `<select id="dialogInput${index}">`;
@@ -9056,7 +9070,9 @@ function getDialogInputFallbackValue(input: DialogInput) {
 function isDialogInputVisible(inputs: DialogInput[], input: DialogInput) {
   if (input.dependsOn === undefined) return true;
   const controller = inputs[input.dependsOn.input];
-  if (controller?.type !== "select") return true;
+  // A select controls by its option value, a checkbox by "checked": both are
+  // what getDialogInputValue already reports for them.
+  if (controller?.type !== "select" && controller?.type !== "checkbox") return true;
   return getDialogInputValue(controller, input.dependsOn.input) === input.dependsOn.value;
 }
 function isRequiredDialogInput(input: DialogInput) {

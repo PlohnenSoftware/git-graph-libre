@@ -311,8 +311,17 @@ dl.tagDetailsFields dd {
   white-space: normal;
   line-height: 16px;
 }
-#dialog table.dialogForm.single select {
+/* Every dialog select spans its form, like the text fields around it: only
+   a single-row form did, so a select in a longer form ended raggedly short
+   of the fields above and below it. */
+#dialog table.dialogForm select {
   width: 100%;
+}
+/* A dialog holding a folder field gets a wider cap: the default worktree
+   path is longer than the field at 440px, which hid the folder being
+   created at the path's end. */
+#dialog.active:has(.dialogFormFolder) {
+  max-width: min(560px, 90vw);
 }
 /* A folder field and its Browse button share the row: the field takes the
    room the button leaves, and the button keeps its own width (W22F). */

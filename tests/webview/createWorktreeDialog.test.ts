@@ -544,6 +544,19 @@ describe("Create Worktree from a branch", () => {
       "/workspace/createrepo.worktrees/feature/menu"
     );
     expect(dialogInput<HTMLSelectElement>(1).value).toBe("branch");
+    // The full folder path is the field's title, for when it overflows.
+    expect(dialogInput<HTMLInputElement>(0).title).toBe(
+      "/workspace/createrepo.worktrees/feature/menu"
+    );
+    // The lock reason shows only while locking is ticked.
+    expect(document.getElementById("dialogInputRow4")?.hidden).toBe(true);
+    const lock = dialogInput<HTMLInputElement>(3);
+    lock.checked = true;
+    lock.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(document.getElementById("dialogInputRow4")?.hidden).toBe(false);
+    lock.checked = false;
+    lock.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(document.getElementById("dialogInputRow4")?.hidden).toBe(true);
     submitDialog();
 
     expect(latestRequest(vscodeMock.sentMessages, "addWorktree")).toMatchObject({

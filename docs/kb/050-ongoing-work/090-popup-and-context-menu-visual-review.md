@@ -108,7 +108,7 @@ numbers are from `ccc1aaee`. A suggested order is at the end.
   tiers with the upkeep actions as quiet text buttons, which wraps again in
   the longer languages.
 
-### V3 — The Create Worktree dialog
+### V3 — The Create Worktree dialog — done (P1)
 
 - **The folder is cut off.** The default path,
   `<repo>.worktrees/<branch>`, is longer than the field at the dialog's
