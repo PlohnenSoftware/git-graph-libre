@@ -19,8 +19,9 @@ Git Graph+ (`the0807/git-graph-plus`, `main` at `c6c2a9a`) is licensed under
 
 - **Reading is allowed, for research only.** Its behavior may be read to
   learn how its features work.
-- **Nothing is copied.** No code, CSS, strings or literals are copied from
-  Git Graph+ into this project.
+- **Clean room by default.** No plan copies code, CSS, strings or literals
+  from Git Graph+; anything that ever does follows the Apache-2.0 bullet
+  below, decided by the maintainer first.
 - **Implementation comes from elsewhere.** It is written from Git's
   documentation, VS Code APIs and this project's own patterns, working from
   observed behavior rather than from Git Graph+ code.
@@ -51,3 +52,5 @@ one direction this section allows.
 - Interactive rebase (F2).
 - History and statistics (F3, the timeline work).
 - Any future Git Graph+-inspired work.
+- The Blame view (F4) is inspired by GitHub's blame view, not by Git Graph+;
+  this verdict binds it only where a Git Graph+ idea is used.

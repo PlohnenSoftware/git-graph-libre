@@ -20,7 +20,9 @@ in `040-blame-view.md`; execution overview and tailored subagent slices in
 code may be used under this project's AGPL: Apache-2.0 code may come in one
 way, with its license text, its copyright line ("Copyright 2026 the0807,
 bkk21"; there is no `NOTICE` file) and a notice of changes, but neither the
-reflog slices nor the Blame view copy any Git Graph+ code. G0 stays open.
+reflog slices nor the Blame view copy any Git Graph+ code. G0 is answered
+(`2026-11-23`): "Git Graph+ licensing verdict" (Licensing) is the standing
+verdict.
 
 The maintainer asked, while the engine integration ran: research how Git
 Graph+, at its newest `main` commit, implements three features "we want to
