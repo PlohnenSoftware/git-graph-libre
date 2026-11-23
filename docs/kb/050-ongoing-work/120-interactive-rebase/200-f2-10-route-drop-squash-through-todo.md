@@ -8,7 +8,7 @@ summary: >-
 
 # F2-10 — Route drop and squash through the todo (optional, later)
 
-Status: waiting
+Status: claimed by Muse Code on 2026-11-23 17:46
 
 Needs: F2-05; decision IQ10 (yes, after F2-05, with its own release note) confirmed by the maintainer
 
