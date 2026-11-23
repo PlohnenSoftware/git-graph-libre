@@ -193,7 +193,7 @@ numbers are from `ccc1aaee`. A suggested order is at the end.
   `<code>` chip, which wraps over two lines. Fix: the folder name with the
   path in its `title`, as the `2026-11-08` rule says.
 
-### V8 — Error text wraps under its icon
+### V8 — Error text wraps under its icon — done (P1)
 
 `showErrorDialog()` (`:9124`) puts the icon inline in the title, so a
 message of two lines continues under the icon (seen with "Branch main is

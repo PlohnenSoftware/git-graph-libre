@@ -109,6 +109,10 @@ describe("dialog styles", () => {
 
   it("marks dialog errors with error tokens and a readable reason block", () => {
     expect(css).toContain("--ngg-error: oklch(");
+    // The icon keeps its own column, so a wrapped message never runs under it.
+    expect(ruleFor(css, "#dialog .dialogErrorTitle")).toContain("display: flex;");
+    expect(ruleFor(css, "#dialog .dialogErrorIcon")).toContain("flex: none;");
+    expect(ruleFor(css, "#dialog .dialogErrorText")).toContain("min-width: 0;");
     expect(ruleFor(css, "#dialog .dialogErrorIcon svg")).toContain("var(--vscode-errorForeground");
     const reason = ruleFor(css, "#dialog .errorReason");
     expect(reason).toContain("var(--vscode-textCodeBlock-background");

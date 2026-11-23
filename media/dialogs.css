@@ -595,10 +595,18 @@ dl.tagDetailsFields dd {
   line-height: 20px;
   vertical-align: sub;
 }
+#dialog .dialogErrorTitle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+#dialog .dialogErrorText {
+  min-width: 0;
+}
 #dialog .dialogErrorIcon {
   display: inline-flex;
-  vertical-align: text-bottom;
-  margin-right: 8px;
+  flex: none;
+  padding-top: 2px;
 }
 #dialog .dialogErrorIcon svg {
   fill: var(--vscode-errorForeground, var(--ngg-error));

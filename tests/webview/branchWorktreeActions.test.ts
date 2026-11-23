@@ -278,6 +278,11 @@ describe("a local branch checked out in another worktree", () => {
       "checked out in worktree branch-worktree-actions. Switch that worktree to another branch first."
     );
     expect(document.querySelector<HTMLElement>("#dialog span[title]")?.title).toBe(REPO);
+    // The whole message sits in one text column beside the error icon.
+    expect(document.querySelector(".dialogErrorTitle .dialogErrorIcon")).not.toBeNull();
+    expect(document.querySelector(".dialogErrorText")?.textContent).toContain(
+      "Switch that worktree to another branch first."
+    );
     expect(document.getElementById("dialogAction")).toBeNull();
     expect(vscodeMock.sentMessages).toHaveLength(before);
   });

@@ -9134,8 +9134,12 @@ function getTextRefDialogClassName(noInput: boolean, invalidInput: boolean) {
   return "active";
 }
 function showErrorDialog(message: string, reason: string | null, sourceElem: HTMLElement | null) {
+  // The icon gets its own column: inline in the title, a second line of the
+  // message continued underneath it. The message is wrapped in one element
+  // first, or the flex title would turn each of its inline elements into a
+  // column of its own.
   showDialog(
-    dialogTitleHtml(`<span class="dialogErrorIcon">${svgIcons.alert}</span>${message}`) +
+    `<div class="dialogTitle dialogErrorTitle"><span class="dialogErrorIcon">${svgIcons.alert}</span><span class="dialogErrorText">${message}</span></div>` +
       (reason !== null
         ? `<span class="errorReason">${escapeHtml(reason).replaceAll("\n", "<br>")}</span>`
         : ""),
