@@ -91,6 +91,15 @@ export function messageEditorsFor(rows: readonly RebaseEditorRow[]): RebaseMessa
   return editors;
 }
 
+/** The indices of rows that meld into an earlier target. */
+export function groupMemberIndices(rows: readonly RebaseEditorRow[]): ReadonlySet<number> {
+  const members = new Set<number>();
+  for (const group of findSquashGroups(rows)) {
+    for (const index of group.memberIndices) members.add(index);
+  }
+  return members;
+}
+
 /** Whether any row carries a typed message with no text in it. */
 export function hasEmptyRebaseMessage(rows: readonly RebaseEditorRow[]): boolean {
   return rows.some((row) => row.message !== undefined && row.message.trim() === "");

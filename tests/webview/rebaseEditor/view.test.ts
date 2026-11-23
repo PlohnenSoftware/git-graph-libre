@@ -88,7 +88,7 @@ describe("rebaseEditor view", () => {
     document.body.innerHTML = "";
   });
 
-  it("renders rows oldest-first with pick/drop selects, move buttons, and disables Start until modified", () => {
+  it("renders rows oldest-first with action selects, move buttons, and disables Start until modified", () => {
     const { dialog, dialogBacking } = mountDialogDom();
     const starts: InteractiveRebaseStartPayload[] = [];
     let cancelled = 0;
@@ -112,6 +112,10 @@ describe("rebaseEditor view", () => {
     const rows = Array.from(dialog.querySelectorAll<HTMLElement>(".rebaseEditorRow"));
     expect(rows).toHaveLength(3);
     expect(rows.map((r) => r.dataset.hash)).toEqual([HASH_A, HASH_B, HASH_C]);
+    const optionValues = (row: HTMLElement) =>
+      Array.from(row.querySelectorAll<HTMLOptionElement>("option")).map((o) => o.value);
+    expect(optionValues(rows[0])).toEqual(["pick", "reword", "edit", "drop"]);
+    expect(optionValues(rows[1])).toEqual(["pick", "reword", "edit", "squash", "fixup", "drop"]);
     expect(rows[0].querySelector(".rebaseEditorHash")?.textContent).toBe("aaaa1111");
     expect(rows[0].querySelector<HTMLButtonElement>(".rebaseEditorMoveUp")?.disabled).toBe(true);
     expect(rows[0].querySelector<HTMLButtonElement>(".rebaseEditorMoveDown")?.disabled).toBe(false);
@@ -280,6 +284,165 @@ describe("rebaseEditor view", () => {
     expect(dialog.querySelector("img")).toBeNull();
     expect(dialog.querySelector(".rebaseEditorSubject")?.textContent).toBe(malicious);
     expect(dialog.querySelector(".rebaseEditorAuthor")?.textContent).toBe(malicious);
+  });
+
+  it("turns a reword row into a message textarea and sends the edited text on Start", () => {
+    const { dialog, dialogBacking } = mountDialogDom();
+    const starts: InteractiveRebaseStartPayload[] = [];
+    const range = makeRange({
+      commits: [
+        makeRangeCommit(HASH_A, "Commit A"),
+        makeRangeCommit(HASH_B, "Commit B", { parents: [HASH_A], body: "Body of B." }),
+        makeRangeCommit(HASH_C, "Commit C", { parents: [HASH_B] })
+      ]
+    });
+    const controller = openRebaseEditorDialog(
+      dialog,
+      dialogBacking,
+      createRebaseEditorState(range, { base: ROOT_HASH, baseLabel: "00000000" }),
+      { shortHashLength: 8 },
+      { onStart: (payload) => starts.push(payload), onCancel: () => undefined }
+    );
+
+    const secondSelect = dialog.querySelectorAll<HTMLSelectElement>(".rebaseEditorActionSelect")[1];
+    secondSelect.value = "reword";
+    secondSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+    const textarea = dialog.querySelector<HTMLTextAreaElement>(".rebaseEditorMessageInput");
+    if (textarea === null) throw new Error("Missing reword textarea");
+    expect(textarea.value).toBe("Commit B\n\nBody of B.");
+    expect(textarea.dataset.targetHash).toBe(HASH_B);
+    expect(dialog.querySelector(".rebaseEditorMessageLabel")?.textContent).toContain("bbbb2222");
+
+    textarea.value = "Renamed B\n\nWith details.";
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    // Typing does not rebuild the rows: the same textarea keeps the caret.
+    expect(dialog.querySelector(".rebaseEditorMessageInput")).toBe(textarea);
+    expect(controller.getState().rows[1].message).toBe("Renamed B\n\nWith details.");
+
+    // Keystrokes inside the textarea are text, not editor commands.
+    textarea.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", shiftKey: true, bubbles: true })
+    );
+    textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "d", bubbles: true }));
+    expect(controller.getState().rows.map((r) => [r.hash, r.action])).toEqual([
+      [HASH_A, "pick"],
+      [HASH_B, "reword"],
+      [HASH_C, "pick"]
+    ]);
+
+    dialog
+      .querySelector<HTMLButtonElement>("#dialogAction")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(starts[0]?.entries[1]).toEqual({
+      action: "reword",
+      hash: HASH_B,
+      message: "Renamed B\n\nWith details."
+    });
+  });
+
+  it("shows one combined textarea for a squash group, without its fixup members", () => {
+    const { dialog, dialogBacking } = mountDialogDom();
+    const starts: InteractiveRebaseStartPayload[] = [];
+    const controller = openRebaseEditorDialog(
+      dialog,
+      dialogBacking,
+      createRebaseEditorState(makeRange(), { base: ROOT_HASH, baseLabel: "00000000" }),
+      { shortHashLength: 8 },
+      { onStart: (payload) => starts.push(payload), onCancel: () => undefined }
+    );
+
+    const setAction = (index: number, value: string) => {
+      const select = dialog.querySelectorAll<HTMLSelectElement>(".rebaseEditorActionSelect")[index];
+      select.value = value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    setAction(1, "squash");
+    setAction(2, "fixup");
+
+    const textareas = dialog.querySelectorAll<HTMLTextAreaElement>(".rebaseEditorMessageInput");
+    expect(textareas).toHaveLength(1);
+    expect(textareas[0].value).toBe("Commit A\n\nCommit B");
+    expect(textareas[0].dataset.targetHash).toBe(HASH_A);
+    expect(dialog.querySelector(".rebaseEditorMessageHint")?.textContent).toBe(
+      strings.rebaseMessageGroupHint
+    );
+    const rows = dialog.querySelectorAll(".rebaseEditorRow");
+    expect(rows[1].classList.contains("isGroupMember")).toBe(true);
+    expect(rows[2].classList.contains("isGroupMember")).toBe(true);
+    expect(dialog.querySelector(".rebaseEditorNotice-squash")?.textContent).toContain("2");
+
+    textareas[0].value = "A, B and C as one";
+    textareas[0].dispatchEvent(new Event("input", { bubbles: true }));
+    expect(controller.getState().rows[0].message).toBe("A, B and C as one");
+
+    dialog
+      .querySelector<HTMLButtonElement>("#dialogAction")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(starts[0]?.entries).toEqual([
+      { action: "pick", hash: HASH_A, message: "A, B and C as one" },
+      { action: "squash", hash: HASH_B },
+      { action: "fixup", hash: HASH_C }
+    ]);
+  });
+
+  it("blocks Start while a message is empty and says why, then unblocks on text", () => {
+    const { dialog, dialogBacking } = mountDialogDom();
+    openRebaseEditorDialog(
+      dialog,
+      dialogBacking,
+      createRebaseEditorState(makeRange(), { base: ROOT_HASH, baseLabel: "00000000" }),
+      { shortHashLength: 8 },
+      { onStart: () => undefined, onCancel: () => undefined }
+    );
+
+    const secondSelect = dialog.querySelectorAll<HTMLSelectElement>(".rebaseEditorActionSelect")[1];
+    secondSelect.value = "reword";
+    secondSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+    const textarea = dialog.querySelector<HTMLTextAreaElement>(".rebaseEditorMessageInput");
+    if (textarea === null) throw new Error("Missing reword textarea");
+    textarea.value = "";
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(dialog.querySelector<HTMLButtonElement>("#dialogAction")?.disabled).toBe(true);
+    expect(textarea.getAttribute("aria-invalid")).toBe("true");
+    expect(textarea.classList.contains("isEmpty")).toBe(true);
+    const noticeTexts = Array.from(
+      dialog.querySelectorAll(".rebaseEditorNotice-error .rebaseEditorNoticeText")
+    ).map((n) => n.textContent);
+    expect(noticeTexts).toContain(strings.rebaseMessageEmptyNotice);
+
+    textarea.value = "Commit B, renamed";
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(dialog.querySelector<HTMLButtonElement>("#dialogAction")?.disabled).toBe(false);
+    expect(textarea.getAttribute("aria-invalid")).toBeNull();
+  });
+
+  it("marks an edit row and counts the stop it will make", () => {
+    const { dialog, dialogBacking } = mountDialogDom();
+    const starts: InteractiveRebaseStartPayload[] = [];
+    openRebaseEditorDialog(
+      dialog,
+      dialogBacking,
+      createRebaseEditorState(makeRange(), { base: ROOT_HASH, baseLabel: "00000000" }),
+      { shortHashLength: 8 },
+      { onStart: (payload) => starts.push(payload), onCancel: () => undefined }
+    );
+
+    const secondSelect = dialog.querySelectorAll<HTMLSelectElement>(".rebaseEditorActionSelect")[1];
+    secondSelect.value = "edit";
+    secondSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(dialog.querySelector(".rebaseEditorNotice-edit")?.textContent).toBe(
+      strings.rebaseEditStopNoticeOne
+    );
+    expect(dialog.querySelector(".rebaseEditorMessageInput")).toBeNull();
+
+    dialog
+      .querySelector<HTMLButtonElement>("#dialogAction")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(starts[0]?.entries[1]).toEqual({ action: "edit", hash: HASH_B });
   });
 
   it("keeps rebase-editor.css on VS Code theme tokens and OKLCH fallbacks with sticky headers", () => {
