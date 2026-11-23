@@ -272,19 +272,7 @@ function renderRow(
     primary === ""
       ? ""
       : `<div class="worktreeActions" role="group" aria-label="${name}">${primary}</div>`;
-  return (
-    `<li class="worktreeRow" data-worktree-index="${index}">` +
-    `<div class="worktreeRowHeader">` +
-    `<div class="worktreeInfo">` +
-    `<div class="worktreeTitle"><span class="worktreeName" title="${path}">${octicon("file-directory")}${name}</span>${stateBadges(worktree, labels)}${changesBadge(worktree, labels, changes)}</div>` +
-    `<div class="worktreeBranch">${branchIcon}<span>${branchLine(worktree, labels, hashLength)}</span></div>` +
-    `<div class="worktreePath" title="${path}">${path}</div>` +
-    `</div>` +
-    upkeepBar +
-    `</div>` +
-    primaryBar +
-    `</li>`
-  );
+  return `<li class="worktreeRow" data-worktree-index="${index}"><div class="worktreeRowHeader"><div class="worktreeInfo"><div class="worktreeTitle"><span class="worktreeName" title="${path}">${octicon("file-directory")}${name}</span>${stateBadges(worktree, labels)}${changesBadge(worktree, labels, changes)}</div><div class="worktreeBranch">${branchIcon}<span>${branchLine(worktree, labels, hashLength)}</span></div><div class="worktreePath" title="${path}">${path}</div></div>${upkeepBar}</div>${primaryBar}</li>`;
 }
 
 /** The popup's body and footer for the given worktrees. Pure, so tests render it directly. */
