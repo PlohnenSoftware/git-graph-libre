@@ -1,7 +1,6 @@
 import type * as vscode from "vscode";
 
 import type { AvatarManager } from "@/avatarManager";
-import { buildExtensionUri } from "@/backend/utils/path";
 import type { Config } from "@/config";
 import type { ExtensionState } from "@/extensionState";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
@@ -12,6 +11,7 @@ import type { GitRepoSet, RepoLayout } from "@/types";
 import { buildComponentStatus, describeEngineStatus } from "./componentStatus";
 import type { RepoManager } from "./repoManager";
 import { registerRepositoryRecovery } from "./repositoryRecovery";
+import { tabIconPaths } from "./tabIcon";
 import type { WebviewBridge } from "./webviewBridge";
 import { buildWebviewHtml } from "./webviewHtml";
 import { listWebviewLanguages } from "./webviewLanguages";
@@ -99,14 +99,7 @@ export function createWebviewPanel(opts: {
       })
     : undefined;
 
-  // Both tab icon variants ship a light/dark pair: the grey one has to invert to
-  // stay legible, and the color one keeps its graph hues but greys the bird to
-  // suit the background. The setting values double as the filename segment.
-  const iconVariant = config.tabIconColorTheme();
-  panel.iconPath = {
-    light: buildExtensionUri(extensionPath, "resources", `webview-icon-${iconVariant}-light.svg`),
-    dark: buildExtensionUri(extensionPath, "resources", `webview-icon-${iconVariant}-dark.svg`)
-  };
+  panel.iconPath = tabIconPaths(extensionPath, config.tabIconColorTheme());
 
   function update() {
     const result = buildWebviewHtml({
