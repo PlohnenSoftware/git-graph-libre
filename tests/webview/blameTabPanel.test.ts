@@ -101,19 +101,30 @@ const resolved = (value: BlamePayload = payload()): BlameSource => ({
   load: async () => value
 });
 
+/** Records every feature event the panel sends, in order. */
+function telemetrySpy() {
+  const sent: Array<{ feature: string; ok: boolean }> = [];
+  return {
+    sent,
+    telemetry: {
+      logFeature: (feature: string, ok: boolean) => sent.push({ feature, ok })
+    }
+  };
+}
+
 function open(
   target: { repo: string; filePath: string; targetLine?: number | null } = {
     repo: "/repos/one",
     filePath: "src/file.ts"
   },
   source: BlameSource = resolved(),
-  reportBlameOpened?: (outcome: { ok: boolean }) => void
+  telemetry?: { logFeature: (feature: string, ok: boolean) => void }
 ) {
   openBlameTab(target, source, {
     extensionPath: EXTENSION,
     outputChannel: log,
     locale: "en",
-    reportBlameOpened
+    telemetry
   });
 }
 
@@ -154,10 +165,8 @@ describe("openBlameTab", () => {
   });
 
   it("posts the loading notice, then the blame with its labels, once ready", async () => {
-    const opened: Array<{ ok: boolean }> = [];
-    open({ repo: "/repos/one", filePath: "src/file.ts", targetLine: 3 }, resolved(), (o) =>
-      opened.push(o)
-    );
+    const spy = telemetrySpy();
+    open({ repo: "/repos/one", filePath: "src/file.ts", targetLine: 3 }, resolved(), spy.telemetry);
     const panel = onlyPanel();
     panel.send({ command: "ready" });
     await flush();
@@ -184,7 +193,7 @@ describe("openBlameTab", () => {
     expect(data.typography).toEqual({ fontSize: 14, lineHeight: 21, tabSize: 4 });
     expect(data.payload.hunks).toHaveLength(2);
     // The T1 call site reported this open exactly once, as a success.
-    expect(opened).toEqual([{ ok: true }]);
+    expect(spy.sent).toEqual([{ feature: "tab.blame", ok: true }]);
     // A second ready (the document was rebuilt) replays the same blame.
     panel.send({ command: "ready" });
     expect(panel.posted).toHaveLength(3);
@@ -192,7 +201,7 @@ describe("openBlameTab", () => {
     // A refresh reloads without reporting a new open.
     panel.send({ command: "refresh" });
     await flush();
-    expect(opened).toEqual([{ ok: true }]);
+    expect(spy.sent).toEqual([{ feature: "tab.blame", ok: true }]);
     expect(panel.posted.filter((m) => m.command === "blameData")).toHaveLength(3);
   });
 
@@ -281,11 +290,11 @@ describe("openBlameTab", () => {
   });
 
   it("turns a failed load into an error payload and reports the open as failed", async () => {
-    const opened: Array<{ ok: boolean }> = [];
+    const spy = telemetrySpy();
     open(
       { repo: "/repos/one", filePath: "src/file.ts" },
       { load: () => Promise.reject(new Error("git went away")) },
-      (o) => opened.push(o)
+      spy.telemetry
     );
     const panel = onlyPanel();
     panel.send({ command: "ready" });
@@ -296,7 +305,75 @@ describe("openBlameTab", () => {
     expect(data?.payload.error).toBe("git went away");
     expect(data?.payload.state).toBeNull();
     expect(data?.payload.hunks).toEqual([]);
-    expect(opened).toEqual([{ ok: false }]);
+    expect(spy.sent).toEqual([{ feature: "tab.blame", ok: false }]);
+  });
+
+  it("reports one tab.blame event per open, from its first settled load, and nothing on refresh", async () => {
+    const spy = telemetrySpy();
+    open({ repo: "/repos/one", filePath: "src/file.ts" }, resolved(), spy.telemetry);
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    expect(spy.sent).toEqual([{ feature: "tab.blame", ok: true }]);
+    panel.send({ command: "refresh" });
+    await flush();
+    expect(spy.sent).toHaveLength(1);
+    // Only the fixed id and the outcome: no repository, path or content.
+    expect(Object.keys(spy.sent[0])).toEqual(["feature", "ok"]);
+  });
+
+  it.each(["binary", "tooLarge", "empty", "untracked", "unborn"] as const)(
+    "counts the %s state as an opened tab",
+    async (state) => {
+      const spy = telemetrySpy();
+      open(
+        { repo: "/repos/one", filePath: "src/file.ts" },
+        resolved(payload({ state, commits: {}, hunks: [], totalLines: 0 })),
+        spy.telemetry
+      );
+      onlyPanel().send({ command: "ready" });
+      await flush();
+      expect(spy.sent).toEqual([{ feature: "tab.blame", ok: true }]);
+    }
+  );
+
+  it("reports the open once even when a refresh settles it first, and stays silent after", async () => {
+    const spy = telemetrySpy();
+    const slow = deferred<BlamePayload>();
+    let first = true;
+    const source: BlameSource = {
+      load: async () => {
+        if (first) {
+          first = false;
+          return slow.promise;
+        }
+        return payload({ totalLines: 99 });
+      }
+    };
+    open({ repo: "/repos/one", filePath: "src/file.ts" }, source, spy.telemetry);
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    panel.send({ command: "refresh" });
+    await flush();
+    expect(spy.sent).toEqual([{ feature: "tab.blame", ok: true }]);
+    slow.resolve(payload({ state: "binary" }));
+    await flush();
+    expect(spy.sent).toEqual([{ feature: "tab.blame", ok: true }]);
+  });
+
+  it("reports nothing for an open whose panel closes before its first load settles", async () => {
+    const spy = telemetrySpy();
+    const slow = deferred<BlamePayload>();
+    open(
+      { repo: "/repos/one", filePath: "src/file.ts" },
+      { load: () => slow.promise },
+      spy.telemetry
+    );
+    const panel = onlyPanel();
+    panel.dispose();
+    slow.resolve(payload());
+    await flush();
+    expect(spy.sent).toEqual([]);
   });
 
   it("refuses a target line that is not a whole 1-based line", async () => {

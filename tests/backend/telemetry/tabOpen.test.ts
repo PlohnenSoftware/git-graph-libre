@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createTabOpenReporter,
+  TAB_FEATURE_BLAME,
   TAB_FEATURE_DIFF,
   TAB_FEATURE_IDS,
   TAB_FEATURE_REFLOG
@@ -26,7 +27,8 @@ describe("tab-open reporting", () => {
   // The ingest rejects the whole batch when one id fails its pattern, losing
   // up to 25 unrelated events silently (see viewFeatures.ts).
   it("uses only feature ids the ingest accepts", () => {
-    expect(TAB_FEATURE_IDS).toEqual([TAB_FEATURE_REFLOG, TAB_FEATURE_DIFF]);
+    expect(TAB_FEATURE_IDS).toEqual([TAB_FEATURE_REFLOG, TAB_FEATURE_DIFF, TAB_FEATURE_BLAME]);
+    expect(TAB_FEATURE_BLAME).toBe("tab.blame");
     for (const feature of TAB_FEATURE_IDS) {
       expect(feature).toMatch(INGEST_FEATURE_NAME_PATTERN);
     }

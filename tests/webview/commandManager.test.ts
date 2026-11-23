@@ -1019,6 +1019,11 @@ describe("command manager", () => {
         expect(harness.windowApi.showWarningMessage).toHaveBeenCalledWith(
           "Open a file inside a Git repository first, then show its blame."
         );
+        // T1b: no file to blame, so the tab's failed open is reported beside the command.
+        expect(harness.telemetryEvents).toEqual([
+          { feature: "tab.blame", ok: false },
+          { feature: "git-graph-libre.showBlame", ok: true }
+        ]);
       });
 
       it("warns and opens nothing when the active editor is not inside a Git repository", async () => {
@@ -1035,6 +1040,10 @@ describe("command manager", () => {
           expect(harness.windowApi.showWarningMessage).toHaveBeenCalledWith(
             "The active editor is not inside a Git repository."
           );
+          expect(harness.telemetryEvents).toEqual([
+            { feature: "tab.blame", ok: false },
+            { feature: "git-graph-libre.showBlame", ok: true }
+          ]);
         } finally {
           fs.rmSync(dir, { recursive: true, force: true });
         }
