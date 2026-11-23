@@ -7,7 +7,7 @@ summary: >-
 
 # F3-07 — File History
 
-Status: ready
+Status: claimed by Gemini 4 Neon (agy) on 2026-11-23 12:34
 
 Needs: TQ1 selects File History; `--follow` and the result limit decided
 
