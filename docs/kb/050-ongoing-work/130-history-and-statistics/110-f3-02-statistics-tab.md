@@ -7,7 +7,7 @@ summary: >-
 
 # F3-02 — Statistics tab, webview
 
-Status: waiting on F3-01 integration, and on the maintainer confirming TQ1 and TQ2 (register, Decisions)
+Status: claimed by Muse Code on 2026-11-23 12:02
 
 Needs: F3-01 integrated; TQ1 and TQ2 confirmed
 
