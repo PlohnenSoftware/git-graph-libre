@@ -21,7 +21,7 @@ P1 and R90. Interactive rebase and the history/statistics view continue on
 **Planned for the next release (`2026-11-23`): Blame view (GitHub-inspired
 with hotspot coloring).** Prepared beside the Git Graph+ phases as Feature 4
 (`040-blame-view.md` under Future work) with its execution overview and
-tailored subagent slices in "Blame view" (`110-blame-view.md` under Ongoing
+tailored subagent slices in "Blame view" (`240-blame-view.md` under Ongoing
 work): slices `F4-01` to `F4-08` (plus optional engine slice `F4-09`),
 decisions `BQ1`–`BQ9`, and Git `2.56.1` porcelain/edge-case verification.
 `F4-01` is ready without a decision; `F4-03` onward wait on confirming

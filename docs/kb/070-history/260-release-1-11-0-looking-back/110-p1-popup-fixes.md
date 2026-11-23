@@ -1,7 +1,7 @@
 ---
 summary: >-
   P1: the open popup defects V1–V11 from "Popup and context-menu visual
-  review" (Ongoing work), with VQ1 answered (`2026-11-23`: icon buttons for
+  review" (History), with VQ1 answered (`2026-11-23`: icon buttons for
   the Worktrees popup's upkeep actions, Remove included). Optional for
   release 1.11.0.
 ---
@@ -16,8 +16,8 @@ Agent: Muse Code
 
 Read first: `AGENTS.md`; the KB index and every *always read* section;
 Multi-agent releases (Rules); the release section
-(`050-ongoing-work/140-release-1-11-0-looking-back.md`); "Popup and
-context-menu visual review" (`050-ongoing-work/090-popup-and-context-menu-visual-review.md`),
+(`070-history/260-release-1-11-0-looking-back.md`); "Popup and
+context-menu visual review" (`070-history/250-popup-and-context-menu-visual-review.md`),
 whole: it is this slice's specification (each V item's Shows, Where, Fix
 proposed and Keep); the Webview UI Styling Guide (Reference) and its
 subsections, including the headless render recipe.
@@ -66,8 +66,8 @@ the review file as it lands. Keep every action keyboard-reachable and every
   - `686ec824 G chore(webview): format checkoutRemoteExistingBranch test and update review status (P1)`
   - plus the signed commit carrying this report and final status
 - **Files changed:** 22 files changed, +768/−145 before this report commit (`git diff --stat 7db1d290..HEAD`):
-  - `docs/kb/050-ongoing-work/090-popup-and-context-menu-visual-review.md` (+11/−11)
-  - `docs/kb/050-ongoing-work/140-release-1-11-0-looking-back/110-p1-popup-fixes.md` (+1/−1, then this report)
+  - `docs/kb/070-history/250-popup-and-context-menu-visual-review.md` (+11/−11)
+  - `docs/kb/070-history/260-release-1-11-0-looking-back/110-p1-popup-fixes.md` (+1/−1, then this report)
   - `l10n/bundle.l10n.json` (+10/−6), `l10n/bundle.l10n.nl.json` (+10/−6), `l10n/bundle.l10n.pl.json` (+10/−6), `l10n/bundle.l10n.zh-cn.json` (+9/−5), `l10n/bundle.l10n.zh-tw.json` (+9/−5)
   - `media/dialogs.css` (+60/−4)
   - `media/settings.css` (+54/−6)

@@ -16,7 +16,7 @@ Model: Claude Haiku (cheapest first; escalate one step on failure)
 
 Read first: `AGENTS.md`; `docs/kb/README.md` in full and every *always read*
 section; Multi-agent releases (Rules); the Blame view overview
-(`050-ongoing-work/110-blame-view.md`) for decisions (`BQ2`) and standing
+(`070-history/240-blame-view.md`) for decisions (`BQ2`) and standing
 rules; "Git Graph+ features and next-release additions: research and slice
 plan" (Future work), subsection "Blame view" (`040-blame-view.md`), section
 1.2.

@@ -208,7 +208,7 @@ anything unsolvable within reason be marked here while the rest continues.
   fixed (the bundles' own terms for fetch and working tree, "bare" not
   "empty" in Polish, full-width colons, a clearer zh "new branch from {0}"),
   the rest unchanged. Notes for a native speaker are in its record
-  (`140-release-1-11-0-looking-back/130-l1-translation-review.md`); the zh-tw
+  (`260-release-1-11-0-looking-back/130-l1-translation-review.md`); the zh-tw
   repository word stays the maintainer's choice. Gates on `98abaffb`:
   `l10n:check` complete, strict Biome on the bundles, KB check, backend
   1,592 passed (60 skipped in the worktree) and webview 1,276 passed.

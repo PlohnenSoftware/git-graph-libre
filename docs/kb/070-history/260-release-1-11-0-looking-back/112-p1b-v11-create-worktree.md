@@ -15,11 +15,11 @@ Needs: P1 (integrated)
 Agent: Muse Code
 
 Read first: `AGENTS.md`; Multi-agent releases (Rules); the release section
-(`050-ongoing-work/140-release-1-11-0-looking-back.md`, the answers table
+(`070-history/260-release-1-11-0-looking-back.md`, the answers table
 row "V11 (P1b)"); the popup review
-(`050-ongoing-work/090-popup-and-context-menu-visual-review.md`, V11 and the
+(`070-history/250-popup-and-context-menu-visual-review.md`, V11 and the
 V3/V4 entries P1 already fixed in the same dialog); P1's report
-(`140-release-1-11-0-looking-back/110-p1-popup-fixes.md`); the Webview UI
+(`260-release-1-11-0-looking-back/110-p1-popup-fixes.md`); the Webview UI
 Styling Guide (Reference), including the headless render recipe.
 
 ## Touch
@@ -31,7 +31,7 @@ the extension-side worktree handler only if the request shape must carry
 the mode; `l10n/bundle.l10n*.json` (all five, translated by you) only if a
 new string is unavoidable; tests under `tests/webview/` (and
 `tests/backend/` if the host side changes); the V11 entry's status in
-`090-popup-and-context-menu-visual-review.md`; this file's Status and Report.
+`250-popup-and-context-menu-visual-review.md`; this file's Status and Report.
 
 ## Task and acceptance
 
@@ -72,8 +72,8 @@ push.
 - **Files changed:** 4 files, +135/−30 before this report commit (`git diff --stat cb71af3f..HEAD`):
   - `src/webview/main.ts` (+31/−20): new exported pure helper `resolveCreateWorktreeSource()` beside `CreateWorktreeSource`; `showCreateWorktreeDialog()` resolves the source through it instead of diverting a held branch to `openWorktreeAction()`.
   - `tests/webview/createWorktreeDialog.test.ts` (+101/−7): the old refusal test replaced by the V11 acceptance tests; helper unit tests; unheld three-mode pin.
-  - `docs/kb/050-ongoing-work/090-popup-and-context-menu-visual-review.md` (+2/−2): V11 heading and Status line done.
-  - `docs/kb/050-ongoing-work/140-release-1-11-0-looking-back/112-p1b-v11-create-worktree.md` (+1/−1, then this report): claim, then this report.
+  - `docs/kb/070-history/250-popup-and-context-menu-visual-review.md` (+2/−2): V11 heading and Status line done.
+  - `docs/kb/070-history/260-release-1-11-0-looking-back/112-p1b-v11-create-worktree.md` (+1/−1, then this report): claim, then this report.
 - **Tests added or changed:** `tests/webview/createWorktreeDialog.test.ts` 24 → 27 tests. Replaced "refuses a branch checked out elsewhere and offers that worktree instead" with "opens Create Worktree with only a new branch and a detached HEAD for a branch checked out elsewhere (P1b)" (menu keeps both items; dialog title/folder; select exactly `["new", "detach"]` with labels "New branch from feature/menu" / "Detached HEAD at feature/menu"; default `new`; no `openWorktree` message; submit posts `addWorktree` with `branch: null, newBranch: "feature/menu-copy", startPoint: "feature/menu", detach: false`) and "detaches at the held branch's tip when that mode is chosen (P1b)" (`newBranch: null, detach: true`). Added `resolveCreateWorktreeSource (P1b)` unit tests (held → `branch: null, mode: "new"`; unheld, current-worktree-held, and branch-less sources returned unchanged by identity). The unheld branch test now pins all three option values `["branch", "new", "detach"]`. "Open Worktree…" behavior stays covered by `tests/webview/branchWorktreeActions.test.ts` (unchanged, passing).
 - **Gates:**
   - `npx biome check --config-path biome.strict.jsonc --error-on-warnings src/webview/main.ts tests/webview/createWorktreeDialog.test.ts`: clean (one pre-existing `info` that the config `$schema` names 2.5.13 against CLI 2.6.8).

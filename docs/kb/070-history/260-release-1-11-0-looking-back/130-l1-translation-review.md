@@ -16,7 +16,7 @@ Needs: nothing (works from `main` at `b31a963c`).
 Agent: Claude Haiku (Haiku 5.5)
 
 Read first: `AGENTS.md`; Multi-agent releases (Agent protocol); Commit signing;
-the release section (`140-release-1-11-0-looking-back.md`, Translations answer).
+the release section (`260-release-1-11-0-looking-back.md`, Translations answer).
 
 ## Touch
 

@@ -36,7 +36,7 @@ Integration branch: `main`, local and unpushed. Slice branches:
 maintainer's. The detailed design and verified Git `2.56.1` facts live in
 "Git Graph+ features and next-release additions: research and slice plan"
 (Future work), subsection "Blame view" (`040-blame-view.md`); where a slice
-file under `110-blame-view/` differs from that note, the slice file wins.
+file under `240-blame-view/` differs from that note, the slice file wins.
 
 ## Decisions (recommended defaults; confirm before dispatching UI slices)
 
@@ -77,7 +77,7 @@ dispatching `F4-03` onward:
 
 ## Release 1.11.0 answers (`2026-11-23`)
 
-"Release 1.11.0 — Looking Back" (Ongoing work) holds the maintainer's answers
+"Release 1.11.0 — Looking Back" (History) holds the maintainer's answers
 for this run. For the Blame slices they mean: no editor title-bar icon
 (F4-07); agents translate all four languages; tracks may overlap on shared
 files, with the integrator resolving conflicts (this replaces the
@@ -160,12 +160,12 @@ revision). Nothing is pushed without explicit instruction.
 ## Integration log
 
 - `2026-11-23`: Blame view design (`040-blame-view.md`) and execution overview
-  (`110-blame-view.md`) written beside the Git Graph+ phases (`dc000485`); Git
+  (`240-blame-view.md`) written beside the Git Graph+ phases (`dc000485`); Git
   `2.56.1` porcelain, rename `previous`, binary/empty/untracked/bare/worktree,
   `--contents -`, `--ignore-rev`, broken `blame.ignoreRevsFile`, and
   `--end-of-options` behaviors verified in temporary repositories.
 - `2026-11-23`: Tailored subagent slice files `100-f4-01-blame-cli-query.md`
-  through `180-f4-09-engine-blame-read.md` written under `110-blame-view/` for
+  through `180-f4-09-engine-blame-read.md` written under `240-blame-view/` for
   later execution (`F4-01` ready; `F4-02`–`F4-09` waiting on dependencies and
   maintainer confirmation of `BQ1`–`BQ9`).
 - `2026-11-23`: F4-01 (Muse Code) integrated at `1aac24df` by fast-forward:

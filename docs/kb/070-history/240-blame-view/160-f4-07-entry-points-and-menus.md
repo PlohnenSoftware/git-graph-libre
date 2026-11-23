@@ -22,7 +22,7 @@ Model: Claude Sonnet (cheapest first; escalate one step on failure)
 
 Read first: `AGENTS.md`; `docs/kb/README.md` in full and every *always read*
 section; Multi-agent releases (Rules); the Blame view overview
-(`050-ongoing-work/110-blame-view.md`); "Blame view"
+(`070-history/240-blame-view.md`); "Blame view"
 (`060-future-work/040-git-graph-plus-features-research-and-plan/040-blame-view.md`),
 section 1.5; the Webview UI Styling Guide (Reference), especially context-menu
 dividers (`undefined` vs `null`).
@@ -122,7 +122,7 @@ Claim and changes are separate signed commits; never push.
   - `l10n/bundle.l10n.json`, `l10n/bundle.l10n.nl.json`, `l10n/bundle.l10n.pl.json`, `l10n/bundle.l10n.zh-cn.json`, `l10n/bundle.l10n.zh-tw.json` (+4/−1 each)
   - `src/contextMenuVisibility.ts` (+1), `src/types.ts` (+22/−10), `src/extension/commandManager.ts` (+57/−11), `src/extension/messageHandler.ts` (+67/−1), `src/extension/webviewL10n.ts` (+2), `src/webview/main.ts` (+55)
   - `tests/backend/manifest.test.ts` (+52/−1), `tests/webview/commandManager.test.ts` (+97), `tests/webview/contextMenuVisibility.test.ts` (+11), `tests/webview/contextMenuVisibilityRendering.test.ts` (+179), `tests/webview/diffTab/scmCommands.test.ts` (+3/−1), `tests/webview/messageHandler.test.ts` (+78/−1)
-  - `docs/kb/050-ongoing-work/110-blame-view/160-f4-07-entry-points-and-menus.md` (Status and Report)
+  - `docs/kb/070-history/240-blame-view/160-f4-07-entry-points-and-menus.md` (Status and Report)
 - **Tests added or changed:** +12 new tests across `tests/backend/manifest.test.ts` (+1), `tests/webview/commandManager.test.ts` (+5), `tests/webview/contextMenuVisibility.test.ts` (+1), `tests/webview/contextMenuVisibilityRendering.test.ts` (+3), `tests/webview/messageHandler.test.ts` (+2); 1 existing assertion in `tests/webview/diffTab/scmCommands.test.ts` scoped to `openDiffTab.*` entries. Full suite: backend 1,579 → 1,580 passed (60 skipped in linked worktree, expected); webview 1,210 → 1,221 passed.
 - **Gates:**
   - `npx biome check --config-path biome.strict.jsonc --error-on-warnings <23 touched code/json files>`: clean (0 errors, 0 warnings)

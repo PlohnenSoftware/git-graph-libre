@@ -29,13 +29,13 @@ fine — update it at its new path).
 
 ## Task and acceptance
 
-1. `git mv` `docs/kb/050-ongoing-work/110-blame-view.md` and its directory
-   `110-blame-view/` to `docs/kb/070-history/240-blame-view.md` and
+1. `git mv` `docs/kb/070-history/240-blame-view.md` and its directory
+   `240-blame-view/` to `docs/kb/070-history/240-blame-view.md` and
    `240-blame-view/`. One commit.
-2. `git mv` `docs/kb/050-ongoing-work/090-popup-and-context-menu-visual-review.md`
+2. `git mv` `docs/kb/070-history/250-popup-and-context-menu-visual-review.md`
    to `docs/kb/070-history/250-popup-and-context-menu-visual-review.md`
    (every item V1–V11 is done). One commit.
-3. `git mv` `docs/kb/050-ongoing-work/140-release-1-11-0-looking-back.md` and
+3. `git mv` `docs/kb/070-history/260-release-1-11-0-looking-back.md` and
    its directory to `docs/kb/070-history/260-release-1-11-0-looking-back.md`
    and `260-release-1-11-0-looking-back/`. One commit.
 4. Fix every reference to the old paths anywhere under `docs/kb/` (and in

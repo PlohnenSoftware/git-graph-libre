@@ -15,9 +15,9 @@ Needs: T1 (integrated), F4-03 (integrated)
 Agent: Claude Haiku
 
 Read first: `AGENTS.md`; Multi-agent releases (Rules); the release section
-(`050-ongoing-work/140-release-1-11-0-looking-back.md`, its Telemetry
+(`070-history/260-release-1-11-0-looking-back.md`, its Telemetry
 answer); T1's slice file and report
-(`140-release-1-11-0-looking-back/100-t1-open-telemetry.md`); the header of
+(`260-release-1-11-0-looking-back/100-t1-open-telemetry.md`); the header of
 `src/telemetry/tabOpen.ts`; Telemetry (Reference).
 
 ## Touch

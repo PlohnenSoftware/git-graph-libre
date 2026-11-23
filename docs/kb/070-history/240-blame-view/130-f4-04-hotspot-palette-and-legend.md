@@ -16,7 +16,7 @@ Model: Claude Haiku (cheapest first; escalate one step on failure)
 
 Read first: `AGENTS.md`; `docs/kb/README.md` in full and every *always read*
 section; Multi-agent releases (Rules); the Blame view overview
-(`050-ongoing-work/110-blame-view.md`) for `BQ2`; "Blame view"
+(`070-history/240-blame-view.md`) for `BQ2`; "Blame view"
 (`060-future-work/040-git-graph-plus-features-research-and-plan/040-blame-view.md`),
 section 1.2; the Webview UI Styling Guide (Reference).
 

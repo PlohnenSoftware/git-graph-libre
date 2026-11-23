@@ -15,9 +15,9 @@ Needs: L1 (integrated)
 Agent: Claude Haiku
 
 Read first: `AGENTS.md`; Multi-agent releases (Rules); the release section
-(`050-ongoing-work/140-release-1-11-0-looking-back.md`, answers row
+(`070-history/260-release-1-11-0-looking-back.md`, answers row
 "zh-tw \"repository\""); L1's report
-(`140-release-1-11-0-looking-back/130-l1-translation-review.md`, "Notes for a
+(`260-release-1-11-0-looking-back/130-l1-translation-review.md`, "Notes for a
 native speaker"); Localization (Reference) if present.
 
 ## Touch

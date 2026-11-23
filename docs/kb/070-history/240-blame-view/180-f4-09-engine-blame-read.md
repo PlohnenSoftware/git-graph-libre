@@ -39,7 +39,7 @@ Model: Claude Sonnet (cheapest first; escalate one step on failure)
 
 Read first: `AGENTS.md`; `docs/kb/README.md` in full and every *always read*
 section; Multi-agent releases (Rules); the Blame view overview
-(`050-ongoing-work/110-blame-view.md`) for `BQ8`; "Blame view"
+(`070-history/240-blame-view.md`) for `BQ8`; "Blame view"
 (`060-future-work/040-git-graph-plus-features-research-and-plan/040-blame-view.md`),
 section 3; Phase 16 invariants, design rules, and non-goals
 (`docs/kb/050-ongoing-work/030-implementation-roadmap/010-phase-16-rust-engine-backend/`);

@@ -16,7 +16,7 @@ Needs: —
 Agent: Muse Code
 
 Read first: `AGENTS.md`; Multi-agent releases (Rules); the release section
-(`050-ongoing-work/140-release-1-11-0-looking-back.md`); the Reflog tab in
+(`070-history/260-release-1-11-0-looking-back.md`); the Reflog tab in
 History (`070-history/230-reflog-tab.md` and its slices, F1-08 for the
 column resizing); the Webview UI Styling Guide (Reference), including the
 headless render recipe; the graph table's resizing

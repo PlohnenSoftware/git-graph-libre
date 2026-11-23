@@ -17,8 +17,8 @@ Agent: Claude Haiku
 Read first: `AGENTS.md`; the documentation rules
 (`020-rules/030-documentation-and-verification-rules.md`, the changelog and
 README parts); the release section
-(`050-ongoing-work/140-release-1-11-0-looking-back.md`); the reports of
-F4-05 and F4-06 (`110-blame-view/140-…` and `150-…`), Q1, L2 and P1 (this
+(`070-history/260-release-1-11-0-looking-back.md`); the reports of
+F4-05 and F4-06 (`240-blame-view/140-…` and `150-…`), Q1, L2 and P1 (this
 section's directory); the existing `[Unreleased]` entries in `CHANGELOG.md`
 (their voice, length and bold lead-ins are the model).
 

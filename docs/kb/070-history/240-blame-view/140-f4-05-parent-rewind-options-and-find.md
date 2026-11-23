@@ -16,7 +16,7 @@ Model: Claude Sonnet (cheapest first; escalate one step on failure)
 
 Read first: `AGENTS.md`; `docs/kb/README.md` in full and every *always read*
 section; Multi-agent releases (Rules); the Blame view overview
-(`050-ongoing-work/110-blame-view.md`) for `BQ5`; "Blame view"
+(`070-history/240-blame-view.md`) for `BQ5`; "Blame view"
 (`060-future-work/040-git-graph-plus-features-research-and-plan/040-blame-view.md`),
 sections 1.3 and 2.
 
@@ -129,7 +129,7 @@ never push.
   - `tests/webview/blameTab/rowModel.test.ts` (+94 / -2)
   - `tests/webview/blameTab/view.test.ts` (+266 / -4)
   - `tests/webview/blameTabPanel.test.ts` (+138)
-  - `docs/kb/050-ongoing-work/110-blame-view/140-f4-05-parent-rewind-options-and-find.md` (Status and Report)
+  - `docs/kb/070-history/240-blame-view/140-f4-05-parent-rewind-options-and-find.md` (Status and Report)
 - **Tests added or changed:** 17 new tests across `tests/webview/blameTab/{blameData,blameTabCss,main,rowModel,view}.test.ts` and `tests/webview/blameTabPanel.test.ts` (focused blameTab suite: 79 -> 96 passed across 9 files; full webview suite: 1,232 -> 1,249 passed across 94 files).
 - **Gates:**
   - `npx biome check --config-path biome.strict.jsonc --error-on-warnings` on all 20 touched `.ts`/`.js`/`.json` files: passed (0 errors, 0 warnings)

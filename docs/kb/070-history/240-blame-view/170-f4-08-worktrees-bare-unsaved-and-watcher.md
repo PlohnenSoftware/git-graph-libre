@@ -16,7 +16,7 @@ Model: Claude Sonnet (cheapest first; escalate one step on failure)
 
 Read first: `AGENTS.md`; `docs/kb/README.md` in full and every *always read*
 section; Multi-agent releases (Rules); the Blame view overview
-(`050-ongoing-work/110-blame-view.md`) for `BQ6`; "Blame view"
+(`070-history/240-blame-view.md`) for `BQ6`; "Blame view"
 (`060-future-work/040-git-graph-plus-features-research-and-plan/040-blame-view.md`),
 sections 1.6 and 2.
 
@@ -120,7 +120,7 @@ Claim and changes are separate signed commits; never push.
   - `tests/webview/blameTab/view.test.ts` (+169 / −2)
   - `tests/webview/blameTabPanel.test.ts` (+267 / −11)
   - `tests/webview/commandManager.test.ts` (+48 / −0)
-  - `docs/kb/050-ongoing-work/110-blame-view/170-f4-08-worktrees-bare-unsaved-and-watcher.md` (Status and Report)
+  - `docs/kb/070-history/240-blame-view/170-f4-08-worktrees-bare-unsaved-and-watcher.md` (Status and Report)
 - **Tests added or changed:** +20 new tests (webview suite 1,243 → 1,263 passed across 94 files; backend suite 1,581 passed, 60 skipped in linked worktree, across 118 files):
   - `tests/webview/blameTab/blameData.test.ts` (+4 real-Git tests): linked worktree divergent uncommitted edits without affecting main worktree; bare repository revision blame vs working-tree `bareWorkingTree` notice; unsaved dirty buffer via `--contents -` with matching line numbers; unborn repository state.
   - `tests/webview/commandManager.test.ts` (+2 tests): dirty unsaved editor contents forwarded to `openBlameTab`; nested linked worktree resolves to the linked worktree root rather than an enclosing known main worktree.

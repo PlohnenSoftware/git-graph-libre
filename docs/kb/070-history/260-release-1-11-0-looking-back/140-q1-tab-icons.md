@@ -14,7 +14,7 @@ Needs: —
 Agent: Claude Haiku
 
 Read first: `AGENTS.md`; Multi-agent releases (Rules); the release section
-(`050-ongoing-work/140-release-1-11-0-looking-back.md`);
+(`070-history/260-release-1-11-0-looking-back.md`);
 `src/extension/webviewPanel.ts` around `panel.iconPath` (the graph tab's
 icon, light/dark pair chosen by `config.tabIconColorTheme()`).
 

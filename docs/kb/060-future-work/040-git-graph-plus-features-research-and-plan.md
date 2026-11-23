@@ -16,7 +16,7 @@ interactive rebase and the timeline wait for later releases. On `2026-11-23`
 the maintainer added Feature 4 beside these phases: a **Blame view** inspired
 by GitHub's blame view with **hotspot coloring** for the next release (design
 in `040-blame-view.md`; execution overview and tailored subagent slices in
-"Blame view" under Ongoing work). The maintainer also asked whether Git Graph+
+"Blame view" under History). The maintainer also asked whether Git Graph+
 code may be used under this project's AGPL: Apache-2.0 code may come in one
 way, with its license text, its copyright line ("Copyright 2026 the0807,
 bkk21"; there is no `NOTICE` file) and a notice of changes, but neither the

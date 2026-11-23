@@ -16,7 +16,7 @@ Model: Claude Sonnet (cheapest first; escalate one step on failure)
 
 Read first: `AGENTS.md`; `docs/kb/README.md` in full and every *always read*
 section; Multi-agent releases (Rules); the Blame view overview
-(`050-ongoing-work/110-blame-view.md`) for decisions in force; "Blame view"
+(`070-history/240-blame-view.md`) for decisions in force; "Blame view"
 (`060-future-work/040-git-graph-plus-features-research-and-plan/040-blame-view.md`);
 the Webview UI Styling Guide (Reference) and **One name and one shape for a
 shared concept** (`040-reference/030-webview-ui-styling-guide/020-one-name-and-one-shape-for-a-shared-concept.md`).
@@ -136,7 +136,7 @@ Claim and changes are separate signed commits; never push.
   - `78aa851f G test(blame): cover git-graph-libre.showBlame command resolution (F4-03)`
   - plus the report commit that follows this text
 - **Files changed:** 32 files, +2701/−13 against `b52acee0` before this report (`git diff --stat b52acee0..HEAD`):
-  - `docs/kb/050-ongoing-work/110-blame-view/120-f4-03-blame-tab-read-only.md` (+1/−1 before report)
+  - `docs/kb/070-history/240-blame-view/120-f4-03-blame-tab-read-only.md` (+1/−1 before report)
   - `esbuild.js` (+2/−1)
   - `l10n/bundle.l10n.json`, `l10n/bundle.l10n.nl.json`, `l10n/bundle.l10n.pl.json`, `l10n/bundle.l10n.zh-cn.json`, `l10n/bundle.l10n.zh-tw.json` (+15/−1 each; 14 keys appended at the end of each bundle)
   - `media/blame-tab/blame-tab.css` (+140)

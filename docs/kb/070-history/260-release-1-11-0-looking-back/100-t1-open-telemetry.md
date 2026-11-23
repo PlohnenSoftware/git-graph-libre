@@ -18,7 +18,7 @@ Agent: Muse Code
 
 Read first: `AGENTS.md`; the KB index and every *always read* section;
 Multi-agent releases (Rules); the release section
-(`050-ongoing-work/140-release-1-11-0-looking-back.md`), its Telemetry
+(`070-history/260-release-1-11-0-looking-back.md`), its Telemetry
 answer above all; Telemetry (Reference) and its three subsections, whole.
 
 ## The maintainer's words (`2026-11-23`)
