@@ -46,7 +46,7 @@ releases (Rules) applies, with the answers below.
 | Parallelism | **No limit**: run as many independent tracks as there are tasks. |
 | Shared files | **Tracks may overlap** on `l10n/bundle.l10n*.json`, `package.json`, `src/extension/messageHandler.ts`, `src/types.ts` and `src/webview/main.ts`; the integrator rebases and resolves the textual conflicts. Within one track, slices stay serial. This overrides the Blame overview's serialization rule for this run. Each track adds l10n keys in its own block (Reflog inside the `reflog.*` block, Blame appended at the end, others in their own named block). |
 | Worktrees | Under `/home/zam/Desktop/prog/_GGL/.ggl-wt/` (now a standing rule in Multi-agent releases). |
-| Agents | Claude Haiku for easy slices, headless Muse Code (`muse exec --yolo`) for complex ones. |
+| Agents | Claude Haiku for easy slices, headless Muse Code (`muse exec --yolo`) for complex ones; **also the `agy` CLI with Gemini 4 Argon and Gemini 4 Neon** (maintainer, `2026-11-23`: "they have separate quota"), run headless as `agy -p "<prompt>" --model gemini-4-argon-high\|gemini-4-neon-high --dangerously-skip-permissions --print-timeout 0` inside the slice worktree (`prompts/run-agy.sh`). |
 | Binaries | **Build every platform locally** (`pnpm run engine:build:all`, `engine:smoke`); the GitHub `verify-vsix.yml` run is the maintainer's after the push. |
 | Telemetry | **Approved (slice T1):** measure whether each tab was opened (the person clicked its button or ran its command) and whether that went without errors, and the same for the worktree buttons. Nothing about what was looked at or how options were used. |
 | Renders | **Local files only**: headless PNGs on disk, paths listed in reports and the final summary. |
@@ -106,3 +106,29 @@ releases (Rules) applies, with the answers below.
   (`prompts/continue.note`): read the branch's commits and the uncommitted
   diff, keep what is correct, finish the slice. Until then only easy Haiku
   work runs (release-notes groundwork), to spare the Claude quota.
+- `2026-11-23 ~12:00Z`: the maintainer added the `agy` CLI (Gemini 4 Argon
+  and Neon, separate quota). Both answered a headless probe. The muse resume
+  script was stopped and the six cut-off slices relaunched on `agy` with the
+  same continuation prompts: F4-03, F1-08 and F2-03 on
+  `gemini-4-argon-high`; P1, F3-07 and F3-03 on `gemini-4-neon-high`.
+- `2026-11-23 ~12:00Z`: **gix `main` (`00e62ee`, gix 0.91) breaks the engine
+  build — API changes, not a packaging problem.** The maintainer moved the
+  workspace to `gix = { git = …, branch = "main" }` (staged in the main
+  checkout, uncommitted). Five compile errors from three deliberate upstream
+  breaking changes: `7aa36be` removed `gix::sec::trust::Mapping` and
+  `b91fe7b` made `ThreadSafeRepository::discover_opts` take a callback
+  `(open::Options, Trust) -> open::Options` (it receives
+  `Options::default_for_level(trust)`, so `|o, _| o.bail_if_untrusted(true)`
+  is exact); `1d94b9d` made `prepare_diff::Operation::InternalDiff` carry a
+  validated `TextChange` (`intern_source()` is gone; a new `NeitherExists`
+  variant) and `Platform::set_resource` take `Option<ObjectId>`. Upstream's
+  `line_counts()` still tokenizes with terminators stripped
+  (`TextChange::patch_input()`), so the numstat shim (D30b) stays: it now
+  feeds `TextChange::patch_data()` through `sources::byte_lines`, which keeps
+  terminators. With those edits (unstaged, in
+  `engine/native/core/src/repository.rs` and `diff.rs`): `cargo check
+  --all-targets` clean; `engine:fmt`, `engine:lint`, `engine:test` all pass;
+  the release addon builds and smokes; `vitest --project backend` 1,635
+  passed, engine parity tests included. Whether it ships in 1.11.0 (which
+  needs every platform binary rebuilt and an engine version bump) is the
+  maintainer's call.
