@@ -10,7 +10,7 @@ summary: >-
 
 # Reflog tab (`2026-11-09`)
 
-Status: in progress.
+Status: done — every planned slice integrated (F1-01 to F1-09F, F1-06 as squash `953d4f55`), shipping in release 1.11.0.
 
 Maintainer request, `2026-11-09`: "please implement slices f1-01 till f1-09
 but rest for later releases". Multi-agent releases (Rules) applies.
