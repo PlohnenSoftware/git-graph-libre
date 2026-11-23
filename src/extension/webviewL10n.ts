@@ -351,8 +351,16 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     dialogWorktreeCreatedOpenNewWindow: translate("dialog.worktreeCreated.openNewWindow"),
     dialogWorktreeCreatedAddToWorkspace: translate("dialog.worktreeCreated.addToWorkspace"),
     dialogWorktreeCreatedSwitchGraph: translate("dialog.worktreeCreated.switchGraph"),
-    dialogWorktreeCreatedNothing: translate("dialog.worktreeCreated.nothing"),
-    dialogWorktreeCreatedSubmit: translate("dialog.worktreeCreated.submit"),
+    dialogWorktreeCreatedTitle: translate("dialog.worktreeCreated.title"),
+    dialogWorktreeCreatedOpenNewWindowDescription: translate(
+      "dialog.worktreeCreated.openNewWindowDescription"
+    ),
+    dialogWorktreeCreatedAddToWorkspaceDescription: translate(
+      "dialog.worktreeCreated.addToWorkspaceDescription"
+    ),
+    dialogWorktreeCreatedSwitchGraphDescription: translate(
+      "dialog.worktreeCreated.switchGraphDescription"
+    ),
     worktrees: translate("ui.worktrees"),
     showReflog: translate("reflog.show"),
     worktreesClose: translate("ui.worktreesClose"),

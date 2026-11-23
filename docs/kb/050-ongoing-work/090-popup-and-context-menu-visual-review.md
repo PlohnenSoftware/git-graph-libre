@@ -127,7 +127,7 @@ numbers are from `ccc1aaee`. A suggested order is at the end.
   checkbox, and show the reason only while "Lock the worktree" is ticked,
   as "New branch" already follows the select.
 
-### V4 — "The worktree was created. What next?" is a select
+### V4 — "The worktree was created. What next?" is a select — done (P1)
 
 - **Shows:** a `<select>` of four actions and a "Done" button
   (`finishCreateWorktree()`, `src/webview/main.ts:4709`).

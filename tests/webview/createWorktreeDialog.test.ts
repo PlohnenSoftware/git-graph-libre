@@ -213,6 +213,29 @@ function dialogInput<T extends HTMLElement>(index: number): T {
   return elem as T;
 }
 
+function dialogChoices(): HTMLElement[] {
+  return [...document.querySelectorAll<HTMLElement>(".dialogChoice")];
+}
+
+function dialogChoiceLabels(): (string | null)[] {
+  return dialogChoices().map(
+    (choice) => choice.querySelector(".dialogChoiceLabel")?.textContent ?? null
+  );
+}
+
+function clickDialogChoice(label: string) {
+  const choice = dialogChoices().find(
+    (elem) => elem.querySelector(".dialogChoiceLabel")?.textContent === label
+  );
+  expect(choice).not.toBeNull();
+  choice?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+}
+
+function primaryDialogChoiceLabel(): string | null {
+  const primary = document.querySelector(".dialogChoice.dialogBtnPrimary");
+  return primary?.querySelector(".dialogChoiceLabel")?.textContent ?? null;
+}
+
 // The finish-step tests run first: they answer a second graph load, which
 // a stale webview instance left by an earlier boot in this file would also
 // try to render against a detached table.
@@ -230,10 +253,15 @@ describe("the finish step (decision Y8)", () => {
     receive({ command: "addWorktree", status: null });
 
     expect(dialogText()).toContain("/workspace/createrepo.worktrees/feature/menu");
-    const finish = dialogInput<HTMLSelectElement>(0);
-    expect(finish.value).toBe("newWindow");
-    finish.value = "switch";
-    submitDialog();
+    // One-click choices, no select: the last choice is the primary button.
+    expect(document.querySelector("#dialog select")).toBeNull();
+    expect(dialogChoiceLabels()).toEqual([
+      "Open in New Window",
+      "Add to Workspace",
+      "Switch Graph to It"
+    ]);
+    expect(primaryDialogChoiceLabel()).toBe("Open in New Window");
+    clickDialogChoice("Switch Graph to It");
     expect(latestRequest(vscodeMock.sentMessages, "switchGraphToWorktree")).toMatchObject({
       repo: REPO,
       path: "/workspace/createrepo.worktrees/feature/menu"
@@ -264,7 +292,7 @@ describe("the finish step (decision Y8)", () => {
     clickContextMenuItem("Create Worktree…");
     submitDialog();
     receive({ command: "addWorktree", status: null });
-    expect(dialogInput<HTMLSelectElement>(0).value).toBe("switch");
+    expect(primaryDialogChoiceLabel()).toBe("Switch Graph to It");
   });
 
   it("shows the error instead of the finish step when creation fails", async () => {
@@ -279,8 +307,7 @@ describe("the finish step (decision Y8)", () => {
   it("opens on the last finish choice after a panel reload, and on the first one for an older state", async () => {
     const first = await createFromBranch();
     receive({ command: "addWorktree", status: null });
-    dialogInput<HTMLSelectElement>(0).value = "switch";
-    submitDialog();
+    clickDialogChoice("Switch Graph to It");
     const saved = first.vscodeMock.getState();
     expect(saved?.worktreeFinish).toBe("switch");
 
@@ -289,14 +316,14 @@ describe("the finish step (decision Y8)", () => {
     clickContextMenuItem("Create Worktree…");
     submitDialog();
     receive({ command: "addWorktree", status: null });
-    expect(dialogInput<HTMLSelectElement>(0).value).toBe("switch");
+    expect(primaryDialogChoiceLabel()).toBe("Switch Graph to It");
 
     await bootWebview({ savedState: { ...saved, worktreeFinish: undefined } as WebViewState });
     openRefContextMenu(".gitRef.head", "feature/menu");
     clickContextMenuItem("Create Worktree…");
     submitDialog();
     receive({ command: "addWorktree", status: null });
-    expect(dialogInput<HTMLSelectElement>(0).value).toBe("newWindow");
+    expect(primaryDialogChoiceLabel()).toBe("Open in New Window");
   });
 });
 

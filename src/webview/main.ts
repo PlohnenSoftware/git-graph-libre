@@ -4719,21 +4719,44 @@ class GitGraphView {
     }
 
     this.refresh(true);
-    showSelectDialog(
+    // One-click choices, like every short list of actions (the styling
+    // guide's rule, written after this dialog's first select form). Doing
+    // nothing is the dialog's Cancel, so it is not a choice of its own; a
+    // stored "nothing" from the select form opens on the first choice.
+    const finish = (choice: WorktreeFinishChoice) => {
+      this.lastWorktreeFinish = choice;
+      this.saveState();
+      this.applyWorktreeFinish(path, choice);
+    };
+    const primaryFor = (choice: WorktreeFinishChoice) =>
+      this.lastWorktreeFinish === choice ||
+      (this.lastWorktreeFinish === "nothing" && choice === "newWindow");
+    showChoiceDialog(
+      l10n.dialogWorktreeCreatedTitle,
       l10n.dialogWorktreeCreatedMessage.replace("{0}", () => `<b><i>${escapeHtml(path)}</i></b>`),
-      this.lastWorktreeFinish,
       [
-        { name: l10n.dialogWorktreeCreatedOpenNewWindow, value: "newWindow" },
-        { name: l10n.dialogWorktreeCreatedAddToWorkspace, value: "workspace" },
-        { name: l10n.dialogWorktreeCreatedSwitchGraph, value: "switch" },
-        { name: l10n.dialogWorktreeCreatedNothing, value: "nothing" }
+        {
+          label: l10n.dialogWorktreeCreatedOpenNewWindow,
+          description: l10n.dialogWorktreeCreatedOpenNewWindowDescription,
+          icon: "link-external",
+          primary: primaryFor("newWindow"),
+          onClick: () => finish("newWindow")
+        },
+        {
+          label: l10n.dialogWorktreeCreatedAddToWorkspace,
+          description: l10n.dialogWorktreeCreatedAddToWorkspaceDescription,
+          icon: "file-directory",
+          primary: primaryFor("workspace"),
+          onClick: () => finish("workspace")
+        },
+        {
+          label: l10n.dialogWorktreeCreatedSwitchGraph,
+          description: l10n.dialogWorktreeCreatedSwitchGraphDescription,
+          icon: "arrow-switch",
+          primary: primaryFor("switch"),
+          onClick: () => finish("switch")
+        }
       ],
-      l10n.dialogWorktreeCreatedSubmit,
-      (value) => {
-        this.lastWorktreeFinish = normalizeWorktreeFinish(value);
-        this.saveState();
-        this.applyWorktreeFinish(path, this.lastWorktreeFinish);
-      },
       null
     );
   }
