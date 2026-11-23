@@ -7,7 +7,7 @@ summary: >-
 
 # F3-03 — Engine-only availability
 
-Status: blocked — the Touch list omits the files the acceptance needs (see Report)
+Status: ready (Touch widened by the integrator, `2026-11-23`; continue from the first attempt's report)
 
 Needs: F3-01 and F3-02 integrated; TQ2 confirmed
 
@@ -36,6 +36,13 @@ are declared: `src/extension/messageHandler.ts`, `src/extension/diffTab/scmComma
 `src/extension/statsTab/availability.ts` if the logic needs its own module;
 new `tests/backend/engine/statsAvailability.test.ts`; the slice file's Status
 and Report.
+
+**Widened by the integrator (`2026-11-23`)** after the first attempt stopped
+correctly at this list: also `src/extension.ts` (set the key at activation
+and on a `git-graph-libre.backend` change, where the GGL Diff tab's key is
+set), `src/extension/commandManager.ts` (the palette command),
+`src/extension/webviewToolbar.ts` and `src/webview/main.ts` (the
+`statisticsBtn` toolbar button), and their tests.
 
 ## Task and acceptance
 
