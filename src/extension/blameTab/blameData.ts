@@ -186,10 +186,7 @@ export function createBlameSource(deps: BlameSourceDeps): BlameSource {
      * behind one hunk, through the same `fetchCommitInfo` the CLI commit
      * details read uses, so the popover and the graph never disagree.
      */
-    async loadCommitPopover(
-      repo: string,
-      commitHash: string
-    ): Promise<BlameCommitPopoverResult> {
+    async loadCommitPopover(repo: string, commitHash: string): Promise<BlameCommitPopoverResult> {
       if (!isBlameCommitHash(commitHash)) {
         return { details: null, error: `Not a commit hash: ${commitHash}` };
       }
