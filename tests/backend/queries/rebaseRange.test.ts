@@ -357,6 +357,60 @@ describe("loadRebaseRange", () => {
     expect(result.preflight.reasons).toContain("inProgress");
   });
 
+  it("sees a rebase on the apply backend as in progress", async () => {
+    const dir = initRepo();
+    write(dir, "shared.txt", "base\n");
+    commitAll(dir, "base");
+    run(["checkout", "-q", "-b", "side"], dir);
+    write(dir, "shared.txt", "side\n");
+    commitAll(dir, "side");
+    run(["checkout", "-q", "main"], dir);
+    write(dir, "shared.txt", "main\n");
+    commitAll(dir, "main");
+    run(["checkout", "-q", "side"], dir);
+    tryRun(["rebase", "--apply", "main"], dir);
+
+    const result = await loadRebaseRange(reader(dir), { repo: dir, base: null });
+
+    expect(result.inProgress).toBe(true);
+    expect(result.inProgressKind).toBe("rebase");
+    run(["rebase", "--abort"], dir);
+  });
+
+  it("sees a cherry-pick stopped on a conflict as in progress", async () => {
+    const dir = initRepo();
+    write(dir, "shared.txt", "base\n");
+    commitAll(dir, "base");
+    run(["checkout", "-q", "-b", "side"], dir);
+    write(dir, "shared.txt", "side\n");
+    const side = commitAll(dir, "side");
+    run(["checkout", "-q", "main"], dir);
+    write(dir, "shared.txt", "main\n");
+    commitAll(dir, "main");
+    tryRun(["cherry-pick", side], dir);
+
+    const result = await loadRebaseRange(reader(dir), { repo: dir, base: null });
+
+    expect(result.inProgress).toBe(true);
+    expect(result.inProgressKind).toBe("cherry-pick");
+  });
+
+  it("sees a revert stopped on a conflict as in progress", async () => {
+    const dir = initRepo();
+    write(dir, "shared.txt", "one\n");
+    commitAll(dir, "one");
+    write(dir, "shared.txt", "two\n");
+    const two = commitAll(dir, "two");
+    write(dir, "shared.txt", "three\n");
+    commitAll(dir, "three");
+    tryRun(["revert", "--no-edit", two], dir);
+
+    const result = await loadRebaseRange(reader(dir), { repo: dir, base: null });
+
+    expect(result.inProgress).toBe(true);
+    expect(result.inProgressKind).toBe("revert");
+  });
+
   it("reads a linked worktree through its own git directory", async () => {
     const dir = initRepo();
     write(dir, "shared.txt", "base\n");
