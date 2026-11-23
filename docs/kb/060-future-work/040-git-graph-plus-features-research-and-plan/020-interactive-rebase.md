@@ -12,7 +12,7 @@ summary: >-
 
 Research only. Nothing was implemented, and neither repository was touched. Git behavior was observed in
 throwaway temporary repositories (Git 2.56.0, `GIT_CONFIG_GLOBAL=/dev/null`,
-`LC_ALL=C`; the session scripts were not kept).
+`LC_ALL=C`; the session scripts were not kept). Execution of this plan is tracked in the register `050-ongoing-work/120-interactive-rebase.md` (started `2026-11-23`, not in release 1.11.0).
 
 ## 0. Licensing notes (read first)
 
