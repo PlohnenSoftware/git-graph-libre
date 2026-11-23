@@ -81,6 +81,7 @@ releases (Rules) applies, with the answers below.
 | Q2 | Reflog table column widths, no horizontal scroll (maintainer test) | — | Muse Code → Claude Haiku | integrated `53954365` |
 | N1 | Release notes: Blame F4-05/F4-06, Q1, L2, P1 | those slices | Claude Haiku | integrated `d25ed146` |
 | R90 | Release 1.11.0 | every `main` track | orchestrator | done `74ff94fe` (not tagged, not pushed) |
+| KB2 | Move the finished sections to History; roadmap and work order | R90 | Claude Haiku | ready |
 
 ## Blocked — waiting for the maintainer
 
