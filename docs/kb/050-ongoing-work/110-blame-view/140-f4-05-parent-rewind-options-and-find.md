@@ -8,7 +8,7 @@ summary: >-
 
 # F4-05 — Parent-blame rewind stack, options, ignore-revs and find
 
-Status: waiting
+Status: ready
 
 Needs: F4-04 (and maintainer confirmation of BQ5)
 

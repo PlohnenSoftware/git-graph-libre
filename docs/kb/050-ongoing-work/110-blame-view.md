@@ -137,8 +137,8 @@ worktrees under `/home/zam/Desktop/prog/_GGL/.ggl-wt/`.
 | F4-01 | Blame CLI read query and porcelain parser | — | Sonnet | integrated `1aac24df` |
 | F4-02 | Hotspot age-heat and churn scoring model | F4-01 | Haiku | integrated `c06c041c` |
 | F4-03 | Blame editor-tab panel and read-only view | F4-01, F4-02 | Sonnet | integrated `3e916dff` |
-| F4-04 | Hotspot OKLCH palette, heat rail, legend and hover highlight | F4-03 | Haiku | ready |
-| F4-05 | Parent-blame rewind stack, options, ignore-revs and find | F4-04 | Sonnet | waiting |
+| F4-04 | Hotspot OKLCH palette, heat rail, legend and hover highlight | F4-03 | Haiku | integrated `444b9703` |
+| F4-05 | Parent-blame rewind stack, options, ignore-revs and find | F4-04 | Sonnet | ready |
 | F4-06 | Commit popover, Show in Graph, GGL Diff and Open File at Line | F4-05 | Sonnet | waiting |
 | F4-07 | Editor, Explorer, SCM and Commit Details entry points | F4-06 | Sonnet | in progress (pulled forward) |
 | F4-08 | Worktrees, bare repositories, unsaved buffers and watcher refresh | F4-07 | Sonnet | waiting |
@@ -205,3 +205,17 @@ revision). Nothing is pushed without explicit instruction.
   backend 1,578 passed (60 skipped in the worktree) and webview 1,195
   passed. F4-04 is ready.
 - `2026-11-23`: F4-07 pulled forward to run beside F4-04 (integrator, under the maintainer's overlap answer): its `Needs: F4-06` only serialized shared files; it builds on F4-03's `showBlame`. Dispatched to Gemini 4 Neon (`agy`).
+- `2026-11-23`: F4-04 (Claude Haiku) integrated at `444b9703`: ten OKLCH tokens
+  `--ngg-blame-heat-0`..`9` (dark and light), a 4px heat rail per hunk, a
+  `color-mix(in oklab, …)` gutter wash, a neutral rail for uncommitted lines
+  and for Off, the header legend (Older, ten swatches, Newer) with the mode
+  selector (Age default, Calendar, Churn, Off) kept in webview state and
+  re-scored in the webview with `src/blameHotspot.ts`, same-commit
+  highlighting on hover and focus (each hunk is a tab stop), forced-colors
+  and reduced-motion rules. Follow-up, not blocking: under forced colors the
+  heat level shows only as rail presence and the legend, with no per-hunk
+  text label (each hunk still shows its date). Renders under
+  `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-04/`. Gates on `444b9703`:
+  strict Biome on 14 files, typecheck, `l10n:check`, KB check, backend 1,579
+  passed (60 skipped in the worktree) and webview 1,232 passed. F4-05 is
+  ready.
