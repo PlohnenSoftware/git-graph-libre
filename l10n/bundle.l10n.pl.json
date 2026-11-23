@@ -945,5 +945,14 @@
   "blame.findCount": "{0} / {1}",
   "blame.findPrev": "Poprzednie dopasowanie",
   "blame.findNext": "Następne dopasowanie",
-  "blame.findClose": "Zamknij wyszukiwanie"
+  "blame.findClose": "Zamknij wyszukiwanie",
+  "blame.showCommitDetails": "Pokaż szczegóły commita",
+  "blame.popoverClose": "Zamknij szczegóły commita",
+  "blame.popoverLoadError": "Nie można wczytać szczegółów commita: {0}",
+  "blame.showCommitInGraph": "Pokaż commit na grafie",
+  "blame.ignoreCommitSession": "Ignoruj commit (ta sesja)",
+  "blame.copyCommitMessage": "Kopiuj wiadomość commita do schowka",
+  "blame.openFileAtLine": "Otwórz plik w wierszu",
+  "blame.viewBlameAtHead": "Pokaż blame w HEAD",
+  "blame.uncommittedExplanation": "Te wiersze zawierają lokalne zmiany, które nie zostały jeszcze zatwierdzone."
 }

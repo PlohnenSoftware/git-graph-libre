@@ -945,5 +945,14 @@
   "blame.findCount": "{0} / {1}",
   "blame.findPrev": "Vorige overeenkomst",
   "blame.findNext": "Volgende overeenkomst",
-  "blame.findClose": "Zoeken sluiten"
+  "blame.findClose": "Zoeken sluiten",
+  "blame.showCommitDetails": "Commitdetails tonen",
+  "blame.popoverClose": "Commitdetails sluiten",
+  "blame.popoverLoadError": "Kan de commitdetails niet laden: {0}",
+  "blame.showCommitInGraph": "Commit in grafiek tonen",
+  "blame.ignoreCommitSession": "Commit negeren (deze sessie)",
+  "blame.copyCommitMessage": "Commitbericht naar klembord kopiëren",
+  "blame.openFileAtLine": "Bestand openen op regel",
+  "blame.viewBlameAtHead": "Blame bij HEAD bekijken",
+  "blame.uncommittedExplanation": "Deze regels bevatten lokale wijzigingen die nog niet zijn gecommit."
 }

@@ -503,3 +503,184 @@
 @media (prefers-reduced-motion: reduce) {
   .ggl-blame .blame-hunk::after { transition: none; }
 }
+/* The commit header and line numbers are buttons now (F4-06): they keep
+   the text look they had as spans, with a hover tint and a focus ring. */
+.ggl-blame .blame-popover-trigger {
+  font: inherit;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: var(--ngg-transparent);
+  color: inherit;
+  cursor: pointer;
+}
+.ggl-blame .blame-popover-trigger:hover {
+  background: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle));
+}
+.ggl-blame .blame-popover-trigger:focus-visible,
+.ggl-blame .blame-line-number:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
+.ggl-blame button.blame-line-number {
+  font: inherit;
+  border: 0;
+  background: var(--ngg-transparent);
+  cursor: pointer;
+}
+.ggl-blame button.blame-line-number:hover {
+  color: var(--vscode-editorLineNumber-activeForeground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  text-decoration: underline;
+}
+/* The commit popover and hunk context menu (F4-06) sit on `body` with
+   fixed positioning, so their rules are not rooted at `.ggl-blame`;
+   they take the editor-widget and menu token families instead. */
+.blame-popover {
+  position: fixed;
+  z-index: 50;
+  box-sizing: border-box;
+  width: min(560px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-editorWidget-border, var(--ngg-neutral-border));
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background, oklch(22% 0 0)));
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  box-shadow: var(--vscode-widget-shadow, 0 2px 8px oklch(0% 0 0 / 0.36));
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+.blame-popover[hidden],
+.blame-context-menu[hidden] { display: none; }
+.blame-popover:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
+.blame-popover-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.blame-popover-avatar {
+  flex: none;
+  width: 27px;
+  height: 27px;
+  border-radius: 4px;
+}
+.blame-popover-avatar[hidden] { display: none; }
+.blame-popover-subject {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+.blame-popover-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: var(--ngg-transparent);
+  color: inherit;
+  cursor: pointer;
+}
+.blame-popover-close .octicon { width: 14px; height: 14px; }
+.blame-popover-close:hover {
+  background: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle));
+}
+.blame-popover-close:focus-visible,
+.blame-popover-action:focus-visible,
+.blame-context-menu-button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
+.blame-popover-meta { margin-top: 8px; }
+.blame-popover-meta-row {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+}
+.blame-popover-meta-label {
+  flex: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.blame-popover-hash {
+  font-family: var(--vscode-editor-font-family, monospace);
+  overflow-wrap: anywhere;
+}
+.blame-popover-date-full { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.blame-popover a { color: var(--vscode-textLink-foreground, var(--ngg-accent)); }
+.blame-popover-body {
+  margin-top: 10px;
+  white-space: normal;
+}
+.blame-popover-body.blame-popover-error { color: var(--vscode-errorForeground, var(--ngg-error)); }
+.blame-popover-explanation { margin: 8px 0 0; }
+.blame-popover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+.blame-popover-action {
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 3px 10px;
+  border-radius: 2px;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--vscode-button-secondaryForeground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  background: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-muted));
+  border: 1px solid var(--vscode-button-border, var(--ngg-neutral-border));
+}
+.blame-popover-action:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--ngg-neutral-overlay-medium));
+}
+.blame-context-menu {
+  position: fixed;
+  z-index: 51;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border-radius: 5px;
+  border: 1px solid var(--vscode-menu-border, var(--ngg-neutral-border));
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background, oklch(22% 0 0)));
+  color: var(--vscode-menu-foreground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  box-shadow: var(--vscode-widget-shadow, 0 2px 8px oklch(0% 0 0 / 0.36));
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+.blame-context-menu-button {
+  display: block;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--ngg-transparent);
+  color: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.blame-context-menu-button:hover,
+.blame-context-menu-button:focus-visible {
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground, var(--ngg-accent)));
+  color: var(--vscode-menu-selectionForeground, var(--vscode-list-activeSelectionForeground, var(--ngg-accent-foreground)));
+}
+@media (forced-colors: active) {
+  .blame-popover,
+  .blame-context-menu { border: 1px solid CanvasText; }
+  .blame-popover-action,
+  .blame-popover-close { border: 1px solid CanvasText; }
+  .blame-context-menu-button:focus-visible { outline: 2px solid Highlight; }
+}

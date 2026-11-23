@@ -945,5 +945,14 @@
   "blame.findCount": "{0} / {1}",
   "blame.findPrev": "上一个匹配项",
   "blame.findNext": "下一个匹配项",
-  "blame.findClose": "关闭查找"
+  "blame.findClose": "关闭查找",
+  "blame.showCommitDetails": "显示提交详情",
+  "blame.popoverClose": "关闭提交详情",
+  "blame.popoverLoadError": "无法加载提交详情：{0}",
+  "blame.showCommitInGraph": "在图中显示提交",
+  "blame.ignoreCommitSession": "忽略提交（本次会话）",
+  "blame.copyCommitMessage": "将提交消息复制到剪贴板",
+  "blame.openFileAtLine": "在指定行打开文件",
+  "blame.viewBlameAtHead": "查看 HEAD 的 Blame",
+  "blame.uncommittedExplanation": "这些行包含尚未提交的本地更改。"
 }

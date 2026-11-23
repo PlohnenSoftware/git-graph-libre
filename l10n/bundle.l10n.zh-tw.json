@@ -945,5 +945,14 @@
   "blame.findCount": "{0} / {1}",
   "blame.findPrev": "上一個相符項目",
   "blame.findNext": "下一個相符項目",
-  "blame.findClose": "關閉尋找"
+  "blame.findClose": "關閉尋找",
+  "blame.showCommitDetails": "顯示提交詳細資料",
+  "blame.popoverClose": "關閉提交詳細資料",
+  "blame.popoverLoadError": "無法載入提交詳細資料：{0}",
+  "blame.showCommitInGraph": "在圖中顯示提交",
+  "blame.ignoreCommitSession": "忽略提交（本次工作階段）",
+  "blame.copyCommitMessage": "將提交訊息複製到剪貼簿",
+  "blame.openFileAtLine": "在指定行開啟檔案",
+  "blame.viewBlameAtHead": "檢視 HEAD 的 Blame",
+  "blame.uncommittedExplanation": "這些行包含尚未提交的本機變更。"
 }

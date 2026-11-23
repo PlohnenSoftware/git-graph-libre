@@ -945,5 +945,14 @@
   "blame.findCount": "{0} / {1}",
   "blame.findPrev": "Previous match",
   "blame.findNext": "Next match",
-  "blame.findClose": "Close find"
+  "blame.findClose": "Close find",
+  "blame.showCommitDetails": "Show commit details",
+  "blame.popoverClose": "Close commit details",
+  "blame.popoverLoadError": "Unable to load the commit details: {0}",
+  "blame.showCommitInGraph": "Show Commit in Graph",
+  "blame.ignoreCommitSession": "Ignore Commit (This Session)",
+  "blame.copyCommitMessage": "Copy Commit Message to Clipboard",
+  "blame.openFileAtLine": "Open File at Line",
+  "blame.viewBlameAtHead": "View Blame at HEAD",
+  "blame.uncommittedExplanation": "These lines contain local changes that have not been committed yet."
 }
