@@ -78,6 +78,7 @@ import type { GitClient } from "@/backend/gitClient";
 import { branchPushDefaults } from "@/backend/queries/branchPushDefaults";
 import { commitSignatures } from "@/backend/queries/commitSignatures";
 import { loadBranches } from "@/backend/queries/loadBranches";
+import { loadRebaseRange } from "@/backend/queries/rebaseRange";
 import { remoteTags } from "@/backend/queries/remoteTags";
 import { resolveRef } from "@/backend/queries/resolveRef";
 import { tagDetails } from "@/backend/queries/tagDetails";
@@ -1250,6 +1251,19 @@ export function registerMessageHandlers(
       ...(await branchPushDefaults(gitClient.getInstance(), {
         repo: msg.repo,
         branch: msg.branch,
+        recordGitCommand
+      }))
+    });
+  });
+
+  bridge.onMessage("rebaseRange", async (msg) => {
+    bridge.post({
+      command: "rebaseRange",
+      requestId: msg.requestId,
+      repo: msg.repo,
+      ...(await loadRebaseRange(gitClient.getInstance(), {
+        repo: msg.repo,
+        base: msg.base,
         recordGitCommand
       }))
     });
