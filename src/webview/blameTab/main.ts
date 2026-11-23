@@ -5,6 +5,7 @@ import {
   applyData,
   applyHotspotMode,
   applyLoading,
+  applyRepoChanged,
   type BlameViewState,
   initialBlameState,
   normalizeHotspotMode
@@ -67,7 +68,10 @@ const view = createBlameView(root, {
     state = applyHotspotMode(state, mode);
     persist();
     view.render(state);
-  }
+  },
+  onBlameHead: () => host.postMessage({ command: "blameHead" }),
+  onBlameLatest: () => host.postMessage({ command: "blameLatest" }),
+  onOpenFile: () => host.postMessage({ command: "openFile" })
 });
 
 window.addEventListener("message", (event: MessageEvent<unknown>) => {
@@ -81,6 +85,12 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
   } else if (message?.command === "blameData") {
     state = seedGutterWidth(
       applyData(state, message as Extract<BlameHostMessage, { command: "blameData" }>)
+    );
+    view.render(state);
+  } else if (message?.command === "blameRepoChanged") {
+    state = applyRepoChanged(
+      state,
+      message as Extract<BlameHostMessage, { command: "blameRepoChanged" }>
     );
     view.render(state);
   }

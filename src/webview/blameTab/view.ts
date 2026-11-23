@@ -2,7 +2,7 @@ import type { GitBlameCommit } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
 import type { BlameHotspotMode } from "@/blameHotspot";
 import type { BlameHunkView, BlameLabels } from "@/blameTabTypes";
-
+import { worktreeFolderName } from "../utils/git";
 import { clampGutterWidth, DEFAULT_GUTTER_WIDTH, resizeGutterWidth } from "./columnResize";
 import { type BlameViewState, commitDate, heatAttribute, normalizeHotspotMode } from "./rowModel";
 
@@ -11,6 +11,12 @@ export type BlameViewCallbacks = {
   onGutterWidthChange?: (width: number) => void;
   /** The user picked a hotspot mode in the header; the caller keeps it and re-renders. */
   onHotspotModeChange?: (mode: BlameHotspotMode) => void;
+  /** The user clicked "Blame HEAD" from an unsaved dirty editor buffer (BQ6). */
+  onBlameHead?: () => void;
+  /** The user clicked "View latest" after the repository changed on a pinned commit. */
+  onBlameLatest?: () => void;
+  /** The user clicked "Open File" from an untracked or unborn notice state. */
+  onOpenFile?: () => void;
 };
 
 /** The ten heat steps, coldest first: the legend draws one swatch for each. */
@@ -83,11 +89,27 @@ function element<K extends keyof HTMLElementTagNameMap>(
 }
 
 function folderName(repo: string): string {
-  return repo.split("/").at(-1) || repo;
+  return worktreeFolderName(repo);
 }
 
-/** The revision badge's text and hover: the short hash, the asked revision, or the working tree. */
+function actionButton(className: string, label: string, onClick?: () => void): HTMLButtonElement {
+  const button = element("button", `blame-action-btn ${className}`, label);
+  button.type = "button";
+  button.addEventListener("click", () => onClick?.());
+  return button;
+}
+
+/** The revision badge's text and hover: unsaved buffer, short hash, asked revision, or working tree. */
 function revBadge(state: BlameViewState, labels: BlameLabels): { value: string; title: string } {
+  if (state.unsavedBuffer) {
+    return {
+      value: labels.unsavedBuffer,
+      title:
+        state.resolvedRev !== null
+          ? `${labels.unsavedBuffer} (${state.resolvedRev})`
+          : labels.unsavedBuffer
+    };
+  }
   if (state.resolvedRev !== null) {
     return {
       value: abbrevCommit(state.resolvedRev, state.display.shortHashLength),
@@ -98,6 +120,20 @@ function revBadge(state: BlameViewState, labels: BlameLabels): { value: string; 
   return { value: labels.workingTree, title: labels.workingTree };
 }
 
+function repoBadge(state: BlameViewState, labels: BlameLabels): HTMLElement | null {
+  if (state.repoMeta.linkedWorktree) {
+    const badge = element("span", "blame-worktree-badge", labels.worktree);
+    badge.title = state.repo;
+    return badge;
+  }
+  if (state.repoMeta.bare) {
+    const badge = element("span", "blame-bare-badge", labels.bare);
+    badge.title = state.repo;
+    return badge;
+  }
+  return null;
+}
+
 function header(
   state: BlameViewState,
   labels: BlameLabels,
@@ -106,17 +142,37 @@ function header(
   const bar = element("header", "blame-header");
   const repo = element("span", "blame-repo", folderName(state.repo));
   repo.title = state.repo;
+  bar.append(repo);
+  const kindBadge = repoBadge(state, labels);
+  if (kindBadge !== null) bar.append(kindBadge);
   const path = element("span", "blame-path", state.filePath);
   path.title = state.filePath;
   const badge = revBadge(state, labels);
-  const rev = element("span", "blame-rev", badge.value);
+  const rev = element(
+    "span",
+    state.unsavedBuffer ? "blame-rev blame-unsaved-pill" : "blame-rev",
+    badge.value
+  );
   rev.title = badge.title;
   const count = element(
     "span",
     "blame-line-count",
     labels.lineCount.replace("{0}", state.totalLines.toLocaleString(state.locale))
   );
-  bar.append(repo, path, rev, count);
+  bar.append(path, rev);
+  if (state.unsavedBuffer) {
+    bar.append(actionButton("blame-head-btn", labels.blameHead, callbacks.onBlameHead));
+  }
+  if (state.repoChanged) {
+    const notice = element("span", "blame-repo-changed");
+    notice.setAttribute("role", "status");
+    notice.append(
+      element("span", "blame-repo-changed-text", labels.repoChanged),
+      actionButton("blame-latest-btn", labels.viewLatest, callbacks.onBlameLatest)
+    );
+    bar.append(notice);
+  }
+  bar.append(count);
   if (state.blameState === "lines") bar.append(heatControls(state, labels, callbacks));
   return bar;
 }
@@ -127,8 +183,27 @@ function messageBlock(className: string, text: string, role?: string): HTMLEleme
   return block;
 }
 
+function noticeWithOpenFile(
+  className: string,
+  text: string,
+  state: BlameViewState,
+  labels: BlameLabels,
+  callbacks: BlameViewCallbacks
+): HTMLElement {
+  const notice = element("div", "blame-state-notice");
+  notice.append(messageBlock(className, text));
+  if (!state.repoMeta.bare) {
+    notice.append(actionButton("blame-open-file-btn", labels.openFile, callbacks.onOpenFile));
+  }
+  return notice;
+}
+
 /** The word for a non-line state, each one distinct from an error. */
-function stateBlock(state: BlameViewState, labels: BlameLabels): HTMLElement | null {
+function stateBlock(
+  state: BlameViewState,
+  labels: BlameLabels,
+  callbacks: BlameViewCallbacks
+): HTMLElement | null {
   switch (state.blameState) {
     case "empty":
       return messageBlock("blame-message blame-empty", labels.empty);
@@ -137,9 +212,23 @@ function stateBlock(state: BlameViewState, labels: BlameLabels): HTMLElement | n
     case "tooLarge":
       return messageBlock("blame-message blame-too-large", labels.tooLarge);
     case "untracked":
-      return messageBlock("blame-message blame-untracked", labels.untracked);
+      return noticeWithOpenFile(
+        "blame-message blame-untracked",
+        labels.untracked,
+        state,
+        labels,
+        callbacks
+      );
     case "unborn":
-      return messageBlock("blame-message blame-unborn", labels.unborn);
+      return noticeWithOpenFile(
+        "blame-message blame-unborn",
+        labels.unborn,
+        state,
+        labels,
+        callbacks
+      );
+    case "bareWorkingTree":
+      return messageBlock("blame-message blame-bare-working-tree", labels.bareWorkingTree);
     default:
       return null;
   }
@@ -299,28 +388,113 @@ function bindSameCommitHighlight(body: HTMLElement): void {
   body.addEventListener("mouseleave", () => mark(null));
 }
 
+function sameHunk(prev: BlameHunkView, next: BlameHunkView): boolean {
+  if (
+    prev.commitHash !== next.commitHash ||
+    prev.startLine !== next.startLine ||
+    prev.lineCount !== next.lineCount ||
+    prev.heat.level !== next.heat.level ||
+    prev.heat.uncommitted !== next.heat.uncommitted
+  ) {
+    return false;
+  }
+  for (let index = 0; index < prev.lines.length; index += 1) {
+    if (
+      prev.lines[index].finalLine !== next.lines[index].finalLine ||
+      prev.lines[index].content !== next.lines[index].content
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function sameRenderedMeta(prev: BlameViewState, next: BlameViewState): boolean {
+  return (
+    prev.loading === next.loading &&
+    prev.error === next.error &&
+    prev.blameState === "lines" &&
+    next.blameState === "lines" &&
+    prev.repo === next.repo &&
+    prev.filePath === next.filePath &&
+    prev.rev === next.rev &&
+    prev.targetLine === next.targetLine &&
+    prev.locale === next.locale &&
+    prev.hotspotMode === next.hotspotMode &&
+    prev.gutterWidth === next.gutterWidth &&
+    prev.display.shortHashLength === next.display.shortHashLength &&
+    prev.display.dateFormat === next.display.dateFormat &&
+    prev.display.dateFormat !== "Relative" &&
+    prev.totalLines === next.totalLines &&
+    prev.hunks.length === next.hunks.length
+  );
+}
+
+/** True when a live refresh produced the exact same hunk DOM as what is already on screen. */
+function sameRenderedBody(prev: BlameViewState | null, next: BlameViewState): boolean {
+  if (prev === null || !sameRenderedMeta(prev, next)) return false;
+  for (let index = 0; index < prev.hunks.length; index += 1) {
+    const prevHunk = prev.hunks[index];
+    const nextHunk = next.hunks[index];
+    if (!sameHunk(prevHunk, nextHunk)) return false;
+    if (prev.commits[prevHunk.commitHash]?.summary !== next.commits[nextHunk.commitHash]?.summary) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
  * Draws the tab from its state: a sticky header naming the repository,
  * the file, its revision and its line count, then the loading word, one
  * of the distinct non-line states, an error of its own, or the grouped
- * hunks. After drawing lines, the target line is scrolled into view.
+ * hunks. On an initial open, the target line is scrolled into view; on a
+ * live refresh, the scroll position is preserved without resetting an
+ * unchanged body DOM.
  */
 export function createBlameView(root: HTMLElement, callbacks: BlameViewCallbacks) {
   root.classList.add("ggl-blame");
+  let renderedState: BlameViewState | null = null;
+  let renderedScroll: HTMLElement | null = null;
+
   return {
     render(state: BlameViewState, now: Date = new Date()): void {
       const { labels } = state;
       if (labels === null) {
+        renderedState = null;
+        renderedScroll = null;
         root.replaceChildren();
         return;
       }
       root.style.setProperty("--blame-font-size", `${state.typography.fontSize}px`);
       root.style.setProperty("--blame-line-height", `${state.typography.lineHeight}px`);
       root.style.setProperty("tab-size", `${state.typography.tabSize}`);
-      const children: HTMLElement[] = [header(state, labels, callbacks)];
+      const nextHeader = header(state, labels, callbacks);
+
+      if (
+        state.preserveScroll &&
+        renderedScroll !== null &&
+        renderedScroll.parentElement === root &&
+        sameRenderedBody(renderedState, state)
+      ) {
+        const currentHeader = root.querySelector("header.blame-header");
+        if (currentHeader !== null) currentHeader.replaceWith(nextHeader);
+        else root.prepend(nextHeader);
+        renderedState = state;
+        return;
+      }
+
+      const savedScroll =
+        state.preserveScroll && renderedScroll !== null && renderedScroll.parentElement === root
+          ? { top: renderedScroll.scrollTop, left: renderedScroll.scrollLeft }
+          : null;
+
+      const children: HTMLElement[] = [nextHeader];
       if (state.loading) {
+        renderedScroll = null;
         children.push(messageBlock("blame-message blame-loading", labels.loading, "status"));
       } else if (state.error !== null) {
+        renderedScroll = null;
         children.push(
           messageBlock(
             "blame-message blame-error",
@@ -329,13 +503,24 @@ export function createBlameView(root: HTMLElement, callbacks: BlameViewCallbacks
           )
         );
       } else if (state.blameState === "lines") {
-        children.push(bodyElement(state, labels, now, callbacks));
+        renderedScroll = bodyElement(state, labels, now, callbacks);
+        children.push(renderedScroll);
       } else {
-        const block = stateBlock(state, labels);
+        renderedScroll = null;
+        const block = stateBlock(state, labels, callbacks);
         if (block !== null) children.push(block);
       }
       root.replaceChildren(...children);
-      if (state.blameState === "lines" && state.targetLine !== null) {
+      renderedState = state;
+
+      if (state.preserveScroll && savedScroll !== null && renderedScroll !== null) {
+        renderedScroll.scrollTop = savedScroll.top;
+        renderedScroll.scrollLeft = savedScroll.left;
+      } else if (
+        !state.preserveScroll &&
+        state.blameState === "lines" &&
+        state.targetLine !== null
+      ) {
         const target = root.querySelector<HTMLElement>(
           `.blame-line[data-line="${state.targetLine}"]`
         );

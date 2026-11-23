@@ -177,7 +177,61 @@
 .ggl-blame .blame-binary,
 .ggl-blame .blame-too-large,
 .ggl-blame .blame-untracked,
-.ggl-blame .blame-unborn { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.ggl-blame .blame-unborn,
+.ggl-blame .blame-bare-working-tree { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.ggl-blame .blame-state-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px 12px;
+}
+.ggl-blame .blame-state-notice > p.blame-message { padding: 0; }
+.ggl-blame .blame-worktree-badge,
+.ggl-blame .blame-bare-badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+  background: color-mix(in oklab, var(--vscode-badge-background, var(--ngg-accent)) 14%, var(--ngg-transparent));
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+}
+.ggl-blame .blame-unsaved-pill {
+  background: color-mix(in oklab, var(--vscode-editorWarning-foreground, var(--ngg-warning)) 20%, var(--ngg-transparent));
+  color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
+  border: 1px solid color-mix(in oklab, var(--vscode-editorWarning-foreground, var(--ngg-warning)) 45%, var(--ngg-transparent));
+}
+.ggl-blame .blame-repo-changed {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+}
+.ggl-blame .blame-action-btn {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--vscode-button-secondaryForeground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  background: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-muted));
+  border: 1px solid var(--vscode-button-border, var(--ngg-neutral-border));
+}
+.ggl-blame .blame-action-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--ngg-neutral-overlay-medium));
+}
+.ggl-blame .blame-action-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
 .ggl-blame ::-webkit-scrollbar { width: 14px; height: 14px; background: var(--vscode-editor-background, oklch(20% 0 0)); }
 .ggl-blame ::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background, oklch(60% 0 0 / 0.4)); }
 .ggl-blame ::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground, oklch(60% 0 0 / 0.6)); }
@@ -238,6 +292,10 @@
   .ggl-blame .blame-hunk:focus-visible { outline: 2px solid Highlight; }
   .ggl-blame .blame-heat-swatch { border: 1px solid CanvasText; }
   .ggl-blame .blame-heat-select { border: 1px solid CanvasText; }
+  .ggl-blame .blame-worktree-badge,
+  .ggl-blame .blame-bare-badge,
+  .ggl-blame .blame-unsaved-pill,
+  .ggl-blame .blame-action-btn { border: 1px solid CanvasText; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ggl-blame .blame-hunk::after { transition: none; }
