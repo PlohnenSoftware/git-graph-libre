@@ -880,5 +880,13 @@
   "blame.lineCount": "{0} 行",
   "blame.resizeGutter": "調整 blame 邊欄大小",
   "command.showBlame.noEditor": "請先在 Git 儲存庫中開啟一個檔案，然後顯示其 blame。",
-  "command.showBlame.noRepo": "作用中的編輯器不在 Git 儲存庫中。"
+  "command.showBlame.noRepo": "作用中的編輯器不在 Git 儲存庫中。",
+  "blame.heatMode": "熱點模式",
+  "blame.heatLegend": "熱度範圍，從較舊到較新",
+  "blame.heatOlder": "較舊",
+  "blame.heatNewer": "較新",
+  "blame.heatAge": "年齡",
+  "blame.heatCalendar": "日曆",
+  "blame.heatChurn": "變動頻率",
+  "blame.heatOff": "關閉"
 }

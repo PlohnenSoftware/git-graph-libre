@@ -1,4 +1,5 @@
 import type { GitBlameCommit, GitBlameState } from "@/backend/types";
+import { type BlameHotspotMode, scoreBlameHunks } from "@/blameHotspot";
 import type {
   BlameDataMessage,
   BlameDisplay,
@@ -8,6 +9,8 @@ import type {
   BlameTypography
 } from "@/blameTabTypes";
 import { formatRelativeDate, pad2 } from "@/webview/utils/date";
+
+const HOTSPOT_MODES: readonly BlameHotspotMode[] = ["age", "calendar", "churn", "off"];
 
 /**
  * Everything the Blame tab draws, as one value the messages update. The
@@ -45,7 +48,50 @@ export type BlameViewState = {
    * saved webview state, the way the reflog tab keeps its widths.
    */
   gutterWidth: number | null;
+  /**
+   * The hotspot mode the heat is drawn with. The user picks it in the
+   * header; it is saved in the webview state and every hunk's heat is
+   * recomputed from it here, never by a new `git blame`.
+   */
+  hotspotMode: BlameHotspotMode;
 };
+
+/** The saved hotspot mode, or `age` (the default) for anything unknown. */
+export function normalizeHotspotMode(value: unknown): BlameHotspotMode {
+  return HOTSPOT_MODES.find((mode) => mode === value) ?? "age";
+}
+
+/** Whole seconds since the epoch, the clock the calendar mode ages against. */
+function nowInSeconds(): number {
+  return Math.floor(Date.now() / 1000);
+}
+
+/**
+ * Hunks with their heat recomputed for `mode` by the shared scoring model
+ * (`src/blameHotspot.ts`). Every field but `heat` is kept as it arrived.
+ */
+export function scoreHunks(
+  hunks: readonly BlameHunkView[],
+  commits: Record<string, GitBlameCommit>,
+  mode: BlameHotspotMode,
+  nowSeconds: number
+): BlameHunkView[] {
+  const heats = scoreBlameHunks(hunks, commits, mode, nowSeconds);
+  return hunks.map((hunk, index) => ({ ...hunk, heat: heats[index] }));
+}
+
+/** The user chose a hotspot mode: the same hunks, re-scored. No host round-trip. */
+export function applyHotspotMode(
+  state: BlameViewState,
+  mode: BlameHotspotMode,
+  nowSeconds: number = nowInSeconds()
+): BlameViewState {
+  return {
+    ...state,
+    hotspotMode: mode,
+    hunks: scoreHunks(state.hunks, state.commits, mode, nowSeconds)
+  };
+}
 
 /**
  * The display settings before the first message lands: the manifest
@@ -67,7 +113,7 @@ export function defaultBlameTypography(): BlameTypography {
   return { fontSize: 14, lineHeight: 21, tabSize: 4 };
 }
 
-export function initialBlameState(): BlameViewState {
+export function initialBlameState(hotspotMode: BlameHotspotMode = "age"): BlameViewState {
   return {
     loading: true,
     requestId: 0,
@@ -85,7 +131,8 @@ export function initialBlameState(): BlameViewState {
     resolvedRev: null,
     totalLines: 0,
     error: null,
-    gutterWidth: null
+    gutterWidth: null,
+    hotspotMode
   };
 }
 
@@ -127,7 +174,11 @@ export function applyLoading(state: BlameViewState, message: BlameLoadingMessage
 }
 
 /** One blame landed. Stale replies are dropped. */
-export function applyData(state: BlameViewState, message: BlameDataMessage): BlameViewState {
+export function applyData(
+  state: BlameViewState,
+  message: BlameDataMessage,
+  nowSeconds: number = nowInSeconds()
+): BlameViewState {
   if (message.requestId < state.requestId) return state;
   const { payload } = message;
   return {
@@ -142,14 +193,17 @@ export function applyData(state: BlameViewState, message: BlameDataMessage): Bla
     display: message.display,
     typography: message.typography,
     commits: payload.commits,
-    hunks: payload.hunks,
+    // The host scores with `age`; the saved mode wins, so the drawn heat
+    // is the one the user chose.
+    hunks: scoreHunks(payload.hunks, payload.commits, state.hotspotMode, nowSeconds),
     blameState: payload.state,
     resolvedRev: payload.resolvedRev,
     totalLines: payload.totalLines,
     error: payload.error,
     // Same per-repository rule as a load start, for a page that lands
     // without one (a replayed page after a document rebuild).
-    gutterWidth: message.repo === state.repo ? state.gutterWidth : null
+    gutterWidth: message.repo === state.repo ? state.gutterWidth : null,
+    hotspotMode: state.hotspotMode
   };
 }
 

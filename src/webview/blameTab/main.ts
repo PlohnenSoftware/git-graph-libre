@@ -1,7 +1,14 @@
 import type { BlameHostMessage, BlameWebviewMessage } from "@/blameTabTypes";
 
 import { normalizeGutterWidth } from "./columnResize";
-import { applyData, applyLoading, type BlameViewState, initialBlameState } from "./rowModel";
+import {
+  applyData,
+  applyHotspotMode,
+  applyLoading,
+  type BlameViewState,
+  initialBlameState,
+  normalizeHotspotMode
+} from "./rowModel";
 import { createBlameView } from "./view";
 
 // The global declaration types the graph's messages; this tab has its own.
@@ -11,7 +18,16 @@ const host = acquireVsCodeApi() as unknown as {
   setState(state: unknown): void;
 };
 const root = document.getElementById("blameTab") ?? document.body;
-let state = initialBlameState();
+
+/**
+ * The webview's saved state: the gutter width per repository, and the
+ * hotspot mode the user last chose. Both survive a reload or restore.
+ */
+const saved = host.getState() as {
+  gutterWidthByRepo?: Record<string, unknown>;
+  hotspotMode?: unknown;
+} | null;
+let state = initialBlameState(normalizeHotspotMode(saved?.hotspotMode));
 
 /**
  * The gutter width the user dragged, per repository like the graph's
@@ -21,10 +37,17 @@ let state = initialBlameState();
  * pattern — which survives the document being reloaded or restored.
  */
 const widthByRepo = new Map<string, number>();
-const saved = host.getState() as { gutterWidthByRepo?: Record<string, unknown> } | null;
 for (const [repo, raw] of Object.entries(saved?.gutterWidthByRepo ?? {})) {
   const width = normalizeGutterWidth(raw);
   if (width !== null) widthByRepo.set(repo, width);
+}
+
+/** Writes both saved values; each save keeps the other as it is. */
+function persist(): void {
+  host.setState({
+    gutterWidthByRepo: Object.fromEntries(widthByRepo),
+    hotspotMode: state.hotspotMode
+  });
 }
 
 /** A fresh state for a repository picks up its saved gutter width, if any. */
@@ -38,7 +61,12 @@ const view = createBlameView(root, {
   onGutterWidthChange: (gutterWidth) => {
     state = { ...state, gutterWidth };
     widthByRepo.set(state.repo, gutterWidth);
-    host.setState({ gutterWidthByRepo: Object.fromEntries(widthByRepo) });
+    persist();
+  },
+  onHotspotModeChange: (mode) => {
+    state = applyHotspotMode(state, mode);
+    persist();
+    view.render(state);
   }
 });
 

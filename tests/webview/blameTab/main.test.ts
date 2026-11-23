@@ -67,7 +67,10 @@ describe("blame tab webview", () => {
     body.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 160 }));
     body.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
     // The default 280 plus the 60px drag.
-    expect(first.savedState()).toEqual({ gutterWidthByRepo: { "/repos/one": 340 } });
+    expect(first.savedState()).toEqual({
+      gutterWidthByRepo: { "/repos/one": 340 },
+      hotspotMode: "age"
+    });
     expect(first.root.querySelectorAll(".blame-line")).toHaveLength(4);
 
     const second = await start(first.savedState());

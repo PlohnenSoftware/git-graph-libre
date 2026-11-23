@@ -24,7 +24,15 @@ export const LABELS: BlameLabels = {
   lineCount: "{0} lines",
   resizeGutter: "Resize blame gutter",
   columnCommit: "Commit",
-  columnDate: "Date"
+  columnDate: "Date",
+  heatMode: "Hotspot mode",
+  heatLegend: "Heat scale, from older to newer",
+  heatOlder: "Older",
+  heatNewer: "Newer",
+  heatAge: "Age",
+  heatCalendar: "Calendar",
+  heatChurn: "Churn",
+  heatOff: "Off"
 };
 
 /** The graph display settings at their English defaults. */

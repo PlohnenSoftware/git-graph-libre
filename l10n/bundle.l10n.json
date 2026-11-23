@@ -880,5 +880,13 @@
   "blame.lineCount": "{0} lines",
   "blame.resizeGutter": "Resize blame gutter",
   "command.showBlame.noEditor": "Open a file inside a Git repository first, then show its blame.",
-  "command.showBlame.noRepo": "The active editor is not inside a Git repository."
+  "command.showBlame.noRepo": "The active editor is not inside a Git repository.",
+  "blame.heatMode": "Hotspot mode",
+  "blame.heatLegend": "Heat scale, from older to newer",
+  "blame.heatOlder": "Older",
+  "blame.heatNewer": "Newer",
+  "blame.heatAge": "Age",
+  "blame.heatCalendar": "Calendar",
+  "blame.heatChurn": "Churn",
+  "blame.heatOff": "Off"
 }

@@ -880,5 +880,13 @@
   "blame.lineCount": "{0} regels",
   "blame.resizeGutter": "Blamegoot vergroten of verkleinen",
   "command.showBlame.noEditor": "Open eerst een bestand in een Git-repository en geef daarna de blame weer.",
-  "command.showBlame.noRepo": "De actieve editor bevindt zich niet in een Git-repository."
+  "command.showBlame.noRepo": "De actieve editor bevindt zich niet in een Git-repository.",
+  "blame.heatMode": "Hotspotmodus",
+  "blame.heatLegend": "Warmteschaal, van ouder naar nieuwer",
+  "blame.heatOlder": "Ouder",
+  "blame.heatNewer": "Nieuwer",
+  "blame.heatAge": "Leeftijd",
+  "blame.heatCalendar": "Kalender",
+  "blame.heatChurn": "Frequentie",
+  "blame.heatOff": "Uit"
 }

@@ -1,14 +1,75 @@
 import type { GitBlameCommit } from "@/backend/types";
 import { abbrevCommit } from "@/backend/utils/string";
+import type { BlameHotspotMode } from "@/blameHotspot";
 import type { BlameHunkView, BlameLabels } from "@/blameTabTypes";
 
 import { clampGutterWidth, DEFAULT_GUTTER_WIDTH, resizeGutterWidth } from "./columnResize";
-import { type BlameViewState, commitDate, heatAttribute } from "./rowModel";
+import { type BlameViewState, commitDate, heatAttribute, normalizeHotspotMode } from "./rowModel";
 
 export type BlameViewCallbacks = {
   /** A gutter drag ended with this width; the caller keeps it per repo. */
   onGutterWidthChange?: (width: number) => void;
+  /** The user picked a hotspot mode in the header; the caller keeps it and re-renders. */
+  onHotspotModeChange?: (mode: BlameHotspotMode) => void;
 };
+
+/** The ten heat steps, coldest first: the legend draws one swatch for each. */
+const HEAT_STEPS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
+
+/** The selector's order, the way the header lists the modes. */
+const HOTSPOT_MODE_ORDER: readonly BlameHotspotMode[] = ["age", "calendar", "churn", "off"];
+
+function modeLabel(mode: BlameHotspotMode, labels: BlameLabels): string {
+  switch (mode) {
+    case "calendar":
+      return labels.heatCalendar;
+    case "churn":
+      return labels.heatChurn;
+    case "off":
+      return labels.heatOff;
+    default:
+      return labels.heatAge;
+  }
+}
+
+/**
+ * The heat legend and the mode selector, shown beside the header's
+ * revision badge once lines are on screen. The swatches reuse the
+ * `--ngg-blame-heat-N` tokens through `.blame-heat-swatch-N`; "Off"
+ * draws no scale, only the selector that brings it back.
+ */
+function heatControls(
+  state: BlameViewState,
+  labels: BlameLabels,
+  callbacks: BlameViewCallbacks
+): HTMLElement {
+  const group = element("div", "blame-heat");
+  group.setAttribute("role", "group");
+  group.setAttribute("aria-label", labels.heatLegend);
+  if (state.hotspotMode !== "off") {
+    group.append(element("span", "blame-heat-end", labels.heatOlder));
+    const scale = element("span", "blame-heat-scale");
+    scale.setAttribute("aria-hidden", "true");
+    for (const step of HEAT_STEPS) {
+      scale.append(element("span", `blame-heat-swatch blame-heat-swatch-${step}`));
+    }
+    group.append(scale, element("span", "blame-heat-end", labels.heatNewer));
+  }
+  const select = element("select", "blame-heat-select");
+  select.setAttribute("aria-label", labels.heatMode);
+  select.title = labels.heatMode;
+  for (const mode of HOTSPOT_MODE_ORDER) {
+    const option = element("option", "", modeLabel(mode, labels));
+    option.value = mode;
+    option.selected = mode === state.hotspotMode;
+    select.append(option);
+  }
+  select.addEventListener("change", () => {
+    callbacks.onHotspotModeChange?.(normalizeHotspotMode(select.value));
+  });
+  group.append(select);
+  return group;
+}
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -37,7 +98,11 @@ function revBadge(state: BlameViewState, labels: BlameLabels): { value: string; 
   return { value: labels.workingTree, title: labels.workingTree };
 }
 
-function header(state: BlameViewState, labels: BlameLabels): HTMLElement {
+function header(
+  state: BlameViewState,
+  labels: BlameLabels,
+  callbacks: BlameViewCallbacks
+): HTMLElement {
   const bar = element("header", "blame-header");
   const repo = element("span", "blame-repo", folderName(state.repo));
   repo.title = state.repo;
@@ -52,6 +117,7 @@ function header(state: BlameViewState, labels: BlameLabels): HTMLElement {
     labels.lineCount.replace("{0}", state.totalLines.toLocaleString(state.locale))
   );
   bar.append(repo, path, rev, count);
+  if (state.blameState === "lines") bar.append(heatControls(state, labels, callbacks));
   return bar;
 }
 
@@ -138,6 +204,8 @@ function hunkElement(
   now: Date
 ): HTMLElement {
   const band = element("section", "blame-hunk");
+  // One keyboard stop per hunk: focusing it marks the commit's other hunks.
+  band.tabIndex = 0;
   band.dataset.commit = hunk.commitHash;
   band.dataset.heat = heatAttribute(hunk);
   band.dataset.startLine = String(hunk.startLine);
@@ -197,7 +265,38 @@ function bodyElement(
   });
   body.addEventListener("mouseup", stopDragging);
   body.addEventListener("mouseleave", stopDragging);
+  bindSameCommitHighlight(body);
   return scroll;
+}
+
+/**
+ * Hovering or keyboard-focusing a hunk marks every hunk in the file that
+ * names the same commit (`is-same-commit`), so a commit's footprint shows
+ * across non-adjacent lines. One marked commit at a time; leaving the body
+ * or the focused hunk clears it.
+ */
+function bindSameCommitHighlight(body: HTMLElement): void {
+  let marked: string | null = null;
+  const bandOf = (target: EventTarget | null): HTMLElement | null =>
+    target instanceof Element ? target.closest<HTMLElement>(".blame-hunk") : null;
+  const mark = (commitHash: string | null): void => {
+    if (commitHash === marked) return;
+    marked = commitHash;
+    for (const band of body.querySelectorAll<HTMLElement>(".blame-hunk")) {
+      band.classList.toggle(
+        "is-same-commit",
+        commitHash !== null && band.dataset.commit === commitHash
+      );
+    }
+  };
+  const enter = (event: Event) => mark(bandOf(event.target)?.dataset.commit ?? null);
+  body.addEventListener("mouseover", enter);
+  body.addEventListener("focusin", enter);
+  // Focus moving between two hunks re-marks on the new one's focusin.
+  body.addEventListener("focusout", (event) => {
+    if (bandOf(event.relatedTarget) === null) mark(null);
+  });
+  body.addEventListener("mouseleave", () => mark(null));
 }
 
 /**
@@ -218,7 +317,7 @@ export function createBlameView(root: HTMLElement, callbacks: BlameViewCallbacks
       root.style.setProperty("--blame-font-size", `${state.typography.fontSize}px`);
       root.style.setProperty("--blame-line-height", `${state.typography.lineHeight}px`);
       root.style.setProperty("tab-size", `${state.typography.tabSize}`);
-      const children: HTMLElement[] = [header(state, labels)];
+      const children: HTMLElement[] = [header(state, labels, callbacks)];
       if (state.loading) {
         children.push(messageBlock("blame-message blame-loading", labels.loading, "status"));
       } else if (state.error !== null) {

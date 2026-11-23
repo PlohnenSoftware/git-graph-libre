@@ -880,5 +880,13 @@
   "blame.lineCount": "{0} wierszy",
   "blame.resizeGutter": "Zmień szerokość guttera blame",
   "command.showBlame.noEditor": "Najpierw otwórz plik w repozytorium Git, a następnie pokaż jego blame.",
-  "command.showBlame.noRepo": "Aktywny edytor nie znajduje się w repozytorium Git."
+  "command.showBlame.noRepo": "Aktywny edytor nie znajduje się w repozytorium Git.",
+  "blame.heatMode": "Tryb gorących miejsc",
+  "blame.heatLegend": "Skala ciepła, od starszych do nowszych",
+  "blame.heatOlder": "Starsze",
+  "blame.heatNewer": "Nowsze",
+  "blame.heatAge": "Wiek",
+  "blame.heatCalendar": "Kalendarz",
+  "blame.heatChurn": "Częstotliwość",
+  "blame.heatOff": "Wyłączone"
 }

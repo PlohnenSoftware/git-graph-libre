@@ -880,5 +880,13 @@
   "blame.lineCount": "{0} 行",
   "blame.resizeGutter": "调整 blame 边栏大小",
   "command.showBlame.noEditor": "请先在 Git 仓库中打开一个文件，然后显示其 blame。",
-  "command.showBlame.noRepo": "活动编辑器不在 Git 仓库中。"
+  "command.showBlame.noRepo": "活动编辑器不在 Git 仓库中。",
+  "blame.heatMode": "热点模式",
+  "blame.heatLegend": "热度范围，从较旧到较新",
+  "blame.heatOlder": "较旧",
+  "blame.heatNewer": "较新",
+  "blame.heatAge": "年龄",
+  "blame.heatCalendar": "日历",
+  "blame.heatChurn": "变动频率",
+  "blame.heatOff": "关闭"
 }

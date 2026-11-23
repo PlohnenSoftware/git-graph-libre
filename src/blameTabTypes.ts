@@ -103,6 +103,22 @@ export type BlameLabels = {
   columnCommit: string;
   /** The graph's own `ui.date` word, shared with its Date column. */
   columnDate: string;
+  /** The accessible name of the hotspot mode selector. */
+  heatMode: string;
+  /** The accessible name of the heat scale legend. */
+  heatLegend: string;
+  /** The legend's word for the coldest, oldest end of the scale. */
+  heatOlder: string;
+  /** The legend's word for the hottest, newest end of the scale. */
+  heatNewer: string;
+  /** Hotspot mode: rank-quantile recency (the default). */
+  heatAge: string;
+  /** Hotspot mode: fixed calendar-age bands. */
+  heatCalendar: string;
+  /** Hotspot mode: how often a hunk's commit touches the file. */
+  heatChurn: string;
+  /** Hotspot mode: no heat fills. */
+  heatOff: string;
 };
 
 /** The target fields every host message echoes, so the webview knows what it shows. */

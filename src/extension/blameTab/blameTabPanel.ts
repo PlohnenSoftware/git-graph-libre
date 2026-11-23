@@ -258,6 +258,14 @@ function readLabels(): BlameLabels {
     lineCount: l10n.t("blame.lineCount"),
     resizeGutter: l10n.t("blame.resizeGutter"),
     columnCommit: l10n.t("ui.commit"),
-    columnDate: l10n.t("ui.date")
+    columnDate: l10n.t("ui.date"),
+    heatMode: l10n.t("blame.heatMode"),
+    heatLegend: l10n.t("blame.heatLegend"),
+    heatOlder: l10n.t("blame.heatOlder"),
+    heatNewer: l10n.t("blame.heatNewer"),
+    heatAge: l10n.t("blame.heatAge"),
+    heatCalendar: l10n.t("blame.heatCalendar"),
+    heatChurn: l10n.t("blame.heatChurn"),
+    heatOff: l10n.t("blame.heatOff")
   };
 }
