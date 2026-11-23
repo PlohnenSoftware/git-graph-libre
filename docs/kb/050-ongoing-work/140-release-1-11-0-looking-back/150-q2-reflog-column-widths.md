@@ -9,7 +9,7 @@ summary: >-
 
 # Q2 — Reflog table column widths, no horizontal scroll
 
-Status: ready — integrator follow-up below (narrow widths)
+Status: done — awaiting integration
 
 Needs: —
 
@@ -155,3 +155,21 @@ dark and light, at 1,560, 700 and 480 px, replacing the old 700 px ones,
 listed in a new "## Report (follow-up)" below this section. Also fix the
 stale `columnWidths` comment in `src/webview/reflogTab/rowModel.ts` you
 reported (one line; added to Touch by the integrator).
+
+## Report (follow-up)
+
+- **Agent / date:** Muse Code (Haiku 5.5 continuation of the quota-interrupted run), 2026-11-23.
+- **Commits on `rel-1.11.0/Q2`, all signed:**
+  - `f88d53ef G fix(reflog): fit Message to 200px before fixed columns shrink (Q2)`
+  - `4f3a9b35 G test(reflog): 700px fit keeps Message at 200px or more (Q2)`
+  - `fbff8882 G docs(reflog): columnWidths comment names the defaults, not sizing (Q2)`
+  - plus this report commit.
+- **Fit rule as implemented** (`fitColumnWidthsToContainer` in `columnResize.ts`, with `MESSAGE_MIN_WIDTH = 200`): a narrower container takes width in order: (1) Message down to 200 px; (2) the fixed columns, in proportion to their slack above `MIN_COLUMN_WIDTH`, clipping with an ellipsis; (3) Message below 200 px down to `MIN_COLUMN_WIDTH` only once every fixed column is at 40 px; then scaled as before if still too wide. A wider container reverses it: fixed columns grow back to the chosen widths while Message stays at 200 px, and only beyond that does Message grow. Explicit drags still take Message down to 40 px. The shrink flooring was changed from rounding so a fixed column never gives more than its share.
+- **Tests:** `columnResize.test.ts` 16 passed (step 1 to 4, growing back, 480/400/312 px cases). `view.test.ts` 36 passed (three view expectations that pinned the old fit now pin the new order; new test: from the defaults at 700 px, Message is at least 200 px and the table renders exactly 700 px). Full `pnpm run test`: backend 119 files, 1592 passed, 60 skipped (linked-worktree skips); webview 94 files, 1330 passed. `pnpm run typecheck` clean. Strict Biome clean on the touched `.ts` files (only the pre-existing schema-version info line). No new user-visible strings, so `l10n:check` did not apply.
+- **Renders** (`/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/Q2/`, from `out/reflogTab.min.js` built from this tree, measured in the page): `reflog-q2-dark-1560.png`, `reflog-q2-dark-700.png`, `reflog-q2-dark-480.png`, `reflog-q2-light-1560.png`, `reflog-q2-light-700.png`, `reflog-q2-light-480.png`. The old 700 px PNGs were replaced.
+  - 1560 px: Message 772 px, Index on one line, `scrollWidth == clientWidth` (1560).
+  - 700 px: Message 200 px, fixed columns 45/64/63/56/71/75 px with ellipsis in Action and Sub-action; messages wrap in readable multi-word lines; no horizontal scroll (686 = 686, the vertical scrollbar refitted). Index header on one line. Both themes.
+  - 480 px: Message 114 px, every fixed column at the 40 px minimum; Message wraps narrowly (about 3 to 4 words per line) and fixed headers ellipsize ("Acti…", "Sub-…", "Co…"). No horizontal scroll (466 = 466). This is the step-3 fallback the rule specifies, not a one-word-per-line case, but it is cramped; the integrator should judge whether 480 px is acceptable.
+- **Checks not run:** none skipped. `housekeeping.mjs --check` was not re-run after this report; the slice file is the only KB file touched in this follow-up.
+- **Deviations:** the `rowModel.ts` comment fix (one line, added to Touch by the integrator) is the only edit outside the follow-up's test and arithmetic files.
+
