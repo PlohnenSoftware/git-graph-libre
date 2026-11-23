@@ -6,6 +6,7 @@ import type {
   GitCommitSearchResult,
   GitCommitSignature,
   GitFileChange,
+  GitOperationStateResult,
   GitPushBranchMode,
   GitQueryError,
   GitRemote,
@@ -41,6 +42,7 @@ import { Dropdown, type DropdownOption } from "./dropdown";
 import { createFailureScreenReporter } from "./failureScreen";
 import { Graph, parentsBeyondPage } from "./graph";
 import { resolveGlobalShortcut } from "./keyboardShortcuts";
+import { renderRebaseBanner } from "./rebaseBanner";
 import { groupCommitRefs, parseRemoteBranchName } from "./refLabels";
 import { buildRepoOptions } from "./repoOptions";
 import {
@@ -503,6 +505,14 @@ class GitGraphView {
   private remoteTagsRequestId: number | null = null;
   /** A hard refresh keeps the shown snapshot and asks again; the reply replaces it. */
   private remoteTagsRevalidate = false;
+  /** The last operation-state answer, for `operationStateRepo` only; not persisted. */
+  private operationState: GitOperationStateResult | null = null;
+  private operationStateRepo = "";
+  private operationStateRequestId: number | null = null;
+  /** The banner rendering last published, so an unchanged answer skips the DOM. */
+  private rebaseBannerKey = "";
+  /** A banner control is running; its buttons stay disabled until it answers. */
+  private rebaseControlBusy = false;
   private gitStashes: GitStash[] = [];
   private gitConfig: GitRepoConfig = createEmptyGitConfig();
   private commits: GitCommitNode[] = [];
@@ -1257,6 +1267,83 @@ class GitGraphView {
     this.remoteTagsRevalidate = false;
     sendMessage({ command: "remoteTags", requestId, repo: this.currentRepo });
   }
+  /**
+   * Asks where an in-progress rebase in the shown repository stopped, on
+   * every refresh: the refreshes the watcher raises for the state directory
+   * itself are what shows and clears the banner for a rebase begun anywhere.
+   */
+  private requestOperationState() {
+    if (this.operationStateRepo !== this.currentRepo) {
+      this.operationStateRepo = this.currentRepo;
+      this.operationState = null;
+      this.operationStateRequestId = null;
+      this.rebaseControlBusy = false;
+      this.updateRebaseBanner();
+    }
+    if (this.currentRepo === "") return;
+    const requestId = this.createRequestId();
+    this.operationStateRequestId = requestId;
+    sendMessage({ command: "operationState", requestId, repo: this.currentRepo });
+  }
+  public loadOperationState(msg: Extract<GGL.ResponseMessage, { command: "operationState" }>) {
+    if (msg.repo !== this.currentRepo || msg.requestId !== this.operationStateRequestId) return;
+    this.operationStateRequestId = null;
+    this.operationState = {
+      kind: msg.kind,
+      rebase: msg.rebase,
+      conflictFiles: msg.conflictFiles,
+      error: msg.error
+    };
+    this.updateRebaseBanner();
+  }
+  private updateRebaseBanner() {
+    const slot = document.getElementById("rebaseBannerSlot");
+    if (slot === null) return;
+    const state = this.currentRepo === "" ? null : this.operationState;
+    // An unchanged answer leaves the DOM alone, so a refresh neither moves
+    // focus off a banner button nor re-announces the band.
+    const key = JSON.stringify([state, this.rebaseControlBusy, this.config.shortHashLength]);
+    if (key === this.rebaseBannerKey) return;
+    this.rebaseBannerKey = key;
+    renderRebaseBanner(
+      slot,
+      state,
+      { shortHashLength: this.config.shortHashLength, busy: this.rebaseControlBusy },
+      {
+        onContinue: () => this.runRebaseControl("continueRebase"),
+        onSkip: () => this.runRebaseControl("skipRebase"),
+        onAbort: () =>
+          showConfirmationDialog(
+            l10n.rebaseAbortConfirm,
+            () => this.runRebaseControl("abortRebase"),
+            slot
+          ),
+        onOpenFile: (filePath) =>
+          sendMessage({ command: "openFile", repo: this.currentRepo, filePath })
+      }
+    );
+    // The slot sits inside #topBar, whose height the sticky table header
+    // offsets itself by; publish it in this frame, as the stash list does.
+    this.publishTopBarHeight();
+  }
+  private runRebaseControl(command: "continueRebase" | "skipRebase" | "abortRebase") {
+    if (this.currentRepo === "" || this.rebaseControlBusy) return;
+    this.rebaseControlBusy = true;
+    this.updateRebaseBanner();
+    sendMessage({ command, repo: this.currentRepo });
+  }
+  /** A banner control answered: success refreshes (and re-reads the state); failure re-arms the banner. */
+  public finishRebaseControl(status: GitCommandStatus, errorLabel: string) {
+    this.rebaseControlBusy = false;
+    if (status === null) {
+      this.refresh(true);
+      return;
+    }
+    setStatusStrip("error", errorLabel);
+    showErrorDialog(errorLabel, status, null);
+    this.updateRebaseBanner();
+    this.requestOperationState();
+  }
   public loadRemoteTags(msg: Extract<GGL.ResponseMessage, { command: "remoteTags" }>) {
     if (this.config.showTagRemotes === "off") return;
     if (msg.repo !== this.currentRepo || msg.requestId !== this.remoteTagsRequestId) return;
@@ -1455,6 +1542,7 @@ class GitGraphView {
 
   /* Refresh */
   public refresh(hard: boolean) {
+    this.requestOperationState();
     if (hard) {
       this.revalidateRemoteTags();
       if (this.expandedCommit !== null) {
@@ -8249,6 +8337,18 @@ const actionErrorLabels = {
 } satisfies Partial<Record<GGL.ResponseMessage["command"], string>>;
 
 function handleActionResponse(msg: GGL.ResponseMessage) {
+  if (msg.command === "continueRebase") {
+    gitGraph.finishRebaseControl(msg.status, l10n.unableToContinueRebase);
+    return true;
+  }
+  if (msg.command === "skipRebase") {
+    gitGraph.finishRebaseControl(msg.status, l10n.unableToSkipRebase);
+    return true;
+  }
+  if (msg.command === "abortRebase") {
+    gitGraph.finishRebaseControl(msg.status, l10n.unableToAbortRebase);
+    return true;
+  }
   if (msg.command === "addWorktree") {
     gitGraph.finishCreateWorktree(msg.status);
     return true;
@@ -8295,6 +8395,7 @@ type ResponseHandlerMap = {
 };
 
 const responseHandlers: ResponseHandlerMap = {
+  operationState: (msg) => gitGraph.loadOperationState(msg),
   remoteTags: (msg) => gitGraph.loadRemoteTags(msg),
   worktreeChanges: (msg) => gitGraph.loadWorktreeChanges(msg),
   worktreeStatus: (msg) => gitGraph.loadWorktreeStatus(msg),

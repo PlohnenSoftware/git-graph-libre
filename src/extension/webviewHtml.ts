@@ -124,6 +124,7 @@ export function buildWebviewHtml(opts: {
 		${buildWebviewStatusStrip(l10nStrings, extensionVersion, engine.state)}
 		<div id="stashListSlot"></div>
 		${buildWebviewToolbar(l10nStrings)}
+		<div id="rebaseBannerSlot"></div>
 		</div>
 		<div id="settingsWidgetBacking" hidden></div>
 		<aside id="settingsWidget" role="dialog" aria-modal="true" tabindex="-1" aria-label="${l10nStrings.settings}" hidden></aside>
@@ -164,6 +165,7 @@ export function buildWebviewHtml(opts: {
 			<link rel="stylesheet" type="text/css" href="${mediaUri("settings.css")}">
 			<link rel="stylesheet" type="text/css" href="${mediaUri("dialogs.css")}">
 			<link rel="stylesheet" type="text/css" href="${mediaUri("dropdown.css")}">
+			<link rel="stylesheet" type="text/css" href="${mediaUri("rebase-banner.css")}">
 			<title>${l10n.t("outputChannel.text")}</title>
 			<style>${colorParams}"</style>
 		</head>
