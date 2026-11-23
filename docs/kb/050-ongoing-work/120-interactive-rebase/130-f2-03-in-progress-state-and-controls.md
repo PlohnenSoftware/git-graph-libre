@@ -8,7 +8,7 @@ summary: >-
 
 # F2-03 — In-progress state and controls
 
-Status: waiting
+Status: ready
 
 Needs: none (F2-01b for the end-to-end checks)
 

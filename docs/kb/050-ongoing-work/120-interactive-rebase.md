@@ -48,6 +48,13 @@ slice that ships UI (F2-04 onward). Until then the slices that need one stay
 - **IQ4. Reworded and squashed messages.** `exec git commit --amend -F <file>`
   lines, with message files under the per-worktree git dir. Settled by the
   F2-01b spike, which spikes both options before locking.
+  **Settled by the F2-01b spike (`2026-11-23`): option (a).** simple-git
+  refuses `GIT_SEQUENCE_EDITOR`/`GIT_EDITOR` in `env` without
+  `allowUnsafeEditor`, so the runner uses its own spawn (`runGitWithEnv`);
+  a `--continue` from a plain terminal after an `edit` stop still applies
+  route (a)'s prepared message, while route (b)'s was lost. Message files
+  live under `<gitdir>/ggl-rebase/`. IQ3 is option (a): the terminal entry
+  stays and the editor is added. Windows is not yet verified.
 - **IQ5. Pushed commits.** Warn and require an acknowledgement checkbox, with
   the published commits listed. No automatic force push.
 - **IQ6. Merge commits in the range.** Allow the rebase, flatten the merges
@@ -86,9 +93,9 @@ the graph layout, outside this work; no slice reads it.
 | ID | Work | Needs | Model | Status |
 | --- | --- | --- | --- | --- |
 | F2-01a | Todo model (pure) | — | Haiku | integrated `9f7d0865` |
-| F2-01b | Git handoff and spike | F2-01a | Muse Code | ready |
-| F2-02 | Range read and preflight | — | Muse Code | ready |
-| F2-03 | In-progress state and controls | — | Muse Code | waiting |
+| F2-01b | Git handoff and spike | F2-01a | Muse Code | integrated `3d39ecaf` |
+| F2-02 | Range read and preflight | — | Muse Code | integrated `16b65eb2` |
+| F2-03 | In-progress state and controls | — | Muse Code | ready |
 | F2-04 | Editor dialog: open, list, pick/drop/reorder, start | F2-01b, F2-02, F2-03 | Muse Code | waiting |
 | F2-05 | Reword, squash, fixup and edit with messages | F2-04 | Muse Code | waiting |
 | F2-06 | Autosquash and fixup creation | F2-04, F2-05 | Muse Code | waiting |
@@ -127,3 +134,24 @@ pushed, and nothing is tagged without the maintainer.
   case-insensitively and serialize lower case. Gates in its worktree: strict
   Biome clean, typecheck clean, backend suite 1,543 passed (60 skipped, as
   in every linked worktree), KB check clean. F2-01b is ready.
+- `2026-11-23`: F2-01b (Muse Code) integrated into `gg-plus/next` at `3d39ecaf` by
+  fast-forward: `runInteractiveRebase` (`src/backend/actions/rebaseInteractive.ts`)
+  with the env-carrying spawn `runGitWithEnv`, the todo written into the
+  per-worktree git dir and removed in every outcome, outcome classification
+  from state files and exit code, the `interactiveRebase` action registered;
+  real-Git tests. The spike settles IQ3 (a) and IQ4 (a) (recorded above).
+  Follow-ups from its report: F2-03's abort and finishing continue remove
+  `<gitdir>/ggl-rebase/`; F2-05 refuses an empty reword message before Start;
+  Windows verification of the copy command and exec-line paths is owed.
+- `2026-11-23`: F2-02 (Muse Code) rebased and integrated at `16b65eb2`: the
+  `rebaseRange` query (`src/backend/queries/rebaseRange.ts`) and the pure
+  `evaluateRebasePreflight` (`src/backend/rebase/preflight.ts`), registered in
+  the message handler. Follow-ups: route its worktree list through the
+  engine-backed reader when F2-04 wires the UI; F2-04's entry points should
+  offer ancestors, since the range is the literal `base..HEAD`.
+  Both reports were committed before the machine rebooted (`/tmp` worktrees
+  lost, branches intact); the worktrees were recreated under
+  `/home/zam/Desktop/prog/_GGL/.ggl-wt/`. Gates on `16b65eb2`: strict Biome on
+  touched files clean; typecheck clean; backend 1,627 passed (60 skipped, as
+  in every linked worktree) and webview 1,096 passed; KB check clean.
+  F2-03 is ready.
