@@ -3714,10 +3714,10 @@ class GitGraphView {
     const commitIndex = this.commitLookup[hash];
     const commit = typeof commitIndex === "number" ? this.commits[commitIndex] : null;
     const isHeadCommit = hash === this.commitHead;
-    // Drop runs `git rebase --onto <hash>^ <hash>`, so the commit must have a
-    // parent: `<root>^` is not a valid revision. Root commits are therefore
-    // excluded from Drop, and merges are excluded because rebase replays both
-    // merged sides linearized.
+    // Drop runs one interactive rebase with a `drop` line for this commit
+    // (F2-10). Root commits stay excluded, because the rebase needs a parent
+    // to start after, and merges stay excluded rather than being flattened
+    // without the editor's notice.
     const canDropCommit = commit !== null && commit.parentHashes.length === 1;
     const menu = this.buildCommitCreateMenuItems(hash, sourceElem);
     const compareWithHeadItem = this.buildCompareWithHeadMenuItem(hash, sourceElem);
@@ -3881,16 +3881,20 @@ class GitGraphView {
         })
       );
     }
-    if (selectedCommits.length < 2 || !this.selectedCommitsAreLoadedHeadChain(selectedCommits)) {
+    if (selectedCommits.length < 2) {
       return menu;
     }
 
+    // Drop and squash run through the interactive todo (F2-10), so the
+    // selection no longer has to end at HEAD: dropping works for any
+    // HEAD-history selection, squashing for one unbroken chain in it. The
+    // backend checks both again against the real range before Git runs.
+    const headAncestors = this.loadedHeadAncestors();
     const oldestHash = selectedCommits.at(-1);
     const oldestCommit =
       oldestHash === undefined ? undefined : this.commits[this.commitLookup[oldestHash]];
     if (
-      oldestCommit !== undefined &&
-      oldestCommit.parentHashes.length > 0 &&
+      this.selectedCommitsAreLoadedChain(selectedCommits, headAncestors) &&
       this.isContextMenuActionVisible("commit", "squashSelection")
     ) {
       menu.push({
@@ -3898,7 +3902,10 @@ class GitGraphView {
         onClick: () => this.showSquashSelectedCommitsDialog(selectedCommits, sourceElem)
       });
     }
-    if (this.isContextMenuActionVisible("commit", "dropSelection")) {
+    if (
+      this.selectedCommitsCanDrop(selectedCommits, headAncestors) &&
+      this.isContextMenuActionVisible("commit", "dropSelection")
+    ) {
       menu.push({
         title: l10n.dropSelection + ELLIPSIS,
         onClick: () => this.showDropSelectedCommitsDialog(selectedCommits, sourceElem)
@@ -3906,6 +3913,7 @@ class GitGraphView {
     }
     if (
       oldestCommit !== undefined &&
+      this.selectedCommitsAreLoadedHeadChain(selectedCommits) &&
       this.isContextMenuActionVisible("commit", "interactiveRebase")
     ) {
       const parentHash = oldestCommit.parentHashes[0] ?? null;
@@ -3942,6 +3950,43 @@ class GitGraphView {
       }
     }
     return true;
+  }
+  /**
+   * Whether the selection is one unbroken first-parent chain in HEAD's
+   * loaded history, wherever in that history it sits: the squash gate
+   * since F2-10. Every link needs exactly one parent, because a merge in
+   * the run cannot meld as a `fixup`; the backend refuses it too.
+   */
+  private selectedCommitsAreLoadedChain(
+    selectedCommits: readonly string[],
+    headAncestors: ReadonlySet<string>
+  ) {
+    if (selectedCommits.length < 2 || !headAncestors.has(selectedCommits[0])) return false;
+    for (let i = 0; i < selectedCommits.length; i++) {
+      const currentCommit = this.commits[this.commitLookup[selectedCommits[i]]];
+      if (currentCommit?.parentHashes.length !== 1) return false;
+      if (
+        i < selectedCommits.length - 1 &&
+        currentCommit.parentHashes[0] !== selectedCommits[i + 1]
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+  /**
+   * Whether every selected commit can be dropped: loaded, in HEAD's
+   * history, and — the single Drop menu's standing exclusion — with
+   * exactly one parent, so roots and merges stay excluded (F2-10).
+   */
+  private selectedCommitsCanDrop(
+    selectedCommits: readonly string[],
+    headAncestors: ReadonlySet<string>
+  ) {
+    return selectedCommits.every((hash) => {
+      if (!headAncestors.has(hash)) return false;
+      return this.commits[this.commitLookup[hash]]?.parentHashes.length === 1;
+    });
   }
   private setCommitSelected(hash: string, selected: boolean, row?: HTMLElement | null) {
     const rowElem = row ?? this.findCommitRow(hash);
@@ -4311,14 +4356,15 @@ class GitGraphView {
       l10n.dialogSquashSelectionConfirm
         .replace("{0}", String(selectedCommits.length))
         .replace("{1}", this.selectedCommitListHtml(selectedCommits)),
+      // No "bypass hooks" checkbox: the squash runs as a real rebase
+      // (F2-10), which runs hooks like the editor's runs do (F2-05's rule).
       [
         {
           type: "textarea",
           name: l10n.dialogSquashSelectionMessage,
           default: newestCommit?.message ?? "",
           placeholder: null
-        },
-        { type: "checkbox", name: l10n.dialogBypassGitHooks, value: false }
+        }
       ],
       l10n.dialogSquashSelectionSubmit,
       (values) => {
@@ -4331,8 +4377,7 @@ class GitGraphView {
           command: "squashCommitSelection",
           repo: this.currentRepo,
           commitHashes: [...selectedCommits],
-          message,
-          noVerify: values[1] === "checked"
+          message
         });
         this.clearCommitSelection();
         showActionRunningDialog(l10n.statusSquashingSelection);
