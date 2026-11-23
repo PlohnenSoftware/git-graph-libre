@@ -116,10 +116,14 @@
   border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
   background: var(--vscode-editor-background, oklch(20% 0 0));
 }
-.ggl-reflog .reflog-scroll { flex: 1; min-height: 0; overflow: auto; }
+/* The table's widths are fitted to this container and drags keep
+   their total, so it never needs to scroll sideways; `hidden` here
+   only guards against a subpixel rounding ever showing a bar. */
+.ggl-reflog .reflog-scroll { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; }
 .ggl-reflog .reflog-table { width: 100%; border-collapse: collapse; }
-/* Once the user drags a column, the header widths rule, as the
-   graph's `.fixedLayout` table does. */
+/* The entries table always draws with the header widths ruling, as
+   the graph's `.fixedLayout` table does (Q2): the defaults, or the
+   user's saved set, fitted to the tab's width. */
 .ggl-reflog .reflog-table.fixedLayout { table-layout: fixed; }
 .ggl-reflog .reflog-head-cell {
   position: sticky;
@@ -127,6 +131,11 @@
   padding: 6px 8px;
   text-align: left;
   line-height: 18px;
+  /* A header label never wraps — not even mid-word, which the root's
+     `overflow-wrap: anywhere` would otherwise allow. A column the
+     user drags narrower than its label clips it with an ellipsis. */
+  white-space: nowrap;
+  text-overflow: ellipsis;
   overflow: hidden;
   font-weight: 600;
   color: var(--vscode-descriptionForeground, oklch(70% 0 0));
@@ -152,8 +161,9 @@
   padding: 4px 8px;
   vertical-align: top;
   /* As the graph's cells: a column dragged narrow clips, never bleeds
-     into its neighbour. */
+     into its neighbour. One-line cells say so with an ellipsis. */
   overflow: hidden;
+  text-overflow: ellipsis;
   border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
 }
 .ggl-reflog .reflog-row:hover { background: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-subtle)); }
@@ -185,6 +195,11 @@
    theme; the intent color carries in the tint and the ring. */
 .ggl-reflog .reflog-sub-tag {
   display: inline-block;
+  /* A narrow column clips the pill's word, never the table's fit. */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
   padding: 1px 7px;
   border-radius: 10px;
   font-size: 11px;
@@ -198,10 +213,16 @@
 .ggl-reflog .reflog-sub-intent-abort { --reflog-intent-color: var(--ngg-reflog-intent-abort); }
 .ggl-reflog .reflog-sub-intent-ref { --reflog-intent-color: var(--ngg-reflog-intent-ref); }
 .ggl-reflog .reflog-sub-intent-neutral { --reflog-intent-color: var(--ngg-reflog-intent-neutral); }
-.ggl-reflog .reflog-message { min-width: 200px; }
+/* No minimum on the message cell: Message is the flexible column
+   (Q2), and a cell minimum wider than its fitted column would force
+   the very sideways scroll the fit exists to prevent. */
 .ggl-reflog .reflog-hash { font-family: var(--vscode-editor-font-family, monospace); white-space: nowrap; }
 .ggl-reflog .reflog-badge {
   display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
   padding: 1px 7px;
   border-radius: 10px;
   font-size: 11px;
@@ -346,7 +367,10 @@
 }
 .ggl-reflog .reflog-lost-scroll {
   max-height: 240px;
-  overflow: auto;
+  /* The subject column takes whatever width is left (below), so
+     this table fits its container at any panel width too (Q2). */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .ggl-reflog .reflog-lost-table .reflog-head-cell {
   background: var(--vscode-editorWidget-background, var(--vscode-editor-background, oklch(22% 0 0)));
@@ -356,7 +380,9 @@
 .ggl-reflog .reflog-lost-row:hover {
   background: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-subtle));
 }
-.ggl-reflog .reflog-lost-subject { width: 100%; min-width: 200px; }
+/* The lost table's flexible column; no minimum, for the same
+   reason as the entries table's message cell. */
+.ggl-reflog .reflog-lost-subject { width: 100%; }
 .ggl-reflog .reflog-lost-actions { white-space: nowrap; text-align: right; }
 .ggl-reflog ::-webkit-scrollbar { width: 14px; height: 14px; background: var(--vscode-editor-background, oklch(20% 0 0)); }
 .ggl-reflog ::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background, oklch(60% 0 0 / 0.4)); }

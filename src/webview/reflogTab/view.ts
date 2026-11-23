@@ -14,7 +14,12 @@ import {
 } from "@/reflogTabTypes";
 
 import { kindClass, kindLabel, subIntentClass, subLabel } from "./actionStyle";
-import { MIN_COLUMN_WIDTH, resizeColumnWidths } from "./columnResize";
+import {
+  defaultColumnWidths,
+  fitColumnWidthsToContainer,
+  MIN_COLUMN_WIDTH,
+  resizeColumnWidths
+} from "./columnResize";
 import { createReflogDialogs } from "./dialogs";
 import { type LostCommitsViewCallbacks, renderLostCommitsSection } from "./lostCommitsView";
 import { badgeFor, entryDate, type ReflogViewState, selectorFor } from "./rowModel";
@@ -344,50 +349,54 @@ function dragHandleColumn(event: MouseEvent): number | null {
 }
 
 /**
- * Column drag-to-resize for the entries table. Dragging only restyles this
- * table (as the graph's handler restyles its headers): rows and loaded pages
- * are never rebuilt by a resize.
+ * Column drag-to-resize for the entries table. The table always draws
+ * with explicit widths — the defaults, or the user's saved set — fitted
+ * to its scroll container, so it never renders wider than the tab:
+ * Message absorbs every fit, and a drag trades a fixed column against
+ * Message, keeping the total. Dragging and fitting only restyle this
+ * table (as the graph's handler restyles its headers): rows and loaded
+ * pages are never rebuilt by a resize. Returns the fit, which the view
+ * runs once the table is in the document and again on window resizes;
+ * fitting is display-only and never overwrites the saved widths.
  */
 function attachColumnResizing(
+  scroll: HTMLElement,
   tableNode: HTMLElement,
   headRow: HTMLTableRowElement,
   headers: HTMLTableCellElement[],
   initialWidths: ReflogViewState["columnWidths"],
   callbacks: ReflogViewCallbacks
-): void {
-  let widths = initialWidths;
+): () => void {
+  let widths = initialWidths === null ? defaultColumnWidths() : [...initialWidths];
   let dragCol = -1;
   let mouseX = 0;
   const applyWidths = () => {
-    if (widths === null) return;
     tableNode.classList.add("fixedLayout");
     // Widths are content widths on the header cells, as the graph sets
     // them; under fixed layout the first row sizes every column.
     headers.forEach((cell, index) => {
-      cell.style.width = `${widths?.[index] ?? MIN_COLUMN_WIDTH}px`;
+      cell.style.width = `${widths[index] ?? MIN_COLUMN_WIDTH}px`;
     });
+  };
+  const fitToContainer = () => {
+    widths = fitColumnWidthsToContainer(widths, scroll.clientWidth);
+    applyWidths();
   };
   const startResizing = (event: MouseEvent) => {
     const col = dragHandleColumn(event);
     if (col === null) return;
     dragCol = col;
     mouseX = event.clientX;
-    if (widths === null) {
-      // First drag, as in the graph: freeze the natural layout into fixed
-      // widths (rendered width minus the header cells' 8px side padding).
-      widths = headers.map((cell) => Math.max(cell.clientWidth - 16, MIN_COLUMN_WIDTH));
-      applyWidths();
-    }
     headRow.classList.add("resizing");
   };
   const moveResizing = (event: MouseEvent) => {
-    if (dragCol < 0 || widths === null) return;
+    if (dragCol < 0) return;
     widths = resizeColumnWidths(widths, dragCol, event.clientX - mouseX);
     mouseX = event.clientX;
     applyWidths();
   };
   const stopResizing = () => {
-    if (dragCol < 0 || widths === null) return;
+    if (dragCol < 0) return;
     dragCol = -1;
     headRow.classList.remove("resizing");
     callbacks.onColumnWidthsChange?.([...widths]);
@@ -397,6 +406,7 @@ function attachColumnResizing(
   headRow.addEventListener("mousemove", moveResizing);
   headRow.addEventListener("mouseup", stopResizing);
   headRow.addEventListener("mouseleave", stopResizing);
+  return fitToContainer;
 }
 
 /** Opens the context menu of an entry row. */
@@ -413,7 +423,8 @@ function table(
   labels: ReflogLabels,
   now: Date,
   callbacks: ReflogViewCallbacks,
-  openRowMenu: OpenRowMenu
+  openRowMenu: OpenRowMenu,
+  registerFit: (fit: () => void) => void
 ): HTMLElement {
   const scroll = element("div", "reflog-scroll");
   const tableNode = element("table", "reflog-table");
@@ -440,7 +451,9 @@ function table(
   }
   tableNode.append(head, body);
   scroll.append(tableNode);
-  attachColumnResizing(tableNode, headRow, headers, state.columnWidths, callbacks);
+  registerFit(
+    attachColumnResizing(scroll, tableNode, headRow, headers, state.columnWidths, callbacks)
+  );
   return scroll;
 }
 
@@ -484,9 +497,10 @@ function rowsBlocks(
   labels: ReflogLabels,
   now: Date,
   callbacks: ReflogViewCallbacks,
-  openRowMenu: OpenRowMenu
+  openRowMenu: OpenRowMenu,
+  registerFit: (fit: () => void) => void
 ): HTMLElement[] {
-  const blocks: HTMLElement[] = [table(state, labels, now, callbacks, openRowMenu)];
+  const blocks: HTMLElement[] = [table(state, labels, now, callbacks, openRowMenu, registerFit)];
   if (state.error !== null) blocks.push(errorBlock(state.error, labels));
   if (state.hasMore) blocks.push(loadMoreButton(state, labels, callbacks));
   return blocks;
@@ -498,7 +512,8 @@ function bodyBlocks(
   labels: ReflogLabels,
   now: Date,
   callbacks: ReflogViewCallbacks,
-  openRowMenu: OpenRowMenu
+  openRowMenu: OpenRowMenu,
+  registerFit: (fit: () => void) => void
 ): HTMLElement[] {
   if (state.loading) {
     return [messageBlock("reflog-message reflog-loading", labels.loading, "status")];
@@ -508,7 +523,7 @@ function bodyBlocks(
     return [errorBlock(state.error, labels)];
   }
   if (state.rows.length === 0) return [emptyBlock(state, labels)];
-  return rowsBlocks(state, labels, now, callbacks, openRowMenu);
+  return rowsBlocks(state, labels, now, callbacks, openRowMenu, registerFit);
 }
 
 /** The focused control, so a render can put the focus and caret back on it. */
@@ -598,6 +613,17 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
   // a render by its id, or typing would lose its place on every reply.
   let lastRepo = "";
   let lastLabels: ReflogLabels | null = null;
+  // The current table's fit to its container. A window resize is the
+  // panel resizing, and refitting changes Message only (down to the
+  // rules in columnResize), so the tab never scrolls sideways.
+  let fitTable: (() => void) | null = null;
+  const registerFit = (fit: () => void) => {
+    fitTable = fit;
+  };
+  const runFit = () => {
+    fitTable?.();
+  };
+  window.addEventListener("resize", runFit);
   return {
     showActionResult(result: ReflogActionResultMessage): void {
       dialogs.showActionResult(result, lastLabels);
@@ -607,11 +633,13 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
       lastLabels = labels;
       if (labels === null) {
         lastRepo = state.repo;
+        fitTable = null;
         dialogs.hideContextMenu();
         dialogs.hideDialog();
         root.replaceChildren();
         return;
       }
+      fitTable = null;
       const focused = focusSnapshot(root, dialogs.overlays);
       const sameRepo = state.repo === lastRepo;
       if (!sameRepo) {
@@ -629,9 +657,12 @@ export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbac
       }
       children.push(
         ...searchCapNotes(state, labels),
-        ...bodyBlocks(state, labels, now, callbacks, dialogs.openRowMenu)
+        ...bodyBlocks(state, labels, now, callbacks, dialogs.openRowMenu, registerFit)
       );
       root.replaceChildren(...children, ...dialogs.overlays);
+      // Only now is the table laid out, so only now can its widths be
+      // fitted to the width the tab actually has.
+      runFit();
       lastRepo = state.repo;
       if (focused !== null) restoreFocus(root, focused, state, sameRepo);
     }

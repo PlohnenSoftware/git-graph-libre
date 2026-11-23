@@ -73,16 +73,13 @@ describe("reflog tab webview", () => {
     // pass drags, the second pass starts from what the first one saved.
     const first = await start();
     send(dataMessage({ page: page({ hasMore: true }) }));
-    for (const [index, cell] of [...first.root.querySelectorAll("th")].entries()) {
-      Object.defineProperty(cell, "clientWidth", { value: 116 + index * 10, configurable: true });
-    }
     const handle = first.root.querySelector<HTMLElement>('.resizeCol[data-col="3"]');
     handle?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: 100 }));
     const headRow = first.root.querySelector(".reflog-head-row") as HTMLElement;
     headRow.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 120 }));
     headRow.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
-    // Natural 100..160, then +20 traded across the message/commit edge.
-    const savedWidths = [100, 110, 120, 150, 120, 150, 160];
+    // From the defaults (Q2), +20 traded across the message/commit edge.
+    const savedWidths = [52, 116, 112, 340, 68, 140, 168];
     expect(first.savedState()).toEqual({ columnWidthsByRepo: { "/repos/one": savedWidths } });
     // The loaded page is untouched by the drag.
     expect(first.root.querySelectorAll("tbody tr")).toHaveLength(1);
@@ -97,9 +94,13 @@ describe("reflog tab webview", () => {
     expect(second.root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
     expect(second.root.querySelectorAll("tbody tr")).toHaveLength(2);
 
-    // Another repository has no saved widths of its own.
+    // Another repository has no saved widths of its own: the
+    // defaults rule there, in the same fixed layout (Q2).
     send(dataMessage({ repo: "/repos/two" }));
-    expect(second.root.querySelector("table")?.classList.contains("fixedLayout")).toBe(false);
+    expect(second.root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
+    expect(
+      [...second.root.querySelectorAll<HTMLElement>("thead th")].map((cell) => cell.style.width)
+    ).toEqual([52, 116, 112, 320, 88, 140, 168].map((width) => `${width}px`));
   });
 
   it("debounces the search box and sends other filter changes at once (F1-05)", async () => {

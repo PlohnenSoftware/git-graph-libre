@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-
+import { COLUMN_SIDE_PADDING_PX, DEFAULT_COLUMN_WIDTHS } from "@/webview/reflogTab/columnResize";
 import {
   applyData,
   applyLoading,
@@ -419,7 +419,7 @@ describe("reflog search, filters and ref picker (F1-05)", () => {
   });
 });
 
-describe("reflog table column resizing (F1-04F)", () => {
+describe("reflog table column resizing (F1-04F, Q2)", () => {
   const WIDTHS = [50, 110, 90, 300, 90, 130, 120];
 
   function renderWith(widths: number[] | null) {
@@ -466,8 +466,12 @@ describe("reflog table column resizing (F1-04F)", () => {
       "resizeCol right:5",
       "resizeCol left:5"
     ]);
-    // No saved widths yet: the table still sizes itself.
-    expect(root.querySelector("table")?.classList.contains("fixedLayout")).toBe(false);
+    // No saved widths yet: the defaults rule from the first draw
+    // (Q2), so no column is sized by its narrowest cell content and
+    // the Index header cannot fold over two lines.
+    expect(root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
+    expect(colWidths(root)).toEqual(DEFAULT_COLUMN_WIDTHS.map((width) => `${width}px`));
+    expect(root.querySelector("thead th")?.textContent).toContain(LABELS.columnIndex);
   });
 
   it("widens and narrows by dragging, stops at 40px, and keeps every row", () => {
@@ -491,15 +495,65 @@ describe("reflog table column resizing (F1-04F)", () => {
     expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
   });
 
-  it("freezes the natural layout into fixed widths on the first drag", () => {
+  it("starts the first drag from the defaults and trades against Message (Q2)", () => {
     const { root, onColumnWidthsChange } = renderWith(null);
-    for (const [index, cell] of [...root.querySelectorAll("th")].entries()) {
-      Object.defineProperty(cell, "clientWidth", { value: 66 + index * 20, configurable: true });
-    }
     drag(root, 0, 100, 110);
-    // Rendered widths minus the 16px of side padding, then the drag's trade.
-    expect(onColumnWidthsChange).toHaveBeenCalledWith([60, 60, 90, 110, 130, 150, 170]);
+    // Index +10, Message −10; Action, the boundary's neighbour, is
+    // untouched, and the total — so the table's fit — is unchanged.
+    expect(onColumnWidthsChange).toHaveBeenCalledWith([62, 116, 112, 310, 88, 140, 168]);
     expect(root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
+    // Dragging Index back down reaches its default again exactly.
+    drag(root, 0, 110, 100);
+    expect(onColumnWidthsChange).toHaveBeenLastCalledWith([...DEFAULT_COLUMN_WIDTHS]);
+  });
+
+  function stubContainerWidth(root: HTMLElement, width: number) {
+    const scroll = root.querySelector(".reflog-scroll") as HTMLElement;
+    Object.defineProperty(scroll, "clientWidth", { value: width, configurable: true });
+  }
+
+  function renderedTableWidth(root: HTMLElement): number {
+    return (
+      colWidths(root).reduce((sum, width) => sum + Number.parseInt(width, 10), 0) +
+      colWidths(root).length * COLUMN_SIDE_PADDING_PX
+    );
+  }
+
+  it("fits saved widths to a narrower panel on resize, Message first, without saving the fit (Q2)", () => {
+    const { root, onColumnWidthsChange } = renderWith([...WIDTHS]);
+    stubContainerWidth(root, 702);
+    window.dispatchEvent(new Event("resize"));
+    // Message gives its 260px down to the minimum, then the fixed
+    // columns are scaled back for the last 40px; the table now
+    // renders exactly as wide as its container, never wider.
+    expect(colWidths(root)).toEqual(["49px", "102px", "84px", "40px", "84px", "120px", "111px"]);
+    expect(renderedTableWidth(root)).toBeLessThanOrEqual(702);
+    expect(onColumnWidthsChange).not.toHaveBeenCalled();
+  });
+
+  it("grows only Message when the panel widens (Q2)", () => {
+    const { root } = renderWith([...WIDTHS]);
+    stubContainerWidth(root, 1202);
+    window.dispatchEvent(new Event("resize"));
+    expect(colWidths(root)).toEqual(["50px", "110px", "90px", "500px", "90px", "130px", "120px"]);
+    expect(renderedTableWidth(root)).toBe(1202);
+  });
+
+  it("never exceeds the container after a drag at a fitted width (Q2)", () => {
+    const { root, onColumnWidthsChange } = renderWith([...WIDTHS]);
+    stubContainerWidth(root, 702);
+    window.dispatchEvent(new Event("resize"));
+    // Widening Index would have to come out of Message, which is
+    // already at its minimum: the drag is clamped to nothing.
+    drag(root, 0, 100, 200);
+    expect(renderedTableWidth(root)).toBeLessThanOrEqual(702);
+    expect(colWidths(root)).toEqual(["49px", "102px", "84px", "40px", "84px", "120px", "111px"]);
+    // Narrowing Date gives its width to Message; the total holds.
+    drag(root, 5, 100, 50);
+    expect(colWidths(root)).toEqual(["49px", "102px", "84px", "90px", "84px", "70px", "111px"]);
+    expect(renderedTableWidth(root)).toBe(702);
+    expect(onColumnWidthsChange).toHaveBeenLastCalledWith([49, 102, 84, 90, 84, 70, 111]);
+    expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
   });
 
   it("ignores a mouse move that is not part of a drag", () => {

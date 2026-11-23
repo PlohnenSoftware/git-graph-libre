@@ -102,6 +102,32 @@ describe("reflog tab styles", () => {
     expect(body).toContain(".ggl-reflog .reflog-head-row.resizing .reflog-head-cell {");
   });
 
+  it("keeps header labels on one line and the tab free of sideways scroll (Q2)", () => {
+    // A header label never wraps, not even mid-word under the root's
+    // `overflow-wrap: anywhere`; a column dragged narrower than its
+    // label clips it with an ellipsis instead.
+    const headCell = /\.reflog-head-cell \{([^}]*)\}/.exec(body)?.[1] ?? "";
+    expect(headCell).toContain("white-space: nowrap;");
+    expect(headCell).toContain("text-overflow: ellipsis;");
+    expect(headCell).toContain("overflow: hidden;");
+    // Both scroll containers scroll vertically only. The columns
+    // themselves are fitted to the container (columnResize.ts), so
+    // nothing reachable hides behind this: narrow cells clip with
+    // an ellipsis and keep their full text on hover.
+    expect(body).toContain(".ggl-reflog .reflog-scroll {");
+    expect(body).toContain("overflow-x: hidden;");
+    expect(body).toContain("overflow-y: auto;");
+    expect(body).toContain(".ggl-reflog .reflog-lost-scroll {");
+    // No cell minimum may force the flexible columns wider than
+    // their fitted width.
+    expect(body).not.toContain("min-width: 200px");
+    expect(body).toContain(".ggl-reflog .reflog-lost-subject { width: 100%; }");
+    // The pills clip inside a narrow column rather than stretching it.
+    const badge = /\.reflog-badge \{([^}]*)\}/.exec(body)?.[1] ?? "";
+    expect(badge).toContain("max-width: 100%;");
+    expect(badge).toContain("text-overflow: ellipsis;");
+  });
+
   it("styles the opt-in lost-commit panel on theme tokens with reduced-motion and forced-colors rules (F1-07)", () => {
     expect(body).toContain(".ggl-reflog .reflog-scan-button {");
     expect(body).toContain(".ggl-reflog .reflog-lost-panel {");
