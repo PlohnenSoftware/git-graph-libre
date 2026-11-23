@@ -1,8 +1,10 @@
 import type {
+  DateType,
   GitCommitDetails,
   GitCommitNode,
   GitCommitSearchResult,
   GitCommitSignature,
+  GitLogEntry,
   GitRepoInfo,
   GitTagDetails,
   GitUncommittedChanges,
@@ -220,6 +222,18 @@ type QueryPayloads = {
     result: GitRebaseRangeResult;
     /** `repo` comes back so an answer for a repository no longer shown is dropped. */
     response: { requestId: number; repo: string } & GitRebaseRangeResult;
+  };
+  fileHistory: {
+    request: {
+      requestId: number;
+      repo: string;
+      filePath: string;
+      maxResults?: number;
+      follow?: boolean;
+    };
+    result: GitFileHistoryResult;
+    /** `repo` comes back so an answer for a repository no longer shown is dropped. */
+    response: { requestId: number; repo: string } & GitFileHistoryResult;
   };
 };
 
@@ -515,5 +529,51 @@ export type GitRebaseRangeResult = {
   /** True when the range holds more than 500 commits. It prompts (F2-07); it never refuses. */
   tooLong: boolean;
   preflight: GitRebasePreflight;
+  error: GitQueryError | null;
+};
+
+/**
+ * One file-history read: commits touching a single repository-relative path
+ * across all refs (`git log --all`), newest first.
+ */
+export type GitFileHistoryRequest = {
+  /** The file to inspect, relative to the repository root (`src/app.ts`). */
+  filePath: string;
+  /**
+   * Maximum commits to return, newest first. Defaults to
+   * `DEFAULT_FILE_HISTORY_LIMIT` and caps at `MAX_FILE_HISTORY_LIMIT`.
+   */
+  limit?: number;
+  /**
+   * Whether to pass `--follow` so history continues beyond renames of this
+   * single file. Defaults to `DEFAULT_FILE_HISTORY_FOLLOW` (`true`).
+   */
+  follow?: boolean;
+  /** Which commit timestamp populates each entry's `date`. Defaults to `"Author Date"`. */
+  dateType?: DateType;
+  /**
+   * When true, compute each commit's 1-based position (`loadCount`) in the
+   * `--all --date-order` graph walk so the search list can load enough commits
+   * to reveal any entry in the graph. Defaults to `false`.
+   */
+  includeLoadCount?: boolean;
+};
+
+/** One commit that touched the requested file. */
+export type GitFileHistoryEntry = GitLogEntry & {
+  /**
+   * 1-based position in the `--all --date-order` graph walk when requested via
+   * `includeLoadCount`, or null when omitted or not located.
+   */
+  loadCount: number | null;
+};
+
+export type GitFileHistoryResult = {
+  /** Matching commits, newest first, at most the clamped limit. Empty on an error. */
+  commits: GitFileHistoryEntry[];
+  /** True when older matching commits exist beyond `commits`. */
+  hasMore: boolean;
+  /** Normalized repository-relative path that was read, or null on a validation error. */
+  filePath: string | null;
   error: GitQueryError | null;
 };
