@@ -937,6 +937,11 @@ describe("command manager", () => {
         const dismissed = makeHarness(two, null);
         await dismissed.run("git-graph-libre.showReflog");
         expect(dismissed.openReflogTab).not.toHaveBeenCalled();
+        // T1: dismissing the picker is not a failed open — no repository was
+        // ever chosen, so no tab event joins the command event.
+        expect(dismissed.telemetryEvents).toEqual([
+          { feature: "git-graph-libre.showReflog", ok: true }
+        ]);
       });
 
       it("says so when no repository is known, and opens nothing", async () => {
@@ -946,6 +951,11 @@ describe("command manager", () => {
         expect(harness.windowApi.showInformationMessage).toHaveBeenCalledWith(
           expect.stringContaining("no Git repositories")
         );
+        // T1: the tab could not open — a failed open beside the command event.
+        expect(harness.telemetryEvents).toEqual([
+          { feature: "tab.reflog", ok: false },
+          { feature: "git-graph-libre.showReflog", ok: true }
+        ]);
       });
     });
   });

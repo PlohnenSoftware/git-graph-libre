@@ -103,6 +103,7 @@ import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
 import type { TelemetryReporter } from "@/telemetry";
+import { createTabOpenReporter, TAB_FEATURE_DIFF, TAB_FEATURE_REFLOG } from "@/telemetry/tabOpen";
 import { createViewFeatureReporter } from "@/telemetry/viewFeatures";
 import type { ExtensionSetting, GitRepoState, RequestMessage, ResponseMessage } from "@/types";
 
@@ -308,9 +309,12 @@ async function openCommitDetailsDiffTab(
   input: ViewDiffInput,
   openTab: (request: DiffTabRequest) => void,
   available: boolean,
-  logFallback: () => void
+  logFallback: () => void,
+  reportOpenFailure: () => void
 ): Promise<boolean> {
   if (!available) {
+    // The GGL Diff tab did not open (T1), whatever the fallback then does.
+    reportOpenFailure();
     logFallback();
     return viewDiff(input);
   }
@@ -318,6 +322,7 @@ async function openCommitDetailsDiffTab(
     openTab(buildCommitDetailsDiffRequest(input));
     return true;
   } catch {
+    reportOpenFailure();
     return false;
   }
 }
@@ -560,6 +565,10 @@ export function registerMessageHandlers(
 
   let currentRepo: string | null = null;
   const viewFeatures = createViewFeatureReporter(telemetry);
+  // Tab opens that never reach a panel report their failure here (T1);
+  // every open that reaches one is reported by the panel itself.
+  const reportReflogOpen = createTabOpenReporter(telemetry, TAB_FEATURE_REFLOG);
+  const reportDiffOpen = createTabOpenReporter(telemetry, TAB_FEATURE_DIFF);
   const recordGitCommand: GitCommandRecorder | undefined = outputChannel
     ? (record) => {
         outputChannel.appendLine(formatGitCommandRecord(record));
@@ -580,7 +589,11 @@ export function registerMessageHandlers(
           backend: config.backend,
           isVerified: (repo) => deps.repoSearch?.isVerified(repo) ?? false
         }),
-        { extensionPath, outputChannel: outputChannel ?? { appendLine: () => undefined } }
+        {
+          extensionPath,
+          outputChannel: outputChannel ?? { appendLine: () => undefined },
+          telemetry
+        }
       );
     });
   const openReflog =
@@ -601,7 +614,11 @@ export function registerMessageHandlers(
           backend: config.backend,
           isVerified: (repo) => deps.repoSearch?.isVerified(repo) ?? false
         }),
-        { extensionPath, outputChannel: outputChannel ?? { appendLine: () => undefined } }
+        {
+          extensionPath,
+          outputChannel: outputChannel ?? { appendLine: () => undefined },
+          telemetry
+        }
       );
     });
   const diffTabAvailable =
@@ -1358,10 +1375,16 @@ export function registerMessageHandlers(
   });
 
   bridge.onMessage("copyToClipboard", async (msg) => {
+    const success = await copyToClipboard(msg.data);
+    // The Worktrees popup's Copy Path button is the one clipboard write that
+    // is a worktree button (T1), and this route sits outside
+    // registerAction. `type` is our own webview's fixed label for it; only
+    // the outcome is sent — never `data`, which is the path itself.
+    if (msg.type === "Worktree Path") telemetry?.logFeature("copyWorktreePath", success);
     bridge.post({
       command: "copyToClipboard",
       type: msg.type,
-      success: await copyToClipboard(msg.data)
+      success
     });
   });
 
@@ -1397,16 +1420,19 @@ export function registerMessageHandlers(
         },
         openCommitDiffTab,
         diffTabAvailable(),
-        () => outputChannel?.appendLine("[diffTab] unavailable; falling back to vscode.diff")
+        () => outputChannel?.appendLine("[diffTab] unavailable; falling back to vscode.diff"),
+        () => reportDiffOpen(false)
       )
     });
   });
 
   // The graph toolbar's Reflog button: open the tab for the repository the
   // graph shows. Only a known repository is read — the webview names its
-  // own, and anything else is refused rather than opened.
+  // own, and anything else is refused rather than opened, which reports a
+  // failed open (T1); an opened tab is reported by its panel.
   bridge.onMessage("showReflog", (msg) => {
     if (Object.hasOwn(repoManager.getRepos(), msg.repo)) openReflog(msg.repo);
+    else reportReflogOpen(false);
   });
 
   bridge.onMessage("viewFileAtRevision", async (msg) => {

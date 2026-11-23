@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { git, makeRepo } from "@tests/backend/helpers";
 import {
   ConfigurationTarget,
+  clipboardWrites,
   configurationGlobalValues,
   configurationUpdates,
   createdTerminals,
@@ -1358,9 +1359,10 @@ describe("registerMessageHandlers", () => {
 
   it("falls back to viewDiff when the GGL Diff tab is unavailable", async () => {
     resetVscodeMock();
-    const { handlers, posts, outputLines, openedDiffTabs } = registerHandlersForTest(repo, {
-      diffTabAvailable: false
-    });
+    const { handlers, posts, outputLines, openedDiffTabs, telemetryEvents } =
+      registerHandlersForTest(repo, {
+        diffTabAvailable: false
+      });
     const handler = handlers.get("openDiffTab");
     const hash = "abcdef1234567890";
 
@@ -1376,6 +1378,8 @@ describe("registerMessageHandlers", () => {
 
     expect(posts[posts.length - 1]).toEqual({ command: "openDiffTab", success: true });
     expect(openedDiffTabs).toHaveLength(0);
+    // T1: the GGL Diff tab did not open, whatever the fallback then does.
+    expect(telemetryEvents).toEqual([{ feature: "tab.diff", ok: false }]);
     expect(outputLines).toContain("[diffTab] unavailable; falling back to vscode.diff");
     const command = executedCommands[executedCommands.length - 1];
     expect(command?.[0]).toBe("vscode.diff");
@@ -1707,13 +1711,50 @@ describe("registerMessageHandlers", () => {
     expect(handler).toBeDefined();
     await handler?.({ command: "showReflog", repo });
     expect(openedReflogTabs).toEqual([repo]);
-    // The bridge route is not an action: like openDiffTab it counts nothing.
+    // T1: the route reports only a refused open; an opened tab is reported
+    // by its panel, which the injected double here is not.
     expect(telemetryEvents).toEqual([]);
   });
 
   it("refuses a reflog for a repository the extension does not know (F1-03)", async () => {
-    const { handlers, openedReflogTabs } = registerHandlersForTest();
+    const { handlers, openedReflogTabs, telemetryEvents } = registerHandlersForTest();
     await handlers.get("showReflog")?.({ command: "showReflog", repo: "/elsewhere" });
     expect(openedReflogTabs).toEqual([]);
+    // T1: a refused open is a failed open, carrying nothing about the path.
+    expect(telemetryEvents).toEqual([{ feature: "tab.reflog", ok: false }]);
+    expect(JSON.stringify(telemetryEvents)).not.toContain("elsewhere");
+  });
+
+  // T1: the Worktrees popup's Copy Path button, measured like the other
+  // worktree buttons; the copied path itself never reaches telemetry.
+  it("reports the worktree Copy Path button, without the path", async () => {
+    resetVscodeMock();
+    const { handlers, posts, telemetryEvents } = registerHandlersForTest();
+    await handlers.get("copyToClipboard")?.({
+      command: "copyToClipboard",
+      type: "Worktree Path",
+      data: "/home/someone/secret-worktree"
+    } as RequestMessage);
+
+    expect(posts[posts.length - 1]).toEqual({
+      command: "copyToClipboard",
+      type: "Worktree Path",
+      success: true
+    });
+    expect(clipboardWrites).toEqual(["/home/someone/secret-worktree"]);
+    expect(telemetryEvents).toEqual([{ feature: "copyWorktreePath", ok: true }]);
+    expect(JSON.stringify(telemetryEvents)).not.toContain("secret-worktree");
+  });
+
+  it("does not report other clipboard writes", async () => {
+    resetVscodeMock();
+    const { handlers, telemetryEvents } = registerHandlersForTest();
+    await handlers.get("copyToClipboard")?.({
+      command: "copyToClipboard",
+      type: "Commit Hash",
+      data: "a".repeat(40)
+    } as RequestMessage);
+
+    expect(telemetryEvents).toEqual([]);
   });
 });

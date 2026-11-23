@@ -64,6 +64,7 @@ type MockUri = {
 
 export const openedTextDocuments: MockUri[] = [];
 export const openedExternalUris: Array<{ toString: () => string; value?: string }> = [];
+export const clipboardWrites: string[] = [];
 export const shownTextDocuments: Array<{
   document: { uri: MockUri };
   options: unknown;
@@ -124,6 +125,11 @@ export const env = {
   openExternal: async (uri: { toString: () => string; value?: string }) => {
     openedExternalUris.push(uri);
     return true;
+  },
+  clipboard: {
+    writeText: async (text: string) => {
+      clipboardWrites.push(text);
+    }
   },
   createTelemetryLogger: (sender: MockTelemetrySender, options?: Record<string, unknown>) => {
     const record: MockTelemetryLogger = {
@@ -254,6 +260,7 @@ export function resetVscodeMock() {
   env.isTelemetryEnabled = true;
   openedTextDocuments.splice(0);
   openedExternalUris.splice(0);
+  clipboardWrites.splice(0);
   shownTextDocuments.splice(0);
   shownOpenDialogs.splice(0);
   openDialogResults.splice(0);

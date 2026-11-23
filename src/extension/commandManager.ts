@@ -15,6 +15,7 @@ import type { DiffTabRequest } from "@/diffTabTypes";
 import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
 import type { TelemetryReporter } from "@/telemetry";
+import { createTabOpenReporter, TAB_FEATURE_DIFF, TAB_FEATURE_REFLOG } from "@/telemetry/tabOpen";
 
 import { buildComponentStatus } from "./componentStatus";
 import {
@@ -254,6 +255,10 @@ export function createCommandManager(deps: CommandManagerDeps) {
   const recordGitCommand: GitCommandRecorder = (record) => {
     deps.outputChannel.appendLine(formatGitCommandRecord(record));
   };
+  // Tab opens that never reach a panel report their failure here (T1);
+  // every open that reaches one is reported by the panel itself.
+  const reportReflogOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_REFLOG);
+  const reportDiffOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_DIFF);
 
   // Every palette command funnels through here, so this wrapper instruments
   // all of them at once. Only the command id and the outcome are sent — never
@@ -594,7 +599,8 @@ export function createCommandManager(deps: CommandManagerDeps) {
           deps.extensionPath ??
           vscode.extensions?.getExtension("PlohnenSoftware.git-graph-libre")?.extensionPath ??
           process.cwd(),
-        outputChannel: deps.outputChannel
+        outputChannel: deps.outputChannel,
+        telemetry: deps.telemetry
       }
     );
   }
@@ -608,6 +614,8 @@ export function createCommandManager(deps: CommandManagerDeps) {
     const repos = deps.repoManager.getRepos();
     const repoPaths = Object.keys(repos);
     if (repoPaths.length === 0) {
+      // A failed open: there is no repository a tab could show (T1).
+      reportReflogOpen(false);
       await windowApi.showInformationMessage(l10n.t("command.showReflog.noRepo"));
       return;
     }
@@ -655,7 +663,8 @@ export function createCommandManager(deps: CommandManagerDeps) {
     for (const { id, handler } of createScmDiffTabHandlers({
       getRepos: () => deps.repoManager.getRepos(),
       openDiff: (request) => deps.openScmDiffTab?.(request),
-      showWarning: (message) => windowApi.showWarningMessage(message)
+      showWarning: (message) => windowApi.showWarningMessage(message),
+      reportOpenFailure: () => reportDiffOpen(false)
     })) {
       register(id, handler);
     }
