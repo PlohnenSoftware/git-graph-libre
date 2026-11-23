@@ -8,7 +8,7 @@ summary: >-
 
 # F4-06 — Commit popover, Show in Graph, GGL Diff and Open File at Line
 
-Status: waiting
+Status: claimed by Muse Code on 2026-11-23 17:20
 
 Needs: F4-05
 
