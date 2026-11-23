@@ -866,7 +866,9 @@ export function registerMessageHandlers(
     // A pause is a successful start (the in-progress surface takes over);
     // a refusal surfaces Git's own words as the action's error.
     if (result.outcome === "failed" || result.outcome === "invalid-todo") {
-      throw new Error(result.stderr.trim() || "The interactive rebase could not be started.");
+      throw new Error(
+        result.stderr.trim() === "" ? "The interactive rebase could not be started." : result.stderr
+      );
     }
   });
   registerAction("squashCommitSelection", (msg) =>

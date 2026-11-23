@@ -244,7 +244,9 @@ export async function runInteractiveRebase(
   if (!validation.ok) throw rejectionError(validation.rejection);
   if (input.base !== null) requireValue(input.base, "Rebase base");
 
-  const { gitDir } = resolveGitDirs(repo);
+  // Resolved to an absolute path: the todo file's path travels to Git's
+  // sequence editor in `GGL_TODO_FILE`, whose working directory is Git's.
+  const { gitDir } = resolveGitDirs(path.resolve(repo));
   if (stateDirOf(gitDir) !== null) throw new Error("A rebase is already in progress.");
 
   const runId = crypto.randomUUID();
