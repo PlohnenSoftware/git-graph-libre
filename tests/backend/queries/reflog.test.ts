@@ -8,8 +8,10 @@ import {
   classifyReflogMessage,
   loadReflog,
   loadReflogEntryStates,
+  loadReflogRefs,
   MAX_REFLOG_PAGE_SIZE,
-  parseReflogRecords
+  parseReflogRecords,
+  parseReflogRefs
 } from "@/backend/queries/reflog";
 import type { GitReflogMessageClass } from "@/backend/types";
 import type { GitCommandRecord } from "@/backend/utils/gitRunner";
@@ -439,6 +441,127 @@ describe("loadReflog entry time and paging", () => {
     const result = await loadReflog(reader(dir), dir, { limit: 10 ** 9 });
     expect(result.error).toBeNull();
     expect(result.entries).toHaveLength(1);
+  });
+});
+
+describe("loadReflog grep and refs (F1-05)", () => {
+  /**
+   * Writes one reflog entry with an exact message, without moving a ref.
+   * Updating the checked-out branch to its own value writes the mark into
+   * `HEAD`'s reflog only, so these cases read `HEAD`.
+   */
+  function mark(dir: string, message: string): void {
+    run(["update-ref", "-m", message, "refs/heads/main", "HEAD"], dir);
+  }
+
+  it("finds a match beyond the first page, case-insensitively", async () => {
+    const dir = initRepo();
+    for (const name of ["a", "b", "c", "d", "e", "f"]) commitFile(dir, name);
+    // Only the oldest entry matches, far outside an unfiltered first page of 2.
+    const result = await loadReflog(reader(dir), dir, { ref: "HEAD", limit: 2, grep: "INITIAL" });
+    expect(result.error).toBeNull();
+    expect(result.entries.map((entry) => entry.message)).toEqual(["commit (initial): a"]);
+    expect(result.hasMore).toBe(false);
+  });
+
+  it("treats the search text as one fixed string, never as an option or a pattern", async () => {
+    const dir = initRepo();
+    commitFile(dir, "a");
+    mark(dir, "Needle (Case) [regex].*");
+    mark(dir, "needle lower");
+    mark(dir, "--max-count=1 sneaky");
+    const git = reader(dir);
+
+    const both = await loadReflog(git, dir, { ref: "HEAD", grep: "NEEDLE" });
+    expect(both.entries.map((entry) => entry.message)).toEqual([
+      "needle lower",
+      "Needle (Case) [regex].*"
+    ]);
+    // As a pattern, `[regex].*` would match far more; as fixed text, only its own entry.
+    const literal = await loadReflog(git, dir, { ref: "HEAD", grep: "[regex].*" });
+    expect(literal.entries.map((entry) => entry.message)).toEqual(["Needle (Case) [regex].*"]);
+
+    const records: GitCommandRecord[] = [];
+    const dash = await loadReflog(
+      git,
+      dir,
+      { ref: "HEAD", limit: 5, grep: "--max-count=1" },
+      (record) => records.push(record)
+    );
+    expect(dash.entries.map((entry) => entry.message)).toEqual(["--max-count=1 sneaky"]);
+    const read = records.find((record) => record.label === "reflog.entries");
+    expect(read?.args).toContain("--grep-reflog=--max-count=1");
+    expect(read?.args).toContain("--fixed-strings");
+    expect(read?.args).toContain("--regexp-ignore-case");
+    expect(read?.args).not.toContain("--max-count=1");
+    // The time read is grepped alike, or the two reads would not pair.
+    const times = records.find((record) => record.label === "reflog.times");
+    expect(times?.args).toContain("--grep-reflog=--max-count=1");
+  });
+
+  it("pages over the matches with offset and says a no-match reflog still has entries", async () => {
+    const dir = initRepo();
+    commitFile(dir, "a");
+    for (const n of [1, 2, 3, 4, 5]) mark(dir, `match ${n}`);
+    const git = reader(dir);
+    const first = await loadReflog(git, dir, { ref: "HEAD", limit: 2, grep: "match" });
+    const second = await loadReflog(git, dir, { ref: "HEAD", limit: 2, offset: 2, grep: "match" });
+    expect(first.entries.map((entry) => entry.message)).toEqual(["match 5", "match 4"]);
+    expect(first.hasMore).toBe(true);
+    expect(second.entries.map((entry) => entry.message)).toEqual(["match 3", "match 2"]);
+    expect(second.hasMore).toBe(true);
+
+    const none = await loadReflog(git, dir, { ref: "HEAD", grep: "no such text" });
+    expect(none).toMatchObject({ entries: [], state: "entries", hasMore: false, error: null });
+  });
+
+  it("searches the stash reflog", async () => {
+    const dir = initRepo();
+    commitFile(dir, "a");
+    fs.writeFileSync(path.join(dir, "a"), "changed\n");
+    run(["stash", "push", "-q", "-m", "stash Needle"], dir);
+    const result = await loadReflog(reader(dir), dir, { ref: "refs/stash", grep: "needle" });
+    expect(result.error).toBeNull();
+    expect(result.ref).toBe("refs/stash");
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0]?.message).toContain("stash Needle");
+  });
+
+  it("refuses a NUL in the search text without running Git", async () => {
+    const dir = initRepo();
+    commitFile(dir, "a");
+    const records: GitCommandRecord[] = [];
+    const result = await loadReflog(reader(dir), dir, { grep: "a\0b" }, (record) =>
+      records.push(record)
+    );
+    expect(result.error?.message).toMatch(/NUL/);
+    expect(records).toEqual([]);
+  });
+
+  it("lists HEAD, the local branches and an existing stash for the picker", async () => {
+    const dir = initRepo();
+    commitFile(dir, "a");
+    run(["branch", "feat/x"], dir);
+    run(["branch", "aaa"], dir);
+    run(["update-ref", "refs/remotes/origin/main", "HEAD"], dir);
+    const git = reader(dir);
+    const before = await loadReflogRefs(git, dir);
+    expect(before).toEqual({
+      refs: ["HEAD", "refs/heads/aaa", "refs/heads/feat/x", "refs/heads/main"],
+      error: null
+    });
+
+    fs.writeFileSync(path.join(dir, "a"), "changed\n");
+    run(["stash", "push", "-q"], dir);
+    const after = await loadReflogRefs(git, dir);
+    expect(after.refs).toEqual([...before.refs, "refs/stash"]);
+  });
+
+  it("parses a ref listing with the stash kept last and remotes left out", () => {
+    expect(
+      parseReflogRefs("refs/heads/main\nrefs/remotes/origin/main\nrefs/stash\nrefs/heads/x\n")
+    ).toEqual(["HEAD", "refs/heads/main", "refs/heads/x", "refs/stash"]);
+    expect(parseReflogRefs("")).toEqual(["HEAD"]);
   });
 });
 

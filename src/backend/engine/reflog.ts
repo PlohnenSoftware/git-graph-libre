@@ -72,6 +72,9 @@ async function readFromEngine(
     logBackendRoute(OPERATION, `backend=cli reason=${reason}`);
     return null;
   };
+  // The engine export takes no search text: a grep (F1-05) is Git's
+  // `--grep-reflog` on the CLI, the authority for its matching.
+  if (typeof request.grep === "string" && request.grep !== "") return viaCli("grep");
   const backend = deps.backend ?? (() => "git-cli");
   if (backend() !== "auto") return viaCli("setting");
   const isVerified = deps.isVerified ?? (() => false);

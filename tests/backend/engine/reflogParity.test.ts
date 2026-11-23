@@ -254,6 +254,12 @@ describe("readReflog routing", () => {
 
   const cliCases: [string, ReflogRequest, ReflogDeps, string][] = [
     [
+      "a search grep, which only the CLI serves (F1-05)",
+      { grep: "only" },
+      engineDeps(() => addonReturning("{}").provider()),
+      "grep"
+    ],
+    [
       "the git-cli setting",
       {},
       { ...engineDeps(() => addonReturning("{}").provider()), backend: () => "git-cli" },

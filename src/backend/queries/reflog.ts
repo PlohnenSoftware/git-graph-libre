@@ -42,8 +42,16 @@ export type ReflogRequest = {
   ref?: string;
   /** Entries to return, newest first. Defaults to {@link DEFAULT_REFLOG_PAGE_SIZE}. */
   limit?: number;
-  /** Newer entries to skip, for paging. Defaults to 0. */
+  /** Newer entries to skip, for paging. Defaults to 0. With `grep`, matching entries are skipped. */
   offset?: number;
+  /**
+   * Only entries whose reflog message contains this text, as a fixed,
+   * case-insensitive string (F1-05). It reaches Git solely as the value of
+   * `--grep-reflog=` with `--fixed-strings`, never as an option of its own,
+   * so text that looks like a flag or a pattern stays literal search text.
+   * An empty string is no grep at all.
+   */
+  grep?: string;
 };
 
 function queryError(message: string): GitQueryError {
@@ -158,7 +166,8 @@ function pageArgs(
   limit: number,
   offset: number,
   format: string,
-  date: string | null = null
+  date: string | null = null,
+  grep = ""
 ): string[] {
   return [
     "log",
@@ -169,6 +178,11 @@ function pageArgs(
     `--format=${format}`,
     `--max-count=${limit + 1}`,
     `--skip=${offset}`,
+    // The graph's commit search spells a literal search the same way
+    // (`searchCommits`): the user text is the `--grep-reflog=` value and
+    // nothing else, fixed and case-insensitive, so it can never turn
+    // into an option or a pattern of its own.
+    ...(grep === "" ? [] : ["--regexp-ignore-case", "--fixed-strings", `--grep-reflog=${grep}`]),
     "--end-of-options",
     fullRef,
     "--"
@@ -190,9 +204,16 @@ async function hasReflogFile(read: Reader, fullRef: string): Promise<boolean | n
   }
 }
 
-async function emptyState(read: Reader, fullRef: string, offset: number): Promise<GitReflogState> {
-  if (offset > 0) {
-    // The page lies past the end. The reflog still has entries when its newest one exists.
+async function emptyState(
+  read: Reader,
+  fullRef: string,
+  offset: number,
+  hasGrep = false
+): Promise<GitReflogState> {
+  if (offset > 0 || hasGrep) {
+    // The page lies past the end, or nothing matched the grep. The
+    // reflog still has entries when its newest one exists (the probe
+    // itself reads without the grep).
     const newest = await read(pageArgs(fullRef, 0, 0, TIME_FORMAT), "reflog.probe");
     if (splitRecords(newest).length > 0) return "entries";
   }
@@ -211,6 +232,12 @@ async function emptyState(read: Reader, fullRef: string, offset: number): Promis
  * a bare repository's branch, or any ref under `core.logAllRefUpdates=false`).
  * A read that fails, or a ref that does not exist, is an `error` and never an
  * empty list.
+ *
+ * With a `grep`, Git itself filters the reflog messages before the page
+ * is cut (`--grep-reflog` with `--fixed-strings` and
+ * `--regexp-ignore-case`, verified with `-g`, `-z`, `--max-count` and
+ * `--skip` on Git 2.56), so `limit` and `offset` page over the matches,
+ * however far back in the reflog they lie.
  */
 export async function loadReflog(
   git: SimpleGit,
@@ -226,6 +253,10 @@ export async function loadReflog(
   if (typeof limit === "string") return failure(queryError(limit));
   if (typeof offset === "string") return failure(queryError(offset));
   if (limit < 1) return failure(queryError("The limit must be at least 1."));
+  const grep = request.grep ?? "";
+  if (typeof grep !== "string" || grep.includes(NUL)) {
+    return failure(queryError("The search text cannot contain a NUL character."));
+  }
   const pageSize = Math.min(limit, MAX_REFLOG_PAGE_SIZE);
 
   const read: Reader = (args, label) =>
@@ -243,18 +274,61 @@ export async function loadReflog(
     }
 
     const [entryOutput, timeOutput] = await Promise.all([
-      read(pageArgs(fullRef, pageSize, offset, ENTRY_FORMAT), "reflog.entries"),
-      read(pageArgs(fullRef, pageSize, offset, TIME_FORMAT, "unix"), "reflog.times")
+      read(pageArgs(fullRef, pageSize, offset, ENTRY_FORMAT, null, grep), "reflog.entries"),
+      read(pageArgs(fullRef, pageSize, offset, TIME_FORMAT, "unix", grep), "reflog.times")
     ]);
     const fetched = parseReflogRecords(entryOutput, timeOutput);
     const entries = fetched.slice(0, pageSize);
     const hasMore = fetched.length > pageSize;
     const state: GitReflogState =
-      entries.length > 0 ? "entries" : await emptyState(read, fullRef, offset);
+      entries.length > 0 ? "entries" : await emptyState(read, fullRef, offset, grep !== "");
     return { entries, state, hasMore, ref: fullRef, error: null };
   } catch (error: unknown) {
     if (error instanceof ReflogFormatError) return failure(queryError(error.message));
     return failure(toGitQueryError(error, "Unable to read the reflog"));
+  }
+}
+
+export type GitReflogRefsResult = {
+  /** `HEAD`, then every local branch's full ref, then `refs/stash` when it exists. */
+  refs: string[];
+  error: GitQueryError | null;
+};
+
+/**
+ * The picker's refs out of one `for-each-ref` listing (F1-05): `HEAD`
+ * first, the local branches in Git's order, and the stash last — only
+ * when `refs/stash` exists, since a repository with no stash has no such
+ * ref to pick. Remote-tracking refs never appear (RQ8); the other
+ * worktrees' HEADs are F1-08's.
+ */
+export function parseReflogRefs(stdout: string): string[] {
+  const listed = stdout.split("\n").filter((line) => line !== "");
+  const branches = listed.filter((ref) => ref.startsWith("refs/heads/"));
+  return ["HEAD", ...branches, ...(listed.includes("refs/stash") ? ["refs/stash"] : [])];
+}
+
+/**
+ * The refs the Reflog tab's picker offers for one repository. Read-only.
+ * A failed read still offers `HEAD` beside its error, so the tab keeps
+ * working on the default ref.
+ */
+export async function loadReflogRefs(
+  git: SimpleGit,
+  repo: string,
+  record?: GitCommandRecorder
+): Promise<GitReflogRefsResult> {
+  try {
+    const stdout = await runGitRaw(git, {
+      label: "reflog.refs",
+      kind: "query",
+      args: ["for-each-ref", "--format=%(refname)", "refs/heads", "refs/stash"],
+      repo,
+      record
+    });
+    return { refs: parseReflogRefs(stdout), error: null };
+  } catch (error: unknown) {
+    return { refs: ["HEAD"], error: toGitQueryError(error, "Unable to list reflog refs") };
   }
 }
 
