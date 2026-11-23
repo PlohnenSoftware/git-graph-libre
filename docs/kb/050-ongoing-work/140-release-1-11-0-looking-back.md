@@ -79,7 +79,7 @@ releases (Rules) applies, with the answers below.
 | T1b | Blame tab open-and-outcome telemetry (`tab.blame`) | T1, F4-03 | Claude Haiku | integrated `7ed42e61` |
 | Q1 | GGL icon on the Diff, Reflog and Blame tabs (maintainer test) | — | Claude Haiku | integrated `98bbf66a` |
 | Q2 | Reflog table column widths, no horizontal scroll (maintainer test) | — | Muse Code | ready |
-| N1 | Release notes: Blame F4-05/F4-06, Q1, L2, P1 | those slices | Claude Haiku | ready |
+| N1 | Release notes: Blame F4-05/F4-06, Q1, L2, P1 | those slices | Claude Haiku | integrated `d25ed146` |
 | R90 | Release 1.11.0 | every `main` track | orchestrator | waiting |
 
 ## Blocked — waiting for the maintainer
@@ -280,3 +280,11 @@ anything unsolvable within reason be marked here while the rest continues.
   (read by the integrator). Gates on `32863a1d`: strict Biome, typecheck,
   KB check, backend 1,594 passed (60 skipped in the worktree) and webview
   1,344 passed. N1 (release notes) must add a line for it.
+- `2026-11-23`: N1 (Claude Haiku) integrated at `d25ed146`: `[Unreleased]`
+  gained the Blame rewind/options/find and commit popover entries, the
+  Worktrees popup icon buttons, the clearer Create Worktree dialogs, the tab
+  icon, the zh-tw term, and the remaining P1 fixes; the README's Blame bullet
+  names rewinding, the options, find and the popover. Left for R90: entries
+  for P1b (V11) and Q2, and "the Blame tab" in the telemetry entry (N1's
+  note). Gates on `d25ed146`: KB check, backend 1,594 passed and webview
+  1,344 passed.
