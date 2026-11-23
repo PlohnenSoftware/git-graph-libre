@@ -178,3 +178,13 @@ anything unsolvable within reason be marked here while the rest continues.
   `telemetry.json` and the README name the signal. Gates on `7ed42e61`:
   strict Biome on 8 files, typecheck, KB check, backend 1,579 passed (60
   skipped in the worktree) and webview 1,210 passed.
+- `2026-11-23`: early SonarQube scan on `main` (version still 1.10.0, so all
+  1.11.0 work counts as new code): gate ERROR, 15 new issues; slice S1 holds
+  the list. S1a (Claude Haiku) integrated at `e342ce2c`: twelve mechanical
+  fixes, among them the two `biome-ignore` control-character regexes
+  replaced by a shared `hasControlCharacter` in `src/backend/utils/string.ts`
+  (no suppression left). S1b (the two `blame.ts` complexity refactors) runs
+  on Gemini 4 Argon; S1c (`reflogTab/view.ts`) waits for F1-06 and F1-07.
+  Gates on `e342ce2c`: strict Biome on 11 files, typecheck, KB check,
+  backend 1,580 passed (60 skipped in the worktree) and webview 1,232
+  passed.
