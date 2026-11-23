@@ -1,3 +1,4 @@
+import type { TodoEntry } from "../rebase/todo";
 import type { GitResetMode } from "./git.types";
 
 export type GitCommandStatus = string | null;
@@ -117,6 +118,19 @@ type ActionPayloads = {
     targetType: "branch" | "commit";
     ignoreDate: boolean;
     interactive: boolean;
+  };
+  /**
+   * Starts `git rebase -i` with a prepared todo (F2-01b). `entries` are the
+   * todo lines oldest first, each with a full hash; `rangeHashes` are the
+   * full hashes of the commits the rebase covers, which the entries must
+   * cover exactly. `base` is the revision the range starts after, or null
+   * for the root case (`--root`, the range then starts at the first
+   * commit).
+   */
+  interactiveRebase: {
+    base: string | null;
+    entries: TodoEntry[];
+    rangeHashes: string[];
   };
   updateBranchFromUpstream: { branchName: string; force: boolean };
   revertCommit: { commitHash: string; parentIndex: number; noCommit: boolean };
