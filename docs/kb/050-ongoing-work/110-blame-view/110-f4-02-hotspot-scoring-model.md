@@ -8,7 +8,7 @@ summary: >-
 
 # F4-02 — Hotspot age-heat and churn scoring model
 
-Status: claimed by Claude Haiku on 2026-11-23 12:00
+Status: done — awaiting integration
 
 Needs: F4-01
 
@@ -94,4 +94,34 @@ result. Claim and changes are separate signed commits; never push.
 
 ## Report
 
-Not started.
+- **Agent / date:** Claude Haiku 5.5 (`claude-haiku-5-5`), 2026-11-23 12:03
+- **Branch and commits:** `blame/F4-02`
+  - `9326bd7b G docs(blame): claim F4-02 hotspot scoring model (F4-02)`
+  - `5529aa91 G feat(blame): add the pure hotspot scoring model (F4-02)`
+  - `2a330a0e G test(blame): cover the hotspot scoring model (F4-02)`
+  - this report commit: `G docs(blame): report F4-02 ...` (see the integration handoff)
+- **Files changed:** `src/blameHotspot.ts` (+224), `tests/backend/blameHotspot.test.ts` (+288), this slice file (status and report). 513 insertions, 1 deletion in total (`git diff --stat 7db1d290..HEAD`, before the report commit).
+- **Tests added or changed:** 17 new tests in `tests/backend/blameHotspot.test.ts`, covering empty input, single commit (5, not NaN), two commits (0 and 9), skewed timestamps (0..9 spread), equal timestamps, uncommitted exclusion (including a working-tree time between committed times), missing commit, every calendar boundary through `730d` and `>730d`, the future clamp, churn (exact scores, determinism, monotonic recency, uncommitted exclusion), off mode, and immutability over all four modes with deep-frozen inputs. Count before: 0. Count after: 17.
+- **Gates:**
+  - `npx vitest run --project backend tests/backend/blameHotspot.test.ts`: 17 passed, exit 0.
+  - `npx biome check --config-path biome.strict.jsonc --error-on-warnings src/blameHotspot.ts tests/backend/blameHotspot.test.ts`: exit 0, no diagnostics. The run also printed a config-version notice (`biome.strict.jsonc` names schema 2.5.13, the installed CLI is 2.6.8). It is pre-existing and was not edited.
+  - `pnpm run typecheck` (src, src/webview and tests projects): exit 0.
+  - `node ./docs/kb/housekeeping.mjs --check`: exit 0.
+  - Sonar: integrator.
+- **Acceptance:**
+  - Constants and types (`BLAME_HEAT_BUCKETS = 10`, `BlameHeatLevel`, `BlameHotspotMode`, `BlameHunkHeat` with the four named fields): met.
+  - `age` rank-quantile, single timestamp to 5, equal timestamps to equal levels, uncommitted excluded from the rank pool: met, tested.
+  - `calendar` with injected `nowSeconds`, the listed thresholds, future to 9: met, every boundary tested.
+  - `churn` deterministic, documented, uncommitted null: met, tested (formula below).
+  - `off` returns null levels and fills the uncommitted flag and footprint counts: met, tested.
+  - Pure, no DOM, no `vscode`, never mutates inputs: met. The module imports only the type `GitBlameCommit` and `GitBlameHunk` from `@/backend/types`, which is erased at runtime. Immutability tested with frozen inputs.
+  - Touch list respected: only the new module, the new test file, and this slice file. `src/backend/queries/blame.ts` and webview files untouched. No dependency added.
+- **Deviations from the slice:**
+  - **Churn formula chosen** (the slice left it open): for a committed hunk, `raw = ((rank + 1) / count) * hunksOfItsCommit`, where `rank` is the commit's rank among distinct committed timestamps and `count` is how many there are. The level is `round(9 * raw / largestRaw)`. Recency is the same rank as `age`, so the newest committed time has fraction 1 and the oldest has fraction `1/count`. Footprint is the number of hunks the commit owns in this file. Line counts are not used in the score (exposed as `commitLineCount` for the UI). The result is deterministic, monotonic in both recency and hunk count, and the file's hottest committed hunk is always 9. When all committed hunks share one timestamp, churn is proportional to hunk count alone.
+  - A hunk whose commit is missing from the `commits` map is treated as uncommitted (`level: null`, `uncommitted: true`). The slice did not say this; the query guarantees the map holds every hunk's commit, so this only guards bad input.
+  - `ageLevelForRank` and `calendarLevelForTime` are exported in addition to `scoreBlameHunks`, so the rule can be read by a test or by the UI. The slice's required export list did not forbid this.
+  - `scoreBlameHunks(hunks, commits, mode, nowSeconds)` takes `nowSeconds` on every call; only `calendar` reads it. Callers in other modes pass any value.
+  - The `feat` commit message says the tests "run with the test commit that follows", which is accurate (the tests landed in the next commit); the commit history is not amended, per the rules.
+- **Open questions / follow-ups:**
+  - The integrator should confirm the churn formula above is acceptable before F4-03 onward depends on the churn mode's exact levels. It is a single function (`churnLevels`) and a single test pins its values.
+  - Biome config-version notice (`2.5.13` schema vs `2.6.8` CLI) is pre-existing in `biome.strict.jsonc`; the maintainer may want to align them.
