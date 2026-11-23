@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { COLUMN_SIDE_PADDING_PX, DEFAULT_COLUMN_WIDTHS } from "@/webview/reflogTab/columnResize";
+import {
+  COLUMN_SIDE_PADDING_PX,
+  DEFAULT_COLUMN_WIDTHS,
+  MESSAGE_COLUMN_INDEX
+} from "@/webview/reflogTab/columnResize";
 import {
   applyData,
   applyLoading,
@@ -523,11 +527,26 @@ describe("reflog table column resizing (F1-04F, Q2)", () => {
     const { root, onColumnWidthsChange } = renderWith([...WIDTHS]);
     stubContainerWidth(root, 702);
     window.dispatchEvent(new Event("resize"));
-    // Message gives its 260px down to the minimum, then the fixed
-    // columns are scaled back for the last 40px; the table now
-    // renders exactly as wide as its container, never wider.
-    expect(colWidths(root)).toEqual(["49px", "102px", "84px", "40px", "84px", "120px", "111px"]);
+    // Message gives its 100px down to its 200px working minimum, then
+    // the fixed columns give the other 200px in proportion to their
+    // slack above the minimum; the table now renders exactly as wide
+    // as its container, never wider, and Message keeps 200px.
+    expect(colWidths(root)).toEqual(["45px", "70px", "62px", "200px", "62px", "76px", "75px"]);
     expect(renderedTableWidth(root)).toBeLessThanOrEqual(702);
+    expect(onColumnWidthsChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps Message at 200px or more at a 700px panel, from the defaults (Q2)", () => {
+    const { root, onColumnWidthsChange } = renderWith(null);
+    stubContainerWidth(root, 700);
+    window.dispatchEvent(new Event("resize"));
+    const widths = colWidths(root).map((width) => Number.parseInt(width, 10));
+    // Message is the flexible column and must not be squeezed to a
+    // narrow strip where each word of a message sits on its own line;
+    // the fixed columns share the loss instead, and the table still
+    // fits the panel exactly.
+    expect(widths[MESSAGE_COLUMN_INDEX]).toBeGreaterThanOrEqual(200);
+    expect(renderedTableWidth(root)).toBe(700);
     expect(onColumnWidthsChange).not.toHaveBeenCalled();
   });
 
@@ -556,7 +575,7 @@ describe("reflog table column resizing (F1-04F, Q2)", () => {
       // container is 14px narrower and only the observer sees it.
       stubContainerWidth(root, 688);
       callbacks[0]?.();
-      expect(colWidths(root)).toEqual(["48px", "99px", "82px", "41px", "82px", "116px", "108px"]);
+      expect(colWidths(root)).toEqual(["44px", "68px", "60px", "200px", "60px", "72px", "72px"]);
       expect(renderedTableWidth(root)).toBe(688);
       expect(onColumnWidthsChange).not.toHaveBeenCalled();
     } finally {
@@ -568,16 +587,18 @@ describe("reflog table column resizing (F1-04F, Q2)", () => {
     const { root, onColumnWidthsChange } = renderWith([...WIDTHS]);
     stubContainerWidth(root, 702);
     window.dispatchEvent(new Event("resize"));
-    // Widening Index would have to come out of Message, which is
-    // already at its minimum: the drag is clamped to nothing.
+    // Widening Index takes from Message, which the user may drag below
+    // its 200px automatic floor, down to the 40px minimum; the drag is
+    // not clamped here because Message still has room.
     drag(root, 0, 100, 200);
     expect(renderedTableWidth(root)).toBeLessThanOrEqual(702);
-    expect(colWidths(root)).toEqual(["49px", "102px", "84px", "40px", "84px", "120px", "111px"]);
-    // Narrowing Date gives its width to Message; the total holds.
+    expect(colWidths(root)).toEqual(["145px", "70px", "62px", "100px", "62px", "76px", "75px"]);
+    // Narrowing Date gives its width to Message, down to Date's minimum;
+    // the total holds.
     drag(root, 5, 100, 50);
-    expect(colWidths(root)).toEqual(["49px", "102px", "84px", "90px", "84px", "70px", "111px"]);
+    expect(colWidths(root)).toEqual(["145px", "70px", "62px", "136px", "62px", "40px", "75px"]);
     expect(renderedTableWidth(root)).toBe(702);
-    expect(onColumnWidthsChange).toHaveBeenLastCalledWith([49, 102, 84, 90, 84, 70, 111]);
+    expect(onColumnWidthsChange).toHaveBeenLastCalledWith([145, 70, 62, 136, 62, 40, 75]);
     expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
   });
 
