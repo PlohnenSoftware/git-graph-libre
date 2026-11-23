@@ -82,7 +82,7 @@ that note, the slice file wins.
 | F1-05 | Search, filters and ref picker | F1-04, F1-09 | Sonnet | integrated `f0a51986` |
 | F1-08 | Worktrees and bare repositories | F1-05 | Sonnet | integrated `d8f56cb7` |
 | F1-06 | Recovery actions that cannot lose data | F1-08 | Sonnet | ready |
-| F1-07 | Lost-commit scan (opt-in) | F1-06 | Sonnet | waiting |
+| F1-07 | Lost-commit scan (opt-in) | F1-06 | Sonnet | in progress (pulled forward) |
 
 ## Integration acceptance
 
@@ -227,3 +227,4 @@ headless render of the tab in both themes. Nothing is pushed.
   T1's `telemetry` and F1-08's `repoManager`. Gates on `d8f56cb7`: strict
   Biome on 20 files, typecheck, `l10n:check`, KB check, backend 1,578 passed
   (60 skipped in the worktree) and webview 1,142 passed. F1-06 is ready.
+- `2026-11-23`: F1-07 pulled forward to run beside F1-06 (integrator, under the maintainer's overlap answer): it reuses U1's `discoverUnreachableCommitHashes` and adds its own module and tab UI. Dispatched to Gemini 4 Neon (`agy`).

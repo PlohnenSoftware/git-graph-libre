@@ -7,7 +7,7 @@ summary: >-
 
 # F1-07 — Lost-commit scan (opt-in)
 
-Status: waiting
+Status: ready (pulled forward by the integrator, `2026-11-23`)
 
 Needs: F1-06
 

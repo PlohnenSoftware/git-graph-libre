@@ -140,7 +140,7 @@ worktrees under `/home/zam/Desktop/prog/_GGL/.ggl-wt/`.
 | F4-04 | Hotspot OKLCH palette, heat rail, legend and hover highlight | F4-03 | Haiku | ready |
 | F4-05 | Parent-blame rewind stack, options, ignore-revs and find | F4-04 | Sonnet | waiting |
 | F4-06 | Commit popover, Show in Graph, GGL Diff and Open File at Line | F4-05 | Sonnet | waiting |
-| F4-07 | Editor, Explorer, SCM and Commit Details entry points | F4-06 | Sonnet | waiting |
+| F4-07 | Editor, Explorer, SCM and Commit Details entry points | F4-06 | Sonnet | in progress (pulled forward) |
 | F4-08 | Worktrees, bare repositories, unsaved buffers and watcher refresh | F4-07 | Sonnet | waiting |
 | F4-09 | Optional: Rust engine blame read with parity tests | F4-01 | Muse Code | deferred (BQ8 profiling: `gix` slower) |
 
@@ -204,3 +204,4 @@ revision). Nothing is pushed without explicit instruction.
   `3e916dff`: strict Biome on 29 files, typecheck, `l10n:check`, KB check,
   backend 1,578 passed (60 skipped in the worktree) and webview 1,195
   passed. F4-04 is ready.
+- `2026-11-23`: F4-07 pulled forward to run beside F4-04 (integrator, under the maintainer's overlap answer): its `Needs: F4-06` only serialized shared files; it builds on F4-03's `showBlame`. Dispatched to Gemini 4 Neon (`agy`).
