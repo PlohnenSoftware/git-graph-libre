@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A Blame view.** **Show Blame for Current File**, from the Command Palette,
+  opens a tab that groups a file's lines by the commit that last changed them,
+  like GitHub's blame view. Each group shows the commit's summary, author,
+  hash and date, in the graph's hash length and date format. The commit column
+  can be resized and keeps its width per repository, uncommitted lines are
+  marked, and hovering a commit highlights all of its lines. **Show Blame** is
+  also in the editor, Explorer and Source Control context menus, and **Show
+  Blame at Commit** and **Show Blame Before Deletion** are in a commit's file
+  menu in the graph; the `contextMenuActionsVisibility` setting can hide those
+  two. The tab works in linked worktrees and bare repositories, explains
+  untracked, empty, binary and too-large files, and blames an unsaved file's
+  live text with an "Unsaved buffer" note and a **Blame HEAD** button. It
+  refreshes as the working tree and `HEAD` change, without losing its scroll
+  position.
+
+- **Hotspot coloring in the Blame view.** Each group has a heat rail that runs
+  from cool for older commits to warm for newer ones, with an Older-to-Newer
+  legend in the tab header. The mode menu chooses how the heat is scored:
+  **Age** (the default) ranks commits by date across the file, **Calendar**
+  uses fixed bands from the last day to two years, **Churn** favors commits
+  that own many separate hunks in the file and recent ones among them, and
+  **Off** removes the heat. The chosen mode is kept when the tab reloads.
+
 - **A Reflog tab.** **Show Reflog**, from the Command Palette or the graph
   toolbar, opens a tab that lists the `HEAD` reflog page by page: each entry's
   index, commit, date, action and sub-action (such as a rebase's pick, squash
