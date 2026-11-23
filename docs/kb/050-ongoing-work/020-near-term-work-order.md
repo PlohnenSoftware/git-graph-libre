@@ -18,8 +18,9 @@ History F3-07) and merged `v1.11.0` into it; the integrator resolved the
 seventeen conflicts keeping both sides (`486600af`, not pushed) and
 fast-forwarded `gg-plus/next` to it. Open on that line: F3-08 (Timeline),
 the Statistics tab's open telemetry (`tab.statistics`), a guard for the graph
-layout's endless loop on unordered commits (found by F3-07), and F2-09
-(deferred, IQ8).
+layout's endless loop on unordered commits (found by F3-07), F2-09
+(deferred, IQ8), and a line break between the Components popup's two log
+links, which run together (Phase 10, added `2026-11-23`).
 
 **Done (`2026-11-23`): release 1.11.0 "Looking Back", tagged `v1.11.0`.** "Release 1.11.0 — Looking Back" (History) holds
 the scope (everything on `main` since v1.10.0, the finished Reflog tab and the

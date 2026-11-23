@@ -3,12 +3,15 @@ summary: >-
   Partial. Done: issue linking, config sharing, archives, commit/tag
   signatures, staging panel (`1.5.0`), working-tree comparison and external
   directory diff (`1.9.0`), copyable diagnostics/logs (issue #31, `1.9.0`).
-  Open: markdown/emoji, inline body, `.mailmap`, code review, encoding.
+  Open: markdown/emoji, inline body, `.mailmap`, code review, encoding, and
+  a line break between the Components popup's two log links (`2026-11-23`).
 ---
 
 # Phase 10: Advanced History, Text, and Integrations
 
-**Status: partially complete** — issue linking, repo config export/import sharing (`7a18099`), ref archives (`b4d97fe`), commit signature status, tag signature status (Phase 15, `2026-07-29`), the staged/unstaged drag-drop staging panel (`1.5.0`, `2026-09-07`), working-tree comparison and external directory diff (`1.9.0`, D14–D15), and copyable diagnostics/logs ([issue #31](https://github.com/PlohnenSoftware/git-graph-libre/issues/31), `1.9.0`, D01 and D61–D63) are done. Remaining: markdown/emoji message rendering, inline commit body, `.mailmap` support, code-review state, and file encoding setting.
+**Status: partially complete** — issue linking, repo config export/import sharing (`7a18099`), ref archives (`b4d97fe`), commit signature status, tag signature status (Phase 15, `2026-07-29`), the staged/unstaged drag-drop staging panel (`1.5.0`, `2026-09-07`), working-tree comparison and external directory diff (`1.9.0`, D14–D15), and copyable diagnostics/logs ([issue #31](https://github.com/PlohnenSoftware/git-graph-libre/issues/31), `1.9.0`, D01 and D61–D63) are done. Remaining: markdown/emoji message rendering, inline commit body, `.mailmap` support, code-review state, file encoding setting, and the log-link spacing defect below.
+
+**Open defect (`2026-11-23`, reported by the maintainer): the Components popup's log links run together.** The hover popup on the toolbar's component status shows "Copy diagnostics report" and "Open log file" with no gap, so they read as one link ("Copy diagnostics reportOpen log file") and are easy to mis-click. Cause: `renderLinks()` in `src/webview/componentStatus.ts` appends both anchors, inline, into one `<p class="componentStatusLinks">` with no separator, and `media/toolbar.css` has no rule for that class. Fix: put each link on its own line (the maintainer asked for a line break between them), for example a `.componentStatusLinks` rule in `media/toolbar.css` that stacks the anchors with a small gap; keep both links keyboard-reachable and pin the layout in `tests/webview/componentStatus.test.ts`. The startup screen's own log buttons are separate and not affected.
 
 Goal: close feature gaps after the core UX is strong.
 
