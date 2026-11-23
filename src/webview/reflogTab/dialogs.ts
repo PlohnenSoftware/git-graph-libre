@@ -251,17 +251,7 @@ export function createReflogDialogs(root: HTMLElement, callbacks: ReflogDialogCa
     );
     const submitLabel = labels.dialogAddTagSubmit ?? "Add Tag";
     const messageLabel = `${labels.dialogAddTagMessage ?? "Message"} (${labels.dialogAddTagOptional ?? "Optional"})`;
-    const html =
-      dialogTitleHtml(title) +
-      `<table class="dialogForm multi">` +
-      `<tr id="dialogInputRow0"><td>${escapeHtml(labels.dialogAddTagName ?? "Name")}</td><td><input id="dialogInput0" type="text" value=""/></td></tr>` +
-      `<tr id="dialogInputRow1"><td>${escapeHtml(labels.dialogAddTagType ?? "Type")}</td><td><select id="dialogInput1">` +
-      `<option value="annotated" selected>${escapeHtml(labels.dialogAddTagTypeAnnotated ?? "Annotated")}</option>` +
-      `<option value="lightweight">${escapeHtml(labels.dialogAddTagTypeLightweight ?? "Lightweight (unsigned)")}</option>` +
-      `</select></td></tr>` +
-      `<tr id="dialogInputRow2"><td>${escapeHtml(messageLabel)}</td><td><input id="dialogInput2" type="text" value=""/></td></tr>` +
-      `<tr id="dialogInputRow3" hidden><td colspan="2" class="dialogFormNoteCell"><span class="dialogFormNote">${escapeHtml(labels.dialogAddTagLightweightNote ?? "")}</span></td></tr>` +
-      `</table>`;
+    const html = `${dialogTitleHtml(title)}<table class="dialogForm multi"><tr id="dialogInputRow0"><td>${escapeHtml(labels.dialogAddTagName ?? "Name")}</td><td><input id="dialogInput0" type="text" value=""/></td></tr><tr id="dialogInputRow1"><td>${escapeHtml(labels.dialogAddTagType ?? "Type")}</td><td><select id="dialogInput1"><option value="annotated" selected>${escapeHtml(labels.dialogAddTagTypeAnnotated ?? "Annotated")}</option><option value="lightweight">${escapeHtml(labels.dialogAddTagTypeLightweight ?? "Lightweight (unsigned)")}</option></select></td></tr><tr id="dialogInputRow2"><td>${escapeHtml(messageLabel)}</td><td><input id="dialogInput2" type="text" value=""/></td></tr><tr id="dialogInputRow3" hidden><td colspan="2" class="dialogFormNoteCell"><span class="dialogFormNote">${escapeHtml(labels.dialogAddTagLightweightNote ?? "")}</span></td></tr></table>`;
     showDialog(
       html,
       submitLabel,
@@ -401,13 +391,7 @@ export function createReflogDialogs(root: HTMLElement, callbacks: ReflogDialogCa
     const title = (labels.dialogResetConfirm ?? "Are you sure you want to reset {0} to commit {1}?")
       .replace("{0}", () => `<b>${escapeHtml(branch)}</b>`)
       .replace("{1}", () => boldCode(shortHash));
-    const html =
-      dialogTitleHtml(title) +
-      `<table class="dialogForm single"><tr id="dialogInputRow0"><td><select id="dialogInput0">` +
-      `<option value="soft">${escapeHtml(labels.dialogResetSoft ?? "Soft - Keep all changes, but reset head")}</option>` +
-      `<option value="mixed" selected>${escapeHtml(labels.dialogResetMixed ?? "Mixed - Keep working tree, but reset index")}</option>` +
-      `<option value="hard">${escapeHtml(labels.dialogResetHard ?? "Hard - Discard all changes")}</option>` +
-      `</select></td></tr></table>`;
+    const html = `${dialogTitleHtml(title)}<table class="dialogForm single"><tr id="dialogInputRow0"><td><select id="dialogInput0"><option value="soft">${escapeHtml(labels.dialogResetSoft ?? "Soft - Keep all changes, but reset head")}</option><option value="mixed" selected>${escapeHtml(labels.dialogResetMixed ?? "Mixed - Keep working tree, but reset index")}</option><option value="hard">${escapeHtml(labels.dialogResetHard ?? "Hard - Discard all changes")}</option></select></td></tr></table>`;
     showDialog(
       html,
       labels.dialogYesReset ?? "Yes, reset",
