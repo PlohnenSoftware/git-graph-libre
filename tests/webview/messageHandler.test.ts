@@ -26,6 +26,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import type { AvatarManager } from "@/avatarManager";
 import type { GitClient } from "@/backend/gitClient";
 import { setOperationLog, traceRequest } from "@/backend/utils/operationLog";
+import type { BlameOpenTarget } from "@/blameTabTypes";
 import type { Config } from "@/config";
 import type { DiffTabRequest } from "@/diffTabTypes";
 import { registerMessageHandlers } from "@/extension/messageHandler";
@@ -88,6 +89,7 @@ describe("registerMessageHandlers", () => {
     const consentPrompts: number[] = [];
     const openedDiffTabs: DiffTabRequest[] = [];
     const openedReflogTabs: string[] = [];
+    const openedBlameTabs: BlameOpenTarget[] = [];
     const handlers = new Map<
       RequestMessage["command"],
       (msg: RequestMessage) => void | Promise<void>
@@ -169,6 +171,9 @@ describe("registerMessageHandlers", () => {
       openReflogTab: (repoPath: string) => {
         openedReflogTabs.push(repoPath);
       },
+      openBlameTab: (target: BlameOpenTarget) => {
+        openedBlameTabs.push(target);
+      },
       isDiffTabAvailable: () => options.diffTabAvailable ?? true
     });
 
@@ -182,7 +187,8 @@ describe("registerMessageHandlers", () => {
       telemetryEvents,
       consentPrompts,
       openedDiffTabs,
-      openedReflogTabs
+      openedReflogTabs,
+      openedBlameTabs
     };
   }
 
@@ -1723,6 +1729,77 @@ describe("registerMessageHandlers", () => {
     // T1: a refused open is a failed open, carrying nothing about the path.
     expect(telemetryEvents).toEqual([{ feature: "tab.reflog", ok: false }]);
     expect(JSON.stringify(telemetryEvents)).not.toContain("elsewhere");
+  });
+
+  it("opens the blame tab for a known repository and safe path without emitting unapproved telemetry (F4-07)", async () => {
+    const { handlers, openedBlameTabs, telemetryEvents } = registerHandlersForTest();
+    const handler = handlers.get("showBlame");
+    expect(handler).toBeDefined();
+    await handler?.({
+      command: "showBlame",
+      repo,
+      filePath: "src/app.ts",
+      rev: "abc1234"
+    });
+    await handler?.({
+      command: "showBlame",
+      repo,
+      filePath: "src/working.ts",
+      rev: "*"
+    });
+    expect(openedBlameTabs).toEqual([
+      { repo, filePath: "src/app.ts", rev: "abc1234", targetLine: null },
+      { repo, filePath: "src/working.ts", rev: null, targetLine: null }
+    ]);
+    // T1b: valid opens are reported by the panel once their first load settles,
+    // not by the bridge route.
+    expect(telemetryEvents).toEqual([]);
+  });
+
+  it("refuses showBlame for an unknown repository or unsafe path and reports tab.blame ok:false (F4-07)", async () => {
+    const { handlers, openedBlameTabs, telemetryEvents } = registerHandlersForTest();
+    const handler = handlers.get("showBlame");
+    await handler?.({
+      command: "showBlame",
+      repo: "/elsewhere",
+      filePath: "src/app.ts",
+      rev: "abc1234"
+    });
+    await handler?.({
+      command: "showBlame",
+      repo,
+      filePath: "../secret.txt",
+      rev: "abc1234"
+    });
+    await handler?.({
+      command: "showBlame",
+      repo,
+      filePath: "/etc/passwd",
+      rev: "abc1234"
+    });
+    await handler?.({
+      command: "showBlame",
+      repo,
+      filePath: "",
+      rev: "abc1234"
+    });
+    await handler?.({
+      command: "showBlame",
+      repo,
+      filePath: "src/bad\0file.ts",
+      rev: "abc1234"
+    });
+
+    expect(openedBlameTabs).toEqual([]);
+    expect(telemetryEvents).toEqual([
+      { feature: "tab.blame", ok: false },
+      { feature: "tab.blame", ok: false },
+      { feature: "tab.blame", ok: false },
+      { feature: "tab.blame", ok: false },
+      { feature: "tab.blame", ok: false }
+    ]);
+    expect(JSON.stringify(telemetryEvents)).not.toContain("elsewhere");
+    expect(JSON.stringify(telemetryEvents)).not.toContain("secret");
   });
 
   // T1: the Worktrees popup's Copy Path button, measured like the other

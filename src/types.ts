@@ -98,6 +98,18 @@ export type PullRequestCreationConfig = {
   urlTemplate: string;
   pushBeforeCreate: boolean;
 };
+export type CommitDetailsViewFileContextMenuActionsVisibility = {
+  viewDiff: boolean;
+  openDiffTab: boolean;
+  showBlame: boolean;
+  viewFileAtRevision: boolean;
+  compareWithWorkingTree: boolean;
+  openFile: boolean;
+  resetFileToRevision: boolean;
+  copyAbsoluteFilePath: boolean;
+  copyRelativeFilePath: boolean;
+};
+
 export type ContextMenuActionsVisibility = {
   branch: {
     checkout: boolean;
@@ -137,16 +149,7 @@ export type ContextMenuActionsVisibility = {
     squashSelection: boolean;
     dropSelection: boolean;
   };
-  commitDetailsViewFile: {
-    viewDiff: boolean;
-    openDiffTab: boolean;
-    viewFileAtRevision: boolean;
-    compareWithWorkingTree: boolean;
-    openFile: boolean;
-    resetFileToRevision: boolean;
-    copyAbsoluteFilePath: boolean;
-    copyRelativeFilePath: boolean;
-  };
+  commitDetailsViewFile: CommitDetailsViewFileContextMenuActionsVisibility;
   remoteBranch: {
     checkout: boolean;
     delete: boolean;
@@ -449,6 +452,14 @@ export type RequestShowReflog = {
   repo: string;
 };
 
+export type RequestShowBlame = {
+  command: "showBlame";
+  repo: string;
+  filePath: string;
+  rev?: string | null;
+  targetLine?: number | null;
+};
+
 export type RequestViewFileAtRevision = {
   command: "viewFileAtRevision";
   repo: string;
@@ -665,6 +676,7 @@ export type RequestMessage =
   | RequestViewDiff
   | RequestOpenDiffTab
   | RequestShowReflog
+  | RequestShowBlame
   | RequestViewFileAtRevision
   | RequestCompareFileWithWorkingTree
   | RequestOpenFile

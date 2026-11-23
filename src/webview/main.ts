@@ -7780,6 +7780,60 @@ class GitGraphView {
     }
   }
 
+  private resolveGitFileBlameTarget(
+    fileChange: GitFileChange
+  ): { rev: string | null; filePath: string; title: string } | null {
+    if (fileChange.additions === null || fileChange.deletions === null) return null;
+    const expanded = this.expandedCommit;
+    if (expanded === null) return null;
+    if (expanded.comparison !== null) {
+      if (fileChange.type === "D") {
+        return {
+          rev: expanded.comparison.baseRef === "*" ? null : expanded.comparison.baseRef,
+          filePath: fileChange.oldFilePath,
+          title: l10n.showBlameBeforeDeletion
+        };
+      }
+      return {
+        rev: expanded.comparison.compareRef === "*" ? null : expanded.comparison.compareRef,
+        filePath: fileChange.newFilePath,
+        title: l10n.showBlameAtCommit
+      };
+    }
+    if (fileChange.type === "D") {
+      const firstParent = expanded.commitDetails?.parents[0];
+      if (firstParent === undefined || firstParent === "") return null;
+      return {
+        rev: firstParent,
+        filePath: fileChange.oldFilePath,
+        title: l10n.showBlameBeforeDeletion
+      };
+    }
+    let rev: string | null = expanded.hash === "*" ? null : expanded.hash;
+    if (fileChange.untracked === true) rev = `${expanded.hash}^3`;
+    return {
+      rev,
+      filePath: fileChange.newFilePath,
+      title: l10n.showBlameAtCommit
+    };
+  }
+
+  private buildGitFileBlameMenuItem(fileChange: GitFileChange): ContextMenuItem | undefined {
+    if (!this.isContextMenuActionVisible("commitDetailsViewFile", "showBlame")) return undefined;
+    const target = this.resolveGitFileBlameTarget(fileChange);
+    if (target === null) return undefined;
+    return {
+      title: target.title,
+      onClick: () =>
+        sendMessage({
+          command: "showBlame",
+          repo: this.currentRepo,
+          filePath: target.filePath,
+          rev: target.rev
+        })
+    };
+  }
+
   private buildGitFileContextMenu(
     fileChange: GitFileChange,
     sourceElem: HTMLElement
@@ -7788,6 +7842,7 @@ class GitGraphView {
     const revisionFileExists = this.gitFileExistsAtRevision(fileChange);
 
     this.pushFileDiffItems(menu, fileChange);
+    menu.push(this.buildGitFileBlameMenuItem(fileChange));
 
     if (revisionFileExists) {
       menu.push(

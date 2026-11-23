@@ -95,6 +95,7 @@ import {
   traceRequest
 } from "@/backend/utils/operationLog";
 import { abbrevCommit } from "@/backend/utils/string";
+import type { BlameOpenTarget } from "@/blameTabTypes";
 import type { Config } from "@/config";
 import { encodeDiffDocUri } from "@/diffDocProvider";
 import type { DiffTabRequest, DiffTabSide } from "@/diffTabTypes";
@@ -103,10 +104,17 @@ import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
 import type { TelemetryReporter } from "@/telemetry";
-import { createTabOpenReporter, TAB_FEATURE_DIFF, TAB_FEATURE_REFLOG } from "@/telemetry/tabOpen";
+import {
+  createTabOpenReporter,
+  TAB_FEATURE_BLAME,
+  TAB_FEATURE_DIFF,
+  TAB_FEATURE_REFLOG
+} from "@/telemetry/tabOpen";
 import { createViewFeatureReporter } from "@/telemetry/viewFeatures";
 import type { ExtensionSetting, GitRepoState, RequestMessage, ResponseMessage } from "@/types";
 
+import { createBlameSource } from "./blameTab/blameData";
+import { openBlameTab as openGglBlameTab } from "./blameTab/blameTabPanel";
 import { buildComponentStatus } from "./componentStatus";
 import { openDiffTab as openGglDiffTab } from "./diffTab/diffTabPanel";
 import { createEngineDiffTabSource, isDiffTabAvailable } from "./diffTab/engineSource";
@@ -545,6 +553,12 @@ export function registerMessageHandlers(
      * switch cannot redirect the retained tab's reads.
      */
     openReflogTab?: (repo: string) => void;
+    /**
+     * Opens the Blame tab for a commit-details file (F4-07). Defaults to the
+     * blame panel fed by the CLI blame source, assembled from this handler's
+     * live deps like the reflog route above; tests replace it.
+     */
+    openBlameTab?: (target: BlameOpenTarget) => void;
     /** Whether the tab can be fed (D45); defaults to the engine check. */
     isDiffTabAvailable?: () => boolean;
   }
@@ -569,6 +583,7 @@ export function registerMessageHandlers(
   // every open that reaches one is reported by the panel itself.
   const reportReflogOpen = createTabOpenReporter(telemetry, TAB_FEATURE_REFLOG);
   const reportDiffOpen = createTabOpenReporter(telemetry, TAB_FEATURE_DIFF);
+  const reportBlameOpen = createTabOpenReporter(telemetry, TAB_FEATURE_BLAME);
   const recordGitCommand: GitCommandRecorder | undefined = outputChannel
     ? (record) => {
         outputChannel.appendLine(formatGitCommandRecord(record));
@@ -619,6 +634,29 @@ export function registerMessageHandlers(
           outputChannel: outputChannel ?? { appendLine: () => undefined },
           telemetry,
           repoManager
+        }
+      );
+    });
+  const openBlame =
+    deps.openBlameTab ??
+    ((target: BlameOpenTarget): void => {
+      openGglBlameTab(
+        target,
+        createBlameSource({
+          createGit: (root) =>
+            simpleGit({
+              baseDir: root,
+              binary: config.gitPath(),
+              maxConcurrentProcesses: 6,
+              trimmed: false
+            }),
+          gitPath: config.gitPath,
+          record: recordGitCommand
+        }),
+        {
+          extensionPath,
+          outputChannel: outputChannel ?? { appendLine: () => undefined },
+          telemetry
         }
       );
     });
@@ -1434,6 +1472,34 @@ export function registerMessageHandlers(
   bridge.onMessage("showReflog", (msg) => {
     if (Object.hasOwn(repoManager.getRepos(), msg.repo)) openReflog(msg.repo);
     else reportReflogOpen(false);
+  });
+
+  // Commit Details file context menu's "Show Blame" action (F4-07):
+  // validate both the known repository and a safe repo-relative path before
+  // opening the Blame tab. Refused requests report a failed open (T1b);
+  // valid opens are reported by the panel itself when their first load settles.
+  bridge.onMessage("showBlame", (msg) => {
+    if (
+      !Object.hasOwn(repoManager.getRepos(), msg.repo) ||
+      typeof msg.filePath !== "string" ||
+      msg.filePath.includes("\0")
+    ) {
+      reportBlameOpen(false);
+      return;
+    }
+    const repoRelativePath = resolveRepoRelativeFilePath(msg.repo, msg.filePath);
+    if (repoRelativePath === null) {
+      reportBlameOpen(false);
+      return;
+    }
+    const rawRev = typeof msg.rev === "string" ? msg.rev.trim() : "";
+    const rev = rawRev === "" || rawRev === "*" ? null : rawRev;
+    openBlame({
+      repo: msg.repo,
+      filePath: repoRelativePath,
+      rev,
+      targetLine: typeof msg.targetLine === "number" ? msg.targetLine : null
+    });
   });
 
   bridge.onMessage("viewFileAtRevision", async (msg) => {

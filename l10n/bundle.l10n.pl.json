@@ -889,5 +889,7 @@
   "blame.heatCalendar": "Kalendarz",
   "blame.heatChurn": "Częstotliwość",
   "blame.heatOff": "Wyłączone",
-  "command.showBlame.fileNoRepo": "Ten plik nie znajduje się w repozytorium Git."
+  "command.showBlame.fileNoRepo": "Ten plik nie znajduje się w repozytorium Git.",
+  "action.showBlameAtCommit": "Pokaż blame w tym commicie",
+  "action.showBlameBeforeDeletion": "Pokaż blame przed usunięciem"
 }

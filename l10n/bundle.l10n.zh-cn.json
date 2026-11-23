@@ -889,5 +889,7 @@
   "blame.heatCalendar": "日历",
   "blame.heatChurn": "变动频率",
   "blame.heatOff": "关闭",
-  "command.showBlame.fileNoRepo": "此文件不在 Git 仓库中。"
+  "command.showBlame.fileNoRepo": "此文件不在 Git 仓库中。",
+  "action.showBlameAtCommit": "在此提交中显示 blame",
+  "action.showBlameBeforeDeletion": "显示删除前的 blame"
 }

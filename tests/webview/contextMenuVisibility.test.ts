@@ -37,6 +37,17 @@ describe("context menu action visibility", () => {
     expect(normalized.commitDetailsViewFile.viewDiff).toBe(true);
   });
 
+  it("defaults commitDetailsViewFile.showBlame to visible and honors hiding it (F4-07)", () => {
+    expect(normalizeContextMenuActionsVisibility({}).commitDetailsViewFile.showBlame).toBe(true);
+
+    const normalized = normalizeContextMenuActionsVisibility({
+      commitDetailsViewFile: { showBlame: false }
+    });
+
+    expect(normalized.commitDetailsViewFile.showBlame).toBe(false);
+    expect(normalized.commitDetailsViewFile.viewDiff).toBe(true);
+  });
+
   it("ignores unknown groups, unknown actions, and non-boolean values", () => {
     const normalized = normalizeContextMenuActionsVisibility({
       unknownGroup: { copyHash: false },

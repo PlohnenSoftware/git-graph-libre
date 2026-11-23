@@ -889,5 +889,7 @@
   "blame.heatCalendar": "Kalender",
   "blame.heatChurn": "Frequentie",
   "blame.heatOff": "Uit",
-  "command.showBlame.fileNoRepo": "Dit bestand bevindt zich niet in een Git-repository."
+  "command.showBlame.fileNoRepo": "Dit bestand bevindt zich niet in een Git-repository.",
+  "action.showBlameAtCommit": "Blame bij commit weergeven",
+  "action.showBlameBeforeDeletion": "Blame vóór verwijdering weergeven"
 }
