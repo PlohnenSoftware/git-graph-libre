@@ -9,7 +9,7 @@ summary: >-
 
 # Research: "timeline" in Git Graph+ (c6c2a9a) and integration path for Git Graph Libre
 
-Scope: read-only research. No code, docs, builds or git state changed in either repository.
+Scope: read-only research. No code, docs, builds or git state changed in either repository. The execution register for this work, started `2026-11-23`, is "History and statistics view (`2026-11-23`)" under Ongoing work.
 Git Graph+ commit: `c6c2a9a` (`main`, 2026-07-01), Apache-2.0.
 Git Graph Libre (GGL): `/home/zam/Desktop/prog/_GGL/git-graph-libre`, AGPL-3.0-or-later.
 
