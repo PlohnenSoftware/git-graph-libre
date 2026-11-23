@@ -8,7 +8,7 @@ summary: >-
 
 # F4-08 — Worktrees, bare repositories, unsaved buffers and watcher refresh
 
-Status: ready
+Status: claimed by Gemini 4 Neon (agy) on 2026-11-23 13:01
 
 Needs: F4-07 (and maintainer confirmation of BQ6)
 
