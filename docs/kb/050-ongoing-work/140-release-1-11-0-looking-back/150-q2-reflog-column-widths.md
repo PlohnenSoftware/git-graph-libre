@@ -9,7 +9,7 @@ summary: >-
 
 # Q2 — Reflog table column widths, no horizontal scroll
 
-Status: claimed by Muse Code on 2026-11-23 17:31
+Status: done — awaiting integration
 
 Needs: —
 
@@ -82,4 +82,38 @@ commits; never push.
 
 ## Report
 
-Not started.
+- **Agent / date:** Muse Code (muse-wonder-full-1.0), 2026-11-23 17:47
+- **Branch and commits:** `rel-1.11.0/Q2` —
+  - `fd521103 G docs(kb): claim slice Q2 (Q2)`
+  - `ff21a791 G feat(reflog): flexible Message column width arithmetic (Q2)`
+  - `fc63f8cc G fix(reflog): fitted table widths, unwrapped headers, no sideways scroll (Q2)`
+  - `d2954b8d G fix(reflog): refit widths when the scroll container itself narrows (Q2)`
+  - plus this report commit.
+- **Files changed:** 8 files, +477/−75 at `d2954b8d` (`git diff --stat d8ef44a0..HEAD`): this slice file (claim only, 2 lines), `media/reflog-tab/reflog-tab.css` (+40/−~6 of its lines), `src/webview/reflogTab/columnResize.ts`, `src/webview/reflogTab/view.ts`, and four test files under `tests/webview/reflogTab/`. Nothing outside the Touch list; `lostCommitsView.ts` and `main.ts` needed no edit (below).
+- **Tests added or changed:** +13 tests; no test weakened or removed — the ones that pinned the old natural-layout freeze now pin the defaults-and-flexible rules this slice specifies.
+  - `tests/webview/reflogTab/columnResize.test.ts`: 6 → 14 tests (defaults at/above the minimum and reachable by dragging back; every boundary trades against Message; totals hold through any drag; fit grows/shrinks Message first, scales saved widths back slack-proportionally at 700px, and never renders wider than containers from 1,560px down to 312px).
+  - `tests/webview/reflogTab/view.test.ts`: 31 → 35 tests (defaults from the first draw; first drag trades against Message and returns to the default exactly; saved widths fitted on a window resize without being overwritten; only Message grows on widening; refit through a stubbed `ResizeObserver` when the container narrows by a scrollbar's width; rendered width never exceeds the container after drags at a fitted width).
+  - `tests/webview/reflogTab/reflogTabCss.test.ts`: 6 → 7 tests (header `nowrap` + ellipsis, both scroll containers vertical-only, no 200px cell minimum, pills clip inside narrow columns).
+  - `tests/webview/reflogTab/main.test.ts`: the per-repository saved-widths test updated to drag from the defaults; another repository now starts from the defaults in fixed layout.
+  - `tests/webview/tableColumnResize.test.ts` covers only the graph table; it is untouched and passes.
+- **Gates:**
+  - `npx biome check --config-path biome.strict.jsonc --error-on-warnings` on all six touched `.ts` files — clean (only the pre-existing schema-version info line). The CSS is outside Biome's checked set in this repo.
+  - `pnpm run typecheck` — clean.
+  - `node esbuild.js --production` — builds.
+  - `npx vitest run --project webview tests/webview/reflogTab/ tests/webview/reflogTabPanel.test.ts tests/webview/tableColumnResize.test.ts` — 9 files, 159 passed (before the observer test; the view file then re-ran alone at 35 passed).
+  - `pnpm run test` (full, once at the end; run twice only to capture both projects' counts) — backend 119 files, 1,592 passed, 60 skipped (the linked-worktree skips); webview 94 files, 1,327 passed.
+  - `node ./docs/kb/housekeeping.mjs --check` — exit 0.
+  - No user-visible strings were added or changed, so `pnpm run l10n:check` did not apply and was not run.
+  - Headless renders (PyQt6 QtWebEngine under `xvfb-run`, `QT_QPA_PLATFORM=xcb`, the real `out/reflogTab.min.js` built from this tree, the real `media/tokens.css` + `media/reflog-tab/reflog-tab.css`, current fixture labels/rows; harness kept beside the PNGs), each read by eye and measured in the page (`scrollWidth` vs `clientWidth` of `.reflog-scroll`, line boxes of the Index header's text):
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/Q2/reflog-q2-dark-1560.png` — no horizontal scroll (1560 = 1560), Index on one line, Message fitted to 772px.
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/Q2/reflog-q2-dark-700.png` — no horizontal scroll (686 = 686, the vertical scrollbar's width refitted), Index fully visible on one line.
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/Q2/reflog-q2-light-1560.png` — same measurements as dark.
+    - `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/Q2/reflog-q2-light-700.png` — same measurements as dark; its first render round caught the stale fit that `d2954b8d` fixes (fitted to 700px, then the vertical scrollbar narrowed the container to 686px).
+  - Sonar: integrator.
+- **Acceptance:**
+  - *Index header folds → unfolded size is the default; no header wraps; defaults fit header and usual content; dragging back reaches the default* — **met**. The table no longer sizes itself naturally at all: it always draws in fixed layout with explicit widths (`DEFAULT_COLUMN_WIDTHS` = Index 52, Action 116, Sub-action 112, Message 320, Commit 88, Date 140, State 168 content px, sized from the longest header and content words across all five bundles, the default hash length, the bundle date shape and the longer state badge). The old first-drag freeze of the natural layout — what sized Index by its one-digit cells — is deleted. Header cells are `white-space: nowrap` with an ellipsis, so the root's `overflow-wrap: anywhere` can no longer break "Index" into "Ind / ex" (measured: one line box, `nowrap`, in all four renders). Every default sits above the 40px minimum, and a test drags Index wide and back onto its default exactly.
+  - *Message is the flexible column* — **met**. Pure arithmetic in `columnResize.ts` (`resizeColumnWidths`, `fitColumnWidthsToContainer`): widening a fixed column takes from Message, narrowing one gives to it, Message's own right edge trades against Commit as the graph's description column does against Date, and fitting to a new container width changes Message first, down to the 40px minimum. The view fits after insertion, on window resize, and through a `ResizeObserver` on the scroll container; fitting is display-only and never overwrites the saved per-repository widths.
+  - *No horizontal scroll in the Reflog tab, ever* — **met**. A drag keeps the total width, so it cannot break a fit; saved widths that no longer fit are fitted back (Message first, then the fixed columns in proportion to their slack above the minimum — Index, the narrowest, keeps its header width longest; below the sum of the minimums every column scales proportionally and clips with an ellipsis). The 200px `min-width`s on the message and lost-subject cells that could force overflow are removed, the pills clip inside narrow columns, and both scroll containers are vertical-only as a guard behind the fit (cells keep their full text in `title`, so nothing reachable hides). Measured in the renders: `scrollWidth == clientWidth` at 1,560px and 700px in both themes. The lost-commits table shares the head-cell class and its subject column already takes the leftover width, so it needed only the CSS parts; `lostCommitsView.ts` is untouched.
+  - *Pure arithmetic stays in `columnResize.ts`, DOM in the view; complexity ≤ 15* — **met by construction** (all width rules are pure exported functions with the view holding two small helpers; Sonar confirms at integration).
+- **Deviations from the slice:** None outside Touch. Within it: `main.ts` needed no edit because saved widths are fitted in the view at draw time and a fit never writes back, so the saved-state format and flow are unchanged (widths saved by the old pair-trade code still normalize and are then fitted). One judgment inside the slice's rules: at about 700px the flexible rule leaves Message at its 40px minimum — its header ellipses to "Mes…" and long messages wrap very narrowly — while every fixed header, Index first, stays fully readable; the alternative (scaling fixed columns harder to feed Message) would ellipsize the Index header the slice names. The renders show both widths so the maintainer can judge.
+- **Open questions / follow-ups:** One stale comment outside Touch: `columnWidths` in `src/webview/reflogTab/rowModel.ts` still says "or null while the table still sizes itself" — null now means the defaults rule. Worth a one-line wording fix whenever that file is next touched. Nothing else.
