@@ -70,9 +70,23 @@ releases (Rules) applies, with the answers below.
 | ID | Work | Needs | Agent | Status |
 | --- | --- | --- | --- | --- |
 | T1 | Open-and-outcome telemetry for tabs and worktree buttons | — | Muse Code | integrated `70f2b583` |
-| P1 | Popup fixes V1–V11 | — | Muse Code | ready |
+| P1 | Popup fixes V1–V10 | — | Muse Code → Gemini 4 Neon | integrated `9a61b9e9` |
+| P1b | Popup fix V11 (Create Worktree on a branch another worktree holds) | maintainer decision | — | **blocked** (see below) |
 | T1b | Blame tab open-and-outcome telemetry (`tab.blame`) | T1, F4-03 | Claude Haiku | ready |
 | R90 | Release 1.11.0 | every `main` track | orchestrator | waiting |
+
+## Blocked — waiting for the maintainer
+
+The maintainer is away (`2026-11-23`, from about 12:40 local) and asked that
+anything unsolvable within reason be marked here while the rest continues.
+
+- **P1b — popup fix V11.** In the menu of a branch held by another worktree,
+  "Create Worktree…" opens the Open Worktree dialog that "Open Worktree…" two
+  rows above already offers. The review leaves the choice to the maintainer:
+  (a) drop the item from that menu, or (b) open Create Worktree with the two
+  modes Git still allows there (a new branch from it, a detached HEAD).
+  Behavior, not appearance; no recommendation was recorded, so no agent
+  picks. Not needed for 1.11.0 (V1–V10 shipped without it).
 
 ## Integration log
 
@@ -142,3 +156,17 @@ releases (Rules) applies, with the answers below.
   none (release 1.10.0's W01 refresh did not bump either); this also keeps
   `gg-plus/next`'s mailmap engine at 1.0.33 without a clash. All six
   platform binaries are rebuilt on gix 0.91 for R90.
+- `2026-11-23`: P1 integrated at `9a61b9e9` for V1–V10 (Muse Code landed V1,
+  V3, V4, V6–V10 before its quota cutoff; Gemini 4 Neon finished V5, V2, the
+  renders and the report): no doubled ellipsis, the Worktrees popup rows in
+  one shape with icon buttons for Copy Path, Lock/Unlock, Move and Remove
+  (VQ1), a wider Create Worktree folder field, the finish step as one-click
+  choices, a shorter Delete Branch dialog with a required removal checkbox,
+  dialog lists, the remote checkout prompt's inline error, error text beside
+  its icon, "Remove" instead of "Yes", two-line checkbox labels. Glue outside
+  Touch, accepted: `webviewL10n.ts` for the new strings and the generated
+  octicons (`file-moved`, `lock`, `trash`, `unlock`). Renders under
+  `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/P1/`. V11 is P1b, blocked
+  above. Gates on `9a61b9e9`: strict Biome on 17 files, typecheck,
+  `l10n:check`, KB check, backend 1,579 passed (60 skipped in the worktree)
+  and webview 1,200 passed.
