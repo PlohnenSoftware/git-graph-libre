@@ -111,7 +111,7 @@ the graph layout, outside this work; no slice reads it.
 | F2-03 | In-progress state and controls | — | Muse Code | integrated `40fbf8f4` |
 | F2-04 | Editor dialog: open, list, pick/drop/reorder, start | F2-01b, F2-02, F2-03 | Muse Code | integrated `48be134c` |
 | F2-05 | Reword, squash, fixup and edit with messages | F2-04 | Muse Code | integrated `4c62b924` |
-| F2-06 | Autosquash and fixup creation | F2-04, F2-05 | Muse Code | ready |
+| F2-06 | Autosquash and fixup creation | F2-04, F2-05 | Gemini 4 Neon | integrated `94db854d` |
 | F2-07 | Dirty tree, published history and worktree protections | F2-04 | Gemini 4 Neon | integrated `7257f2cf` (merge) |
 | F2-08 | Conflict prediction for the planned todo | F2-04, F2-05 | Gemini 4 Neon | integrated `9e04c8e5` |
 | F2-09 | Plain-rebase prediction and drag-to-rebase | F2-07, F2-08 | Muse Code | deferred (IQ8: not now, after the core ships) |
@@ -246,3 +246,15 @@ pushed, and nothing is tagged without the maintainer.
   Gates on `32217651`: strict Biome on 28 files, typecheck, `l10n:check`,
   KB check, backend 1,765 passed (60 skipped) and webview 1,222 passed.
   Open on this track: F2-06 (Muse Code, 21:03 UTC); F2-09 deferred (IQ8).
+- `2026-11-23`: F2-06 (Gemini 4 Neon, `agy`; Muse Code's run had only
+  claimed it before its quota ran out, and the claim was rebased onto the
+  tip) integrated into `gg-plus/next` at `94db854d`: an autosquash switch
+  that follows `rebase.autoSquash`, fixup creation from the commit menu
+  (`commitFixup`, with `fixup -C` / `amend!` support) and a pure autosquash
+  arrangement for the editor. IQ11's spike ran `git rebase -i --autosquash`
+  with a failing sequence editor on real Git 2.56.1: clean on a clean tree,
+  but not on a dirty one, so the editor arranges the todo itself, with
+  real-Git parity tests (subject and hash-prefix matches, chains, `amend!`,
+  markers outside the range). Gates on `94db854d`: typecheck, `l10n:check`,
+  KB check, backend 1,785 passed (60 skipped) and webview 1,229 passed. The
+  interactive rebase track is integrated except F2-09 (deferred, IQ8).
