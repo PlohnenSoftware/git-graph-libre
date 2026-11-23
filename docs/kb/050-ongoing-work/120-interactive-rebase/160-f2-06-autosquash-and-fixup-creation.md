@@ -7,7 +7,7 @@ summary: >-
 
 # F2-06 — Autosquash and fixup creation
 
-Status: waiting
+Status: claimed by Muse Code on 2026-11-23 17:46
 
 Needs: F2-04, F2-05; decision IQ11 settled by its spike
 
