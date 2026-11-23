@@ -133,5 +133,7 @@
   "config.uncommittedChanges.fileViewMode.list": "以平铺路径列表显示未提交更改",
   "command.showReflog": "显示 reflog",
   "command.showStatistics": "显示统计信息",
-  "command.showFileHistory": "显示文件历史"
+  "command.showFileHistory": "显示文件历史",
+  "command.showBlame": "显示当前文件的 blame",
+  "command.showBlame.shortTitle": "显示 blame"
 }

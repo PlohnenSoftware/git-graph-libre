@@ -5,7 +5,7 @@ import type { AvatarManager } from "@/avatarManager";
 import type { Config } from "@/config";
 import type { RepoManager } from "@/extension/repoManager";
 import type { WebviewBridge } from "@/extension/webviewBridge";
-import { createWebviewPanel } from "@/extension/webviewPanel";
+import { createWebviewPanel, showCommitInGraph } from "@/extension/webviewPanel";
 import type { ExtensionState } from "@/extensionState";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
 import type {
@@ -104,6 +104,7 @@ function createHarness(opts?: {
   const repoManager = {
     getRepos: vi.fn(() => currentRepos),
     getLayout: vi.fn(() => emptyLayout),
+    setRepoState: vi.fn(),
     registerViewCallback: vi.fn((handler: RepoCallback) => {
       repoCallback = handler;
     }),
@@ -567,5 +568,34 @@ describe("createWebviewPanel", () => {
     expect(harness.bridge.post).toHaveBeenCalledTimes(3);
     harness.send("graphReady", { command: "graphReady" });
     expect(harness.bridge.post).toHaveBeenCalledTimes(3);
+  });
+
+  it("reveals the panel and posts showCommit for Show in Graph (F1-06)", () => {
+    const { bridge, panel, repoManager, disposeHandler } = createHarness();
+
+    expect(showCommitInGraph("/repo", "a".repeat(40), false)).toBe(true);
+    expect(panel.reveal).toHaveBeenCalledTimes(1);
+    expect(repoManager.setRepoState).not.toHaveBeenCalled();
+    expect(bridge.post).toHaveBeenCalledWith({
+      command: "showCommit",
+      repo: "/repo",
+      commitHash: "a".repeat(40),
+      enableIncludeReflog: false
+    });
+
+    expect(showCommitInGraph("/repo", "b".repeat(40), true)).toBe(true);
+    expect(repoManager.setRepoState).toHaveBeenCalledWith("/repo", {
+      columnWidths: null,
+      includeReflog: "enabled"
+    });
+    expect(bridge.post).toHaveBeenLastCalledWith({
+      command: "showCommit",
+      repo: "/repo",
+      commitHash: "b".repeat(40),
+      enableIncludeReflog: true
+    });
+
+    disposeHandler()?.();
+    expect(showCommitInGraph("/repo", "c".repeat(40), false)).toBe(false);
   });
 });

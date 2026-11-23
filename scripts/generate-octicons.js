@@ -8,6 +8,8 @@ const path = require("node:path");
 const ICON_NAMES = [
   "alert",
   "arrow-down",
+  "arrow-left",
+  "arrow-right",
   "arrow-switch",
   "arrow-up",
   "check",
@@ -18,6 +20,7 @@ const ICON_NAMES = [
   "file-directory",
   "file-directory-fill",
   "file-directory-open-fill",
+  "file-moved",
   "gear",
   "git-branch",
   "git-commit",
@@ -26,11 +29,15 @@ const ICON_NAMES = [
   "inbox",
   "info",
   "link-external",
+  "lock",
   "search",
   "sync",
   "tag",
+  "trash",
+  "unlock",
   "upload",
   "verified",
+  "versions",
   "x"
 ];
 

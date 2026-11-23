@@ -126,6 +126,9 @@ These come from this knowledge base's rules and apply to every slice.
 - Every user-visible string goes through localization in every bundle, and the
   localization check must report complete. If you can't translate, copy the
   English and say so in the report.
+- Fixed terms: in zh-tw, "repository" is **存放庫** (VS Code's own zh-hant
+  term; maintainer-requested research, slice L2 of release 1.11.0), never
+  儲存庫 or 版本庫.
 - Size is a guide, not a limit. A slice's budget ("~N") is a hint, never a pass
   or fail. Don't stop or split because you went over, and don't game it. Judge
   by cognitive complexity and every other quality rule, speed, reliability,
@@ -282,6 +285,19 @@ For each slice marked `done — awaiting integration`, in dependency order:
 2. **Rebase it** onto the integration branch:
    `git -C ../ggl-<ID> rebase <integration-branch>`. Resolve conflicts only
    where both sides belong to slices. Never re-sign someone else's commit.
+   When a rebase conflicts in too many commits to resolve one by one, **merge
+   instead**: in the slice worktree, `git merge <integration-branch>` (one
+   signed merge commit that resolves the conflicts once, an agent may do it),
+   then fast-forward the integration branch to the slice branch as in step 3.
+   **Never squash-merge** (standing rule, maintainer, `2026-11-23`): no
+   `git merge --squash`, no `git cherry-pick` of a branch's work onto the
+   integration branch, no new branch rebuilt from a slice's tree. Each of
+   those puts the slice's work on the integration branch as new commits, so
+   the slice branch's own commits never become ancestors of it:
+   `git branch -d` then refuses the branch, the graph keeps showing it, and
+   the per-commit history (and its signatures) is lost. Every commit an
+   agent made must reach the integration branch as itself, through a rebase
+   or a merge.
 3. **Fast-forward** the integration branch to it, and rerun every gate from the
    agent protocol on the result.
 4. **Record it.** Set the overview's row to `integrated <hash>`, and the slice's
@@ -307,7 +323,10 @@ before this rule, more than sixty `wt-1.10.0/*`, `engine-review/*` and
   pull-request branches and finished experiments, not only slice branches.
 - **How:** `git branch -d <branch>` only. It refuses a branch that is not
   merged, which is the safety check; never `-D`, never `--force`. A branch
-  `-d` refuses is reported to the maintainer, not forced.
+  `-d` refuses is reported to the maintainer, not forced. (It refuses
+  squash-merged branches too, which is one reason squash merges are
+  forbidden: on `2026-11-23` the squash-merged `reflog/F1-06` and
+  `blame/F4-05` had to be force-deleted by the maintainer's word.)
 - **Keep:** `main`, `AI-dev`, every active integration branch (for example
   `gg-plus/next`), and any branch the maintainer names.
 - **Remote branches are not the integrator's to delete.** Deleting one on
@@ -333,6 +352,27 @@ Append one line to the overview's integration log: the date, the slices, the
 HEAD commit, the test counts, the coverage, the Sonar task id with the gate
 verdict, and the agent and model choices made in that wave.
 
+### Release slice: credits
+
+**Standing rule (maintainer, `2026-11-23`).** The release slice checks every
+contributor credit before its release commit, because the lists drift: at
+1.11.0, Raphaël Balet's three merged commits of 1.10.0 had reached none of
+them, and the Settings tab's AI agents list had no Gemini.
+
+- People: compare every human git author since the last tag (and, once a
+  release, all refs: `git log --all --format='%an <%ae>'`, bots left out)
+  with the AGPL roster in `NOTICE.md`, the MIT rosters in `LICENSE.mit`, the
+  `people` lists in `src/webview/contributors.ts` (the Settings popup's
+  Contributors tab) and `package.json`'s `contributors`. A person who wrote
+  code after `2026-07-01` belongs in `NOTICE.md`, the tab's Git Graph Libre
+  era and `package.json`. The smaller MIT-era authors stay out of
+  `package.json` by the maintainer's choice; the tab and `LICENSE.mit`
+  credit them.
+- Agents: run `pnpm run contributors:agents` and add any new agent or model
+  variant to `COAUTHOR_AGENTS` in `src/webview/contributors.ts`.
+- Pull requests: their authors are also thanked by name in the release's
+  `CHANGELOG.md` section (`NOTICE.md` says so).
+
 ### Closing issues
 
 When the slice that completes an issue is integrated and the gate passes on
@@ -344,6 +384,8 @@ commits.
 
 ### Never
 
+- squash-merge a slice, or rebuild its work as new commits on another branch
+  (see *Integrating a slice*, step 2): rebase or merge it;
 - push or publish without the maintainer, or tag a release before the
   maintainer says so;
 - integrate a slice whose decision is still open, or whose report is not

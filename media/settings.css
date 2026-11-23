@@ -461,15 +461,19 @@
 }
 .worktreeRow {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
+  flex-direction: column;
+  gap: 8px;
   padding: 10px 0;
   border-top: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
 }
+.worktreeRowHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
 .worktreeInfo {
-  flex: 1 1 280px;
+  flex: 1 1 0;
   min-width: 0;
 }
 .worktreeTitle {
@@ -496,6 +500,8 @@
   color: var(--vscode-descriptionForeground);
 }
 .worktreePath {
+  /* Indented to the text column: 16px octicon + 6px gap above. */
+  padding-left: 22px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -515,10 +521,46 @@
   border: 1px solid var(--ngg-warning);
   color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
 }
+.worktreeUpkeep {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+.worktreeIconAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--vscode-button-border, var(--ngg-transparent));
+  border-radius: 4px;
+  background-color: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-muted));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  cursor: pointer;
+}
+.worktreeIconAction svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+.worktreeIconAction:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground, var(--ngg-neutral-overlay-strong));
+}
+.worktreeIconAction.danger:hover {
+  color: var(--vscode-errorForeground, var(--ngg-error));
+}
+.worktreeIconAction:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
 .worktreeActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
+  padding-left: 22px;
 }
 .worktreeAction {
   height: 26px;
@@ -536,6 +578,12 @@
 .worktreeAction:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 1px;
+}
+@media (forced-colors: active) {
+  .worktreeIconAction,
+  .worktreeAction {
+    border-color: ButtonBorder;
+  }
 }
 .worktreeEmpty {
   margin: 8px 0;

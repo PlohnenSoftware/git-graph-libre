@@ -50,6 +50,8 @@ function makeHarness(
   const disposables: Array<{ dispose: ReturnType<typeof vi.fn> }> = [];
   let lastActiveRepo = initialLastRepo;
   let activeTextEditorUri: { fsPath: string } | undefined;
+  let activeTextEditorLine: number | undefined;
+  const dirtyDocuments = new Map<string, string>();
   let sendReposCount = 0;
   const outputLines: string[] = [];
 
@@ -64,6 +66,8 @@ function makeHarness(
 
   const windowApi = {
     getActiveTextEditorUri: vi.fn(() => activeTextEditorUri),
+    getActiveTextEditorLine: vi.fn(() => activeTextEditorLine),
+    getDirtyDocumentText: vi.fn((fsPath: string) => dirtyDocuments.get(fsPath)),
     showErrorMessage: vi.fn(async (_message: string) => undefined),
     showInformationMessage: vi.fn(async (_message: string) => undefined),
     showOpenDialog: vi.fn(async () => undefined as Array<{ fsPath: string }> | undefined),
@@ -123,6 +127,7 @@ function makeHarness(
   const openScmDiffTab = vi.fn();
   const openReflogTab = vi.fn();
   const openStatsTab = vi.fn();
+  const openBlameTab = vi.fn();
   const currentPanel = {
     startHistorySearch: vi.fn(),
     showFileHistory: vi.fn(),
@@ -152,6 +157,7 @@ function makeHarness(
     openReflogTab,
     openStatsTab,
     isStatsTabAvailable: () => logOptions.statsTabAvailable ?? true,
+    openBlameTab,
     getCurrentPanel: () =>
       (logOptions.noPanel ? undefined : currentPanel) as unknown as WebviewPanel,
     telemetry: {
@@ -180,6 +186,7 @@ function makeHarness(
     getSendReposCount: () => sendReposCount,
     handlers,
     manager,
+    openBlameTab,
     openExternal,
     openGraphView,
     openReflogTab,
@@ -189,8 +196,13 @@ function makeHarness(
     outputLines,
     run,
     telemetryEvents,
-    setActiveTextEditorPath: (filePath: string) => {
+    setActiveTextEditorPath: (filePath: string, line?: number) => {
       activeTextEditorUri = makeUri(filePath);
+      activeTextEditorLine = line;
+    },
+    setDirtyDocumentText: (filePath: string, text: string | undefined) => {
+      if (text === undefined) dirtyDocuments.delete(filePath);
+      else dirtyDocuments.set(filePath, text);
     },
     windowApi
   };
@@ -215,6 +227,7 @@ describe("command manager", () => {
       "git-graph-libre.removeRepo",
       "git-graph-libre.revealWorktree",
       "git-graph-libre.searchCommits",
+      "git-graph-libre.showBlame",
       "git-graph-libre.showDiagnostics",
       "git-graph-libre.showFileHistory",
       "git-graph-libre.showReflog",
@@ -244,6 +257,7 @@ describe("command manager", () => {
       "git-graph-libre.removeRepo",
       "git-graph-libre.revealWorktree",
       "git-graph-libre.searchCommits",
+      "git-graph-libre.showBlame",
       "git-graph-libre.showDiagnostics",
       "git-graph-libre.showFileHistory",
       "git-graph-libre.showReflog",
@@ -948,6 +962,11 @@ describe("command manager", () => {
         const dismissed = makeHarness(two, null);
         await dismissed.run("git-graph-libre.showReflog");
         expect(dismissed.openReflogTab).not.toHaveBeenCalled();
+        // T1: dismissing the picker is not a failed open — no repository was
+        // ever chosen, so no tab event joins the command event.
+        expect(dismissed.telemetryEvents).toEqual([
+          { feature: "git-graph-libre.showReflog", ok: true }
+        ]);
       });
 
       it("says so when no repository is known, and opens nothing", async () => {
@@ -957,6 +976,233 @@ describe("command manager", () => {
         expect(harness.windowApi.showInformationMessage).toHaveBeenCalledWith(
           expect.stringContaining("no Git repositories")
         );
+        // T1: the tab could not open — a failed open beside the command event.
+        expect(harness.telemetryEvents).toEqual([
+          { feature: "tab.reflog", ok: false },
+          { feature: "git-graph-libre.showReflog", ok: true }
+        ]);
+      });
+    });
+
+    describe("show blame (F4-03)", () => {
+      it("opens the Blame tab for the active editor in the longest matching known repo, with cursor line", async () => {
+        const harness = makeHarness({
+          "/workspace/project": { columnWidths: null },
+          "/workspace/project/packages/app": { columnWidths: null }
+        });
+        harness.setActiveTextEditorPath("/workspace/project/packages/app/src/index.ts", 42);
+
+        await harness.run("git-graph-libre.showBlame");
+
+        expect(harness.openBlameTab).toHaveBeenCalledExactlyOnceWith({
+          repo: "/workspace/project/packages/app",
+          filePath: "src/index.ts",
+          targetLine: 42
+        });
+        expect(harness.telemetryEvents).toEqual([
+          { feature: "git-graph-libre.showBlame", ok: true }
+        ]);
+      });
+
+      it("discovers and adds an unknown repository for the active editor, then blames the file", async () => {
+        const repo = makeRepo();
+        const fileDir = path.join(repo, "src");
+        const filePath = path.join(fileDir, "file.ts");
+        fs.mkdirSync(fileDir);
+        fs.writeFileSync(filePath, "export const value = 1;\n");
+        try {
+          const harness = makeHarness();
+          harness.setActiveTextEditorPath(filePath);
+
+          await harness.run("git-graph-libre.showBlame");
+
+          expect(harness.getRepos()[repo]).toEqual({ columnWidths: null });
+          expect(harness.openBlameTab).toHaveBeenCalledExactlyOnceWith({
+            repo,
+            filePath: "src/file.ts",
+            targetLine: null
+          });
+        } finally {
+          fs.rmSync(repo, { recursive: true, force: true });
+        }
+      });
+
+      it("warns and opens nothing when no active editor is open", async () => {
+        const harness = makeHarness({ "/workspace/project": { columnWidths: null } });
+
+        await harness.run("git-graph-libre.showBlame");
+
+        expect(harness.openBlameTab).not.toHaveBeenCalled();
+        expect(harness.windowApi.showWarningMessage).toHaveBeenCalledWith(
+          "Open a file inside a Git repository first, then show its blame."
+        );
+        // T1b: no file to blame, so the tab's failed open is reported beside the command.
+        expect(harness.telemetryEvents).toEqual([
+          { feature: "tab.blame", ok: false },
+          { feature: "git-graph-libre.showBlame", ok: true }
+        ]);
+      });
+
+      it("warns and opens nothing when the active editor is not inside a Git repository", async () => {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-blame-cmd-"));
+        const filePath = path.join(dir, "file.ts");
+        fs.writeFileSync(filePath, "export const value = 1;\n");
+        try {
+          const harness = makeHarness();
+          harness.setActiveTextEditorPath(filePath, 7);
+
+          await harness.run("git-graph-libre.showBlame");
+
+          expect(harness.openBlameTab).not.toHaveBeenCalled();
+          expect(harness.windowApi.showWarningMessage).toHaveBeenCalledWith(
+            "The active editor is not inside a Git repository."
+          );
+          expect(harness.telemetryEvents).toEqual([
+            { feature: "tab.blame", ok: false },
+            { feature: "git-graph-libre.showBlame", ok: true }
+          ]);
+        } finally {
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
+      });
+
+      it("uses the active cursor line when an Editor context Uri matches the active editor (F4-07)", async () => {
+        const harness = makeHarness({ "/workspace/project": { columnWidths: null } });
+        harness.setActiveTextEditorPath("/workspace/project/src/app.ts", 18);
+
+        await harness.run("git-graph-libre.showBlame", {
+          fsPath: "/workspace/project/src/app.ts",
+          scheme: "file"
+        });
+
+        expect(harness.openBlameTab).toHaveBeenCalledExactlyOnceWith({
+          repo: "/workspace/project",
+          filePath: "src/app.ts",
+          targetLine: 18
+        });
+        expect(harness.telemetryEvents).toEqual([
+          { feature: "git-graph-libre.showBlame", ok: true }
+        ]);
+      });
+
+      it("blames an Explorer Uri without reusing another file's cursor line (F4-07)", async () => {
+        const harness = makeHarness({
+          "/workspace/project": { columnWidths: null },
+          "/workspace/project/packages/app": { columnWidths: null }
+        });
+        harness.setActiveTextEditorPath("/workspace/project/packages/app/src/other.ts", 99);
+
+        await harness.run(
+          "git-graph-libre.showBlame",
+          { fsPath: "/workspace/project/packages/app/src/clicked.ts", scheme: "file" },
+          [{ fsPath: "/workspace/project/packages/app/src/clicked.ts", scheme: "file" }]
+        );
+
+        expect(harness.openBlameTab).toHaveBeenCalledExactlyOnceWith({
+          repo: "/workspace/project/packages/app",
+          filePath: "src/clicked.ts",
+          targetLine: null
+        });
+      });
+
+      it("blames a Source Control SourceControlResourceState via resourceUri (F4-07)", async () => {
+        const harness = makeHarness({ "/workspace/project": { columnWidths: null } });
+        harness.setActiveTextEditorPath("/workspace/project/src/staged.ts", 27);
+
+        await harness.run("git-graph-libre.showBlame", {
+          resourceUri: { fsPath: "/workspace/project/src/staged.ts", scheme: "file" }
+        });
+
+        expect(harness.openBlameTab).toHaveBeenCalledExactlyOnceWith({
+          repo: "/workspace/project",
+          filePath: "src/staged.ts",
+          targetLine: 27
+        });
+        expect(harness.telemetryEvents).toEqual([
+          { feature: "git-graph-libre.showBlame", ok: true }
+        ]);
+      });
+
+      it("rejects non-file schemes and reports a failed open (F4-07)", async () => {
+        const harness = makeHarness({ "/workspace/project": { columnWidths: null } });
+
+        await harness.run("git-graph-libre.showBlame", {
+          fsPath: "Untitled-1",
+          scheme: "untitled"
+        });
+
+        expect(harness.openBlameTab).not.toHaveBeenCalled();
+        expect(harness.windowApi.showWarningMessage).toHaveBeenCalledWith(
+          "Open a file inside a Git repository first, then show its blame."
+        );
+        expect(harness.telemetryEvents).toEqual([
+          { feature: "tab.blame", ok: false },
+          { feature: "git-graph-libre.showBlame", ok: true }
+        ]);
+      });
+
+      it("warns and reports a failed open when an explicit Explorer file is outside Git (F4-07)", async () => {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ngg-blame-explorer-"));
+        const filePath = path.join(dir, "notes.txt");
+        fs.writeFileSync(filePath, "hello\n");
+        try {
+          const harness = makeHarness();
+
+          await harness.run("git-graph-libre.showBlame", { fsPath: filePath, scheme: "file" });
+
+          expect(harness.openBlameTab).not.toHaveBeenCalled();
+          expect(harness.windowApi.showWarningMessage).toHaveBeenCalledWith(
+            "This file is not inside a Git repository."
+          );
+          expect(harness.telemetryEvents).toEqual([
+            { feature: "tab.blame", ok: false },
+            { feature: "git-graph-libre.showBlame", ok: true }
+          ]);
+        } finally {
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
+      });
+
+      it("passes dirty unsaved editor contents through to openBlameTab (F4-08)", async () => {
+        const harness = makeHarness({ "/workspace/project": { columnWidths: null } });
+        harness.setActiveTextEditorPath("/workspace/project/src/dirty.ts", 5);
+        harness.setDirtyDocumentText("/workspace/project/src/dirty.ts", "unsaved\ncontent\n");
+
+        await harness.run("git-graph-libre.showBlame");
+
+        expect(harness.openBlameTab).toHaveBeenCalledExactlyOnceWith({
+          repo: "/workspace/project",
+          filePath: "src/dirty.ts",
+          targetLine: 5,
+          contents: "unsaved\ncontent\n"
+        });
+      });
+
+      it("resolves a nested linked worktree to the linked worktree root, never the main worktree (F4-08)", async () => {
+        const mainRepo = makeRepo();
+        const nestedWt = path.join(mainRepo, ".worktrees", "feature");
+        try {
+          fs.writeFileSync(path.join(mainRepo, "app.txt"), "base\n");
+          git(["add", "app.txt"], mainRepo);
+          git(["commit", "-m", "init"], mainRepo);
+          git(["worktree", "add", "-q", nestedWt], mainRepo);
+          const wtFile = path.join(nestedWt, "app.txt");
+
+          // Only the main worktree is known beforehand; nested linked worktree must still win.
+          const harness = makeHarness({ [mainRepo]: { columnWidths: null } });
+          harness.setActiveTextEditorPath(wtFile, 1);
+
+          await harness.run("git-graph-libre.showBlame");
+
+          expect(harness.openBlameTab).toHaveBeenCalledExactlyOnceWith({
+            repo: nestedWt,
+            filePath: "app.txt",
+            targetLine: 1
+          });
+          expect(harness.getRepos()[nestedWt]).toEqual({ columnWidths: null });
+        } finally {
+          fs.rmSync(mainRepo, { recursive: true, force: true });
+        }
       });
     });
 

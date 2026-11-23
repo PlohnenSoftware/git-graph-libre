@@ -105,6 +105,18 @@ export type PullRequestCreationConfig = {
   urlTemplate: string;
   pushBeforeCreate: boolean;
 };
+export type CommitDetailsViewFileContextMenuActionsVisibility = {
+  viewDiff: boolean;
+  openDiffTab: boolean;
+  showBlame: boolean;
+  viewFileAtRevision: boolean;
+  compareWithWorkingTree: boolean;
+  openFile: boolean;
+  resetFileToRevision: boolean;
+  copyAbsoluteFilePath: boolean;
+  copyRelativeFilePath: boolean;
+};
+
 export type ContextMenuActionsVisibility = {
   branch: {
     checkout: boolean;
@@ -149,16 +161,7 @@ export type ContextMenuActionsVisibility = {
     squashSelection: boolean;
     dropSelection: boolean;
   };
-  commitDetailsViewFile: {
-    viewDiff: boolean;
-    openDiffTab: boolean;
-    viewFileAtRevision: boolean;
-    compareWithWorkingTree: boolean;
-    openFile: boolean;
-    resetFileToRevision: boolean;
-    copyAbsoluteFilePath: boolean;
-    copyRelativeFilePath: boolean;
-  };
+  commitDetailsViewFile: CommitDetailsViewFileContextMenuActionsVisibility;
   remoteBranch: {
     checkout: boolean;
     delete: boolean;
@@ -466,6 +469,14 @@ export type RequestShowStatistics = {
   repo: string;
 };
 
+export type RequestShowBlame = {
+  command: "showBlame";
+  repo: string;
+  filePath: string;
+  rev?: string | null;
+  targetLine?: number | null;
+};
+
 export type RequestViewFileAtRevision = {
   command: "viewFileAtRevision";
   repo: string;
@@ -611,6 +622,18 @@ export type ResponseShowPruneWorktrees = {
 };
 
 /**
+ * Sent to the graph when the Reflog tab runs "Show in Graph" (F1-06): reveals
+ * `commitHash` in `repo`, or turns on `includeReflog` for `repo` and reloads
+ * when the user confirmed it.
+ */
+export type ResponseShowCommit = {
+  command: "showCommit";
+  repo: string;
+  commitHash: string;
+  enableIncludeReflog: boolean;
+};
+
+/**
  * Posted by the consent screen's **Set now** button. The screen replaces the
  * graph while the telemetry question is open, and this is what re-opens the
  * notification after it has been dismissed — without it, dismissing would
@@ -702,6 +725,7 @@ export type RequestMessage =
   | RequestOpenDiffTab
   | RequestShowReflog
   | RequestShowStatistics
+  | RequestShowBlame
   | RequestViewFileAtRevision
   | RequestCompareFileWithWorkingTree
   | RequestOpenFile
@@ -747,4 +771,5 @@ export type ResponseMessage =
   | ResponseStartHistorySearch
   | ResponseShowFileHistory
   | ResponseShowPruneWorktrees
+  | ResponseShowCommit
   | ResponsePickFolder;

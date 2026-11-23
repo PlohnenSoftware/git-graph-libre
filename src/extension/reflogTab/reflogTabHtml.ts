@@ -23,8 +23,30 @@ export function buildReflogTabHtml(
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} 'nonce-${nonce}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" type="text/css" href="${uri("media", "tokens.css")}">
+<link rel="stylesheet" type="text/css" href="${uri("media", "checkbox.css")}">
+<link rel="stylesheet" type="text/css" href="${uri("media", "dialogs.css")}">
 <link rel="stylesheet" type="text/css" href="${uri("media", "reflog-tab", "reflog-tab.css")}">
-<style>html, body, #reflogTab { height: 100%; margin: 0; padding: 0; }</style>
+<style>
+html, body, #reflogTab { height: 100%; margin: 0; padding: 0; }
+.ggl-reflog .reflog-row.contextMenuActive,
+.ggl-reflog .reflog-row.dialogActive {
+  background: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-subtle));
+}
+#contextMenu li.contextMenuItem[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+#contextMenu li.contextMenuItem[aria-disabled="true"]:hover {
+  background-color: var(--ngg-transparent);
+  color: var(--vscode-menu-foreground);
+}
+@media (forced-colors: active) {
+  #contextMenu li.contextMenuItem[aria-disabled="true"] {
+    opacity: 1;
+    color: GrayText;
+  }
+}
+</style>
 </head>
 <body><div id="reflogTab"></div><script nonce="${nonce}" src="${uri("out", "reflogTab.min.js")}"></script></body>
 </html>`;

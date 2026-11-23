@@ -34,13 +34,15 @@ function readManifest(): Manifest {
 function makeDeps(repos: Record<string, unknown>) {
   const opened: DiffTabRequest[] = [];
   const warnings: string[] = [];
+  const openFailures: number[] = [];
   const handlers = createScmDiffTabHandlers({
     getRepos: () => repos,
     openDiff: (request) => opened.push(request),
-    showWarning: vi.fn((message: string) => warnings.push(message))
+    showWarning: vi.fn((message: string) => warnings.push(message)),
+    reportOpenFailure: () => openFailures.push(1)
   });
   const byGroup = new Map(handlers.map((entry) => [entry.id, entry.handler]));
-  return { byGroup, opened, warnings };
+  return { byGroup, opened, warnings, openFailures };
 }
 
 function resource(fsPath: string) {
@@ -76,7 +78,9 @@ describe("SCM manifest contributions", () => {
         { command: `git-graph-libre.openDiffTab.${group}`, group: "navigation", when }
       ]);
     }
-    expect(entries).toHaveLength(6);
+    expect(
+      entries.filter((entry) => entry.command.startsWith("git-graph-libre.openDiffTab."))
+    ).toHaveLength(6);
   });
 
   it("hides each command from the command palette", () => {
@@ -156,18 +160,22 @@ describe("SCM diff tab handlers", () => {
     ]);
   });
 
-  it("warns and opens nothing when no known repository holds the file", async () => {
-    const { byGroup, opened, warnings } = makeDeps({ "/repo": {} });
+  // T1: an open that never reaches the panel reports its failure here; an
+  // open that reaches it is reported by the panel, not by this route.
+  it("warns, opens nothing and reports the failed open when no known repository holds the file", async () => {
+    const { byGroup, opened, warnings, openFailures } = makeDeps({ "/repo": {} });
     await byGroup.get("git-graph-libre.openDiffTab.workingTree")?.(resource("/elsewhere/a.ts"));
     expect(opened).toEqual([]);
     expect(warnings).toEqual(["Git Graph Libre does not know a repository containing this file."]);
+    expect(openFailures).toHaveLength(1);
   });
 
   it("does nothing without a resource path", async () => {
-    const { byGroup, opened, warnings } = makeDeps({ "/repo": {} });
+    const { byGroup, opened, warnings, openFailures } = makeDeps({ "/repo": {} });
     await byGroup.get("git-graph-libre.openDiffTab.untracked")?.();
     await byGroup.get("git-graph-libre.openDiffTab.untracked")?.({ resourceUri: {} });
     expect(opened).toEqual([]);
     expect(warnings).toEqual([]);
+    expect(openFailures).toEqual([]);
   });
 });

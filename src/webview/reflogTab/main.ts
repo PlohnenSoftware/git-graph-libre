@@ -1,9 +1,10 @@
 import type { ReflogHostMessage, ReflogWebviewMessage } from "@/reflogTabTypes";
 
-import { normalizeColumnWidths } from "./columnResize";
+import { normalizeColumnWidths, savedColumnWidths } from "./columnResize";
 import {
   applyData,
   applyLoading,
+  applyLostCommits,
   initialReflogState,
   markLoadingMore,
   type ReflogViewState
@@ -21,7 +22,7 @@ let state = initialReflogState();
 
 /**
  * The widths the user dragged, per repository like the graph's
- * `columnWidths`. The graph keeps its set in its per-repository view
+ * `columnWidths` (the six fixed widths are what gets saved). The graph keeps its set in its per-repository view
  * state on the extension host; this tab has no such store of its own,
  * so its set lives in the webview's saved state — the retained panel
  * pattern — which survives the document being reloaded or restored.
@@ -67,7 +68,33 @@ const view = createReflogView(root, {
   onColumnWidthsChange: (columnWidths) => {
     state = { ...state, columnWidths };
     widthsByRepo.set(state.repo, columnWidths);
-    host.setState({ columnWidthsByRepo: Object.fromEntries(widthsByRepo) });
+    // Only the fixed widths are saved: Message is what the fit leaves.
+    host.setState({
+      columnWidthsByRepo: Object.fromEntries(
+        [...widthsByRepo].map(([repo, widths]) => [repo, savedColumnWidths(widths)])
+      )
+    });
+  },
+  onScanLostCommits: () => {
+    host.postMessage({ command: "scanLostCommits" });
+  },
+  onCancelLostCommitsScan: () => {
+    host.postMessage({ command: "cancelLostCommitsScan" });
+  },
+  onCloseLostCommits: () => {
+    host.postMessage({ command: "closeLostCommits" });
+  },
+  onCreateLostCommitBranch: (hash) => {
+    host.postMessage({ command: "createLostCommitBranch", hash });
+  },
+  onAction: (action) => {
+    host.postMessage({ command: "action", action });
+  },
+  onCopyHash: (hash) => {
+    host.postMessage({ command: "copyHash", hash });
+  },
+  onShowInGraph: (hash, enableIncludeReflog) => {
+    host.postMessage({ command: "showInGraph", hash, enableIncludeReflog });
   }
 });
 
@@ -84,6 +111,14 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
       applyData(state, message as Extract<ReflogHostMessage, { command: "reflogData" }>)
     );
     view.render(state);
+  } else if (message?.command === "reflogLostCommits") {
+    state = applyLostCommits(
+      state,
+      message as Extract<ReflogHostMessage, { command: "reflogLostCommits" }>
+    );
+    view.render(state);
+  } else if (message?.command === "reflogActionResult") {
+    view.showActionResult(message as Extract<ReflogHostMessage, { command: "reflogActionResult" }>);
   }
 });
 view.render(state);

@@ -8,6 +8,25 @@
 
 - **Graph view**: See branches, tags, and uncommitted changes in one graph
 - **History recovery**: Keep detached HEAD visible and optionally discover unreachable commits
+- **Blame view**: **Show Blame for Current File** groups a file's lines by the
+  commit that last changed them, like GitHub's blame view, with each commit's
+  summary, author, hash and date. Hotspot coloring marks older and newer
+  commits, by age, calendar, churn or off. **Show Blame** is also in the
+  editor, Explorer and Source Control menus, and **Show Blame at Commit** and
+  **Show Blame Before Deletion** are in a commit's file menu. Hovering a
+  commit highlights its lines. Rewind to the blame before a change, set the
+  `-w`, `-M` and `-C` options or the `.git-blame-ignore-revs` file, find within
+  the tab, and open a commit's details in a popover. The tab follows the working
+  tree and HEAD.
+- **Reflog tab**: **Show Reflog** lists the reflog page by page, with each
+  entry's commit, date, action and message, and the actions colored by kind.
+  Each entry says whether its commit is still on a branch or tag, is only in the
+  reflog, or no longer exists. Search the reflog messages, filter by action,
+  choose HEAD, a local branch, the stash or another worktree's HEAD, or show
+  only the entries whose commit is only in the reflog. Columns can be resized
+  and keep their widths per repository. Recover an entry by creating a branch or
+  tag there, checking it out, or resetting the current branch to it, and find
+  commits that nothing reaches with **Scan for Lost Commits…**.
 - **Commit details**: Click a commit to see message, files, and diffs
 - **Compare anything**: Ctrl/Cmd-click two commits and choose **Compare
   Selected Commits**, or use **Compare With…** on a commit, branch or tag to
@@ -163,6 +182,7 @@ All settings use the `git-graph-libre` prefix.
 | `telemetry.enabled`                            | `"unset"`       | `unset` / `enabled` / `disabled` — see below     |
 | `tabIconColorTheme`                            | `"color"`       | `"color"` or `"grey"`                            |
 | `backend`                                      | `"auto"`        | `"auto"` (Rust engine with Git CLI fallback) or `"git-cli"` |
+| `contextMenuActionsVisibility`                 | `{}`            | Hide individual context menu actions, for example `{"commitDetailsViewFile": {"showBlame": false}}` |
 
 ## Telemetry
 
@@ -175,6 +195,15 @@ third-party analytics provider.
 **What is sent**
 
 - Which command or action ran (for example `pushTag`), and whether it succeeded.
+  That includes every button of the Worktrees list and the branch menus —
+  open, switch, copy path, create, lock, unlock, move, remove, repair and
+  prune — each as its name and outcome only, never which worktree it was.
+- Each time the Reflog tab, the GGL Diff tab or the Blame tab is opened, from
+  its toolbar button, a context menu or a command, and whether that went
+  without errors: the tab appeared and its first content loaded. An open that
+  could not happen — no repository or file to show, the tab unavailable, or
+  its first load failing — is recorded as a failed open. Nothing about what a
+  tab showed is sent: no repository, file, entries, search text or options.
 - Once per session: whether a feature that works by *showing* something was
   actually in effect — recovered history (reflog-only or unreachable commits)
   appearing in the graph, a signed tag being there to badge, a discovered Git

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createTelemetryReporter } from "@/telemetry";
+import { createTabOpenReporter, TAB_FEATURE_BLAME, TAB_FEATURE_REFLOG } from "@/telemetry/tabOpen";
 
 import { env, resetVscodeMock, telemetryLoggers } from "./__mocks__/vscode";
 
@@ -95,6 +96,42 @@ describe("telemetry reporter consent gate", () => {
       "common.os": process.platform,
       "common.nodearch": process.arch
     });
+  });
+
+  // The tab-open helper rides the same gate: a panel can call it freely and
+  // nothing is offered to the logger until the user has answered `enabled`.
+  it.each(["unset", "disabled"] as const)(
+    "sends no tab-open event while consent is %s",
+    (consent) => {
+      const reportOpen = createTabOpenReporter(reporterFor(consent), TAB_FEATURE_REFLOG);
+
+      reportOpen(true);
+      reportOpen(false);
+
+      expect(telemetryLoggers[0].events).toEqual([]);
+    }
+  );
+
+  it.each(["unset", "disabled"] as const)(
+    "sends no tab.blame event while consent is %s",
+    (consent) => {
+      const reportOpen = createTabOpenReporter(reporterFor(consent), TAB_FEATURE_BLAME);
+
+      reportOpen(true);
+      reportOpen(false);
+
+      expect(telemetryLoggers[0].events).toEqual([]);
+    }
+  );
+
+  it("sends a tab-open event as an ordinary feature event once accepted", () => {
+    const reportOpen = createTabOpenReporter(reporterFor("enabled"), TAB_FEATURE_REFLOG);
+
+    reportOpen(false);
+
+    expect(telemetryLoggers[0].events).toEqual([
+      { name: "feature", data: { feature: TAB_FEATURE_REFLOG, ok: false } }
+    ]);
   });
 
   it("creates no logger at all without an endpoint", () => {

@@ -133,5 +133,7 @@
   "config.uncommittedChanges.fileViewMode.list": "Show uncommitted changes as a flat path list",
   "command.showReflog": "Show Reflog",
   "command.showStatistics": "Show Statistics",
-  "command.showFileHistory": "Show File History"
+  "command.showFileHistory": "Show File History",
+  "command.showBlame": "Show Blame for Current File",
+  "command.showBlame.shortTitle": "Show Blame"
 }

@@ -11,16 +11,18 @@ summary: >-
 # Git Graph+ features and next-release additions: research and slice plan (`2026-11-08`, updated `2026-11-23`)
 
 Status: research done. On `2026-11-09` the maintainer ordered the reflog
-slices F1-01 to F1-09, now in implementation as "Reflog tab" (Ongoing work);
+slices F1-01 to F1-09, now done as "Reflog tab" (History);
 interactive rebase and the timeline wait for later releases. On `2026-11-23`
 the maintainer added Feature 4 beside these phases: a **Blame view** inspired
 by GitHub's blame view with **hotspot coloring** for the next release (design
 in `040-blame-view.md`; execution overview and tailored subagent slices in
-"Blame view" under Ongoing work). The maintainer also asked whether Git Graph+
+"Blame view" under History). The maintainer also asked whether Git Graph+
 code may be used under this project's AGPL: Apache-2.0 code may come in one
 way, with its license text, its copyright line ("Copyright 2026 the0807,
 bkk21"; there is no `NOTICE` file) and a notice of changes, but neither the
-reflog slices nor the Blame view copy any Git Graph+ code. G0 stays open.
+reflog slices nor the Blame view copy any Git Graph+ code. G0 is answered
+(`2026-11-23`): "Git Graph+ licensing verdict" (Licensing) is the standing
+verdict.
 
 The maintainer asked, while the engine integration ran: research how Git
 Graph+, at its newest `main` commit, implements three features "we want to
@@ -138,7 +140,8 @@ another.
 - **G0.** Make the preliminary licensing verdict above a standing section
   under Licensing? Recommended: yes, worded as for `vscode-git-graph-rs`,
   with the SourceGit file named as out of bounds unless its MIT notice is
-  carried.
+  carried. **Answered `2026-11-23`:** yes, a standing verdict, now in
+  `030-licensing/010-licensing/040-git-graph-plus-licensing-verdict.md`.
 - **G1.** Release placement and IDs: one themed release (for example
   1.11.0) or one per feature; final slice IDs replace F1/F2/F3/F4 when a
   release is planned. Recommended: complete the Reflog tab (`F1`) and ship the

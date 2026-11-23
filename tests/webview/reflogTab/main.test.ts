@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ReflogHostMessage, ReflogWebviewMessage } from "@/reflogTabTypes";
+import { DEFAULT_COLUMN_WIDTHS } from "@/webview/reflogTab/columnResize";
 
-import { dataMessage, loadingMessage, page, row } from "./fixtures";
+import { dataMessage, loadingMessage, lostCommit, lostCommitsMessage, page, row } from "./fixtures";
 
 // Each test loads a fresh copy of the script, which posts to its own list.
 // The saved webview state is one object the script reads once and replaces
@@ -73,16 +74,15 @@ describe("reflog tab webview", () => {
     // pass drags, the second pass starts from what the first one saved.
     const first = await start();
     send(dataMessage({ page: page({ hasMore: true }) }));
-    for (const [index, cell] of [...first.root.querySelectorAll("th")].entries()) {
-      Object.defineProperty(cell, "clientWidth", { value: 116 + index * 10, configurable: true });
-    }
     const handle = first.root.querySelector<HTMLElement>('.resizeCol[data-col="3"]');
     handle?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: 100 }));
     const headRow = first.root.querySelector(".reflog-head-row") as HTMLElement;
     headRow.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 120 }));
     headRow.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
-    // Natural 100..160, then +20 traded across the message/commit edge.
-    const savedWidths = [100, 110, 120, 150, 120, 150, 160];
+    // From the defaults, +20 traded across the message/commit edge:
+    // Commit gives 20px. Q3 saves the six fixed widths, Message not
+    // among them, so the saved set has six entries.
+    const savedWidths = [52, 116, 112, 68, 140, 133];
     expect(first.savedState()).toEqual({ columnWidthsByRepo: { "/repos/one": savedWidths } });
     // The loaded page is untouched by the drag.
     expect(first.root.querySelectorAll("tbody tr")).toHaveLength(1);
@@ -93,13 +93,21 @@ describe("reflog tab webview", () => {
     const cols = [...second.root.querySelectorAll<HTMLElement>("thead th")].map(
       (cell) => cell.style.width
     );
-    expect(cols).toEqual(savedWidths.map((width) => `${width}px`));
+    // Message is not saved: until the fit runs (no layout in jsdom)
+    // it shows the default placeholder, which the fit then replaces.
+    expect(cols).toEqual(
+      [52, 116, 112, DEFAULT_COLUMN_WIDTHS[3], 68, 140, 133].map((width) => `${width}px`)
+    );
     expect(second.root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
     expect(second.root.querySelectorAll("tbody tr")).toHaveLength(2);
 
-    // Another repository has no saved widths of its own.
+    // Another repository has no saved widths of its own: the
+    // defaults rule there, in the same fixed layout (Q2).
     send(dataMessage({ repo: "/repos/two" }));
-    expect(second.root.querySelector("table")?.classList.contains("fixedLayout")).toBe(false);
+    expect(second.root.querySelector("table")?.classList.contains("fixedLayout")).toBe(true);
+    expect(
+      [...second.root.querySelectorAll<HTMLElement>("thead th")].map((cell) => cell.style.width)
+    ).toEqual([52, 116, 112, 320, 88, 140, 133].map((width) => `${width}px`));
   });
 
   it("debounces the search box and sends other filter changes at once (F1-05)", async () => {
@@ -116,7 +124,13 @@ describe("reflog tab webview", () => {
     expect(posted.filter((message) => message.command === "query")).toEqual([
       {
         command: "query",
-        query: { ref: "HEAD", search: "needle", actions: [], onlyInReflog: false }
+        query: {
+          ref: "HEAD",
+          worktreePath: null,
+          search: "needle",
+          actions: [],
+          onlyInReflog: false
+        }
       }
     ]);
     // An instant change after typing asks for the newest whole query now.
@@ -128,7 +142,7 @@ describe("reflog tab webview", () => {
     expect(posted.filter((message) => message.command === "query")).toHaveLength(2);
     expect(posted.at(-1)).toEqual({
       command: "query",
-      query: { ref: "HEAD", search: "other", actions: [], onlyInReflog: true }
+      query: { ref: "HEAD", worktreePath: null, search: "other", actions: [], onlyInReflog: true }
     });
     vi.advanceTimersByTime(500);
     expect(posted.filter((message) => message.command === "query")).toHaveLength(2);
@@ -138,5 +152,75 @@ describe("reflog tab webview", () => {
     const { root } = await start();
     send(dataMessage(), "https://example.invalid");
     expect(root.childElementCount).toBe(0);
+  });
+
+  it("posts lost-commit scan, cancel, create-branch, and close messages (F1-07)", async () => {
+    const { posted, root } = await start();
+    send(dataMessage());
+    root.querySelector<HTMLButtonElement>("#reflogLostScanBtn")?.click();
+    expect(posted.at(-1)).toEqual({ command: "scanLostCommits" });
+
+    send(lostCommitsMessage({ status: "scanning", commits: [] }));
+    root.querySelector<HTMLButtonElement>("#reflogLostCancelBtn")?.click();
+    expect(posted.at(-1)).toEqual({ command: "cancelLostCommitsScan" });
+
+    const item = lostCommit();
+    send(lostCommitsMessage({ scanId: 2, status: "done", commits: [item] }));
+    root.querySelector<HTMLButtonElement>(".reflog-lost-action-btn")?.click();
+    expect(posted.at(-1)).toEqual({ command: "createLostCommitBranch", hash: item.hash });
+
+    root.querySelector<HTMLButtonElement>("#reflogLostCloseBtn")?.click();
+    expect(posted.at(-1)).toEqual({ command: "closeLostCommits" });
+  });
+
+  it("posts recovery action, copyHash and showInGraph messages and shows action errors (F1-06)", async () => {
+    const { posted, root } = await start();
+    send(
+      dataMessage({
+        page: page({
+          rows: [
+            row({
+              hash: "0123456789abcdef0123456789abcdef01234567",
+              state: "reflogOnly"
+            })
+          ]
+        })
+      })
+    );
+    const tr = root.querySelector<HTMLElement>("tbody tr.reflog-row") as HTMLElement;
+    tr.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 20, clientY: 20 }));
+    root.querySelector<HTMLElement>('#contextMenu [data-action="copyHash"]')?.click();
+    expect(posted.at(-1)).toEqual({
+      command: "copyHash",
+      hash: "0123456789abcdef0123456789abcdef01234567"
+    });
+
+    tr.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 20, clientY: 20 }));
+    root.querySelector<HTMLElement>('#contextMenu [data-action="showInGraph"]')?.click();
+    root.querySelector<HTMLElement>("#dialogAction")?.click();
+    expect(posted.at(-1)).toEqual({
+      command: "showInGraph",
+      hash: "0123456789abcdef0123456789abcdef01234567",
+      enableIncludeReflog: true
+    });
+
+    tr.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 20, clientY: 20 }));
+    root.querySelector<HTMLElement>('#contextMenu [data-action="checkoutDetached"]')?.click();
+    root.querySelector<HTMLElement>("#dialogAction")?.click();
+    expect(posted.at(-1)).toEqual({
+      command: "action",
+      action: {
+        kind: "checkoutCommit",
+        commitHash: "0123456789abcdef0123456789abcdef01234567",
+        worktreePath: null
+      }
+    });
+
+    send({
+      command: "reflogActionResult",
+      action: "checkoutCommit",
+      error: "dirty working tree"
+    });
+    expect(root.querySelector("#dialog .errorReason")?.textContent).toBe("dirty working tree");
   });
 });

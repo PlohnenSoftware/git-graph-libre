@@ -422,6 +422,21 @@ export function otherWorktreesHoldingBranch(
   return worktrees.filter((worktree) => !worktree.isCurrent && worktree.branch === branch);
 }
 
+/**
+ * The Create Worktree source as the dialog may offer it (P1b, V11): a branch
+ * another worktree has checked out cannot be checked out again, so that mode
+ * drops out and the dialog opens on a new branch from it (a detached HEAD at
+ * its tip stays the other mode). Every other source is returned unchanged.
+ */
+export function resolveCreateWorktreeSource(
+  source: CreateWorktreeSource,
+  worktrees: readonly GitWorktree[]
+): CreateWorktreeSource {
+  if (source.branch === null) return source;
+  if (otherWorktreesHoldingBranch(worktrees, source.branch).length === 0) return source;
+  return { ...source, branch: null, mode: "new" };
+}
+
 export type WorktreeCheckoutStrings = {
   checkedOutInWorktree: string;
   worktreeLocked: string;
@@ -480,9 +495,12 @@ function existingBranchMessage(
 ): string {
   const ref = (name: string) => `<code>${escapeHtml(name)}</code>`;
   if (worktreePath !== null) {
+    // A dialog sentence names a worktree by its folder, with the full path on
+    // hover: the path itself wrapped the chip over two lines.
+    const folder = `<code title="${escapeHtml(worktreePath)}">${escapeHtml(worktreeFolderName(worktreePath))}</code>`;
     return l10n.dialogOpenWorktreeMessage
       .replace("{0}", () => ref(existing))
-      .replace("{1}", () => ref(worktreePath));
+      .replace("{1}", () => folder);
   }
   if (existing === suggestedName) {
     return l10n.dialogCheckoutRemoteExists.replace("{0}", () => ref(existing));
@@ -2022,6 +2040,58 @@ class GitGraphView {
     this.saveState();
     this.renderShowLoading();
     this.requestLoadCommits(true, () => {});
+  }
+  /**
+   * "Show in Graph" from the Reflog tab (F1-06): reveals the commit when the
+   * graph already has it, turns on `includeReflog` and reloads when the user
+   * confirmed that in the Reflog tab, or clears active filters and reloads to
+   * reveal a reachable commit without ever enabling `includeReflog` silently.
+   */
+  public showCommit(repo: string, commitHash: string, enableIncludeReflog: boolean) {
+    const repoChanged =
+      repo !== "" && repo !== this.currentRepo && Object.hasOwn(this.gitRepos, repo);
+    if (repoChanged) {
+      this.currentRepo = repo;
+      this.renderRepoDropdown();
+      this.syncRepoSettingsControls();
+    }
+    if (enableIncludeReflog) {
+      this.pendingFocusCommitHash = commitHash;
+      // `--reflog` only applies to unfiltered loads (`refs === null`), so
+      // clear any active branch/author/tag filter before reloading.
+      this.clearFiltersForCommitReveal();
+      if (!this.getIncludeReflog()) {
+        this.setRepoBooleanSetting("includeReflog", "enabled");
+        return;
+      }
+      if (!repoChanged && this.revealCommit(commitHash)) {
+        this.pendingFocusCommitHash = null;
+        return;
+      }
+      this.reloadToRevealCommit(commitHash, repoChanged);
+      return;
+    }
+    if (!repoChanged && this.revealCommit(commitHash)) return;
+    this.reloadToRevealCommit(commitHash, repoChanged);
+  }
+  private clearFiltersForCommitReveal() {
+    this.currentBranch = FILTER_SHOW_ALL_VALUE;
+    this.currentBranches = null;
+    this.currentAuthors = null;
+    this.currentTags = null;
+    this.updateFilterDropdowns();
+    this.hideCommitDetails();
+  }
+  private reloadToRevealCommit(commitHash: string, reloadBranches = false) {
+    this.pendingFocusCommitHash = commitHash;
+    this.clearFiltersForCommitReveal();
+    this.saveState();
+    this.renderShowLoading();
+    if (reloadBranches) {
+      this.requestLoadBranchesAndCommits(true);
+    } else {
+      this.requestLoadCommits(true, () => {});
+    }
   }
   private revealPendingFocusCommit() {
     if (this.pendingFocusCommitHash === null) return;
@@ -5210,23 +5280,19 @@ class GitGraphView {
     );
   }
   /**
-   * "Create Worktree…" (W22), one dialog for every entry point. A branch
-   * another worktree already has checked out is refused here, from the
-   * worktree list, offering that worktree instead — never from a Git error
-   * after the fact. The backend repeats every refusal before Git runs.
+   * "Create Worktree…" (W22), one dialog for every entry point. On a branch
+   * another worktree already has checked out, the dialog offers only the two
+   * modes Git allows there — a new branch from it and a detached HEAD at its
+   * tip (P1b, V11) — and opens on the new branch; "Open Worktree…" in the
+   * same menu still goes to that worktree. The backend repeats every
+   * refusal before Git runs.
    */
   private showCreateWorktreeDialog(source: CreateWorktreeSource, sourceElem: HTMLElement | null) {
-    if (
-      source.branch !== null &&
-      otherWorktreesHoldingBranch(this.gitWorktrees, source.branch).length > 0
-    ) {
-      this.openWorktreeAction(source.branch);
-      return;
-    }
+    const resolved = resolveCreateWorktreeSource(source, this.gitWorktrees);
 
     const options: { name: string; value: string }[] = [];
-    if (source.branch !== null) {
-      const branch = source.branch;
+    if (resolved.branch !== null) {
+      const branch = resolved.branch;
       options.push({
         name: l10n.dialogCreateWorktreeCheckoutBranch.replace("{0}", () => branch),
         value: "branch"
@@ -5234,20 +5300,20 @@ class GitGraphView {
     }
     options.push(
       {
-        name: l10n.dialogCreateWorktreeNewBranchFrom.replace("{0}", () => source.label),
+        name: l10n.dialogCreateWorktreeNewBranchFrom.replace("{0}", () => resolved.label),
         value: "new"
       },
       {
-        name: l10n.dialogCreateWorktreeDetachedAt.replace("{0}", () => source.label),
+        name: l10n.dialogCreateWorktreeDetachedAt.replace("{0}", () => resolved.label),
         value: "detach"
       }
     );
-    const mode = source.branch === null && source.mode === "branch" ? "new" : source.mode;
+    const mode = resolved.branch === null && resolved.mode === "branch" ? "new" : resolved.mode;
 
     showFormDialog(
       l10n.dialogCreateWorktreeTitle.replace(
         "{0}",
-        () => `<b><i>${escapeHtml(source.label)}</i></b>`
+        () => `<b><i>${escapeHtml(resolved.label)}</i></b>`
       ),
       [
         {
@@ -5255,7 +5321,7 @@ class GitGraphView {
           name: l10n.dialogCreateWorktreeFolder,
           default: defaultWorktreePath(
             this.currentRepo,
-            source.folderName,
+            resolved.folderName,
             this.config.worktreePathTemplate
           ),
           required: true
@@ -5264,7 +5330,7 @@ class GitGraphView {
         {
           type: "text-ref",
           name: l10n.dialogCreateWorktreeNewBranch,
-          default: source.newBranchName,
+          default: resolved.newBranchName,
           dependsOn: { input: 1, value: "new" }
         },
         { type: "checkbox", name: l10n.dialogCreateWorktreeLock, value: false },
@@ -5272,11 +5338,12 @@ class GitGraphView {
           type: "text",
           name: l10n.dialogCreateWorktreeLockReason,
           default: "",
-          placeholder: l10n.dialogAddTagOptional
+          placeholder: l10n.dialogAddTagOptional,
+          dependsOn: { input: 3, value: "checked" }
         }
       ],
       l10n.dialogCreateWorktreeSubmit,
-      (values) => this.submitCreateWorktree(source, values),
+      (values) => this.submitCreateWorktree(resolved, values),
       sourceElem
     );
   }
@@ -5310,21 +5377,44 @@ class GitGraphView {
     }
 
     this.refresh(true);
-    showSelectDialog(
+    // One-click choices, like every short list of actions (the styling
+    // guide's rule, written after this dialog's first select form). Doing
+    // nothing is the dialog's Cancel, so it is not a choice of its own; a
+    // stored "nothing" from the select form opens on the first choice.
+    const finish = (choice: WorktreeFinishChoice) => {
+      this.lastWorktreeFinish = choice;
+      this.saveState();
+      this.applyWorktreeFinish(path, choice);
+    };
+    const primaryFor = (choice: WorktreeFinishChoice) =>
+      this.lastWorktreeFinish === choice ||
+      (this.lastWorktreeFinish === "nothing" && choice === "newWindow");
+    showChoiceDialog(
+      l10n.dialogWorktreeCreatedTitle,
       l10n.dialogWorktreeCreatedMessage.replace("{0}", () => `<b><i>${escapeHtml(path)}</i></b>`),
-      this.lastWorktreeFinish,
       [
-        { name: l10n.dialogWorktreeCreatedOpenNewWindow, value: "newWindow" },
-        { name: l10n.dialogWorktreeCreatedAddToWorkspace, value: "workspace" },
-        { name: l10n.dialogWorktreeCreatedSwitchGraph, value: "switch" },
-        { name: l10n.dialogWorktreeCreatedNothing, value: "nothing" }
+        {
+          label: l10n.dialogWorktreeCreatedOpenNewWindow,
+          description: l10n.dialogWorktreeCreatedOpenNewWindowDescription,
+          icon: "link-external",
+          primary: primaryFor("newWindow"),
+          onClick: () => finish("newWindow")
+        },
+        {
+          label: l10n.dialogWorktreeCreatedAddToWorkspace,
+          description: l10n.dialogWorktreeCreatedAddToWorkspaceDescription,
+          icon: "file-directory",
+          primary: primaryFor("workspace"),
+          onClick: () => finish("workspace")
+        },
+        {
+          label: l10n.dialogWorktreeCreatedSwitchGraph,
+          description: l10n.dialogWorktreeCreatedSwitchGraphDescription,
+          icon: "arrow-switch",
+          primary: primaryFor("switch"),
+          onClick: () => finish("switch")
+        }
       ],
-      l10n.dialogWorktreeCreatedSubmit,
-      (value) => {
-        this.lastWorktreeFinish = normalizeWorktreeFinish(value);
-        this.saveState();
-        this.applyWorktreeFinish(path, this.lastWorktreeFinish);
-      },
       null
     );
   }
@@ -5959,24 +6049,36 @@ class GitGraphView {
     const confirm = l10n.dialogDeleteConfirm
       .replace("{0}", l10n.labelBranch)
       .replace("{1}", `<b><i>${escapeHtml(refName)}</i></b>`);
+    const inputs = this.deleteBranchInputs(refName, holder, deleteOnRemotes);
     showFormDialog(
-      holder === null
-        ? confirm
-        : `${this.worktreeHoldsBranchMessage(refName, holder)}<br><br>${confirm}`,
-      this.deleteBranchInputs(holder, deleteOnRemotes),
+      confirm,
+      inputs,
       l10n.deleteBranch,
-      (values) => this.submitDeleteBranch(refName, holder, deleteOnRemotes, values),
+      (values) => this.submitDeleteBranch(refName, holder, deleteOnRemotes, inputs, values),
       null
     );
   }
-  /** The dialog's checkboxes: the worktree removal first, when a worktree holds the branch. */
-  private deleteBranchInputs(holder: GitWorktree | null, deleteOnRemotes: string[]): DialogInput[] {
+  /**
+   * The dialog's rows: why Git keeps the branch as a note when a worktree
+   * holds it, then the checkboxes, the worktree removal first. The question
+   * stays the title on its own, as Rename Branch does for its worktree remark.
+   */
+  private deleteBranchInputs(
+    refName: string,
+    holder: GitWorktree | null,
+    deleteOnRemotes: string[]
+  ): DialogInput[] {
     const inputs: DialogInput[] = [];
     if (holder !== null) {
+      inputs.push({ type: "note", html: this.worktreeHoldsBranchMessage(refName, holder) });
       inputs.push({
         type: "checkbox",
         name: l10n.dialogDeleteBranchRemoveWorktree.replace("{0}", escapeHtml(holder.path)),
-        value: false
+        value: false,
+        // Until this is ticked there is nothing the action can do, so it
+        // stays blocked like a required field left empty instead of closing
+        // the dialog and sending nothing.
+        required: true
       });
     }
     inputs.push({ type: "checkbox", name: l10n.dialogDeleteForceDelete, value: false });
@@ -5993,28 +6095,41 @@ class GitGraphView {
     refName: string,
     holder: GitWorktree | null,
     deleteOnRemotes: string[],
+    inputs: DialogInput[],
     values: string[]
   ) {
-    const forceIndex = holder === null ? 0 : 1;
+    // Read the checkboxes by type, in their order among themselves: the
+    // value-less note row shifts every absolute position, as a group heading
+    // would, and a position counted by hand would read the wrong box.
+    const checked = inputs.flatMap((input, index) =>
+      input.type === "checkbox" ? [values[index] === "checked"] : []
+    );
+    const offset = holder === null ? 0 : 1;
     const deleteBranch: DeleteBranchPart = {
       branchName: refName,
-      forceDelete: values[forceIndex] === "checked"
+      forceDelete: checked[offset] === true
     };
-    if (deleteOnRemotes.length > 0 && values[forceIndex + 1] === "checked") {
+    if (deleteOnRemotes.length > 0 && checked[offset + 1] === true) {
       deleteBranch.deleteOnRemotes = deleteOnRemotes;
     }
     if (holder === null) {
       sendMessage({ command: "deleteBranch", repo: this.currentRepo, ...deleteBranch });
       showActionRunningDialog(l10n.statusDeletingBranch);
-    } else if (values[0] === "checked") {
-      // Left unticked, the dialog only explained, and nothing is sent.
+    } else if (checked[0] === true) {
+      // The required checkbox keeps the action blocked until it is ticked,
+      // so reaching here unticked sends nothing, as before.
       this.removeWorktreeAction(holder, deleteBranch);
     }
   }
   private worktreeAtPath(path: string): GitWorktree | null {
     return this.gitWorktrees.find((worktree) => worktree.path === path) ?? null;
   }
-  /** Why Git keeps the branch, and what removing the worktree does, for each kind of worktree. */
+  /**
+   * Why Git keeps the branch, and what removing the worktree does, for each
+   * kind of worktree. Pre-escaped HTML for the dialog's note row: the
+   * sentence names the worktree by its folder with the full path on hover,
+   * and the full path stays visible in the option that removes it.
+   */
   private worktreeHoldsBranchMessage(refName: string, holder: GitWorktree): string {
     const notes = [
       l10n.dialogDeleteBranchRemovable
@@ -6083,13 +6198,14 @@ class GitGraphView {
       return;
     }
     hideDialog();
-    const files = msg.files.map((file) => `<li>${escapeHtml(file)}</li>`).join("");
-    const more = msg.truncated ? `<p>${l10n.dialogRemoveWorktreeMoreFiles}</p>` : "";
     const target = `<b><i>${escapeHtml(msg.path)}</i></b>`;
     const question = l10n.dialogRemoveWorktreeForce.replace("{0}", () => target);
+    const list: DialogInput = msg.truncated
+      ? { type: "list", items: msg.files, note: l10n.dialogRemoveWorktreeMoreFiles }
+      : { type: "list", items: msg.files };
     showFormDialog(
-      `${question}<ul>${files}</ul>${more}`,
-      [],
+      question,
+      [list],
       l10n.dialogRemoveWorktreeForceSubmit,
       () => this.sendRemoveWorktree({ ...pending.request, force: true }),
       null
@@ -6137,8 +6253,12 @@ class GitGraphView {
       "{0}",
       () => `<b><i>${escapeHtml(worktree.path)}</i></b>`
     );
-    showConfirmationDialog(
+    // A form dialog without inputs, so the button names its action like
+    // every other worktree dialog instead of a bare "Yes".
+    showFormDialog(
       `${message} ${this.removeLockedNote(worktree)}`.trim(),
+      [],
+      l10n.worktreeRemove,
       () => this.removeWorktreeAction(worktree),
       null
     );
@@ -6295,10 +6415,9 @@ class GitGraphView {
     const stale = this.staleWorktrees();
     if (stale.length === 0) return;
 
-    const entries = stale.map((worktree) => `<li>${escapeHtml(worktree.path)}</li>`).join("");
     showFormDialog(
-      `${l10n.dialogPruneWorktreesMessage}<ul>${entries}</ul>`,
-      [],
+      l10n.dialogPruneWorktreesMessage,
+      [{ type: "list", items: stale.map((worktree) => worktree.path) }],
       l10n.dialogPruneWorktreesSubmit,
       () => {
         sendMessage({ command: "pruneWorktrees", repo: this.currentRepo });
@@ -7438,20 +7557,25 @@ class GitGraphView {
       const action = document.getElementById("dialogAction");
       if (name !== "" && this.hasLocalBranch(name)) {
         dialog.className = "active inputInvalid";
-        if (action !== null) action.title = l10n.branchNameTaken.replace("{0}", () => name);
+        const taken = l10n.branchNameTaken.replace("{0}", () => name);
+        if (action !== null) action.title = taken;
+        setDialogInputError(inputIndex, taken);
         return;
       }
       // Pasted or picked input fires no keyup, so the form's own refresh may
       // not have run: recompute the same three states it would.
       if (name === "") {
         dialog.className = "active noInput";
+        setDialogInputError(inputIndex, null);
       } else if (refInvalid.exec(name) !== null) {
         dialog.className = "active inputInvalid";
-        if (action !== null)
-          action.title = l10n.invalidCharacters.replace("{0}", l10n.checkoutBranch);
+        const invalid = l10n.invalidCharacters.replace("{0}", l10n.checkoutBranch);
+        if (action !== null) action.title = invalid;
+        setDialogInputError(inputIndex, invalid);
       } else {
         dialog.className = "active";
         if (action !== null) action.title = "";
+        setDialogInputError(inputIndex, null);
       }
     };
     input.addEventListener("keyup", validate);
@@ -8338,6 +8462,60 @@ class GitGraphView {
     }
   }
 
+  private resolveGitFileBlameTarget(
+    fileChange: GitFileChange
+  ): { rev: string | null; filePath: string; title: string } | null {
+    if (fileChange.additions === null || fileChange.deletions === null) return null;
+    const expanded = this.expandedCommit;
+    if (expanded === null) return null;
+    if (expanded.comparison !== null) {
+      if (fileChange.type === "D") {
+        return {
+          rev: expanded.comparison.baseRef === "*" ? null : expanded.comparison.baseRef,
+          filePath: fileChange.oldFilePath,
+          title: l10n.showBlameBeforeDeletion
+        };
+      }
+      return {
+        rev: expanded.comparison.compareRef === "*" ? null : expanded.comparison.compareRef,
+        filePath: fileChange.newFilePath,
+        title: l10n.showBlameAtCommit
+      };
+    }
+    if (fileChange.type === "D") {
+      const firstParent = expanded.commitDetails?.parents[0];
+      if (firstParent === undefined || firstParent === "") return null;
+      return {
+        rev: firstParent,
+        filePath: fileChange.oldFilePath,
+        title: l10n.showBlameBeforeDeletion
+      };
+    }
+    let rev: string | null = expanded.hash === "*" ? null : expanded.hash;
+    if (fileChange.untracked === true) rev = `${expanded.hash}^3`;
+    return {
+      rev,
+      filePath: fileChange.newFilePath,
+      title: l10n.showBlameAtCommit
+    };
+  }
+
+  private buildGitFileBlameMenuItem(fileChange: GitFileChange): ContextMenuItem | undefined {
+    if (!this.isContextMenuActionVisible("commitDetailsViewFile", "showBlame")) return undefined;
+    const target = this.resolveGitFileBlameTarget(fileChange);
+    if (target === null) return undefined;
+    return {
+      title: target.title,
+      onClick: () =>
+        sendMessage({
+          command: "showBlame",
+          repo: this.currentRepo,
+          filePath: target.filePath,
+          rev: target.rev
+        })
+    };
+  }
+
   private buildGitFileContextMenu(
     fileChange: GitFileChange,
     sourceElem: HTMLElement
@@ -8346,6 +8524,7 @@ class GitGraphView {
     const revisionFileExists = this.gitFileExistsAtRevision(fileChange);
 
     this.pushFileDiffItems(menu, fileChange);
+    menu.push(this.buildGitFileBlameMenuItem(fileChange));
 
     if (revisionFileExists) {
       menu.push(
@@ -8990,6 +9169,7 @@ const responseHandlers: ResponseHandlerMap = {
   showFileHistory: (msg) => gitGraph.showFileHistory(msg.repo, msg.filePath),
   startHistorySearch: () => gitGraph.startHistorySearch(),
   showPruneWorktrees: () => gitGraph.showPruneWorktrees(),
+  showCommit: (msg) => gitGraph.showCommit(msg.repo, msg.commitHash, msg.enableIncludeReflog),
   tagDetails: handleTagDetailsResponse,
   uncommittedDetails: handleUncommittedDetailsResponse,
   openDiffTab: (msg) => handleSuccessFlagResponse(msg, l10n.unableToViewDiff),
@@ -9481,6 +9661,11 @@ let pendingFolderPick: {
   keepFolderName: string | null;
 } | null = null;
 let folderPickRequests = 0;
+/** Shows a folder field's end and keeps its full value as its title. */
+function showFolderFieldEnd(field: HTMLInputElement) {
+  field.title = field.value;
+  field.scrollLeft = field.scrollWidth;
+}
 /** Wires each folder field's Browse button to the folder picker (W22F). */
 function bindFolderDialogInputs(inputs: DialogInput[]) {
   for (const [index, input] of inputs.entries()) {
@@ -9488,6 +9673,11 @@ function bindFolderDialogInputs(inputs: DialogInput[]) {
     document
       .getElementById(`dialogBrowse${index}`)
       ?.addEventListener("click", () => requestFolderPick(index, input));
+    const field = document.getElementById(`dialogInput${index}`) as HTMLInputElement | null;
+    if (field !== null) {
+      showFolderFieldEnd(field);
+      field.addEventListener("input", () => showFolderFieldEnd(field));
+    }
   }
 }
 function requestFolderPick(index: number, input: Extract<DialogInput, { type: "folder" }>) {
@@ -9565,6 +9755,10 @@ function bindLockedDialogInputs(inputs: DialogInput[]) {
   }
 }
 function renderDialogForm(message: string, inputs: DialogInput[]) {
+  // No inputs, no table: an empty form still counted as content after the
+  // title, so `.dialogTitle:not(:last-child)` added its gap and the buttons
+  // sat well below the text of a message-only form dialog.
+  if (inputs.length === 0) return { html: dialogTitleHtml(message), textRefInput: -1 };
   const multiElementForm = inputs.length > 1;
   let textRefInput = -1;
   let html = `${dialogTitleHtml(message)}<table class="dialogForm ${multiElementForm ? "multi" : "single"}">`;
@@ -9582,10 +9776,19 @@ function renderDialogInputRow(
 ) {
   const hidden = isDialogInputVisible(inputs, input) ? "" : " hidden";
   if (input.type === "note") {
-    return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2" class="dialogFormNoteCell"><span class="dialogFormNote">${escapeHtml(input.text)}</span></td></tr>`;
+    const content = "html" in input ? input.html : escapeHtml(input.text);
+    return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2" class="dialogFormNoteCell"><span class="dialogFormNote">${content}</span></td></tr>`;
   }
   if (input.type === "group") {
     return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2" class="dialogFormGroupCell"><span class="dialogFormGroup">${escapeHtml(input.name)}</span></td></tr>`;
+  }
+  if (input.type === "list") {
+    const items = input.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+    const note =
+      input.note === undefined
+        ? ""
+        : `<span class="dialogListNote">${escapeHtml(input.note)}</span>`;
+    return `<tr id="dialogInputRow${index}"${hidden}><td colspan="2" class="dialogFormListCell"><ul class="dialogList">${items}</ul>${note}</td></tr>`;
   }
   // A checkbox names itself: its text belongs in the <label> beside the box,
   // never in the form's label column. Splitting them puts the words far from
@@ -9599,7 +9802,7 @@ function renderDialogInputRow(
 }
 function renderDialogInput(
   // Value-less rows are rendered by renderDialogInputRow and never reach here.
-  input: Exclude<DialogInput, { type: "note" | "group" }>,
+  input: Exclude<DialogInput, { type: "note" | "group" | "list" }>,
   index: number,
   multiElementForm: boolean
 ) {
@@ -9611,7 +9814,10 @@ function renderDialogInput(
 }
 /** A folder field with its Browse button beside it; the picker's answer fills the field (W22F). */
 function renderDialogFolderInput(input: Extract<DialogInput, { type: "folder" }>, index: number) {
-  return `<span class="dialogFormFolder"><input id="dialogInput${index}" type="text" value="${escapeHtml(input.default)}"/><button id="dialogBrowse${index}" class="dialogBtn" type="button">${escapeHtml(l10n.dialogCreateWorktreeBrowse)}</button></span>`;
+  // The full path is the field's title: a default longer than the field hides
+  // the folder being created, and the end of the path is the part that matters.
+  const value = escapeHtml(input.default);
+  return `<span class="dialogFormFolder"><input id="dialogInput${index}" type="text" value="${value}" title="${value}"/><button id="dialogBrowse${index}" class="dialogBtn" type="button">${escapeHtml(l10n.dialogCreateWorktreeBrowse)}</button></span>`;
 }
 function renderDialogSelectInput(input: Extract<DialogInput, { type: "select" }>, index: number) {
   let html = `<select id="dialogInput${index}">`;
@@ -9654,7 +9860,26 @@ function renderDialogTextInput(
   if (input.type === "text" && input.placeholder !== null) {
     placeholder = ` placeholder="${escapeHtml(input.placeholder)}"`;
   }
-  return `<input id="dialogInput${index}" type="text" value="${escapeHtml(input.default)}"${placeholder}/>`;
+  if (input.type !== "text-ref") {
+    return `<input id="dialogInput${index}" type="text" value="${escapeHtml(input.default)}"${placeholder}/>`;
+  }
+  // A refused ref name says why in a line under the field, not only in the
+  // blocked button's title, which nobody hovers while the field is red.
+  return (
+    `<input id="dialogInput${index}" type="text" value="${escapeHtml(input.default)}"${placeholder}` +
+    ` aria-describedby="dialogInputError${index}"/>` +
+    `<span class="dialogInputError" id="dialogInputError${index}" role="alert"></span>`
+  );
+}
+/** The reason a ref name is refused, in its line under the field; null clears it. */
+function setDialogInputError(index: number, message: string | null) {
+  const error = document.getElementById(`dialogInputError${index}`);
+  if (error !== null) error.textContent = message ?? "";
+  const field = document.getElementById(`dialogInput${index}`);
+  if (field !== null) {
+    if (message === null) field.removeAttribute("aria-invalid");
+    else field.setAttribute("aria-invalid", "true");
+  }
 }
 function renderDialogTextareaInput(
   input: Extract<DialogInput, { type: "textarea" }>,
@@ -9685,18 +9910,23 @@ function getDialogInputFallbackValue(input: DialogInput) {
   // so pre-render checks (e.g. initial dependent-row visibility) read the
   // configured default instead of a live element.
   if (input.type === "checkbox") return input.value ? "checked" : "unchecked";
-  if (input.type === "note" || input.type === "group") return "";
+  if (input.type === "note" || input.type === "group" || input.type === "list") return "";
   return input.default;
 }
 function isDialogInputVisible(inputs: DialogInput[], input: DialogInput) {
   if (input.dependsOn === undefined) return true;
   const controller = inputs[input.dependsOn.input];
-  if (controller?.type !== "select") return true;
+  // A select controls by its option value, a checkbox by "checked": both are
+  // what getDialogInputValue already reports for them.
+  if (controller?.type !== "select" && controller?.type !== "checkbox") return true;
   return getDialogInputValue(controller, input.dependsOn.input) === input.dependsOn.value;
 }
 function isRequiredDialogInput(input: DialogInput) {
   return (
-    (input.type === "text" || input.type === "textarea" || input.type === "folder") &&
+    (input.type === "text" ||
+      input.type === "textarea" ||
+      input.type === "folder" ||
+      input.type === "checkbox") &&
     input.required === true
   );
 }
@@ -9710,7 +9940,10 @@ function getFormDialogInputState(inputs: DialogInput[]) {
     if (input.type === "text-ref") {
       if (value === "") noInput = true;
       else if (refInvalid.exec(value) !== null) invalidInput = true;
-    } else if (isRequiredDialogInput(input) && value.trim() === "") {
+    } else if (
+      isRequiredDialogInput(input) &&
+      (input.type === "checkbox" ? value !== "checked" : value.trim() === "")
+    ) {
       noInput = true;
     }
   }
@@ -9720,6 +9953,12 @@ function bindFormDialogInputs(inputs: DialogInput[], textRefInput: number, actio
   const dialogAction = requireElement("dialogAction");
   const refreshActionState = () => {
     const { noInput, invalidInput } = getFormDialogInputState(inputs);
+    if (textRefInput > -1) {
+      setDialogInputError(
+        textRefInput,
+        invalidInput ? l10n.invalidCharacters.replace("{0}", actionName) : null
+      );
+    }
     const newClassName = getTextRefDialogClassName(noInput, invalidInput);
     if (dialog.className === newClassName) return;
     dialog.className = newClassName;
@@ -9744,6 +9983,8 @@ function bindFormDialogInputs(inputs: DialogInput[], textRefInput: number, actio
     // Picking a <datalist> suggestion or pasting with the mouse fires
     // `input` without any key, and must unblock the action the same way.
     elem?.addEventListener("input", refreshActionState);
+    // A required checkbox unblocks on its change, as a field does on input.
+    elem?.addEventListener("change", refreshActionState);
   }
   refreshActionState();
 }
@@ -9773,8 +10014,12 @@ function getTextRefDialogClassName(noInput: boolean, invalidInput: boolean) {
   return "active";
 }
 function showErrorDialog(message: string, reason: string | null, sourceElem: HTMLElement | null) {
+  // The icon gets its own column: inline in the title, a second line of the
+  // message continued underneath it. The message is wrapped in one element
+  // first, or the flex title would turn each of its inline elements into a
+  // column of its own.
   showDialog(
-    dialogTitleHtml(`<span class="dialogErrorIcon">${svgIcons.alert}</span>${message}`) +
+    `<div class="dialogTitle dialogErrorTitle"><span class="dialogErrorIcon">${svgIcons.alert}</span><span class="dialogErrorText">${message}</span></div>` +
       (reason !== null
         ? `<span class="errorReason">${escapeHtml(reason).replaceAll("\n", "<br>")}</span>`
         : ""),

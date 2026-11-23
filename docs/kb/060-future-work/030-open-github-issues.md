@@ -67,7 +67,7 @@ here: their subsections, with the closing commits and the slices that shipped
 them, are under History in Closed GitHub issues and their threads.
 
 Only #37 is still open to tackle. It is planned in Release 1.10.0 — "The
-Worktrees" under Ongoing work, as the release's core: W02–W04, W10–W12 and
+Worktrees" under History, as the release's core: W02–W04, W10–W12 and
 W30–W33 (`2026-11-04`). Its open choices are that release's decisions Y3, Y4
 and Y22. It closes through the commit that completes it (Closing issues from
 commits, under Rules), which the integrator writes once W33 is integrated.

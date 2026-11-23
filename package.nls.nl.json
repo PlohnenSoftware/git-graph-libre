@@ -133,5 +133,7 @@
   "config.uncommittedChanges.fileViewMode.list": "Niet-vastgelegde wijzigingen als platte padlijst weergeven",
   "command.showReflog": "Reflog weergeven",
   "command.showStatistics": "Statistieken weergeven",
-  "command.showFileHistory": "Bestandsgeschiedenis weergeven"
+  "command.showFileHistory": "Bestandsgeschiedenis weergeven",
+  "command.showBlame": "Blame voor huidig bestand weergeven",
+  "command.showBlame.shortTitle": "Blame weergeven"
 }

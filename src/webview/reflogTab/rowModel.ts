@@ -1,15 +1,42 @@
 import {
   defaultReflogQuery,
+  defaultRefOptions,
   normalizeReflogQuery,
   type ReflogDataMessage,
   type ReflogDisplay,
   type ReflogLabels,
   type ReflogLoadingMessage,
+  type ReflogLostCommit,
+  type ReflogLostCommitsFeedback,
+  type ReflogLostCommitsMessage,
+  type ReflogLostCommitsStatus,
   type ReflogQuery,
+  type ReflogRefOption,
   type ReflogRow,
   reflogQueriesEqual
 } from "@/reflogTabTypes";
 import { formatRelativeDate, pad2 } from "@/webview/utils/date";
+
+/** State of the opt-in lost-commit scan panel (F1-07). */
+export type ReflogLostCommitsState = {
+  scanId: number;
+  status: ReflogLostCommitsStatus;
+  commits: ReflogLostCommit[];
+  error: string | null;
+  busyHash: string | null;
+  feedback: ReflogLostCommitsFeedback | null;
+};
+
+export function initialLostCommitsState(): ReflogLostCommitsState {
+  return {
+    scanId: 0,
+    status: "idle",
+    commits: [],
+    error: null,
+    busyHash: null,
+    feedback: null
+  };
+}
 
 /**
  * Everything the Reflog tab draws, as one value the messages update. The
@@ -26,8 +53,10 @@ export type ReflogViewState = {
   repo: string;
   /** The search, filters and picked ref the rows answer (F1-05). */
   query: ReflogQuery;
-  /** The picker's refs for this repository. */
-  refs: string[];
+  /** The picker's options for this repository (F1-08). */
+  refOptions: ReflogRefOption[];
+  /** Whether this repository itself is bare (F1-08). */
+  bare: boolean;
   /** A filtered read stopped at the search cap; older matches may be missing. */
   searchCapped: boolean;
   ref: string | null;
@@ -42,10 +71,12 @@ export type ReflogViewState = {
   hasMore: boolean;
   /**
    * The user's column widths for this repository, or null while the
-   * table still sizes itself. Kept per repository by the tab's saved
+   * table still uses its defaults. Kept per repository by the tab's saved
    * webview state, the way the graph keeps its `columnWidths`.
    */
   columnWidths: number[] | null;
+  /** Opt-in lost-commit scan state for the current repository (F1-07). */
+  lostCommits: ReflogLostCommitsState;
 };
 
 /**
@@ -59,7 +90,8 @@ export function defaultReflogDisplay(): ReflogDisplay {
     dateFormat: "Date & Time",
     datePattern: "DD MM YYYY",
     needMonthName: false,
-    months: []
+    months: [],
+    includeReflog: false
   };
 }
 
@@ -70,7 +102,8 @@ export function initialReflogState(): ReflogViewState {
     requestId: 0,
     repo: "",
     query: defaultReflogQuery(),
-    refs: ["HEAD"],
+    refOptions: defaultRefOptions(),
+    bare: false,
     searchCapped: false,
     ref: null,
     locale: "en",
@@ -80,7 +113,8 @@ export function initialReflogState(): ReflogViewState {
     reflogState: null,
     error: null,
     hasMore: false,
-    columnWidths: null
+    columnWidths: null,
+    lostCommits: initialLostCommitsState()
   };
 }
 
@@ -100,12 +134,14 @@ export function applyLoading(
     loading: !(keepRows && state.rows.length > 0),
     repo: message.repo,
     query,
-    refs: message.refs.length > 0 ? message.refs : state.refs,
+    refOptions: message.refOptions.length > 0 ? message.refOptions : state.refOptions,
+    bare: message.bare,
     searchCapped: keepRows ? state.searchCapped : false,
     rows: keepRows ? state.rows : [],
     hasMore: keepRows ? state.hasMore : false,
     // Widths are per repository: a new one starts from its own saved set.
     columnWidths: sameRepo ? state.columnWidths : null,
+    lostCommits: sameRepo ? state.lostCommits : initialLostCommitsState(),
     locale: message.locale,
     labels: message.labels,
     display: message.display,
@@ -118,32 +154,53 @@ export function applyData(state: ReflogViewState, message: ReflogDataMessage): R
   if (message.requestId < state.requestId) return state;
   if (message.requestId === state.requestId && message.append && !state.loading) return state;
   const { page } = message;
+  // A failed "Load more" keeps the rows on screen; only its error is new.
+  let nextRows = page.rows;
+  if (message.append && page.error !== null) nextRows = state.rows;
+  else if (message.append) nextRows = [...state.rows, ...page.rows];
+  const sameRepo = message.repo === state.repo;
   return {
     loading: false,
     loadingMore: false,
     requestId: message.requestId,
     repo: message.repo,
     query: normalizeReflogQuery(message.query),
-    refs: message.refs.length > 0 ? message.refs : state.refs,
+    refOptions: message.refOptions.length > 0 ? message.refOptions : state.refOptions,
+    bare: message.bare,
     // A failed "Load more" keeps the cap note of the rows on screen.
     searchCapped: message.append && page.error !== null ? state.searchCapped : page.searchCapped,
     ref: page.ref ?? state.ref,
     locale: message.locale,
     labels: message.labels,
     display: message.display,
-    // A failed "Load more" keeps the rows on screen; only its error is new.
-    rows:
-      message.append && page.error !== null
-        ? state.rows
-        : message.append
-          ? [...state.rows, ...page.rows]
-          : page.rows,
+    rows: nextRows,
     reflogState: page.state ?? state.reflogState,
     error: page.error,
     hasMore: page.error === null ? page.hasMore : state.hasMore,
     // Same per-repository rule as a load start, for a page that lands
     // without one (a replayed page after a document rebuild).
-    columnWidths: message.repo === state.repo ? state.columnWidths : null
+    columnWidths: sameRepo ? state.columnWidths : null,
+    lostCommits: sameRepo ? state.lostCommits : initialLostCommitsState()
+  };
+}
+
+/** Applies one lost-commit scan update, dropping stale scan ids or foreign repos (F1-07). */
+export function applyLostCommits(
+  state: ReflogViewState,
+  message: ReflogLostCommitsMessage
+): ReflogViewState {
+  if (state.repo !== "" && message.repo !== state.repo) return state;
+  if (message.scanId < state.lostCommits.scanId) return state;
+  return {
+    ...state,
+    lostCommits: {
+      scanId: message.scanId,
+      status: message.status,
+      commits: message.commits,
+      error: message.error,
+      busyHash: message.busyHash,
+      feedback: message.feedback
+    }
   };
 }
 
@@ -181,7 +238,7 @@ export function relativeTime(row: ReflogRow, now: Date, locale: string): string 
  * shared date utilities, never a private `Intl` shape of this tab's.
  */
 export function entryDate(
-  row: ReflogRow,
+  row: Pick<ReflogRow, "time">,
   display: ReflogDisplay,
   now: Date,
   locale: string

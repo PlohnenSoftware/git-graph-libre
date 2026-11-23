@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { defaultReflogQuery, normalizeReflogQuery, REFLOG_SEARCH_CAP } from "@/reflogTabTypes";
+import {
+  defaultReflogQuery,
+  normalizeReflogQuery,
+  normalizeReflogRecoveryAction,
+  REFLOG_SEARCH_CAP
+} from "@/reflogTabTypes";
 import {
   applyData,
   applyLoading,
+  applyLostCommits,
   badgeFor,
   entryDate,
   initialReflogState,
@@ -15,6 +21,8 @@ import {
   dataMessage,
   loadingMessage as fixtureLoading,
   LABELS,
+  lostCommit,
+  lostCommitsMessage,
   page,
   row
 } from "./fixtures";
@@ -148,13 +156,32 @@ describe("reflog row model", () => {
   });
 
   it("carries the query, the picker refs and the cap flag from each message (F1-05)", () => {
-    const query = { ref: "refs/stash", search: "needle", actions: ["stash"], onlyInReflog: true };
+    const query = {
+      ref: "refs/stash",
+      worktreePath: null,
+      search: "needle",
+      actions: ["stash"],
+      onlyInReflog: true
+    };
     const state = applyData(
       initialReflogState(),
-      dataMessage({ query, refs: ["HEAD", "refs/stash"], page: page({ searchCapped: true }) })
+      dataMessage({
+        query,
+        refOptions: [
+          { ref: "HEAD", worktreePath: null, worktreeName: null, locked: null, prunable: null },
+          {
+            ref: "refs/stash",
+            worktreePath: null,
+            worktreeName: null,
+            locked: null,
+            prunable: null
+          }
+        ],
+        page: page({ searchCapped: true })
+      })
     );
     expect(state.query).toEqual(query);
-    expect(state.refs).toEqual(["HEAD", "refs/stash"]);
+    expect(state.refOptions.map((option) => option.ref)).toEqual(["HEAD", "refs/stash"]);
     expect(state.searchCapped).toBe(true);
     expect(REFLOG_SEARCH_CAP).toBe(5000);
 
@@ -186,6 +213,7 @@ describe("reflog row model", () => {
       })
     ).toEqual({
       ref: "refs/heads/feat/x",
+      worktreePath: null,
       search: "needle",
       actions: ["commit", "stash"],
       onlyInReflog: true
@@ -203,7 +231,33 @@ describe("reflog row model", () => {
     }
     expect(
       normalizeReflogQuery({ ref: "refs/stash", search: 5, actions: "commit", onlyInReflog: "yes" })
-    ).toEqual({ ref: "refs/stash", search: "", actions: [], onlyInReflog: false });
+    ).toEqual({
+      ref: "refs/stash",
+      worktreePath: null,
+      search: "",
+      actions: [],
+      onlyInReflog: false
+    });
+  });
+
+  it("keeps a worktree path only beside HEAD (F1-08)", () => {
+    expect(normalizeReflogQuery({ ref: "HEAD", worktreePath: "/repos/linked" })).toEqual({
+      ref: "HEAD",
+      worktreePath: "/repos/linked",
+      search: "",
+      actions: [],
+      onlyInReflog: false
+    });
+    // Branch and stash reflogs are shared: a worktree beside them is dropped.
+    for (const ref of ["refs/heads/main", "refs/stash"]) {
+      expect(normalizeReflogQuery({ ref, worktreePath: "/repos/linked" }).worktreePath).toBeNull();
+    }
+    for (const worktreePath of ["", 42, "/repos/a\nb", null]) {
+      expect(
+        normalizeReflogQuery({ ref: "HEAD", worktreePath }).worktreePath,
+        String(worktreePath)
+      ).toBeNull();
+    }
   });
 
   it("takes the display settings from each message, so a change restyles the tab", () => {
@@ -212,5 +266,120 @@ describe("reflog row model", () => {
     expect(state.display).toEqual(changed);
     const loading = applyLoading(state, loadingMessage({ display: DISPLAY }));
     expect(loading.display).toEqual(DISPLAY);
+  });
+
+  it("tracks lost-commit scans per repository and ignores stale scan ids (F1-07)", () => {
+    const loaded = applyData(initialReflogState(), dataMessage());
+    expect(loaded.lostCommits.status).toBe("idle");
+
+    const scanned = applyLostCommits(
+      loaded,
+      lostCommitsMessage({ scanId: 3, commits: [lostCommit()] })
+    );
+    expect(scanned.lostCommits.status).toBe("done");
+    expect(scanned.lostCommits.commits).toHaveLength(1);
+
+    // Older scan id and foreign repository messages are dropped.
+    expect(applyLostCommits(scanned, lostCommitsMessage({ scanId: 2, status: "canceled" }))).toBe(
+      scanned
+    );
+    expect(applyLostCommits(scanned, lostCommitsMessage({ scanId: 4, repo: "/repos/other" }))).toBe(
+      scanned
+    );
+
+    // Same-repo data refresh keeps the lost-commit results; switching repo resets them.
+    const sameRepoRefresh = applyData(scanned, dataMessage({ requestId: 2 }));
+    expect(sameRepoRefresh.lostCommits.status).toBe("done");
+    const switchedRepo = applyData(scanned, dataMessage({ requestId: 3, repo: "/repos/two" }));
+    expect(switchedRepo.lostCommits.status).toBe("idle");
+    expect(switchedRepo.lostCommits.commits).toEqual([]);
+  });
+
+  it("validates recovery actions across the boundary and refuses option-like tokens (F1-06)", () => {
+    const hash = "a".repeat(40);
+    expect(
+      normalizeReflogRecoveryAction({
+        kind: "createBranch",
+        commitHash: `  ${hash}  `,
+        branchName: "  recovered/main  ",
+        worktreePath: null
+      })
+    ).toEqual({
+      kind: "createBranch",
+      commitHash: hash,
+      branchName: "recovered/main",
+      worktreePath: null
+    });
+    expect(
+      normalizeReflogRecoveryAction({
+        kind: "addTag",
+        commitHash: hash,
+        tagName: "v1.0.0",
+        lightweight: true,
+        worktreePath: "/repos/linked"
+      })
+    ).toEqual({
+      kind: "addTag",
+      commitHash: hash,
+      tagName: "v1.0.0",
+      lightweight: true,
+      worktreePath: "/repos/linked"
+    });
+    expect(
+      normalizeReflogRecoveryAction({
+        kind: "addTag",
+        commitHash: hash,
+        tagName: "v1.0.1",
+        lightweight: false,
+        message: "release note"
+      })
+    ).toEqual({
+      kind: "addTag",
+      commitHash: hash,
+      tagName: "v1.0.1",
+      lightweight: false,
+      message: "release note",
+      worktreePath: null
+    });
+    expect(
+      normalizeReflogRecoveryAction({
+        kind: "checkoutCommit",
+        commitHash: hash,
+        worktreePath: "/repos/linked"
+      })
+    ).toEqual({
+      kind: "checkoutCommit",
+      commitHash: hash,
+      worktreePath: "/repos/linked"
+    });
+    expect(
+      normalizeReflogRecoveryAction({
+        kind: "resetToCommit",
+        commitHash: hash,
+        resetMode: "mixed",
+        worktreePath: null
+      })
+    ).toEqual({
+      kind: "resetToCommit",
+      commitHash: hash,
+      resetMode: "mixed",
+      worktreePath: null
+    });
+
+    for (const bad of [
+      null,
+      "createBranch",
+      { kind: "unknown", commitHash: hash },
+      { kind: "createBranch", commitHash: "-f", branchName: "ok" },
+      { kind: "createBranch", commitHash: hash, branchName: "--force" },
+      { kind: "createBranch", commitHash: hash, branchName: "a\nb" },
+      { kind: "createBranch", commitHash: hash, branchName: "ok", worktreePath: "" },
+      { kind: "createBranch", commitHash: hash, branchName: "ok", worktreePath: "/a\0b" },
+      { kind: "addTag", commitHash: hash, tagName: "-d", lightweight: true },
+      { kind: "addTag", commitHash: hash, tagName: "v1", lightweight: "yes" },
+      { kind: "resetToCommit", commitHash: hash, resetMode: "keep" }
+    ]) {
+      expect(normalizeReflogRecoveryAction(bad), JSON.stringify(bad)).toBeNull();
+    }
   });
 });

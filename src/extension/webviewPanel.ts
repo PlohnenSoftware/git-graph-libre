@@ -1,7 +1,6 @@
 import type * as vscode from "vscode";
 
 import type { AvatarManager } from "@/avatarManager";
-import { buildExtensionUri } from "@/backend/utils/path";
 import type { Config } from "@/config";
 import type { ExtensionState } from "@/extensionState";
 import type { RepoFileWatcher } from "@/repoFileWatcher";
@@ -12,10 +11,31 @@ import type { GitRepoSet, RepoLayout } from "@/types";
 import { buildComponentStatus, describeEngineStatus } from "./componentStatus";
 import type { RepoManager } from "./repoManager";
 import { registerRepositoryRecovery } from "./repositoryRecovery";
+import { tabIconPaths } from "./tabIcon";
 import type { WebviewBridge } from "./webviewBridge";
 import { buildWebviewHtml } from "./webviewHtml";
 import { listWebviewLanguages } from "./webviewLanguages";
 import type { RepoSearch } from "./workspaceSearch";
+
+let currentWebviewPanel:
+  | {
+      showCommit(repo: string, commitHash: string, enableIncludeReflog?: boolean): void;
+    }
+  | undefined;
+
+/**
+ * Reveals `commitHash` in the open graph panel (F1-06 "Show in Graph").
+ * Returns `false` when no graph panel is open yet.
+ */
+export function showCommitInGraph(
+  repo: string,
+  commitHash: string,
+  enableIncludeReflog = false
+): boolean {
+  if (currentWebviewPanel === undefined) return false;
+  currentWebviewPanel.showCommit(repo, commitHash, enableIncludeReflog);
+  return true;
+}
 
 export function createWebviewPanel(opts: {
   panel: vscode.WebviewPanel;
@@ -81,14 +101,7 @@ export function createWebviewPanel(opts: {
       })
     : undefined;
 
-  // Both tab icon variants ship a light/dark pair: the grey one has to invert to
-  // stay legible, and the color one keeps its graph hues but greys the bird to
-  // suit the background. The setting values double as the filename segment.
-  const iconVariant = config.tabIconColorTheme();
-  panel.iconPath = {
-    light: buildExtensionUri(extensionPath, "resources", `webview-icon-${iconVariant}-light.svg`),
-    dark: buildExtensionUri(extensionPath, "resources", `webview-icon-${iconVariant}-dark.svg`)
-  };
+  panel.iconPath = tabIconPaths(extensionPath, config.tabIconColorTheme());
 
   function update() {
     const result = buildWebviewHtml({
@@ -148,6 +161,7 @@ export function createWebviewPanel(opts: {
     if (disposed) return;
     disposed = true;
     pendingFileHistory = null;
+    if (currentWebviewPanel === instance) currentWebviewPanel = undefined;
     onDispose();
     recovery?.dispose();
     panel.dispose();
@@ -213,7 +227,7 @@ export function createWebviewPanel(opts: {
     });
   });
 
-  return {
+  const instance = {
     /** The temporary language override, if the switcher has set one. */
     getLanguage() {
       return temporaryLanguage;
@@ -235,6 +249,22 @@ export function createWebviewPanel(opts: {
     /** Opens the Prune Stale Worktrees preview for the repository the graph shows. */
     showPruneWorktrees() {
       bridge.post({ command: "showPruneWorktrees" });
+    },
+    /**
+     * Reveals a commit in the graph tab (F1-06 "Show in Graph"): brings the
+     * panel to the front, turns on `includeReflog` for the repository when
+     * confirmed, and tells the graph to focus the commit.
+     */
+    showCommit(repo: string, commitHash: string, enableIncludeReflog = false) {
+      if (enableIncludeReflog) {
+        const existing = repoManager.getRepos()[repo];
+        if (existing !== undefined) {
+          repoManager.setRepoState?.(repo, { ...existing, includeReflog: "enabled" });
+        }
+      }
+      panel.reveal();
+      if (!isGraphViewLoaded) return;
+      bridge.post({ command: "showCommit", repo, commitHash, enableIncludeReflog });
     },
     /**
      * Pushes fresh component status to the graph unasked. Called when the
@@ -269,6 +299,8 @@ export function createWebviewPanel(opts: {
     },
     dispose
   };
+  currentWebviewPanel = instance;
+  return instance;
 }
 
 export type WebviewPanel = ReturnType<typeof createWebviewPanel>;

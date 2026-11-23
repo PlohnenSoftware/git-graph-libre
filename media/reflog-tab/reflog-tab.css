@@ -15,23 +15,28 @@
   font-family: var(--vscode-font-family, sans-serif);
   font-size: var(--vscode-font-size, 13px);
 }
-.ggl-reflog .reflog-header {
-  flex: none;
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
-  background: var(--vscode-editor-background, oklch(20% 0 0));
+.ggl-reflog .reflog-scan-button {
+  margin-left: auto;
+  height: 28px;
+  box-sizing: border-box;
+  border: 1px solid var(--vscode-button-border, var(--ngg-neutral-border));
+  border-radius: 2px;
+  padding: 0 10px;
+  background: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-muted));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
 }
-.ggl-reflog .reflog-ref {
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-weight: 600;
+.ggl-reflog .reflog-scan-button:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground, var(--ngg-neutral-overlay-medium));
 }
-.ggl-reflog .reflog-repo { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
-/* The filter row (F1-05): the toolbar's 28px control metric, on the
-   input and dropdown tokens per the Webview UI Styling Guide. It never
-   scrolls away with the table. */
+.ggl-reflog .reflog-scan-button:disabled { opacity: 0.6; cursor: default; }
+.ggl-reflog .reflog-scan-button:focus-visible { outline: 1px solid var(--vscode-focusBorder, oklch(70% 0.15 240)); outline-offset: 2px; }
+/* The top bar (F1-05, Q4): the filter row, the toolbar's 28px control
+   metric on the input and dropdown tokens per the Webview UI Styling
+   Guide, ending with the lost-commit scan button. It never scrolls away
+   with the table. */
 .ggl-reflog .reflog-controls {
   flex: none;
   display: flex;
@@ -99,10 +104,14 @@
   border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
   background: var(--vscode-editor-background, oklch(20% 0 0));
 }
-.ggl-reflog .reflog-scroll { flex: 1; min-height: 0; overflow: auto; }
+/* The table's widths are fitted to this container and drags keep
+   their total, so it never needs to scroll sideways; `hidden` here
+   only guards against a subpixel rounding ever showing a bar. */
+.ggl-reflog .reflog-scroll { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; }
 .ggl-reflog .reflog-table { width: 100%; border-collapse: collapse; }
-/* Once the user drags a column, the header widths rule, as the
-   graph's `.fixedLayout` table does. */
+/* The entries table always draws with the header widths ruling, as
+   the graph's `.fixedLayout` table does (Q2): the defaults, or the
+   user's saved set, fitted to the tab's width. */
 .ggl-reflog .reflog-table.fixedLayout { table-layout: fixed; }
 .ggl-reflog .reflog-head-cell {
   position: sticky;
@@ -110,6 +119,11 @@
   padding: 6px 8px;
   text-align: left;
   line-height: 18px;
+  /* A header label never wraps — not even mid-word, which the root's
+     `overflow-wrap: anywhere` would otherwise allow. A column the
+     user drags narrower than its label clips it with an ellipsis. */
+  white-space: nowrap;
+  text-overflow: ellipsis;
   overflow: hidden;
   font-weight: 600;
   color: var(--vscode-descriptionForeground, oklch(70% 0 0));
@@ -135,8 +149,9 @@
   padding: 4px 8px;
   vertical-align: top;
   /* As the graph's cells: a column dragged narrow clips, never bleeds
-     into its neighbour. */
+     into its neighbour. One-line cells say so with an ellipsis. */
   overflow: hidden;
+  text-overflow: ellipsis;
   border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
 }
 .ggl-reflog .reflog-row:hover { background: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-subtle)); }
@@ -168,6 +183,11 @@
    theme; the intent color carries in the tint and the ring. */
 .ggl-reflog .reflog-sub-tag {
   display: inline-block;
+  /* A narrow column clips the pill's word, never the table's fit. */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
   padding: 1px 7px;
   border-radius: 10px;
   font-size: 11px;
@@ -181,10 +201,16 @@
 .ggl-reflog .reflog-sub-intent-abort { --reflog-intent-color: var(--ngg-reflog-intent-abort); }
 .ggl-reflog .reflog-sub-intent-ref { --reflog-intent-color: var(--ngg-reflog-intent-ref); }
 .ggl-reflog .reflog-sub-intent-neutral { --reflog-intent-color: var(--ngg-reflog-intent-neutral); }
-.ggl-reflog .reflog-message { min-width: 200px; }
+/* No minimum on the message cell: Message is the flexible column
+   (Q2), and a cell minimum wider than its fitted column would force
+   the very sideways scroll the fit exists to prevent. */
 .ggl-reflog .reflog-hash { font-family: var(--vscode-editor-font-family, monospace); white-space: nowrap; }
 .ggl-reflog .reflog-badge {
   display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
   padding: 1px 7px;
   border-radius: 10px;
   font-size: 11px;
@@ -216,10 +242,143 @@
 .ggl-reflog .reflog-load-more:hover:not(:disabled) { background: var(--vscode-button-hoverBackground, var(--ngg-accent)); }
 .ggl-reflog .reflog-load-more:disabled { opacity: 0.6; cursor: default; }
 .ggl-reflog .reflog-load-more:focus-visible { outline: 1px solid var(--vscode-focusBorder, oklch(70% 0.15 240)); outline-offset: 2px; }
+/* Opt-in lost-commit scan section (F1-07): theme tokens first, OKLCH
+   fallbacks second, with its own scroll region so the reflog stays visible. */
+.ggl-reflog .reflog-lost-panel {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background, oklch(22% 0 0)));
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+}
+.ggl-reflog .reflog-lost-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.ggl-reflog .reflog-lost-title-wrap {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.ggl-reflog .reflog-lost-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ggl-reflog .reflog-lost-count {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  background: var(--vscode-badge-background, var(--ngg-accent));
+  color: var(--vscode-badge-foreground, var(--ngg-accent-foreground));
+}
+.ggl-reflog .reflog-lost-header-actions {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.ggl-reflog .reflog-lost-btn,
+.ggl-reflog .reflog-lost-action-btn {
+  border: 1px solid var(--vscode-button-border, var(--ngg-neutral-border));
+  border-radius: 2px;
+  padding: 3px 10px;
+  background: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-muted));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ggl-reflog .reflog-lost-btn:hover:not(:disabled),
+.ggl-reflog .reflog-lost-action-btn:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground, var(--ngg-neutral-overlay-medium));
+}
+.ggl-reflog .reflog-lost-btn:disabled,
+.ggl-reflog .reflog-lost-action-btn:disabled { opacity: 0.6; cursor: default; }
+.ggl-reflog .reflog-lost-btn:focus-visible,
+.ggl-reflog .reflog-lost-action-btn:focus-visible { outline: 1px solid var(--vscode-focusBorder, oklch(70% 0.15 240)); outline-offset: 2px; }
+.ggl-reflog .reflog-lost-progress {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+}
+.ggl-reflog .reflog-lost-spinner {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--vscode-descriptionForeground, oklch(70% 0 0));
+  border-top-color: var(--ngg-transparent);
+  border-radius: 50%;
+  animation: reflog-lost-spin 0.8s linear infinite;
+}
+@keyframes reflog-lost-spin {
+  to { transform: rotate(360deg); }
+}
+.ggl-reflog .reflog-lost-gc-note {
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+  border-left: 3px solid var(--vscode-editorWarning-foreground, var(--ngg-warning));
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+  background: color-mix(in oklab, var(--vscode-editorWarning-foreground, var(--ngg-warning)) 10%, var(--ngg-transparent));
+}
+.ggl-reflog .reflog-lost-feedback {
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.ggl-reflog .reflog-lost-feedback-success {
+  border-left: 3px solid var(--vscode-testing-iconPassed, var(--ngg-success));
+  color: var(--vscode-editor-foreground, oklch(88% 0 0));
+}
+.ggl-reflog .reflog-lost-feedback-error {
+  border-left: 3px solid var(--vscode-errorForeground, var(--ngg-error));
+  color: var(--vscode-errorForeground, var(--ngg-error));
+}
+.ggl-reflog .reflog-lost-status {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+}
+.ggl-reflog .reflog-lost-error {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--vscode-errorForeground, var(--ngg-error));
+}
+.ggl-reflog .reflog-lost-scroll {
+  max-height: 240px;
+  /* The subject column takes whatever width is left (below), so
+     this table fits its container at any panel width too (Q2). */
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.ggl-reflog .reflog-lost-table .reflog-head-cell {
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background, oklch(22% 0 0)));
+}
+.ggl-reflog .reflog-lost-table .reflog-lost-head-actions { text-align: right; }
+.ggl-reflog .reflog-lost-row .reflog-cell { vertical-align: middle; }
+.ggl-reflog .reflog-lost-row:hover {
+  background: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-subtle));
+}
+/* The lost table's flexible column; no minimum, for the same
+   reason as the entries table's message cell. */
+.ggl-reflog .reflog-lost-subject { width: 100%; }
+.ggl-reflog .reflog-lost-actions { white-space: nowrap; text-align: right; }
 .ggl-reflog ::-webkit-scrollbar { width: 14px; height: 14px; background: var(--vscode-editor-background, oklch(20% 0 0)); }
 .ggl-reflog ::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background, oklch(60% 0 0 / 0.4)); }
 .ggl-reflog ::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground, oklch(60% 0 0 / 0.6)); }
 .ggl-reflog ::-webkit-scrollbar-thumb:active { background: var(--vscode-scrollbarSlider-activeBackground, oklch(60% 0 0 / 0.8)); }
+@media (prefers-reduced-motion: reduce) {
+  .ggl-reflog .reflog-lost-spinner { animation: none; }
+}
 @media (forced-colors: active) {
   .ggl-reflog .reflog-only-checkbox { border-color: ButtonText; background-color: ButtonFace; }
   .ggl-reflog .reflog-only-checkbox:checked::after { background-color: ButtonText; }
@@ -227,4 +386,8 @@
   .ggl-reflog .reflog-sub-tag { border: 1px solid currentColor; }
   .ggl-reflog .reflog-kind-dot { border: 1px solid currentColor; }
   .ggl-reflog .reflog-load-more { border: 1px solid currentColor; }
+  .ggl-reflog .reflog-scan-button,
+  .ggl-reflog .reflog-lost-btn,
+  .ggl-reflog .reflog-lost-action-btn { border: 1px solid ButtonText; }
+  .ggl-reflog .reflog-lost-count { border: 1px solid currentColor; }
 }

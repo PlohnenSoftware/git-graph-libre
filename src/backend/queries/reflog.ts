@@ -12,6 +12,7 @@ import type {
 } from "@/backend/types";
 import { type GitCommandRecorder, runGitRaw, runGitWithInput } from "@/backend/utils/gitRunner";
 import { toGitQueryError } from "@/backend/utils/queryError";
+import { hasControlCharacter } from "@/backend/utils/string";
 
 const NUL = "\0";
 const UNIT_SEPARATOR = "\u001f";
@@ -34,8 +35,6 @@ const TIME_FORMAT = ["%H", "%gd"].join("%x1f");
 
 const selectorNumber = /@\{(\d+)\}$/;
 const objectName = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
-// biome-ignore lint/suspicious/noControlCharactersInRegex: the point is to reject control characters in a ref name.
-const controlCharacter = /[\u0000-\u001f\u007f]/;
 
 export type ReflogRequest = {
   /** A ref name such as `HEAD`, `main`, `refs/heads/main` or `refs/stash`. Defaults to `HEAD`. */
@@ -66,7 +65,7 @@ function failure(error: GitQueryError): GitReflogResult {
 function refProblem(ref: string): string | null {
   if (ref === "") return "A ref name is required.";
   if (ref.startsWith("-")) return "A ref name cannot start with a dash.";
-  if (controlCharacter.test(ref)) return "A ref name cannot contain control characters.";
+  if (hasControlCharacter(ref)) return "A ref name cannot contain control characters.";
   return null;
 }
 

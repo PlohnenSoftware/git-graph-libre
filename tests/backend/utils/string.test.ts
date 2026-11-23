@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  DEFAULT_SHORT_HASH_LENGTH,
-  MAX_SHORT_HASH_LENGTH,
-  MIN_SHORT_HASH_LENGTH,
   abbrevCommit,
-  clampShortHashLength
+  clampShortHashLength,
+  DEFAULT_SHORT_HASH_LENGTH,
+  hasControlCharacter,
+  MAX_SHORT_HASH_LENGTH,
+  MIN_SHORT_HASH_LENGTH
 } from "@/backend/utils/string";
 
 describe("string utilities", () => {
@@ -23,5 +24,14 @@ describe("string utilities", () => {
     expect(clampShortHashLength(80)).toBe(MAX_SHORT_HASH_LENGTH);
     expect(clampShortHashLength(Number.NaN)).toBe(DEFAULT_SHORT_HASH_LENGTH);
     expect(clampShortHashLength(7.9)).toBe(7);
+  });
+
+  it("finds C0 control characters and DEL, and nothing else", () => {
+    expect(hasControlCharacter("main\nfoo")).toBe(true);
+    expect(hasControlCharacter("a\u0000b")).toBe(true);
+    expect(hasControlCharacter("a\u001fb")).toBe(true);
+    expect(hasControlCharacter("a\u007fb")).toBe(true);
+    expect(hasControlCharacter("refs/heads/feature-1 ok~2")).toBe(false);
+    expect(hasControlCharacter("a\u0020b\u00e9\u{1f600}")).toBe(false);
   });
 });

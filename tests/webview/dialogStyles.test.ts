@@ -50,6 +50,11 @@ describe("dialog styles", () => {
     expect(ruleFor(css, '#dialog.inputInvalid table.dialogForm input[type="text"]')).toContain(
       "var(--vscode-inputValidation-errorBorder"
     );
+    // The refused name's reason sits under its field, in the error tokens.
+    expect(ruleFor(css, "#dialog .dialogInputError")).toContain(
+      "var(--vscode-inputValidation-errorForeground"
+    );
+    expect(ruleFor(css, "#dialog .dialogInputError:empty")).toContain("display: none;");
   });
 
   it("styles dialog buttons like VS Code buttons", () => {
@@ -93,8 +98,38 @@ describe("dialog styles", () => {
     expect(note).toContain("var(--vscode-descriptionForeground, var(--ngg-neutral-icon))");
   });
 
+  it("widens a dialog with a folder field and spans every select across its form", () => {
+    expect(ruleFor(css, "#dialog.active:has(.dialogFormFolder)")).toContain(
+      "max-width: min(560px, 90vw);"
+    );
+    // One width rule for selects in every form, not only single-row ones.
+    expect(css).not.toContain("table.dialogForm.single select");
+    const selectRules = [...css.matchAll(/^#dialog table\.dialogForm select\s*\{[^}]+\}/gm)].map(
+      (match) => match[0]
+    );
+    expect(selectRules.some((rule) => rule.includes("width: 100%;"))).toBe(true);
+  });
+
+  it("gives a dialog list its own capped, scrolling block at body size", () => {
+    const list = ruleFor(css, "#dialog .dialogList");
+    const cell = ruleFor(css, "#dialog table.dialogForm td.dialogFormListCell");
+    const note = ruleFor(css, "#dialog .dialogListNote");
+
+    // The list replaced markup inside the title: it scrolls alone, so the
+    // dialog's buttons stay put whatever its length.
+    expect(list).toContain("max-height: 180px;");
+    expect(list).toContain("overflow-y: auto;");
+    expect(list).toContain("font-size: 13px;");
+    expect(cell).toContain("white-space: normal;");
+    expect(note).toContain("var(--vscode-descriptionForeground");
+  });
+
   it("marks dialog errors with error tokens and a readable reason block", () => {
     expect(css).toContain("--ngg-error: oklch(");
+    // The icon keeps its own column, so a wrapped message never runs under it.
+    expect(ruleFor(css, "#dialog .dialogErrorTitle")).toContain("display: flex;");
+    expect(ruleFor(css, "#dialog .dialogErrorIcon")).toContain("flex: none;");
+    expect(ruleFor(css, "#dialog .dialogErrorText")).toContain("min-width: 0;");
     expect(ruleFor(css, "#dialog .dialogErrorIcon svg")).toContain("var(--vscode-errorForeground");
     const reason = ruleFor(css, "#dialog .errorReason");
     expect(reason).toContain("var(--vscode-textCodeBlock-background");
@@ -237,6 +272,8 @@ describe("dialog styles", () => {
     expect(wrapper).toContain("width: 100%;");
     expect(wrapper).not.toContain("cursor");
     const label = ruleFor(css, "#dialog table.dialogForm .dialogFormCheckbox > .checkRow");
+    // The box sits at the first line, not centered between two wrapped lines.
+    expect(label).toContain("align-items: flex-start;");
     expect(label).toContain("white-space: normal;");
     expect(label).not.toContain("cursor");
     expect(css).not.toContain('td[colspan="2"] > .dialogFormCheckbox');
@@ -463,5 +500,26 @@ describe("dialog styles", () => {
     // A filled signature-status green circle (not the old faint tint).
     expect(valid).toContain("background: var(--ngg-signed-ref);");
     expect(valid).not.toContain("color-mix");
+  });
+
+  it("gives every Worktrees popup row one shape with top-right upkeep icons and indented path (V2)", () => {
+    const row = ruleFor(css, ".worktreeRow");
+    expect(row).toContain("flex-direction: column;");
+    const header = ruleFor(css, ".worktreeRowHeader");
+    expect(header).toContain("align-items: flex-start;");
+    expect(header).toContain("justify-content: space-between;");
+    // Path and primary actions indent to the text column (16px icon + 6px gap).
+    expect(ruleFor(css, ".worktreePath")).toContain("padding-left: 22px;");
+    expect(ruleFor(css, ".worktreeActions")).toContain("padding-left: 22px;");
+    const iconAction = ruleFor(css, ".worktreeIconAction");
+    expect(iconAction).toContain("width: 26px;");
+    expect(iconAction).toContain("height: 26px;");
+    expect(iconAction).toContain("var(--vscode-button-secondaryBackground");
+    expect(ruleFor(css, ".worktreeIconAction.danger:hover")).toContain(
+      "var(--vscode-errorForeground"
+    );
+    expect(ruleFor(css, ".worktreeIconAction:focus-visible")).toContain(
+      "var(--vscode-focusBorder)"
+    );
   });
 });

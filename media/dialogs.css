@@ -327,13 +327,25 @@ dl.tagDetailsFields dd {
   width: 100%;
 }
 #dialog table.dialogForm .dialogFormCheckbox > .checkRow {
-  align-items: center;
+  /* The box aligns with the label's first line: centered, it floated between
+     the two lines of a wrapped label. Box and line are both 16px, so a
+     one-line label does not move. */
+  align-items: flex-start;
   gap: 6px;
   white-space: normal;
   line-height: 16px;
 }
-#dialog table.dialogForm.single select {
+/* Every dialog select spans its form, like the text fields around it: only
+   a single-row form did, so a select in a longer form ended raggedly short
+   of the fields above and below it. */
+#dialog table.dialogForm select {
   width: 100%;
+}
+/* A dialog holding a folder field gets a wider cap: the default worktree
+   path is longer than the field at 440px, which hid the folder being
+   created at the path's end. */
+#dialog.active:has(.dialogFormFolder) {
+  max-width: min(560px, 90vw);
 }
 /* A folder field and its Browse button share the row: the field takes the
    room the button leaves, and the button keeps its own width (W22F). */
@@ -438,6 +450,28 @@ dl.tagDetailsFields dd {
   font-size: 12px;
   line-height: 16px;
 }
+/* One list block for dialogs: body size, its own height cap and scroll, so a
+   long list never scrolls the dialog's buttons away with it. It replaced
+   lists pasted into the title, which took the title's size and the browser's
+   default list margins. */
+#dialog table.dialogForm td.dialogFormListCell {
+  white-space: normal;
+}
+#dialog .dialogList {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 18px;
+}
+#dialog .dialogListNote {
+  display: block;
+  margin-top: 6px;
+  color: var(--vscode-descriptionForeground, var(--ngg-neutral-icon));
+  font-size: 12px;
+  line-height: 16px;
+}
 /* Locked control: a setting the git command behind this dialog does not let
    the user choose. It is the ordinary checkbox in its forced state — enabled,
    focusable, full contrast — because greying it out would hide the very value
@@ -516,6 +550,20 @@ dl.tagDetailsFields dd {
 #dialog.inputInvalid table.dialogForm input[type="text"] {
   background-color: var(--vscode-inputValidation-errorBackground);
   border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+}
+/* Why a ref name is refused, under its field: the same message the blocked
+   button carries as its title, where it can actually be read. Empty, it
+   takes no room. */
+#dialog .dialogInputError {
+  display: block;
+  margin-top: 4px;
+  color: var(--vscode-inputValidation-errorForeground, var(--vscode-errorForeground));
+  font-size: 12px;
+  line-height: 16px;
+  white-space: normal;
+}
+#dialog .dialogInputError:empty {
+  display: none;
 }
 #dialog .dialogActions {
   display: flex;
@@ -597,10 +645,18 @@ dl.tagDetailsFields dd {
   line-height: 20px;
   vertical-align: sub;
 }
+#dialog .dialogErrorTitle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+#dialog .dialogErrorText {
+  min-width: 0;
+}
 #dialog .dialogErrorIcon {
   display: inline-flex;
-  vertical-align: text-bottom;
-  margin-right: 8px;
+  flex: none;
+  padding-top: 2px;
 }
 #dialog .dialogErrorIcon svg {
   fill: var(--vscode-errorForeground, var(--ngg-error));

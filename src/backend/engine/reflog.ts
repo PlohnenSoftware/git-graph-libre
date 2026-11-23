@@ -23,6 +23,7 @@ import {
 import type { GitReflogEntry, GitReflogResult, GitReflogState } from "@/backend/types";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { logBackendRoute } from "@/backend/utils/operationLog";
+import { hasControlCharacter } from "@/backend/utils/string";
 import type { EngineBackend } from "@/types";
 import { type EngineAddon, loadEngineAddon } from "./addon";
 import { isEngineFallbackError } from "./index";
@@ -98,9 +99,6 @@ async function readFromEngine(
 
 type NormalizedRequest = { ref: string; limit: number; offset: number };
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: the point is to reject control characters in a ref name, as the CLI query does.
-const controlCharacter = /[\u0000-\u001f\u007f]/;
-
 /**
  * The request in the shape the engine takes, or null when the CLI query
  * would refuse it — the engine never sees a ref or a count the CLI rejects,
@@ -110,7 +108,7 @@ const controlCharacter = /[\u0000-\u001f\u007f]/;
  */
 function normalizeRequest(request: ReflogRequest): NormalizedRequest | null {
   const ref = request.ref ?? "HEAD";
-  if (ref === "" || ref.startsWith("-") || controlCharacter.test(ref)) return null;
+  if (ref === "" || ref.startsWith("-") || hasControlCharacter(ref)) return null;
   const limit = request.limit ?? DEFAULT_REFLOG_PAGE_SIZE;
   const offset = request.offset ?? 0;
   if (!Number.isInteger(limit) || limit < 1) return null;

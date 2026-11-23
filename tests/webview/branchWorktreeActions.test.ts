@@ -250,6 +250,8 @@ describe("a local branch checked out in another worktree", () => {
 
     expect(dialogText()).toContain(OTHER_WORKTREE);
     expect(dialogText()).toContain("feature/menu");
+    // A form dialog without inputs renders no empty form table after its title.
+    expect(document.querySelector("#dialog table.dialogForm")).toBeNull();
     submitDialog();
 
     expect(vscodeMock.sentMessages.at(-1)).toEqual({
@@ -276,6 +278,11 @@ describe("a local branch checked out in another worktree", () => {
       "checked out in worktree branch-worktree-actions. Switch that worktree to another branch first."
     );
     expect(document.querySelector<HTMLElement>("#dialog span[title]")?.title).toBe(REPO);
+    // The whole message sits in one text column beside the error icon.
+    expect(document.querySelector(".dialogErrorTitle .dialogErrorIcon")).not.toBeNull();
+    expect(document.querySelector(".dialogErrorText")?.textContent).toContain(
+      "Switch that worktree to another branch first."
+    );
     expect(document.getElementById("dialogAction")).toBeNull();
     expect(vscodeMock.sentMessages).toHaveLength(before);
   });
@@ -359,39 +366,79 @@ function answerChanges(
 }
 
 describe("removing the worktree that holds a branch (W21)", () => {
-  it("offers the removal as an unchecked option, and a dialog left unchecked sends nothing", async () => {
+  it("keeps the action blocked while the removal option is unticked, leaving the dialog open", async () => {
     const vscodeMock = await bootWebview(WORKTREES_WITH_FEATURE);
     const before = vscodeMock.sentMessages.length;
     openRefContextMenu("head");
     clickContextMenuItem("Delete Branch…");
 
+    const dialog = document.getElementById("dialog");
+    expect(dialog?.className).toBe("active noInput");
     expect(dialogText()).toContain(OTHER_WORKTREE);
     expect(dialogText()).toContain("Also remove the worktree at");
-    expect((document.getElementById("dialogInput0") as HTMLInputElement).checked).toBe(false);
+    expect((document.getElementById("dialogInput1") as HTMLInputElement).checked).toBe(false);
     submitDialog();
 
+    expect(dialog?.classList.contains("active")).toBe(true);
     expect(vscodeMock.sentMessages).toHaveLength(before);
+
+    // Ticking the required box unblocks the action; unticking blocks it again.
+    tickDialogCheckbox(1);
+    expect(dialog?.className).toBe("active");
+    const box = document.getElementById("dialogInput1") as HTMLInputElement;
+    box.checked = false;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(dialog?.className).toBe("active noInput");
   });
 
-  it("names the worktree by its folder in a short message, with its path on hover", async () => {
+  it("puts the explanation in a note row with the folder name and path on hover, keeping the question alone in the title", async () => {
     await bootWebview(WORKTREES_WITH_FEATURE);
     openRefContextMenu("head");
     clickContextMenuItem("Delete Branch…");
 
-    expect(dialogText()).toContain(
+    const title = document.querySelector("#dialog .dialogTitle")?.textContent ?? "";
+    const note = document.querySelector("#dialog .dialogFormNote")?.textContent ?? "";
+    expect(title).toContain("feature/menu");
+    expect(title).not.toContain("checked out in worktree");
+    expect(document.querySelector("#dialog .dialogTitle br")).toBeNull();
+    expect(note).toContain(
       "Branch feature/menu is checked out in worktree feature menu é. To delete it, remove that worktree too."
     );
-    const name = Array.from(document.querySelectorAll<HTMLElement>("#dialog span[title]")).find(
-      (span) => span.title === OTHER_WORKTREE
-    );
+    const name = Array.from(
+      document.querySelectorAll<HTMLElement>("#dialog .dialogFormNote span[title]")
+    ).find((span) => span.title === OTHER_WORKTREE);
     expect(name?.textContent).toBe("feature menu é");
+  });
+
+  it("reads force-delete and remote-delete checkboxes by type after the note row", async () => {
+    const vscodeMock = await bootWebview(WORKTREES_WITH_FEATURE);
+    openRefContextMenu("head");
+    clickContextMenuItem("Delete Branch…");
+
+    // Row 0 is the note; rows 1, 2, 3 are remove-worktree, force-delete, delete-on-remotes.
+    tickDialogCheckbox(1);
+    tickDialogCheckbox(2);
+    tickDialogCheckbox(3);
+    submitDialog();
+    answerChanges(vscodeMock, []);
+
+    expect(latestRequest(vscodeMock.sentMessages, "removeWorktree")).toMatchObject({
+      path: OTHER_WORKTREE,
+      force: false,
+      unlock: false,
+      deleteBranch: {
+        branchName: "feature/menu",
+        forceDelete: true,
+        deleteOnRemotes: ["origin"]
+      }
+    });
   });
 
   it("removes a clean worktree with plain remove, then the branch", async () => {
     const vscodeMock = await bootWebview(WORKTREES_WITH_FEATURE);
     openRefContextMenu("head");
     clickContextMenuItem("Delete Branch…");
-    tickDialogCheckbox(0);
+    tickDialogCheckbox(1);
     submitDialog();
 
     // The files it would lose are read first, and nothing is removed yet.
@@ -412,7 +459,7 @@ describe("removing the worktree that holds a branch (W21)", () => {
     const vscodeMock = await bootWebview(WORKTREES_WITH_FEATURE);
     openRefContextMenu("head");
     clickContextMenuItem("Delete Branch…");
-    tickDialogCheckbox(0);
+    tickDialogCheckbox(1);
     submitDialog();
 
     answerChanges(vscodeMock, ["notes é.txt", "src/edited.ts"], { truncated: true });
@@ -422,6 +469,12 @@ describe("removing the worktree that holds a branch (W21)", () => {
     expect(dialogText()).toContain("notes é.txt");
     expect(dialogText()).toContain("src/edited.ts");
     expect(dialogText()).toContain("more files");
+    // The files sit in the dialog's list block under the title, not in it.
+    expect(document.querySelector(".dialogTitle ul")).toBeNull();
+    expect(
+      [...document.querySelectorAll(".dialogList li")].map((item) => item.textContent)
+    ).toEqual(["notes é.txt", "src/edited.ts"]);
+    expect(document.querySelector(".dialogListNote")?.textContent).toContain("more files");
     submitDialog();
 
     expect(latestRequest(vscodeMock.sentMessages, "removeWorktree")).toMatchObject({
@@ -435,7 +488,7 @@ describe("removing the worktree that holds a branch (W21)", () => {
     const vscodeMock = await bootWebview(WORKTREES_WITH_FEATURE);
     openRefContextMenu("head");
     clickContextMenuItem("Delete Branch…");
-    tickDialogCheckbox(0);
+    tickDialogCheckbox(1);
     submitDialog();
 
     answerChanges(vscodeMock, [], {
@@ -461,7 +514,7 @@ describe("removing the worktree that holds a branch (W21)", () => {
 
     expect(dialogText()).toContain("on a usb stick");
     expect(dialogText()).toContain("unlocked");
-    tickDialogCheckbox(0);
+    tickDialogCheckbox(1);
     submitDialog();
     answerChanges(vscodeMock, []);
 
@@ -486,7 +539,7 @@ describe("removing the worktree that holds a branch (W21)", () => {
     clickContextMenuItem("Delete Branch…");
 
     expect(dialogText()).toContain("Its folder is already gone, so only Git's record is removed.");
-    tickDialogCheckbox(0);
+    tickDialogCheckbox(1);
     submitDialog();
 
     expect(vscodeMock.sentMessages.some((msg) => msg.command === "worktreeChanges")).toBe(false);
@@ -568,6 +621,11 @@ describe("stale and moved worktrees (W21)", () => {
     expect(dialogText()).toContain(OTHER_WORKTREE);
     expect(dialogText()).toContain(STALE);
     expect(dialogText()).not.toContain(LOCKED_STALE);
+    // The preview is the dialog's list block, outside the title.
+    expect(document.querySelector(".dialogTitle ul")).toBeNull();
+    expect(
+      [...document.querySelectorAll(".dialogList li")].map((item) => item.textContent)
+    ).toEqual([OTHER_WORKTREE, STALE]);
     expect(vscodeMock.sentMessages.some((msg) => msg.command === "pruneWorktrees")).toBe(false);
     submitDialog();
 

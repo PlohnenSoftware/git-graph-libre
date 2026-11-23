@@ -418,5 +418,5 @@ renders for UI slices.
   Reflog tab (`F1`) or as its own following release, and whether to keep
   `F4-01`–`F4-09` or assign release-themed IDs when execution starts.
 - **Recommendation:** keep `F4-01`–`F4-09` in the tailored slice register
-  under `docs/kb/050-ongoing-work/110-blame-view/` until the maintainer stamps
+  under `docs/kb/070-history/240-blame-view/` until the maintainer stamps
   the release number and confirms `BQ1`–`BQ8`.

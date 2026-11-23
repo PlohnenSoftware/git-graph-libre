@@ -53,7 +53,8 @@ async function main() {
       "startup.min": "src/webview/startup.ts",
       "diffTab.min": "src/webview/diffTab/main.ts",
       "reflogTab.min": "src/webview/reflogTab/main.ts",
-      "statsTab.min": "src/webview/statsTab/main.ts"
+      "statsTab.min": "src/webview/statsTab/main.ts",
+      "blameTab.min": "src/webview/blameTab/main.ts"
     },
     bundle: true,
     format: "iife",

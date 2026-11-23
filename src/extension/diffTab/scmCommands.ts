@@ -24,6 +24,11 @@ export type ScmDiffTabDeps = {
   /** Open the tab for a built request (D44's panel fed by D45's source). */
   openDiff(request: DiffTabRequest): void;
   showWarning(message: string): unknown;
+  /**
+   * Reports an open that never reached the panel (T1): the clicked file is
+   * in no known repository. The panel reports every open that reaches it.
+   */
+  reportOpenFailure?: () => void;
 };
 
 export type ScmDiffTabHandler = {
@@ -95,6 +100,7 @@ async function openFromSourceControl(
   if (fsPath === null) return;
   const repo = findKnownRepo(deps.getRepos(), fsPath);
   if (repo === null) {
+    deps.reportOpenFailure?.();
     await deps.showWarning(l10n.t("command.openDiffTab.noRepo"));
     return;
   }

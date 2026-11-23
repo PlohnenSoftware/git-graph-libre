@@ -1,0 +1,685 @@
+/* The Blame tab (F4-03, heat in F4-04, rewind/options/find in F4-05):
+   theme tokens first, `--ngg-*` OKLCH fallbacks second, per the Webview
+   UI Styling Guide. The heat levels are the `--ngg-blame-heat-0`..`9`
+   tokens (media/tokens.css), chosen per hunk by its `data-heat` hook. */
+
+.ggl-blame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  background: var(--vscode-editor-background, oklch(20% 0 0));
+  color: var(--vscode-editor-foreground, oklch(88% 0 0));
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+/* The header never scrolls away with the file (Webview UI Styling
+   Guide): sticky, on an opaque editor background. */
+.ggl-blame .blame-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: none;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+  background: var(--vscode-editor-background, oklch(20% 0 0));
+}
+.ggl-blame .blame-repo { font-weight: 600; }
+.ggl-blame .blame-path {
+  font-family: var(--vscode-editor-font-family, monospace);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ggl-blame .blame-rename-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+  background: color-mix(in oklab, var(--vscode-badge-background, var(--ngg-accent)) 22%, var(--ngg-transparent));
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.ggl-blame .blame-rename-icon {
+  display: inline-flex;
+  align-items: center;
+}
+.ggl-blame .blame-rename-icon .octicon {
+  width: 12px;
+  height: 12px;
+}
+.ggl-blame .blame-rev {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  background: var(--vscode-badge-background, var(--ngg-accent));
+  color: var(--vscode-badge-foreground, var(--ngg-accent-foreground));
+}
+.ggl-blame .blame-line-count { flex: none; color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+/* Back / Forward / Latest revision navigation stack controls (F4-05). */
+.ggl-blame .blame-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.ggl-blame .blame-nav-btn,
+.ggl-blame .blame-option-toggle,
+.ggl-blame .blame-chip,
+.ggl-blame .blame-clear-ignored-btn,
+.ggl-blame .blame-find-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--vscode-button-secondaryForeground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  background: var(--vscode-button-secondaryBackground, var(--ngg-transparent));
+  border: 1px solid var(--vscode-button-border, var(--vscode-panel-border, var(--ngg-neutral-border)));
+}
+.ggl-blame .blame-nav-btn .octicon,
+.ggl-blame .blame-option-toggle .octicon,
+.ggl-blame .blame-find-btn .octicon {
+  width: 12px;
+  height: 12px;
+}
+.ggl-blame .blame-nav-btn:hover:not(:disabled),
+.ggl-blame .blame-option-toggle:hover:not(:disabled),
+.ggl-blame .blame-chip:hover:not(:disabled),
+.ggl-blame .blame-clear-ignored-btn:hover:not(:disabled),
+.ggl-blame .blame-find-btn:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle)));
+}
+.ggl-blame .blame-nav-btn:disabled,
+.ggl-blame .blame-find-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.ggl-blame .blame-option-toggle.is-active,
+.ggl-blame .blame-chip.is-active {
+  color: var(--vscode-badge-foreground, var(--ngg-accent-foreground));
+  background: color-mix(in oklab, var(--vscode-badge-background, var(--ngg-accent)) 80%, var(--ngg-transparent));
+  border-color: var(--vscode-focusBorder, var(--ngg-accent));
+}
+.ggl-blame .blame-nav-btn:focus-visible,
+.ggl-blame .blame-option-toggle:focus-visible,
+.ggl-blame .blame-chip:focus-visible,
+.ggl-blame .blame-chip-remove:focus-visible,
+.ggl-blame .blame-clear-ignored-btn:focus-visible,
+.ggl-blame .blame-find-btn:focus-visible,
+.ggl-blame .blame-rewind-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
+.ggl-blame .blame-options {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ggl-blame .blame-ignored-commits {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ggl-blame .blame-ignore-rev-chip {
+  cursor: default;
+  padding-right: 3px;
+}
+.ggl-blame .blame-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--ngg-transparent);
+  color: inherit;
+  cursor: pointer;
+}
+.ggl-blame .blame-chip-remove .octicon {
+  width: 11px;
+  height: 11px;
+}
+.ggl-blame .blame-chip-remove:hover {
+  background: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle));
+}
+/* In-tab Find & Author filter bar (F4-05). */
+.ggl-blame .blame-find-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background, oklch(22% 0 0)));
+}
+.ggl-blame .blame-find-bar[hidden] {
+  display: none;
+}
+.ggl-blame .blame-find-input {
+  flex: 0 1 280px;
+  min-width: 140px;
+  height: 24px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--vscode-input-foreground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  background: var(--vscode-input-background, var(--ngg-transparent));
+  border: 1px solid var(--vscode-input-border, var(--ngg-neutral-border));
+}
+.ggl-blame .blame-find-input:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
+.ggl-blame .blame-find-count {
+  flex: none;
+  min-width: 4ch;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+}
+.ggl-blame .blame-scroll { flex: 1; min-height: 0; overflow: auto; }
+/* One hunk is one band: the gutter's commit block once, beside every
+   line the commit owns, with a clean border to the next band. */
+.ggl-blame .blame-hunk {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+/* The heat rail: a 4px bar on the hunk's left edge, one color per hunk.
+   `--blame-heat` is set per level below; with no level (Off) the rail is
+   a neutral line, and an uncommitted hunk takes the neutral token. */
+.ggl-blame .blame-hunk::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  width: 4px;
+  pointer-events: none;
+  background: var(--blame-heat, var(--ngg-neutral-border-medium));
+}
+/* The same-commit highlight: a translucent wash over the whole hunk. */
+.ggl-blame .blame-hunk::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+  background: color-mix(in oklab, var(--vscode-list-activeSelectionBackground, var(--ngg-accent)) 16%, var(--ngg-transparent));
+}
+.ggl-blame .blame-hunk.is-same-commit::after { opacity: 1; }
+.ggl-blame .blame-hunk:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: -1px;
+}
+.ggl-blame .blame-hunk[data-heat="0"] { --blame-heat: var(--ngg-blame-heat-0); }
+.ggl-blame .blame-hunk[data-heat="1"] { --blame-heat: var(--ngg-blame-heat-1); }
+.ggl-blame .blame-hunk[data-heat="2"] { --blame-heat: var(--ngg-blame-heat-2); }
+.ggl-blame .blame-hunk[data-heat="3"] { --blame-heat: var(--ngg-blame-heat-3); }
+.ggl-blame .blame-hunk[data-heat="4"] { --blame-heat: var(--ngg-blame-heat-4); }
+.ggl-blame .blame-hunk[data-heat="5"] { --blame-heat: var(--ngg-blame-heat-5); }
+.ggl-blame .blame-hunk[data-heat="6"] { --blame-heat: var(--ngg-blame-heat-6); }
+.ggl-blame .blame-hunk[data-heat="7"] { --blame-heat: var(--ngg-blame-heat-7); }
+.ggl-blame .blame-hunk[data-heat="8"] { --blame-heat: var(--ngg-blame-heat-8); }
+.ggl-blame .blame-hunk[data-heat="9"] { --blame-heat: var(--ngg-blame-heat-9); }
+.ggl-blame .blame-hunk[data-heat="uncommitted"] { --blame-heat: var(--ngg-uncommitted); }
+.ggl-blame .blame-gutter {
+  position: relative;
+  flex: none;
+  width: var(--blame-gutter-width, 280px);
+  box-sizing: border-box;
+  padding: 6px 10px 6px 12px;
+  overflow: hidden;
+  border-right: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+  /* A subtle wash of the hunk's heat over the gutter's own background. */
+  background:
+    color-mix(in oklab, var(--blame-heat, var(--ngg-transparent)) 14%, var(--ngg-transparent)),
+    color-mix(in oklab, var(--vscode-sideBar-background, oklch(24% 0 0)) 55%, var(--ngg-transparent));
+}
+.ggl-blame .blame-body.resizing .blame-gutter { cursor: col-resize; }
+.ggl-blame .blame-gutter-resize {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  display: block;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+}
+.ggl-blame .blame-gutter-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.ggl-blame .blame-summary {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ggl-blame .blame-rewind-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid var(--ngg-transparent);
+  background: var(--ngg-transparent);
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+  cursor: pointer;
+}
+.ggl-blame .blame-rewind-btn .octicon {
+  width: 13px;
+  height: 13px;
+}
+.ggl-blame .blame-rewind-btn:hover:not(:disabled) {
+  color: var(--vscode-editor-foreground, oklch(88% 0 0));
+  background: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle));
+  border-color: var(--vscode-panel-border, var(--ngg-neutral-border-subtle));
+}
+.ggl-blame .blame-rewind-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.ggl-blame .blame-uncommitted { color: var(--ngg-uncommitted); font-weight: 600; }
+.ggl-blame .blame-meta {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+  overflow: hidden;
+  white-space: nowrap;
+}
+.ggl-blame .blame-author { overflow: hidden; text-overflow: ellipsis; }
+.ggl-blame .blame-hash { font-family: var(--vscode-editor-font-family, monospace); white-space: nowrap; }
+.ggl-blame .blame-date { white-space: nowrap; }
+/* The source column obeys the editor's typography, carried per load as
+   the two custom properties below plus the tab's `tab-size`. */
+.ggl-blame .blame-source {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: var(--blame-font-size, 14px);
+  line-height: var(--blame-line-height, 21px);
+}
+.ggl-blame .blame-line {
+  display: flex;
+  min-height: var(--blame-line-height, 21px);
+}
+.ggl-blame .blame-line:hover { background: var(--vscode-list-hoverBackground, var(--ngg-neutral-overlay-subtle)); }
+.ggl-blame .blame-target-line {
+  background: color-mix(in oklab, var(--vscode-list-activeSelectionBackground, var(--ngg-accent)) 24%, var(--ngg-transparent));
+}
+.ggl-blame .blame-line.is-find-match {
+  background: color-mix(in oklab, var(--vscode-editor-findMatchHighlightBackground, var(--ngg-blame-heat-6)) 32%, var(--ngg-transparent));
+}
+.ggl-blame .blame-line.is-find-active {
+  background: color-mix(in oklab, var(--vscode-editor-findMatchBackground, var(--ngg-blame-heat-8)) 48%, var(--ngg-transparent));
+  outline: 1px solid var(--vscode-editor-findMatchBorder, var(--vscode-focusBorder, var(--ngg-accent)));
+  outline-offset: -1px;
+}
+.ggl-blame .blame-hunk.is-find-active-hunk .blame-gutter {
+  outline: 1px solid var(--vscode-editor-findMatchBorder, var(--vscode-focusBorder, var(--ngg-accent)));
+  outline-offset: -1px;
+}
+.ggl-blame .blame-line-number {
+  flex: none;
+  width: 4ch;
+  padding-right: 12px;
+  box-sizing: content-box;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--vscode-editorLineNumber-foreground, oklch(60% 0 0));
+  user-select: none;
+}
+.ggl-blame .blame-line-text { white-space: pre; user-select: text; }
+.ggl-blame p.blame-message { margin: 0; padding: 16px 12px; }
+.ggl-blame p.blame-message.blame-error { color: var(--vscode-errorForeground, var(--ngg-error)); }
+.ggl-blame .blame-loading,
+.ggl-blame .blame-empty,
+.ggl-blame .blame-binary,
+.ggl-blame .blame-too-large,
+.ggl-blame .blame-untracked,
+.ggl-blame .blame-unborn,
+.ggl-blame .blame-bare-working-tree { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.ggl-blame .blame-state-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px 12px;
+}
+.ggl-blame .blame-state-notice > p.blame-message { padding: 0; }
+.ggl-blame .blame-worktree-badge,
+.ggl-blame .blame-bare-badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+  background: color-mix(in oklab, var(--vscode-badge-background, var(--ngg-accent)) 14%, var(--ngg-transparent));
+  border: 1px solid var(--vscode-panel-border, var(--ngg-neutral-border));
+}
+.ggl-blame .blame-unsaved-pill {
+  background: color-mix(in oklab, var(--vscode-editorWarning-foreground, var(--ngg-warning)) 20%, var(--ngg-transparent));
+  color: var(--vscode-editorWarning-foreground, var(--ngg-warning));
+  border: 1px solid color-mix(in oklab, var(--vscode-editorWarning-foreground, var(--ngg-warning)) 45%, var(--ngg-transparent));
+}
+.ggl-blame .blame-repo-changed {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+}
+.ggl-blame .blame-action-btn {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--vscode-button-secondaryForeground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  background: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-muted));
+  border: 1px solid var(--vscode-button-border, var(--ngg-neutral-border));
+}
+.ggl-blame .blame-action-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--ngg-neutral-overlay-medium));
+}
+.ggl-blame .blame-action-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
+.ggl-blame ::-webkit-scrollbar { width: 14px; height: 14px; background: var(--vscode-editor-background, oklch(20% 0 0)); }
+.ggl-blame ::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background, oklch(60% 0 0 / 0.4)); }
+.ggl-blame ::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground, oklch(60% 0 0 / 0.6)); }
+.ggl-blame ::-webkit-scrollbar-thumb:active { background: var(--vscode-scrollbarSlider-activeBackground, oklch(60% 0 0 / 0.8)); }
+@media (forced-colors: active) {
+  .ggl-blame .blame-rev { border: 1px solid currentColor; }
+  .ggl-blame .blame-target-line { outline: 1px solid currentColor; }
+  .ggl-blame .blame-gutter { border-right: 1px solid currentColor; }
+}
+/* Heat legend and mode selector, in the sticky header. */
+.ggl-blame .blame-heat {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--vscode-descriptionForeground, oklch(70% 0 0));
+}
+.ggl-blame .blame-heat-scale { display: inline-flex; gap: 1px; }
+.ggl-blame .blame-heat-swatch {
+  display: block;
+  width: 10px;
+  height: 8px;
+  border-radius: 2px;
+}
+.ggl-blame .blame-heat-swatch-0 { background: var(--ngg-blame-heat-0); }
+.ggl-blame .blame-heat-swatch-1 { background: var(--ngg-blame-heat-1); }
+.ggl-blame .blame-heat-swatch-2 { background: var(--ngg-blame-heat-2); }
+.ggl-blame .blame-heat-swatch-3 { background: var(--ngg-blame-heat-3); }
+.ggl-blame .blame-heat-swatch-4 { background: var(--ngg-blame-heat-4); }
+.ggl-blame .blame-heat-swatch-5 { background: var(--ngg-blame-heat-5); }
+.ggl-blame .blame-heat-swatch-6 { background: var(--ngg-blame-heat-6); }
+.ggl-blame .blame-heat-swatch-7 { background: var(--ngg-blame-heat-7); }
+.ggl-blame .blame-heat-swatch-8 { background: var(--ngg-blame-heat-8); }
+.ggl-blame .blame-heat-swatch-9 { background: var(--ngg-blame-heat-9); }
+.ggl-blame .blame-heat-select {
+  font: inherit;
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: var(--vscode-dropdown-foreground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  background: var(--vscode-dropdown-background, var(--ngg-transparent));
+  border: 1px solid var(--vscode-dropdown-border, var(--ngg-neutral-border));
+}
+.ggl-blame .blame-heat-select:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
+@media (forced-colors: active) {
+  /* Forced colors drop the heat tints: the rail becomes a system line,
+     the same-commit wash a system outline, and the legend swatches keep a
+     visible border so the scale still reads. */
+  .ggl-blame .blame-hunk::before { background: CanvasText; }
+  .ggl-blame .blame-hunk[data-heat="uncommitted"]::before { background: GrayText; }
+  .ggl-blame .blame-hunk::after { background: transparent; }
+  .ggl-blame .blame-hunk.is-same-commit::after { outline: 2px solid Highlight; outline-offset: -2px; }
+  .ggl-blame .blame-hunk:focus-visible { outline: 2px solid Highlight; }
+  .ggl-blame .blame-heat-swatch { border: 1px solid CanvasText; }
+  .ggl-blame .blame-heat-select { border: 1px solid CanvasText; }
+  .ggl-blame .blame-worktree-badge,
+  .ggl-blame .blame-bare-badge,
+  .ggl-blame .blame-unsaved-pill,
+  .ggl-blame .blame-action-btn { border: 1px solid CanvasText; }
+  .ggl-blame .blame-option-toggle.is-active,
+  .ggl-blame .blame-chip.is-active { outline: 2px solid Highlight; }
+  .ggl-blame .blame-rename-notice { border: 1px solid CanvasText; }
+  .ggl-blame .blame-line.is-find-match { outline: 1px dashed Highlight; }
+  .ggl-blame .blame-line.is-find-active { outline: 2px solid Highlight; }
+  .ggl-blame .blame-hunk.is-find-active-hunk .blame-gutter { outline: 2px solid Highlight; }
+  /* The commit popover and context menu (F4-06) keep a system border. */
+  .blame-popover,
+  .blame-context-menu { border: 1px solid CanvasText; }
+  .blame-popover-action,
+  .blame-popover-close { border: 1px solid CanvasText; }
+  .blame-context-menu-button:focus-visible { outline: 2px solid Highlight; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ggl-blame .blame-hunk::after { transition: none; }
+}
+/* The commit header and line numbers are buttons now (F4-06): they keep
+   the text look they had as spans, with a hover tint and a focus ring. */
+.ggl-blame .blame-popover-trigger {
+  font: inherit;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: var(--ngg-transparent);
+  color: inherit;
+  cursor: pointer;
+}
+.ggl-blame .blame-popover-trigger:hover {
+  background: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle));
+}
+.ggl-blame .blame-popover-trigger:focus-visible,
+.ggl-blame .blame-line-number:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
+.ggl-blame button.blame-line-number {
+  font: inherit;
+  border: 0;
+  background: var(--ngg-transparent);
+  cursor: pointer;
+}
+.ggl-blame button.blame-line-number:hover {
+  color: var(--vscode-editorLineNumber-activeForeground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  text-decoration: underline;
+}
+/* The commit popover and hunk context menu (F4-06) sit on `body` with
+   fixed positioning, so their rules are not rooted at `.ggl-blame`;
+   they take the editor-widget and menu token families instead. */
+.blame-popover {
+  position: fixed;
+  z-index: 50;
+  box-sizing: border-box;
+  width: min(560px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-editorWidget-border, var(--ngg-neutral-border));
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background, oklch(22% 0 0)));
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  box-shadow: var(--vscode-widget-shadow, 0 2px 8px oklch(0% 0 0 / 0.36));
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+.blame-popover[hidden],
+.blame-context-menu[hidden] { display: none; }
+.blame-popover:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
+.blame-popover-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.blame-popover-avatar {
+  flex: none;
+  width: 27px;
+  height: 27px;
+  border-radius: 4px;
+}
+.blame-popover-avatar[hidden] { display: none; }
+.blame-popover-subject {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+.blame-popover-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: var(--ngg-transparent);
+  color: inherit;
+  cursor: pointer;
+}
+.blame-popover-close .octicon { width: 14px; height: 14px; }
+.blame-popover-close:hover {
+  background: var(--vscode-toolbar-hoverBackground, var(--ngg-neutral-overlay-subtle));
+}
+.blame-popover-close:focus-visible,
+.blame-popover-action:focus-visible,
+.blame-context-menu-button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--ngg-accent));
+  outline-offset: 1px;
+}
+.blame-popover-meta { margin-top: 8px; }
+.blame-popover-meta-row {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+}
+.blame-popover-meta-label {
+  flex: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.blame-popover-hash {
+  font-family: var(--vscode-editor-font-family, monospace);
+  overflow-wrap: anywhere;
+}
+.blame-popover-date-full { color: var(--vscode-descriptionForeground, oklch(70% 0 0)); }
+.blame-popover a { color: var(--vscode-textLink-foreground, var(--ngg-accent)); }
+.blame-popover-body {
+  margin-top: 10px;
+  white-space: normal;
+}
+.blame-popover-body.blame-popover-error { color: var(--vscode-errorForeground, var(--ngg-error)); }
+.blame-popover-explanation { margin: 8px 0 0; }
+.blame-popover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+.blame-popover-action {
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 3px 10px;
+  border-radius: 2px;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--vscode-button-secondaryForeground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  background: var(--vscode-button-secondaryBackground, var(--ngg-neutral-overlay-muted));
+  border: 1px solid var(--vscode-button-border, var(--ngg-neutral-border));
+}
+.blame-popover-action:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--ngg-neutral-overlay-medium));
+}
+.blame-context-menu {
+  position: fixed;
+  z-index: 51;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border-radius: 5px;
+  border: 1px solid var(--vscode-menu-border, var(--ngg-neutral-border));
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background, oklch(22% 0 0)));
+  color: var(--vscode-menu-foreground, var(--vscode-editor-foreground, oklch(88% 0 0)));
+  box-shadow: var(--vscode-widget-shadow, 0 2px 8px oklch(0% 0 0 / 0.36));
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+.blame-context-menu-button {
+  display: block;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--ngg-transparent);
+  color: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.blame-context-menu-button:hover,
+.blame-context-menu-button:focus-visible {
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground, var(--ngg-accent)));
+  color: var(--vscode-menu-selectionForeground, var(--vscode-list-activeSelectionForeground, var(--ngg-accent-foreground)));
+}

@@ -134,10 +134,20 @@ declare global {
      */
     grouped?: boolean;
   }
-  interface DialogNoteInput {
-    type: "note";
-    text: string;
-  }
+  type DialogNoteInput =
+    | {
+        type: "note";
+        text: string;
+      }
+    | {
+        type: "note";
+        /**
+         * Pre-escaped HTML for notes that carry inline semantics (such as a
+         * worktree folder span with its full path in `title`). Callers escape
+         * every dynamic value before passing it here.
+         */
+        html: string;
+      };
   /**
    * A heading over the rows that follow, carrying no value. It exists so a
    * run of related checkboxes reads as one thing — the push dialogs use it to
@@ -148,10 +158,26 @@ declare global {
     type: "group";
     name: string;
   }
+  /**
+   * A plain list shown under the dialog's title, carrying no value: the
+   * entries prune removes, the files a forced removal deletes. It renders
+   * at body size in its own capped, scrolling block rather than as markup
+   * inside the title, where it took the title's size and scrolled the
+   * whole dialog, buttons included.
+   */
+  interface DialogListInput {
+    type: "list";
+    items: string[];
+    /** A quiet line under the list, for example that more files are not shown. */
+    note?: string;
+  }
   interface DialogInputDependency {
-    /** Index of the `select` input that controls this input's visibility. */
+    /** Index of the `select` or `checkbox` input that controls this input's visibility. */
     input: number;
-    /** This input is visible only while the controlling select holds this value. */
+    /**
+     * This input is visible only while the controlling input holds this
+     * value: a select's option value, or `"checked"` for a checkbox.
+     */
     value: string;
   }
   type DialogInput = (
@@ -163,10 +189,16 @@ declare global {
     | DialogCheckboxInput
     | DialogNoteInput
     | DialogGroupInput
+    | DialogListInput
   ) & {
-    /** Hides this input's row while the controlling select holds another value. */
+    /** Hides this input's row while the controlling input holds another value. */
     dependsOn?: DialogInputDependency;
-    /** Rejects submission while this text/textarea input is empty (and visible). */
+    /**
+     * Rejects submission while this input is unfilled (and visible): a
+     * text, textarea or folder input left empty, or a checkbox left
+     * unticked. The blocked action is drawn like a required field left
+     * empty.
+     */
     required?: boolean;
   };
   type DialogInputValue = string | boolean;

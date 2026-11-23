@@ -215,6 +215,8 @@ describe("the Worktrees toolbar popup", () => {
     rowAction(1, "remove");
 
     expect(document.getElementById("dialog")?.textContent).toContain(SIDE);
+    // The confirm button names its action, like every other worktree dialog.
+    expect(document.getElementById("dialogAction")?.textContent).toBe("Remove");
     expect(mock.sentMessages.some((msg) => msg.command === "removeWorktree")).toBe(false);
     document.getElementById("dialogAction")?.dispatchEvent(new MouseEvent("click"));
     expect(latest(mock.sentMessages, "worktreeChanges")).toMatchObject({ path: SIDE });

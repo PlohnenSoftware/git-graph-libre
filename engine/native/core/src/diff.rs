@@ -301,7 +301,7 @@ pub fn line_counts(
 ///
 /// Temporary shim: gix's `Platform::line_counts()` diffs lines with their LF/CRLF stripped, so a
 /// final line gaining its newline and a CRLF-to-LF conversion both count as no change. Diffing
-/// the `intern_source()` tokens instead keeps the terminators and matches git. Remove this once
+/// each side's `byte_lines` tokens instead keeps the terminators and matches git. Remove this once
 /// gix ships numstat-compatible counts (D30b) and switch back to `line_counts()`.
 fn count_lines(platform: gix::object::blob::diff::Platform<'_>) -> Option<(u32, u32)> {
     use gix::diff::blob::platform::prepare_diff::Operation;
@@ -312,15 +312,20 @@ fn count_lines(platform: gix::object::blob::diff::Platform<'_>) -> Option<(u32, 
         .skip_internal_diff_if_external_is_configured = false;
     let prep = platform.resource_cache.prepare_diff().ok()?;
     match prep.operation {
-        Operation::InternalDiff { algorithm } => {
+        Operation::InternalDiff { algorithm, change } => {
+            // `change.patch_input()` strips line terminators, as `line_counts()` does; tokenize the
+            // raw sides with `byte_lines`, which keeps them, so the counts stay numstat's.
+            let (old, new) = change.patch_data();
             let input = gix::diff::blob::InternedInput::new(
-                prep.old.intern_source(),
-                prep.new.intern_source(),
+                gix::diff::blob::sources::byte_lines(old),
+                gix::diff::blob::sources::byte_lines(new),
             );
             let diff = gix::diff::blob::Diff::compute(algorithm, &input);
             Some((diff.count_additions(), diff.count_removals()))
         }
-        Operation::SourceOrDestinationIsBinary | Operation::ExternalCommand { .. } => None,
+        Operation::SourceOrDestinationIsBinary
+        | Operation::ExternalCommand { .. }
+        | Operation::NeitherExists => None,
     }
 }
 
@@ -417,7 +422,7 @@ fn count_against_gitlink(
     // applies the attributes and the binary check a two-sided diff would.
     cache
         .set_resource(
-            change.blob,
+            Some(change.blob),
             change.blob_kind,
             path,
             change.blob_side,

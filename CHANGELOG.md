@@ -5,22 +5,97 @@ All notable changes to this extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.11.0] - 2026-11-23
+
+"Looking Back": a Blame view that shows who last changed each line of a file
+and steps back through its history, and a Reflog tab that shows where `HEAD`
+and each branch have been and recovers commits that nothing else holds any
+more.
 
 ### Added
 
+- **A Blame view.** **Show Blame for Current File**, from the Command Palette,
+  opens a tab that groups a file's lines by the commit that last changed them,
+  like GitHub's blame view. Each group shows the commit's summary, author,
+  hash and date, in the graph's hash length and date format. The commit column
+  can be resized and keeps its width per repository, uncommitted lines are
+  marked, and hovering a commit highlights all of its lines. **Show Blame** is
+  also in the editor, Explorer and Source Control context menus, and **Show
+  Blame at Commit** and **Show Blame Before Deletion** are in a commit's file
+  menu in the graph; the `contextMenuActionsVisibility` setting can hide those
+  two. The tab works in linked worktrees and bare repositories, explains
+  untracked, empty, binary and too-large files, and blames an unsaved file's
+  live text with an "Unsaved buffer" note and a **Blame HEAD** button. It
+  refreshes as the working tree and `HEAD` change, without losing its scroll
+  position.
+
+- **Hotspot coloring in the Blame view.** Each group has a heat rail that runs
+  from cool for older commits to warm for newer ones, with an Older-to-Newer
+  legend in the tab header. The mode menu chooses how the heat is scored:
+  **Age** (the default) ranks commits by date across the file, **Calendar**
+  uses fixed bands from the last day to two years, **Churn** favors commits
+  that own many separate hunks in the file and recent ones among them, and
+  **Off** removes the heat. The chosen mode is kept when the tab reloads.
+
+- **Rewinding and options in the Blame view.** A hunk that has an earlier
+  version offers **View blame prior to this change**, which shows the file's
+  blame as it stood just before that change and follows renames; it is not
+  offered for uncommitted lines, and it is disabled on a file's first commit.
+  **Back**, **Forward** and **Latest** step through the revisions you have
+  viewed, and the tab title names the one you are on. The header has toggles
+  for **Ignore whitespace (-w)**, **Detect moved lines (-M)** and **Detect
+  copied lines (-C)**. When the repository has a `.git-blame-ignore-revs`
+  file, it is applied automatically, and a chip turns that off. Commits
+  ignored for the session appear as chips you can remove, with **Clear all**.
+  **Find in blame** (Ctrl+F, or Cmd+F on macOS) steps through the lines whose
+  text, author, summary or hash match what you type.
+
+- **A commit popover in the Blame view.** Clicking a hunk's commit opens its
+  details: the full message with issue links, the author and committer, the
+  full hash and date, and the avatar when one is already cached. The popover
+  and a hunk's right-click menu offer **Show Commit in Graph**, **Open in GGL
+  Diff**, **View blame prior to this change**, **Ignore Commit (This Session)**,
+  **Copy Commit Hash to Clipboard** and **Copy Commit Message to Clipboard**,
+  and a line number opens the file at that line with **Open File at Line**.
+
 - **A Reflog tab.** **Show Reflog**, from the Command Palette or the graph
-  toolbar, opens a tab that lists the `HEAD` reflog page by page: each
-  entry's index, commit, date, action and sub-action (such as a rebase's
-  pick, squash or abort) and message, as Git recorded it. Actions are
-  colored by kind, and each entry says whether its commit is still on a
-  branch or tag, is only in the reflog, or no longer exists, so lost work is
-  easy to spot. The tab uses the graph's hash length, date format and words, its
-  columns can be resized and keep their widths per repository, it refreshes
-  when the repository changes, and with the Rust engine it reads the reflog
-  without starting Git.
+  toolbar, opens a tab that lists the `HEAD` reflog page by page: each entry's
+  index, commit, date, action and sub-action (such as a rebase's pick, squash
+  or abort) and message, as Git recorded it. Actions are colored by kind, and
+  each entry says whether its commit is still on a branch or tag, is only in
+  the reflog, or no longer exists, so lost work is easy to spot. The tab uses
+  the graph's hash length, date format and words, its columns fit the tab
+  without sideways scrolling (Message takes the spare width, and on a narrow
+  tab the other columns shorten first), they can be resized and keep their
+  widths per repository, it refreshes when the repository changes, and with the Rust engine it reads the reflog without starting Git.
+  A search finds the entries whose message contains the text you type, across
+  up to 5,000 entries. Filters narrow the list by action, choose which reflog
+  to show (`HEAD`, a local branch or the stash), and show only the entries
+  whose commit is only in the reflog. The ref picker also lists the HEAD of
+  each other worktree, read in that worktree, and a bare repository shows its
+  branch reflogs with a note that Git keeps no HEAD reflog there by default.
+  Each entry can be recovered with **Create Branch Here…**, **Create Tag
+  Here…**, **Check Out (Detached)**, **Copy Hash**, **Show in Graph** (which
+  offers to turn on **Include reflog** for a commit that is only in the
+  reflog) or **Reset Current Branch to Here…**, which uses the usual reset
+  dialog: mixed by default, and hard only after a second confirmation. An
+  entry whose commit no longer exists cannot be recovered, and the tab says
+  so.
+
+- **Scan for lost commits, on request.** **Scan for Lost Commits…** in the
+  Reflog tab lists the commits that no branch, tag or reflog reaches. The scan
+  shows its progress, can be canceled and stops after 30 seconds. Its results
+  warn that these commits disappear when Git runs garbage collection, and
+  **Create Branch Here…** saves any of them to a new branch without moving
+  HEAD.
 
 ### Changed
+
+- **Usage telemetry counts tab opens and Copy Path.** The anonymous usage
+  data now also records whether the Reflog, GGL Diff and Blame tabs opened
+  without errors, and whether Copy Path in the Worktrees list worked. Nothing
+  about their content is sent, and it follows the same telemetry setting as
+  the rest of the extension's data.
 
 - **A shorter menu header for a branch checked out in another worktree.** Its
   context menu still opens with "Checked out in another worktree", but no
@@ -42,8 +117,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   must not exist yet. The path stays editable, so a move can still rename
   the folder, and nothing moves until you confirm.
 
+- **The Worktrees popup's rows use icon buttons.** Every row has the same
+  shape, and **Copy Path**, **Lock**, **Unlock**, **Move** and **Remove** are
+  icon buttons at the top right of the row, each with a tooltip. A detached
+  HEAD has its own icon.
+
+- **Create Worktree's dialogs are clearer.** The folder dialog is wider, and
+  its field shows the end of a long path. The lock reason appears only once
+  **Lock** is ticked. After a worktree is created, its next steps are one-click
+  choices, and Cancel does nothing.
+
+- **Create Worktree on a branch another worktree holds.** That branch's menu
+  now opens Create Worktree instead of a second Open Worktree, with the two
+  choices Git allows there: a new branch from it, the default, or a detached
+  HEAD at its tip.
+
+- **The Diff, Reflog and Blame tabs have the Git Graph Libre icon.** They show
+  the same tab icon as the graph, in the light or dark version that the
+  `tabIconColorTheme` setting picks. The icon is set when a tab opens, so a
+  changed setting applies to tabs opened afterwards.
+
+- **Traditional Chinese says 存放庫 for "repository" everywhere.** Some
+  strings used 儲存庫 and others 存放庫; all now use 存放庫, the term VS Code's
+  own Traditional Chinese strings use.
+
 ### Fixed
 
+- **Include unreachable commits no longer breaks the graph.** On a repository
+  with a stale commit-graph file, checking **Include unreachable commits**
+  replaced the graph with "Unable to load Git Graph" and a long dump of
+  `unreachable ...` lines. The graph now loads and shows the unreachable
+  commits the scan finds, and a failed scan never replaces the graph. A large
+  set of unreachable commits no longer runs into Windows' command-line length
+  limit.
 - **Context menus line up.** A menu's header now starts where its items'
   text starts, its rule matches the dividers below it, and check marks sit
   in their own slot, so checked, unchecked and plain items share one text
@@ -56,7 +162,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   creating a worktree. It now wraps inside the popup, in every dialog, the
   Worktrees list and menu headers. The Delete Branch dialog for a branch held
   by another worktree is also shorter. It names the worktree by its folder,
-  with the full path on hover and in the option that removes it.
+  with the full path on hover and in the option that removes it. Its removal
+  checkbox must be ticked before the branch can be deleted.
 - **Commit text in other encodings.** With the Rust engine, a commit recorded
   in another encoding (`i18n.commitEncoding`, for example ISO-8859-1) showed
   garbled names and messages, and a subject after blank lines was lost. The
@@ -75,6 +182,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   empty graph.
 - **Remote branches under `changes/`** are shown with the Rust engine too, as
   Git always showed them.
+- **Worktree dialogs and their text.** The status shown while a worktree is
+  created, removed, pruned or checked no longer ends in dots that the dialog
+  already adds. A dialog without inputs no longer shows an empty table, and a
+  list in a dialog scrolls in a block of its own. Error text wraps beside the
+  error icon, not under it. Remove Worktree's button reads **Remove** instead
+  of **Yes**, and a checkbox whose label runs to two lines keeps its box beside
+  the first line.
+- **The remote checkout prompt.** It has a clearer title, shows an invalid
+  branch name's error under its field, and names the folder of a worktree that
+  holds the branch, with the full path on hover.
 
 The Rust engine is now `1.0.32`. Its fixes adapt parts of upstream commits
 `f007528`, `634ca6c` and `ff4aafe` of `neophack/vscode-git-graph-rs`; see
@@ -1326,7 +1443,8 @@ system. Includes everything prepared for 1.5.1, which was never released.
 
 Initial release
 
-[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/PlohnenSoftware/git-graph-libre/compare/v1.8.0...v1.8.1

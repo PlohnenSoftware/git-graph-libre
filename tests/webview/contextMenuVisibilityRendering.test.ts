@@ -483,6 +483,185 @@ describe("context menu visibility rendering", () => {
     expect(contextMenuItems()).not.toContain("Open in GGL Diff");
   });
 
+  it("offers Show Blame at Commit for modified and renamed files and omits binary files (F4-07)", async () => {
+    const vscodeMock = await bootWebview(defaultViewState);
+
+    document
+      .querySelector<HTMLElement>('tr.commit[data-hash="abc123"]')
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const details: GitCommitDetails = {
+      hash: "abc123",
+      parents: ["parent0"],
+      author: "Alice",
+      email: "alice@example.com",
+      authorDate: 1,
+      committer: "Alice",
+      committerEmail: "alice@example.com",
+      committerDate: 1,
+      body: "Details",
+      fileChanges: [
+        {
+          oldFilePath: "src/app.ts",
+          newFilePath: "src/app.ts",
+          type: "M",
+          additions: 2,
+          deletions: 1
+        },
+        {
+          oldFilePath: "src/old.ts",
+          newFilePath: "src/new.ts",
+          type: "R",
+          additions: 1,
+          deletions: 1
+        },
+        {
+          oldFilePath: "img.png",
+          newFilePath: "img.png",
+          type: "M",
+          additions: null,
+          deletions: null
+        }
+      ]
+    };
+    receive({ command: "commitDetails", commitDetails: details, error: null });
+
+    const files = document.querySelectorAll<HTMLElement>(".gitFile");
+    expect(files).toHaveLength(3);
+
+    files[0]?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const modBlame = Array.from(
+      document.querySelectorAll<HTMLElement>("#contextMenu .contextMenuItem")
+    ).find((candidate) => candidate.textContent === "Show Blame at Commit");
+    expect(modBlame).toBeDefined();
+    modBlame?.click();
+    expect(latestRequest(vscodeMock.sentMessages, "showBlame")).toEqual({
+      command: "showBlame",
+      repo: REPO,
+      filePath: "src/app.ts",
+      rev: "abc123"
+    });
+
+    files[1]?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const renameBlame = Array.from(
+      document.querySelectorAll<HTMLElement>("#contextMenu .contextMenuItem")
+    ).find((candidate) => candidate.textContent === "Show Blame at Commit");
+    expect(renameBlame).toBeDefined();
+    renameBlame?.click();
+    expect(latestRequest(vscodeMock.sentMessages, "showBlame")).toEqual({
+      command: "showBlame",
+      repo: REPO,
+      filePath: "src/new.ts",
+      rev: "abc123"
+    });
+
+    files[2]?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(contextMenuItems()).not.toContain("Show Blame at Commit");
+    expect(contextMenuItems()).not.toContain("Show Blame Before Deletion");
+  });
+
+  it("offers Show Blame Before Deletion using the first parent, and omits it on root commits without stray dividers (F4-07)", async () => {
+    const vscodeMock = await bootWebview(defaultViewState);
+
+    document
+      .querySelector<HTMLElement>('tr.commit[data-hash="abc123"]')
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const withParent: GitCommitDetails = {
+      hash: "abc123",
+      parents: ["parent0", "parent1"],
+      author: "Alice",
+      email: "alice@example.com",
+      authorDate: 1,
+      committer: "Alice",
+      committerEmail: "alice@example.com",
+      committerDate: 1,
+      body: "Delete with parent",
+      fileChanges: [
+        {
+          oldFilePath: "removed.ts",
+          newFilePath: "removed.ts",
+          type: "D",
+          additions: 0,
+          deletions: 4
+        }
+      ]
+    };
+    receive({ command: "commitDetails", commitDetails: withParent, error: null });
+
+    document
+      .querySelector<HTMLElement>(".gitFile")
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    const beforeDelete = Array.from(
+      document.querySelectorAll<HTMLElement>("#contextMenu .contextMenuItem")
+    ).find((candidate) => candidate.textContent === "Show Blame Before Deletion");
+    expect(beforeDelete).toBeDefined();
+    beforeDelete?.click();
+    expect(latestRequest(vscodeMock.sentMessages, "showBlame")).toEqual({
+      command: "showBlame",
+      repo: REPO,
+      filePath: "removed.ts",
+      rev: "parent0"
+    });
+
+    const withoutParent: GitCommitDetails = {
+      ...withParent,
+      parents: []
+    };
+    receive({ command: "commitDetails", commitDetails: withoutParent, error: null });
+
+    document
+      .querySelector<HTMLElement>(".gitFile")
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect(contextMenuLayout()).toEqual([
+      "View File Diff",
+      "Open in GGL Diff",
+      "—",
+      "Copy Absolute File Path to Clipboard",
+      "Copy Relative File Path to Clipboard"
+    ]);
+  });
+
+  it("hides Show Blame in the file menu without leaving a stray divider when disabled (F4-07)", async () => {
+    await bootWebview(
+      withVisibility({
+        commitDetailsViewFile: {
+          ...DEFAULT_CONTEXT_MENU_ACTIONS_VISIBILITY.commitDetailsViewFile,
+          showBlame: false
+        }
+      })
+    );
+
+    document
+      .querySelector<HTMLElement>('tr.commit[data-hash="abc123"]')
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const details: GitCommitDetails = {
+      hash: "abc123",
+      parents: ["parent0"],
+      author: "Alice",
+      email: "alice@example.com",
+      authorDate: 1,
+      committer: "Alice",
+      committerEmail: "alice@example.com",
+      committerDate: 1,
+      body: "Details",
+      fileChanges: [
+        { oldFilePath: "file.txt", newFilePath: "file.txt", type: "M", additions: 1, deletions: 0 }
+      ]
+    };
+    receive({ command: "commitDetails", commitDetails: details, error: null });
+
+    document
+      .querySelector<HTMLElement>(".gitFile")
+      ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+    const layout = contextMenuLayout();
+    expect(layout).not.toContain("Show Blame at Commit");
+    expect(layout.slice(0, 3)).toEqual([
+      "View File Diff",
+      "Open in GGL Diff",
+      "View File at Revision"
+    ]);
+  });
+
   it("hides all disabled local branch actions", async () => {
     await bootWebview(
       withVisibility({

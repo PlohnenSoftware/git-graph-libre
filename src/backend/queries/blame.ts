@@ -13,6 +13,7 @@ import type {
 } from "@/backend/types";
 import { type GitCommandRecorder, runGitRaw, runGitWithInput } from "@/backend/utils/gitRunner";
 import { toGitQueryError } from "@/backend/utils/queryError";
+import { hasControlCharacter } from "@/backend/utils/string";
 
 /** The largest file one blame read accepts: 2 MiB of text. */
 export const MAX_BLAME_FILE_BYTES = 2 * 1024 * 1024;
@@ -69,14 +70,6 @@ function stateResult(
     ignoreRevsFileUsed,
     error: null
   };
-}
-
-function hasControlCharacter(value: string): boolean {
-  for (const char of value) {
-    const code = char.codePointAt(0) ?? 0;
-    if (code < 32 || code === 127) return true;
-  }
-  return false;
 }
 
 /** Why a revision must not reach Git, or null when it may. */
@@ -243,8 +236,7 @@ function groupHunks(lines: BlamedLine[]): GitBlameHunk[] {
     const last = group?.at(-1);
     if (
       group !== undefined &&
-      last !== undefined &&
-      last.commitHash === blamed.commitHash &&
+      last?.commitHash === blamed.commitHash &&
       last.filename === blamed.filename &&
       samePrevious(last.previous, blamed.previous) &&
       last.line.finalLine + 1 === blamed.line.finalLine &&
@@ -256,7 +248,7 @@ function groupHunks(lines: BlamedLine[]): GitBlameHunk[] {
     }
   }
   return groups.map((group) => {
-    const first = group[0] as BlamedLine;
+    const first = group[0];
     return {
       commitHash: first.commitHash,
       startLine: first.line.finalLine,
@@ -267,6 +259,65 @@ function groupHunks(lines: BlamedLine[]): GitBlameHunk[] {
       lines: group.map((blamed) => blamed.line)
     };
   });
+}
+
+function stripTrailingCr(line: string): string {
+  return line.endsWith("\r") ? line.slice(0, -1) : line;
+}
+
+function finishPendingLine(
+  pending: PendingLine | null,
+  rawContentLine: string,
+  commits: Map<string, GitBlameCommit>,
+  origins: Map<string, Origin>
+): BlamedLine {
+  if (pending === null) {
+    throw new BlameFormatError("Blame content line has no header before it.");
+  }
+  const content = stripTrailingCr(rawContentLine.slice(1));
+  const origin = applyOrigin(pending, origins);
+  if (!commits.has(pending.hash)) commits.set(pending.hash, toCommit(pending, origin));
+  return {
+    commitHash: pending.hash,
+    filename: origin.filename,
+    previous: origin.previous,
+    line: { finalLine: pending.finalLine, origLine: pending.origLine, content }
+  };
+}
+
+function applyMetadataLine(pending: PendingLine | null, line: string): PendingLine {
+  if (!metadataLine.test(line)) {
+    throw new BlameFormatError("Blame output has an unexpected line.");
+  }
+  if (pending === null) {
+    throw new BlameFormatError("Blame metadata line has no header before it.");
+  }
+  const space = line.indexOf(" ");
+  if (space === -1) {
+    if (line === "boundary") pending.boundary = true;
+  } else {
+    pending.meta.set(line.slice(0, space), line.slice(space + 1));
+  }
+  return pending;
+}
+
+function parseRecordLine(pending: PendingLine | null, rawLine: string): PendingLine {
+  const line = stripTrailingCr(rawLine);
+  const header = headerLine.exec(line);
+  if (header !== null) {
+    if (pending !== null) {
+      throw new BlameFormatError("Blame record is missing its content line.");
+    }
+    const [, hash, orig, final] = header as unknown as [string, string, string, string];
+    return {
+      hash,
+      origLine: Number(orig),
+      finalLine: Number(final),
+      meta: new Map(),
+      boundary: false
+    };
+  }
+  return applyMetadataLine(pending, line);
 }
 
 /**
@@ -292,50 +343,10 @@ export function parseBlamePorcelain(stdout: string): ParsedBlame {
 
   for (const rawLine of rawLines) {
     if (rawLine.startsWith("\t")) {
-      if (pending === null) {
-        throw new BlameFormatError("Blame content line has no header before it.");
-      }
-      const text = rawLine.slice(1);
-      const content = text.endsWith("\r") ? text.slice(0, -1) : text;
-      const origin = applyOrigin(pending, origins);
-      if (!commits.has(pending.hash)) commits.set(pending.hash, toCommit(pending, origin));
-      blamed.push({
-        commitHash: pending.hash,
-        filename: origin.filename,
-        previous: origin.previous,
-        line: { finalLine: pending.finalLine, origLine: pending.origLine, content }
-      });
+      blamed.push(finishPendingLine(pending, rawLine, commits, origins));
       pending = null;
-      continue;
-    }
-
-    const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
-    const header = headerLine.exec(line);
-    if (header !== null) {
-      if (pending !== null) {
-        throw new BlameFormatError("Blame record is missing its content line.");
-      }
-      const [, hash, orig, final] = header as unknown as [string, string, string, string];
-      pending = {
-        hash,
-        origLine: Number(orig),
-        finalLine: Number(final),
-        meta: new Map(),
-        boundary: false
-      };
-      continue;
-    }
-    if (!metadataLine.test(line)) {
-      throw new BlameFormatError("Blame output has an unexpected line.");
-    }
-    if (pending === null) {
-      throw new BlameFormatError("Blame metadata line has no header before it.");
-    }
-    const space = line.indexOf(" ");
-    if (space === -1) {
-      if (line === "boundary") pending.boundary = true;
     } else {
-      pending.meta.set(line.slice(0, space), line.slice(space + 1));
+      pending = parseRecordLine(pending, rawLine);
     }
   }
   if (pending !== null) {
@@ -545,6 +556,95 @@ async function mapBlameFailure(
   return failure(toGitQueryError(error, "Unable to blame the file"));
 }
 
+type PreparedBlameRequest = {
+  filePath: string;
+  binary: string;
+  effectiveRev: string | null;
+  ignoreRevsFileUsed: string | null;
+};
+
+function prepareBlameRequest(request: GitBlameRequest): PreparedBlameRequest | { problem: string } {
+  const normalized = normalizeBlameFilePath(request.filePath);
+  if ("problem" in normalized) return normalized;
+
+  const problem = requestRevisionProblem(request);
+  if (problem !== null) return { problem };
+
+  const withContents = request.contents !== undefined;
+  const binary = request.binary ?? "";
+  if (withContents && binary === "") {
+    return { problem: "A Git binary path is required to blame unsaved contents." };
+  }
+  // An unsaved buffer needs a revision to blame against; HEAD is its home.
+  const effectiveRev = withContents ? (request.rev ?? "HEAD") : (request.rev ?? null);
+  const ignoreRevsFileUsed =
+    typeof request.ignoreRevsFile === "string" ? request.ignoreRevsFile : null;
+  return {
+    filePath: normalized.path,
+    binary,
+    effectiveRev,
+    ignoreRevsFileUsed
+  };
+}
+
+async function resolveBlameTarget(
+  read: Reader,
+  effectiveRev: string | null
+): Promise<{ resolvedRev: string | null } | { result: GitBlameResult }> {
+  if (effectiveRev === null) {
+    if (await isBareRepository(read)) {
+      return {
+        result: failure(
+          queryError("A bare repository has no working tree to blame; choose a revision.")
+        )
+      };
+    }
+    return { resolvedRev: null };
+  }
+  const resolved = await resolveRevision(read, effectiveRev);
+  if ("result" in resolved) return resolved;
+  return { resolvedRev: resolved.oid };
+}
+
+async function runBlamePrecheck(
+  read: Reader,
+  repo: string,
+  filePath: string,
+  resolvedRev: string | null,
+  contents: string | undefined
+): Promise<Precheck> {
+  if (contents !== undefined) {
+    const bytes = Buffer.from(contents, "utf8");
+    return judgeContent(bytes, bytes.length);
+  }
+  if (resolvedRev !== null) {
+    return revisionPrecheck(read, resolvedRev, filePath);
+  }
+  return diskPrecheck(repo, filePath);
+}
+
+async function executeBlameCommand(
+  git: SimpleGit,
+  repo: string,
+  request: GitBlameRequest,
+  args: string[],
+  binary: string,
+  record?: GitCommandRecorder
+): Promise<string> {
+  if (request.contents === undefined) {
+    return runGitRaw(git, { label: "blame.read", kind: "query", args, repo, record });
+  }
+  return runGitWithInput(git, {
+    label: "blame.read",
+    kind: "query",
+    args,
+    input: request.contents,
+    binary,
+    repo,
+    record
+  });
+}
+
 /**
  * Blames one file, read-only: at a revision, in the working tree, or from
  * an unsaved buffer (`contents`, blamed against `rev` or `HEAD`). Lines
@@ -568,49 +668,19 @@ export async function loadBlame(
   request: GitBlameRequest,
   record?: GitCommandRecorder
 ): Promise<GitBlameResult> {
-  const normalized = normalizeBlameFilePath(request.filePath);
-  if ("problem" in normalized) return failure(queryError(normalized.problem));
-  const filePath = normalized.path;
-
-  const problem = requestRevisionProblem(request);
-  if (problem !== null) return failure(queryError(problem));
-
-  const withContents = request.contents !== undefined;
-  const binary = request.binary ?? "";
-  if (withContents && binary === "") {
-    return failure(queryError("A Git binary path is required to blame unsaved contents."));
-  }
-  // An unsaved buffer needs a revision to blame against; HEAD is its home.
-  const effectiveRev: string | null = withContents
-    ? (request.rev ?? "HEAD")
-    : (request.rev ?? null);
+  const prepared = prepareBlameRequest(request);
+  if ("problem" in prepared) return failure(queryError(prepared.problem));
+  const { filePath, binary, effectiveRev, ignoreRevsFileUsed } = prepared;
 
   const read: Reader = (args, label) =>
     runGitRaw(git, { label, kind: "query", args, repo, record });
 
   try {
-    if (effectiveRev === null && (await isBareRepository(read))) {
-      return failure(
-        queryError("A bare repository has no working tree to blame; choose a revision.")
-      );
-    }
+    const target = await resolveBlameTarget(read, effectiveRev);
+    if ("result" in target) return target.result;
+    const { resolvedRev } = target;
 
-    let resolvedRev: string | null = null;
-    if (effectiveRev !== null) {
-      const resolved = await resolveRevision(read, effectiveRev);
-      if ("result" in resolved) return resolved.result;
-      resolvedRev = resolved.oid;
-    }
-
-    let precheck: Precheck;
-    if (request.contents !== undefined) {
-      const bytes = Buffer.from(request.contents, "utf8");
-      precheck = judgeContent(bytes, bytes.length);
-    } else if (resolvedRev !== null) {
-      precheck = await revisionPrecheck(read, resolvedRev, filePath);
-    } else {
-      precheck = await diskPrecheck(repo, filePath);
-    }
+    const precheck = await runBlamePrecheck(read, repo, filePath, resolvedRev, request.contents);
     if (precheck.kind !== "ok") {
       return stateResult(precheck.kind, resolvedRev, precheck.totalLines);
     }
@@ -618,24 +688,11 @@ export async function loadBlame(
     const args = blameArgs(request, filePath, resolvedRev);
     let stdout: string;
     try {
-      stdout =
-        request.contents === undefined
-          ? await runGitRaw(git, { label: "blame.read", kind: "query", args, repo, record })
-          : await runGitWithInput(git, {
-              label: "blame.read",
-              kind: "query",
-              args,
-              input: request.contents,
-              binary,
-              repo,
-              record
-            });
+      stdout = await executeBlameCommand(git, repo, request, args, binary, record);
     } catch (error: unknown) {
       return await mapBlameFailure(error, read, filePath, effectiveRev, resolvedRev);
     }
 
-    const ignoreRevsFileUsed =
-      typeof request.ignoreRevsFile === "string" ? request.ignoreRevsFile : null;
     const parsed = parseBlamePorcelain(stdout);
     if (parsed.totalLines === 0) {
       return stateResult("empty", resolvedRev, 0, ignoreRevsFileUsed);

@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { openReflogTab, type ReflogWatcher } from "@/extension/reflogTab/reflogTabPanel";
 import type { ReflogHostMessage, ReflogPage, ReflogSource } from "@/reflogTabTypes";
+import { TAB_FEATURE_REFLOG } from "@/telemetry/tabOpen";
 import { resetVscodeMock, setConfigurationValue } from "./__mocks__/vscode";
-import { page, row } from "./reflogTab/fixtures";
+import { lostCommit, page, row } from "./reflogTab/fixtures";
 
 type FakePanel = ReturnType<typeof createFakePanel>;
 
@@ -125,6 +128,35 @@ function open(repo = "/repos/one", source: ReflogSource = resolved(), watcher = 
   return watcher;
 }
 
+/** Records what reached the telemetry reporter, in order. */
+function createTelemetrySpy() {
+  const sent: Array<{ feature: string; ok: boolean }> = [];
+  return {
+    sent,
+    telemetry: {
+      logFeature: (feature: string, ok: boolean) => sent.push({ feature, ok })
+    }
+  };
+}
+
+type TelemetrySpy = ReturnType<typeof createTelemetrySpy>;
+
+function openMeasured(
+  spy: TelemetrySpy,
+  repo = "/repos/one",
+  source: ReflogSource = resolved(),
+  watcher = fakeWatcher()
+) {
+  openReflogTab(repo, source, {
+    extensionPath: EXTENSION,
+    outputChannel: log,
+    createWatcher: watcher.create,
+    locale: "en",
+    telemetry: spy.telemetry
+  });
+  return watcher;
+}
+
 afterEach(() => {
   for (const panel of mocks.panels) panel.dispose();
   mocks.panels.length = 0;
@@ -134,6 +166,16 @@ afterEach(() => {
 });
 
 describe("openReflogTab", () => {
+  it("shows the GGL tab icon, following tabIconColorTheme", () => {
+    setConfigurationValue("git-graph-libre", "tabIconColorTheme", "grey");
+    open();
+    const panel = onlyPanel() as unknown as { iconPath?: unknown };
+    expect(panel.iconPath).toEqual({
+      light: { fsPath: `${EXTENSION}/resources/webview-icon-grey-light.svg` },
+      dark: { fsPath: `${EXTENSION}/resources/webview-icon-grey-dark.svg` }
+    });
+  });
+
   it("creates one retained panel, titled for the repository, watching it", () => {
     const watcher = open();
     const panel = onlyPanel();
@@ -159,6 +201,8 @@ describe("openReflogTab", () => {
       `<script nonce="${nonce}" src="webview:${EXTENSION}/out/reflogTab.min.js"></script>`
     );
     expect(html).toContain(`href="webview:${EXTENSION}/media/tokens.css"`);
+    expect(html).toContain(`href="webview:${EXTENSION}/media/checkbox.css"`);
+    expect(html).toContain(`href="webview:${EXTENSION}/media/dialogs.css"`);
     expect(html).toContain(`href="webview:${EXTENSION}/media/reflog-tab/reflog-tab.css"`);
   });
 
@@ -194,8 +238,17 @@ describe("openReflogTab", () => {
     expect(data.labels.filterAllActions).toBe("All actions");
     expect(data.labels.noMatches).toBe("No matching entries.");
     expect(data.labels.searchCapped).toContain("{0}");
-    expect(data.query).toEqual({ ref: "HEAD", search: "", actions: [], onlyInReflog: false });
-    expect(data.refs).toEqual(["HEAD"]);
+    expect(data.query).toEqual({
+      ref: "HEAD",
+      worktreePath: null,
+      search: "",
+      actions: [],
+      onlyInReflog: false
+    });
+    expect(data.refOptions).toEqual([
+      { ref: "HEAD", worktreePath: null, worktreeName: null, locked: null, prunable: null }
+    ]);
+    expect(data.bare).toBe(false);
     expect(data.page.rows).toHaveLength(1);
     // A second ready (the document was rebuilt) replays the same page.
     panel.send({ command: "ready" });
@@ -332,7 +385,16 @@ describe("openReflogTab", () => {
         calls.push({ repo, offset, limit, query });
         return page({ rows: [row({ index: offset })], hasMore: true });
       },
-      loadRefs: async () => ["HEAD", "refs/heads/topic", "refs/stash"]
+      loadRefs: async () => ({
+        options: ["HEAD", "refs/heads/topic", "refs/stash"].map((ref) => ({
+          ref,
+          worktreePath: null,
+          worktreeName: null,
+          locked: null,
+          prunable: null
+        })),
+        bare: false
+      })
     };
     open("/repos/one", source);
     const panel = onlyPanel();
@@ -341,7 +403,11 @@ describe("openReflogTab", () => {
     const firstData = panel.posted.find(
       (m): m is Extract<ReflogHostMessage, { command: "reflogData" }> => m.command === "reflogData"
     );
-    expect(firstData?.refs).toEqual(["HEAD", "refs/heads/topic", "refs/stash"]);
+    expect(firstData?.refOptions.map((option) => option.ref)).toEqual([
+      "HEAD",
+      "refs/heads/topic",
+      "refs/stash"
+    ]);
 
     panel.send({
       command: "query",
@@ -355,6 +421,7 @@ describe("openReflogTab", () => {
     await flush();
     const normalized = {
       ref: "refs/heads/topic",
+      worktreePath: null,
       search: "needle",
       actions: ["commit"],
       onlyInReflog: true
@@ -427,7 +494,70 @@ describe("openReflogTab", () => {
       }
     );
     await flush();
-    expect(seen.at(-1)).toEqual({ ref: "HEAD", search: "", actions: [], onlyInReflog: false });
+    expect(seen.at(-1)).toEqual({
+      ref: "HEAD",
+      worktreePath: null,
+      search: "",
+      actions: [],
+      onlyInReflog: false
+    });
+  });
+
+  // T1: whether the tab was opened and whether that went without errors.
+  // Only the fixed id and the outcome are sent — never the repository, the
+  // rows, the search text or the picked ref.
+  describe("tab-open telemetry (T1)", () => {
+    it("reports a successful open once, carrying nothing about the repository", async () => {
+      const spy = createTelemetrySpy();
+      openMeasured(spy, "/repos/secret-client");
+      onlyPanel().send({ command: "ready" });
+      await flush();
+
+      expect(spy.sent).toEqual([{ feature: TAB_FEATURE_REFLOG, ok: true }]);
+      expect(JSON.stringify(spy.sent)).not.toContain("secret-client");
+    });
+
+    it("reports a failed open when the first page fails to load", async () => {
+      const spy = createTelemetrySpy();
+      openMeasured(spy, "/repos/one", resolved(page({ error: "not a git repository" })));
+      onlyPanel().send({ command: "ready" });
+      await flush();
+
+      expect(spy.sent).toEqual([{ feature: TAB_FEATURE_REFLOG, ok: false }]);
+    });
+
+    it("does not report refreshes, paging or query changes after the open", async () => {
+      const spy = createTelemetrySpy();
+      const watcher = openMeasured(spy);
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+      watcher.fire();
+      await flush();
+      panel.send({ command: "loadMore" });
+      await flush();
+      panel.send({
+        command: "query",
+        query: { ref: "HEAD", search: "secret text", actions: [], onlyInReflog: false }
+      });
+      await flush();
+
+      expect(spy.sent).toEqual([{ feature: TAB_FEATURE_REFLOG, ok: true }]);
+      expect(JSON.stringify(spy.sent)).not.toContain("secret text");
+    });
+
+    it("reports again when the tab is opened for another repository", async () => {
+      const spy = createTelemetrySpy();
+      openMeasured(spy, "/repos/one");
+      await flush();
+      openMeasured(spy, "/repos/two", resolved(page({ error: "gone" })));
+      await flush();
+
+      expect(spy.sent).toEqual([
+        { feature: TAB_FEATURE_REFLOG, ok: true },
+        { feature: TAB_FEATURE_REFLOG, ok: false }
+      ]);
+    });
   });
 
   it("stops watching on dispose and opens a fresh panel next time", async () => {
@@ -440,5 +570,526 @@ describe("openReflogTab", () => {
     const second = onlyPanel();
     expect(second).not.toBe(firstPanel);
     expect(second.title).toBe("Reflog: two");
+  });
+
+  it("closes with its repository when the manager removes it (F1-08)", async () => {
+    let removed: ((repo: string) => void) | null = null;
+    const deregister = vi.fn();
+    const releaseWorktrees = vi.fn();
+    const watcher = fakeWatcher();
+    openReflogTab(
+      "/repos/one",
+      { loadPage: async () => page(), releaseWorktrees },
+      {
+        extensionPath: EXTENSION,
+        outputChannel: log,
+        createWatcher: watcher.create,
+        locale: "en",
+        repoManager: {
+          registerRepoRemovedCallback: (cb) => {
+            removed = cb;
+          },
+          deregisterRepoRemovedCallback: deregister
+        }
+      }
+    );
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+
+    // Another repository leaving the list leaves this tab alone.
+    (removed as unknown as (repo: string) => void)("/repos/other");
+    expect(watcher.stops).toBe(0);
+
+    (removed as unknown as (repo: string) => void)("/repos/one");
+    expect(watcher.stops).toBe(1);
+    expect(releaseWorktrees).toHaveBeenCalledTimes(1);
+    expect(deregister).toHaveBeenCalledTimes(1);
+
+    // The singleton is gone with it: the next open builds a fresh panel.
+    mocks.panels.length = 0;
+    open("/repos/two");
+    expect(onlyPanel()).not.toBe(panel);
+  });
+
+  it("releases the old source's worktrees when it follows a switch (F1-08)", async () => {
+    const releaseWorktrees = vi.fn();
+    open("/repos/one", { loadPage: async () => page(), releaseWorktrees });
+    const panel = onlyPanel();
+    panel.send({ command: "ready" });
+    await flush();
+    open("/repos/two");
+    expect(releaseWorktrees).toHaveBeenCalledTimes(1);
+    // A reveal of the same repository releases nothing.
+    open("/repos/two");
+    expect(releaseWorktrees).toHaveBeenCalledTimes(1);
+  });
+
+  describe("lost-commit scan and recovery (F1-07)", () => {
+    it("scans on request, posts progress then results, and reports no extra telemetry", async () => {
+      const spy = createTelemetrySpy();
+      const pending = deferred<{
+        commits: ReturnType<typeof lostCommit>[];
+        canceled: boolean;
+        timedOut: boolean;
+        error: string | null;
+      }>();
+      const source: ReflogSource = {
+        loadPage: async () => page(),
+        scanLostCommits: () => pending.promise
+      };
+      openMeasured(spy, "/repos/one", source);
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+
+      panel.send({ command: "scanLostCommits" });
+      await flush();
+      const lostMessages = () =>
+        panel.posted.filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogLostCommits" }> =>
+            m.command === "reflogLostCommits"
+        );
+      expect(lostMessages()).toHaveLength(1);
+      expect(lostMessages()[0].status).toBe("scanning");
+
+      const item = lostCommit();
+      pending.resolve({ commits: [item], canceled: false, timedOut: false, error: null });
+      await flush();
+      expect(lostMessages()).toHaveLength(2);
+      expect(lostMessages()[1]).toMatchObject({ status: "done", commits: [item], error: null });
+
+      // Ready replays the current lost-commit state alongside the reflog page.
+      panel.send({ command: "ready" });
+      expect(lostMessages()).toHaveLength(3);
+      expect(lostMessages()[2]).toEqual(lostMessages()[1]);
+
+      // Only the initial tab open was reported; scanning adds no telemetry.
+      expect(spy.sent).toEqual([{ feature: TAB_FEATURE_REFLOG, ok: true }]);
+    });
+
+    it("aborts an in-flight scan on cancel, repo switch, and panel dispose", async () => {
+      let activeSignal: AbortSignal | undefined;
+      const source: ReflogSource = {
+        loadPage: async () => page(),
+        scanLostCommits: (_repo, signal) => {
+          activeSignal = signal;
+          return new Promise(() => {});
+        }
+      };
+      open("/repos/one", source);
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+
+      panel.send({ command: "scanLostCommits" });
+      expect(activeSignal?.aborted).toBe(false);
+      panel.send({ command: "cancelLostCommitsScan" });
+      expect(activeSignal?.aborted).toBe(true);
+      const canceled = panel.posted
+        .filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogLostCommits" }> =>
+            m.command === "reflogLostCommits"
+        )
+        .at(-1);
+      expect(canceled?.status).toBe("canceled");
+
+      // Closing the panel resets to idle.
+      panel.send({ command: "closeLostCommits" });
+      const closed = panel.posted
+        .filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogLostCommits" }> =>
+            m.command === "reflogLostCommits"
+        )
+        .at(-1);
+      expect(closed?.status).toBe("idle");
+
+      // Switching repositories aborts any running scan.
+      panel.send({ command: "scanLostCommits" });
+      const secondSignal = activeSignal;
+      expect(secondSignal?.aborted).toBe(false);
+      open("/repos/two", source);
+      expect(secondSignal?.aborted).toBe(true);
+
+      // Disposing the panel aborts any running scan.
+      panel.send({ command: "scanLostCommits" });
+      const thirdSignal = activeSignal;
+      expect(thirdSignal?.aborted).toBe(false);
+      panel.dispose();
+      expect(thirdSignal?.aborted).toBe(true);
+    });
+
+    it("surfaces timeout and error scan results cleanly", async () => {
+      let nextResult = {
+        commits: [],
+        canceled: false,
+        timedOut: true,
+        error: "Lost-commit scan timed out after 30000 ms."
+      };
+      const source: ReflogSource = {
+        loadPage: async () => page(),
+        scanLostCommits: async () => nextResult
+      };
+      open("/repos/one", source);
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+
+      panel.send({ command: "scanLostCommits" });
+      await flush();
+      const lostMessages = () =>
+        panel.posted.filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogLostCommits" }> =>
+            m.command === "reflogLostCommits"
+        );
+      expect(lostMessages().at(-1)?.status).toBe("timedOut");
+
+      nextResult = { commits: [], canceled: false, timedOut: false, error: "fsck failed" };
+      panel.send({ command: "scanLostCommits" });
+      await flush();
+      expect(lostMessages().at(-1)).toMatchObject({ status: "error", error: "fsck failed" });
+    });
+
+    it("prompts for a branch name, creates the branch, removes the commit, and refreshes", async () => {
+      const item = lostCommit();
+      const created: Array<{ repo: string; hash: string; branch: string }> = [];
+      let loads = 0;
+      const promptBranchName = vi.fn(
+        async (options: { validateInput?: (v: string) => unknown }) => {
+          expect(options.validateInput?.("-bad")).toBeTruthy();
+          expect(options.validateInput?.("good-branch")).toBeUndefined();
+          return "recover/lost-work";
+        }
+      );
+      const source: ReflogSource = {
+        loadPage: async () => {
+          loads++;
+          return page();
+        },
+        scanLostCommits: async () => ({
+          commits: [item],
+          canceled: false,
+          timedOut: false,
+          error: null
+        }),
+        createBranch: async (repo, hash, branch) => {
+          created.push({ repo, hash, branch });
+          return null;
+        }
+      };
+
+      openReflogTab("/repos/one", source, {
+        extensionPath: EXTENSION,
+        outputChannel: log,
+        createWatcher: fakeWatcher().create,
+        locale: "en",
+        promptBranchName
+      });
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+      const loadsBefore = loads;
+
+      panel.send({ command: "scanLostCommits" });
+      await flush();
+      panel.send({ command: "createLostCommitBranch", hash: item.hash });
+      await flush();
+
+      expect(created).toEqual([
+        { repo: "/repos/one", hash: item.hash, branch: "recover/lost-work" }
+      ]);
+      const finalLost = panel.posted
+        .filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogLostCommits" }> =>
+            m.command === "reflogLostCommits"
+        )
+        .at(-1);
+      expect(finalLost?.commits).toEqual([]);
+      expect(finalLost?.feedback).toEqual({
+        kind: "success",
+        message: 'Created branch "recover/lost-work" at 01234567.'
+      });
+      expect(loads).toBeGreaterThan(loadsBefore);
+    });
+
+    it("keeps the commit and shows an error when branch creation fails", async () => {
+      const item = lostCommit();
+      const source: ReflogSource = {
+        loadPage: async () => page(),
+        scanLostCommits: async () => ({
+          commits: [item],
+          canceled: false,
+          timedOut: false,
+          error: null
+        }),
+        createBranch: async () => "branch already exists"
+      };
+      openReflogTab("/repos/one", source, {
+        extensionPath: EXTENSION,
+        outputChannel: log,
+        createWatcher: fakeWatcher().create,
+        locale: "en",
+        promptBranchName: async () => "existing"
+      });
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+      panel.send({ command: "scanLostCommits" });
+      await flush();
+      panel.send({ command: "createLostCommitBranch", hash: item.hash });
+      await flush();
+
+      const finalLost = panel.posted
+        .filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogLostCommits" }> =>
+            m.command === "reflogLostCommits"
+        )
+        .at(-1);
+      expect(finalLost?.commits).toEqual([item]);
+      expect(finalLost?.feedback).toEqual({
+        kind: "error",
+        message: 'Unable to create branch "existing": branch already exists'
+      });
+    });
+  });
+
+  describe("recovery actions, copyHash and showInGraph (F1-06)", () => {
+    it("runs a recovery action, posts its outcome, and refreshes the page on success", async () => {
+      const seen: unknown[] = [];
+      let loads = 0;
+      const source: ReflogSource = {
+        loadPage: async () => {
+          loads += 1;
+          return page({ rows: [row({ index: loads - 1 })] });
+        },
+        runAction: async (repo, action) => {
+          seen.push({ repo, action });
+          return { error: null };
+        }
+      };
+      open("/repos/one", source);
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+      expect(loads).toBe(1);
+
+      panel.send({
+        command: "action",
+        action: {
+          kind: "createBranch",
+          commitHash: "a".repeat(40),
+          worktreePath: null,
+          branchName: "recovered"
+        }
+      });
+      await flush();
+      expect(seen).toEqual([
+        {
+          repo: "/repos/one",
+          action: {
+            kind: "createBranch",
+            commitHash: "a".repeat(40),
+            worktreePath: null,
+            branchName: "recovered"
+          }
+        }
+      ]);
+      expect(panel.posted).toContainEqual({
+        command: "reflogActionResult",
+        action: "createBranch",
+        error: null
+      });
+      expect(loads).toBe(2);
+    });
+
+    it("posts an error result without reloading when a recovery action fails", async () => {
+      let loads = 0;
+      const source: ReflogSource = {
+        loadPage: async () => {
+          loads += 1;
+          return page();
+        },
+        runAction: async () => ({
+          error: "local changes would be overwritten"
+        })
+      };
+      open("/repos/one", source);
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+      expect(loads).toBe(1);
+
+      panel.send({
+        command: "action",
+        action: {
+          kind: "checkoutCommit",
+          commitHash: "a".repeat(40),
+          worktreePath: null
+        }
+      });
+      await flush();
+      expect(panel.posted).toContainEqual({
+        command: "reflogActionResult",
+        action: "checkoutCommit",
+        error: "local changes would be overwritten"
+      });
+      expect(loads).toBe(1);
+    });
+
+    it("copies a commit hash and reports clipboard failures", async () => {
+      const copied: string[] = [];
+      let copyOk = true;
+      openReflogTab("/repos/one", resolved(), {
+        extensionPath: EXTENSION,
+        outputChannel: log,
+        createWatcher: fakeWatcher().create,
+        locale: "en",
+        copyText: async (text) => {
+          copied.push(text);
+          return copyOk;
+        }
+      });
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+
+      panel.send({ command: "copyHash", hash: "a".repeat(40) });
+      await flush();
+      expect(copied).toEqual(["a".repeat(40)]);
+      expect(panel.posted.filter((m) => m.command === "reflogActionResult")).toEqual([]);
+
+      // Non-hash text is ignored.
+      panel.send({ command: "copyHash", hash: "not-a-hash!" });
+      await flush();
+      expect(copied).toHaveLength(1);
+
+      copyOk = false;
+      panel.send({ command: "copyHash", hash: "b".repeat(40) });
+      await flush();
+      expect(panel.posted).toContainEqual({
+        command: "reflogActionResult",
+        action: "copyHash",
+        error: "Unable to Copy Commit Hash to Clipboard"
+      });
+    });
+
+    it("reveals a commit in the graph and enables includeReflog on confirmation", async () => {
+      const shown: Array<{ repo: string; commitHash: string; enableIncludeReflog: boolean }> = [];
+      const setRepoState = vi.fn();
+      const repoState: Record<string, { columnWidths: null; includeReflog?: "enabled" }> = {
+        "/repos/one": { columnWidths: null }
+      };
+      openReflogTab("/repos/one", resolved(), {
+        extensionPath: EXTENSION,
+        outputChannel: log,
+        createWatcher: fakeWatcher().create,
+        locale: "en",
+        repoManager: {
+          registerRepoRemovedCallback: () => {},
+          deregisterRepoRemovedCallback: () => {},
+          getRepos: () => repoState as never,
+          setRepoState: (repo, state) => {
+            repoState[repo] = state as { columnWidths: null; includeReflog?: "enabled" };
+            setRepoState(repo, state);
+          }
+        },
+        showInGraph: (repo, commitHash, enableIncludeReflog) => {
+          shown.push({ repo, commitHash, enableIncludeReflog });
+        }
+      });
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+
+      panel.send({ command: "showInGraph", hash: "a".repeat(40), enableIncludeReflog: false });
+      expect(shown).toEqual([
+        { repo: "/repos/one", commitHash: "a".repeat(40), enableIncludeReflog: false }
+      ]);
+      expect(setRepoState).not.toHaveBeenCalled();
+
+      panel.send({ command: "showInGraph", hash: "b".repeat(40), enableIncludeReflog: true });
+      expect(shown).toHaveLength(2);
+      expect(shown[1]).toEqual({
+        repo: "/repos/one",
+        commitHash: "b".repeat(40),
+        enableIncludeReflog: true
+      });
+      expect(setRepoState).toHaveBeenCalledWith("/repos/one", {
+        columnWidths: null,
+        includeReflog: "enabled"
+      });
+      const latestData = panel.posted
+        .filter(
+          (m): m is Extract<ReflogHostMessage, { command: "reflogData" }> =>
+            m.command === "reflogData"
+        )
+        .at(-1);
+      expect(latestData?.display.includeReflog).toBe(true);
+    });
+
+    it("targets the picked worktree for Show in Graph when that worktree is registered (F1-08)", async () => {
+      const shown: Array<{ repo: string; commitHash: string; enableIncludeReflog: boolean }> = [];
+      const setRepoState = vi.fn();
+      const repoState: Record<string, { columnWidths: null; includeReflog?: "enabled" }> = {
+        "/repos/one": { columnWidths: null },
+        "/repos/linked": { columnWidths: null }
+      };
+      openReflogTab("/repos/one", resolved(), {
+        extensionPath: EXTENSION,
+        outputChannel: log,
+        createWatcher: fakeWatcher().create,
+        locale: "en",
+        repoManager: {
+          registerRepoRemovedCallback: () => {},
+          deregisterRepoRemovedCallback: () => {},
+          getRepos: () => repoState as never,
+          setRepoState: (repo, state) => {
+            repoState[repo] = state as { columnWidths: null; includeReflog?: "enabled" };
+            setRepoState(repo, state);
+          }
+        },
+        showInGraph: (repo, commitHash, enableIncludeReflog) => {
+          shown.push({ repo, commitHash, enableIncludeReflog });
+        }
+      });
+      const panel = onlyPanel();
+      panel.send({ command: "ready" });
+      await flush();
+
+      panel.send({
+        command: "query",
+        query: {
+          ref: "HEAD",
+          worktreePath: "/repos/linked",
+          search: "",
+          actions: [],
+          onlyInReflog: false
+        }
+      });
+      await flush();
+
+      panel.send({ command: "showInGraph", hash: "c".repeat(40), enableIncludeReflog: true });
+      expect(setRepoState).toHaveBeenCalledWith("/repos/linked", {
+        columnWidths: null,
+        includeReflog: "enabled"
+      });
+      expect(shown).toEqual([
+        { repo: "/repos/linked", commitHash: "c".repeat(40), enableIncludeReflog: true }
+      ]);
+    });
+
+    it("uses only l10n keys that exist in the base bundle", () => {
+      const bundle = JSON.parse(
+        readFileSync(join(process.cwd(), "l10n/bundle.l10n.json"), "utf8")
+      ) as Record<string, string>;
+      const sourceText = readFileSync(
+        join(process.cwd(), "src/extension/reflogTab/reflogTabPanel.ts"),
+        "utf8"
+      );
+      const keys = [...sourceText.matchAll(/l10n\.t\("([^"]+)"/g)].map((match) => match[1]);
+      expect(keys.length).toBeGreaterThan(20);
+      const missing = keys.filter((key) => !Object.hasOwn(bundle, key));
+      expect(missing).toEqual([]);
+    });
   });
 });

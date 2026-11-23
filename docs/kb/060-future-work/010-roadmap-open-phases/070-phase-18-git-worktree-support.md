@@ -1,6 +1,6 @@
 ---
 summary: >-
-  In progress in release 1.10.0 "The Worktrees" (`2026-11-06`), whose slices
+  Done in `v1.10.0` (`2026-11-08`): release 1.10.0 "The Worktrees" (History) carried every slice.
   supersede this section's 18.1–18.4 sketch. The phase: show Git worktrees
   and which branches or commits are checked out where, with clean-room CLI
   and Rust-engine parity, worktree actions, discovery, and branch-action

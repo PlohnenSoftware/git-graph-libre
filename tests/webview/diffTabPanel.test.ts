@@ -7,6 +7,7 @@ import type {
   DiffTabSource
 } from "@/diffTabTypes";
 import { openDiffTab } from "@/extension/diffTab/diffTabPanel";
+import { TAB_FEATURE_DIFF } from "@/telemetry/tabOpen";
 
 import { resetVscodeMock, setConfigurationValue } from "./__mocks__/vscode";
 
@@ -91,6 +92,26 @@ const request = (title: string): DiffTabRequest => ({
 const resolved = (payload: DiffTabPayload): DiffTabSource => ({ load: async () => payload });
 const open = (title: string, source: DiffTabSource = resolved(DIFF)) =>
   openDiffTab(request(title), source, { extensionPath: EXTENSION, outputChannel: log });
+
+/** Records what reached the telemetry reporter, in order. */
+function createTelemetrySpy() {
+  const sent: Array<{ feature: string; ok: boolean }> = [];
+  return {
+    sent,
+    telemetry: {
+      logFeature: (feature: string, ok: boolean) => sent.push({ feature, ok })
+    }
+  };
+}
+
+type TelemetrySpy = ReturnType<typeof createTelemetrySpy>;
+
+const openMeasured = (title: string, spy: TelemetrySpy, source: DiffTabSource = resolved(DIFF)) =>
+  openDiffTab(request(title), source, {
+    extensionPath: EXTENSION,
+    outputChannel: log,
+    telemetry: spy.telemetry
+  });
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 const onlyPanel = (): FakePanel => {
   expect(mocks.panels).toHaveLength(1);
@@ -112,6 +133,16 @@ afterEach(() => {
 });
 
 describe("openDiffTab", () => {
+  it("shows the GGL tab icon, following tabIconColorTheme", () => {
+    setConfigurationValue("git-graph-libre", "tabIconColorTheme", "grey");
+    open("a.ts");
+    const panel = onlyPanel() as unknown as { iconPath?: unknown };
+    expect(panel.iconPath).toEqual({
+      light: { fsPath: `${EXTENSION}/resources/webview-icon-grey-light.svg` },
+      dark: { fsPath: `${EXTENSION}/resources/webview-icon-grey-dark.svg` }
+    });
+  });
+
   it("creates one retained panel in the active column, with media and out as roots", () => {
     open("a.ts");
     const panel = onlyPanel();
@@ -266,6 +297,67 @@ describe("openDiffTab", () => {
     open("a.ts");
     onlyPanel().send({ command: "painted", ms: 41.6, rows: 120 });
     expect(log.appendLine).toHaveBeenCalledWith("[diffTab] painted ms=42 rows=120");
+  });
+
+  // T1: whether the tab was opened and whether that went without errors.
+  // Only the fixed id and the outcome are sent — never the request's
+  // repository, paths, refs or title.
+  describe("tab-open telemetry (T1)", () => {
+    it("reports a successful open once, carrying nothing about the diff", async () => {
+      const spy = createTelemetrySpy();
+      openMeasured("secret-file.ts", spy);
+      onlyPanel().send({ command: "ready" });
+      await flush();
+
+      expect(spy.sent).toEqual([{ feature: TAB_FEATURE_DIFF, ok: true }]);
+      const serialized = JSON.stringify(spy.sent);
+      expect(serialized).not.toContain("secret-file");
+      expect(serialized).not.toContain("/repo");
+      expect(serialized).not.toContain("HEAD");
+    });
+
+    it("reports a failed open when the load fails", async () => {
+      const spy = createTelemetrySpy();
+      openMeasured("a.ts", spy, { load: () => Promise.reject(new Error("no such path")) });
+      onlyPanel().send({ command: "ready" });
+      await flush();
+
+      expect(spy.sent).toEqual([{ feature: TAB_FEATURE_DIFF, ok: false }]);
+    });
+
+    it("reports a binary answer as a successful open", async () => {
+      const spy = createTelemetrySpy();
+      openMeasured("a.bin", spy, resolved({ kind: "binary" }));
+      await flush();
+
+      expect(spy.sent).toEqual([{ feature: TAB_FEATURE_DIFF, ok: true }]);
+    });
+
+    it("reports each open, including a retarget of the same panel", async () => {
+      const spy = createTelemetrySpy();
+      openMeasured("a.ts", spy);
+      await flush();
+      openMeasured("b.ts", spy, { load: () => Promise.reject(new Error("gone")) });
+      await flush();
+
+      expect(spy.sent).toEqual([
+        { feature: TAB_FEATURE_DIFF, ok: true },
+        { feature: TAB_FEATURE_DIFF, ok: false }
+      ]);
+    });
+
+    it("reports nothing for a load that a later open superseded", async () => {
+      const spy = createTelemetrySpy();
+      const slow = deferred<DiffTabPayload>();
+      openMeasured("a.ts", spy, { load: () => slow.promise });
+      openMeasured("b.ts", spy, { load: () => Promise.reject(new Error("gone")) });
+      await flush();
+      slow.resolve(DIFF);
+      await flush();
+
+      // Only the later open's failure: the superseded load never reported.
+      expect(spy.sent).toEqual([{ feature: TAB_FEATURE_DIFF, ok: false }]);
+    });
   });
 
   it("opens a fresh panel after the user closes the tab", async () => {

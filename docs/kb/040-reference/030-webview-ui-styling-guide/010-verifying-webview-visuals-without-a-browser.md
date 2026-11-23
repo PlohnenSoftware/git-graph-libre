@@ -32,7 +32,7 @@ than accepting a URL — and no standalone Chromium or Firefox is installed.
 
 ## Rendering the real webview (`2026-11-12`)
 
-The popup and context-menu review (Ongoing work) rendered the real view
+The popup and context-menu review (History) rendered the real view
 rather than a hand-built page, which found defects a preview page hides.
 The harness was scratch and is not in the repository; this is its recipe.
 

@@ -32,7 +32,7 @@ feature literally named Timeline, no VS Code Timeline contribution and no date s
   The KB records this as **"planned: a Statistics tab" (2026-09-23)**, in
   `docs/kb/050-ongoing-work/030-implementation-roadmap/010-phase-16-rust-engine-backend/170-the-engine-surface-what-is-wired-what-was-removed-what-is.md`
   lines 51, 65-77. It also says the tab would be engine-only (a deliberate exception to design rule 2) and would not be
-  offered when the engine is unavailable. `docs/kb/050-ongoing-work/050-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md:70` says the stats are not wired in TypeScript yet.
+  offered when the engine is unavailable. `docs/kb/070-history/210-release-1-10-0-the-worktrees/500-w40-engine-reads-on-linked-worktrees-proven.md:70` says the stats are not wired in TypeScript yet.
 - **File History:** none. GGL has no `searchByFile`, no `--follow` and no path-scoped log in `src/` or `engine/native/core/src`.
 - **Timeline:** none. No `timeline` in `src/` or `package.json`.
 

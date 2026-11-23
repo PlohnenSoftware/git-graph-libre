@@ -1,7 +1,7 @@
 {
   "name": "git-graph-libre",
   "displayName": "%displayName%",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "%description%",
   "categories": [
     "SCM Providers",
@@ -66,6 +66,14 @@
     {
       "name": "unusuallman",
       "url": "https://github.com/unusuallman"
+    },
+    {
+      "name": "Thomas KT Chan",
+      "url": "https://github.com/cktgh"
+    },
+    {
+      "name": "Raphaël Balet",
+      "url": "https://github.com/rbalet"
     }
   ],
   "repository": {
@@ -121,7 +129,7 @@
     "kb:index": "node ./docs/kb/housekeeping.mjs",
     "kb:check": "node ./docs/kb/housekeeping.mjs --check",
     "contributors:agents": "git log --format=%B%x00 | node ./scripts/list-coauthor-agents.mjs",
-    "kb:graph": "graphify update . && node ./docs/kb/housekeeping.mjs --graph && GRAPHIFY_VIZ_NODE_LIMIT=8000 graphify cluster-only . && graphify tree",
+    "kb:graph": "graphify update . && node ./docs/kb/housekeeping.mjs --graph && GRAPHIFY_VIZ_NODE_LIMIT=10000 graphify cluster-only . && graphify tree",
     "icons:generate": "node ./scripts/generate-octicons.js && biome format --write src/octicons.ts"
   },
   "dependencies": {
@@ -183,6 +191,12 @@
         "category": "Git Graph Libre",
         "command": "git-graph-libre.showFileHistory",
         "title": "%command.showFileHistory%"
+      },
+      {
+        "category": "Git Graph Libre",
+        "command": "git-graph-libre.showBlame",
+        "title": "%command.showBlame%",
+        "shortTitle": "%command.showBlame.shortTitle%"
       },
       {
         "category": "Git Graph Libre",
@@ -269,18 +283,28 @@
       }
     ],
     "menus": {
-      "explorer/context": [
-        {
-          "command": "git-graph-libre.showFileHistory",
-          "group": "7_modification",
-          "when": "!explorerResourceIsFolder && resourceScheme == file"
-        }
-      ],
       "editor/context": [
+        {
+          "command": "git-graph-libre.showBlame",
+          "group": "7_git-graph-libre",
+          "when": "resourceScheme == file"
+        },
         {
           "command": "git-graph-libre.showFileHistory",
           "group": "7_modification",
           "when": "resourceScheme == file"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "git-graph-libre.showBlame",
+          "group": "7_git-graph-libre",
+          "when": "!explorerResourceIsFolder && resourceScheme == file"
+        },
+        {
+          "command": "git-graph-libre.showFileHistory",
+          "group": "7_modification",
+          "when": "!explorerResourceIsFolder && resourceScheme == file"
         }
       ],
       "scm/title": [
@@ -320,6 +344,11 @@
           "command": "git-graph-libre.openDiffTab.untracked",
           "group": "navigation",
           "when": "scmProvider == git && scmResourceGroup == untracked && git-graph-libre.diffTabAvailable"
+        },
+        {
+          "command": "git-graph-libre.showBlame",
+          "group": "navigation",
+          "when": "scmProvider == git && (scmResourceGroup == workingTree || scmResourceGroup == index)"
         }
       ],
       "commandPalette": [
@@ -477,6 +506,12 @@
             },
             "commitDetailsViewFile": {
               "type": "object",
+              "properties": {
+                "showBlame": {
+                  "type": "boolean",
+                  "default": true
+                }
+              },
               "additionalProperties": {
                 "type": "boolean"
               }

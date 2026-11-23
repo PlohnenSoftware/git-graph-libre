@@ -267,6 +267,8 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     copyRelativeFilePath: translate("action.copyRelativeFilePath"),
     viewFileDiff: translate("action.viewFileDiff"),
     openInGglDiff: translate("action.openInGglDiff"),
+    showBlameAtCommit: translate("action.showBlameAtCommit"),
+    showBlameBeforeDeletion: translate("action.showBlameBeforeDeletion"),
     viewFileAtRevision: translate("action.viewFileAtRevision"),
     compareFileWithWorkingTree: translate("action.compareFileWithWorkingTree"),
     resetFileToRevision: translate("action.resetFileToRevision"),
@@ -351,8 +353,16 @@ export function getWebviewLocalizedStrings(translate: (key: string) => string = 
     dialogWorktreeCreatedOpenNewWindow: translate("dialog.worktreeCreated.openNewWindow"),
     dialogWorktreeCreatedAddToWorkspace: translate("dialog.worktreeCreated.addToWorkspace"),
     dialogWorktreeCreatedSwitchGraph: translate("dialog.worktreeCreated.switchGraph"),
-    dialogWorktreeCreatedNothing: translate("dialog.worktreeCreated.nothing"),
-    dialogWorktreeCreatedSubmit: translate("dialog.worktreeCreated.submit"),
+    dialogWorktreeCreatedTitle: translate("dialog.worktreeCreated.title"),
+    dialogWorktreeCreatedOpenNewWindowDescription: translate(
+      "dialog.worktreeCreated.openNewWindowDescription"
+    ),
+    dialogWorktreeCreatedAddToWorkspaceDescription: translate(
+      "dialog.worktreeCreated.addToWorkspaceDescription"
+    ),
+    dialogWorktreeCreatedSwitchGraphDescription: translate(
+      "dialog.worktreeCreated.switchGraphDescription"
+    ),
     worktrees: translate("ui.worktrees"),
     showReflog: translate("reflog.show"),
     showStatistics: translate("stats.show"),

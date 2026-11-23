@@ -90,6 +90,15 @@ export const REFLOG_SEARCH_CAP = 5000;
 export type ReflogQuery = {
   /** A picker ref: `HEAD`, a local branch's full ref, or `refs/stash`. */
   ref: string;
+  /**
+   * The other worktree whose `HEAD` reflog is shown (F1-08), as Git lists
+   * its path; null reads in the tab's own repository. Only ever set with
+   * `ref: "HEAD"`: branch and stash reflogs are shared by every worktree,
+   * so reading them elsewhere would show the same entries. The data
+   * source re-checks the path against `git worktree list` before reading
+   * there, so this field alone can never aim a read at a random folder.
+   */
+  worktreePath: string | null;
   /** Fixed, case-insensitive message search text; empty searches nothing out. */
   search: string;
   /** The action kinds to keep, from {@link REFLOG_ACTION_KINDS}; empty keeps every kind. */
@@ -100,7 +109,42 @@ export type ReflogQuery = {
 
 /** The unfiltered `HEAD` query the tab opens with. */
 export function defaultReflogQuery(): ReflogQuery {
-  return { ref: "HEAD", search: "", actions: [], onlyInReflog: false };
+  return { ref: "HEAD", worktreePath: null, search: "", actions: [], onlyInReflog: false };
+}
+
+/**
+ * One entry of the ref picker (F1-08): a ref of the tab's repository, or
+ * another worktree's `HEAD`. The worktree state rides along in Git's own
+ * shapes (`GitWorktree`'s locked and prunable), so the picker can mark a
+ * locked or missing worktree with the graph's words. A branch or stash
+ * option always has a null worktree path, name, locked and prunable.
+ */
+export type ReflogRefOption = {
+  /** The ref to read: `HEAD`, a local branch's full ref, or `refs/stash`. */
+  ref: string;
+  /** The worktree to read it in; null is the tab's own repository. */
+  worktreePath: string | null;
+  /** That worktree's folder name, for its picker and header wording. */
+  worktreeName: string | null;
+  /** Reason is "" when the worktree is locked without one. */
+  locked: { reason: string } | null;
+  /** Set when Git calls the worktree prunable: its folder moved or is gone. */
+  prunable: { reason: string } | null;
+};
+
+/** A picker option for a ref of the tab's own repository. */
+export function repoRefOption(ref: string): ReflogRefOption {
+  return { ref, worktreePath: null, worktreeName: null, locked: null, prunable: null };
+}
+
+/** The picker's options before the first listing lands: just `HEAD`. */
+export function defaultRefOptions(): ReflogRefOption[] {
+  return [repoRefOption("HEAD")];
+}
+
+/** True when an option is the one a query asks for. */
+export function refOptionMatchesQuery(option: ReflogRefOption, query: ReflogQuery): boolean {
+  return option.ref === query.ref && option.worktreePath === query.worktreePath;
 }
 
 /** True when a query filters anything out, so its read goes up to the search cap. */
@@ -112,6 +156,7 @@ export function isReflogFiltered(query: ReflogQuery): boolean {
 export function reflogQueriesEqual(left: ReflogQuery, right: ReflogQuery): boolean {
   return (
     left.ref === right.ref &&
+    left.worktreePath === right.worktreePath &&
     left.search === right.search &&
     left.onlyInReflog === right.onlyInReflog &&
     left.actions.length === right.actions.length &&
@@ -121,7 +166,7 @@ export function reflogQueriesEqual(left: ReflogQuery, right: ReflogQuery): boole
 
 function hasControlCharacter(text: string): boolean {
   for (const char of text) {
-    const code = char.charCodeAt(0);
+    const code = char.codePointAt(0) ?? 0;
     if (code < 0x20 || code === 0x7f) return true;
   }
   return false;
@@ -138,6 +183,17 @@ function pickerRef(value: unknown): string {
 }
 
 /**
+ * The worktree a query may read `HEAD` in: a plain path, and only beside
+ * `HEAD`. Membership in `git worktree list` is the data source's check;
+ * this boundary keeps the shape, never the destination.
+ */
+function pickerWorktreePath(value: unknown, ref: string): string | null {
+  if (ref !== "HEAD") return null;
+  if (typeof value !== "string" || value === "" || hasControlCharacter(value)) return null;
+  return value;
+}
+
+/**
  * A query the tab may act on, whatever arrived over the webview boundary:
  * the ref is one the picker can name, the kinds are the known ones, and
  * every field has its own type. Anything else falls back field by field,
@@ -145,9 +201,11 @@ function pickerRef(value: unknown): string {
  */
 export function normalizeReflogQuery(value: unknown): ReflogQuery {
   if (typeof value !== "object" || value === null) return defaultReflogQuery();
-  const { ref, search, actions, onlyInReflog } = value as Record<string, unknown>;
+  const { ref, worktreePath, search, actions, onlyInReflog } = value as Record<string, unknown>;
+  const pickedRef = pickerRef(ref);
   return {
-    ref: pickerRef(ref),
+    ref: pickedRef,
+    worktreePath: pickerWorktreePath(worktreePath, pickedRef),
     search: typeof search === "string" ? search.trim() : "",
     actions: Array.isArray(actions)
       ? REFLOG_ACTION_KINDS.filter((kind) => actions.includes(kind))
@@ -173,7 +231,109 @@ export type ReflogDisplay = {
   needMonthName: boolean;
   /** The bundle's twelve `month.*` names, January first. */
   months: string[];
+  /**
+   * Whether `includeReflog` is on for this repository (F1-06): true when
+   * the graph already loads reflog-only commits, false when "Show in
+   * Graph" on a `reflogOnly` row must offer to turn it on first.
+   */
+  includeReflog?: boolean;
 };
+
+/** The reset modes the existing reset dialog offers (F1-06, RQ4). */
+export type ReflogResetMode = "soft" | "mixed" | "hard";
+
+/**
+ * A recovery write the Reflog tab runs through the existing backend
+ * actions in `src/backend/actions/*` (F1-06). `worktreePath` is set only
+ * when the entry came from another worktree's `HEAD` reflog (F1-08), so
+ * the action runs in that worktree instead of the tab's repository.
+ */
+export type ReflogRecoveryAction =
+  | {
+      kind: "createBranch";
+      commitHash: string;
+      branchName: string;
+      worktreePath: string | null;
+    }
+  | {
+      kind: "addTag";
+      commitHash: string;
+      tagName: string;
+      lightweight: boolean;
+      message?: string;
+      worktreePath: string | null;
+    }
+  | {
+      kind: "checkoutCommit";
+      commitHash: string;
+      worktreePath: string | null;
+    }
+  | {
+      kind: "resetToCommit";
+      commitHash: string;
+      resetMode: ReflogResetMode;
+      worktreePath: string | null;
+    };
+
+export type ReflogRecoveryActionKind = ReflogRecoveryAction["kind"];
+
+/** The outcome of a recovery action: null when it succeeded, the failure reason otherwise. */
+export type ReflogRecoveryResult = {
+  error: string | null;
+};
+
+function safeActionToken(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (trimmed === "" || trimmed.startsWith("-") || hasControlCharacter(trimmed)) return null;
+  return trimmed;
+}
+
+function safeActionWorktreePath(value: unknown): string | null | undefined {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string" || value === "" || hasControlCharacter(value)) return undefined;
+  return value;
+}
+
+/**
+ * Validates a recovery action arriving over the webview boundary (F1-06):
+ * every commit hash and ref name is non-empty, free of control characters,
+ * and never starts with `-` (so it cannot be read by Git as an option).
+ * Anything malformed returns null and runs no Git command.
+ */
+export function normalizeReflogRecoveryAction(value: unknown): ReflogRecoveryAction | null {
+  if (typeof value !== "object" || value === null) return null;
+  const raw = value as Record<string, unknown>;
+  const commitHash = safeActionToken(raw.commitHash);
+  const worktreePath = safeActionWorktreePath(raw.worktreePath);
+  if (commitHash === null || worktreePath === undefined) return null;
+
+  if (raw.kind === "createBranch") {
+    const branchName = safeActionToken(raw.branchName);
+    return branchName === null
+      ? null
+      : { kind: "createBranch", commitHash, branchName, worktreePath };
+  }
+  if (raw.kind === "addTag") {
+    const tagName = safeActionToken(raw.tagName);
+    if (tagName === null || typeof raw.lightweight !== "boolean") return null;
+    if (raw.lightweight) {
+      return { kind: "addTag", commitHash, tagName, lightweight: true, worktreePath };
+    }
+    const message = typeof raw.message === "string" ? raw.message : "";
+    return { kind: "addTag", commitHash, tagName, lightweight: false, message, worktreePath };
+  }
+  if (raw.kind === "checkoutCommit") {
+    return { kind: "checkoutCommit", commitHash, worktreePath };
+  }
+  if (
+    raw.kind === "resetToCommit" &&
+    (raw.resetMode === "soft" || raw.resetMode === "mixed" || raw.resetMode === "hard")
+  ) {
+    return { kind: "resetToCommit", commitHash, resetMode: raw.resetMode, worktreePath };
+  }
+  return null;
+}
 
 /** The tab's localized text; `loadError`, `searchCapped` and `title` keep their `{0}`. */
 export type ReflogLabels = {
@@ -189,6 +349,16 @@ export type ReflogLabels = {
   searchCapped: string;
   onlyInReflog: string;
   objectMissing: string;
+  /** Why a bare repository has no `HEAD` reflog to show (F1-08). */
+  bareHeadNote: string;
+  /** The graph's own `ui.worktreeHead` words, "HEAD of worktree {0}" (F1-08). */
+  worktreeHead: string;
+  /** The graph's own `ui.worktreeLocked` words, "locked: {0}". */
+  worktreeLocked: string;
+  /** The graph's own `ui.worktreeLockedNoReason` word, "locked". */
+  worktreeLockedNoReason: string;
+  /** The graph's own `ui.worktreeMissing` words for a prunable worktree. */
+  worktreeMissing: string;
   columnIndex: string;
   columnAction: string;
   columnSubAction: string;
@@ -202,6 +372,94 @@ export type ReflogLabels = {
   actions: Readonly<Record<string, string>>;
   /** Localized label per known sub-action, keyed by {@link REFLOG_SUB_ACTIONS}. */
   subActions: Readonly<Record<string, string>>;
+  /** Localized text for the opt-in lost-commit scan (F1-07). */
+  lostCommits: {
+    scan: string;
+    rescan: string;
+    close: string;
+    cancel: string;
+    title: string;
+    scanning: string;
+    gcNote: string;
+    empty: string;
+    canceled: string;
+    timedOut: string;
+    error: string;
+    createBranch: string;
+  };
+  /** Context-menu and dialog labels for the entry recovery actions (F1-06). */
+  menuCreateBranch?: string;
+  menuCreateTag?: string;
+  menuCheckoutDetached?: string;
+  menuCopyHash?: string;
+  menuShowInGraph?: string;
+  menuResetBranch?: string;
+  menuMissingNote?: string;
+  dialogCreateBranchTitle?: string;
+  dialogCreateBranchSubmit?: string;
+  dialogAddTagTitle?: string;
+  dialogAddTagName?: string;
+  dialogAddTagType?: string;
+  dialogAddTagMessage?: string;
+  dialogAddTagTypeAnnotated?: string;
+  dialogAddTagTypeLightweight?: string;
+  dialogAddTagLightweightNote?: string;
+  dialogAddTagOptional?: string;
+  dialogAddTagSubmit?: string;
+  dialogCheckoutConfirm?: string;
+  dialogResetConfirm?: string;
+  labelCurrentBranch?: string;
+  dialogResetSoft?: string;
+  dialogResetMixed?: string;
+  dialogResetHard?: string;
+  dialogYesReset?: string;
+  dialogResetHardConfirm?: string;
+  dialogShowInGraphConfirm?: string;
+  dialogShowInGraphNote?: string;
+  dialogShowInGraphSubmit?: string;
+  dialogYes?: string;
+  dialogCancel?: string;
+  dialogDismiss?: string;
+  errorInvalidCharacters?: string;
+  errorUnableToCreateBranch?: string;
+  errorUnableToAddTag?: string;
+  errorUnableToCheckoutCommit?: string;
+  errorUnableToReset?: string;
+  errorUnableToCopyToClipboard?: string;
+  typeCommitHash?: string;
+};
+
+/** One unreachable commit discovered by the opt-in lost-commit scan (F1-07). */
+export type ReflogLostCommit = {
+  /** Full commit hash. */
+  hash: string;
+  /** Committer timestamp in Unix seconds. */
+  time: number;
+  /** First line of the commit message. */
+  subject: string;
+};
+
+/** Outcome of one opt-in lost-commit scan (F1-07). */
+export type ReflogLostCommitsResult = {
+  commits: ReflogLostCommit[];
+  canceled: boolean;
+  timedOut: boolean;
+  error: string | null;
+};
+
+/** Lifecycle state of the lost-commit scan section in the Reflog tab (F1-07). */
+export type ReflogLostCommitsStatus =
+  | "idle"
+  | "scanning"
+  | "done"
+  | "canceled"
+  | "timedOut"
+  | "error";
+
+/** Inline feedback from creating a branch on a lost commit (F1-07). */
+export type ReflogLostCommitsFeedback = {
+  kind: "success" | "error";
+  message: string;
 };
 
 /** One page of the reflog, newest first, as `loadReflog` returned it. */
@@ -222,11 +480,34 @@ export type ReflogPage = {
   searchCapped: boolean;
 };
 
+/** The picker's options for one repository, and whether that repository is bare (F1-08). */
+export type ReflogRefs = {
+  options: ReflogRefOption[];
+  /** True when the tab's repository itself is bare, so its `HEAD` keeps no reflog by default. */
+  bare: boolean;
+};
+
 /** Where the tab's pages come from; the extension host implements it. */
 export type ReflogSource = {
   loadPage(repo: string, offset: number, limit: number, query?: ReflogQuery): Promise<ReflogPage>;
-  /** The picker's refs for a repository; without one the tab offers only `HEAD`. */
-  loadRefs?(repo: string): Promise<string[]>;
+  /** The picker's options for a repository; without one the tab offers only `HEAD`. */
+  loadRefs?(repo: string): Promise<ReflogRefs>;
+  /**
+   * Runs one of the entry recovery actions through the existing backend
+   * action functions (F1-06), in the entry's worktree when it came from
+   * another worktree's `HEAD` reflog (F1-08).
+   */
+  runAction?(repo: string, action: ReflogRecoveryAction): Promise<ReflogRecoveryResult>;
+  /**
+   * Closes any engine handle a read in another worktree opened (F1-08,
+   * Phase 16 rule 5). The panel calls it when it retargets or closes; the
+   * tab's own repository stays the repository manager's to close.
+   */
+  releaseWorktrees?(): void;
+  /** Opt-in read-only scan for commits reached by no ref and no reflog (F1-07). */
+  scanLostCommits?(repo: string, signal?: AbortSignal): Promise<ReflogLostCommitsResult>;
+  /** Creates a branch at `commitHash` without moving HEAD; returns null or an error message (F1-07). */
+  createBranch?(repo: string, commitHash: string, branchName: string): Promise<string | null>;
 };
 
 /**
@@ -240,9 +521,11 @@ export type ReflogDataMessage = {
   /** True for a "Load more" page, which extends the rows already shown. */
   append: boolean;
   repo: string;
-  /** The query this page answers, and the picker's refs for the repository. */
+  /** The query this page answers, and the picker's options for the repository. */
   query: ReflogQuery;
-  refs: string[];
+  refOptions: ReflogRefOption[];
+  /** Whether the tab's repository itself is bare (F1-08). */
+  bare: boolean;
   /** The VS Code display language, for the webview's relative times. */
   locale: string;
   labels: ReflogLabels;
@@ -260,21 +543,58 @@ export type ReflogLoadingMessage = {
   command: "reflogLoading";
   requestId: number;
   repo: string;
-  /** The query the started load answers, and the picker's refs known so far. */
+  /** The query the started load answers, and the picker's options known so far. */
   query: ReflogQuery;
-  refs: string[];
+  refOptions: ReflogRefOption[];
+  /** Whether the tab's repository itself is bare (F1-08). */
+  bare: boolean;
   locale: string;
   labels: ReflogLabels;
   /** The graph's display settings, read live for this load. */
   display: ReflogDisplay;
 };
 
+/**
+ * Extension host to webview: the lost-commit scan's current state (F1-07).
+ * Carries `scanId` so a slow older scan reply can never overwrite a newer
+ * scan or a repository switch.
+ */
+export type ReflogLostCommitsMessage = {
+  command: "reflogLostCommits";
+  scanId: number;
+  repo: string;
+  status: ReflogLostCommitsStatus;
+  commits: ReflogLostCommit[];
+  error: string | null;
+  /** Commit hash currently creating a branch, or null. */
+  busyHash: string | null;
+  feedback: ReflogLostCommitsFeedback | null;
+};
+
+/** Extension host to webview: the outcome of a recovery action or clipboard copy (F1-06). */
+export type ReflogActionResultMessage = {
+  command: "reflogActionResult";
+  action: ReflogRecoveryActionKind | "copyHash";
+  error: string | null;
+};
+
 /** Every message the extension host posts to the Reflog tab. */
-export type ReflogHostMessage = ReflogDataMessage | ReflogLoadingMessage;
+export type ReflogHostMessage =
+  | ReflogDataMessage
+  | ReflogLoadingMessage
+  | ReflogLostCommitsMessage
+  | ReflogActionResultMessage;
 
 /** Webview to extension host. */
 export type ReflogWebviewMessage =
   | { command: "ready" }
   | { command: "loadMore" }
   | { command: "refresh" }
-  | { command: "query"; query: ReflogQuery };
+  | { command: "query"; query: ReflogQuery }
+  | { command: "scanLostCommits" }
+  | { command: "cancelLostCommitsScan" }
+  | { command: "closeLostCommits" }
+  | { command: "createLostCommitBranch"; hash: string }
+  | { command: "action"; action: ReflogRecoveryAction }
+  | { command: "copyHash"; hash: string }
+  | { command: "showInGraph"; hash: string; enableIncludeReflog: boolean };

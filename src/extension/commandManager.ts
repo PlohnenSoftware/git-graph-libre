@@ -10,12 +10,21 @@ import { formatGitCommandRecord } from "@/backend/utils/gitCommandLog";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
 import { runGitRaw } from "@/backend/utils/gitRunner";
 import { getPathFromStr } from "@/backend/utils/path";
+import type { BlameOpenTarget } from "@/blameTabTypes";
 import type { Config } from "@/config";
 import type { DiffTabRequest } from "@/diffTabTypes";
 import type { ExtensionState } from "@/extensionState";
 import * as l10n from "@/l10n";
 import type { TelemetryReporter } from "@/telemetry";
+import {
+  createTabOpenReporter,
+  TAB_FEATURE_BLAME,
+  TAB_FEATURE_DIFF,
+  TAB_FEATURE_REFLOG
+} from "@/telemetry/tabOpen";
 
+import { createBlameSource } from "./blameTab/blameData";
+import { openBlameTab as openBlamePanel } from "./blameTab/blameTabPanel";
 import { buildComponentStatus } from "./componentStatus";
 import {
   buildDiagnosticsReport,
@@ -25,6 +34,7 @@ import {
   readProcessFacts,
   readRepoRemotes
 } from "./diagnosticsReport";
+import { isDiffTabAvailable } from "./diffTab/engineSource";
 import { createScmDiffTabHandlers } from "./diffTab/scmCommands";
 import { createReflogSource } from "./reflogTab/reflogData";
 import { openReflogTab as openReflogPanel } from "./reflogTab/reflogTabPanel";
@@ -43,6 +53,17 @@ type RepoQuickPickItem = vscode.QuickPickItem & {
 type FileUriLike = { fsPath: string; scheme?: string };
 type WindowApi = {
   getActiveTextEditorUri(): FileUriLike | undefined;
+  /**
+   * The active editor's 1-based cursor line, when one is open. Optional
+   * so window fakes written before the Blame command stay valid; the
+   * VS Code default below always provides it.
+   */
+  getActiveTextEditorLine?: () => number | undefined;
+  /**
+   * Live text of an open dirty `TextDocument` matching `fsPath`, or undefined
+   * when clean on disk or not open in an editor (BQ6, F4-08).
+   */
+  getDirtyDocumentText?: (fsPath: string) => string | undefined;
   showErrorMessage(message: string): Thenable<unknown>;
   showInformationMessage(message: string): Thenable<unknown>;
   showOpenDialog(
@@ -112,6 +133,8 @@ export type CommandManagerDeps = {
   repoManager: RepoManager;
   avatarManager: {
     clearCache(): void;
+    /** The blame popover's cached avatar read (F4-06); optional for older fakes. */
+    cachedAvatarImage?: (email: string) => Promise<string | null>;
   };
   openGraphView(targetRepo?: string): void;
   getCurrentPanel(): WebviewPanel | undefined;
@@ -132,6 +155,12 @@ export type CommandManagerDeps = {
   openStatsTab?: (repo: string) => void;
   /** Whether the engine-only Statistics tab can be offered (F3-03); defaults to the engine check. */
   isStatsTabAvailable?: () => boolean;
+  /**
+   * Opens the Blame tab for a file (F4-03). Defaults to the blame panel
+   * fed by the CLI blame source, assembled here like the reflog route;
+   * tests replace it.
+   */
+  openBlameTab?: (target: BlameOpenTarget) => void;
   /** Open the GGL Diff tab from Source Control (D46); wired in `extension.ts`. */
   openScmDiffTab?: (request: DiffTabRequest) => void;
   /**
@@ -249,6 +278,29 @@ function createVsCodeFolderApi(): WorktreeFolderApi {
   };
 }
 
+type BlameTargetUri = { fsPath: string; scheme?: string };
+
+function extractUriLike(value: unknown): BlameTargetUri | null {
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as { fsPath?: unknown; scheme?: unknown };
+  if (typeof record.fsPath !== "string" || record.fsPath === "") return null;
+  if (record.scheme !== undefined && typeof record.scheme !== "string") return null;
+  return { fsPath: record.fsPath, scheme: record.scheme };
+}
+
+function isFileScheme(uri: BlameTargetUri): boolean {
+  return uri.scheme === undefined || uri.scheme === "file";
+}
+
+function extractBlameArgUri(arg: unknown): BlameTargetUri | null {
+  if (typeof arg !== "object" || arg === null) return null;
+  // SourceControlResourceState carries the clicked file on `resourceUri`.
+  if ("resourceUri" in arg) {
+    return extractUriLike((arg as { resourceUri?: unknown }).resourceUri);
+  }
+  return extractUriLike(arg);
+}
+
 /** Reads the `{ repo, path, newWindow }` a worktree command is sent, refusing any other shape. */
 function parseWorktreeRequest(value: unknown): WorktreeRequest {
   const request = value as Partial<Record<keyof WorktreeRequest, unknown>> | null | undefined;
@@ -261,6 +313,26 @@ function parseWorktreeRequest(value: unknown): WorktreeRequest {
 function createVsCodeWindowApi(): WindowApi {
   return {
     getActiveTextEditorUri: () => vscode.window.activeTextEditor?.document.uri,
+    getActiveTextEditorLine: () => {
+      const editor = vscode.window.activeTextEditor;
+      return editor === undefined ? undefined : editor.selection.active.line + 1;
+    },
+    getDirtyDocumentText: (fsPath) => {
+      const normalized = getPathFromStr(fsPath);
+      const active = vscode.window.activeTextEditor?.document;
+      if (
+        active?.isDirty &&
+        active.uri.scheme === "file" &&
+        getPathFromStr(active.uri.fsPath) === normalized
+      ) {
+        return active.getText();
+      }
+      const open = (vscode.workspace.textDocuments ?? []).find(
+        (doc) =>
+          doc.isDirty && doc.uri.scheme === "file" && getPathFromStr(doc.uri.fsPath) === normalized
+      );
+      return open?.getText();
+    },
     showErrorMessage: (message) => vscode.window.showErrorMessage(message),
     showInformationMessage: (message) => vscode.window.showInformationMessage(message),
     showOpenDialog: (options) => vscode.window.showOpenDialog(options),
@@ -294,6 +366,11 @@ export function createCommandManager(deps: CommandManagerDeps) {
   const recordGitCommand: GitCommandRecorder = (record) => {
     deps.outputChannel.appendLine(formatGitCommandRecord(record));
   };
+  // Tab opens that never reach a panel report their failure here (T1);
+  // every open that reaches one is reported by the panel itself.
+  const reportReflogOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_REFLOG);
+  const reportDiffOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_DIFF);
+  const reportBlameOpen = createTabOpenReporter(deps.telemetry, TAB_FEATURE_BLAME);
 
   // Every palette command funnels through here, so this wrapper instruments
   // all of them at once. Only the command id and the outcome are sent — never
@@ -666,7 +743,9 @@ export function createCommandManager(deps: CommandManagerDeps) {
           deps.extensionPath ??
           vscode.extensions?.getExtension("PlohnenSoftware.git-graph-libre")?.extensionPath ??
           process.cwd(),
-        outputChannel: deps.outputChannel
+        outputChannel: deps.outputChannel,
+        telemetry: deps.telemetry,
+        repoManager: deps.repoManager
       }
     );
   }
@@ -693,17 +772,21 @@ export function createCommandManager(deps: CommandManagerDeps) {
    * The repository a tab command ("Show Reflog", "Show Statistics")
    * acts on: the one named by the caller, else the graph's last active
    * one, else the only known one; with several and no selection the
-   * user picks, and with none there is only the word. Undefined means
-   * the command is done (the word was shown, or the pick dismissed).
+   * user picks, and with none there is only the word (and `onNoRepo`,
+   * where a tab reports that failed open). Undefined means the command is
+   * done (the word was shown, or the pick dismissed).
    */
   async function pickRepoForTab(
     requested: unknown,
     noRepoKey: string,
-    placeholderKey: string
+    placeholderKey: string,
+    onNoRepo?: () => void
   ): Promise<string | undefined> {
     const repos = deps.repoManager.getRepos();
     const repoPaths = Object.keys(repos);
     if (repoPaths.length === 0) {
+      // A failed open: there is no repository a tab could show (T1).
+      onNoRepo?.();
       await windowApi.showInformationMessage(l10n.t(noRepoKey));
       return undefined;
     }
@@ -729,7 +812,8 @@ export function createCommandManager(deps: CommandManagerDeps) {
     const repo = await pickRepoForTab(
       requested,
       "command.showReflog.noRepo",
-      "command.showReflog.placeholder"
+      "command.showReflog.placeholder",
+      () => reportReflogOpen(false)
     );
     if (repo !== undefined) openReflog(repo);
   }
@@ -749,6 +833,114 @@ export function createCommandManager(deps: CommandManagerDeps) {
       "command.showStatistics.placeholder"
     );
     if (repo !== undefined) openStatistics(repo);
+  }
+
+  function openBlame(target: BlameOpenTarget) {
+    if (deps.openBlameTab !== undefined) {
+      deps.openBlameTab(target);
+      return;
+    }
+    openBlamePanel(
+      target,
+      createBlameSource({
+        createGit: (root) =>
+          simpleGit({
+            baseDir: root,
+            binary: deps.config.gitPath(),
+            maxConcurrentProcesses: 6,
+            trimmed: false
+          }),
+        gitPath: () => deps.config.gitPath(),
+        record: recordGitCommand
+      }),
+      {
+        extensionPath:
+          deps.extensionPath ??
+          vscode.extensions?.getExtension("PlohnenSoftware.git-graph-libre")?.extensionPath ??
+          process.cwd(),
+        outputChannel: deps.outputChannel,
+        telemetry: deps.telemetry,
+        // The popover's cross-links (F4-06): the GGL Diff tab rides the
+        // Source Control route, the avatar only what is already cached
+        // and only while avatar fetching is on.
+        openDiffTab: deps.openScmDiffTab,
+        isDiffTabAvailable: () => isDiffTabAvailable({ backend: deps.config.backend }),
+        avatarFor: (email) =>
+          deps.config.fetchAvatars()
+            ? (deps.avatarManager.cachedAvatarImage?.(email) ?? Promise.resolve(null))
+            : Promise.resolve(null),
+        issueLinkingFor: (repo) => deps.repoManager.getRepos()[repo]?.issueLinking ?? null
+      }
+    );
+  }
+
+  /**
+   * "Show Blame" from the Command Palette, Editor context menu (`Uri`),
+   * Explorer context menu (`Uri`), or Source Control context menu
+   * (`SourceControlResourceState`). Resolves the repository like
+   * `viewActiveEditorRepo` (longest known root, with `resolveGitRoot`
+   * fallback), and lands on the active editor's cursor line whenever the
+   * blamed file matches the active editor.
+   */
+  async function showBlame(target?: unknown) {
+    const hasExplicitTarget = target !== undefined && target !== null;
+    const activeUri = windowApi.getActiveTextEditorUri();
+    const resolvedUri = hasExplicitTarget ? extractBlameArgUri(target) : extractUriLike(activeUri);
+    if (resolvedUri === null || !isFileScheme(resolvedUri)) {
+      // A failed open: no file to blame, so the tab never reaches its panel (T1b).
+      reportBlameOpen(false);
+      await windowApi.showWarningMessage(l10n.t("command.showBlame.noEditor"));
+      return;
+    }
+
+    const noRepoKey = hasExplicitTarget
+      ? "command.showBlame.fileNoRepo"
+      : "command.showBlame.noRepo";
+    const targetPath = getPathFromStr(resolvedUri.fsPath);
+    const repos = deps.repoManager.getRepos();
+    const knownRepo = findKnownRepoForPath(repos, targetPath);
+    // Ask Git for the file's actual toplevel so a linked worktree nested inside
+    // a known main worktree resolves to the linked worktree, never its parent.
+    const gitRoot = await resolveGitRoot(
+      path.dirname(targetPath),
+      deps.config.gitPath(),
+      recordGitCommand
+    );
+    let repo: string | null = knownRepo;
+    if (
+      gitRoot !== null &&
+      targetPath.startsWith(`${gitRoot}/`) &&
+      (knownRepo === null || gitRoot.length > knownRepo.length)
+    ) {
+      if (!Object.hasOwn(repos, gitRoot)) deps.repoManager.addRepo(gitRoot);
+      repo = gitRoot;
+    }
+    if (repo === null) {
+      reportBlameOpen(false);
+      await windowApi.showWarningMessage(l10n.t(noRepoKey));
+      return;
+    }
+
+    const filePath = targetPath.startsWith(`${repo}/`) ? targetPath.slice(repo.length + 1) : "";
+    if (filePath === "") {
+      reportBlameOpen(false);
+      await windowApi.showWarningMessage(l10n.t(noRepoKey));
+      return;
+    }
+
+    const activeTarget = extractUriLike(activeUri);
+    const matchesActiveEditor =
+      !hasExplicitTarget ||
+      (activeTarget !== null &&
+        isFileScheme(activeTarget) &&
+        getPathFromStr(activeTarget.fsPath) === targetPath);
+    const targetLine = matchesActiveEditor ? (windowApi.getActiveTextEditorLine?.() ?? null) : null;
+    const contents = windowApi.getDirtyDocumentText?.(resolvedUri.fsPath);
+    openBlame(
+      contents === undefined
+        ? { repo, filePath, targetLine }
+        : { repo, filePath, targetLine, contents }
+    );
   }
 
   function registerAll() {
@@ -776,10 +968,12 @@ export function createCommandManager(deps: CommandManagerDeps) {
     register("git-graph-libre.showReflog", (repo) => showReflog(repo));
     register("git-graph-libre.showStatistics", (repo) => showStatistics(repo));
     register("git-graph-libre.showFileHistory", (target) => showFileHistory(target));
+    register("git-graph-libre.showBlame", (target) => showBlame(target));
     for (const { id, handler } of createScmDiffTabHandlers({
       getRepos: () => deps.repoManager.getRepos(),
       openDiff: (request) => deps.openScmDiffTab?.(request),
-      showWarning: (message) => windowApi.showWarningMessage(message)
+      showWarning: (message) => windowApi.showWarningMessage(message),
+      reportOpenFailure: () => reportDiffOpen(false)
     })) {
       register(id, handler);
     }

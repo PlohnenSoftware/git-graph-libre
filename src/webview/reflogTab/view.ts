@@ -3,16 +3,28 @@ import {
   isReflogFiltered,
   REFLOG_ACTION_KINDS,
   REFLOG_SEARCH_CAP,
+  type ReflogActionResultMessage,
   type ReflogLabels,
   type ReflogQuery,
-  type ReflogRow
+  type ReflogRecoveryAction,
+  type ReflogRefOption,
+  type ReflogRow,
+  refOptionMatchesQuery,
+  repoRefOption
 } from "@/reflogTabTypes";
 
 import { kindClass, kindLabel, subIntentClass, subLabel } from "./actionStyle";
-import { MIN_COLUMN_WIDTH, resizeColumnWidths } from "./columnResize";
+import {
+  defaultColumnWidths,
+  fitColumnWidthsToContainer,
+  MIN_COLUMN_WIDTH,
+  resizeColumnWidths
+} from "./columnResize";
+import { createReflogDialogs } from "./dialogs";
+import { type LostCommitsViewCallbacks, renderLostCommitsSection } from "./lostCommitsView";
 import { badgeFor, entryDate, type ReflogViewState, selectorFor } from "./rowModel";
 
-export type ReflogViewCallbacks = {
+export type ReflogViewCallbacks = LostCommitsViewCallbacks & {
   onLoadMore: () => void;
   /** A column drag ended with these widths; the caller keeps them per repo. */
   onColumnWidthsChange?: (widths: number[]) => void;
@@ -21,6 +33,12 @@ export type ReflogViewCallbacks = {
    * search box (the caller debounces it); `instant` acts at once.
    */
   onQueryChange?: (query: ReflogQuery, mode: "search" | "instant") => void;
+  /** Runs one of the recovery actions on an entry (F1-06). */
+  onAction?: (action: ReflogRecoveryAction) => void;
+  /** Copies an entry's full commit hash to the clipboard (F1-06). */
+  onCopyHash?: (hash: string) => void;
+  /** Reveals an entry's commit in the graph tab (F1-06). */
+  onShowInGraph?: (hash: string, enableIncludeReflog: boolean) => void;
 };
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -38,20 +56,30 @@ function folderName(repo: string): string {
   return repo.split("/").at(-1) || repo;
 }
 
-function header(state: ReflogViewState): HTMLElement {
-  const bar = element("header", "reflog-header");
-  bar.append(element("span", "reflog-ref", state.ref ?? state.query.ref));
-  const repo = element("span", "reflog-repo", folderName(state.repo));
-  repo.title = state.repo;
-  bar.append(repo);
-  return bar;
-}
-
-/** How a picker ref reads: the branch's short name, the stash worded as the action. */
-function refLabel(ref: string, labels: ReflogLabels): string {
-  if (ref === "refs/stash") return `${labels.actions.stash ?? "Stash"} (refs/stash)`;
-  if (ref.startsWith("refs/heads/")) return ref.slice("refs/heads/".length);
-  return ref;
+/**
+ * How a picker option reads. A branch is its short name and the stash is
+ * worded as the action; another worktree's `HEAD` takes the graph's
+ * words, with a locked or missing worktree marked in them too, joined
+ * the way the graph joins a worktree checkout's parts.
+ */
+function refLabel(refOption: ReflogRefOption, labels: ReflogLabels): string {
+  if (refOption.worktreePath !== null) {
+    const name = refOption.worktreeName ?? folderName(refOption.worktreePath);
+    const parts = [labels.worktreeHead.replace("{0}", () => name)];
+    if (refOption.locked !== null) {
+      const { reason } = refOption.locked;
+      parts.push(
+        reason === ""
+          ? labels.worktreeLockedNoReason
+          : labels.worktreeLocked.replace("{0}", () => reason)
+      );
+    }
+    if (refOption.prunable !== null) parts.push(labels.worktreeMissing);
+    return parts.join(", ");
+  }
+  if (refOption.ref === "refs/stash") return `${labels.actions.stash ?? "Stash"} (refs/stash)`;
+  if (refOption.ref.startsWith("refs/heads/")) return refOption.ref.slice("refs/heads/".length);
+  return refOption.ref;
 }
 
 function option(value: string, text: string, title?: string): HTMLOptionElement {
@@ -59,6 +87,25 @@ function option(value: string, text: string, title?: string): HTMLOptionElement 
   node.value = value;
   if (title !== undefined) node.title = title;
   return node;
+}
+
+/**
+ * The opt-in lost-commit scan (F1-07), last in the filter bar and pushed
+ * to its right end by CSS. Disabled and marked busy while a scan runs.
+ */
+function scanButton(
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  callbacks: ReflogViewCallbacks
+): HTMLButtonElement {
+  const scanBtn = element("button", "reflog-scan-button", labels.lostCommits.scan);
+  scanBtn.id = "reflogLostScanBtn";
+  scanBtn.type = "button";
+  const scanning = state.lostCommits.status === "scanning";
+  scanBtn.disabled = scanning;
+  scanBtn.setAttribute("aria-busy", String(scanning));
+  scanBtn.addEventListener("click", () => callbacks.onScanLostCommits?.());
+  return scanBtn;
 }
 
 /**
@@ -77,12 +124,38 @@ function controls(
   const refSelect = element("select", "reflog-control reflog-ref-picker");
   refSelect.id = "reflogRefPicker";
   refSelect.setAttribute("aria-label", labels.filterRef);
-  refSelect.title = labels.filterRef;
-  // The picked ref stays pickable even when a fresh listing lost it
-  // (its branch was deleted): its read then says so, honestly.
-  const refs = state.refs.includes(state.query.ref) ? state.refs : [...state.refs, state.query.ref];
-  for (const ref of refs) refSelect.append(option(ref, refLabel(ref, labels), ref));
-  refSelect.value = state.query.ref;
+  // The full path settles which folder a worktree name means (F1-08).
+  refSelect.title = state.query.worktreePath ?? labels.filterRef;
+  // The picked option stays pickable even when a fresh listing lost it
+  // (its branch was deleted, its worktree removed): its read then says
+  // so, honestly. Values are indexes into this list, so two `HEAD`
+  // options — this worktree's and another's — stay apart.
+  const picked: ReflogRefOption =
+    state.query.worktreePath === null
+      ? repoRefOption(state.query.ref)
+      : {
+          ref: "HEAD",
+          worktreePath: state.query.worktreePath,
+          worktreeName: folderName(state.query.worktreePath),
+          locked: null,
+          prunable: null
+        };
+  const options = state.refOptions.some((candidate) =>
+    refOptionMatchesQuery(candidate, state.query)
+  )
+    ? state.refOptions
+    : [...state.refOptions, picked];
+  options.forEach((candidate, index) => {
+    refSelect.append(
+      option(String(index), refLabel(candidate, labels), candidate.worktreePath ?? candidate.ref)
+    );
+  });
+  refSelect.value = String(
+    Math.max(
+      0,
+      options.findIndex((candidate) => refOptionMatchesQuery(candidate, state.query))
+    )
+  );
 
   const search = element("input", "reflog-control reflog-search");
   search.id = "reflogSearch";
@@ -109,7 +182,8 @@ function controls(
   onlyLabel.append(only, labels.onlyInReflog);
 
   const current = (): ReflogQuery => ({
-    ref: refSelect.value,
+    ref: options[Number(refSelect.value)]?.ref ?? "HEAD",
+    worktreePath: options[Number(refSelect.value)]?.worktreePath ?? null,
     search: search.value.trim(),
     actions: actionSelect.value === "" ? [] : [actionSelect.value],
     onlyInReflog: only.checked
@@ -124,7 +198,7 @@ function controls(
     callbacks.onQueryChange?.(current(), "instant");
   });
 
-  bar.append(refSelect, search, actionSelect, onlyLabel);
+  bar.append(refSelect, search, actionSelect, onlyLabel, scanButton(state, labels, callbacks));
   return bar;
 }
 
@@ -132,6 +206,28 @@ function messageBlock(className: string, text: string, role?: string): HTMLEleme
   const block = element("p", className, text);
   if (role !== undefined) block.setAttribute("role", role);
   return block;
+}
+
+function emptyBlock(state: ReflogViewState, labels: ReflogLabels): HTMLElement {
+  // A bare repository's missing `HEAD` reflog has its own story
+  // (F1-08): Git keeps none there by default, and the branches
+  // above are where its reflogs live. It is told only for that
+  // exact case — a bare `HEAD` that does keep entries, and every
+  // branch, read as anywhere else.
+  if (
+    state.bare &&
+    state.query.ref === "HEAD" &&
+    state.query.worktreePath === null &&
+    state.reflogState === "none"
+  ) {
+    return messageBlock("reflog-message reflog-empty reflog-bare-note", labels.bareHeadNote);
+  }
+  // A filter that matched nothing in a reflog that has entries is
+  // not the empty-reflog story; one for a ref with no reflog is.
+  if (isReflogFiltered(state.query) && state.reflogState !== "none") {
+    return messageBlock("reflog-message reflog-empty reflog-no-matches", labels.noMatches);
+  }
+  return messageBlock("reflog-message reflog-empty", labels.empty);
 }
 
 function badgeCell(row: ReflogRow, labels: ReflogLabels): HTMLTableCellElement {
@@ -143,8 +239,17 @@ function badgeCell(row: ReflogRow, labels: ReflogLabels): HTMLTableCellElement {
   return cell;
 }
 
-function rowElement(row: ReflogRow, state: ReflogViewState, labels: ReflogLabels, now: Date) {
+function rowElement(
+  row: ReflogRow,
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  now: Date,
+  onContextMenu: (event: MouseEvent, tr: HTMLTableRowElement) => void
+) {
   const tr = element("tr", "reflog-row");
+  tr.dataset.hash = row.hash;
+  tr.dataset.index = String(row.index);
+  if (row.state !== null) tr.dataset.state = row.state;
   const index = element("td", "reflog-cell reflog-index", String(row.index));
   index.title = selectorFor(row, state.ref);
   const action = element("td", "reflog-cell");
@@ -183,14 +288,134 @@ function rowElement(row: ReflogRow, state: ReflogViewState, labels: ReflogLabels
   const time = element("td", "reflog-cell reflog-time", dateCell.value);
   time.title = dateCell.title;
   tr.append(index, action, sub, message, hash, time, badgeCell(row, labels));
+  tr.addEventListener("contextmenu", (event) => onContextMenu(event, tr));
   return tr;
 }
+
+/** One column header cell, with a resize handle on each edge that has a neighbour. */
+function columnHeaderCell(text: string, index: number, lastIndex: number): HTMLTableCellElement {
+  const cell = element("th", "reflog-head-cell", text);
+  // The graph's `resizeCol` handles: one per column edge, named for the
+  // column on its left, so every boundary can be dragged either way.
+  if (index > 0) {
+    const left = element("span", "resizeCol left");
+    left.dataset.col = String(index - 1);
+    cell.append(left);
+  }
+  if (index < lastIndex) {
+    const right = element("span", "resizeCol right");
+    right.dataset.col = String(index);
+    cell.append(right);
+  }
+  return cell;
+}
+
+/** The column a mousedown on a resize handle starts dragging, or null when it hit no handle. */
+function dragHandleColumn(event: MouseEvent): number | null {
+  const handle = event.target instanceof HTMLElement ? event.target.closest(".resizeCol") : null;
+  if (!(handle instanceof HTMLElement) || handle.dataset.col === undefined) return null;
+  return Number.parseInt(handle.dataset.col, 10);
+}
+
+/**
+ * Column drag-to-resize for the entries table, as the graph's handler
+ * does it. Every boundary trades width between the two columns it
+ * separates (`resizeColumnWidths`); Message, the flexible column,
+ * takes what the fixed columns leave. The table always draws with
+ * explicit widths, fitted to its scroll container so it never renders
+ * wider than the tab. Two sets are kept: the chosen widths (defaults,
+ * saved set, or the result of the last drag) and the shown widths,
+ * which are the chosen ones fitted to the current container. A fit
+ * changes only the shown set, so widening grows the columns back.
+ * Dragging restyles this table only (as the graph's handler restyles
+ * its headers): rows and loaded pages are never rebuilt by a resize.
+ */
+function attachColumnResizing(
+  scroll: HTMLElement,
+  tableNode: HTMLElement,
+  headRow: HTMLTableRowElement,
+  headers: HTMLTableCellElement[],
+  initialWidths: ReflogViewState["columnWidths"],
+  callbacks: ReflogViewCallbacks
+): () => void {
+  // The chosen widths: what the user picked, and what gets saved.
+  let chosen = initialWidths === null ? defaultColumnWidths() : [...initialWidths];
+  // The shown widths: the chosen ones fitted to the container.
+  let widths = [...chosen];
+  let dragCol = -1;
+  let mouseX = 0;
+  const applyWidths = () => {
+    tableNode.classList.add("fixedLayout");
+    // Widths are content widths on the header cells, as the graph sets
+    // them; under fixed layout the first row sizes every column.
+    headers.forEach((cell, index) => {
+      cell.style.width = `${widths[index] ?? MIN_COLUMN_WIDTH}px`;
+    });
+  };
+  const fitToContainer = () => {
+    widths = fitColumnWidthsToContainer(chosen, scroll.clientWidth);
+    applyWidths();
+  };
+  const startResizing = (event: MouseEvent) => {
+    const col = dragHandleColumn(event);
+    if (col === null) return;
+    dragCol = col;
+    mouseX = event.clientX;
+    headRow.classList.add("resizing");
+  };
+  const moveResizing = (event: MouseEvent) => {
+    if (dragCol < 0) return;
+    widths = resizeColumnWidths(widths, dragCol, event.clientX - mouseX);
+    chosen = [...widths];
+    mouseX = event.clientX;
+    applyWidths();
+  };
+  const stopResizing = () => {
+    if (dragCol < 0) return;
+    dragCol = -1;
+    headRow.classList.remove("resizing");
+    callbacks.onColumnWidthsChange?.([...chosen]);
+  };
+  applyWidths();
+  headRow.addEventListener("mousedown", startResizing);
+  headRow.addEventListener("mousemove", moveResizing);
+  headRow.addEventListener("mouseup", stopResizing);
+  headRow.addEventListener("mouseleave", stopResizing);
+  // The container also narrows by a scrollbar's width when the rows
+  // outgrow it — no window resize announces that — so watch the
+  // container itself, the way the graph watches its top bar. A
+  // render replaces this table; its observer disconnects itself the
+  // first time it fires for a table no longer in the document.
+  let observer: ResizeObserver | null = null;
+  if (typeof ResizeObserver === "function") {
+    observer = new ResizeObserver(() => {
+      if (!scroll.isConnected) {
+        observer?.disconnect();
+        return;
+      }
+      fitToContainer();
+    });
+    observer.observe(scroll);
+  }
+  return fitToContainer;
+}
+
+/** Opens the context menu of an entry row. */
+type OpenRowMenu = (
+  event: MouseEvent,
+  row: ReflogRow,
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  sourceElem: HTMLElement
+) => void;
 
 function table(
   state: ReflogViewState,
   labels: ReflogLabels,
   now: Date,
-  callbacks: ReflogViewCallbacks
+  callbacks: ReflogViewCallbacks,
+  openRowMenu: OpenRowMenu,
+  registerFit: (fit: () => void) => void
 ): HTMLElement {
   const scroll = element("div", "reflog-scroll");
   const tableNode = element("table", "reflog-table");
@@ -206,74 +431,163 @@ function table(
   const head = document.createElement("thead");
   const headRow = document.createElement("tr");
   headRow.className = "reflog-head-row";
-  const headers: HTMLTableCellElement[] = [];
-  columns.forEach((text, index) => {
-    const cell = element("th", "reflog-head-cell", text);
-    // The graph's `resizeCol` handles: one per column edge, named for the
-    // column on its left, so every boundary can be dragged either way.
-    if (index > 0) {
-      const left = element("span", "resizeCol left");
-      left.dataset.col = String(index - 1);
-      cell.append(left);
-    }
-    if (index < columns.length - 1) {
-      const right = element("span", "resizeCol right");
-      right.dataset.col = String(index);
-      cell.append(right);
-    }
-    headers.push(cell);
-    headRow.append(cell);
-  });
+  const headers = columns.map((text, index) => columnHeaderCell(text, index, columns.length - 1));
+  headRow.append(...headers);
   head.append(headRow);
   const body = document.createElement("tbody");
-  for (const row of state.rows) body.append(rowElement(row, state, labels, now));
+  for (const row of state.rows) {
+    body.append(
+      rowElement(row, state, labels, now, (event, tr) => openRowMenu(event, row, state, labels, tr))
+    );
+  }
   tableNode.append(head, body);
   scroll.append(tableNode);
-
-  let widths = state.columnWidths;
-  const applyWidths = () => {
-    if (widths === null) return;
-    tableNode.classList.add("fixedLayout");
-    // Widths are content widths on the header cells, as the graph sets
-    // them; under fixed layout the first row sizes every column.
-    headers.forEach((cell, index) => {
-      cell.style.width = `${widths?.[index] ?? MIN_COLUMN_WIDTH}px`;
-    });
-  };
-  applyWidths();
-
-  // Dragging only restyles this table (as the graph's handler restyles its
-  // headers): rows and loaded pages are never rebuilt by a resize.
-  let dragCol = -1;
-  let mouseX = 0;
-  const stopResizing = () => {
-    if (dragCol < 0 || widths === null) return;
-    dragCol = -1;
-    headRow.classList.remove("resizing");
-    callbacks.onColumnWidthsChange?.([...widths]);
-  };
-  headRow.addEventListener("mousedown", (event) => {
-    const handle = event.target instanceof HTMLElement ? event.target.closest(".resizeCol") : null;
-    if (!(handle instanceof HTMLElement) || handle.dataset.col === undefined) return;
-    dragCol = Number.parseInt(handle.dataset.col, 10);
-    mouseX = event.clientX;
-    if (widths === null) {
-      // First drag, as in the graph: freeze the natural layout into fixed
-      // widths (rendered width minus the header cells' 8px side padding).
-      widths = headers.map((cell) => Math.max(cell.clientWidth - 16, MIN_COLUMN_WIDTH));
-      applyWidths();
-    }
-    headRow.classList.add("resizing");
-  });
-  headRow.addEventListener("mousemove", (event) => {
-    if (dragCol < 0 || widths === null) return;
-    widths = resizeColumnWidths(widths, dragCol, event.clientX - mouseX);
-    mouseX = event.clientX;
-    applyWidths();
-  });
-  headRow.addEventListener("mouseup", stopResizing);
-  headRow.addEventListener("mouseleave", stopResizing);
+  registerFit(
+    attachColumnResizing(scroll, tableNode, headRow, headers, state.columnWidths, callbacks)
+  );
   return scroll;
+}
+
+/** The error line of a failed load, worded with the error text. */
+function errorBlock(error: string, labels: ReflogLabels): HTMLElement {
+  return messageBlock(
+    "reflog-message reflog-error",
+    labels.loadError.replace("{0}", error),
+    "alert"
+  );
+}
+
+/** The notice that a search reached its cap, shown once loading has finished. */
+function searchCapNotes(state: ReflogViewState, labels: ReflogLabels): HTMLElement[] {
+  if (!state.searchCapped || state.loading) return [];
+  return [
+    messageBlock(
+      "reflog-cap-note",
+      labels.searchCapped.replace("{0}", REFLOG_SEARCH_CAP.toLocaleString(state.locale)),
+      "status"
+    )
+  ];
+}
+
+function loadMoreButton(
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  callbacks: ReflogViewCallbacks
+): HTMLButtonElement {
+  const more = element("button", "reflog-load-more", labels.loadMore);
+  more.type = "button";
+  more.disabled = state.loadingMore;
+  more.setAttribute("aria-busy", String(state.loadingMore));
+  more.addEventListener("click", callbacks.onLoadMore);
+  return more;
+}
+
+/** The entries table, then any error that came with rows already shown, then "Load more". */
+function rowsBlocks(
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  now: Date,
+  callbacks: ReflogViewCallbacks,
+  openRowMenu: OpenRowMenu,
+  registerFit: (fit: () => void) => void
+): HTMLElement[] {
+  const blocks: HTMLElement[] = [table(state, labels, now, callbacks, openRowMenu, registerFit)];
+  if (state.error !== null) blocks.push(errorBlock(state.error, labels));
+  if (state.hasMore) blocks.push(loadMoreButton(state, labels, callbacks));
+  return blocks;
+}
+
+/** The body under the header and controls: loading, the error, the empty word, or the entries. */
+function bodyBlocks(
+  state: ReflogViewState,
+  labels: ReflogLabels,
+  now: Date,
+  callbacks: ReflogViewCallbacks,
+  openRowMenu: OpenRowMenu,
+  registerFit: (fit: () => void) => void
+): HTMLElement[] {
+  if (state.loading) {
+    return [messageBlock("reflog-message reflog-loading", labels.loading, "status")];
+  }
+  // An error is its own block, never the empty wording.
+  if (state.error !== null && state.rows.length === 0) {
+    return [errorBlock(state.error, labels)];
+  }
+  if (state.rows.length === 0) return [emptyBlock(state, labels)];
+  return rowsBlocks(state, labels, now, callbacks, openRowMenu, registerFit);
+}
+
+/** The focused control, so a render can put the focus and caret back on it. */
+type FocusSnapshot = {
+  id: string;
+  value: string | undefined;
+  selectionStart: number | null;
+  selectionEnd: number | null;
+};
+
+/**
+ * The control to carry across a render, or null when focus is outside the
+ * tab, inside an overlay, or on a control without an id.
+ */
+function focusSnapshot(root: HTMLElement, overlays: readonly HTMLElement[]): FocusSnapshot | null {
+  const active = root.ownerDocument.activeElement;
+  if (
+    !(active instanceof HTMLElement) ||
+    !root.contains(active) ||
+    overlays.some((overlay) => overlay.contains(active)) ||
+    active.id === ""
+  ) {
+    return null;
+  }
+  return {
+    id: active.id,
+    value: active instanceof HTMLInputElement ? active.value : undefined,
+    selectionStart: active instanceof HTMLInputElement ? active.selectionStart : null,
+    selectionEnd: active instanceof HTMLInputElement ? active.selectionEnd : null
+  };
+}
+
+/**
+ * Text typed while a debounced search had not been sent yet is newer than the
+ * state this render answers; keep it (the pending search will ask for it), but
+ * only here, never across a repository change.
+ */
+function carryUnsentSearch(
+  next: HTMLElement,
+  focused: FocusSnapshot,
+  searchQuery: string,
+  sameRepo: boolean
+): void {
+  if (
+    sameRepo &&
+    focused.id === "reflogSearch" &&
+    focused.value !== undefined &&
+    next instanceof HTMLInputElement &&
+    focused.value.trim() !== searchQuery
+  ) {
+    next.value = focused.value;
+  }
+}
+
+/** Puts the focus back on the control it was on before the render, with its caret. */
+function restoreFocus(
+  root: HTMLElement,
+  focused: FocusSnapshot,
+  state: ReflogViewState,
+  sameRepo: boolean
+): void {
+  const next = root.querySelector<HTMLElement>(`#${focused.id}`);
+  if (next === null) return;
+  carryUnsentSearch(next, focused, state.query.search, sameRepo);
+  next.focus();
+  if (next instanceof HTMLInputElement && focused.selectionStart !== null) {
+    try {
+      next.setSelectionRange(focused.selectionStart, focused.selectionEnd);
+    } catch {
+      // A search input has a selectable range; a control whose
+      // type cannot select ignores the carried range.
+    }
+  }
 }
 
 /**
@@ -284,111 +598,61 @@ function table(
  */
 export function createReflogView(root: HTMLElement, callbacks: ReflogViewCallbacks) {
   root.classList.add("ggl-reflog");
+  const dialogs = createReflogDialogs(root, callbacks);
   // Rendering replaces the whole document, controls included, so the
   // focused control (and a not-yet-sent search text) is carried across
   // a render by its id, or typing would lose its place on every reply.
   let lastRepo = "";
+  let lastLabels: ReflogLabels | null = null;
+  // The current table's fit to its container. A window resize is the
+  // panel resizing, and refitting changes Message only (down to the
+  // rules in columnResize), so the tab never scrolls sideways.
+  let fitTable: (() => void) | null = null;
+  const registerFit = (fit: () => void) => {
+    fitTable = fit;
+  };
+  const runFit = () => {
+    fitTable?.();
+  };
+  window.addEventListener("resize", runFit);
   return {
+    showActionResult(result: ReflogActionResultMessage): void {
+      dialogs.showActionResult(result, lastLabels);
+    },
     render(state: ReflogViewState, now: Date = new Date()): void {
       const { labels } = state;
+      lastLabels = labels;
       if (labels === null) {
         lastRepo = state.repo;
+        fitTable = null;
+        dialogs.hideContextMenu();
+        dialogs.hideDialog();
         root.replaceChildren();
         return;
       }
-      const active = root.ownerDocument.activeElement;
-      const focused =
-        active instanceof HTMLElement && root.contains(active) && active.id !== ""
-          ? {
-              id: active.id,
-              value: active instanceof HTMLInputElement ? active.value : undefined,
-              selectionStart: active instanceof HTMLInputElement ? active.selectionStart : null,
-              selectionEnd: active instanceof HTMLInputElement ? active.selectionEnd : null
-            }
-          : null;
+      fitTable = null;
+      const focused = focusSnapshot(root, dialogs.overlays);
       const sameRepo = state.repo === lastRepo;
+      if (!sameRepo) {
+        dialogs.hideContextMenu();
+        dialogs.hideDialog();
+      }
 
-      const children: HTMLElement[] = [header(state), controls(state, labels, callbacks)];
-      if (state.searchCapped && !state.loading) {
-        children.push(
-          messageBlock(
-            "reflog-cap-note",
-            labels.searchCapped.replace("{0}", REFLOG_SEARCH_CAP.toLocaleString(state.locale)),
-            "status"
-          )
-        );
+      const children: HTMLElement[] = [controls(state, labels, callbacks)];
+      const lostSection = renderLostCommitsSection(state, labels, now, callbacks);
+      if (lostSection !== null) {
+        children.push(lostSection);
       }
-      if (state.loading) {
-        children.push(messageBlock("reflog-message reflog-loading", labels.loading, "status"));
-      } else if (state.error !== null && state.rows.length === 0) {
-        children.push(
-          messageBlock(
-            "reflog-message reflog-error",
-            labels.loadError.replace("{0}", state.error),
-            "alert"
-          )
-        );
-      } else if (state.rows.length === 0) {
-        // A filter that matched nothing in a reflog that has entries is
-        // not the empty-reflog story; one for a ref with no reflog is.
-        const filtered = isReflogFiltered(state.query) && state.reflogState !== "none";
-        children.push(
-          messageBlock(
-            filtered
-              ? "reflog-message reflog-empty reflog-no-matches"
-              : "reflog-message reflog-empty",
-            filtered ? labels.noMatches : labels.empty
-          )
-        );
-      } else {
-        children.push(table(state, labels, now, callbacks));
-        if (state.error !== null) {
-          children.push(
-            messageBlock(
-              "reflog-message reflog-error",
-              labels.loadError.replace("{0}", state.error),
-              "alert"
-            )
-          );
-        }
-        if (state.hasMore) {
-          const more = element("button", "reflog-load-more", labels.loadMore);
-          more.type = "button";
-          more.disabled = state.loadingMore;
-          more.setAttribute("aria-busy", String(state.loadingMore));
-          more.addEventListener("click", callbacks.onLoadMore);
-          children.push(more);
-        }
-      }
-      root.replaceChildren(...children);
+      children.push(
+        ...searchCapNotes(state, labels),
+        ...bodyBlocks(state, labels, now, callbacks, dialogs.openRowMenu, registerFit)
+      );
+      root.replaceChildren(...children, ...dialogs.overlays);
+      // Only now is the table laid out, so only now can its widths be
+      // fitted to the width the tab actually has.
+      runFit();
       lastRepo = state.repo;
-      if (focused !== null) {
-        const next = root.querySelector<HTMLElement>(`#${focused.id}`);
-        if (next !== null) {
-          // Text typed while a debounced search had not been sent yet
-          // is newer than the state this render answers; keep it (the
-          // pending search will ask for it), but only here, never
-          // across a repository change.
-          if (
-            sameRepo &&
-            focused.id === "reflogSearch" &&
-            focused.value !== undefined &&
-            next instanceof HTMLInputElement &&
-            focused.value.trim() !== state.query.search
-          ) {
-            next.value = focused.value;
-          }
-          next.focus();
-          if (next instanceof HTMLInputElement && focused.selectionStart !== null) {
-            try {
-              next.setSelectionRange(focused.selectionStart, focused.selectionEnd);
-            } catch {
-              // A search input has a selectable range; a control whose
-              // type cannot select ignores the carried range.
-            }
-          }
-        }
-      }
+      if (focused !== null) restoreFocus(root, focused, state, sameRepo);
     }
   };
 }
