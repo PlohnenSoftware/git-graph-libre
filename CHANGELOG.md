@@ -57,8 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with a stale commit-graph file, checking **Include unreachable commits**
   replaced the graph with "Unable to load Git Graph" and a long dump of
   `unreachable ...` lines. The graph now loads and shows the unreachable
-  commits the scan finds, and a failed scan never replaces the graph. A large set of unreachable commits no longer runs into Windows'
-  command-line length limit.
+  commits the scan finds, and a failed scan never replaces the graph. A large
+  set of unreachable commits no longer runs into Windows' command-line length
+  limit.
 - **Context menus line up.** A menu's header now starts where its items'
   text starts, its rule matches the dividers below it, and check marks sit
   in their own slot, so checked, unchecked and plain items share one text
