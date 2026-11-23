@@ -1,13 +1,13 @@
 ---
 summary: >-
-  Active integration of the November 8 engine review: six parallelizable slices
+  Integration of the November 8 engine review: six parallelizable slices
   for ref errors, bounded reads, traversal, encoding, gitlink content and remote
   ref classification, followed by provenance, versioning and full integration gates.
 ---
 
 # Engine upstream integration (`2026-11-08`)
 
-Status: in progress.
+Status: done — every slice R01–R09 integrated on `main` as engine `1.0.32` (`2026-11-08`), shipping in release 1.11.0.
 
 Maintainer request: integrate the recorded findings with parallel agents and
 cost-effective models. Follow Multi-agent releases. This is maintenance work,
