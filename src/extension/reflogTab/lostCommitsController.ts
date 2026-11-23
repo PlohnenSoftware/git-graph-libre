@@ -146,7 +146,7 @@ export function createLostCommitsController(deps: LostCommitsControllerDeps) {
     ): Promise<void> {
       if (disposed || repo === "" || source?.createBranch === undefined) return;
       if (typeof rawHash !== "string" || !isValidCommitHash(rawHash)) return;
-      if (last === null || last.repo !== repo || last.status !== "done") return;
+      if (last?.repo !== repo || last.status !== "done") return;
       if (!last.commits.some((commit) => commit.hash === rawHash)) return;
 
       const myScanId = scanId;
