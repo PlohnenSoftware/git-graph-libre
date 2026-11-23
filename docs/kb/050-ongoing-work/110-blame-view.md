@@ -12,8 +12,20 @@ summary: >-
 
 # Blame view (`2026-11-23`)
 
-Status: planned (ready for maintainer decision confirmation and subagent
-execution).
+Status: in progress (`2026-11-23`), for release 1.11.0.
+
+**Maintainer goal, `2026-11-23`:** "implement the slices described in the
+recent commits and finalize release 1.11.0", with the orchestrating agent
+as integrator. That goal answers BQ9 (release **1.11.0**) and accepts the
+recommended defaults of BQ1–BQ8 below as written; BQ8 stays conditional on
+the profiling it names (recorded under F4-09 when it runs). It also sets
+the agent choice for every dispatch of this release, as Multi-agent
+releases (Rules) requires: **Claude Haiku subagents for the easiest slices
+(`F4-02`, `F4-04`, docs and mechanical edits), and headless Muse Code
+(`muse exec --yolo "<prompt>"`, run inside the slice worktree) for the
+complex ones (`F4-01`, `F4-03`, `F4-05`–`F4-09`)**, replacing the Sonnet
+column below. Escalation stays one step up: a failed Haiku slice goes to
+Muse Code in the same worktree.
 
 Maintainer request, `2026-11-23`: prepare documentation beside the Git Graph+
 phases for an additional **Blame view** inspired by GitHub's blame view with
