@@ -12,7 +12,7 @@ summary: >-
 
 # Unreachable-commits scan breaks graph load on stale commit-graph (`2026-11-23`)
 
-**Status:** claimed by Muse Code on 2026-11-23 01:54
+**Status:** done — awaiting integration
 
 Maintainer report (`2026-11-23`): in Git Graph Libre 1.10.0 on this
 repository, right-clicking the table headers and checking **Include
@@ -231,3 +231,83 @@ locks the user out of the table header:
     lines `stderr`.
   - `git -c core.commitGraph=false fsck --unreachable --no-reflogs --no-progress --connectivity-only`
     → exit `0`, empty `stderr`.
+
+## Report
+
+- **Agent / date:** Muse Code (muse-wonder-full-1.0), 2026-11-23 02:02
+- **Branch and commits:** `rel-1.11.0/U1` —
+  `b661e804 G docs(kb): claim unreachable scan fix (U1)`;
+  `cf89e764 G fix(graph): harden the unreachable-commits fsck scan (U1)`;
+  `6ae22651 G test(graph): cover the hardened unreachable scan (U1)`
+  (plus this report commit)
+- **Files changed:** `src/backend/queries/unreachableCommits.ts` (new, +248),
+  `src/backend/queries/loadCommits.ts` (+92/−57),
+  `tests/backend/queries/unreachableCommits.test.ts` (new, +177),
+  `tests/backend/queries/loadCommits/list.test.ts` (+130/−3),
+  this file (claim, status, report). Total before this report commit:
+  5 files, +648/−61 (`git diff --stat 1fe8b472..HEAD`).
+- **Tests added or changed:** 15 added, 1 updated. New
+  `unreachableCommits.test.ts` (12): `classifyFsckRun` (hashes behind a
+  non-zero exit kept; genuine failure built from `stderr` only; exit-code
+  fallback), `summarizeFsckStderr` truncation, `discoverUnreachableCommitHashes`
+  through the injected runner seam (recorded failure carries the truncated
+  `stderr` summary and exit code `16`, never `stdout`; spawn failure; missing
+  binary path) and through the real spawn (real dangling commit found;
+  missing binary reported). `list.test.ts` (+3): stale commit-graph fixture
+  (commit-graph written over a later-pruned commit; plain `git fsck` asserted
+  against Git itself to exit non-zero with `commit-graph` on `stderr`, while
+  `loadCommits` still loads the dangling commit), scan-failure degradation
+  (missing binary keeps the page, `error` stays `null`), and 110 dangling
+  commits reaching `git log` via `--stdin` with no hash on `argv`. The
+  existing discovery test now threads `repo`/`gitPath` and pins the exact
+  hardened `fsck` argument list. The tolerate-non-zero-with-hashes path is
+  covered through the runner seam, because the real stale-commit-graph
+  fixture exits `0` once `-c core.commitGraph=false` is passed — that is
+  the point of proposed-fix item 1; the seam covers item 2's remaining
+  non-zero cases (for example Git 2.48+ reference verification).
+- **Gates:** strict Biome clean on all four touched `.ts` files
+  (`npx biome check --config-path biome.strict.jsonc --error-on-warnings`);
+  `pnpm run typecheck` clean; focused
+  `npx vitest run --project backend` on the two test files: 39 passed;
+  whole suite `pnpm run test`: backend 114 files, 1505 passed, 60 skipped;
+  webview 85 files, 1096 passed. `node ./docs/kb/housekeeping.mjs --check`
+  clean (exit 0, no output). No user-visible
+  strings changed, so `pnpm run l10n:check` does not apply. No webview or
+  CSS change, so no headless renders. Sonar: integrator.
+- **Acceptance:**
+  - Item 1 (skip commit-graph verification): met — every scan runs
+    `-c core.commitGraph=false` (`FSCK_UNREACHABLE_ARGS`), pinned by test.
+  - Item 2 (separated streams, numeric exit code): met — dedicated async
+    spawn in `unreachableCommits.ts` modeled on `remoteTags.ts` (resolved
+    `gitPath`, `cwd` = repository, `windowsHide`); parseable hashes behind
+    a non-zero exit are used and the recorded failure's message is the
+    `stderr` summary truncated to 2,000 characters; a genuine failure
+    surfaces `stderr` only.
+  - Item 3 (graceful degradation): met — the scan result no longer feeds
+    the `loadCommits` response error; a failed scan resolves to no extra
+    rows, like `getOtherWorktreeHeadTips()`/`loadStashGraphNodes()`, with
+    the failure visible in the recorded `loadCommits.unreachable` command.
+  - Item 4 (`git log --stdin`): met — more than `LOG_STDIN_REF_THRESHOLD`
+    (100) extra tips are fed through `--stdin` via `runGitWithInput` when
+    the resolved binary and repository are threaded (the production
+    caller always threads both); below the threshold, or without them,
+    the tips stay on `argv` as before. Verified equivalent result sets
+    against real Git; only same-timestamp tie-break order can differ.
+  - Item 5 (share with F1-07): met as scoped — the helper is exported
+    (`discoverUnreachableCommitHashes`, `FSCK_UNREACHABLE_ARGS`,
+    `parseUnreachableCommitHashes`) with a caller-chosen command-log
+    label; F1-07 itself is untouched.
+  - Item 6 (regression tests): met — see Tests above, all with real-Git
+    fixtures in temporary directories.
+- **Deviations from the slice:** none outside the touch list. Two notes
+  inside it: `src/backend/utils/gitRunner.ts` needed no change (the
+  separated-stream runner lives in the new query module, and `--stdin`
+  reuses the existing `runGitWithInput`), and `queryError.ts` needed no
+  change. `parseUnreachableCommitHashes` moved to the new module and is
+  re-exported from `loadCommits.ts` so existing importers keep working.
+- **Open questions / follow-ups:** F1-07 should call
+  `discoverUnreachableCommitHashes` with its own label instead of running
+  `fsck` itself. The `--stdin` log path uses the existing synchronous
+  `runGitWithInput` spawn, so a very large unreachable set blocks the
+  extension host for the duration of that one `git log`; an async variant
+  would be a separate slice if it ever matters in practice.
