@@ -71,6 +71,7 @@ releases (Rules) applies, with the answers below.
 | --- | --- | --- | --- | --- |
 | T1 | Open-and-outcome telemetry for tabs and worktree buttons | — | Muse Code | integrated `70f2b583` |
 | P1 | Popup fixes V1–V11 | — | Muse Code | ready |
+| T1b | Blame tab open-and-outcome telemetry (`tab.blame`) | T1, F4-03 | Claude Haiku | ready |
 | R90 | Release 1.11.0 | every `main` track | orchestrator | waiting |
 
 ## Integration log

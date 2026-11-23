@@ -8,7 +8,7 @@ summary: >-
 
 # F4-04 — Hotspot OKLCH palette, heat rail, legend and hover highlight
 
-Status: waiting
+Status: ready
 
 Needs: F4-03 (and maintainer confirmation of BQ2)
 

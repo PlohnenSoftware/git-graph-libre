@@ -136,8 +136,8 @@ worktrees under `/home/zam/Desktop/prog/_GGL/.ggl-wt/`.
 | --- | --- | --- | --- | --- |
 | F4-01 | Blame CLI read query and porcelain parser | — | Sonnet | integrated `1aac24df` |
 | F4-02 | Hotspot age-heat and churn scoring model | F4-01 | Haiku | integrated `c06c041c` |
-| F4-03 | Blame editor-tab panel and read-only view | F4-01, F4-02 | Sonnet | ready |
-| F4-04 | Hotspot OKLCH palette, heat rail, legend and hover highlight | F4-03 | Haiku | waiting |
+| F4-03 | Blame editor-tab panel and read-only view | F4-01, F4-02 | Sonnet | integrated `3e916dff` |
+| F4-04 | Hotspot OKLCH palette, heat rail, legend and hover highlight | F4-03 | Haiku | ready |
 | F4-05 | Parent-blame rewind stack, options, ignore-revs and find | F4-04 | Sonnet | waiting |
 | F4-06 | Commit popover, Show in Graph, GGL Diff and Open File at Line | F4-05 | Sonnet | waiting |
 | F4-07 | Editor, Explorer, SCM and Commit Details entry points | F4-06 | Sonnet | waiting |
@@ -190,3 +190,17 @@ revision). Nothing is pushed without explicit instruction.
   used; a hunk whose commit is missing from the map counts as uncommitted.
   Gates: strict Biome clean after the fix; typecheck clean; hotspot tests 17
   passed; KB check clean. F4-03 is ready.
+- `2026-11-23`: F4-03 integrated at `3e916dff` (first run Muse Code, cut off by
+  its quota; finished by Gemini 4 Argon through `agy`): the Blame editor tab
+  (`src/blameTabTypes.ts`, `src/extension/blameTab/`, `src/webview/blameTab/`,
+  `media/blame-tab/blame-tab.css`, bundle `blameTab.min`) and the palette
+  command `git-graph-libre.showBlame` ("Show Blame for Current File", the
+  cursor line as target). GitHub-style grouped hunks with summary, author,
+  the graph's hash length and date format, a resizable gutter kept per
+  repository, an uncommitted band, loading/empty/error states. 14 new
+  strings appended at the end of the bundles, agent-translated. Renders under
+  `/home/zam/Desktop/prog/_GGL/.ggl-wt/renders/F4-03/`. The tab-open
+  telemetry hook (`reportBlameOpened`) is wired by slice T1b. Gates on
+  `3e916dff`: strict Biome on 29 files, typecheck, `l10n:check`, KB check,
+  backend 1,578 passed (60 skipped in the worktree) and webview 1,195
+  passed. F4-04 is ready.
