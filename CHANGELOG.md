@@ -59,9 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or abort) and message, as Git recorded it. Actions are colored by kind, and
   each entry says whether its commit is still on a branch or tag, is only in
   the reflog, or no longer exists, so lost work is easy to spot. The tab uses
-  the graph's hash length, date format and words, its columns can be resized
-  and keep their widths per repository, it refreshes when the repository
-  changes, and with the Rust engine it reads the reflog without starting Git.
+  the graph's hash length, date format and words, its columns fit the tab
+  without sideways scrolling (Message takes the spare width, and on a narrow
+  tab the other columns shorten first), they can be resized and keep their
+  widths per repository, it refreshes when the repository changes, and with the Rust engine it reads the reflog without starting Git.
   A search finds the entries whose message contains the text you type, across
   up to 5,000 entries. Filters narrow the list by action, choose which reflog
   to show (`HEAD`, a local branch or the stash), and show only the entries
@@ -86,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Usage telemetry counts tab opens and Copy Path.** The anonymous usage
-  data now also records whether the Reflog tab and the GGL Diff tab opened
+  data now also records whether the Reflog, GGL Diff and Blame tabs opened
   without errors, and whether Copy Path in the Worktrees list worked. Nothing
   about their content is sent, and it follows the same telemetry setting as
   the rest of the extension's data.
@@ -120,6 +121,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its field shows the end of a long path. The lock reason appears only once
   **Lock** is ticked. After a worktree is created, its next steps are one-click
   choices, and Cancel does nothing.
+
+- **Create Worktree on a branch another worktree holds.** That branch's menu
+  now opens Create Worktree instead of a second Open Worktree, with the two
+  choices Git allows there: a new branch from it, the default, or a detached
+  HEAD at its tip.
 
 - **The Diff, Reflog and Blame tabs have the Git Graph Libre icon.** They show
   the same tab icon as the graph, in the light or dark version that the

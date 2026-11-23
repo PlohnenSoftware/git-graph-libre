@@ -182,6 +182,7 @@ All settings use the `git-graph-libre` prefix.
 | `telemetry.enabled`                            | `"unset"`       | `unset` / `enabled` / `disabled` — see below     |
 | `tabIconColorTheme`                            | `"color"`       | `"color"` or `"grey"`                            |
 | `backend`                                      | `"auto"`        | `"auto"` (Rust engine with Git CLI fallback) or `"git-cli"` |
+| `contextMenuActionsVisibility`                 | `{}`            | Hide individual context menu actions, for example `{"commitDetailsViewFile": {"showBlame": false}}` |
 
 ## Telemetry
 
