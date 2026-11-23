@@ -8,7 +8,7 @@ summary: >-
 
 # F4-03 — Blame editor-tab panel and read-only view
 
-Status: waiting
+Status: ready
 
 Needs: F4-01, F4-02 (and maintainer confirmation of BQ1, BQ3, BQ4, BQ7)
 
