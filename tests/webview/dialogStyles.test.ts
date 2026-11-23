@@ -255,6 +255,8 @@ describe("dialog styles", () => {
     expect(wrapper).toContain("width: 100%;");
     expect(wrapper).not.toContain("cursor");
     const label = ruleFor(css, "#dialog table.dialogForm .dialogFormCheckbox > .checkRow");
+    // The box sits at the first line, not centered between two wrapped lines.
+    expect(label).toContain("align-items: flex-start;");
     expect(label).toContain("white-space: normal;");
     expect(label).not.toContain("cursor");
     expect(css).not.toContain('td[colspan="2"] > .dialogFormCheckbox');

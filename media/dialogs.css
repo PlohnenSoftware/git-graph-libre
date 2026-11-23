@@ -303,7 +303,10 @@ dl.tagDetailsFields dd {
   width: 100%;
 }
 #dialog table.dialogForm .dialogFormCheckbox > .checkRow {
-  align-items: center;
+  /* The box aligns with the label's first line: centered, it floated between
+     the two lines of a wrapped label. Box and line are both 16px, so a
+     one-line label does not move. */
+  align-items: flex-start;
   gap: 6px;
   white-space: normal;
   line-height: 16px;

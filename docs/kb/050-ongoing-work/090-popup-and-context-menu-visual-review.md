@@ -210,7 +210,7 @@ Worktree, Move Worktree, Prune, Delete Worktree and Files). Fix: the
 existing "Remove" label (`worktreeRemove`), through a form dialog without
 inputs once V6 has removed that dialog's extra gap.
 
-### V10 — A checkbox label of two lines
+### V10 — A checkbox label of two lines — done (P1)
 
 With a long path, "Also remove the worktree at …" wraps, and the box is
 centered against the two lines (`.dialogFormCheckbox > .checkRow` has
