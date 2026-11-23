@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { ReflogLoadingMessage } from "@/reflogTabTypes";
 import {
   applyData,
   applyLoading,
@@ -10,19 +9,16 @@ import {
   relativeTime,
   selectorFor
 } from "@/webview/reflogTab/rowModel";
-import { DISPLAY, dataMessage, LABELS, page, row } from "./fixtures";
+import {
+  DISPLAY,
+  dataMessage,
+  loadingMessage as fixtureLoading,
+  LABELS,
+  page,
+  row
+} from "./fixtures";
 
-function loadingMessage(overrides: Partial<ReflogLoadingMessage> = {}): ReflogLoadingMessage {
-  return {
-    command: "reflogLoading",
-    requestId: 2,
-    repo: "/repos/one",
-    locale: "en",
-    labels: LABELS,
-    display: DISPLAY,
-    ...overrides
-  };
-}
+const loadingMessage = (overrides = {}) => fixtureLoading({ requestId: 2, ...overrides });
 
 describe("reflog row model", () => {
   it("starts loading with nothing to draw", () => {

@@ -5,6 +5,8 @@ import { buildExtensionUri } from "@/backend/utils/path";
 import { config } from "@/config";
 import * as l10n from "@/l10n";
 import {
+  defaultReflogQuery,
+  normalizeReflogQuery,
   REFLOG_ACTION_KINDS,
   REFLOG_SUB_ACTIONS,
   type ReflogDataMessage,
@@ -12,8 +14,10 @@ import {
   type ReflogLabels,
   type ReflogLoadingMessage,
   type ReflogPage,
+  type ReflogQuery,
   type ReflogSource,
-  type ReflogWebviewMessage
+  type ReflogWebviewMessage,
+  reflogQueriesEqual
 } from "@/reflogTabTypes";
 import { RepoFileWatcher } from "@/repoFileWatcher";
 
@@ -54,7 +58,8 @@ function failedPage(error: unknown): ReflogPage {
     state: null,
     hasMore: false,
     ref: null,
-    error: error instanceof Error ? error.message : String(error)
+    error: error instanceof Error ? error.message : String(error),
+    searchCapped: false
   };
 }
 
@@ -84,6 +89,11 @@ function createReflogTab(deps: ReflogTabDeps) {
   let repo = "";
   let source: ReflogSource | undefined;
   let loadedCount = 0;
+  // The search, filters and picked ref every load answers (F1-05), and
+  // the picker's options for the repository. A watcher or settings
+  // refresh re-answers the same query; only the webview changes it.
+  let query: ReflogQuery = defaultReflogQuery();
+  let refsList: string[] = ["HEAD"];
 
   /** A refresh keeps the rows already loaded, up to one bounded read. */
   const refreshLimit = (): number =>
@@ -91,12 +101,17 @@ function createReflogTab(deps: ReflogTabDeps) {
 
   const load = async (append: boolean, limit = DEFAULT_REFLOG_PAGE_SIZE): Promise<void> => {
     if (source === undefined || repo === "") return;
+    const activeSource = source;
+    const activeRepo = repo;
+    const activeQuery = query;
     const requestId = ++latestRequest;
     if (!append) {
       pending = {
         command: "reflogLoading",
         requestId,
-        repo,
+        repo: activeRepo,
+        query: activeQuery,
+        refs: refsList,
         locale: deps.locale ?? vscode.env.language,
         labels: readLabels(),
         display: readDisplay()
@@ -104,12 +119,20 @@ function createReflogTab(deps: ReflogTabDeps) {
       if (ready) void panel.webview.postMessage(pending);
     }
     const offset = append ? loadedCount : 0;
-    const page = await source.loadPage(repo, offset, limit).catch(failedPage);
+    // A fresh page also refreshes the picker's refs (a branch or the
+    // stash may have appeared); a "Load more" page keeps the known list.
+    const [page, freshRefs] = await Promise.all([
+      activeSource.loadPage(activeRepo, offset, limit, activeQuery).catch(failedPage),
+      append || activeSource.loadRefs === undefined
+        ? null
+        : activeSource.loadRefs(activeRepo).catch(() => null)
+    ]);
     // A newer load (a watcher refresh, a retargeted tab) supersedes this
     // one: its reply is dropped here, and the webview drops by request id
     // anything that still slips through.
     if (disposed || requestId !== latestRequest) return;
     pending = undefined;
+    if (freshRefs !== null && freshRefs.length > 0) refsList = freshRefs;
     if (page.error === null) {
       loadedCount = append ? loadedCount + page.rows.length : page.rows.length;
     }
@@ -117,7 +140,9 @@ function createReflogTab(deps: ReflogTabDeps) {
       command: "reflogData",
       requestId,
       append,
-      repo,
+      repo: activeRepo,
+      query: activeQuery,
+      refs: refsList,
       locale: deps.locale ?? vscode.env.language,
       labels: readLabels(),
       display: readDisplay(),
@@ -134,6 +159,11 @@ function createReflogTab(deps: ReflogTabDeps) {
   });
 
   const show = (nextRepo: string, nextSource: ReflogSource): void => {
+    // A kept query could name a branch the new repository does not have.
+    if (nextRepo !== repo) {
+      query = defaultReflogQuery();
+      refsList = ["HEAD"];
+    }
     repo = nextRepo;
     source = nextSource;
     loadedCount = 0;
@@ -153,6 +183,14 @@ function createReflogTab(deps: ReflogTabDeps) {
       void load(true);
     } else if (message.command === "refresh") {
       void load(false, refreshLimit());
+    } else if (message.command === "query") {
+      // The webview is a boundary: only a picker-shaped query is acted
+      // on, and asking for what is already shown reloads nothing.
+      const next = normalizeReflogQuery(message.query);
+      if (reflogQueriesEqual(next, query)) return;
+      query = next;
+      loadedCount = 0;
+      void load(false);
     }
   });
   // The tab follows the graph's two display settings live: a change
@@ -211,6 +249,11 @@ function readLabels(): ReflogLabels {
     loadMore: l10n.t("reflog.loadMore"),
     empty: l10n.t("reflog.empty"),
     loadError: l10n.t("reflog.loadError"),
+    searchPlaceholder: l10n.t("reflog.searchPlaceholder"),
+    filterRef: l10n.t("reflog.filter.ref"),
+    filterAllActions: l10n.t("reflog.filter.allActions"),
+    noMatches: l10n.t("reflog.noMatches"),
+    searchCapped: l10n.t("reflog.searchCapped"),
     onlyInReflog: l10n.t("reflog.onlyInReflog"),
     objectMissing: l10n.t("reflog.objectMissing"),
     columnIndex: l10n.t("reflog.column.index"),

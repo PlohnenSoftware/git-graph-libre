@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ReflogHostMessage, ReflogWebviewMessage } from "@/reflogTabTypes";
 
-import { DISPLAY, dataMessage, LABELS, page, row } from "./fixtures";
+import { dataMessage, loadingMessage, page, row } from "./fixtures";
 
 // Each test loads a fresh copy of the script, which posts to its own list.
 // The saved webview state is one object the script reads once and replaces
@@ -42,14 +42,7 @@ describe("reflog tab webview", () => {
 
   it("shows loading, then the page, and asks for one more page per click", async () => {
     const { posted, root } = await start();
-    send({
-      command: "reflogLoading",
-      requestId: 1,
-      repo: "/repos/one",
-      locale: "en",
-      labels: LABELS,
-      display: DISPLAY
-    });
+    send(loadingMessage());
     expect(root.querySelector(".reflog-loading")).not.toBeNull();
     send(dataMessage({ page: page({ hasMore: true }) }));
     expect(root.querySelectorAll("tbody tr")).toHaveLength(1);

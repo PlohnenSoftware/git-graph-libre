@@ -8,7 +8,7 @@ import {
 } from "@/webview/reflogTab/rowModel";
 import { createReflogView } from "@/webview/reflogTab/view";
 
-import { DISPLAY, dataMessage, LABELS, page, row } from "./fixtures";
+import { DISPLAY, dataMessage, LABELS, loadingMessage, page, row } from "./fixtures";
 
 const NOW = new Date(1_700_000_000_000 + 5 * 60_000);
 
@@ -34,14 +34,7 @@ describe("reflog tab view", () => {
 
   it("shows the loading word while the first page is in flight", () => {
     const { root, view } = start();
-    const state = applyLoading(initialReflogState(), {
-      command: "reflogLoading",
-      requestId: 1,
-      repo: "/repos/one",
-      locale: "en",
-      labels: LABELS,
-      display: DISPLAY
-    });
+    const state = applyLoading(initialReflogState(), loadingMessage());
     view.render(state, NOW);
     expect(root.querySelector(".reflog-loading")?.textContent).toBe("Loading reflog…");
     expect(root.querySelector(".reflog-repo")?.textContent).toBe("one");

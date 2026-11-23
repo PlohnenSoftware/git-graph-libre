@@ -7,7 +7,13 @@ import {
   loadReflogEntryStates
 } from "@/backend/queries/reflog";
 import type { GitCommandRecorder } from "@/backend/utils/gitRunner";
-import type { ReflogPage, ReflogRow, ReflogSource } from "@/reflogTabTypes";
+import {
+  defaultReflogQuery,
+  type ReflogPage,
+  type ReflogQuery,
+  type ReflogRow,
+  type ReflogSource
+} from "@/reflogTabTypes";
 import type { EngineBackend } from "@/types";
 
 export type ReflogSourceDeps = {
@@ -48,13 +54,14 @@ export function createReflogSource(deps: ReflogSourceDeps): ReflogSource {
     async loadPage(
       repo: string,
       offset: number,
-      limit: number = DEFAULT_REFLOG_PAGE_SIZE
+      limit: number = DEFAULT_REFLOG_PAGE_SIZE,
+      query: ReflogQuery = defaultReflogQuery()
     ): Promise<ReflogPage> {
       const git = deps.createGit(repo);
       const result = await readReflog(
         git,
         repo,
-        { ref: "HEAD", limit, offset },
+        { ref: query.ref, limit, offset },
         { backend: deps.backend, isVerified: deps.isVerified },
         deps.record
       );
@@ -64,7 +71,8 @@ export function createReflogSource(deps: ReflogSourceDeps): ReflogSource {
           state: null,
           hasMore: false,
           ref: null,
-          error: result.error.message
+          error: result.error.message,
+          searchCapped: false
         };
       }
       const states = await loadReflogEntryStates(
@@ -88,7 +96,14 @@ export function createReflogSource(deps: ReflogSourceDeps): ReflogSource {
           state: states.states[entry.hash] ?? null
         };
       });
-      return { rows, state: result.state, hasMore: result.hasMore, ref: result.ref, error: null };
+      return {
+        rows,
+        state: result.state,
+        hasMore: result.hasMore,
+        ref: result.ref,
+        error: null,
+        searchCapped: false
+      };
     }
   };
 }

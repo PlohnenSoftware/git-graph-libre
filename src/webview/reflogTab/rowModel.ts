@@ -1,9 +1,13 @@
-import type {
-  ReflogDataMessage,
-  ReflogDisplay,
-  ReflogLabels,
-  ReflogLoadingMessage,
-  ReflogRow
+import {
+  defaultReflogQuery,
+  normalizeReflogQuery,
+  type ReflogDataMessage,
+  type ReflogDisplay,
+  type ReflogLabels,
+  type ReflogLoadingMessage,
+  type ReflogQuery,
+  type ReflogRow,
+  reflogQueriesEqual
 } from "@/reflogTabTypes";
 import { formatRelativeDate, pad2 } from "@/webview/utils/date";
 
@@ -20,6 +24,12 @@ export type ReflogViewState = {
   loadingMore: boolean;
   requestId: number;
   repo: string;
+  /** The search, filters and picked ref the rows answer (F1-05). */
+  query: ReflogQuery;
+  /** The picker's refs for this repository. */
+  refs: string[];
+  /** A filtered read stopped at the search cap; older matches may be missing. */
+  searchCapped: boolean;
   ref: string | null;
   locale: string;
   labels: ReflogLabels | null;
@@ -59,6 +69,9 @@ export function initialReflogState(): ReflogViewState {
     loadingMore: false,
     requestId: 0,
     repo: "",
+    query: defaultReflogQuery(),
+    refs: ["HEAD"],
+    searchCapped: false,
     ref: null,
     locale: "en",
     labels: null,
@@ -78,18 +91,25 @@ export function applyLoading(
 ): ReflogViewState {
   if (message.requestId < state.requestId) return state;
   const sameRepo = message.repo === state.repo;
+  const query = normalizeReflogQuery(message.query);
+  // Rows answer one query: a refresh of that query keeps them on
+  // screen, a new query (or repository) starts from the loading word.
+  const keepRows = sameRepo && reflogQueriesEqual(query, state.query);
   return {
     ...state,
-    // A refresh of the rows on screen keeps them; a new repository starts over.
-    loading: !(sameRepo && state.rows.length > 0),
+    loading: !(keepRows && state.rows.length > 0),
     repo: message.repo,
-    rows: sameRepo ? state.rows : [],
+    query,
+    refs: message.refs.length > 0 ? message.refs : state.refs,
+    searchCapped: keepRows ? state.searchCapped : false,
+    rows: keepRows ? state.rows : [],
+    hasMore: keepRows ? state.hasMore : false,
     // Widths are per repository: a new one starts from its own saved set.
     columnWidths: sameRepo ? state.columnWidths : null,
     locale: message.locale,
     labels: message.labels,
     display: message.display,
-    error: sameRepo ? state.error : null
+    error: keepRows ? state.error : null
   };
 }
 
@@ -103,6 +123,10 @@ export function applyData(state: ReflogViewState, message: ReflogDataMessage): R
     loadingMore: false,
     requestId: message.requestId,
     repo: message.repo,
+    query: normalizeReflogQuery(message.query),
+    refs: message.refs.length > 0 ? message.refs : state.refs,
+    // A failed "Load more" keeps the cap note of the rows on screen.
+    searchCapped: message.append && page.error !== null ? state.searchCapped : page.searchCapped,
     ref: page.ref ?? state.ref,
     locale: message.locale,
     labels: message.labels,

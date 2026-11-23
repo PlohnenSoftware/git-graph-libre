@@ -79,6 +79,84 @@ export const REFLOG_SUB_ACTIONS = [
 ] as const;
 
 /**
+ * How far a filtered read looks (F1-05, RQ7): a search or filter fetches
+ * at most this many entries from Git — matches, when Git's own
+ * `--grep-reflog` does the searching — instead of only the loaded page.
+ * A constant, not a setting; the tab says when a read stopped there.
+ */
+export const REFLOG_SEARCH_CAP = 5000;
+
+/** What the tab asks for: which reflog, and which of its entries (F1-05). */
+export type ReflogQuery = {
+  /** A picker ref: `HEAD`, a local branch's full ref, or `refs/stash`. */
+  ref: string;
+  /** Fixed, case-insensitive message search text; empty searches nothing out. */
+  search: string;
+  /** The action kinds to keep, from {@link REFLOG_ACTION_KINDS}; empty keeps every kind. */
+  actions: string[];
+  /** Keep only entries whose commit only the reflog still reaches (the F1-02 state). */
+  onlyInReflog: boolean;
+};
+
+/** The unfiltered `HEAD` query the tab opens with. */
+export function defaultReflogQuery(): ReflogQuery {
+  return { ref: "HEAD", search: "", actions: [], onlyInReflog: false };
+}
+
+/** True when a query filters anything out, so its read goes up to the search cap. */
+export function isReflogFiltered(query: ReflogQuery): boolean {
+  return query.search !== "" || query.actions.length > 0 || query.onlyInReflog;
+}
+
+/** True when two queries ask for exactly the same entries. */
+export function reflogQueriesEqual(left: ReflogQuery, right: ReflogQuery): boolean {
+  return (
+    left.ref === right.ref &&
+    left.search === right.search &&
+    left.onlyInReflog === right.onlyInReflog &&
+    left.actions.length === right.actions.length &&
+    left.actions.every((kind, index) => kind === right.actions[index])
+  );
+}
+
+function hasControlCharacter(text: string): boolean {
+  for (const char of text) {
+    const code = char.charCodeAt(0);
+    if (code < 0x20 || code === 0x7f) return true;
+  }
+  return false;
+}
+
+/** A picker ref is `HEAD`, the stash, or a local branch's full name — nothing else. */
+function pickerRef(value: unknown): string {
+  if (typeof value !== "string" || hasControlCharacter(value)) return "HEAD";
+  if (value === "HEAD" || value === "refs/stash") return value;
+  // A full branch name never starts with a dash, so it can never be read
+  // as an option; the backend read refuses dash-led refs on top of this.
+  if (value.startsWith("refs/heads/") && value.length > "refs/heads/".length) return value;
+  return "HEAD";
+}
+
+/**
+ * A query the tab may act on, whatever arrived over the webview boundary:
+ * the ref is one the picker can name, the kinds are the known ones, and
+ * every field has its own type. Anything else falls back field by field,
+ * so a malformed message can never aim the backend at an arbitrary ref.
+ */
+export function normalizeReflogQuery(value: unknown): ReflogQuery {
+  if (typeof value !== "object" || value === null) return defaultReflogQuery();
+  const { ref, search, actions, onlyInReflog } = value as Record<string, unknown>;
+  return {
+    ref: pickerRef(ref),
+    search: typeof search === "string" ? search.trim() : "",
+    actions: Array.isArray(actions)
+      ? REFLOG_ACTION_KINDS.filter((kind) => actions.includes(kind))
+      : [],
+    onlyInReflog: onlyInReflog === true
+  };
+}
+
+/**
  * The graph's display settings, carried to this tab the way the graph's
  * boot config carries them (`webviewHtml.ts`): read live through the
  * `config` accessors on every load, so a settings change restyles both
@@ -97,13 +175,18 @@ export type ReflogDisplay = {
   months: string[];
 };
 
-/** The tab's localized text; `loadError` and `title` keep their `{0}`. */
+/** The tab's localized text; `loadError`, `searchCapped` and `title` keep their `{0}`. */
 export type ReflogLabels = {
   title: string;
   loading: string;
   loadMore: string;
   empty: string;
   loadError: string;
+  searchPlaceholder: string;
+  filterRef: string;
+  filterAllActions: string;
+  noMatches: string;
+  searchCapped: string;
   onlyInReflog: string;
   objectMissing: string;
   columnIndex: string;
@@ -132,11 +215,18 @@ export type ReflogPage = {
   ref: string | null;
   /** The read failure's message; null when the read worked. */
   error: string | null;
+  /**
+   * True when a filtered read stopped at {@link REFLOG_SEARCH_CAP} while
+   * more fetched entries remained, so older matches may be missing.
+   */
+  searchCapped: boolean;
 };
 
 /** Where the tab's pages come from; the extension host implements it. */
 export type ReflogSource = {
-  loadPage(repo: string, offset: number, limit: number): Promise<ReflogPage>;
+  loadPage(repo: string, offset: number, limit: number, query?: ReflogQuery): Promise<ReflogPage>;
+  /** The picker's refs for a repository; without one the tab offers only `HEAD`. */
+  loadRefs?(repo: string): Promise<string[]>;
 };
 
 /**
@@ -150,6 +240,9 @@ export type ReflogDataMessage = {
   /** True for a "Load more" page, which extends the rows already shown. */
   append: boolean;
   repo: string;
+  /** The query this page answers, and the picker's refs for the repository. */
+  query: ReflogQuery;
+  refs: string[];
   /** The VS Code display language, for the webview's relative times. */
   locale: string;
   labels: ReflogLabels;
@@ -167,6 +260,9 @@ export type ReflogLoadingMessage = {
   command: "reflogLoading";
   requestId: number;
   repo: string;
+  /** The query the started load answers, and the picker's refs known so far. */
+  query: ReflogQuery;
+  refs: string[];
   locale: string;
   labels: ReflogLabels;
   /** The graph's display settings, read live for this load. */
@@ -180,4 +276,5 @@ export type ReflogHostMessage = ReflogDataMessage | ReflogLoadingMessage;
 export type ReflogWebviewMessage =
   | { command: "ready" }
   | { command: "loadMore" }
-  | { command: "refresh" };
+  | { command: "refresh" }
+  | { command: "query"; query: ReflogQuery };

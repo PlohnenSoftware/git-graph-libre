@@ -1,9 +1,11 @@
-import type {
-  ReflogDataMessage,
-  ReflogDisplay,
-  ReflogLabels,
-  ReflogPage,
-  ReflogRow
+import {
+  defaultReflogQuery,
+  type ReflogDataMessage,
+  type ReflogDisplay,
+  type ReflogLabels,
+  type ReflogLoadingMessage,
+  type ReflogPage,
+  type ReflogRow
 } from "@/reflogTabTypes";
 
 /** Shared reflog fixtures for the tab's test files. */
@@ -13,6 +15,11 @@ export const LABELS: ReflogLabels = {
   loadMore: "Load More Entries",
   empty: "No reflog entries (empty wording).",
   loadError: "Unable to load the reflog: {0}",
+  searchPlaceholder: "Search reflog messages…",
+  filterRef: "Ref",
+  filterAllActions: "All actions",
+  noMatches: "No matching entries.",
+  searchCapped: "The search limit of {0} entries was reached; older entries may not be shown.",
   onlyInReflog: "Only in the reflog",
   objectMissing: "Object no longer exists",
   columnIndex: "Index",
@@ -88,6 +95,7 @@ export function page(overrides: Partial<ReflogPage> = {}): ReflogPage {
     hasMore: false,
     ref: "HEAD",
     error: null,
+    searchCapped: false,
     ...overrides
   };
 }
@@ -98,10 +106,28 @@ export function dataMessage(overrides: Partial<ReflogDataMessage> = {}): ReflogD
     requestId: 1,
     append: false,
     repo: "/repos/one",
+    query: defaultReflogQuery(),
+    refs: ["HEAD", "refs/heads/main", "refs/stash"],
     locale: "en",
     labels: LABELS,
     display: DISPLAY,
     page: page(),
+    ...overrides
+  };
+}
+
+export function loadingMessage(
+  overrides: Partial<ReflogLoadingMessage> = {}
+): ReflogLoadingMessage {
+  return {
+    command: "reflogLoading",
+    requestId: 1,
+    repo: "/repos/one",
+    query: defaultReflogQuery(),
+    refs: ["HEAD", "refs/heads/main", "refs/stash"],
+    locale: "en",
+    labels: LABELS,
+    display: DISPLAY,
     ...overrides
   };
 }
