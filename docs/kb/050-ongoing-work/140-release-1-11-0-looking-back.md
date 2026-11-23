@@ -224,3 +224,11 @@ anything unsolvable within reason be marked here while the rest continues.
   worktree) and webview 1,297 passed. F3-07 (Gemini 4 Neon) stalled for
   50 minutes waiting on a quota-blocked background task; it was stopped and
   queued for Muse Code after F2-04.
+- `2026-11-23`: second release-gate scan (analysis `12:38:17Z`): gate ERROR on
+  9 new issues (new-code coverage 90.1 %, duplication 0.18 %, no hotspots);
+  slice S2. S2a (Claude Haiku) integrated at `5773e36c`: eight mechanical
+  Reflog fixes, behavior unchanged (the branch-name check keeps rejecting a
+  space, so it reads code points instead of reusing `hasControlCharacter`).
+  S2b (`blameTab/view.ts` complexity 21) waits for F4-05 and F4-06. Gates on
+  `5773e36c`: strict Biome, typecheck, KB check, backend 1,592 passed (60
+  skipped in the worktree) and webview 1,297 passed.
