@@ -9,7 +9,11 @@ summary: >-
   dry runs; free on the public repository. Since `2026-10-20` (D66) a tolerant
   release gate lets up to two legs that never got a runner publish after one
   retry each, while any leg that ran and failed blocks; manual runs take
-  `tag`, `publish`, `skip_legs` and `max_not_run`.
+  `tag`, `publish`, `skip_legs` and `max_not_run`. Since `2026-11-24` tag-driven
+  pre-releases (`v<major>.<minor>.0-pre.<N>`) package onto the `9000+` patch
+  band of `package.json`'s base minor (`1.11.9001`) with `--pre-release` and
+  publish to GitHub Releases (`--prerelease`), VS Marketplace (`--pre-release`),
+  and Open VSX (via `extension.vsixmanifest`).
 ---
 
 # Verifying the packaged VSIX on every platform (`2026-10-17`)
@@ -110,8 +114,9 @@ Such a leg is `completed`, `cancelled`, `runner_id` 0, no steps.
 - **Outcomes of a leg:** passed; **failed** (it ran, a non-zero `runner_id` or
   any step, and did not succeed, a `timeout-minutes` overrun included, which
   fails the release at once); **not run** (runner 0 and no steps whatever the
-  conclusion, or still queued 30 minutes after creation,
-  `VERIFY_QUEUE_TIMEOUT_MINUTES` as a repository variable); **skipped**
+  conclusion, or still queued 5 minutes after creation — lowered from 30 on
+  `2026-11-24`, overridable via the `VERIFY_QUEUE_TIMEOUT_MINUTES` repository
+  variable); **skipped**
   (named in `skip_legs`, never scheduled).
 - **Retry:** the gate dispatches `verify-vsix.yml` once per not-run leg
   (`workflow_dispatch` works with `GITHUB_TOKEN`) with `legs` of that one leg,
@@ -146,3 +151,38 @@ Such a leg is `completed`, `cancelled`, `runner_id` 0, no steps.
   cancelled, so it may still run later; the run can show red (`verify`) while
   the gate and the release are green; a not-run leg is a platform not tested
   for that release, which the summary states.
+
+## Tag-driven pre-releases (`2026-11-24`)
+
+**Maintainer decision (`2026-11-24`).** Pre-releases use standard SemVer tags
+that still match `v*` — `v<major>.<minor>.0-pre.<N>` (with `N >= 1`, targeting
+the next minor or major, e.g. `v1.12.0-pre.1`) — so the `publish` GitHub
+environment policy (`main` and `v*` tags) and both OIDC trusted-publishing
+registrations stay unchanged.
+
+- **Version mapping (`resolveReleaseTarget` in
+  `scripts/release-verify-gate.mjs`):** `package.json` and
+  `sonar.projectVersion` stay untouched on the current stable line (e.g.
+  `1.11.0`, or `1.11.1` after a hotfix). `plan` validates the tag against
+  `package.json` before `native` runs, and maps `v<tMajor>.<tMinor>.0-pre.<N>`
+  to `<baseMajor>.<baseMinor>.<9000 + N>` (e.g. `1.11.9001`). That sits above
+  `1.11.x` hotfixes and strictly below `1.12.0`, so pre-release users
+  automatically graduate when `1.12.0` ships.
+- **Guards:** `plan` rejects malformed tags, patch pre-releases (`*.1-pre.1`),
+  stale targets not advancing past `package.json`'s minor, sequences past the
+  Marketplace 32-bit integer limit, and any `package.json` version already in
+  the reserved `>= 9000` patch band. Both `package` and `release` inspect the
+  built `.vsix` (`extension.vsixmanifest` and `extension/package.json`) to
+  verify the exact version and `Microsoft.VisualStudio.Code.PreRelease` flag
+  before uploading or publishing.
+- **Packaging and publishing:** `package` runs
+  `vsce package <vsixVersion> --no-update-package-json --no-git-tag-version
+  --no-dependencies --pre-release`, rewriting `extension.vsixmanifest` and the
+  VSIX's internal `extension/package.json` in memory without modifying git
+  files. `release` passes `--prerelease` (plus a note naming the packaged VSIX
+  version) to `gh release create`, passes `--pre-release` to `vsce publish`,
+  and publishes the same `.vsix` to Open VSX without `--pre-release` (`ovsx`
+  ignores `--pre-release` on prepackaged `.vsix` files; Open VSX reads
+  `Microsoft.VisualStudio.Code.PreRelease` from `extension.vsixmanifest`).
+- **Manual runs:** `gh workflow run publish.yml --ref main -f tag=v1.12.0-pre.1`
+  runs a pre-release dry run; add `-f publish=true` to publish that tag.

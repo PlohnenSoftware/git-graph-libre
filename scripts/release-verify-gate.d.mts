@@ -57,8 +57,16 @@ export type GateConfig = {
   pollSeconds: number;
 };
 
+export type ReleaseTarget = {
+  tag: string;
+  preRelease: boolean;
+  vsixVersion: string;
+  overrideVersion: boolean;
+};
+
 export declare const DEFAULT_MAX_NOT_RUN: number;
 export declare const DEFAULT_QUEUE_TIMEOUT_MINUTES: number;
+export declare const PRE_RELEASE_PATCH_BASE: number;
 
 export declare function classifyJob(
   job: GateJob | undefined,
@@ -70,6 +78,13 @@ export declare function planLegs<T extends { name: string }>(
   skipText: string | undefined
 ): { legs: T[]; skipped: string[] };
 export declare function validateManualInputs(inputs: { event?: string; tag?: string; publish?: string }): void;
+export declare function resolveReleaseTarget(inputs: {
+  event?: string;
+  refName?: string;
+  tag?: string;
+  publish?: string;
+  packageVersion?: string;
+}): ReleaseTarget;
 export declare function parseMaxNotRun(text: string | undefined): number;
 export declare function renderSummary(result: GateResult, skipped: readonly string[], maxNotRun: number): string;
 export declare function runGate(

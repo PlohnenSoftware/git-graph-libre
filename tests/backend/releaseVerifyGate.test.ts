@@ -2,13 +2,16 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  DEFAULT_QUEUE_TIMEOUT_MINUTES,
   evaluateGate,
   type GateApi,
   type GateJob,
   githubApi,
+  PRE_RELEASE_PATCH_BASE,
   parseMaxNotRun,
   planLegs,
   renderSummary,
+  resolveReleaseTarget,
   runGate,
   validateManualInputs
 } from "../../scripts/release-verify-gate.mjs";
@@ -184,6 +187,14 @@ describe("evaluateGate", () => {
       { ...OPTIONS, queueTimeoutMinutes: 5 }
     );
     expect(result.retryRequested).toEqual([LEGS[0]]);
+  });
+
+  it("defaults the queue timeout to 5 minutes when omitted", () => {
+    expect(DEFAULT_QUEUE_TIMEOUT_MINUTES).toBe(5);
+    const early = evaluateGate({ legs: [LEGS[0]], jobs: [queued(LEGS[0], 4)] }, { now: NOW });
+    expect(early.state).toBe("wait");
+    const late = evaluateGate({ legs: [LEGS[0]], jobs: [queued(LEGS[0], 6)] }, { now: NOW });
+    expect(late.retryRequested).toEqual([LEGS[0]]);
   });
 
   it("waits for a leg that is not listed yet, then calls it not run after the timeout", () => {
@@ -459,5 +470,178 @@ describe("githubApi listJobs", () => {
     const jobs = await api.listJobs("run");
     expect(jobs.map((entry) => entry.id)).toEqual(pages.flat().map((entry) => entry.id));
     expect(requested.map((url) => new URL(url).searchParams.get("page"))).toEqual(["1", "2"]);
+  });
+});
+
+describe("resolveReleaseTarget", () => {
+  it("resolves a matching stable tag push without overriding the version", () => {
+    expect(
+      resolveReleaseTarget({
+        event: "push",
+        refName: "v1.11.0",
+        packageVersion: "1.11.0"
+      })
+    ).toEqual({
+      tag: "v1.11.0",
+      preRelease: false,
+      vsixVersion: "1.11.0",
+      overrideVersion: false
+    });
+  });
+
+  it("resolves a matching stable manual publish", () => {
+    expect(
+      resolveReleaseTarget({
+        event: "workflow_dispatch",
+        refName: "main",
+        tag: "v1.11.0",
+        publish: "true",
+        packageVersion: "1.11.0"
+      })
+    ).toEqual({
+      tag: "v1.11.0",
+      preRelease: false,
+      vsixVersion: "1.11.0",
+      overrideVersion: false
+    });
+  });
+
+  it("resolves an untagged manual branch dry run", () => {
+    expect(
+      resolveReleaseTarget({
+        event: "workflow_dispatch",
+        refName: "main",
+        tag: "",
+        publish: "false",
+        packageVersion: "1.11.0"
+      })
+    ).toEqual({
+      tag: "",
+      preRelease: false,
+      vsixVersion: "1.11.0",
+      overrideVersion: false
+    });
+  });
+
+  it("maps a next-minor pre-release tag onto the 9000+ patch band of the current base minor", () => {
+    expect(
+      resolveReleaseTarget({
+        event: "push",
+        refName: "v1.12.0-pre.1",
+        packageVersion: "1.11.0"
+      })
+    ).toEqual({
+      tag: "v1.12.0-pre.1",
+      preRelease: true,
+      vsixVersion: `1.11.${PRE_RELEASE_PATCH_BASE + 1}`,
+      overrideVersion: true
+    });
+  });
+
+  it("keeps the 9000+ pre-release band monotonic across stable patch hotfixes", () => {
+    expect(
+      resolveReleaseTarget({
+        event: "push",
+        refName: "v1.12.0-pre.2",
+        packageVersion: "1.11.1"
+      })
+    ).toEqual({
+      tag: "v1.12.0-pre.2",
+      preRelease: true,
+      vsixVersion: "1.11.9002",
+      overrideVersion: true
+    });
+  });
+
+  it("supports pre-release tags targeting a next major release", () => {
+    expect(
+      resolveReleaseTarget({
+        event: "workflow_dispatch",
+        refName: "main",
+        tag: "v2.0.0-pre.3",
+        publish: "true",
+        packageVersion: "1.11.0"
+      })
+    ).toEqual({
+      tag: "v2.0.0-pre.3",
+      preRelease: true,
+      vsixVersion: "1.11.9003",
+      overrideVersion: true
+    });
+  });
+
+  it("rejects a stable tag that does not match package.json", () => {
+    expect(() =>
+      resolveReleaseTarget({
+        event: "push",
+        refName: "v1.12.0",
+        packageVersion: "1.11.0"
+      })
+    ).toThrow(/does not match package\.json version 1\.11\.0/);
+  });
+
+  it("rejects non-canonical or malformed tags", () => {
+    for (const bad of ["v1.12", "v01.12.0", "1.12.0"]) {
+      expect(() =>
+        resolveReleaseTarget({ event: "push", refName: bad, packageVersion: "1.11.0" })
+      ).toThrow(/Invalid release tag/);
+    }
+    for (const badPre of ["v1.12.0-beta.1", "v1.12.0-rc.1", "v1.12.0-pre.0", "v1.12.0-pre.01"]) {
+      expect(() =>
+        resolveReleaseTarget({ event: "push", refName: badPre, packageVersion: "1.11.0" })
+      ).toThrow(/Invalid pre-release tag/);
+    }
+  });
+
+  it("rejects pre-release tags targeting a patch release instead of a minor or major", () => {
+    expect(() =>
+      resolveReleaseTarget({
+        event: "push",
+        refName: "v1.11.1-pre.1",
+        packageVersion: "1.11.0"
+      })
+    ).toThrow(/must target a minor or major release/);
+  });
+
+  it("rejects pre-release tags that do not advance past package.json's minor version", () => {
+    for (const stale of ["v1.11.0-pre.1", "v1.10.0-pre.1"]) {
+      expect(() =>
+        resolveReleaseTarget({ event: "push", refName: stale, packageVersion: "1.11.0" })
+      ).toThrow(/must target a minor or major newer than package\.json/);
+    }
+    expect(() =>
+      resolveReleaseTarget({
+        event: "push",
+        refName: "v1.12.0-pre.1",
+        packageVersion: "1.12.0"
+      })
+    ).toThrow(/must target a minor or major newer than package\.json/);
+  });
+
+  it("rejects a package.json version inside the reserved 9000+ pre-release patch band", () => {
+    expect(() =>
+      resolveReleaseTarget({
+        event: "push",
+        refName: "v1.11.9001",
+        packageVersion: "1.11.9001"
+      })
+    ).toThrow(/reserved pre-release patch band/);
+  });
+
+  it("enforces the Marketplace 32-bit version integer limit on pre-release sequences", () => {
+    expect(
+      resolveReleaseTarget({
+        event: "push",
+        refName: "v1.12.0-pre.2147474647",
+        packageVersion: "1.11.0"
+      }).vsixVersion
+    ).toBe("1.11.2147483647");
+    expect(() =>
+      resolveReleaseTarget({
+        event: "push",
+        refName: "v1.12.0-pre.2147474648",
+        packageVersion: "1.11.0"
+      })
+    ).toThrow(/32-bit version limit/);
   });
 });

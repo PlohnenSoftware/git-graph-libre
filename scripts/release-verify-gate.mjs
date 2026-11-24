@@ -25,8 +25,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const DEFAULT_MAX_NOT_RUN = 2;
-export const DEFAULT_QUEUE_TIMEOUT_MINUTES = 30;
+export const DEFAULT_QUEUE_TIMEOUT_MINUTES = 5;
 export const DEFAULT_POLL_SECONDS = 30;
+export const PRE_RELEASE_PATCH_BASE = 9000;
+const MAX_VSIX_VERSION_PART = 2_147_483_647;
+const MAX_PRE_RELEASE_SEQUENCE = MAX_VSIX_VERSION_PART - PRE_RELEASE_PATCH_BASE;
+const STABLE_VERSION_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const STABLE_TAG_RE = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const PRE_RELEASE_TAG_RE = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-pre\.([1-9]\d*)$/;
 const VERIFY_WORKFLOW = "verify-vsix.yml";
 const MINUTE_MS = 60_000;
 const QUEUED_STATUSES = new Set(["queued", "waiting", "pending", "requested"]);
@@ -161,6 +167,97 @@ export function validateManualInputs({ event, tag, publish }) {
   if (event === "workflow_dispatch" && publish === "true" && (tag ?? "") === "") {
     throw new Error("publish is true but tag is empty: name the existing tag to publish, for example v1.9.0.");
   }
+}
+
+function parseSemverCore(text, label) {
+  const match = STABLE_VERSION_RE.exec(text ?? "");
+  if (match === null) {
+    throw new Error(`Invalid ${label} "${text ?? ""}": expected numeric MAJOR.MINOR.PATCH.`);
+  }
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  const patch = Number(match[3]);
+  if (major > MAX_VSIX_VERSION_PART || minor > MAX_VSIX_VERSION_PART || patch > MAX_VSIX_VERSION_PART) {
+    throw new Error(`${label} "${text}" exceeds the Marketplace 32-bit version limit.`);
+  }
+  return { major, minor, patch };
+}
+
+function resolvePreReleaseTag(tag, base, packageVersion) {
+  const match = PRE_RELEASE_TAG_RE.exec(tag);
+  if (match === null) {
+    throw new Error(
+      `Invalid pre-release tag "${tag}": expected v<major>.<minor>.0-pre.<N> (N >= 1), for example v1.12.0-pre.1.`
+    );
+  }
+  const targetMajor = Number(match[1]);
+  const targetMinor = Number(match[2]);
+  const targetPatch = Number(match[3]);
+  const sequence = Number(match[4]);
+  if (targetPatch !== 0) {
+    throw new Error(
+      `Pre-release tag "${tag}" must target a minor or major release (*.0), not patch .${targetPatch}: ` +
+        `the ${PRE_RELEASE_PATCH_BASE}+ patch band only sits strictly below the next minor or major.`
+    );
+  }
+  if (sequence > MAX_PRE_RELEASE_SEQUENCE) {
+    throw new Error(`Pre-release sequence ${sequence} in "${tag}" exceeds the Marketplace 32-bit version limit.`);
+  }
+  const advancesMinor = targetMajor > base.major || (targetMajor === base.major && targetMinor > base.minor);
+  if (!advancesMinor) {
+    throw new Error(
+      `Pre-release tag "${tag}" must target a minor or major newer than package.json version ${packageVersion} ` +
+        `(keep package.json on the previous stable version so the pre-release sits between ${packageVersion} and v${targetMajor}.${targetMinor}.0).`
+    );
+  }
+  return {
+    tag,
+    preRelease: true,
+    vsixVersion: `${base.major}.${base.minor}.${PRE_RELEASE_PATCH_BASE + sequence}`,
+    overrideVersion: true
+  };
+}
+
+function resolveStableTag(tag, packageVersion) {
+  if (!STABLE_TAG_RE.test(tag)) {
+    throw new Error(
+      `Invalid release tag "${tag}": expected v<major>.<minor>.<patch> or v<major>.<minor>.0-pre.<N>.`
+    );
+  }
+  const expectedTag = `v${packageVersion}`;
+  if (tag !== expectedTag) {
+    throw new Error(`Tag ${tag} does not match package.json version ${packageVersion} (expected ${expectedTag}).`);
+  }
+  return { tag, preRelease: false, vsixVersion: packageVersion, overrideVersion: false };
+}
+
+/**
+ * Resolves whether this run builds a stable release, a pre-release or an
+ * untagged branch dry run, and computes the exact numeric VSIX version.
+ *
+ * Pre-release tags (`v<major>.<minor>.0-pre.<N>`) keep `package.json` on the
+ * current stable line (e.g. `1.11.0`) and package the VSIX as
+ * `<baseMajor>.<baseMinor>.<9000 + N>` (e.g. `1.11.9001`) with `--pre-release`,
+ * so the pre-release stays above `1.11.x` hotfixes and graduates cleanly when
+ * `1.12.0` ships.
+ */
+export function resolveReleaseTarget({ event, refName, tag, publish, packageVersion }) {
+  validateManualInputs({ event, tag, publish });
+  const base = parseSemverCore(packageVersion, "package.json version");
+  if (base.patch >= PRE_RELEASE_PATCH_BASE) {
+    throw new Error(
+      `package.json version "${packageVersion}" uses the reserved pre-release patch band (>= ${PRE_RELEASE_PATCH_BASE}). ` +
+        "Keep package.json on the base release version and tag a pre-release as v<major>.<minor>.0-pre.<N>."
+    );
+  }
+  const effectiveTag = event === "workflow_dispatch" ? (tag ?? "").trim() : (refName ?? "").trim();
+  if (effectiveTag === "") {
+    return { tag: "", preRelease: false, vsixVersion: packageVersion, overrideVersion: false };
+  }
+  if (effectiveTag.includes("-")) {
+    return resolvePreReleaseTag(effectiveTag, base, packageVersion);
+  }
+  return resolveStableTag(effectiveTag, packageVersion);
 }
 
 export function parseMaxNotRun(text) {
@@ -333,14 +430,33 @@ function readLegFile(env) {
   return JSON.parse(readFileSync(env.LEGS_FILE ?? ".github/verify-vsix-legs.json", "utf8"));
 }
 
+function readPackageVersion(env) {
+  const file = env.PACKAGE_JSON || "package.json";
+  const manifest = JSON.parse(readFileSync(file, "utf8"));
+  return manifest.version;
+}
+
 function runPlan(env) {
   validateManualInputs({ event: env.GITHUB_EVENT_NAME, tag: env.TAG, publish: env.PUBLISH });
   parseMaxNotRun(env.MAX_NOT_RUN);
+  const release = resolveReleaseTarget({
+    event: env.GITHUB_EVENT_NAME,
+    refName: env.GITHUB_REF_NAME,
+    tag: env.TAG,
+    publish: env.PUBLISH,
+    packageVersion: readPackageVersion(env)
+  });
   const { legs, skipped } = planLegs(readLegFile(env), env.SKIP_LEGS);
   writeOutput(env, "legs", JSON.stringify(legs));
   writeOutput(env, "count", String(legs.length));
   writeOutput(env, "skipped", skipped.join(","));
-  console.log(`Verifying ${legs.length} leg(s); skipped: ${skipped.join(", ") || "none"}.`);
+  writeOutput(env, "release_tag", release.tag);
+  writeOutput(env, "pre_release", String(release.preRelease));
+  writeOutput(env, "vsix_version", release.vsixVersion);
+  writeOutput(env, "override_version", String(release.overrideVersion));
+  const kind = release.preRelease ? "pre-release" : "release";
+  const target = release.tag ? `${release.tag} -> ${release.vsixVersion}` : release.vsixVersion;
+  console.log(`Planned ${kind} (${target}); verifying ${legs.length} leg(s); skipped: ${skipped.join(", ") || "none"}.`);
 }
 
 async function runGateCli(env) {
