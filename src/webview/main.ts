@@ -510,6 +510,8 @@ function existingBranchMessage(
     .replace("{1}", () => ref(remoteRef));
 }
 
+type FixupCommitKind = "fixup" | "squash" | "reword";
+
 class GitGraphView {
   private gitRepos: GGL.GitRepoSet;
   /** How the repositories group into Git repositories, and the worktrees outside the workspace. */
@@ -664,7 +666,7 @@ class GitGraphView {
     requestId: number;
     repo: string;
     target: string;
-    kind: "fixup" | "squash" | "reword";
+    kind: FixupCommitKind;
     sourceElem: HTMLElement | null;
   } | null = null;
   /** The folder of the worktree being created, for the finish step (Y8) once Git answers. */
@@ -4517,7 +4519,7 @@ class GitGraphView {
   }
   public loadRebasePrediction(msg: Extract<GGL.ResponseMessage, { command: "rebasePrediction" }>) {
     const pending = this.pendingRebasePrediction;
-    if (pending === null || pending.requestId !== msg.requestId || pending.repo !== msg.repo) {
+    if (pending?.requestId !== msg.requestId || pending.repo !== msg.repo) {
       return;
     }
     this.pendingRebasePrediction = null;
@@ -4525,7 +4527,7 @@ class GitGraphView {
   }
   private requestFixupCommitDialog(
     target: string,
-    kind: "fixup" | "squash" | "reword",
+    kind: FixupCommitKind,
     sourceElem: HTMLElement | null
   ) {
     if (this.currentRepo === "") return;
@@ -4547,7 +4549,7 @@ class GitGraphView {
   }
   public loadFixupDialogInfo(msg: Extract<GGL.ResponseMessage, { command: "fixupDialogInfo" }>) {
     const pending = this.pendingFixupDialog;
-    if (pending === null || pending.requestId !== msg.requestId || pending.repo !== msg.repo) {
+    if (pending?.requestId !== msg.requestId || pending.repo !== msg.repo) {
       return;
     }
     this.pendingFixupDialog = null;
@@ -4559,7 +4561,7 @@ class GitGraphView {
     setStatusStrip("ready", l10n.statusReady);
     this.showCreateFixupDialog(pending.target, pending.kind, msg, pending.sourceElem);
   }
-  private fixupStagedCountNote(kind: "fixup" | "squash" | "reword", stagedCount: number): string {
+  private fixupStagedCountNote(kind: FixupCommitKind, stagedCount: number): string {
     if (kind === "reword") {
       if (stagedCount === 0) return l10n.rebaseRewordEmptyNote;
       if (stagedCount === 1) return l10n.rebaseRewordStagedUntouchedOne;
@@ -4569,7 +4571,7 @@ class GitGraphView {
     if (stagedCount === 1) return l10n.rebaseFixupStagedCountOne;
     return l10n.rebaseFixupStagedCountMany.replace("{0}", String(stagedCount));
   }
-  private fixupDialogStrings(kind: "fixup" | "squash" | "reword") {
+  private fixupDialogStrings(kind: FixupCommitKind) {
     if (kind === "squash") {
       return {
         titleTemplate: l10n.rebaseSquashDialogTitle,
@@ -4595,7 +4597,7 @@ class GitGraphView {
   }
   private showCreateFixupDialog(
     target: string,
-    kind: "fixup" | "squash" | "reword",
+    kind: FixupCommitKind,
     info: { stagedCount: number; targetSubject: string; targetMessage: string },
     sourceElem: HTMLElement | null
   ) {

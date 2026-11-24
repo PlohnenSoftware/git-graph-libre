@@ -105,8 +105,8 @@ function queryError(message: string, stderr: string | null = null): GitQueryErro
 
 function hasControlChar(value: string): boolean {
   for (let i = 0; i < value.length; i++) {
-    const code = value.charCodeAt(i);
-    if (code < 0x20 || code === 0x7f) return true;
+    const code = value.codePointAt(i);
+    if (code !== undefined && (code < 0x20 || code === 0x7f)) return true;
   }
   return false;
 }

@@ -190,10 +190,10 @@ async function firstParentOf(
     repo,
     record
   });
-  const [first] = output
+  const first = output
     .trim()
     .split(" ")
-    .filter((parent) => parent !== "");
+    .find((parent) => parent !== "");
   return first ?? null;
 }
 

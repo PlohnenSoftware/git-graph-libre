@@ -293,35 +293,35 @@ function renderDialogShellHtml(
   const startDisabledAttr = canStart ? "" : ' disabled aria-disabled="true"';
   const resetDisabledAttr = modified ? "" : " disabled";
 
-  return (
-    '<div class="dialogContent rebaseEditorContent">' +
-    '<div class="rebaseEditorHeader">' +
-    `<div class="dialogTitle rebaseEditorTitle">${escapeHtml(l10n.rebaseEditorTitle)}</div>` +
-    renderSubheaderHtml(state) +
-    renderAutosquashBarHtml(state) +
-    "</div>" +
-    `<div class="rebaseEditorNotices" id="rebaseEditorNotices" aria-live="polite">${renderNoticesHtml(state, shortHashLength, canOpenWorktree)}</div>` +
-    '<div class="rebaseEditorBody" id="rebaseEditorBody">' +
-    `<table class="rebaseEditorTable" aria-label="${escapeHtml(l10n.rebaseEditorTitle)}">` +
-    "<thead><tr>" +
-    `<th scope="col" class="rebaseEditorColAction">${escapeHtml(l10n.rebaseColumnAction)}</th>` +
-    `<th scope="col" class="rebaseEditorColHash">${escapeHtml(l10n.rebaseColumnCommit)}</th>` +
-    `<th scope="col" class="rebaseEditorColSubject">${escapeHtml(l10n.rebaseColumnSubject)}</th>` +
-    `<th scope="col" class="rebaseEditorColAuthor">${escapeHtml(l10n.rebaseColumnAuthor)}</th>` +
-    `<th scope="col" class="rebaseEditorColOrder">${escapeHtml(l10n.rebaseColumnOrder)}</th>` +
-    "</tr></thead>" +
-    `<tbody id="rebaseEditorTbody">${renderTableRowsHtml(state, shortHashLength)}</tbody>` +
-    "</table>" +
-    "</div>" +
-    '<div class="rebaseEditorPredictionSlot" id="rebaseEditorPredictionSlot" aria-live="polite"></div>' +
-    `<div class="rebaseEditorLongRangeSlot" id="rebaseEditorLongRangeSlot">${renderLongRangeConfirmHtml(state)}</div>` +
-    "</div>" +
-    '<div class="dialogActions rebaseEditorActions">' +
-    `<button type="button" id="rebaseEditorReset" class="dialogBtn"${resetDisabledAttr}>${escapeHtml(l10n.rebaseReset)}</button>` +
-    `<button type="button" id="dialogAction" class="dialogBtn dialogBtnPrimary"${startDisabledAttr}>${escapeHtml(l10n.rebaseStart)}</button>` +
-    `<button type="button" id="dialogDismiss" class="dialogBtn">${escapeHtml(l10n.dialogCancel)}</button>` +
+  return [
+    '<div class="dialogContent rebaseEditorContent">',
+    '<div class="rebaseEditorHeader">',
+    `<div class="dialogTitle rebaseEditorTitle">${escapeHtml(l10n.rebaseEditorTitle)}</div>`,
+    renderSubheaderHtml(state),
+    renderAutosquashBarHtml(state),
+    "</div>",
+    `<div class="rebaseEditorNotices" id="rebaseEditorNotices" aria-live="polite">${renderNoticesHtml(state, shortHashLength, canOpenWorktree)}</div>`,
+    '<div class="rebaseEditorBody" id="rebaseEditorBody">',
+    `<table class="rebaseEditorTable" aria-label="${escapeHtml(l10n.rebaseEditorTitle)}">`,
+    "<thead><tr>",
+    `<th scope="col" class="rebaseEditorColAction">${escapeHtml(l10n.rebaseColumnAction)}</th>`,
+    `<th scope="col" class="rebaseEditorColHash">${escapeHtml(l10n.rebaseColumnCommit)}</th>`,
+    `<th scope="col" class="rebaseEditorColSubject">${escapeHtml(l10n.rebaseColumnSubject)}</th>`,
+    `<th scope="col" class="rebaseEditorColAuthor">${escapeHtml(l10n.rebaseColumnAuthor)}</th>`,
+    `<th scope="col" class="rebaseEditorColOrder">${escapeHtml(l10n.rebaseColumnOrder)}</th>`,
+    "</tr></thead>",
+    `<tbody id="rebaseEditorTbody">${renderTableRowsHtml(state, shortHashLength)}</tbody>`,
+    "</table>",
+    "</div>",
+    '<div class="rebaseEditorPredictionSlot" id="rebaseEditorPredictionSlot" aria-live="polite"></div>',
+    `<div class="rebaseEditorLongRangeSlot" id="rebaseEditorLongRangeSlot">${renderLongRangeConfirmHtml(state)}</div>`,
+    "</div>",
+    '<div class="dialogActions rebaseEditorActions">',
+    `<button type="button" id="rebaseEditorReset" class="dialogBtn"${resetDisabledAttr}>${escapeHtml(l10n.rebaseReset)}</button>`,
+    `<button type="button" id="dialogAction" class="dialogBtn dialogBtnPrimary"${startDisabledAttr}>${escapeHtml(l10n.rebaseStart)}</button>`,
+    `<button type="button" id="dialogDismiss" class="dialogBtn">${escapeHtml(l10n.dialogCancel)}</button>`,
     "</div>"
-  );
+  ].join("");
 }
 
 /**

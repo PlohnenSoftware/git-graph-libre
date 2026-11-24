@@ -142,6 +142,33 @@ function findAutosquashTarget(
   return findHashTarget(lowerHashes, index, target);
 }
 
+function linkAfterTarget(next: number[], tail: number[], targetIndex: number, itemIndex: number) {
+  const anchor = tail[targetIndex] < 0 ? targetIndex : tail[targetIndex];
+  next[itemIndex] = next[anchor];
+  next[anchor] = itemIndex;
+  tail[targetIndex] = itemIndex;
+}
+
+function appendAutosquashChain(
+  commits: readonly AutosquashInputCommit[],
+  actions: readonly AutosquashActionSpec[],
+  next: readonly number[],
+  start: number,
+  arranged: AutosquashTodoEntry[]
+) {
+  let cursor = start;
+  while (cursor >= 0) {
+    const commit = commits[cursor];
+    const spec = actions[cursor];
+    arranged.push(
+      spec.fixupFlag === "-C"
+        ? { action: "fixup", hash: commit.hash, fixupFlag: "-C" }
+        : { action: spec.action, hash: commit.hash }
+    );
+    cursor = next[cursor];
+  }
+}
+
 /**
  * Rearranges a commit range (oldest first) according to Git's `--autosquash`
  * rules. Never mutates its input. Unmatched markers, markers targeting
@@ -156,9 +183,9 @@ export function arrangeAutosquash(
 
   const lowerHashes = commits.map((commit) => commit.hash.toLowerCase());
   const isPrefixed = commits.map((commit) => matchLeadingPrefix(commit.subject) !== null);
-  const next = new Array<number>(count).fill(-1);
-  const tail = new Array<number>(count).fill(-1);
-  const moved = new Array<boolean>(count).fill(false);
+  const next = Array.from({ length: count }, () => -1);
+  const tail = Array.from({ length: count }, () => -1);
+  const moved = Array.from({ length: count }, () => false);
   const actions: AutosquashActionSpec[] = commits.map(() => ({ action: "pick" }));
 
   for (let i = 0; i < count; i++) {
@@ -169,31 +196,12 @@ export function arrangeAutosquash(
 
     moved[i] = true;
     actions[i] = actionSpecForKind(marker.kind);
-    if (tail[targetIndex] < 0) {
-      next[i] = next[targetIndex];
-      next[targetIndex] = i;
-    } else {
-      const anchor = tail[targetIndex];
-      next[i] = next[anchor];
-      next[anchor] = i;
-    }
-    tail[targetIndex] = i;
+    linkAfterTarget(next, tail, targetIndex, i);
   }
 
   const arranged: AutosquashTodoEntry[] = [];
   for (let i = 0; i < count; i++) {
-    if (moved[i]) continue;
-    let cursor = i;
-    while (cursor >= 0) {
-      const commit = commits[cursor];
-      const spec = actions[cursor];
-      arranged.push(
-        spec.fixupFlag === "-C"
-          ? { action: "fixup", hash: commit.hash, fixupFlag: "-C" }
-          : { action: spec.action, hash: commit.hash }
-      );
-      cursor = next[cursor];
-    }
+    if (!moved[i]) appendAutosquashChain(commits, actions, next, i, arranged);
   }
   return arranged;
 }
