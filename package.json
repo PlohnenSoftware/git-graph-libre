@@ -136,13 +136,13 @@
     "simple-git": "^3.36.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.8",
-    "@napi-rs/cli": "^3.10.12",
-    "@primer/octicons": "^19.42.0",
+    "@biomejs/biome": "^2.6.9",
+    "@napi-rs/cli": "^3.11.1",
+    "@primer/octicons": "^19.43.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^26.6.6",
+    "@types/node": "^26.6.10",
     "@types/vscode": "~1.98.0",
-    "@vitest/coverage-v8": "5.1.1",
+    "@vitest/coverage-v8": "5.1.2",
     "@vscode/diff": "0.0.2-87",
     "@vscode/l10n-dev": "^0.0.35",
     "@vscode/test-cli": "^0.0.15",
@@ -151,9 +151,9 @@
     "esbuild": "^0.28.2",
     "jsdom": "^31.0.0",
     "ovsx": "^1.4.0",
-    "tsc-alias": "^1.9.10",
+    "tsc-alias": "^1.9.11",
     "typescript": "^7.0.2",
-    "vitest": "^5.1.1"
+    "vitest": "^5.1.2"
   },
   "l10n": "./l10n",
   "contributes": {
